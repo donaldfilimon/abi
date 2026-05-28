@@ -39,13 +39,13 @@ Do not assume old command names exist: `version`, `doctor`, `features`, `platfor
 | `src/root.zig` | Public `abi` module root |
 | `src/main.zig` | CLI entry |
 | `src/abi_cli/` | CLI usage, dispatch, handlers |
-| `src/mcp/main.zig` | MCP JSON-RPC server |
+| `src/mcp/main.zig` | MCP entry point (spawns HTTP, runs stdio loop) |
 | `src/features/mod.zig` | Feature flag mod/stub selection |
 | `src/features/ai/` | AI profiles, router, constitution, training, local streaming helpers |
 | `src/features/wdbx/` | In-memory vector store, HNSW, block chain |
 | `src/features/gpu/` | GPU status, Metal attempt on macOS, CPU fallback |
 | `src/features/tui/` | Diagnostics dashboard renderer |
-| `src/connectors/` | OpenAI, Anthropic, Discord, Twilio connector surfaces |
+| `src/connectors/` | OpenAI, Anthropic, Discord, Grok, Twilio connector surfaces |
 | `src/foundation/` | Time, sync, logger, utils, errors, OS, IO, credentials |
 | `src/core/registry.zig` | Generated plugin registry loading and metadata accessors |
 | `src/plugins/plugin_manager.zig` | Required manifest validation and local plugin manager API |
@@ -53,9 +53,9 @@ Do not assume old command names exist: `version`, `doctor`, `features`, `platfor
 
 ## Feature Flags
 
-Default enabled: `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`.
+Default enabled: `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`, `feat-hash`.
 
-Default disabled: `feat-mobile`.
+Default disabled: `feat-mobile`, `feat-metrics`.
 
 Use `-Dfeat-<name>=false|true`, for example:
 
@@ -75,7 +75,7 @@ There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 - HTTP endpoints: `GET /sse`, `POST /message`.
 - Request size limit: 64KB.
 - Methods: `initialize`, `tools/list`, `tools/call`, `resources/list`, `prompts/list`, `ping`, `shutdown`.
-- Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`.
+- Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `gpu_status`, `wdbx_stats`, `plugin_run`.
 
 ## Development Rules
 

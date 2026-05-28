@@ -128,7 +128,7 @@ fn jsonStringField(obj: std.json.ObjectMap, key: []const u8) ?[]const u8 {
     };
 }
 
-fn isSafeEntryPoint(entry_point: []const u8) bool {
+pub fn isSafeEntryPoint(entry_point: []const u8) bool {
     if (entry_point.len == 0) return false;
     if (!std.mem.endsWith(u8, entry_point, ".zig")) return false;
     if (entry_point[0] == '/' or entry_point[0] == '\\') return false;

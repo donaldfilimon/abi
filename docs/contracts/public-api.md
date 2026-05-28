@@ -23,6 +23,8 @@ Feature modules are selected by `src/features/mod.zig` from `build_options` and 
 - `ai`
 - `accelerator`
 - `gpu`
+- `hash`
+- `metrics`
 - `mlir`
 - `os_control`
 - `shaders`
@@ -69,6 +71,10 @@ The MCP server exposes JSON-RPC 2.0 over stdio and loopback HTTP/SSE. Feature-ba
 - `ai_complete`
 - `ai_train`
 - `wdbx_query`
+- `scheduler_stats`
+- `gpu_status`
+- `wdbx_stats`
+- `plugin_run`
 
 HTTP defaults to `127.0.0.1:8080`; use `ABI_MCP_HTTP_PORT` to select another loopback port. Empty, invalid, zero, or out-of-range overrides fall back to `8080`; HTTP bind failure is non-fatal and leaves stdio running.
 

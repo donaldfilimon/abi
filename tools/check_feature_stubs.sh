@@ -12,6 +12,8 @@ FLAGS=(
   feat-mobile
   feat-wdbx
   feat-os-control
+  feat-hash
+  feat-metrics
 )
 
 for flag in "${FLAGS[@]}"; do

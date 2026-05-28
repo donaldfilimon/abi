@@ -167,7 +167,7 @@ pub const Registry = struct {
         self.lock.lockRead();
         defer self.lock.unlockRead();
         if (!gated) return error.AccessDenied;
-        return os.OSController.init(self.allocator);
+        return os.OSController.init(self.allocator, std.Options.debug_io);
     }
 };
 

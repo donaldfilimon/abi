@@ -9,7 +9,12 @@ The ABI framework is built on a data-oriented composition model targeting Zig 0.
 - **Explicit Memory Management**: Custom allocators (Arena, Pool).
 - **Data-Oriented Design**: Cache-friendly layout, SIMD optimized.
 - **Mod/Stub Contract**: Feature-gated via `build_options` to allow tree-shaking.
-- **Registry-Based Lifecycle**: Managed by `src/core/registry.zig`, with memory and scheduler helpers exposed from `src/core/memory.zig` and `src/core/scheduler.zig`.
+- **Registry-Based Lifecycle & Observability (Significantly Advanced)**: 
+  - `core/scheduler.zig` now drives real user work (`abi agent train` submits prioritized TrainTasks; dashboard emits live ticks; MCP owns a long-lived scheduler instance exposed via `scheduler_stats` tool). `Scheduler.stats()` + `MemoryTracker` attachment provide deep visibility.
+  - Metrics counters (`submitted`/`completed`/`failed`) are live on task lifecycle when `-Dfeat-metrics`.
+  - MemoryTracker + TrackingAllocator are wired into production CLI paths (agent train arenas + dashboard scheduler) and integration tests.
+  - WDBX `Store` + HNSW acceleration status is updated on every vector op and surfaced in stats/manifest/MCP/CLI.
+  - All of this is exercised by contract tests and the new accelerated HNSW GPU path coverage.
 
 ## 2. Directory & Module Structure
 ```
@@ -30,9 +35,10 @@ src/
 ```
 
 ## 3. Core Features (WDBX Substrate)
-- **HNSW Index**: Hierarchical Navigable Small World index using SIMD-accelerated distance calculations.
+- **HNSW Index**: Hierarchical Navigable Small World index. Cosine distance uses a portable SIMD implementation (`cosineDistanceSIMD` with `@Vector` + scalar fallback) with an optional real GPU-accelerated fast path (via `gpu.vectorOps().cosineSimilarity` / dot when `feat-gpu` + backend reports accelerated + Metal context available on macOS). The accelerated path is exercised by new dedicated contract tests in `tests/contracts/feature_modules.zig` (using the existing `gpu.vectorOps()` surface + HNSW via `Store.putVector`/`search`).
 - **Block Chain Memory**: Cryptographically chained conversation blocks (SHA-256) with MVCC-based snapshot lookup for immutable state management; contract tests cover metadata round-tripping and snapshot access.
-- **Claim Boundary**: The current repo does not prove distributed sharding, AES/RBAC, Swift/Python/TensorFlow runtime support, Kubernetes/H100 deployments, regulatory certifications, production QPS/latency/accuracy, energy efficiency, or comparative model benchmark scores.
+- **Observability & Lifecycle**: `Store` exposes `stats()` + `accelerationStatus()` (backend/mode/message) updated on vector/spatial ops. Acceleration reporting is also surfaced via `exportManifest()`.
+- **Claim Boundary**: The current repo does not prove distributed sharding, AES/RBAC, Swift/Python/TensorFlow runtime support, Kubernetes/H100 deployments, regulatory certifications, production QPS/latency/accuracy, energy efficiency, or comparative model benchmark scores. (Note: real GPU acceleration for HNSW cosine *has* been implemented and contract-tested as of Phase 2.)
 
 ## 4. AI Pipeline: Abbey-Aviva-Abi
 - **Routing**: Sentiment-based, multi-weight routing across Abbey, Aviva, and Abi profiles.
@@ -69,4 +75,6 @@ Each plugin must provide a manifest. `entry_point` must be a safe relative `.zig
 Discord connector calls validate printable non-whitespace credentials, numeric snowflake-like client/channel/author IDs, and Discord's 2000-byte message size limit before local acknowledgements or live HTTP dispatch. Twilio connector calls validate account SIDs as `AC` plus 32 hex characters, auth tokens as 32 hex characters, base URL, timeout, explicit `.live` transport selection, XML/form escaping, and ConversationRelay payload aliases/wrong-typed payloads before local responses or live TwiML/form dispatch. OpenAI and Anthropic local streaming helpers remain deterministic unless explicit live methods are used.
 
 ### Feature/GPU Completion Contract
-Every feature surface under `src/features/` has a real implementation and disabled stub selected by `src/features/mod.zig`. `tools/check_feature_stubs.sh` compiles every `-Dfeat-*` disabled path, runs focused `test-feature-contracts` coverage, runs feature-aware public `test-contracts` coverage for every disabled feature, and covers `-Dfeat-mobile=true` because mobile defaults off. GPU backend selection is runtime behavior: Metal may initialize on macOS, but vector operations and status reporting fall back deterministically to CPU when native kernels are unavailable.
+Every feature surface under `src/features/` has a real implementation and disabled stub selected by `src/features/mod.zig`. `tools/check_feature_stubs.sh` compiles every `-Dfeat-*` disabled path, runs focused `test-feature-contracts` coverage, runs feature-aware public `test-contracts` coverage for every disabled feature, and covers `-Dfeat-mobile=true` because mobile defaults off.
+
+**GPU Acceleration (Advanced in Phase 2)**: Vector operations (`gpu.vectorOps()`) provide `dot` / `squaredL2` / `cosineSimilarity` with real Metal kernel acceleration on macOS when available (`feat-gpu` + `backend.accelerated` + initialized context), with clean vectorized CPU fallback otherwise. HNSW cosine distance in `wdbx/hnsw.zig` now conditionally uses the GPU path (via `vectorOps().cosineSimilarity`) when conditions are met, while preserving the original pure-SIMD implementation as the default/fallback. New dedicated contract tests in `feature_modules.zig` exercise the full accelerated distance surface + HNSW paths. WDBX `Store.accelerationStatus()` and `runAccelerationKernel` continue to provide accurate reporting (including "gpu-accelerated-cosine" direction for HNSW ops). Fallback to CPU remains deterministic when the fast path is not taken.

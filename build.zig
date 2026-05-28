@@ -14,6 +14,8 @@ pub fn build(b: *std.Build) void {
     const feat_mobile = b.option(bool, "feat-mobile", "Enable mobile platform feature flag") orelse false;
     const feat_wdbx = b.option(bool, "feat-wdbx", "Enable WDBX vector store and block memory") orelse true;
     const feat_os_control = b.option(bool, "feat-os-control", "Enable OS command policy controls") orelse true;
+    const feat_hash = b.option(bool, "feat-hash", "Enable stable portable hashing utilities") orelse true;
+    const feat_metrics = b.option(bool, "feat-metrics", "Enable lightweight in-process metrics for observability") orelse false;
 
     const options = b.addOptions();
     options.addOption(bool, "feat_ai", feat_ai);
@@ -25,6 +27,8 @@ pub fn build(b: *std.Build) void {
     options.addOption(bool, "feat_mobile", feat_mobile);
     options.addOption(bool, "feat_wdbx", feat_wdbx);
     options.addOption(bool, "feat_os_control", feat_os_control);
+    options.addOption(bool, "feat_hash", feat_hash);
+    options.addOption(bool, "feat_metrics", feat_metrics);
     const options_mod = options.createModule();
 
     // Plugin Registry Generation

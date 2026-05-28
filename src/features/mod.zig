@@ -13,9 +13,13 @@ pub const mlir = if (build_options.feat_mlir) @import("mlir/mod.zig") else @impo
 // ── OS & Platform ──
 pub const os_control = if (build_options.feat_os_control) @import("os_control/mod.zig") else @import("os_control/stub.zig");
 pub const mobile = if (build_options.feat_mobile) @import("mobile/mod.zig") else @import("mobile/stub.zig");
+pub const metrics = if (build_options.feat_metrics) @import("metrics/mod.zig") else @import("metrics/stub.zig");
 
 // ── UI ──
 pub const tui = if (build_options.feat_tui) @import("tui/mod.zig") else @import("tui/stub.zig");
+
+// ── Utilities ──
+pub const hash = if (build_options.feat_hash) @import("hash/mod.zig") else @import("hash/stub.zig");
 
 test {
     const std = @import("std");
@@ -30,7 +34,10 @@ test {
     // OS & Platform
     std.testing.refAllDecls(os_control);
     std.testing.refAllDecls(mobile);
+    std.testing.refAllDecls(metrics);
     // UI
     std.testing.refAllDecls(tui);
+    // Utilities
+    std.testing.refAllDecls(hash);
     std.testing.refAllDecls(@This());
 }

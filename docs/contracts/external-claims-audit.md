@@ -19,7 +19,7 @@ This audit reconciles public collateral claims from the Drive files opened on 20
 | Completion persistence | `CompletionRequest.store_result`, `completeWithStore()`, contract tests | Completion persistence is opt-in; when WDBX is enabled it records query/response vectors, metadata, and append-linked blocks in a caller-provided store. |
 | MCP/CLI | `src/abi_cli/usage.zig`, `src/mcp/handlers.zig`, contract tests | Public CLI commands and MCP tools are small, frozen surfaces guarded by contract tests. |
 | GPU | `src/features/gpu/`, `build.zig`, contract tests | GPU support is capability/status reporting plus vector operations that deterministically fall back to CPU when native kernels are unavailable. |
-| Connectors | `src/connectors/`, `docs/contracts/public-api.md` | OpenAI, Anthropic, Discord, and Twilio connectors validate local/live boundaries; live HTTP dispatch is explicit. |
+| Connectors | `src/connectors/`, `docs/contracts/public-api.md` | OpenAI, Anthropic, Discord, Grok, and Twilio connectors validate local/live boundaries; live HTTP dispatch is explicit. |
 
 ## Claims To Remove Or Downgrade
 

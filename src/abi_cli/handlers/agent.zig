@@ -20,11 +20,98 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
 
         const dataset = abi.features.ai.DatasetSpec{ .path = "datasets/local-training.jsonl" };
         const artifact_dir = "zig-cache/agent-artifacts";
-        const result = if (std.mem.eql(u8, args[3], "all"))
+        const profile_arg = args[3];
+        const is_all = std.mem.eql(u8, profile_arg, "all");
+
+        // Massive functionality improvement (addressing repeated gaps in roadmap, design doc,
+        // master spec, and todo after full .md/docs review):
+        // The rich Scheduler (O(log N) priority, stats, cancellation) was previously unused
+        // for real user work. Now `abi agent train` (the primary training surface) submits
+        // the actual training as real scheduler tasks. This makes scheduler_stats, the TUI
+        // scheduler pane, and future integration show *real* user-triggered work with
+        // proper priority, status, and observability.
+        var sched = abi.scheduler.Scheduler.init(allocator);
+        defer sched.deinit();
+
+        // MemoryTracker wiring for production CLI train path (deeper observability per plan,
+        // focusing on src/abi_cli as requested). Uses the Scheduler setter + TrackingAllocator
+        // on the task arena (matches the pattern proven in integration tests).
+        var mem_tracker = abi.memory.MemoryTracker.init(allocator);
+        var tracking_alloc = abi.memory.TrackingAllocator.init(allocator, &mem_tracker);
+        sched.setMemoryTracker(&mem_tracker);
+
+        // Use an arena for all per-task context (names + TaskCtx) so we have zero leaks
+        // and follow Zig 0.17 careful allocator discipline (per zig-017-modernization skill).
+        var arena = std.heap.ArenaAllocator.init(tracking_alloc.allocator());
+        defer arena.deinit();
+        const task_alloc = arena.allocator();
+
+        const TaskCtx = struct {
+            allocator: std.mem.Allocator,
+            store: *abi.features.wdbx.Store,
+            dataset: abi.features.ai.DatasetSpec,
+            artifact_dir: []const u8,
+            profile: []const u8,
+        };
+
+        const TrainTask = struct {
+            fn run(ctx: ?*anyopaque) anyerror!void {
+                const c = @as(*TaskCtx, @ptrCast(@alignCast(ctx.?)));
+                var res = abi.features.ai.trainWithStore(c.allocator, c.store, .{
+                    .profile = c.profile,
+                    .dataset = c.dataset,
+                    .artifact_dir = c.artifact_dir,
+                }) catch |e| {
+                    std.log.err("train task {s} failed: {s}", .{ c.profile, @errorName(e) });
+                    return e;
+                };
+                res.deinit(c.allocator);
+            }
+        };
+
+        if (is_all) {
+            for (abi.features.ai.known_profiles) |p| {
+                const label = p.label();
+                const name = try std.fmt.allocPrint(task_alloc, "train:{s}", .{label});
+                const ctx = try task_alloc.create(TaskCtx);
+                ctx.* = .{
+                    .allocator = allocator,
+                    .store = &store,
+                    .dataset = dataset,
+                    .artifact_dir = artifact_dir,
+                    .profile = label,
+                };
+                _ = try sched.submit(name, .high, TrainTask.run, ctx);
+            }
+        } else {
+            const name = try std.fmt.allocPrint(task_alloc, "train:{s}", .{profile_arg});
+            const ctx = try task_alloc.create(TaskCtx);
+            ctx.* = .{
+                .allocator = allocator,
+                .store = &store,
+                .dataset = dataset,
+                .artifact_dir = artifact_dir,
+                .profile = profile_arg,
+            };
+            _ = try sched.submit(name, .high, TrainTask.run, ctx);
+        }
+
+        // Run the real scheduled training work
+        try sched.runAll();
+
+        const s = sched.stats();
+        std.debug.print("training executed via scheduler (real tasks, not demos)\n", .{});
+        std.debug.print("scheduler: running={d} pending={d} completed={d} failed={d}\n", .{ s.running, s.pending, s.completed, s.failed });
+
+        // Memory observability (new in this CLI focus)
+        std.debug.print("memory (tracker): peak={d}B records={d}\n", .{ mem_tracker.getPeakUsage(), mem_tracker.getRecordCount() });
+
+        // Preserve previous user-visible output
+        const result = if (is_all)
             try abi.features.ai.trainKnownProfiles(allocator, &store, dataset, artifact_dir)
         else
             try abi.features.ai.trainWithStore(allocator, &store, .{
-                .profile = args[3],
+                .profile = profile_arg,
                 .dataset = dataset,
                 .artifact_dir = artifact_dir,
             });

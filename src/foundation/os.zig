@@ -66,9 +66,10 @@ pub const SystemInfo = struct {
 
 pub const OSController = struct {
     allocator: std.mem.Allocator,
+    io: std.Io,
 
-    pub fn init(allocator: std.mem.Allocator) OSController {
-        return .{ .allocator = allocator };
+    pub fn init(allocator: std.mem.Allocator, io: std.Io) OSController {
+        return .{ .allocator = allocator, .io = io };
     }
 
     pub fn execute(self: *OSController, command: Command) !void {
@@ -106,30 +107,26 @@ pub const OSController = struct {
     }
 
     pub fn readPath(self: *OSController, path: []const u8) ![]const u8 {
-        const io = std.Options.debug_io;
-        const file = try std.Io.Dir.openFileAbsolute(io, path, .{});
-        defer file.close(io);
+        const file = try std.Io.Dir.openFileAbsolute(self.io, path, .{});
+        defer file.close(self.io);
 
-        const stat = try file.stat(io);
+        const stat = try file.stat(self.io);
         const buf = try self.allocator.alloc(u8, @intCast(stat.size));
         errdefer self.allocator.free(buf);
-        const bytes_read = try file.readPositionalAll(io, buf, 0);
+        const bytes_read = try file.readPositionalAll(self.io, buf, 0);
         if (bytes_read < stat.size) return error.UnexpectedEOF;
         return buf;
     }
 
     pub fn writeFile(self: *OSController, path: []const u8, content: []const u8) !void {
-        _ = self;
-        const io = std.Options.debug_io;
-        const file = try std.Io.Dir.createFileAbsolute(io, path, .{});
-        defer file.close(io);
+        const file = try std.Io.Dir.createFileAbsolute(self.io, path, .{});
+        defer file.close(self.io);
 
-        try std.Io.File.writeStreamingAll(file, io, content);
+        try std.Io.File.writeStreamingAll(file, self.io, content);
     }
 
     pub fn statFile(self: *OSController, path: []const u8) !FileInfo {
-        const io = std.Options.debug_io;
-        const stat = try std.Io.Dir.statFile(std.Io.Dir.cwd(), io, path, .{});
+        const stat = try std.Io.Dir.statFile(std.Io.Dir.cwd(), self.io, path, .{});
         const path_copy = try self.allocator.dupe(u8, path);
         errdefer self.allocator.free(path_copy);
 
@@ -142,7 +139,7 @@ pub const OSController = struct {
     }
 
     pub fn getEnvVar(self: *OSController, key: []const u8) ![]const u8 {
-        const value = std.process.Environ.getAlloc(.{ .block = .global }, self.allocator, key) catch |err| switch (err) {
+        const value = std.process.getEnvVar(self.allocator, key) catch |err| switch (err) {
             error.EnvironmentVariableMissing => return error.EnvVarNotFound,
             else => return err,
         };
@@ -150,7 +147,7 @@ pub const OSController = struct {
     }
 
     pub fn getCwd(self: *OSController) ![]const u8 {
-        const cwd = try std.process.currentPathAlloc(std.Options.debug_io, self.allocator);
+        const cwd = try std.process.currentPathAlloc(self.io, self.allocator);
         defer self.allocator.free(cwd);
         return try self.allocator.dupe(u8, cwd);
     }
@@ -203,9 +200,8 @@ pub const OSController = struct {
     }
 
     pub fn listDirectory(self: *OSController, path: []const u8) !std.ArrayListUnmanaged([]const u8) {
-        const io = std.Options.debug_io;
-        var dir = try std.Io.Dir.openDirAbsolute(io, path, .{ .iterate = true });
-        defer dir.close(io);
+        var dir = try std.Io.Dir.openDirAbsolute(self.io, path, .{ .iterate = true });
+        defer dir.close(self.io);
 
         var entries: std.ArrayListUnmanaged([]const u8) = .empty;
         errdefer {
@@ -216,7 +212,7 @@ pub const OSController = struct {
         }
 
         var iter = dir.iterate();
-        while (try iter.next(io)) |entry| {
+        while (try iter.next(self.io)) |entry| {
             const name_copy = try self.allocator.dupe(u8, entry.name);
             errdefer self.allocator.free(name_copy);
             try entries.append(self.allocator, name_copy);
@@ -232,41 +228,41 @@ test {
 }
 
 test "OSController init" {
-    const controller = OSController.init(std.testing.allocator);
+    const controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
     _ = controller;
 }
 
 test "OSController getPid" {
-    var controller = OSController.init(std.testing.allocator);
+    var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
     const pid = controller.getPid();
     try std.testing.expect(pid > 0);
 }
 
 test "OSController getParentPid" {
-    var controller = OSController.init(std.testing.allocator);
+    var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
     const ppid = controller.getParentPid();
     try std.testing.expect(ppid > 0);
 }
 
 test "OSController getPlatform" {
-    var controller = OSController.init(std.testing.allocator);
+    var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
     const platform = controller.getPlatform();
     try std.testing.expect(platform != .unknown);
 }
 
 test "OSController getArch" {
-    var controller = OSController.init(std.testing.allocator);
+    var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
     const arch = controller.getArch();
     try std.testing.expect(arch != .unknown);
 }
 
 test "OSController getHostname" {
-    var controller = OSController.init(std.testing.allocator);
+    var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
     const hostname = try controller.getHostname();
     defer std.testing.allocator.free(hostname);
@@ -275,7 +271,7 @@ test "OSController getHostname" {
 }
 
 test "OSController getCwd" {
-    var controller = OSController.init(std.testing.allocator);
+    var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
     const cwd = try controller.getCwd();
     defer std.testing.allocator.free(cwd);
@@ -284,14 +280,14 @@ test "OSController getCwd" {
 }
 
 test "OSController writeFile and readPath" {
-    var controller = OSController.init(std.testing.allocator);
+    var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
     const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_os_test_{d}.txt", .{controller.getPid()});
     defer std.testing.allocator.free(test_path);
     const test_content = "hello from abi os controller";
 
     try controller.writeFile(test_path, test_content);
-    defer std.Io.Dir.deleteFileAbsolute(std.Options.debug_io, test_path) catch |err| std.log.warn("cleanup failed: {s}", .{@errorName(err)});
+    defer std.Io.Dir.deleteFileAbsolute(controller.io, test_path) catch |err| std.log.warn("cleanup failed: {s}", .{@errorName(err)});
 
     const content = try controller.readPath(test_path);
     defer std.testing.allocator.free(content);
@@ -300,14 +296,14 @@ test "OSController writeFile and readPath" {
 }
 
 test "OSController statFile" {
-    var controller = OSController.init(std.testing.allocator);
+    var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
     const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_os_stat_test_{d}.txt", .{controller.getPid()});
     defer std.testing.allocator.free(test_path);
     const test_content = "stat test content";
 
     try controller.writeFile(test_path, test_content);
-    defer std.Io.Dir.deleteFileAbsolute(std.Options.debug_io, test_path) catch |err| std.log.warn("cleanup failed: {s}", .{@errorName(err)});
+    defer std.Io.Dir.deleteFileAbsolute(controller.io, test_path) catch |err| std.log.warn("cleanup failed: {s}", .{@errorName(err)});
 
     const info = try controller.statFile(test_path);
     defer std.testing.allocator.free(info.path);
@@ -318,7 +314,7 @@ test "OSController statFile" {
 }
 
 test "OSController listDirectory" {
-    var controller = OSController.init(std.testing.allocator);
+    var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
     var entries = try controller.listDirectory("/tmp");
     defer {
@@ -332,7 +328,7 @@ test "OSController listDirectory" {
 }
 
 test "OSController getSystemInfo" {
-    var controller = OSController.init(std.testing.allocator);
+    var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
     const info = try controller.getSystemInfo();
     defer std.testing.allocator.free(info.hostname);

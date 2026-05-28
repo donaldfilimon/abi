@@ -8,6 +8,9 @@ pub const memory = @import("core/memory.zig");
 pub const scheduler = @import("core/scheduler.zig");
 pub const plugins = @import("plugins/plugin_manager.zig");
 
+// Re-export the most common plugin operations at the top level for convenience
+pub const runPlugin = plugins.PluginManager.run;
+
 test {
     const std = @import("std");
     _ = @import("foundation/mod.zig");

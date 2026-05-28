@@ -4,6 +4,10 @@ const sync = @import("../foundation/sync.zig");
 const time = @import("../foundation/time.zig");
 const errors = @import("../foundation/errors.zig");
 
+const build_options = @import("build_options");
+const metrics = if (build_options.feat_metrics) @import("../features/metrics/mod.zig") else @import("../features/metrics/stub.zig");
+const memory = @import("memory.zig");
+
 pub const TaskStatus = enum(u8) {
     pending,
     running,
@@ -44,8 +48,16 @@ pub const Scheduler = struct {
     completed_count: std.atomic.Value(usize),
     failed_count: std.atomic.Value(usize),
 
+    // Metrics instance (populated only when -Dfeat-metrics; used for task lifecycle counters).
+    // Part of approved "Deeper src/ Integration & Observability Pass".
+    metrics_instance: ?metrics.Metrics = null,
+
+    // Optional MemoryTracker for the allocations performed by/through this scheduler
+    // (e.g. task names, TaskCtx arenas in training paths). Wired in Phase 1 memory step.
+    memory_tracker: ?*memory.MemoryTracker = null,
+
     pub fn init(allocator: std.mem.Allocator) Scheduler {
-        return .{
+        var self = Scheduler{
             .allocator = allocator,
             .heap = std.PriorityQueue(Task, void, compareTasks).initContext({}),
             .tasks = std.ArrayListUnmanaged(Task).empty,
@@ -55,6 +67,10 @@ pub const Scheduler = struct {
             .completed_count = std.atomic.Value(usize).init(0),
             .failed_count = std.atomic.Value(usize).init(0),
         };
+        if (comptime build_options.feat_metrics) {
+            self.metrics_instance = metrics.Metrics.init(allocator);
+        }
+        return self;
     }
 
     pub fn deinit(self: *Scheduler) void {
@@ -64,6 +80,9 @@ pub const Scheduler = struct {
             if (task.error_msg) |message| self.allocator.free(message);
         }
         self.tasks.deinit(self.allocator);
+        if (self.metrics_instance) |*m| {
+            m.deinit();
+        }
     }
 
     fn compareTasks(_: void, a: Task, b: Task) std.math.Order {
@@ -95,6 +114,7 @@ pub const Scheduler = struct {
         try self.heap.push(self.allocator, task);
         try self.tasks.append(self.allocator, task);
 
+        self.recordMetric("scheduler.tasks.submitted", 1);
         return task_id;
     }
 
@@ -152,6 +172,7 @@ pub const Scheduler = struct {
             }
             _ = self.running_count.fetchSub(1, .monotonic);
             _ = self.failed_count.fetchAdd(1, .monotonic);
+            self.recordMetric("scheduler.tasks.failed", 1);
             return err;
         };
 
@@ -165,6 +186,7 @@ pub const Scheduler = struct {
         }
         _ = self.running_count.fetchSub(1, .monotonic);
         _ = self.completed_count.fetchAdd(1, .monotonic);
+        self.recordMetric("scheduler.tasks.completed", 1);
 
         return task_id;
     }
@@ -221,10 +243,47 @@ pub const Scheduler = struct {
         @memcpy(result, self.tasks.items);
         return result;
     }
+
+    pub const Stats = struct {
+        running: usize,
+        pending: usize,
+        completed: usize,
+        failed: usize,
+    };
+
+    /// Aggregate view of the primary task counters. Useful for dashboard/MCP
+    /// observability without multiple round-trips or lock acquisitions.
+    pub fn stats(self: *const Scheduler) Stats {
+        return .{
+            .running = self.getRunningCount(),
+            .pending = self.getPendingCount(),
+            .completed = self.getCompletedCount(),
+            .failed = self.getFailedCount(),
+        };
+    }
+
+    // --- Metrics wiring (Phase 1 of approved deeper-integration plan) ---
+    // Real counters when -Dfeat-metrics; degrades silently via stub when disabled.
+    fn recordMetric(self: *Scheduler, name: []const u8, delta: u64) void {
+        if (self.metrics_instance) |*m| {
+            _ = m.increment(name, delta) catch {};
+        }
+    }
+
+    /// Attach an external MemoryTracker so this scheduler can participate
+    /// in cross-layer memory observability (training paths, task ctxs, etc.).
+    pub fn setMemoryTracker(self: *Scheduler, tracker: *memory.MemoryTracker) void {
+        self.memory_tracker = tracker;
+    }
+
+    pub fn getMemoryTracker(self: *const Scheduler) ?*memory.MemoryTracker {
+        return self.memory_tracker;
+    }
 };
 
 test {
     std.testing.refAllDecls(@This());
+    _ = metrics; // metrics feature wired for real task lifecycle counters (Phase 1 of approved integration plan)
 }
 
 fn dummyTask(ctx: ?*anyopaque) anyerror!void {
@@ -314,4 +373,26 @@ test "Scheduler failed task tracking" {
     try std.testing.expectEqual(error.TestFailure, err);
 
     try std.testing.expectEqual(@as(usize, 1), scheduler.getFailedCount());
+}
+
+test "Scheduler stats aggregates counters" {
+    var scheduler = Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    _ = try scheduler.submit("t1", .normal, dummyTask, null);
+    _ = try scheduler.submit("t2", .high, dummyTask, null);
+
+    var s = scheduler.stats();
+    try std.testing.expectEqual(@as(usize, 0), s.running);
+    try std.testing.expectEqual(@as(usize, 2), s.pending);
+    try std.testing.expectEqual(@as(usize, 0), s.completed);
+    try std.testing.expectEqual(@as(usize, 0), s.failed);
+
+    _ = try scheduler.runNext(); // runs one (high priority)
+
+    s = scheduler.stats();
+    try std.testing.expectEqual(@as(usize, 0), s.running);
+    try std.testing.expectEqual(@as(usize, 1), s.pending);
+    try std.testing.expectEqual(@as(usize, 1), s.completed);
+    try std.testing.expectEqual(@as(usize, 0), s.failed);
 }

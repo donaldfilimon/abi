@@ -10,6 +10,16 @@ pub fn unixMs() i64 {
     return sec_ms + nsec_ms;
 }
 
+/// Monotonic timestamp in nanoseconds (best-effort via libc `clock_gettime`).
+pub fn monotonicNs() i64 {
+    var ts: std.c.timespec = undefined;
+    if (std.c.clock_gettime(.MONOTONIC, &ts) != 0)
+        return 0;
+    const sec_ns = @as(i64, ts.sec) * std.time.ns_per_s;
+    const nsec = @as(i64, ts.nsec);
+    return sec_ns + nsec;
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

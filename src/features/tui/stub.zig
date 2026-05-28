@@ -60,7 +60,7 @@ pub fn deinitScreenWriter(writer: anytype) !void {
 }
 
 pub fn renderDashboard(allocator: std.mem.Allocator, state: State) ![]u8 {
-    _ = state;
+    if (state.title.len == 0) return error.InvalidTuiState;
     return try allocator.dupe(u8, "TUI feature is disabled");
 }
 

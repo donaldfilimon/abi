@@ -384,7 +384,7 @@ fn validateTrainingConfig(config: TrainingConfig) !void {
 }
 
 pub fn isFeatureDisabled(err: anyerror) bool {
-    return std.mem.eql(u8, @errorName(err), "FeatureDisabled");
+    return err == error.FeatureDisabled;
 }
 
 fn inspectDataset(allocator: std.mem.Allocator, dataset: DatasetSpec) !DatasetSummary {

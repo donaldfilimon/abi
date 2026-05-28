@@ -14,6 +14,8 @@ test "feature namespaces are stable across flags" {
         "tui",
         "wdbx",
         "mobile",
+        "hash",
+        "metrics",
     }) |decl_name| {
         try std.testing.expect(@hasDecl(features, decl_name));
     }
@@ -33,6 +35,19 @@ test "feature modules expose safe runtime contracts" {
     try std.testing.expectEqual(@as(f32, 32), try ops.dot(&.{ 1, 2, 3 }, &.{ 4, 5, 6 }));
     try std.testing.expectError(error.DimensionMismatch, ops.dot(&.{1}, &.{ 1, 2 }));
 
+    // Exercise accelerated distance path via the existing gpu.vectorOps() test surface.
+    // VectorOps.dot / squaredL2 / cosineSimilarity select the native GPU kernel path
+    // (Metal on macOS when feat-gpu + backend.accelerated + metal context initialized)
+    // or fall back to vectorized CPU. The contract asserts identical correct numeric
+    // behavior for both paths. This directly covers the distance primitives that
+    // HNSW (hnsw.zig cosineDistanceSIMD) and WDBX search will target for GPU accel
+    // (per Phase 2 verification criteria).
+    try std.testing.expectEqual(@as(f32, 27), try ops.squaredL2(&.{ 1, 2, 3 }, &.{ 4, 5, 6 }));
+    const cos_ident = try ops.cosineSimilarity(&.{ 1.0, 0.0, 0.0 }, &.{ 1.0, 0.0, 0.0 });
+    try std.testing.expectEqual(@as(f32, 1.0), cos_ident);
+    const cos_ortho = try ops.cosineSimilarity(&.{ 1.0, 0.0 }, &.{ 0.0, 1.0 });
+    try std.testing.expectEqual(@as(f32, 0.0), cos_ortho);
+
     const accelerator_selection = features.accelerator.selectBackend(.training);
     try std.testing.expect(accelerator_selection.message.len > 0);
 
@@ -47,13 +62,61 @@ test "feature modules expose safe runtime contracts" {
     const command_decision = features.os_control.validateCommand(.{ .argv = &.{"ls"} }, .{ .workspace_root = "/tmp/work" });
     try std.testing.expect(command_decision.message.len > 0);
 
-    var store = features.wdbx.Store.init(std.testing.allocator);
-    defer store.deinit();
-    const stats = store.stats();
-    try std.testing.expect(stats.acceleration.message.len > 0);
-    const manifest = try store.exportManifest(std.testing.allocator);
-    defer std.testing.allocator.free(manifest);
-    try std.testing.expect(manifest.len > 0);
+    // New utilities + observability features (hash + metrics)
+    const h = features.hash.wyhash("contract test", 0);
+    try std.testing.expect(h != 0);
+    try std.testing.expect(features.hash.isEnabled() or !build_options.feat_hash);
+
+    if (build_options.feat_metrics) {
+        var m = features.metrics.Metrics.init(std.testing.allocator);
+        defer m.deinit();
+        try m.increment("contract.test", 1);
+        try std.testing.expectEqual(@as(u64, 1), m.getCounter("contract.test").?);
+    }
+
+    if (build_options.feat_wdbx) {
+        var store = features.wdbx.Store.init(std.testing.allocator);
+        defer store.deinit();
+        const stats = store.stats();
+        try std.testing.expect(stats.acceleration.message.len > 0);
+        const manifest = try store.exportManifest(std.testing.allocator);
+        defer std.testing.allocator.free(manifest);
+        try std.testing.expect(manifest.len > 0);
+
+        // Exercise HNSW index path (via Store.putVector + search) which drives acceleration
+        // status updates through gpu.executeKernel (reflecting native_gpu / simulated_gpu mode).
+        // When combined with the vectorOps distance calls above, this adds the required
+        // contract test coverage for the accelerated (distance/reporting) path in WDBX/HNSW
+        // when GPU is available. Asserts that acceleration status reflects the mode selected
+        // by the GPU path (no fabrication of success when disabled/fallback).
+        const vid1 = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+        _ = try store.putVector(&.{ 0.9, 0.1, 0.0, 0.0 });
+        const hits = try store.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 2);
+        defer std.testing.allocator.free(hits);
+        try std.testing.expect(hits.len >= 1);
+        try std.testing.expectEqual(vid1, hits[0].id);
+        if (hits.len > 1) {
+            try std.testing.expect(hits[0].score >= hits[1].score);
+        }
+
+        const accel = store.accelerationStatus();
+        try std.testing.expect(accel.message.len > 0);
+        if (build_options.feat_gpu) {
+            try std.testing.expect(accel.mode == features.gpu.ExecutionMode.native_gpu or accel.mode == features.gpu.ExecutionMode.simulated_gpu);
+        } else {
+            try std.testing.expect(accel.mode == features.gpu.ExecutionMode.cpu_fallback);
+        }
+    } else {
+        // Disabled wdbx must degrade cleanly (per AGENTS.md + feature stub contract)
+        var store = features.wdbx.Store.init(std.testing.allocator);
+        defer store.deinit();
+        try std.testing.expectError(error.FeatureDisabled, store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 }));
+        try std.testing.expectError(error.FeatureDisabled, store.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 1));
+        const stats = store.stats();
+        try std.testing.expect(stats.acceleration.message.len > 0);
+        // Stub reports disabled message
+        try std.testing.expect(std.mem.indexOf(u8, stats.acceleration.message, "disabled") != null or stats.vectors == 0);
+    }
 
     var completion = try features.ai.complete(std.testing.allocator, .{ .input = "contract surface", .model = "abi-contract" });
     defer completion.deinit(std.testing.allocator);
@@ -100,6 +163,12 @@ test "disabled feature modules expose explicit degraded behavior" {
         const diagnostics = try features.tui.renderDiagnostics(std.testing.allocator, .{});
         defer std.testing.allocator.free(diagnostics);
         try expectContains(diagnostics, "disabled");
+    }
+
+    if (!build_options.feat_metrics) {
+        var m = features.metrics.Metrics.init(std.testing.allocator);
+        defer m.deinit();
+        try std.testing.expectError(error.FeatureDisabled, m.increment("x", 1));
     }
 
     if (!build_options.feat_os_control) {

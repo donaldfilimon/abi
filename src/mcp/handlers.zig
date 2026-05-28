@@ -1,6 +1,31 @@
 const std = @import("std");
 const features = @import("abi").features;
 const json_helpers = @import("json_helpers.zig");
+const abi = @import("abi");
+
+// Long-lived scheduler for the MCP server process (single-writer model per core/scheduler design).
+// This enables scheduler_stats and future task submission from tools.
+var g_mcp_scheduler: ?abi.scheduler.Scheduler = null;
+var g_scheduler_initialized = std.atomic.Value(bool).init(false);
+
+fn ensureMcpScheduler() void {
+    if (g_scheduler_initialized.load(.acquire)) return;
+    if (g_scheduler_initialized.cmpxchgStrong(false, true, .acq_rel, .acquire) == null) {
+        g_mcp_scheduler = abi.scheduler.Scheduler.init(std.heap.page_allocator);
+    }
+}
+
+pub fn getMcpScheduler() *abi.scheduler.Scheduler {
+    ensureMcpScheduler();
+    return &g_mcp_scheduler.?;
+}
+
+pub fn deinitMcpScheduler() void {
+    if (g_mcp_scheduler) |*s| {
+        s.deinit();
+        g_mcp_scheduler = null;
+    }
+}
 
 pub fn handleInitializeJson(allocator: std.mem.Allocator, params: ?std.json.Value) ![]u8 {
     _ = params;
@@ -9,10 +34,75 @@ pub fn handleInitializeJson(allocator: std.mem.Allocator, params: ?std.json.Valu
     );
 }
 
+const ToolDescriptor = struct {
+    name: []const u8,
+    description: []const u8,
+    input_schema: []const u8, // pre-serialized JSON object (without outer {})
+};
+
+const tools: []const ToolDescriptor = &.{
+    .{
+        .name = "ai_run",
+        .description = "Run AI inference with internal profile routing",
+        .input_schema = "{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"}},\"required\":[\"input\"]}",
+    },
+    .{
+        .name = "ai_complete",
+        .description = "Run local model completion and record metadata in a transient WDBX store when available",
+        .input_schema = "{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"},\"model\":{\"type\":\"string\"}},\"required\":[\"input\"]}",
+    },
+    .{
+        .name = "ai_train",
+        .description = "Train an agent profile",
+        .input_schema = "{\"type\":\"object\",\"properties\":{\"profile\":{\"type\":\"string\"},\"dataset\":{\"type\":\"string\"},\"format\":{\"type\":\"string\",\"enum\":[\"jsonl\",\"csv\",\"text\"]},\"artifact_dir\":{\"type\":\"string\"}},\"required\":[\"profile\",\"dataset\"]}",
+    },
+    .{
+        .name = "wdbx_query",
+        .description = "Query the vector store",
+        .input_schema = "{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}",
+    },
+    .{
+        .name = "scheduler_stats",
+        .description = "Report live scheduler task counts and status for the MCP server",
+        .input_schema = "{\"type\":\"object\",\"properties\":{},\"required\":[]}",
+    },
+    .{
+        .name = "gpu_status",
+        .description = "Report current GPU backend, acceleration mode, and capabilities",
+        .input_schema = "{\"type\":\"object\",\"properties\":{},\"required\":[]}",
+    },
+    .{
+        .name = "wdbx_stats",
+        .description = "Report statistics for a fresh transient WDBX store (kv, vectors, blocks, spatial)",
+        .input_schema = "{\"type\":\"object\",\"properties\":{},\"required\":[]}",
+    },
+    .{
+        .name = "plugin_run",
+        .description = "Execute a registered plugin",
+        .input_schema = "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"input\":{\"type\":\"string\"}},\"required\":[\"name\"]}",
+    },
+};
+
 pub fn handleToolsListJson(allocator: std.mem.Allocator) ![]u8 {
-    return try allocator.dupe(u8,
-        \\{"tools":[{"name":"ai_run","description":"Run AI inference with internal profile routing","inputSchema":{"type":"object","properties":{"input":{"type":"string"}},"required":["input"]}},{"name":"ai_complete","description":"Run local model completion and record metadata in a transient WDBX store when available","inputSchema":{"type":"object","properties":{"input":{"type":"string"},"model":{"type":"string"}},"required":["input"]}},{"name":"ai_train","description":"Train an agent profile","inputSchema":{"type":"object","properties":{"profile":{"type":"string"},"dataset":{"type":"string"},"format":{"type":"string","enum":["jsonl","csv","text"]},"artifact_dir":{"type":"string"}},"required":["profile","dataset"]}},{"name":"wdbx_query","description":"Query the vector store","inputSchema":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}]}
-    );
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer out.deinit(allocator);
+
+    try out.appendSlice(allocator, "{\"tools\":[");
+
+    for (tools, 0..) |tool, i| {
+        if (i > 0) try out.append(allocator, ',');
+        try out.appendSlice(allocator, "{\"name\":");
+        try json_helpers.appendJsonString(&out, allocator, tool.name);
+        try out.appendSlice(allocator, ",\"description\":");
+        try json_helpers.appendJsonString(&out, allocator, tool.description);
+        try out.appendSlice(allocator, ",\"inputSchema\":");
+        try out.appendSlice(allocator, tool.input_schema);
+        try out.appendSlice(allocator, "}");
+    }
+
+    try out.appendSlice(allocator, "]}");
+
+    return try out.toOwnedSlice(allocator);
 }
 
 pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value) ![]u8 {
@@ -75,6 +165,67 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         const text = try runLocalWdbxQuery(allocator, query);
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
+    }
+
+    if (std.mem.eql(u8, tool_name, "scheduler_stats")) {
+        const sched = getMcpScheduler();
+        const s = sched.stats();
+        const text = try std.fmt.allocPrint(
+            allocator,
+            "scheduler running={d} pending={d} completed={d} failed={d} source=mcp-server",
+            .{ s.running, s.pending, s.completed, s.failed },
+        );
+        defer allocator.free(text);
+        return try toolTextResult(allocator, text);
+    }
+
+    if (std.mem.eql(u8, tool_name, "gpu_status")) {
+        const status = features.gpu.detectBackend();
+        const caps = features.gpu.backendCapabilitiesList();
+        const text = try std.fmt.allocPrint(
+            allocator,
+            "backend={s} available={s} accelerated={s} capabilities={d} message={s}",
+            .{ features.gpu.backendName(status.backend), if (status.available) "true" else "false", if (status.accelerated) "true" else "false", caps.len, status.message },
+        );
+        defer allocator.free(text);
+        return try toolTextResult(allocator, text);
+    }
+
+    if (std.mem.eql(u8, tool_name, "wdbx_stats")) {
+        var store = features.wdbx.Store.init(allocator);
+        defer store.deinit();
+        const s = store.stats();
+        const dims_str = if (s.vector_dimensions) |d|
+            std.fmt.allocPrint(allocator, "{d}", .{d}) catch "null"
+        else
+            try allocator.dupe(u8, "null");
+        defer allocator.free(dims_str);
+
+        const text = try std.fmt.allocPrint(
+            allocator,
+            "kv={d} vectors={d} blocks={d} spatial={d} dims={s} backend={s}",
+            .{ s.kv_entries, s.vectors, s.blocks, s.spatial_records, dims_str, features.gpu.backendName(s.acceleration.backend) },
+        );
+        defer allocator.free(text);
+        return try toolTextResult(allocator, text);
+    }
+
+    if (std.mem.eql(u8, tool_name, "plugin_run")) {
+        const args_obj = try toolArguments(params_obj);
+        const name = try objectString(args_obj, "name", error.MissingPluginName);
+        const input = objectString(args_obj, "input", error.MissingInput) catch "";
+
+        var pm = abi.plugins.PluginManager.init(allocator);
+        defer pm.deinit();
+
+        // Load known bundled plugins (ignore load errors for optional plugin)
+        _ = pm.loadPlugin("src/plugins/example-plugin") catch {};
+        _ = pm.loadPlugin("src/plugins/example-wdbx-plugin") catch {};
+
+        const output = try pm.run(allocator, name, input);
+        defer allocator.free(output);
+
+        return try toolTextResult(allocator, output);
     }
 
     return error.UnknownTool;

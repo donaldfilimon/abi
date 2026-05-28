@@ -139,6 +139,7 @@ fn processRequest(allocator: std.mem.Allocator, io: std.Io, line: []const u8) !v
         .ping => try allocator.dupe(u8, "{}"),
         .shutdown => blk: {
             requestShutdown();
+            handlers.deinitMcpScheduler();
             break :blk try allocator.dupe(u8, "null");
         },
         .@"resources/list" => try allocator.dupe(u8, "{\"resources\":[]}"),
@@ -360,6 +361,7 @@ pub fn processJsonRpc(allocator: std.mem.Allocator, body: []const u8) ![]u8 {
         .ping => try allocator.dupe(u8, "{}"),
         .shutdown => blk: {
             requestShutdown();
+            handlers.deinitMcpScheduler();
             break :blk try allocator.dupe(u8, "null");
         },
         .@"resources/list" => try allocator.dupe(u8, "{\"resources\":[]}"),

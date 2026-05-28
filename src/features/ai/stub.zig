@@ -421,7 +421,7 @@ pub fn runAgent(allocator: std.mem.Allocator, config: AgentConfig, input: []cons
 }
 
 pub fn isFeatureDisabled(err: anyerror) bool {
-    return std.mem.eql(u8, @errorName(err), "FeatureDisabled");
+    return err == error.FeatureDisabled;
 }
 
 pub fn countNonEmptyLines(data: []const u8) usize {

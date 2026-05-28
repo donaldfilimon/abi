@@ -24,7 +24,7 @@ The current tree uses a flat, registry-based composition model optimized for Zig
 src/
 ├── root.zig           # Public API and feature exports
 ├── main.zig           # CLI entry point (delegates to abi_cli/)
-├── interfaces.zig     # Cross-module contract types (greenfield rewrite)
+├── interfaces.zig     # Cross-module contract types (small shared request/response structs for MCP/CLI surfaces; originally scoped as larger greenfield rewrite)
 ├── core/              # Registry, config, memory, scheduler
 │   ├── registry.zig
 │   ├── memory.zig
@@ -86,7 +86,8 @@ src/
 │   ├── openai.zig     # OpenAI connector
 │   ├── anthropic.zig  # Anthropic connector
 │   ├── discord.zig    # Discord connector with credential/snowflake-like/message validation
-│   └── twilio.zig     # Twilio ConversationRelay simulator with SID/token/base-url/timeout validation
+│   ├── twilio.zig     # Twilio ConversationRelay simulator with SID/token/base-url/timeout validation
+│   └── grok.zig       # Grok/xAI connector (local deterministic + .live opt-in)
 ├── abi_cli/           # CLI dispatch, handlers, usage
 │   ├── dispatch.zig   # Top-level command routing
 │   ├── usage.zig      # Source of truth for CLI help text
@@ -106,9 +107,10 @@ src/
 │   ├── protocol.zig   # JSON-RPC protocol types
 │   └── server.zig     # Server transport layer
 ├── plugins/           # Plugin manifests and local plugin manager
+│   ├── abi-plugin.json         # Top-level plugin manifest (core ABI surface)
 │   ├── plugin_manager.zig      # Load/unload/list from required JSON manifests
-│   ├── example-plugin/         # Baseline example plugin fixture
-│   └── example-wdbx-plugin/    # WDBX-targeted registry fixture
+│   ├── example-plugin/         # Baseline example plugin fixture (abi-plugin.json + mod.zig + stub.zig)
+│   └── example-wdbx-plugin/    # WDBX-targeted registry fixture (abi-plugin.json + mod.zig + stub.zig)
 ├── plugin_registry.zig # Auto-generated metadata registry (do not edit)
 ├── testing/           # Test infrastructure
 │   └── test_helpers.zig # TestAllocator, TempDir, mocks, assertions
@@ -117,12 +119,14 @@ src/
 
 tests/                 # External contract tests
 ├── contracts/
-│   ├── surface.zig    # CLI/MCP surface contract tests
-│   ├── mcp_tools.zig  # MCP tool contract tests
-│   └── plugin_registry.zig # Generated plugin metadata contract tests
+│   ├── surface.zig         # CLI/MCP surface contract tests
+│   ├── mcp_tools.zig       # MCP tool contract tests
+│   ├── plugin_registry.zig # Generated plugin metadata contract tests
+│   ├── feature_modules.zig # Per-feature mod/stub + public contract smoke (feature-on/off)
+│   └── public_docs.zig     # Public documentation + claim boundary contracts
 
 tools/                 # Build helpers and verification scripts
-├── build.sh           # macOS/Darwin build wrapper
+├── build.sh           # macOS/Darwin build wrapper (delegates to tools/build.sh)
 ├── check_parity.zig   # Feature/plugin mod/stub top-level declaration-name parity checker
 ├── check_feature_stubs.sh # Feature stub compilation plus feature/public contract smoke tests
 ├── generate_plugin_registry.zig # Plugin manifest scanner
@@ -184,6 +188,22 @@ The three-way weighted routing and blending pipeline.
 - Six principles: truthfulness, safety, helpfulness, fairness, privacy, transparency.
 - Post-generation validation via `evaluateResponse()`.
 
+### 5.5 Core Lifecycle Integration (Registry + Scheduler + Memory)
+The `src/core/` modules (`registry.zig`, `scheduler.zig`, `memory.zig`) and `src/foundation/pool_allocator.zig` realize the "Registry-Based Lifecycle" and "Explicit Memory Management" principles. `abi.scheduler`, `abi.memory`, and `abi.registry` are unconditionally exported from `src/root.zig`.
+
+**Current state (as of 2026-05):** Real usage exists and is exercised on every run of key surfaces:
+- Scheduler drives actual high-priority training work in `abi agent train` (TrainTask submission + `runAll`, with Arena-wrapped contexts).
+- Live stats and cooperative refresh tasks in the CLI/TUI dashboard.
+- Long-lived Scheduler instance owned by the MCP server with dedicated `scheduler_stats` tool + dynamic tool listing.
+- `MemoryTracker` + `TrackingAllocator` attached via `setMemoryTracker` in the training path and dashboard; allocations performed under scheduler tasks are recorded.
+- Cross-feature observability wiring: Scheduler conditionally records task lifecycle metrics when `-Dfeat-metrics` is enabled.
+- Dedicated integration test ("scheduler drives training tasks") validates end-to-end submission, execution, stats, and memory tracking.
+
+- Registry remains focused on plugin descriptors (RwLock-protected) today; it is the coordinator for the plugin execution seam (`plugin_manager` + `abi plugin run` / MCP `plugin_run`) but is not yet the broader cross-feature lifecycle registry envisioned originally.
+- Deeper adoption opportunities remain: MemoryTracker in WDBX hot paths and more stages of the AI pipeline; making the Registry a more general component lifecycle coordinator; potential unification or clearer boundary between `core/memory` and `foundation/pool_allocator`.
+
+See `tasks/roadmap-next.md` (Streams 1-2), `tasks/todo.md` (Core scheduler + memory row marked Done), and `tasks/scheduler-memory-wireup.md` for the detailed surfaces and the integration sketches that were executed. All integration changes preserved mod/stub parity, used relative `.zig` imports inside `src/`, and passed the full `./build.sh check` + `check-parity` + feature-off contract matrix. The original "primary remaining gap" language has been retired because the observability + real-work scheduling vision has been substantially delivered.
+
 ---
 
 ## 6. Maintenance Strategy
@@ -194,3 +214,12 @@ The three-way weighted routing and blending pipeline.
 4. **Import boundaries**: Library modules under `src/` use relative imports with `.zig` extensions. MCP executable/handler files (`src/mcp/main.zig`, `src/mcp/handlers.zig`) may import the public `abi` package because `build.zig` wires that package explicitly; never do so from modules re-exported by `src/root.zig`.
 5. **Verification gates**: For source changes run `./build.sh check`; for release/readiness changes run `./build.sh full-check` (`check` plus integration tests, benchmarks, and TUI smoke).
 6. **External claims**: Do not reuse spreadsheet or analysis-document claims for AES/RBAC, Swift/Python/TensorFlow stacks, distributed sharding, Kubernetes/H100 deployments, regulatory certifications, QPS/latency/accuracy, energy use, or SQuAD/CodeSearchNet/GPT comparisons unless the claim is tied to a current repo test, source implementation, or benchmark artifact.
+7. **Design doc hygiene**: When refreshing this file (or any architecture prose), treat the following as executable source of truth and diff against them before publishing updates:
+   - `build.zig` (feature flag defaults and wiring)
+   - `src/features/mod.zig` (mod/stub selection + re-exports)
+   - `src/abi_cli/usage.zig` (frozen CLI command surface)
+   - `src/root.zig` (public namespace exports)
+   - `docs/contracts/public-api.md`
+   - `tests/contracts/*.zig` (surface, mcp_tools, feature_modules, plugin_registry, public_docs)
+   - Actual `git ls-files` layout under `src/`, `tests/`, `tools/`, and `plugins/`
+   Always call out (or correct) any intentional exceptions. The design is descriptive history + guardrails, not the contract.

@@ -1,4 +1,5 @@
 const std = @import("std");
+const foundation_time = @import("foundation/time.zig");
 const test_helpers = @import("testing/test_helpers.zig");
 const wdbx = @import("features/wdbx/mod.zig");
 const constitution = @import("features/ai/constitution.zig");
@@ -20,10 +21,10 @@ fn runBench(comptime label: []const u8, comptime fn_run: anytype) void {
     var total_ms: f64 = 0;
     i = 0;
     while (i < ITERATIONS) : (i += 1) {
-        const before = std.c.mach_absolute_time();
+        const start = foundation_time.monotonicNs();
         fn_run();
-        const after = std.c.mach_absolute_time();
-        total_ms += @as(f64, @floatFromInt(after - before)) / 1_000_000.0;
+        const elapsed_ns = foundation_time.monotonicNs() - start;
+        total_ms += @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0;
     }
 
     const avg_ms = total_ms / @as(f64, @floatFromInt(ITERATIONS));

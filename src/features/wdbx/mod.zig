@@ -256,30 +256,6 @@ fn runAccelerationKernel(name: []const u8, work_items: usize) !AccelerationStatu
     return .{ .backend = result.backend, .mode = result.mode, .message = result.message };
 }
 
-fn zeroId() [32]u8 {
-    return std.mem.zeroes([32]u8);
-}
-
-fn greaterScore(_: void, lhs: SearchResult, rhs: SearchResult) bool {
-    return lhs.score > rhs.score;
-}
-
-fn hashBlock(block: ConversationBlock) [32]u8 {
-    var hasher = std.crypto.hash.sha2.Sha256.init(.{});
-    hasher.update(&block.prev_id);
-    var scalar_buf: [24]u8 = undefined;
-    std.mem.writeInt(u64, scalar_buf[0..8], @intCast(block.timestamp_ms), .little);
-    std.mem.writeInt(u32, scalar_buf[8..12], block.query_id, .little);
-    std.mem.writeInt(u32, scalar_buf[12..16], block.response_id, .little);
-    std.mem.writeInt(u64, scalar_buf[16..24], block.metadata.len, .little);
-    hasher.update(&scalar_buf);
-    hasher.update(block.profile);
-    hasher.update(block.metadata);
-    var out: [32]u8 = undefined;
-    hasher.final(&out);
-    return out;
-}
-
 test "Store owns and replaces entries" {
     var store_obj = Store.init(std.testing.allocator);
     defer store_obj.deinit();

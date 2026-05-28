@@ -69,7 +69,7 @@ pub fn getDeviceInfo(allocator: std.mem.Allocator) !DeviceInfo {
 }
 
 pub fn renderMobileView(allocator: std.mem.Allocator, title: []const u8, items: []const []const u8) ![]u8 {
-    _ = title;
+    if (title.len == 0) return error.InvalidMobileView;
     _ = items;
     return try allocator.dupe(u8, "Mobile feature is disabled");
 }
@@ -79,6 +79,6 @@ test {
 }
 
 pub fn executeMobileTask(allocator: std.mem.Allocator, task_name: []const u8) ![]u8 {
-    _ = task_name;
+    if (task_name.len == 0) return error.InvalidTaskName;
     return try allocator.dupe(u8, "Mobile feature is disabled");
 }

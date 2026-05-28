@@ -94,6 +94,8 @@ test "feature module surfaces expose safe defaults" {
         "shaders",
         "tui",
         "wdbx",
+        "hash",
+        "metrics",
         "mobile",
     }) |decl_name| {
         try std.testing.expect(@hasDecl(features, decl_name));
@@ -306,6 +308,10 @@ test "MCP tools/list includes contract tools" {
         .{ .name = "ai_complete", .required = &.{"input"} },
         .{ .name = "ai_train", .required = &.{ "profile", "dataset" } },
         .{ .name = "wdbx_query", .required = &.{"query"} },
+        .{ .name = "scheduler_stats", .required = &.{} },
+        .{ .name = "gpu_status", .required = &.{} },
+        .{ .name = "wdbx_stats", .required = &.{} },
+        .{ .name = "plugin_run", .required = &.{"name"} },
     };
     try std.testing.expectEqual(expected.len, tools.items.len);
 

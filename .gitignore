@@ -1,4 +1,7 @@
 
+# ── AI tool config directories ────────────────────────────────────────
+.grok/
+
 # ── Git worktrees ──────────────────────────────────────────────────────
 .worktrees/
 
@@ -14,12 +17,6 @@ docs_html/
 /test.db
 /target_contract.o
 /libcontext_init.a
-# build/ contains source .zig files — only ignore non-Zig artifacts
-build/*
-!build/*.zig
-!build/validate/
-!build/validate/*.zig
-
 # ── Documentation build artifacts ─────────────────────────────────────
 docs-src/build/
 docs/api-app/data/docs_engine.component.wasm
@@ -287,7 +284,6 @@ TRASH-FILES.md
 /test_imports3
 /src_next/
 .antigravitycli/
-.codex/
 .zls.json
 
 # ── Cleanup policy: markdown allowlist only ─────────────────────────
@@ -323,10 +319,10 @@ TRASH-FILES.md
 !/docs/plans/*.md
 !/docs/api/*.md
 !/docs/guides/*.md
-!/docs/superpowers/**/*.md
 !/docs/spec/*.md
 !/docs/contracts/*.md
 !/docs/review/*.md
+!/docs/superpowers/**/*.md
 
 # Subsystem docs
 !/benchmarks/README.md
