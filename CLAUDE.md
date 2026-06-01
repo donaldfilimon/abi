@@ -2,13 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Trust executable config over prose: when this file conflicts with `build.zig`, `tools/build.sh`, or source, trust the executable source. `AGENTS.md` is a richer companion to this file; `tasks/lessons.md` is the session-start checklist and `tasks/todo.md` tracks active work and known failures.
+
+Toolchain is pinned to Zig `0.17.0-dev.329+21b7ceb5e` (see `.zigversion`). On macOS/Darwin, prefer `./build.sh ...` (a thin wrapper over `tools/build.sh` → `zig build`) over raw `zig build` for the documented workflow.
+
 ## Common Development Commands
 
 ### Build & Validation
 - `./build.sh check` – Primary validation gate for build integrity and API parity checks.
 - `./build.sh full-check` – Runs `check`, integration tests, benchmarks, and TUI smoke.
-- `./build.sh cli` – Builds the main executable (`abi`).
-- `./build.sh mcp` – Builds the MCP server binary.
+- `./build.sh cli` – Builds the main executable (`zig-out/bin/abi`).
+- `./build.sh mcp` – Builds the MCP server binary (`zig-out/bin/abi-mcp`).
+- `zig build run` – Builds and runs the app.
 - `zig build lint` – Runs `zig fmt --check` on all source files for formatting compliance.
 - `zig build fix` – Automatically formats source files based on project standards.
 - `zig build check-parity` – Verifies top-level public declaration-name parity for feature/plugin `mod.zig` and `stub.zig` pairs.
@@ -20,6 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `zig build test` – Module + connector tests.
 - `zig build test-feature-contracts` – Feature module contracts.
 - `zig build test-contracts` – Surface/MCP/plugin/docs contracts.
+- `zig build test-mcp-contracts` – MCP tool contract tests.
 
 ## Architecture Overview
 
@@ -33,10 +39,12 @@ The ABI framework is a modular Zig codebase with a clear separation of concerns 
 | **Feature Selection** | `src/features/mod.zig` | Enables/disables features via Zig build options (`-Dfeat-*`). Uses the *mod/stub* pattern. |
 | **AI Sub-system** | `src/features/ai/` | Implements AI profiles (Abbey, Aviva, Abi), routing, and constitution. |
 | **Vector Store (WDBX)** | `src/features/wdbx/` | Provides in-memory key-value and vector storage with HNSW index and MVCC-style snapshot chain. |
-| **GPU Backend** | `src/features/gpu/` | Reports GPU status, attempts Metal initialization on macOS, falls back to vectorized CPU implementation. |
-| **Connectors** | `src/connectors/` | Provides local/live adapters for external services (OpenAI, Anthropic, Discord, Twilio, HTTP, JSON). |
+| **GPU Backend** | `src/features/gpu/` | Reports GPU status, attempts Metal initialization on macOS, falls back to vectorized CPU implementation. The backend is runtime-selected; there is **no** `-Dgpu-backend` option. |
+| **Connectors** | `src/connectors/` | Provides local/live adapters for external services (OpenAI, Anthropic, Grok, Discord, Twilio, HTTP, JSON). |
 | **Plugin System** | `src/plugins/`, `src/plugin_registry.zig` | Validates plugin manifests and generates metadata registry. |
 | **Core Utilities** | `src/core/` + `src/foundation/` | Scheduler, memory, config, registry, time, sync, logger, IO, credentials, OS abstractions. |
+
+Note: `src/mcp/` is the Zig MCP server; the **repo-root `mcp/`** directory holds host launcher scripts (`mcp/launcher.sh` → `zig-out/bin/abi-mcp`), not Zig code. The repo-root `.mcp.json` wires `abi-mcp` for host MCP clients via that launcher.
 
 ### Key Areas to Focus On
 
@@ -46,16 +54,19 @@ The ABI framework is a modular Zig codebase with a clear separation of concerns 
   - Enabled by default: `feat-ai`, `feat-wdbx`, `feat-gpu`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-os-control`, `feat-tui`, `feat-hash`
   - Disabled by default: `feat-mobile`, `feat-metrics`
 - **Import Rules**: Within `src/`, use relative `.zig` imports. `@import("abi")` is only allowed from `src/mcp/main.zig` and `src/mcp/handlers.zig`. Always include `.zig` extension on path imports.
-- **CLI Contracts**: Implemented commands: `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`. Do not dispatch legacy names like `version`, `doctor`, `features`, etc.
-- **MCP Contracts**: Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. HTTP defaults to `127.0.0.1:8080`; set `ABI_MCP_HTTP_PORT` to override.
-- **Generated Code**: Do not manually edit `src/plugin_registry.zig`; update plugin manifests or generator code and rerun the build.
+- **CLI Contracts** (frozen, contract-tested in `tests/contracts/`): top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, plus the `abi --tui` shortcut handled outside `src/abi_cli/usage.zig`. `agent` subcommands: `plan | train <profile|all> | tui | os <dry-run|execute --confirm>`. Do **not** dispatch legacy names: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, `serve`.
+- **MCP Contracts**: Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. JSON-RPC 2.0 over stdio with a 64 KB request cap; optional HTTP on `127.0.0.1:8080` (`ABI_MCP_HTTP_PORT` to override; empty/invalid/zero/out-of-range falls back to 8080; bind failure leaves stdio running). HTTP endpoints: `GET /sse`, `POST /message`.
+- **Generated Code**: Do not manually edit `src/plugin_registry.zig`; the build regenerates it from `src/plugins/*/abi-plugin.json` via `tools/generate_plugin_registry.zig`. Plugin manifests must include `name`, `version`, `description`, `target_feature`, and a safe relative `.zig` `entry_point` that exists under the plugin directory (`targetFeature` / `entryPoint` aliases accepted).
 - **Zig 0.17 Patterns**: 
   - Entry: `pub fn main(init: std.process.Init) !void`
   - Use `ArrayListUnmanaged(T).empty` (not `.init(allocator)`)
   - Use `std.mem.trimEnd` (not `trimRight`)
   - Use `std.mem.splitScalar`, `splitAny`, or `splitSequence`
-  - Use `foundation.time.unixMs()` for timestamps
-  - Avoid silent empty `catch {}` in data, inference, or persistence paths
+  - Use `foundation.time.unixMs()` for timestamps (not `std.time.milliTimestamp`)
+  - Avoid silent empty `catch {}` in data, inference, or persistence paths; `@panic` only for unrecoverable invariants, `unreachable` only for provably impossible branches
+  - Tests are inline `test {}`; each module ends with `std.testing.refAllDecls(@This())`
+  - Naming: `camelCase` fns/vars, `PascalCase` types, `SCREAMING_SNAKE_CASE` constants, `snake_case` enum variants
+- **External Claims**: Do not assert unproven capabilities (distributed sharding, AES/RBAC, Swift/Python stacks, Kubernetes/H100, certifications, QPS/latency/accuracy numbers) in docs unless a repo test, benchmark artifact, or source file proves them. See `docs/contracts/external-claims-audit.md`.
 - **Connector Validation**: 
   - Discord: validates printable non-whitespace credentials, numeric snowflake-like IDs, author IDs, message size.
   - Twilio: validates `AC` + 32-hex account SIDs, 32-hex auth tokens, base URL, timeout, explicit `.live` transport, XML/form escaping, ConversationRelay aliases.
