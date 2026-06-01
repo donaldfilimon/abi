@@ -44,9 +44,11 @@ pub const Scheduler = struct {
     tasks: std.ArrayListUnmanaged(Task),
     lock: sync.SpinLock,
     next_id: std.atomic.Value(u64),
+    pending_count: std.atomic.Value(usize),
     running_count: std.atomic.Value(usize),
     completed_count: std.atomic.Value(usize),
     failed_count: std.atomic.Value(usize),
+    cancelled_count: std.atomic.Value(usize),
 
     // Metrics instance (populated only when -Dfeat-metrics; used for task lifecycle counters).
     // Part of approved "Deeper src/ Integration & Observability Pass".
@@ -63,9 +65,11 @@ pub const Scheduler = struct {
             .tasks = std.ArrayListUnmanaged(Task).empty,
             .lock = sync.SpinLock{},
             .next_id = std.atomic.Value(u64).init(1),
+            .pending_count = std.atomic.Value(usize).init(0),
             .running_count = std.atomic.Value(usize).init(0),
             .completed_count = std.atomic.Value(usize).init(0),
             .failed_count = std.atomic.Value(usize).init(0),
+            .cancelled_count = std.atomic.Value(usize).init(0),
         };
         if (comptime build_options.feat_metrics) {
             self.metrics_instance = metrics.Metrics.init(allocator);
@@ -113,6 +117,7 @@ pub const Scheduler = struct {
 
         try self.heap.push(self.allocator, task);
         try self.tasks.append(self.allocator, task);
+        _ = self.pending_count.fetchAdd(1, .monotonic);
 
         self.recordMetric("scheduler.tasks.submitted", 1);
         return task_id;
@@ -126,6 +131,8 @@ pub const Scheduler = struct {
             if (task.id == task_id) {
                 if (task.status != .pending) return errors.AbiError.InvalidState;
                 task.status = .cancelled;
+                _ = self.pending_count.fetchSub(1, .monotonic);
+                _ = self.cancelled_count.fetchAdd(1, .monotonic);
                 return;
             }
         }
@@ -139,11 +146,12 @@ pub const Scheduler = struct {
             var exists = false;
             for (self.tasks.items) |*internal_t| {
                 if (internal_t.id == t.id) {
-                    if (internal_t.status == .cancelled) continue;
+                    if (internal_t.status != .pending) continue;
                     exists = true;
                     internal_t.status = .running;
                     internal_t.started_at = time.unixMs();
                     task = internal_t.*;
+                    _ = self.pending_count.fetchSub(1, .monotonic);
                     break;
                 }
             }
@@ -212,14 +220,7 @@ pub const Scheduler = struct {
     }
 
     pub fn getPendingCount(self: *const Scheduler) usize {
-        const self_mut = @constCast(self);
-        self_mut.lock.lock();
-        defer self_mut.lock.unlock();
-        var count: usize = 0;
-        for (self.tasks.items) |task| {
-            if (task.status == .pending) count += 1;
-        }
-        return count;
+        return self.pending_count.load(.monotonic);
     }
 
     pub fn getRunningCount(self: *const Scheduler) usize {
@@ -232,6 +233,35 @@ pub const Scheduler = struct {
 
     pub fn getFailedCount(self: *const Scheduler) usize {
         return self.failed_count.load(.monotonic);
+    }
+
+    pub fn getCancelledCount(self: *const Scheduler) usize {
+        return self.cancelled_count.load(.monotonic);
+    }
+
+    /// Total number of tasks currently tracked by this scheduler across all
+    /// statuses (pending + running + completed + failed + cancelled). Useful
+    /// for dashboards and metrics to size the active task set.
+    pub fn getTaskCount(self: *const Scheduler) usize {
+        return self.pending_count.load(.monotonic) +
+            self.running_count.load(.monotonic) +
+            self.completed_count.load(.monotonic) +
+            self.failed_count.load(.monotonic) +
+            self.cancelled_count.load(.monotonic);
+    }
+
+    /// Peek the highest-priority task without removing it from the heap.
+    /// Returns null when the scheduler is empty.
+    pub fn peek(self: *const Scheduler) ?Task {
+        const self_mut = @constCast(self);
+        self_mut.lock.lock();
+        defer self_mut.lock.unlock();
+        return self.heap.peek();
+    }
+
+    /// Returns true when the scheduler has no pending tasks.
+    pub fn isEmpty(self: *const Scheduler) bool {
+        return self.peek() == null;
     }
 
     pub fn getTasks(self: *const Scheduler, allocator: std.mem.Allocator) ![]Task {
@@ -249,24 +279,42 @@ pub const Scheduler = struct {
         pending: usize,
         completed: usize,
         failed: usize,
+        cancelled: usize,
+        total_tasks: usize,
     };
 
     /// Aggregate view of the primary task counters. Useful for dashboard/MCP
     /// observability without multiple round-trips or lock acquisitions.
     pub fn stats(self: *const Scheduler) Stats {
+        const running = self.getRunningCount();
+        const pending = self.getPendingCount();
+        const completed = self.getCompletedCount();
+        const failed = self.getFailedCount();
+        const cancelled = self.getCancelledCount();
         return .{
-            .running = self.getRunningCount(),
-            .pending = self.getPendingCount(),
-            .completed = self.getCompletedCount(),
-            .failed = self.getFailedCount(),
+            .running = running,
+            .pending = pending,
+            .completed = completed,
+            .failed = failed,
+            .cancelled = cancelled,
+            .total_tasks = running + pending + completed + failed + cancelled,
         };
     }
 
+    /// Convenience wrapper around `submit` with the same signature. Provided
+    /// for callers that prefer the action-oriented name (matches the roadmap
+    /// Stream 4 API proposal).
+    pub fn scheduleTask(self: *Scheduler, name: []const u8, priority: TaskPriority, fn_ptr: TaskFn, ctx: ?*anyopaque) !u64 {
+        return self.submit(name, priority, fn_ptr, ctx);
+    }
+
     // --- Metrics wiring (Phase 1 of approved deeper-integration plan) ---
-    // Real counters when -Dfeat-metrics; degrades silently via stub when disabled.
+    // Real counters when -Dfeat-metrics; metric failures are logged and remain non-fatal.
     fn recordMetric(self: *Scheduler, name: []const u8, delta: u64) void {
         if (self.metrics_instance) |*m| {
-            _ = m.increment(name, delta) catch {};
+            if (m.increment(name, delta)) |_| {} else |err| {
+                std.log.warn("scheduler metric increment failed: name={s} err={s}", .{ name, @errorName(err) });
+            }
         }
     }
 
@@ -387,6 +435,8 @@ test "Scheduler stats aggregates counters" {
     try std.testing.expectEqual(@as(usize, 2), s.pending);
     try std.testing.expectEqual(@as(usize, 0), s.completed);
     try std.testing.expectEqual(@as(usize, 0), s.failed);
+    try std.testing.expectEqual(@as(usize, 0), s.cancelled);
+    try std.testing.expectEqual(@as(usize, 2), s.total_tasks);
 
     _ = try scheduler.runNext(); // runs one (high priority)
 
@@ -395,4 +445,79 @@ test "Scheduler stats aggregates counters" {
     try std.testing.expectEqual(@as(usize, 1), s.pending);
     try std.testing.expectEqual(@as(usize, 1), s.completed);
     try std.testing.expectEqual(@as(usize, 0), s.failed);
+    try std.testing.expectEqual(@as(usize, 0), s.cancelled);
+    try std.testing.expectEqual(@as(usize, 2), s.total_tasks);
+}
+
+test "Scheduler peek returns highest priority task without removing" {
+    var scheduler = Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    try std.testing.expect(scheduler.isEmpty());
+    try std.testing.expect(scheduler.peek() == null);
+    try std.testing.expectEqual(@as(usize, 0), scheduler.getTaskCount());
+
+    _ = try scheduler.submit("low_task", .low, dummyTask, null);
+    _ = try scheduler.submit("high_task", .high, dummyTask, null);
+    _ = try scheduler.submit("normal_task", .normal, dummyTask, null);
+
+    try std.testing.expect(!scheduler.isEmpty());
+    const peeked = scheduler.peek();
+    try std.testing.expect(peeked != null);
+    try std.testing.expectEqualStrings("high_task", peeked.?.name);
+    try std.testing.expectEqual(TaskPriority.high, peeked.?.priority);
+    try std.testing.expectEqual(@as(usize, 3), scheduler.getTaskCount());
+    try std.testing.expectEqual(@as(usize, 3), scheduler.getPendingCount());
+
+    // Peek must not consume the task
+    const peeked_again = scheduler.peek();
+    try std.testing.expect(peeked_again != null);
+    try std.testing.expectEqual(peeked.?.id, peeked_again.?.id);
+}
+
+test "Scheduler scheduleTask is an alias for submit" {
+    var scheduler = Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    const id_a = try scheduler.submit("direct", .normal, dummyTask, null);
+    const id_b = try scheduler.scheduleTask("aliased", .normal, dummyTask, null);
+    try std.testing.expect(id_a >= 1);
+    try std.testing.expect(id_b > id_a);
+    try std.testing.expectEqual(@as(usize, 2), scheduler.getPendingCount());
+}
+
+test "Scheduler cancelled counter and total_tasks update correctly" {
+    var scheduler = Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    const id_a = try scheduler.submit("a", .normal, dummyTask, null);
+    _ = try scheduler.submit("b", .normal, dummyTask, null);
+    _ = try scheduler.submit("c", .normal, dummyTask, null);
+
+    try scheduler.cancel(id_a);
+    try std.testing.expectEqual(@as(usize, 2), scheduler.getPendingCount());
+    try std.testing.expectEqual(@as(usize, 1), scheduler.getCancelledCount());
+    try std.testing.expectEqual(@as(usize, 3), scheduler.getTaskCount());
+
+    const s = scheduler.stats();
+    try std.testing.expectEqual(@as(usize, 0), s.running);
+    try std.testing.expectEqual(@as(usize, 2), s.pending);
+    try std.testing.expectEqual(@as(usize, 0), s.completed);
+    try std.testing.expectEqual(@as(usize, 0), s.failed);
+    try std.testing.expectEqual(@as(usize, 1), s.cancelled);
+    try std.testing.expectEqual(@as(usize, 3), s.total_tasks);
+}
+
+test "Scheduler pending_count atomic decrements on runNext" {
+    var scheduler = Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    _ = try scheduler.submit("p1", .normal, dummyTask, null);
+    _ = try scheduler.submit("p2", .normal, dummyTask, null);
+    try std.testing.expectEqual(@as(usize, 2), scheduler.getPendingCount());
+
+    _ = try scheduler.runNext();
+    try std.testing.expectEqual(@as(usize, 1), scheduler.getPendingCount());
+    try std.testing.expectEqual(@as(usize, 1), scheduler.getCompletedCount());
+    try std.testing.expectEqual(@as(usize, 2), scheduler.getTaskCount());
 }

@@ -32,6 +32,10 @@ pub const DashboardState = struct {
     scheduler_pending: usize = 0,
     scheduler_completed: usize = 0,
     scheduler_failed: usize = 0,
+    memory_source: []const u8 = "not attached",
+    memory_peak: usize = 0,
+    memory_current: usize = 0,
+    memory_leaked: usize = 0,
 };
 
 pub const InteractiveTerminal = struct {

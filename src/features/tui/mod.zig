@@ -54,6 +54,10 @@ pub const DashboardState = struct {
     scheduler_pending: usize = 0,
     scheduler_completed: usize = 0,
     scheduler_failed: usize = 0,
+    memory_source: []const u8 = "not attached",
+    memory_peak: usize = 0,
+    memory_current: usize = 0,
+    memory_leaked: usize = 0,
 };
 
 pub fn statusText(status: Status) []const u8 {
@@ -130,6 +134,14 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     try out.print(allocator, "│ Completed:       \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_completed});
     try out.print(allocator, "│ Failed:          \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_failed});
     try out.appendSlice(allocator, "\x1b[1;34m└─────────────────────────────────────────────────────────────┘\x1b[0m\n");
+
+    // Memory pane
+    try out.appendSlice(allocator, "\x1b[1;31m┌─ Memory ────────────────────────────────────────────────────┐\x1b[0m\n");
+    try out.print(allocator, "│ Source:          \x1b[1m{s:<42}\x1b[0m│\n", .{ds.memory_source});
+    try out.print(allocator, "│ Peak:            \x1b[1m{d:<42}\x1b[0m│\n", .{ds.memory_peak});
+    try out.print(allocator, "│ Current:         \x1b[1m{d:<42}\x1b[0m│\n", .{ds.memory_current});
+    try out.print(allocator, "│ Leaked:          \x1b[1m{d:<42}\x1b[0m│\n", .{ds.memory_leaked});
+    try out.appendSlice(allocator, "\x1b[1;31m└─────────────────────────────────────────────────────────────┘\x1b[0m\n");
 
     // Footer
     try out.appendSlice(allocator, "\n\x1b[2m[q/Esc] Quit  [r] Refresh\x1b[0m\n");
@@ -281,6 +293,10 @@ test "diagnostics dashboard renders all panes" {
         .scheduler_pending = 2,
         .scheduler_completed = 7,
         .scheduler_failed = 1,
+        .memory_source = "MemoryTracker",
+        .memory_peak = 4096,
+        .memory_current = 2048,
+        .memory_leaked = 0,
     });
     defer std.testing.allocator.free(rendered);
 
@@ -291,8 +307,12 @@ test "diagnostics dashboard renders all panes" {
     try std.testing.expect(std.mem.indexOf(u8, rendered, "WDBX Storage") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Spatial 3D") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Scheduler") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Memory") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Failed") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "test snapshot") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "MemoryTracker") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Peak") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Leaked") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Quit") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Refresh") != null);
 }

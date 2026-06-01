@@ -62,6 +62,12 @@ fn renderAndPrint(allocator: std.mem.Allocator, scheduler: anytype, store: anyty
     const gpu_status = abi.features.gpu.detectBackend();
     const native_gpu = abi.features.gpu.nativeKernelStatus();
 
+    const mem_tracker = scheduler.getMemoryTracker();
+    const memory_source: []const u8 = if (mem_tracker) |_| "MemoryTracker (live)" else "not attached";
+    const memory_peak: usize = if (mem_tracker) |t| t.getPeakUsage() else 0;
+    const memory_current: usize = if (mem_tracker) |t| t.getCurrentUsage() else 0;
+    const memory_leaked: usize = if (mem_tracker) |t| t.getLeakedBytes() else 0;
+
     const rendered = try abi.features.tui.renderDiagnostics(allocator, .{
         .gpu_backend = abi.features.gpu.backendName(gpu_status.backend),
         .gpu_accelerated = gpu_status.accelerated,
@@ -77,6 +83,10 @@ fn renderAndPrint(allocator: std.mem.Allocator, scheduler: anytype, store: anyty
         .scheduler_pending = scheduler.stats().pending,
         .scheduler_completed = scheduler.stats().completed,
         .scheduler_failed = scheduler.stats().failed,
+        .memory_source = memory_source,
+        .memory_peak = memory_peak,
+        .memory_current = memory_current,
+        .memory_leaked = memory_leaked,
     });
     defer allocator.free(rendered);
 

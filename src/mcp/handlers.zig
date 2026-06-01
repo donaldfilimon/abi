@@ -11,6 +11,10 @@ var g_mcp_wdbx_store: ?abi.features.wdbx.Store = null;
 var g_wdbx_initialized = std.atomic.Value(bool).init(false);
 var g_wdbx_lock: abi.foundation.sync.SpinLock = .{};
 
+fn statDelta(after: usize, before: usize) usize {
+    return if (after >= before) after - before else 0;
+}
+
 fn ensureMcpScheduler() void {
     if (g_scheduler_initialized.load(.acquire)) return;
     if (g_scheduler_initialized.cmpxchgStrong(false, true, .acq_rel, .acquire) == null) {
@@ -74,7 +78,7 @@ const tools: []const ToolDescriptor = &.{
     },
     .{
         .name = "ai_complete",
-        .description = "Run local model completion and record metadata in a transient WDBX store when available",
+        .description = "Run local model completion and record metadata in the MCP WDBX store when available",
         .input_schema = "{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"},\"model\":{\"type\":\"string\"}},\"required\":[\"input\"]}",
     },
     .{
@@ -114,7 +118,7 @@ const tools: []const ToolDescriptor = &.{
     },
     .{
         .name = "wdbx_stats",
-        .description = "Report statistics for a fresh transient WDBX store (kv, vectors, blocks, spatial)",
+        .description = "Report statistics for the long-lived MCP WDBX store (kv, vectors, blocks, spatial)",
         .input_schema = "{\"type\":\"object\",\"properties\":{},\"required\":[]}",
     },
     .{
@@ -183,18 +187,52 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         const dataset = try objectString(args_obj, "dataset", error.MissingDataset);
         const artifact_dir = objectString(args_obj, "artifact_dir", error.MissingArtifactDir) catch "zig-cache/agents";
 
-        var result = try ai_mod.train(allocator, .{
+        const config = ai_mod.TrainingConfig{
             .profile = profile,
             .dataset = .{ .path = dataset, .format = parseDatasetFormat(args_obj) },
             .artifact_dir = artifact_dir,
-        });
+        };
+
+        const store = getMcpWdbxStore();
+        g_wdbx_lock.lock();
+        defer g_wdbx_lock.unlock();
+
+        const before = store.stats();
+        var result = blk: {
+            var ctx = ai_mod.TrainingTaskContext{
+                .allocator = allocator,
+                .store = store,
+                .config = config,
+            };
+            if (ai_mod.submitTrainingTask(getMcpScheduler(), "train:mcp", &ctx)) |_| {
+                try getMcpScheduler().runAll();
+                break :blk ctx.result orelse return error.MissingTrainingResult;
+            } else |err| {
+                if (!ai_mod.isFeatureDisabled(err)) return err;
+                break :blk try ai_mod.train(allocator, config);
+            }
+        };
         defer result.deinit(allocator);
+        const after = store.stats();
 
         const status: []const u8 = if (result.accepted) "training accepted" else "training disabled";
         const text = try std.fmt.allocPrint(
             allocator,
-            "{s} profile={s} dataset={s} records={d} backend={s}: {s}",
-            .{ status, result.profile, result.dataset_path, result.records_stored, result.acceleration_backend, result.message },
+            "{s} profile={s} dataset={s} records={d} backend={s} wdbx_kv_entries={d} wdbx_vectors={d} wdbx_blocks={d} total_kv_entries={d} total_vectors={d} total_blocks={d}: {s}",
+            .{
+                status,
+                result.profile,
+                result.dataset_path,
+                result.records_stored,
+                result.acceleration_backend,
+                statDelta(after.kv_entries, before.kv_entries),
+                statDelta(after.vectors, before.vectors),
+                statDelta(after.blocks, before.blocks),
+                after.kv_entries,
+                after.vectors,
+                after.blocks,
+                result.message,
+            },
         );
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
@@ -236,8 +274,10 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
     }
 
     if (std.mem.eql(u8, tool_name, "wdbx_stats")) {
-        var store = features.wdbx.Store.init(allocator);
-        defer store.deinit();
+        const store = getMcpWdbxStore();
+        g_wdbx_lock.lock();
+        defer g_wdbx_lock.unlock();
+
         const s = store.stats();
         const dims_str = if (s.vector_dimensions) |d|
             std.fmt.allocPrint(allocator, "{d}", .{d}) catch "null"
@@ -247,7 +287,7 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
 
         const text = try std.fmt.allocPrint(
             allocator,
-            "kv={d} vectors={d} blocks={d} spatial={d} dims={s} backend={s}",
+            "kv={d} vectors={d} blocks={d} spatial={d} dims={s} backend={s} source=mcp-store",
             .{ s.kv_entries, s.vectors, s.blocks, s.spatial_records, dims_str, features.gpu.backendName(s.acceleration.backend) },
         );
         defer allocator.free(text);
@@ -388,14 +428,16 @@ fn runPluginList(allocator: std.mem.Allocator) ![]u8 {
 
 fn runLocalCompletion(allocator: std.mem.Allocator, input: []const u8, model: []const u8) ![]u8 {
     const ai_mod = features.ai;
-    const wdbx = features.wdbx;
-    var store = wdbx.Store.init(allocator);
-    defer store.deinit();
+    const store = getMcpWdbxStore();
 
+    g_wdbx_lock.lock();
+    defer g_wdbx_lock.unlock();
+
+    const before = store.stats();
     const sched = getMcpScheduler();
     var result = try ai_mod.completeWithScheduler(
         allocator,
-        &store,
+        store,
         sched,
         "complete:mcp",
         .{ .input = input, .model = model, .store_result = true },
@@ -408,8 +450,19 @@ fn runLocalCompletion(allocator: std.mem.Allocator, input: []const u8, model: []
     errdefer out.deinit(allocator);
     try out.print(
         allocator,
-        "model={s} profile={s} audit_passed={s} persisted={s} kv_entries={d} vectors={d} blocks={d}",
-        .{ result.model, result.selected_profile.label(), if (result.audit.passed) "true" else "false", if (persisted) "true" else "false", stats.kv_entries, stats.vectors, stats.blocks },
+        "model={s} profile={s} audit_passed={s} persisted={s} kv_entries={d} vectors={d} blocks={d} total_kv_entries={d} total_vectors={d} total_blocks={d}",
+        .{
+            result.model,
+            result.selected_profile.label(),
+            if (result.audit.passed) "true" else "false",
+            if (persisted) "true" else "false",
+            statDelta(stats.kv_entries, before.kv_entries),
+            statDelta(stats.vectors, before.vectors),
+            statDelta(stats.blocks, before.blocks),
+            stats.kv_entries,
+            stats.vectors,
+            stats.blocks,
+        },
     );
     if (result.query_vector_id) |qid| {
         try out.print(allocator, " query_vector_id={d} metadata_key=completion:{d}", .{ qid, qid });
@@ -462,23 +515,13 @@ fn toolTextResult(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
 }
 
 fn runLocalWdbxQuery(allocator: std.mem.Allocator, query: []const u8) ![]u8 {
-    const wdbx = features.wdbx;
-    var store = wdbx.Store.init(allocator);
-    defer store.deinit();
-
     const ai_mod = features.ai;
-    const abbey_vec = [_]f32{ 0.92, 0.48, 0.25, 0.76 };
-    const aviva_vec = [_]f32{ 0.34, 0.94, 0.82, 0.41 };
-    const abi_vec = [_]f32{ 0.71, 0.69, 0.88, 0.97 };
-    _ = store.putVector(&abbey_vec) catch |err| {
-        if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
-        return err;
-    };
-    _ = store.putVector(&aviva_vec) catch |err| {
-        if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
-        return err;
-    };
-    _ = store.putVector(&abi_vec) catch |err| {
+    const store = getMcpWdbxStore();
+
+    g_wdbx_lock.lock();
+    defer g_wdbx_lock.unlock();
+
+    seedMcpProfileVectors(allocator, store) catch |err| {
         if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
         return err;
     };
@@ -488,21 +531,54 @@ fn runLocalWdbxQuery(allocator: std.mem.Allocator, query: []const u8) ![]u8 {
         if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
         return err;
     };
-    defer allocator.free(results);
+    defer std.heap.page_allocator.free(results);
 
     if (results.len == 0) return try allocator.dupe(u8, "wdbx query returned no local matches");
+    const stats = store.stats();
     return try std.fmt.allocPrint(
         allocator,
-        "wdbx local match profile={s} vector_id={d} score={d:.3}",
-        .{ localProfileForVector(results[0].id), results[0].id, results[0].score },
+        "wdbx local match profile={s} vector_id={d} score={d:.3} total_vectors={d} total_blocks={d}",
+        .{ profileForVector(store, results[0].id), results[0].id, results[0].score, stats.vectors, stats.blocks },
     );
 }
 
-fn localProfileForVector(id: u32) []const u8 {
-    return switch (id) {
-        1 => "abbey",
-        2 => "aviva",
-        3 => "abi",
-        else => "unknown",
+fn seedMcpProfileVectors(allocator: std.mem.Allocator, store: *features.wdbx.Store) !void {
+    if (store.get("wdbx:profiles_seeded") != null) return;
+
+    const profiles = [_]struct {
+        label: []const u8,
+        vector: [4]f32,
+    }{
+        .{ .label = "abbey", .vector = .{ 0.92, 0.48, 0.25, 0.76 } },
+        .{ .label = "aviva", .vector = .{ 0.34, 0.94, 0.82, 0.41 } },
+        .{ .label = "abi", .vector = .{ 0.71, 0.69, 0.88, 0.97 } },
     };
+
+    for (profiles) |entry| {
+        const id = try store.putVector(&entry.vector);
+        const key = try std.fmt.allocPrint(allocator, "wdbx:profile:{d}", .{id});
+        defer allocator.free(key);
+        try store.store(key, entry.label);
+    }
+    try store.store("wdbx:profiles_seeded", "true");
+}
+
+fn profileForVector(store: *features.wdbx.Store, id: u32) []const u8 {
+    var key_buf: [64]u8 = undefined;
+    const profile_key = std.fmt.bufPrint(&key_buf, "wdbx:profile:{d}", .{id}) catch return "unknown";
+    if (store.get(profile_key)) |label| return label;
+
+    const completion_key = std.fmt.bufPrint(&key_buf, "completion:{d}", .{id}) catch return "unknown";
+    const metadata = store.get(completion_key) orelse return "unknown";
+    return profileFromCompletionMetadata(metadata);
+}
+
+fn profileFromCompletionMetadata(metadata: []const u8) []const u8 {
+    const needle = "\"profile\":";
+    const start = std.mem.indexOf(u8, metadata, needle) orelse return "stored-completion";
+    const after_key = metadata[start + needle.len ..];
+    if (after_key.len == 0 or after_key[0] != '"') return "stored-completion";
+    const value_start: usize = 1;
+    const value_end = std.mem.indexOfScalar(u8, after_key[value_start..], '"') orelse return "stored-completion";
+    return after_key[value_start .. value_start + value_end];
 }

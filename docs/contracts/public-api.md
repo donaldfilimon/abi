@@ -67,7 +67,7 @@ The top-level `abi --tui` shortcut is handled in `src/main.zig` outside the froz
 
 ## MCP contract
 
-The MCP server exposes JSON-RPC 2.0 over stdio and loopback HTTP/SSE. Feature-backed tools must expose explicit degraded responses when AI or WDBX is disabled; for example, `ai_train` reports `training disabled` when the AI stub returns `accepted=false`, and `ai_complete` rejects empty input before touching WDBX. Contract tools are:
+The MCP server exposes JSON-RPC 2.0 over stdio and loopback HTTP/SSE. Feature-backed tools must expose explicit degraded responses when AI or WDBX is disabled; for example, `ai_train` reports `training disabled` when the AI stub returns `accepted=false`, and `ai_complete` rejects empty input before touching WDBX. MCP completion, training, query, and stats tools share a long-lived in-process WDBX store for the server lifetime; per-call output reports call deltas plus total WDBX counts where applicable. Contract tools are:
 
 - `ai_run`
 - `ai_complete`
