@@ -1,6 +1,5 @@
 const std = @import("std");
 const build_options = @import("build_options");
-const foundation_time = @import("../../foundation/time.zig");
 const foundation_pool = @import("../../foundation/pool_allocator.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
 const memory = @import("../../core/memory.zig");
