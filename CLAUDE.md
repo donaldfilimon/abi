@@ -47,7 +47,7 @@ The ABI framework is a modular Zig codebase with a clear separation of concerns 
   - Disabled by default: `feat-mobile`, `feat-metrics`
 - **Import Rules**: Within `src/`, use relative `.zig` imports. `@import("abi")` is only allowed from `src/mcp/main.zig` and `src/mcp/handlers.zig`. Always include `.zig` extension on path imports.
 - **CLI Contracts**: Implemented commands: `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`. Do not dispatch legacy names like `version`, `doctor`, `features`, etc.
-- **MCP Contracts**: Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `gpu_status`, `wdbx_stats`, `plugin_run`. HTTP defaults to `127.0.0.1:8080`; set `ABI_MCP_HTTP_PORT` to override.
+- **MCP Contracts**: Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. HTTP defaults to `127.0.0.1:8080`; set `ABI_MCP_HTTP_PORT` to override.
 - **Generated Code**: Do not manually edit `src/plugin_registry.zig`; update plugin manifests or generator code and rerun the build.
 - **Zig 0.17 Patterns**: 
   - Entry: `pub fn main(init: std.process.Init) !void`

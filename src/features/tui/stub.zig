@@ -34,6 +34,26 @@ pub const DashboardState = struct {
     scheduler_failed: usize = 0,
 };
 
+pub const InteractiveTerminal = struct {
+    fd: std.posix.fd_t,
+    original: std.posix.termios,
+    is_tty: bool,
+
+    pub fn init(fd: std.posix.fd_t) !InteractiveTerminal {
+        _ = fd;
+        return error.NotATerminal;
+    }
+
+    pub fn deinit(self: *InteractiveTerminal) void {
+        _ = self;
+    }
+
+    pub fn readKey(self: *InteractiveTerminal) ?u8 {
+        _ = self;
+        return null;
+    }
+};
+
 pub const ScreenState = struct {
     width: u16,
     height: u16,

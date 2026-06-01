@@ -46,6 +46,8 @@ This contract does not prove distributed sharding, AES-256 encryption, RBAC, Swi
 
 When WDBX is enabled and `store_result=true`, `completeWithStore()` stores JSON completion metadata under `completion:<query_vector_id>`, records query/response vectors, and appends a conversation block linked to the previous block. `CompletionResult.query_vector_id`, `CompletionResult.response_vector_id`, and `CompletionResult.block_id` expose those persisted IDs when storage succeeds; they remain `null` when persistence is skipped or unavailable. The metadata includes `kind`, `model`, `profile`, `audit_passed`, byte counts, and query/response vector IDs. `abi.features.wdbx.Store.verifyBlocks()` exposes public chain-integrity verification across real and disabled WDBX builds.
 
+AI scheduler integration is exposed through `CompletionTaskContext`, `TrainingTaskContext`, `submitCompletionTask()`, `submitTrainingTask()`, and the convenience `completeWithScheduler()` helper. Real AI builds submit high-priority scheduler tasks that fill the caller-owned context result and attach any scheduler `MemoryTracker` to the WDBX store. Disabled AI builds preserve the public declarations: `submit*Task()` returns `error.FeatureDisabled`, while `completeWithScheduler()` preserves degraded completion behavior by delegating to `completeWithStore()`.
+
 ## CLI command contract
 
 The CLI command surface is guarded by `tests/contracts/surface.zig` and currently includes the frozen `src/abi_cli/usage.zig` command array:
@@ -72,9 +74,14 @@ The MCP server exposes JSON-RPC 2.0 over stdio and loopback HTTP/SSE. Feature-ba
 - `ai_train`
 - `wdbx_query`
 - `scheduler_stats`
+- `scheduler_info` (compatibility alias for scheduler stats)
+- `connector_test`
 - `gpu_status`
+- `plugin_list`
 - `wdbx_stats`
 - `plugin_run`
+
+`connector_test` uses deterministic local connector paths only; it does not perform live network dispatch. `plugin_list` loads the bundled plugin manifests through `PluginManager` and returns their metadata, while `plugin_run` executes the bundled plugin `run()` implementations.
 
 HTTP defaults to `127.0.0.1:8080`; use `ABI_MCP_HTTP_PORT` to select another loopback port. Empty, invalid, zero, or out-of-range overrides fall back to `8080`; HTTP bind failure is non-fatal and leaves stdio running.
 

@@ -15,6 +15,7 @@ test "public overview docs avoid unsupported external benchmark claims" {
         "CHANGELOG.md",
         "docs/index.md",
         "docs/contracts/public-api.md",
+        "docs/spec/multi-persona-technical.md",
     };
 
     for (public_paths) |path| {

@@ -5,6 +5,7 @@ Welcome to the ABI framework documentation. This hub provides central access to 
 ## Architecture
 - [ABI Refactor Design](spec/abi-refactor-design.md)
 - [ABI Master Specification](superpowers/specs/ABI-MASTER-SPEC.md)
+- [Multi-Persona Technical Overview](spec/multi-persona-technical.md)
 - [Public API Contract](contracts/public-api.md)
 - [External Claims Audit](contracts/external-claims-audit.md)
 

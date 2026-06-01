@@ -2,6 +2,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const foundation_time = @import("../../foundation/time.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
+const memory = @import("../../core/memory.zig");
 
 pub const index = @import("hnsw.zig");
 pub const storage = @import("chain.zig");
@@ -56,6 +57,7 @@ pub const Store = struct {
     next_vector_id: u32 = 1,
     vector_dimensions: ?usize = null,
     acceleration: AccelerationStatus,
+    tracker: ?*memory.MemoryTracker = null,
 
     pub fn init(a: std.mem.Allocator) Store {
         return .{
@@ -65,6 +67,7 @@ pub const Store = struct {
             .chain = storage.BlockChain.init(a),
             .spatial_index = spatial_3d.SpatialIndex3D.init(a),
             .acceleration = defaultAcceleration(),
+            .tracker = null,
         };
     }
 
@@ -113,6 +116,11 @@ pub const Store = struct {
         return self.index.count();
     }
 
+    pub fn setTracker(self: *Store, t: *memory.MemoryTracker) void {
+        self.tracker = t;
+        self.index.setTracker(t);
+    }
+
     pub fn stats(self: *const Store) StoreStats {
         return .{
             .kv_entries = self.entries.count(),
@@ -134,8 +142,14 @@ pub const Store = struct {
             self.vector_dimensions = values.len;
         }
 
+        const padded_size = HNSW_DIMENSIONS * @sizeOf(f32);
+
         var padded_values = try self.allocator.alloc(f32, HNSW_DIMENSIONS);
-        errdefer self.allocator.free(padded_values);
+        errdefer {
+            self.allocator.free(padded_values);
+            if (self.tracker) |t| t.trackFreeNoTag(padded_size);
+        }
+        if (self.tracker) |t| t.trackAllocNoTag(padded_size);
         @memset(padded_values, 0);
         @memcpy(padded_values[0..values.len], values);
 
@@ -143,6 +157,7 @@ pub const Store = struct {
         self.next_vector_id += 1;
         try self.index.insert(id, padded_values);
         self.allocator.free(padded_values);
+        if (self.tracker) |t| t.trackFreeNoTag(padded_size);
         self.acceleration = try runAccelerationKernel("wdbx.putVector", values.len);
         return id;
     }
@@ -154,12 +169,20 @@ pub const Store = struct {
             if (dims != query.len) return error.DimensionMismatch;
         }
 
+        const padded_size = HNSW_DIMENSIONS * @sizeOf(f32);
+
         var padded_query = try self.allocator.alloc(f32, HNSW_DIMENSIONS);
-        defer self.allocator.free(padded_query);
+        errdefer {
+            self.allocator.free(padded_query);
+            if (self.tracker) |t| t.trackFreeNoTag(padded_size);
+        }
+        if (self.tracker) |t| t.trackAllocNoTag(padded_size);
         @memset(padded_query, 0);
         @memcpy(padded_query[0..query.len], query);
 
         const results = try self.index.search(padded_query, limit);
+        self.allocator.free(padded_query);
+        if (self.tracker) |t| t.trackFreeNoTag(padded_size);
         self.acceleration = try runAccelerationKernel("wdbx.search", query.len * self.index.count());
         return results;
     }

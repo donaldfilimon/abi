@@ -85,6 +85,25 @@ pub const MemoryTracker = struct {
     pub fn getLeakedBytes(self: *const MemoryTracker) usize {
         return self.total_allocated - self.total_freed;
     }
+
+    /// Non-fallible tracking for hot-path use (no tag string allocation).
+    pub fn trackAllocNoTag(self: *MemoryTracker, size: usize) void {
+        self.total_allocated += size;
+        self.current_usage += size;
+        if (self.current_usage > self.peak_usage) {
+            self.peak_usage = self.current_usage;
+        }
+    }
+
+    /// Non-fallible free tracking for hot-path use.
+    pub fn trackFreeNoTag(self: *MemoryTracker, size: usize) void {
+        self.total_freed += size;
+        if (self.current_usage >= size) {
+            self.current_usage -= size;
+        } else {
+            self.current_usage = 0;
+        }
+    }
 };
 
 pub const MemoryPool = struct {
@@ -264,6 +283,28 @@ test "MemoryPool block size limit" {
 
     const err = pool.alloc(16) catch |e| e;
     try std.testing.expectEqual(errors.AbiError.InvalidConfig, err);
+}
+
+test "MemoryTracker trackAllocNoTag and trackFreeNoTag" {
+    var tracker = MemoryTracker.init(std.testing.allocator);
+    defer tracker.deinit();
+
+    tracker.trackAllocNoTag(64);
+    try std.testing.expectEqual(@as(usize, 64), tracker.getCurrentUsage());
+    try std.testing.expectEqual(@as(usize, 64), tracker.getPeakUsage());
+
+    tracker.trackAllocNoTag(32);
+    try std.testing.expectEqual(@as(usize, 96), tracker.getCurrentUsage());
+    try std.testing.expectEqual(@as(usize, 96), tracker.getPeakUsage());
+
+    tracker.trackFreeNoTag(48);
+    try std.testing.expectEqual(@as(usize, 48), tracker.getCurrentUsage());
+    // peak unchanged
+    try std.testing.expectEqual(@as(usize, 96), tracker.getPeakUsage());
+
+    // over-free clamps to zero
+    tracker.trackFreeNoTag(999);
+    try std.testing.expectEqual(@as(usize, 0), tracker.getCurrentUsage());
 }
 
 test "TrackingAllocator" {

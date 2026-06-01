@@ -5,6 +5,8 @@ const mlir = if (build_options.feat_mlir) @import("../mlir/mod.zig") else @impor
 const shaders = if (build_options.feat_shader) @import("../shaders/mod.zig") else @import("../shaders/stub.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const foundation_io = @import("../../foundation/io/mod.zig");
+const scheduler_mod = @import("../../core/scheduler.zig");
+const memory_mod = @import("../../core/memory.zig");
 const helpers = @import("helpers.zig");
 
 const router = @import("router.zig");
@@ -94,6 +96,34 @@ pub const CompletionResult = struct {
     }
 };
 
+pub const CompletionTaskContext = struct {
+    allocator: std.mem.Allocator,
+    store: *wdbx.Store,
+    request: CompletionRequest,
+    result: ?CompletionResult = null,
+
+    pub fn deinitResult(self: *CompletionTaskContext) void {
+        if (self.result) |res| {
+            res.deinit(self.allocator);
+            self.result = null;
+        }
+    }
+};
+
+pub const TrainingTaskContext = struct {
+    allocator: std.mem.Allocator,
+    store: *wdbx.Store,
+    config: TrainingConfig,
+    result: ?TrainingResult = null,
+
+    pub fn deinitResult(self: *TrainingTaskContext) void {
+        if (self.result) |res| {
+            res.deinit(self.allocator);
+            self.result = null;
+        }
+    }
+};
+
 const DatasetSummary = struct {
     available: bool = false,
     records: usize = 0,
@@ -136,6 +166,44 @@ pub fn complete(allocator: std.mem.Allocator, request: CompletionRequest) !Compl
         .output = response,
         .audit = audit,
     };
+}
+
+pub fn submitCompletionTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx: *CompletionTaskContext) !u64 {
+    if (sched.getMemoryTracker()) |tracker| {
+        ctx.store.setTracker(tracker);
+    }
+    return try sched.submit(name, .high, runCompletionTask, ctx);
+}
+
+pub fn submitTrainingTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx: *TrainingTaskContext) !u64 {
+    if (sched.getMemoryTracker()) |tracker| {
+        ctx.store.setTracker(tracker);
+    }
+    return try sched.submit(name, .high, runTrainingTask, ctx);
+}
+
+pub fn completeWithScheduler(allocator: std.mem.Allocator, store: *wdbx.Store, sched: *scheduler_mod.Scheduler, name: []const u8, request: CompletionRequest) !CompletionResult {
+    var ctx = CompletionTaskContext{
+        .allocator = allocator,
+        .store = store,
+        .request = request,
+    };
+
+    _ = try submitCompletionTask(sched, name, &ctx);
+    try sched.runAll();
+    return ctx.result orelse error.MissingCompletionResult;
+}
+
+fn runCompletionTask(ctx: ?*anyopaque) anyerror!void {
+    const c = @as(*CompletionTaskContext, @ptrCast(@alignCast(ctx orelse return error.MissingTaskContext)));
+    if (c.result) |old| old.deinit(c.allocator);
+    c.result = try completeWithStore(c.allocator, c.store, c.request);
+}
+
+fn runTrainingTask(ctx: ?*anyopaque) anyerror!void {
+    const c = @as(*TrainingTaskContext, @ptrCast(@alignCast(ctx orelse return error.MissingTaskContext)));
+    if (c.result) |old| old.deinit(c.allocator);
+    c.result = try trainWithStore(c.allocator, c.store, c.config);
 }
 
 pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, request: CompletionRequest) !CompletionResult {
@@ -512,6 +580,67 @@ test "completion rejects empty input before touching wdbx store" {
     try std.testing.expectEqual(@as(usize, 0), store.vectorCount());
     try std.testing.expectEqual(@as(usize, 0), store.blockCount());
     try std.testing.expect(store.lastBlock() == null);
+}
+
+test "scheduled completion task records result and scheduler stats" {
+    var scheduler = scheduler_mod.Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    var tracker = memory_mod.MemoryTracker.init(std.testing.allocator);
+    defer tracker.deinit();
+    scheduler.setMemoryTracker(&tracker);
+
+    var store = wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+
+    var ctx = CompletionTaskContext{
+        .allocator = std.testing.allocator,
+        .store = &store,
+        .request = .{ .input = "scheduled completion storage", .model = "abi-scheduled", .store_result = true },
+    };
+    defer ctx.deinitResult();
+
+    _ = try submitCompletionTask(&scheduler, "complete:abi-scheduled", &ctx);
+    try scheduler.runAll();
+
+    const stats = scheduler.stats();
+    try std.testing.expectEqual(@as(usize, 1), stats.completed);
+    try std.testing.expectEqual(@as(usize, 0), stats.failed);
+    const result = ctx.result orelse return error.MissingCompletionResult;
+    try std.testing.expectEqualStrings("abi-scheduled", result.model);
+    try std.testing.expect(result.output.len > 0);
+    if (build_options.feat_wdbx) {
+        try std.testing.expect(result.query_vector_id != null);
+        try std.testing.expect(tracker.getPeakUsage() > 0);
+    }
+}
+
+test "scheduled training task records result and scheduler stats" {
+    var scheduler = scheduler_mod.Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    var store = wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+
+    var ctx = TrainingTaskContext{
+        .allocator = std.testing.allocator,
+        .store = &store,
+        .config = .{
+            .profile = "abi",
+            .dataset = .{ .path = "datasets/train.jsonl" },
+            .artifact_dir = "zig-cache/agents",
+        },
+    };
+    defer ctx.deinitResult();
+
+    _ = try submitTrainingTask(&scheduler, "train:abi", &ctx);
+    try scheduler.runAll();
+
+    const stats = scheduler.stats();
+    try std.testing.expectEqual(@as(usize, 1), stats.completed);
+    try std.testing.expectEqual(@as(usize, 0), stats.failed);
+    const result = ctx.result orelse return error.MissingTrainingResult;
+    try std.testing.expect(result.accepted);
 }
 
 test "completion with store records vectors metadata and block" {

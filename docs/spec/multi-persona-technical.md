@@ -1,0 +1,189 @@
+# ABI Multi-Persona Technical Overview
+
+This document describes the current ABI multi-persona assistant implementation as supported by the repository source, contracts, and build gates. It intentionally avoids production benchmark, deployment, certification, or comparative model-quality claims unless they are backed by executable tests or checked-in artifacts.
+
+## 1. Executive Summary
+
+ABI is a Zig 0.17 local AI orchestration framework with three deterministic assistant profiles:
+
+- **Abbey**: analytical/supportive profile for structured explanation and safety-oriented review.
+- **Aviva**: creative/exploratory profile for idea generation and alternative perspectives.
+- **Abi**: concise/action-oriented profile for execution-focused responses.
+
+The current implementation provides:
+
+- keyword-weighted profile routing with normalized Abbey/Aviva/Abi weights;
+- optional exponential moving average smoothing for route weights persisted through a caller-provided WDBX store;
+- constitution-style response validation against repository-defined principles;
+- opt-in completion persistence into WDBX when `CompletionRequest.store_result=true`;
+- scheduler-backed completion helper wiring for CLI/MCP completion paths;
+- CLI and MCP surfaces guarded by contract tests;
+- feature-gated real/stub modules where disabled features preserve public symbols and return explicit degraded behavior.
+
+## 2. Architecture
+
+```mermaid
+graph TD
+    Client[CLI or MCP Client] --> Router[AI Router]
+    Router --> Weights[Keyword-Weighted Scores]
+    Weights --> Abbey[Abbey Profile]
+    Weights --> Aviva[Aviva Profile]
+    Weights --> Abi[Abi Profile]
+    Router --> Constitution[Constitution Validation]
+    Constitution --> Result[Completion Result]
+    Result --> StoreDecision{store_result?}
+    StoreDecision -->|false| Response[Return Response]
+    StoreDecision -->|true| WDBX[WDBX Store]
+    WDBX --> Vectors[Query and Response Vectors]
+    WDBX --> Metadata[Completion Metadata]
+    WDBX --> Blocks[Linked Conversation Blocks]
+```
+
+### Primary Source Modules
+
+| Area | Source | Current role |
+| --- | --- | --- |
+| Public root | `src/root.zig` | Exposes the `abi` module namespace. |
+| AI module | `src/features/ai/mod.zig` | Completion, training metadata acceptance, WDBX persistence integration. |
+| AI router | `src/features/ai/router.zig` | Keyword-weighted routing, profile selection, optional EMA smoothing. |
+| Constitution | `src/features/ai/constitution.zig` | Response validation against repository-defined principles. |
+| WDBX | `src/features/wdbx/mod.zig` | In-process key/value, vector, block, spatial, and stats surfaces. |
+| HNSW | `src/features/wdbx/hnsw.zig` | HNSW-style cosine search with SIMD path and GPU-vector-op fallback integration. |
+| CLI | `src/abi_cli/` | Frozen command surface and handlers. |
+| MCP | `src/mcp/` | JSON-RPC 2.0 stdio and optional loopback HTTP/SSE tool surface. |
+
+## 3. Persona Routing
+
+Routing is deterministic and local. `src/features/ai/router.zig` starts with default normalized weights and adjusts them when keyword patterns are found in the input.
+
+Current examples from the router keyword table include:
+
+- Abbey-oriented terms: `analyze`, `structure`, `logical`, `compare`, `safe`, `risk`, `pattern`.
+- Aviva-oriented terms: `creative`, `imagine`, `explore`, `brainstorm`, `what if`, `design`.
+- Abi-oriented terms: `run`, `execute`, `deploy`, `build`, `fix`, `quick`.
+
+The highest normalized score selects the profile:
+
+```zig
+pub fn selectBestProfile(weights_val: ProfileWeights) ai.AgentProfile {
+    if (weights_val.w_abbey >= weights_val.w_aviva and weights_val.w_abbey >= weights_val.w_abi) {
+        return .abbey;
+    } else if (weights_val.w_aviva >= weights_val.w_abi) {
+        return .aviva;
+    } else {
+        return .abi;
+    }
+}
+```
+
+Profile responses are currently deterministic local strings, not live network model calls.
+
+## 4. Completion and Persistence Flow
+
+`abi.features.ai.complete()` validates non-empty input, selects a profile, routes the input, and returns a `CompletionResult` containing:
+
+- requested model label;
+- selected profile;
+- generated local output;
+- constitution audit result;
+- optional WDBX IDs when persistence is requested and succeeds.
+
+`completeWithStore()` only mutates WDBX when `store_result=true`. `completeWithScheduler()` wraps the same completion-and-store behavior in a high-priority scheduler task for callers that own a scheduler. In the storage path it records:
+
+1. a query vector;
+2. a response vector;
+3. JSON completion metadata under `completion:<query_vector_id>`;
+4. a linked conversation block with the selected profile label and vector IDs.
+
+When WDBX is disabled, storage paths return explicit disabled-feature behavior rather than fabricating persistence success.
+
+## 5. WDBX Substrate
+
+WDBX is currently an in-process store. Repo-backed capabilities include:
+
+- key/value storage;
+- fixed-capacity padded vector storage;
+- HNSW-style vector search with ordered result contracts;
+- SHA-256-linked conversation blocks with snapshot iteration and integrity verification;
+- in-memory 3D spatial records and distance searches;
+- store stats and acceleration status reporting;
+- disabled-feature stubs that preserve public shape and return explicit disabled errors for write/search paths.
+
+WDBX is not currently documented here as a distributed database, sharded service, Redis/FAISS deployment, or externally benchmarked production vector database.
+
+## 6. CLI and MCP Surfaces
+
+### CLI
+
+The frozen top-level CLI commands are:
+
+- `help`
+- `complete`
+- `train`
+- `agent`
+- `backends`
+- `plugin`
+- `auth`
+- `twilio`
+- `tui`
+- `dashboard`
+
+The `abi --tui` shortcut is handled separately by `src/main.zig`.
+
+### MCP
+
+The MCP server exposes JSON-RPC 2.0 over stdio with optional loopback HTTP/SSE. Contract-tested tools are:
+
+- `ai_run`
+- `ai_complete`
+- `ai_train`
+- `wdbx_query`
+- `scheduler_stats`
+- `scheduler_info`
+- `connector_test`
+- `gpu_status`
+- `plugin_list`
+- `wdbx_stats`
+- `plugin_run`
+
+Feature-backed tools return explicit degraded responses when their feature is disabled.
+
+## 7. Feature Gates and Stubs
+
+Every feature under `src/features/` has a real `mod.zig` and disabled `stub.zig` selected at compile time through `build_options`. Public feature API changes must update both files.
+
+The primary gates are:
+
+```bash
+./build.sh check
+./build.sh full-check
+zig build check-parity
+```
+
+`./build.sh check` includes feature-off smoke builds, focused feature contract tests, public contract tests, formatting, CLI/MCP builds, and parity checks.
+
+## 8. Performance and Benchmark Policy
+
+ABI includes benchmark targets and integration tests, but this document does not publish production latency, throughput, availability, cache-hit, GPU-utilization, model-quality, or comparative model benchmark numbers. Publish those only when a reproducible benchmark artifact or contract is checked into the repository and cited.
+
+Safe current wording:
+
+> ABI provides local deterministic AI profile routing, an in-process WDBX vector/key-value/block store, contract-tested CLI/MCP surfaces, feature-off stubs, and GPU capability reporting with deterministic CPU fallback.
+
+## 9. Deployment Boundary
+
+The repository builds local CLI and MCP binaries. It does not currently prove a specific cloud, cluster, accelerator fleet, regulatory certification, or production service-level objective. Deployment documents should therefore describe such items as proposals or environment-specific requirements, not current repository-backed ABI capabilities.
+
+## 10. Validation Checklist for Documentation Changes
+
+Before publishing technical collateral based on ABI, verify that it does not assert unsupported claims about:
+
+- distributed sharding;
+- storage encryption or RBAC guarantees;
+- Python/TensorFlow/PyTorch implementation stacks;
+- Kubernetes, H100/A100, or multi-node deployments;
+- regulatory certifications;
+- production QPS, latency, availability, accuracy, cache-hit, utilization, or energy metrics;
+- comparative model benchmark scores.
+
+Use `docs/contracts/external-claims-audit.md` and `docs/contracts/public-api.md` as the public claim boundary.

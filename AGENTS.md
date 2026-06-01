@@ -2,71 +2,92 @@
 
 Trust executable config over prose. When docs conflict with `build.zig`, `tools/build.sh`, or source, trust the executable source.
 
-Also read sibling instruction files: `CLAUDE.md`, `GEMINI.md`, `tasks/lessons.md`, `tasks/todo.md`.
+Read first: `CLAUDE.md`, `GEMINI.md`, `tasks/lessons.md` (session-start checklist), `tasks/todo.md` (active work + known failures).
 
-## Build & Validation
+## First Commands
 
-- `./build.sh check` — primary gate (build CLI+MCP, run module/connector/contract/stub checks, fmt, parity). **Always use `./build.sh` on macOS** — LLD fails on Darwin 25+.
-- `./build.sh full-check` — check + integration tests + benchmarks + TUI smoke.
-- `./build.sh cli` → `zig-out/bin/abi`; `./build.sh mcp` → `zig-out/bin/abi-mcp`.
-- `zig build test` — module + connector tests; `zig build test-feature-contracts` — feature contracts; `zig build test-contracts` — surface/MCP/plugin/docs contracts.
-- `zig build test-integration` — integration suite; `zig build benchmarks` — benchmark suite.
-- `zig build lint` / `zig build fix` — check/auto-format.
-- `zig build check-parity` — after changing any `mod.zig`/`stub.zig` API.
-- Single test: `zig build test -- --test-filter "<pattern>"`.
+```bash
+./build.sh check            # primary gate: build CLI+MCP, module/connector/contract/stub tests, fmt, parity
+./build.sh full-check       # check + integration tests + benchmarks + TUI smoke
+./build.sh cli              # -> zig-out/bin/abi
+./build.sh mcp              # -> zig-out/bin/abi-mcp
+zig build test              # module + connector tests
+zig build test-integration  # integration suite (run when touching AI/WDBX/scheduler/MCP/connectors)
+zig build benchmarks        # benchmark suite (run when touching GPU/HNSW/router/chain)
+zig build lint | zig build fix        # zig fmt --check | auto-format
+zig build check-parity      # mod.zig / stub.zig public-decl parity
+zig build test -- --test-filter "<pattern>"  # single test
+```
+
+`./build.sh` is a thin wrapper over `tools/build.sh` -> `zig build`. On macOS, prefer it over raw `zig build` for the documented Darwin workflow.
 
 ## Feature Flags & Stubs
 
-Defaults: `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`, `feat-hash` enabled; `feat-mobile`, `feat-metrics` disabled.
+Defaults: `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`, `feat-hash` enabled; `feat-mobile`, `feat-metrics` disabled. There is **no** `-Dgpu-backend` option; GPU is runtime-selected.
 
-Every feature in `src/features/` has a real `mod.zig` and disabled `stub.zig`. **Always update both** when changing public APIs. Disabled paths must degrade cleanly (`error.FeatureDisabled`) — never fabricate success.
+`./build.sh check` smoke-builds every feature-off stub and the real `feat-mobile` module via `tools/check_feature_stubs.sh` (focused feature contracts + public-contracts under every `-Dfeat-*`).
 
-Use feature flags at compile time: `build_options.feat_*` (not runtime checks).
+Every feature in `src/features/` has a real `mod.zig` and a disabled `stub.zig`. **Update both** when changing public APIs; disabled paths must return `error.FeatureDisabled`, never fabricate success. Gate with `build_options.feat_*` at compile time, not runtime.
 
-GPU backend is runtime-selected; there is no `-Dgpu-backend` build option. On macOS with `feat-gpu=true`, `build.zig` links Metal/Foundation/objc.
-
-## Architecture & Import Rules
+## Architecture
 
 | Path | Role |
 |------|------|
-| `src/root.zig` | Public `abi` module root |
-| `src/main.zig` → `src/abi_cli/dispatch.zig` | CLI entry |
-| `src/mcp/` | JSON-RPC 2.0 stdio server + loopback HTTP/SSE |
-| `src/features/` | AI, WDBX, GPU, TUI, shaders, MLIR, accelerator, OS control, mobile, metrics, hash |
-| `src/connectors/` | OpenAI, Anthropic, Discord, Twilio |
-| `src/core/` + `src/foundation/` | Scheduler, memory, config, registry, time, sync, logger, IO, credentials |
-| `src/plugins/` + `src/plugin_registry.zig` | Plugin manifests → metadata (generated) |
+| `src/root.zig` | Public `abi` module root (entry for consumers) |
+| `src/main.zig` -> `src/abi_cli/dispatch.zig` | CLI entry; also handles `abi --tui` shortcut outside `usage.commands` |
+| `src/abi_cli/{usage,handlers}.zig` | Frozen CLI command list and handlers |
+| `src/mcp/` | JSON-RPC 2.0 server (stdio + loopback HTTP/SSE) |
+| `src/features/{ai,wdbx,gpu,tui,shaders,mlir,accelerator,os_control,hash,metrics,mobile}/` | Feature modules (mod + stub each) |
+| `src/connectors/` | OpenAI, Anthropic, Discord, Grok, Twilio, HTTP, JSON |
+| `src/core/` + `src/foundation/` | Scheduler, memory, config, registry, time, sync, logger, IO, credentials, OS |
+| `src/plugins/` + `src/plugin_registry.zig` | Plugin manifests (generated into registry by the build) |
+| `mcp/` (repo root) | **Host** launcher scripts (`launcher.sh` -> `zig-out/bin/abi-mcp`); not Zig code |
+| `tools/` | `build.sh`, `check_feature_stubs.sh`, `check_parity.zig`, `generate_plugin_registry.zig`, `run_contract_cli.sh` |
+| `tests/contracts/` | Feature, surface, MCP-tool, plugin-registry, and public-docs contract tests |
 
-**Import rules**: Within `src/`, use relative `.zig` imports. `@import("abi")` is only allowed from `src/mcp/main.zig` and `src/mcp/handlers.zig`. Always include `.zig` extension on path imports.
+## Import Rules
 
-## CLI & MCP Contracts
+- Inside `src/`: relative `.zig` imports only.
+- The **only** files in `src/` that may use `@import("abi")` are `src/mcp/main.zig` and `src/mcp/handlers.zig`.
+- Outside `src/`: `@import("abi")` and `@import("build_options")`.
+- Every path import must end in `.zig`.
 
-Implemented CLI commands (frozen, contract-tested): `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`. `abi --tui` shortcut handled in `src/main.zig` outside the `usage.commands` array. Do not dispatch legacy names: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, `serve`.
+## CLI & MCP Contracts (frozen, contract-tested)
 
-MCP tools (frozen, contract-tested): `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `gpu_status`, `wdbx_stats`, `plugin_run`. Request limit: 64 KB. HTTP defaults to `127.0.0.1:8080`; set `ABI_MCP_HTTP_PORT` to override (invalid values fall back to 8080; bind failure leaves stdio running). Endpoints: `GET /sse`, `POST /message`.
+CLI top-level: `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard` (+ `abi --tui`). `agent` subcommands: `plan | train <profile|all> | tui | os <dry-run|execute --confirm>`. Do **not** dispatch legacy names: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, `serve`.
+
+MCP tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. JSON-RPC 2.0 over stdio, request cap 64 KB, optional HTTP on `127.0.0.1:8080` (`ABI_MCP_HTTP_PORT` to override; empty/invalid/zero/out-of-range -> 8080; bind failure leaves stdio running). HTTP endpoints: `GET /sse`, `POST /message`. The repo-root `.mcp.json` already wires `abi-mcp` for host MCP clients via `mcp/launcher.sh`.
 
 ## Generated Code
 
-`src/plugin_registry.zig` is generated by `tools/generate_plugin_registry.zig` from `src/plugins/*/abi-plugin.json`. Do not hand-edit.
+`src/plugin_registry.zig` is regenerated automatically: the build depends on a `gen_plugin_registry` step (see `build.zig:43-45`) that runs `tools/generate_plugin_registry.zig` over `src/plugins/*/abi-plugin.json` before linking the CLI and the plugin-registry contract test. **Do not hand-edit** the generated file. Plugin manifests must include `name`, `version`, `description`, `target_feature`, and a safe relative `.zig` `entry_point` whose file exists under the plugin directory; `targetFeature` / `entryPoint` aliases are accepted.
 
 ## Zig 0.17 Patterns
 
-- Entry: `pub fn main(init: std.process.Init) !void`
-- `ArrayListUnmanaged(T).empty` (not `.init(allocator)`); `std.mem.Allocator` explicit (no global).
-- `std.mem.trimEnd` (not `trimRight`); `splitScalar`/`splitAny`/`splitSequence` (not `split`).
+- Entry: `pub fn main(init: std.process.Init) !void`.
+- `ArrayListUnmanaged(T).empty` (not `.init(allocator)`); `std.mem.Allocator` is explicit, no global.
+- `std.mem.trimEnd` (not `trimRight`); `splitScalar` / `splitAny` / `splitSequence` (not `split`).
 - Timestamps: `foundation.time.unixMs()` (not `std.time.milliTimestamp`).
-- Tests are inline `test {}` blocks; each module should include `std.testing.refAllDecls(@This())`.
+- Tests are inline `test {}`; each module ends with `std.testing.refAllDecls(@This())`.
 - No silent empty `catch {}` in data, inference, or persistence paths.
 - `@panic` only for unrecoverable invariants; `unreachable` only for provably impossible branches.
-- Naming: `camelCase` functions/vars, `PascalCase` types, `SCREAMING_SNAKE_CASE` constants, `snake_case` enum variants.
+- Naming: `camelCase` fns/vars, `PascalCase` types, `SCREAMING_SNAKE_CASE` constants, `snake_case` enum variants.
 
 ## Connector Validation
 
-Discord: printable non-whitespace credentials, numeric snowflake-like IDs, 2000-byte message limit. Twilio: account SID `AC` + 32 hex, auth token 32 hex, non-empty base URL, non-zero timeout, explicit `.live` transport, XML/form escaping. Local paths are deterministic; live paths require `.live` transport calls.
+Local paths are deterministic; live paths require explicit `.live` transport calls.
+
+- **Discord**: printable non-whitespace tokens, numeric snowflake-like client/channel/author IDs, 2000-byte message limit.
+- **Twilio**: account SID `AC` + 32 hex, auth token 32 hex, non-empty base URL, non-zero timeout, explicit `.live` transport, TwiML/XML + URL-form escaping, ConversationRelay aliases.
+- **OpenAI / Anthropic / Grok**: local streaming helpers are deterministic and never hit the network; live methods need credentials. `grok_setup.sh` reads `ABI_GROK_API_KEY` from the env and refuses to run without it.
+
+## External Claims
+
+Do not assert distributed sharding, AES/RBAC, Swift, Python/TensorFlow stacks, Kubernetes/H100 deployments, regulatory certifications, QPS/latency/accuracy, energy efficiency, or model-benchmark numbers in docs or collateral unless a repo test, benchmark artifact, or documented source file proves them. See `docs/contracts/external-claims-audit.md`.
 
 ## Onboarding
 
-- `walkthrough.md` — full CLI/MCP/connector walkthrough with examples.
-- `tasks/lessons.md` — session-start checklist and conventions.
-- `tasks/todo.md` — current work items and known failures.
-- `docs/index.md` — architecture and development guide.
+- `walkthrough.md` - full CLI/MCP/connector walkthrough with examples.
+- `tasks/lessons.md` - session-start checklist, conventions, common pitfalls.
+- `tasks/todo.md` - current work items and known failures.
+- `docs/index.md` - architecture and development guide.

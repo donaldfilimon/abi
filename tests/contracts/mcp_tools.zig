@@ -150,6 +150,30 @@ test "MCP wdbx_query tool contract" {
     }
 }
 
+test "MCP scheduler and status tool contracts" {
+    const allocator = std.testing.allocator;
+    try expectToolJsonContains(allocator, "{\"name\":\"scheduler_stats\",\"arguments\":{}}", "source=mcp-server");
+    try expectToolJsonContains(allocator, "{\"name\":\"scheduler_info\",\"arguments\":{}}", "source=mcp-server");
+    try expectToolJsonContains(allocator, "{\"name\":\"gpu_status\",\"arguments\":{}}", "backend=");
+    try expectToolJsonContains(allocator, "{\"name\":\"wdbx_stats\",\"arguments\":{}}", "kv=");
+}
+
+test "MCP connector_test tool contract" {
+    const allocator = std.testing.allocator;
+    try expectToolJsonContains(allocator, "{\"name\":\"connector_test\",\"arguments\":{\"service\":\"openai\",\"input\":\"hello\"}}", "connector=openai");
+    try expectToolJsonContains(allocator, "{\"name\":\"connector_test\",\"arguments\":{\"service\":\"anthropic\",\"input\":\"hello\"}}", "connector=anthropic");
+    try expectToolJsonContains(allocator, "{\"name\":\"connector_test\",\"arguments\":{\"service\":\"discord\",\"input\":\"hello\"}}", "connector=discord");
+    try expectToolJsonContains(allocator, "{\"name\":\"connector_test\",\"arguments\":{\"service\":\"twilio\",\"input\":\"hello\"}}", "connector=twilio");
+    try expectToolJsonContains(allocator, "{\"name\":\"connector_test\",\"arguments\":{\"service\":\"grok\",\"input\":\"hello\"}}", "connector=grok");
+}
+
+test "MCP plugin_list tool contract" {
+    const allocator = std.testing.allocator;
+    try expectToolJsonContains(allocator, "{\"name\":\"plugin_list\",\"arguments\":{}}", "plugins count=2");
+    try expectToolJsonContains(allocator, "{\"name\":\"plugin_list\",\"arguments\":{}}", "example-plugin");
+    try expectToolJsonContains(allocator, "{\"name\":\"plugin_list\",\"arguments\":{}}", "example-wdbx-plugin");
+}
+
 test "MCP tool call errors are stable" {
     try std.testing.expectError(error.MissingParams, handlers.handleToolsCallJson(std.testing.allocator, null));
     try expectToolError("{}", error.MissingToolName);
@@ -159,4 +183,6 @@ test "MCP tool call errors are stable" {
     try expectToolError("{\"name\":\"ai_train\",\"arguments\":{\"dataset\":\"data.jsonl\"}}", error.MissingProfile);
     try expectToolError("{\"name\":\"ai_train\",\"arguments\":{\"profile\":\"abi\"}}", error.MissingDataset);
     try expectToolError("{\"name\":\"wdbx_query\",\"arguments\":{}}", error.MissingQuery);
+    try expectToolError("{\"name\":\"connector_test\",\"arguments\":{\"input\":\"hello\"}}", error.MissingConnectorService);
+    try expectToolError("{\"name\":\"connector_test\",\"arguments\":{\"service\":\"unknown\",\"input\":\"hello\"}}", error.UnknownConnector);
 }

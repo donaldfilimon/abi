@@ -75,7 +75,7 @@ There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 - HTTP endpoints: `GET /sse`, `POST /message`.
 - Request size limit: 64KB.
 - Methods: `initialize`, `tools/list`, `tools/call`, `resources/list`, `prompts/list`, `ping`, `shutdown`.
-- Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `gpu_status`, `wdbx_stats`, `plugin_run`.
+- Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`.
 
 ## Development Rules
 

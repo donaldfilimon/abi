@@ -46,54 +46,39 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
         defer arena.deinit();
         const task_alloc = arena.allocator();
 
-        const TaskCtx = struct {
-            allocator: std.mem.Allocator,
-            store: *abi.features.wdbx.Store,
-            dataset: abi.features.ai.DatasetSpec,
-            artifact_dir: []const u8,
-            profile: []const u8,
-        };
-
-        const TrainTask = struct {
-            fn run(ctx: ?*anyopaque) anyerror!void {
-                const c = @as(*TaskCtx, @ptrCast(@alignCast(ctx.?)));
-                var res = abi.features.ai.trainWithStore(c.allocator, c.store, .{
-                    .profile = c.profile,
-                    .dataset = c.dataset,
-                    .artifact_dir = c.artifact_dir,
-                }) catch |e| {
-                    std.log.err("train task {s} failed: {s}", .{ c.profile, @errorName(e) });
-                    return e;
-                };
-                res.deinit(c.allocator);
-            }
-        };
-
         if (is_all) {
             for (abi.features.ai.known_profiles) |p| {
                 const label = p.label();
                 const name = try std.fmt.allocPrint(task_alloc, "train:{s}", .{label});
-                const ctx = try task_alloc.create(TaskCtx);
+                const ctx = try task_alloc.create(abi.features.ai.TrainingTaskContext);
                 ctx.* = .{
                     .allocator = allocator,
                     .store = &store,
-                    .dataset = dataset,
-                    .artifact_dir = artifact_dir,
-                    .profile = label,
+                    .config = .{
+                        .profile = label,
+                        .dataset = dataset,
+                        .artifact_dir = artifact_dir,
+                    },
                 };
-                _ = try sched.submit(name, .high, TrainTask.run, ctx);
+                _ = abi.features.ai.submitTrainingTask(&sched, name, ctx) catch |err| {
+                    if (!abi.features.ai.isFeatureDisabled(err)) return err;
+                };
             }
         } else {
             const name = try std.fmt.allocPrint(task_alloc, "train:{s}", .{profile_arg});
-            const ctx = try task_alloc.create(TaskCtx);
+            const ctx = try task_alloc.create(abi.features.ai.TrainingTaskContext);
             ctx.* = .{
                 .allocator = allocator,
                 .store = &store,
-                .dataset = dataset,
-                .artifact_dir = artifact_dir,
-                .profile = profile_arg,
+                .config = .{
+                    .profile = profile_arg,
+                    .dataset = dataset,
+                    .artifact_dir = artifact_dir,
+                },
             };
-            _ = try sched.submit(name, .high, TrainTask.run, ctx);
+            _ = abi.features.ai.submitTrainingTask(&sched, name, ctx) catch |err| {
+                if (!abi.features.ai.isFeatureDisabled(err)) return err;
+            };
         }
 
         // Run the real scheduled training work

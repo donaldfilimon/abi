@@ -35,13 +35,11 @@ test "feature modules expose safe runtime contracts" {
     try std.testing.expectEqual(@as(f32, 32), try ops.dot(&.{ 1, 2, 3 }, &.{ 4, 5, 6 }));
     try std.testing.expectError(error.DimensionMismatch, ops.dot(&.{1}, &.{ 1, 2 }));
 
-    // Exercise accelerated distance path via the existing gpu.vectorOps() test surface.
-    // VectorOps.dot / squaredL2 / cosineSimilarity select the native GPU kernel path
-    // (Metal on macOS when feat-gpu + backend.accelerated + metal context initialized)
-    // or fall back to vectorized CPU. The contract asserts identical correct numeric
-    // behavior for both paths. This directly covers the distance primitives that
-    // HNSW (hnsw.zig cosineDistanceSIMD) and WDBX search will target for GPU accel
-    // (per Phase 2 verification criteria).
+    // Exercise the distance primitive used by HNSW/WDBX. VectorOps.dot /
+    // squaredL2 / cosineSimilarity select the native GPU kernel path (Metal on
+    // macOS when feat-gpu + backend.accelerated + metal context initialized) or
+    // fall back to vectorized CPU. HNSW routes cosine distance through this same
+    // abstraction and retains its SIMD fallback for deterministic disabled paths.
     try std.testing.expectEqual(@as(f32, 27), try ops.squaredL2(&.{ 1, 2, 3 }, &.{ 4, 5, 6 }));
     const cos_ident = try ops.cosineSimilarity(&.{ 1.0, 0.0, 0.0 }, &.{ 1.0, 0.0, 0.0 });
     try std.testing.expectEqual(@as(f32, 1.0), cos_ident);
@@ -83,12 +81,11 @@ test "feature modules expose safe runtime contracts" {
         defer std.testing.allocator.free(manifest);
         try std.testing.expect(manifest.len > 0);
 
-        // Exercise HNSW index path (via Store.putVector + search) which drives acceleration
-        // status updates through gpu.executeKernel (reflecting native_gpu / simulated_gpu mode).
-        // When combined with the vectorOps distance calls above, this adds the required
-        // contract test coverage for the accelerated (distance/reporting) path in WDBX/HNSW
-        // when GPU is available. Asserts that acceleration status reflects the mode selected
-        // by the GPU path (no fabrication of success when disabled/fallback).
+        // Exercise HNSW index path (via Store.putVector + search), which now routes
+        // distance calculations through gpu.vectorOps and drives acceleration status
+        // updates through gpu.executeKernel (reflecting native_gpu / simulated_gpu mode).
+        // Asserts that acceleration status reflects the mode selected by the GPU path
+        // without fabricating success when disabled/fallback.
         const vid1 = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
         _ = try store.putVector(&.{ 0.9, 0.1, 0.0, 0.0 });
         const hits = try store.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 2);
@@ -117,6 +114,12 @@ test "feature modules expose safe runtime contracts" {
         // Stub reports disabled message
         try std.testing.expect(std.mem.indexOf(u8, stats.acceleration.message, "disabled") != null or stats.vectors == 0);
     }
+
+    try std.testing.expect(@hasDecl(features.ai, "CompletionTaskContext"));
+    try std.testing.expect(@hasDecl(features.ai, "TrainingTaskContext"));
+    try std.testing.expect(@hasDecl(features.ai, "submitCompletionTask"));
+    try std.testing.expect(@hasDecl(features.ai, "submitTrainingTask"));
+    try std.testing.expect(@hasDecl(features.ai, "completeWithScheduler"));
 
     var completion = try features.ai.complete(std.testing.allocator, .{ .input = "contract surface", .model = "abi-contract" });
     defer completion.deinit(std.testing.allocator);

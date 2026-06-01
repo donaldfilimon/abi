@@ -157,7 +157,7 @@ Connector local paths are deterministic; live paths require explicit `.live` tra
 Run these before considering the branch complete:
 
 ```bash
-./build.sh test --summary all
+zig build test --summary all
 zig build check-parity
 ./build.sh check
 ./build.sh full-check   # check + integration tests + benchmarks + TUI smoke

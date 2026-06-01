@@ -1,5 +1,7 @@
 const std = @import("std");
 const features = @import("../../features/mod.zig");
+const scheduler_mod = @import("../../core/scheduler.zig");
+const memory_mod = @import("../../core/memory.zig");
 
 pub fn handleTrain(allocator: std.mem.Allocator, input: []const u8) !u8 {
     const response = try features.ai.run(allocator, input);
@@ -12,7 +14,19 @@ pub fn handleComplete(allocator: std.mem.Allocator, input: []const u8) !u8 {
     var store = features.wdbx.Store.init(allocator);
     defer store.deinit();
 
-    var result = try features.ai.completeWithStore(allocator, &store, .{ .input = input, .model = "abi-local", .store_result = true });
+    var scheduler = scheduler_mod.Scheduler.init(allocator);
+    defer scheduler.deinit();
+    var tracker = memory_mod.MemoryTracker.init(allocator);
+    defer tracker.deinit();
+    scheduler.setMemoryTracker(&tracker);
+
+    var result = try features.ai.completeWithScheduler(
+        allocator,
+        &store,
+        &scheduler,
+        "complete:cli",
+        .{ .input = input, .model = "abi-local", .store_result = true },
+    );
     defer result.deinit(allocator);
 
     const stats = store.stats();

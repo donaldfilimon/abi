@@ -1,5 +1,8 @@
 const std = @import("std");
+const build_options = @import("build_options");
 const sync = @import("../../foundation/sync.zig");
+const memory = @import("../../core/memory.zig");
+const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
 const wdbx_mod = @import("mod.zig");
 
 pub const MAX_LAYERS = wdbx_mod.MAX_LAYERS;
@@ -37,6 +40,8 @@ pub const VectorStorage = struct {
     present: std.AutoHashMap(u32, void),
     dimensions: usize = 0,
     capacity: usize = 0,
+    tracker: ?*memory.MemoryTracker = null,
+    tracked_data_bytes: usize = 0,
 
     pub fn init(allocator: std.mem.Allocator, dimensions: usize, initial_capacity: usize) VectorStorage {
         return .{
@@ -49,8 +54,15 @@ pub const VectorStorage = struct {
     }
 
     pub fn deinit(self: *VectorStorage) void {
+        if (self.tracker) |tracker| {
+            if (self.tracked_data_bytes > 0) tracker.trackFreeNoTag(self.tracked_data_bytes);
+        }
         self.present.deinit();
         self.data.deinit(self.allocator);
+    }
+
+    pub fn setTracker(self: *VectorStorage, tracker: *memory.MemoryTracker) void {
+        self.tracker = tracker;
     }
 
     pub fn insert(self: *VectorStorage, id: u32, values: []const f32) !void {
@@ -60,6 +72,15 @@ pub const VectorStorage = struct {
             const old_len = self.data.items.len;
             const new_cap = @max(needed, self.data.items.len * 2 + 64);
             try self.data.resize(self.allocator, new_cap);
+            if (self.tracker) |tracker| {
+                const old_bytes = old_len * @sizeOf(f32);
+                const new_bytes = new_cap * @sizeOf(f32);
+                const tracked_growth = new_bytes - @min(old_bytes, new_bytes);
+                if (tracked_growth > 0) {
+                    tracker.trackAllocNoTag(tracked_growth);
+                    self.tracked_data_bytes += tracked_growth;
+                }
+            }
             @memset(self.data.items[old_len..new_cap], 0);
         }
         const offset = id * self.dimensions;
@@ -123,6 +144,15 @@ pub fn cosineDistanceSIMD(a: []const f32, b: []const f32) f32 {
     return 1.0 - (dot / denom);
 }
 
+fn cosineDistanceWithOps(ops: gpu.VectorOps, a: []const f32, b: []const f32) f32 {
+    if (a.len != b.len) return 1.0;
+    const similarity = ops.cosineSimilarity(a, b) catch |err| {
+        std.log.warn("gpu vector cosine distance failed: {s}; using SIMD fallback", .{@errorName(err)});
+        return cosineDistanceSIMD(a, b);
+    };
+    return 1.0 - similarity;
+}
+
 pub fn HnswIndex(comptime D: usize) type {
     return struct {
         const Self = @This();
@@ -134,12 +164,15 @@ pub fn HnswIndex(comptime D: usize) type {
         lock: sync.RwLock = .{},
         max_level: usize = 0,
         rng: std.Random.DefaultPrng = std.Random.DefaultPrng.init(0),
+        distance_ops: gpu.VectorOps,
+        tracker: ?*memory.MemoryTracker = null,
 
         pub fn init(allocator: std.mem.Allocator) Self {
             return .{
                 .allocator = allocator,
                 .storage = VectorStorage.init(allocator, D, 64),
                 .nodes = .empty,
+                .distance_ops = gpu.vectorOps(),
             };
         }
 
@@ -151,11 +184,20 @@ pub fn HnswIndex(comptime D: usize) type {
             self.storage.deinit();
         }
 
+        pub fn setTracker(self: *Self, tracker: *memory.MemoryTracker) void {
+            self.tracker = tracker;
+            self.storage.setTracker(tracker);
+        }
+
         fn randomLevel(self: *Self) usize {
             const p = 1.0 / @as(f64, @floatFromInt(M));
             var level: usize = 0;
             while (self.rng.random().float(f64) < p and level < MAX_LAYERS - 1) : (level += 1) {}
             return level;
+        }
+
+        fn cosineDistance(self: *const Self, a: []const f32, b: []const f32) f32 {
+            return cosineDistanceWithOps(self.distance_ops, a, b);
         }
 
         pub fn insert(self: *Self, id: u32, values: []const f32) !void {
@@ -194,7 +236,7 @@ pub fn HnswIndex(comptime D: usize) type {
             var curr_level = self.max_level;
 
             while (curr_level > level) : (curr_level -= 1) {
-                var best_dist = cosineDistanceSIMD(
+                var best_dist = self.cosineDistance(
                     self.storage.get(self.nodes.items[curr].id),
                     self.storage.get(id),
                 );
@@ -204,7 +246,7 @@ pub fn HnswIndex(comptime D: usize) type {
                     const edges = self.nodes.items[curr].edges[curr_level].items;
                     for (edges) |neighbor| {
                         if (neighbor >= self.nodes.items.len) continue;
-                        const dist = cosineDistanceSIMD(
+                        const dist = self.cosineDistance(
                             self.storage.get(self.nodes.items[neighbor].id),
                             self.storage.get(id),
                         );
@@ -219,7 +261,7 @@ pub fn HnswIndex(comptime D: usize) type {
 
             while (true) {
                 try self.connectNodes(curr, node_idx, curr_level);
-                var best_dist = cosineDistanceSIMD(
+                var best_dist = self.cosineDistance(
                     self.storage.get(self.nodes.items[curr].id),
                     self.storage.get(id),
                 );
@@ -229,7 +271,7 @@ pub fn HnswIndex(comptime D: usize) type {
                     const edges = self.nodes.items[curr].edges[curr_level].items;
                     for (edges) |neighbor| {
                         if (neighbor >= self.nodes.items.len) continue;
-                        const dist = cosineDistanceSIMD(
+                        const dist = self.cosineDistance(
                             self.storage.get(self.nodes.items[neighbor].id),
                             self.storage.get(id),
                         );
@@ -284,7 +326,7 @@ pub fn HnswIndex(comptime D: usize) type {
 
             try candidates.append(self.allocator, .{
                 .id = self.entry_node.?,
-                .distance = cosineDistanceSIMD(
+                .distance = self.cosineDistance(
                     self.storage.get(self.nodes.items[self.entry_node.?].id),
                     query,
                 ),
@@ -298,7 +340,7 @@ pub fn HnswIndex(comptime D: usize) type {
                 var changed = true;
                 while (changed) {
                     changed = false;
-                    const curr_dist = cosineDistanceSIMD(
+                    const curr_dist = self.cosineDistance(
                         self.storage.get(self.nodes.items[curr].id),
                         query,
                     );
@@ -307,7 +349,7 @@ pub fn HnswIndex(comptime D: usize) type {
                         if (neighbor >= self.nodes.items.len) continue;
                         if (visited.contains(neighbor)) continue;
                         try visited.put(neighbor, {});
-                        const dist = cosineDistanceSIMD(
+                        const dist = self.cosineDistance(
                             self.storage.get(self.nodes.items[neighbor].id),
                             query,
                         );
@@ -372,6 +414,16 @@ test "cosineDistanceSIMD orthogonal vectors" {
     const b = [_]f32{ 0.0, 1.0, 0.0, 0.0 };
     const dist = cosineDistanceSIMD(&a, &b);
     try std.testing.expect(dist > 0.99);
+}
+
+test "cosineDistanceWithOps matches SIMD fallback" {
+    const ops = gpu.vectorOps();
+    const a = [_]f32{ 0.25, 0.5, 0.75, 1.0 };
+    const b = [_]f32{ 1.0, 0.75, 0.5, 0.25 };
+    const accelerated = cosineDistanceWithOps(ops, &a, &b);
+    const simd = cosineDistanceSIMD(&a, &b);
+    try std.testing.expect(@abs(accelerated - simd) < 0.0001);
+    try std.testing.expectEqual(@as(f32, 1.0), cosineDistanceWithOps(ops, &a, &.{ 1.0, 2.0 }));
 }
 
 test "HnswIndex dimension mismatch" {

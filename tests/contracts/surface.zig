@@ -309,7 +309,10 @@ test "MCP tools/list includes contract tools" {
         .{ .name = "ai_train", .required = &.{ "profile", "dataset" } },
         .{ .name = "wdbx_query", .required = &.{"query"} },
         .{ .name = "scheduler_stats", .required = &.{} },
+        .{ .name = "scheduler_info", .required = &.{} },
+        .{ .name = "connector_test", .required = &.{ "service", "input" } },
         .{ .name = "gpu_status", .required = &.{} },
+        .{ .name = "plugin_list", .required = &.{} },
         .{ .name = "wdbx_stats", .required = &.{} },
         .{ .name = "plugin_run", .required = &.{"name"} },
     };

@@ -114,6 +114,72 @@ pub const BenchResult = struct {
     elapsed_ms: f64,
 };
 
+extern fn getsockname(sockfd: std.posix.fd_t, addr: *std.posix.sockaddr, addrlen: *std.posix.socklen_t) c_int;
+
+pub const LoopbackHttpServer = struct {
+    server: std.Io.net.Server,
+    port: u16,
+
+    pub fn init(io: std.Io, allocator: std.mem.Allocator) !LoopbackHttpServer {
+        _ = allocator;
+        const net = std.Io.net;
+        const address = try net.IpAddress.parseIp4("127.0.0.1", 0);
+        var srv = try address.listen(io, .{ .mode = .stream });
+        errdefer srv.deinit(io);
+
+        var addr: std.posix.sockaddr = undefined;
+        var addrlen: std.posix.socklen_t = @sizeOf(std.posix.sockaddr);
+        const rc = getsockname(srv.socket.handle, &addr, &addrlen);
+        if (rc != 0) return error.GetSockNameFailed;
+
+        const addr_in = @as(*const std.posix.sockaddr.in, @ptrCast(@alignCast(&addr)));
+        const port = std.mem.toNative(u16, addr_in.port, .big);
+        if (port == 0) return error.PortIsZero;
+
+        return .{ .server = srv, .port = port };
+    }
+
+    pub fn deinit(self: *LoopbackHttpServer, io: std.Io) void {
+        self.server.deinit(io);
+    }
+
+    /// Accept up to max_accepts connections, send HTTP 200 JSON responses, and return the last raw request bytes.
+    pub fn acceptAndRespond(self: *LoopbackHttpServer, io: std.Io, allocator: std.mem.Allocator, response_body: []const u8) ![]u8 {
+        var last_request: ?[]u8 = null;
+        var accepts: usize = 0;
+        while (accepts < 5) : (accepts += 1) {
+            const conn = self.server.accept(io) catch break;
+            defer conn.close(io);
+
+            var read_buf = std.ArrayList(u8).initCapacity(allocator, 4096) catch break;
+            defer read_buf.deinit(allocator);
+
+            while (true) {
+                const cap = read_buf.unusedCapacitySlice();
+                if (cap.len == 0) break;
+                var read_vec: [1][]u8 = .{cap[0..1]};
+                const n = conn.read(io, &read_vec) catch break;
+                if (n == 0) break;
+                read_buf.items.len += n;
+            }
+
+            const header = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n", .{response_body.len});
+            defer allocator.free(header);
+
+            var write_buf: [4096]u8 = undefined;
+            var stream_writer = conn.writer(io, &write_buf);
+            const writer = &stream_writer.interface;
+            writer.writeAll(header) catch continue;
+            writer.writeAll(response_body) catch continue;
+            writer.flush() catch continue;
+
+            if (last_request) |prev| allocator.free(prev);
+            last_request = try read_buf.toOwnedSlice(allocator);
+        }
+        return last_request orelse error.ConnectionRefused;
+    }
+};
+
 pub fn bench(comptime label: []const u8, fn_run: anytype) BenchResult {
     const start = std.time.Instant.now() catch @panic("no timer");
     fn_run();

@@ -75,6 +75,8 @@ src/
 │   ├── accelerator/   # Backend selection metadata (mod/stub)
 │   ├── shaders/       # Local shader validation (mod/stub)
 │   ├── mlir/          # Textual MLIR lowering (mod/stub)
+│   ├── hash/          # Hash utility surface (mod/stub, enabled by default)
+│   ├── metrics/       # Optional observability counters (mod/stub, disabled by default)
 │   ├── tui/           # Diagnostics dashboard (mod/stub, enabled by default)
 │   ├── mobile/        # Mobile platform surface (mod/stub, disabled by default)
 │   └── os_control/    # Safe OS command policy controls (mod/stub)
@@ -141,12 +143,12 @@ The Hierarchical Navigable Small World (HNSW) index is the foundation for semant
 
 ### 3.1 Data Structures
 - **VectorStorage**: A contiguous array of `f32` vectors, optimized for SIMD `@Vector`.
-- **Node**: 
+- **Node**:
   - `id: u32`
-  - `edges: [MAX_LAYERS]ArrayList(u32)`
+  - `edges: [MAX_LAYERS]std.ArrayListUnmanaged(u32)`
 
 ### 3.2 Algorithms
-- **SIMD Distance**: Cosine similarity using `std.simd` primitives for Zig 0.17.
+- **Distance Path**: Cosine similarity routes through `gpu.vectorOps().cosineSimilarity()` when available and falls back to the local SIMD implementation for deterministic behavior.
 - **Concurrent Insert**: Serialized graph mutation guarded by the WDBX HNSW synchronization primitives; concurrent edge-update semantics are internal implementation details.
 - **Heuristic Search**: Deterministic neighborhood traversal returning scores in non-increasing order. The current source does not publish QPS, latency, sharding, or distributed-storage guarantees.
 
@@ -191,16 +193,17 @@ The three-way weighted routing and blending pipeline.
 ### 5.5 Core Lifecycle Integration (Registry + Scheduler + Memory)
 The `src/core/` modules (`registry.zig`, `scheduler.zig`, `memory.zig`) and `src/foundation/pool_allocator.zig` realize the "Registry-Based Lifecycle" and "Explicit Memory Management" principles. `abi.scheduler`, `abi.memory`, and `abi.registry` are unconditionally exported from `src/root.zig`.
 
-**Current state (as of 2026-05):** Real usage exists and is exercised on every run of key surfaces:
+**Current state (as of 2026-06):** Real usage exists and is exercised on key surfaces:
 - Scheduler drives actual high-priority training work in `abi agent train` (TrainTask submission + `runAll`, with Arena-wrapped contexts).
+- Scheduler-backed completion is exposed through `completeWithScheduler()` and used by CLI/MCP completion paths while preserving direct completion APIs.
 - Live stats and cooperative refresh tasks in the CLI/TUI dashboard.
-- Long-lived Scheduler instance owned by the MCP server with dedicated `scheduler_stats` tool + dynamic tool listing.
+- Long-lived Scheduler instance owned by the MCP server with dedicated `scheduler_stats` / `scheduler_info` tools in the static, contract-tested MCP descriptor list.
 - `MemoryTracker` + `TrackingAllocator` attached via `setMemoryTracker` in the training path and dashboard; allocations performed under scheduler tasks are recorded.
 - Cross-feature observability wiring: Scheduler conditionally records task lifecycle metrics when `-Dfeat-metrics` is enabled.
 - Dedicated integration test ("scheduler drives training tasks") validates end-to-end submission, execution, stats, and memory tracking.
 
 - Registry remains focused on plugin descriptors (RwLock-protected) today; it is the coordinator for the plugin execution seam (`plugin_manager` + `abi plugin run` / MCP `plugin_run`) but is not yet the broader cross-feature lifecycle registry envisioned originally.
-- Deeper adoption opportunities remain: MemoryTracker in WDBX hot paths and more stages of the AI pipeline; making the Registry a more general component lifecycle coordinator; potential unification or clearer boundary between `core/memory` and `foundation/pool_allocator`.
+- Deeper adoption opportunities remain: MemoryTracker in more stages of the AI pipeline and HNSW storage internals; making the Registry a more general component lifecycle coordinator; potential unification or clearer boundary between `core/memory` and `foundation/pool_allocator`. WDBX `Store.putVector` and `Store.search` now expose hot-path allocation activity through optional `MemoryTracker` instrumentation.
 
 See `tasks/roadmap-next.md` (Streams 1-2), `tasks/todo.md` (Core scheduler + memory row marked Done), and `tasks/scheduler-memory-wireup.md` for the detailed surfaces and the integration sketches that were executed. All integration changes preserved mod/stub parity, used relative `.zig` imports inside `src/`, and passed the full `./build.sh check` + `check-parity` + feature-off contract matrix. The original "primary remaining gap" language has been retired because the observability + real-work scheduling vision has been substantially delivered.
 

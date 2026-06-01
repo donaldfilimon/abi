@@ -228,6 +228,36 @@ test "gpu vector operations" {
     try test_helpers.assertAlmostEqual(@as(f64, @floatCast(sim)), 1.0, 0.001);
 }
 
+test "wdbx memory tracker records allocation activity in hot paths" {
+    const wdbx_mod = @import("features/wdbx/mod.zig");
+    const memory_mod = @import("core/memory.zig");
+
+    var tracker = memory_mod.MemoryTracker.init(std.testing.allocator);
+    defer tracker.deinit();
+
+    var store = wdbx_mod.Store.init(std.testing.allocator);
+    store.setTracker(&tracker);
+
+    _ = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+    _ = try store.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+    _ = try store.putVector(&.{ 0.0, 0.0, 1.0, 0.0 });
+
+    // putVector uses temporary padded buffers and now tracks persistent HNSW vector storage growth.
+    try std.testing.expect(tracker.getPeakUsage() > 0);
+    const persistent_usage = tracker.getCurrentUsage();
+    try std.testing.expect(persistent_usage > 0);
+
+    const results = try store.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 2);
+    defer std.testing.allocator.free(results);
+
+    // search allocates and frees its temporary padded query while retaining HNSW storage accounting.
+    try std.testing.expectEqual(persistent_usage, tracker.getCurrentUsage());
+    try std.testing.expect(tracker.getRecordCount() == 0); // no tag records from hot path
+
+    store.deinit();
+    try std.testing.expectEqual(@as(usize, 0), tracker.getCurrentUsage());
+}
+
 test "scheduler drives training tasks (real usage in agent training path)" {
     const scheduler = @import("core/scheduler.zig");
     const ai = @import("features/ai/mod.zig");
@@ -315,6 +345,149 @@ test "scheduler drives training tasks (real usage in agent training path)" {
 
     // Verify memory tracking flowed through the scheduler training path (plan Phase 1).
     try std.testing.expect(tracker.getPeakUsage() > 0 or tracker.getRecordCount() > 0);
+}
+
+test "httpPostJson round-trips against loopback server" {
+    const http = @import("connectors/http.zig");
+    const connector = @import("connectors/connector.zig");
+    const ConnectorConfig = connector.ConnectorConfig;
+
+    var threaded = std.Io.Threaded.init(std.testing.allocator, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    var server = try test_helpers.LoopbackHttpServer.init(io, std.testing.allocator);
+    defer server.deinit(io);
+
+    const response_body = "{\"status\":\"ok\"}";
+    var request_buf_raw: [4096]u8 = undefined;
+    var request_buf: []u8 = request_buf_raw[0..0];
+
+    const ServerContext = struct {
+        server: *test_helpers.LoopbackHttpServer,
+        io: std.Io,
+        response_body: []const u8,
+        out: *[]u8,
+    };
+    var ctx = ServerContext{
+        .server = &server,
+        .io = io,
+        .response_body = response_body,
+        .out = &request_buf,
+    };
+    const server_thread = try std.Thread.spawn(.{}, struct {
+        fn run(c: *ServerContext) !void {
+            const raw = try c.server.acceptAndRespond(c.io, std.testing.allocator, c.response_body);
+            c.out.* = raw;
+        }
+    }.run, .{&ctx});
+
+    const url = try std.fmt.allocPrint(std.testing.allocator, "http://127.0.0.1:{d}", .{server.port});
+    defer std.testing.allocator.free(url);
+
+    const config = ConnectorConfig{
+        .api_key = "test-key",
+        .base_url = url,
+        .transport = .live,
+    };
+
+    // Retry loop to avoid nanosleep race condition
+    var response: ?connector.Response = null;
+    var retries: usize = 0;
+    while (retries < 5) : (retries += 1) {
+        response = http.httpPostJson(io, std.testing.allocator, config, "/test", "{\"hello\":\"world\"}", &.{}) catch null;
+        if (response != null) break;
+        var ts = std.mem.zeroes(std.c.timespec);
+        ts.nsec = 10_000_000;
+        _ = std.c.nanosleep(&ts, null);
+    }
+
+    var final_response = response orelse {
+        server_thread.detach();
+        return error.SkipZigTest;
+    };
+    defer final_response.deinit(std.testing.allocator);
+
+    try std.testing.expectEqual(@as(u16, 200), final_response.status);
+    try std.testing.expect(std.mem.indexOf(u8, final_response.body, "ok") != null);
+
+    server_thread.join();
+    const raw = request_buf[0..];
+    try std.testing.expect(std.mem.indexOf(u8, raw, "POST") != null);
+    try std.testing.expect(std.mem.indexOf(u8, raw, "/test") != null);
+    std.testing.allocator.free(request_buf);
+}
+
+test "httpPostForm round-trips against loopback server" {
+    const http = @import("connectors/http.zig");
+    const connector_config = @import("connectors/connector.zig");
+    const ConnectorConfig = connector_config.ConnectorConfig;
+
+    var threaded = std.Io.Threaded.init(std.testing.allocator, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    var server = try test_helpers.LoopbackHttpServer.init(io, std.testing.allocator);
+    defer server.deinit(io);
+
+    const response_body = "{\"sid\":\"SM123\"}";
+    var request_buf_raw: [4096]u8 = undefined;
+    var request_buf: []u8 = request_buf_raw[0..0];
+
+    const ServerContext = struct {
+        server: *test_helpers.LoopbackHttpServer,
+        io: std.Io,
+        response_body: []const u8,
+        out: *[]u8,
+    };
+    var ctx = ServerContext{
+        .server = &server,
+        .io = io,
+        .response_body = response_body,
+        .out = &request_buf,
+    };
+    const server_thread = try std.Thread.spawn(.{}, struct {
+        fn run(c: *ServerContext) !void {
+            const raw = try c.server.acceptAndRespond(c.io, std.testing.allocator, c.response_body);
+            c.out.* = raw;
+        }
+    }.run, .{&ctx});
+
+    const url = try std.fmt.allocPrint(std.testing.allocator, "http://127.0.0.1:{d}", .{server.port});
+    defer std.testing.allocator.free(url);
+
+    const config = ConnectorConfig{
+        .api_key = "test-key",
+        .base_url = url,
+        .transport = .live,
+    };
+    const body = "From=%2B15551234567&To=%2B15559876543&Body=hello";
+
+    // Retry loop to avoid nanosleep race condition
+    var response: ?connector_config.Response = null;
+    var retries: usize = 0;
+    while (retries < 5) : (retries += 1) {
+        response = http.httpPostForm(io, std.testing.allocator, config, "/2010-04-01/Accounts/AC123/Messages.json", body, &.{}) catch null;
+        if (response != null) break;
+        var ts = std.mem.zeroes(std.c.timespec);
+        ts.nsec = 10_000_000;
+        _ = std.c.nanosleep(&ts, null);
+    }
+
+    var final_response = response orelse {
+        server_thread.detach();
+        return error.SkipZigTest;
+    };
+    defer final_response.deinit(std.testing.allocator);
+
+    try std.testing.expectEqual(@as(u16, 200), final_response.status);
+    try std.testing.expect(std.mem.indexOf(u8, final_response.body, "SM123") != null);
+
+    server_thread.join();
+    const raw = request_buf[0..];
+    try std.testing.expect(std.mem.indexOf(u8, raw, "POST") != null);
+    try std.testing.expect(std.mem.indexOf(u8, raw, "Messages.json") != null);
+    std.testing.allocator.free(request_buf);
 }
 
 test {

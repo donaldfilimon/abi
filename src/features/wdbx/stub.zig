@@ -1,5 +1,6 @@
 const std = @import("std");
 const build_options = @import("build_options");
+const memory = @import("../../core/memory.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
 
 pub const MAX_LAYERS = 4;
@@ -166,6 +167,11 @@ pub const index = struct {
             _ = self;
         }
 
+        pub fn setTracker(self: *VectorStorage, tracker: *memory.MemoryTracker) void {
+            _ = self;
+            _ = tracker;
+        }
+
         pub fn insert(self: *VectorStorage, id: u32, values: []const f32) !void {
             _ = self;
             _ = id;
@@ -207,6 +213,11 @@ pub const index = struct {
 
             pub fn deinit(self: *@This()) void {
                 self.storage.deinit();
+            }
+
+            pub fn setTracker(self: *@This(), tracker: *memory.MemoryTracker) void {
+                _ = self;
+                _ = tracker;
             }
 
             pub fn insert(self: *@This(), id: u32, values: []const f32) !void {
@@ -365,6 +376,11 @@ pub const Store = struct {
 
     pub fn deinit(self: *Store) void {
         _ = self;
+    }
+
+    pub fn setTracker(self: *Store, t: *memory.MemoryTracker) void {
+        _ = self;
+        _ = t;
     }
 
     pub fn store(self: *Store, key: []const u8, val: []const u8) !void {

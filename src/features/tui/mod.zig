@@ -137,6 +137,51 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     return try out.toOwnedSlice(allocator);
 }
 
+// --- Interactive Terminal Helpers ---
+
+extern fn isatty(fd: std.posix.fd_t) callconv(.c) c_int;
+
+pub const InteractiveTerminal = struct {
+    fd: std.posix.fd_t,
+    original: std.posix.termios,
+    is_tty: bool,
+
+    pub fn init(fd: std.posix.fd_t) !InteractiveTerminal {
+        const is_tty = isatty(fd) != 0;
+        if (!is_tty) return error.NotATerminal;
+
+        const original = try std.posix.tcgetattr(fd);
+        var raw = original;
+        raw.lflag.ICANON = false;
+        raw.lflag.ECHO = false;
+
+        const vmin = if (@hasDecl(std.posix, "VMIN")) std.posix.VMIN else std.posix.system.V.MIN;
+        const vtime = if (@hasDecl(std.posix, "VTIME")) std.posix.VTIME else std.posix.system.V.TIME;
+
+        raw.cc[@intFromEnum(vmin)] = 1;
+        raw.cc[@intFromEnum(vtime)] = 0;
+
+        try std.posix.tcsetattr(fd, .FLUSH, raw);
+        return .{ .fd = fd, .original = original, .is_tty = true };
+    }
+
+    pub fn deinit(self: *InteractiveTerminal) void {
+        std.posix.tcsetattr(self.fd, .FLUSH, self.original) catch |err| {
+            std.log.warn("failed to restore terminal: {s}", .{@errorName(err)});
+        };
+    }
+
+    pub fn readKey(self: *InteractiveTerminal) ?u8 {
+        var buf: [1]u8 = undefined;
+        const n = std.posix.read(self.fd, &buf) catch |err| {
+            std.log.warn("read stdin failed: {s}", .{@errorName(err)});
+            return null;
+        };
+        if (n == 0) return null;
+        return buf[0];
+    }
+};
+
 /// Check if a key press is a quit command (q or Escape).
 pub fn isQuitKey(byte: u8) bool {
     return byte == 'q' or byte == 'Q' or byte == 0x1b;
@@ -250,6 +295,16 @@ test "diagnostics dashboard renders all panes" {
     try std.testing.expect(std.mem.indexOf(u8, rendered, "test snapshot") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Quit") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Refresh") != null);
+}
+
+test "InteractiveTerminal struct layout" {
+    const term = InteractiveTerminal{
+        .fd = 0,
+        .original = undefined,
+        .is_tty = false,
+    };
+    try std.testing.expect(!term.is_tty);
+    try std.testing.expectEqual(@as(std.posix.fd_t, 0), term.fd);
 }
 
 test "quit and refresh key detection" {

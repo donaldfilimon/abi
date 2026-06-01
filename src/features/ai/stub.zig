@@ -1,4 +1,7 @@
 const std = @import("std");
+const build_options = @import("build_options");
+const scheduler_mod = @import("../../core/scheduler.zig");
+const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 
 pub const Principle = enum {
     truthfulness,
@@ -116,6 +119,34 @@ pub const CompletionResult = struct {
 
     pub fn deinit(self: CompletionResult, allocator: std.mem.Allocator) void {
         allocator.free(self.output);
+    }
+};
+
+pub const CompletionTaskContext = struct {
+    allocator: std.mem.Allocator,
+    store: *wdbx.Store,
+    request: CompletionRequest,
+    result: ?CompletionResult = null,
+
+    pub fn deinitResult(self: *CompletionTaskContext) void {
+        if (self.result) |res| {
+            res.deinit(self.allocator);
+            self.result = null;
+        }
+    }
+};
+
+pub const TrainingTaskContext = struct {
+    allocator: std.mem.Allocator,
+    store: *wdbx.Store,
+    config: TrainingConfig,
+    result: ?TrainingResult = null,
+
+    pub fn deinitResult(self: *TrainingTaskContext) void {
+        if (self.result) |res| {
+            res.deinit(self.allocator);
+            self.result = null;
+        }
     }
 };
 
@@ -369,6 +400,26 @@ pub fn complete(allocator: std.mem.Allocator, request: CompletionRequest) !Compl
     };
 }
 
+pub fn submitCompletionTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx: *CompletionTaskContext) !u64 {
+    _ = name;
+    _ = ctx;
+    _ = sched;
+    return error.FeatureDisabled;
+}
+
+pub fn submitTrainingTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx: *TrainingTaskContext) !u64 {
+    _ = name;
+    _ = ctx;
+    _ = sched;
+    return error.FeatureDisabled;
+}
+
+pub fn completeWithScheduler(allocator: std.mem.Allocator, store: anytype, sched: *scheduler_mod.Scheduler, name: []const u8, request: CompletionRequest) !CompletionResult {
+    _ = sched;
+    _ = name;
+    return completeWithStore(allocator, store, request);
+}
+
 pub fn completeWithStore(allocator: std.mem.Allocator, store: anytype, request: CompletionRequest) !CompletionResult {
     _ = store;
     return complete(allocator, request);
@@ -496,6 +547,24 @@ test "ai stub preserves disabled feature contracts" {
         .dataset = .{ .path = "data.jsonl" },
         .artifact_dir = "zig-cache/agents",
     }));
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+    var scheduler = scheduler_mod.Scheduler.init(allocator);
+    defer scheduler.deinit();
+    var completion_ctx = CompletionTaskContext{
+        .allocator = allocator,
+        .store = &store,
+        .request = .{ .input = "hello" },
+    };
+    try std.testing.expectError(error.FeatureDisabled, submitCompletionTask(&scheduler, "complete", &completion_ctx));
+
+    var training_ctx = TrainingTaskContext{
+        .allocator = allocator,
+        .store = &store,
+        .config = .{ .profile = "abi", .dataset = .{ .path = "data.jsonl" }, .artifact_dir = "zig-cache/agents" },
+    };
+    try std.testing.expectError(error.FeatureDisabled, submitTrainingTask(&scheduler, "train", &training_ctx));
+
     try std.testing.expectError(error.InvalidAgentConfig, runAgent(allocator, .{ .name = "", .instructions = "be safe" }, "hello"));
 
     var agent_result = try runAgent(allocator, .{ .name = "abi", .instructions = "be safe" }, "hello");

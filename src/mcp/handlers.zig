@@ -3,10 +3,13 @@ const features = @import("abi").features;
 const json_helpers = @import("json_helpers.zig");
 const abi = @import("abi");
 
-// Long-lived scheduler for the MCP server process (single-writer model per core/scheduler design).
-// This enables scheduler_stats and future task submission from tools.
+// Long-lived scheduler and WDBX store for the MCP server process.
+// This lets MCP completion/training/query/stats tools observe the same in-process state.
 var g_mcp_scheduler: ?abi.scheduler.Scheduler = null;
 var g_scheduler_initialized = std.atomic.Value(bool).init(false);
+var g_mcp_wdbx_store: ?abi.features.wdbx.Store = null;
+var g_wdbx_initialized = std.atomic.Value(bool).init(false);
+var g_wdbx_lock: abi.foundation.sync.SpinLock = .{};
 
 fn ensureMcpScheduler() void {
     if (g_scheduler_initialized.load(.acquire)) return;
@@ -25,6 +28,29 @@ pub fn deinitMcpScheduler() void {
         s.deinit();
         g_mcp_scheduler = null;
     }
+    g_scheduler_initialized.store(false, .release);
+}
+
+fn ensureMcpWdbxStore() void {
+    if (g_wdbx_initialized.load(.acquire)) return;
+    if (g_wdbx_initialized.cmpxchgStrong(false, true, .acq_rel, .acquire) == null) {
+        g_mcp_wdbx_store = abi.features.wdbx.Store.init(std.heap.page_allocator);
+    }
+}
+
+pub fn getMcpWdbxStore() *abi.features.wdbx.Store {
+    ensureMcpWdbxStore();
+    return &g_mcp_wdbx_store.?;
+}
+
+pub fn deinitMcpWdbxStore() void {
+    g_wdbx_lock.lock();
+    defer g_wdbx_lock.unlock();
+    if (g_mcp_wdbx_store) |*store| {
+        store.deinit();
+        g_mcp_wdbx_store = null;
+    }
+    g_wdbx_initialized.store(false, .release);
 }
 
 pub fn handleInitializeJson(allocator: std.mem.Allocator, params: ?std.json.Value) ![]u8 {
@@ -67,8 +93,23 @@ const tools: []const ToolDescriptor = &.{
         .input_schema = "{\"type\":\"object\",\"properties\":{},\"required\":[]}",
     },
     .{
+        .name = "scheduler_info",
+        .description = "Compatibility alias for scheduler_stats",
+        .input_schema = "{\"type\":\"object\",\"properties\":{},\"required\":[]}",
+    },
+    .{
+        .name = "connector_test",
+        .description = "Exercise a connector through its deterministic local path",
+        .input_schema = "{\"type\":\"object\",\"properties\":{\"service\":{\"type\":\"string\",\"enum\":[\"openai\",\"anthropic\",\"discord\",\"twilio\",\"grok\"]},\"input\":{\"type\":\"string\"}},\"required\":[\"service\",\"input\"]}",
+    },
+    .{
         .name = "gpu_status",
         .description = "Report current GPU backend, acceleration mode, and capabilities",
+        .input_schema = "{\"type\":\"object\",\"properties\":{},\"required\":[]}",
+    },
+    .{
+        .name = "plugin_list",
+        .description = "List bundled plugin metadata loaded through the plugin manager",
         .input_schema = "{\"type\":\"object\",\"properties\":{},\"required\":[]}",
     },
     .{
@@ -167,14 +208,17 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         return try toolTextResult(allocator, text);
     }
 
-    if (std.mem.eql(u8, tool_name, "scheduler_stats")) {
-        const sched = getMcpScheduler();
-        const s = sched.stats();
-        const text = try std.fmt.allocPrint(
-            allocator,
-            "scheduler running={d} pending={d} completed={d} failed={d} source=mcp-server",
-            .{ s.running, s.pending, s.completed, s.failed },
-        );
+    if (std.mem.eql(u8, tool_name, "scheduler_stats") or std.mem.eql(u8, tool_name, "scheduler_info")) {
+        const text = try schedulerStatsText(allocator);
+        defer allocator.free(text);
+        return try toolTextResult(allocator, text);
+    }
+
+    if (std.mem.eql(u8, tool_name, "connector_test")) {
+        const args_obj = try toolArguments(params_obj);
+        const service = try objectString(args_obj, "service", error.MissingConnectorService);
+        const input = try objectString(args_obj, "input", error.MissingInput);
+        const text = try runConnectorTest(allocator, service, input);
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
     }
@@ -210,6 +254,12 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         return try toolTextResult(allocator, text);
     }
 
+    if (std.mem.eql(u8, tool_name, "plugin_list")) {
+        const text = try runPluginList(allocator);
+        defer allocator.free(text);
+        return try toolTextResult(allocator, text);
+    }
+
     if (std.mem.eql(u8, tool_name, "plugin_run")) {
         const args_obj = try toolArguments(params_obj);
         const name = try objectString(args_obj, "name", error.MissingPluginName);
@@ -218,9 +268,7 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         var pm = abi.plugins.PluginManager.init(allocator);
         defer pm.deinit();
 
-        // Load known bundled plugins (ignore load errors for optional plugin)
-        _ = pm.loadPlugin("src/plugins/example-plugin") catch {};
-        _ = pm.loadPlugin("src/plugins/example-wdbx-plugin") catch {};
+        try loadBundledPlugins(&pm);
 
         const output = try pm.run(allocator, name, input);
         defer allocator.free(output);
@@ -231,15 +279,128 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
     return error.UnknownTool;
 }
 
+fn schedulerStatsText(allocator: std.mem.Allocator) ![]u8 {
+    const sched = getMcpScheduler();
+    const s = sched.stats();
+    return try std.fmt.allocPrint(
+        allocator,
+        "scheduler running={d} pending={d} completed={d} failed={d} source=mcp-server",
+        .{ s.running, s.pending, s.completed, s.failed },
+    );
+}
+
+fn runConnectorTest(allocator: std.mem.Allocator, service: []const u8, input: []const u8) ![]u8 {
+    const connectors = abi.connectors;
+
+    if (std.mem.eql(u8, service, "openai")) {
+        var client = connectors.openai.Client.init(allocator, .{ .api_key = "mcp-local-key", .base_url = "https://api.openai.com" });
+        defer client.deinit();
+        const messages = try buildUserMessages(allocator, input);
+        defer allocator.free(messages);
+        var response = try client.chatCompletion(allocator, "gpt-local", messages);
+        defer response.deinit(allocator);
+        return try std.fmt.allocPrint(allocator, "connector=openai status={d} body={s}", .{ response.status, response.body });
+    }
+
+    if (std.mem.eql(u8, service, "anthropic")) {
+        var client = connectors.anthropic.Client.init(allocator, .{ .api_key = "mcp-local-key", .base_url = "https://api.anthropic.com" });
+        defer client.deinit();
+        var response = try client.message(allocator, "claude-local", input, 256);
+        defer response.deinit(allocator);
+        return try std.fmt.allocPrint(allocator, "connector=anthropic status={d} body={s}", .{ response.status, response.body });
+    }
+
+    if (std.mem.eql(u8, service, "discord")) {
+        var bot = connectors.discord.Bot.init(allocator, .{ .token = "mcp-local-token", .client_id = "123456789012345678" });
+        defer bot.deinit();
+        try bot.connect();
+        const body = try bot.sendMessage(allocator, "234567890123456789", input);
+        defer allocator.free(body);
+        return try std.fmt.allocPrint(allocator, "connector=discord status=200 body={s}", .{body});
+    }
+
+    if (std.mem.eql(u8, service, "twilio")) {
+        var client = connectors.twilio.Client.init(allocator, connectors.twilio.TwilioConfig.local());
+        defer client.deinit();
+        var response = try client.handleConversationRelayEvent(allocator, .{
+            .kind = .user_transcript,
+            .conversation_id = "CA" ++ "0123456789abcdef0123456789abcdef",
+            .customer_id = "+15551234567",
+            .transcript = input,
+        }, "ABI local relay acknowledged.");
+        defer response.deinit(allocator);
+        return try std.fmt.allocPrint(allocator, "connector=twilio status=200 body={s}", .{response.text});
+    }
+
+    if (std.mem.eql(u8, service, "grok")) {
+        var client = connectors.grok.Client.init(allocator, connectors.grok.grokConfig());
+        defer client.deinit();
+        const messages = try buildUserMessages(allocator, input);
+        defer allocator.free(messages);
+        var response = try client.chatCompletion(allocator, "grok-local", messages);
+        defer response.deinit(allocator);
+        return try std.fmt.allocPrint(allocator, "connector=grok status={d} body={s}", .{ response.status, response.body });
+    }
+
+    return error.UnknownConnector;
+}
+
+fn buildUserMessages(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer out.deinit(allocator);
+    try out.appendSlice(allocator, "[{\"role\":\"user\",\"content\":");
+    try abi.connectors.json.appendJsonString(&out, allocator, input);
+    try out.appendSlice(allocator, "}]");
+    return try out.toOwnedSlice(allocator);
+}
+
+fn loadBundledPlugins(pm: *abi.plugins.PluginManager) !void {
+    _ = pm.loadPlugin("src/plugins/example-plugin") catch |err| switch (err) {
+        error.AlreadyLoaded => {},
+        else => return err,
+    };
+    _ = pm.loadPlugin("src/plugins/example-wdbx-plugin") catch |err| switch (err) {
+        error.AlreadyLoaded => {},
+        else => return err,
+    };
+}
+
+fn runPluginList(allocator: std.mem.Allocator) ![]u8 {
+    var pm = abi.plugins.PluginManager.init(allocator);
+    defer pm.deinit();
+    try loadBundledPlugins(&pm);
+
+    const list = try pm.listPlugins();
+    defer allocator.free(list);
+
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer out.deinit(allocator);
+    try out.print(allocator, "plugins count={d}", .{list.len});
+    for (list) |plugin| {
+        try out.print(
+            allocator,
+            " name={s} version={s} target={s} entry={s} description={s};",
+            .{ plugin.name, plugin.version, plugin.target_feature, plugin.entry_point, plugin.description },
+        );
+    }
+    return try out.toOwnedSlice(allocator);
+}
+
 fn runLocalCompletion(allocator: std.mem.Allocator, input: []const u8, model: []const u8) ![]u8 {
     const ai_mod = features.ai;
     const wdbx = features.wdbx;
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
 
-    var result = try ai_mod.completeWithStore(allocator, &store, .{ .input = input, .model = model, .store_result = true });
+    const sched = getMcpScheduler();
+    var result = try ai_mod.completeWithScheduler(
+        allocator,
+        &store,
+        sched,
+        "complete:mcp",
+        .{ .input = input, .model = model, .store_result = true },
+    );
     defer result.deinit(allocator);
-
     const stats = store.stats();
     const persisted = result.query_vector_id != null and result.response_vector_id != null and result.block_id != null;
 
