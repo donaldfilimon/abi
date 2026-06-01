@@ -5,7 +5,8 @@ const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("
 const foundation_pool = @import("../../foundation/pool_allocator.zig");
 
 pub const MAX_LAYERS = 4;
-pub const VECTOR_PADDED_BYTES = 128 * @sizeOf(f32);
+const HNSW_DIMENSIONS = 128;
+pub const VECTOR_PADDED_BYTES = HNSW_DIMENSIONS * @sizeOf(f32);
 
 pub const StoreConfig = struct {
     pool_alloc: ?*foundation_pool.PoolAllocator = null,

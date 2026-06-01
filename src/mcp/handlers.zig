@@ -324,8 +324,8 @@ fn schedulerStatsText(allocator: std.mem.Allocator) ![]u8 {
     const s = sched.stats();
     return try std.fmt.allocPrint(
         allocator,
-        "scheduler running={d} pending={d} completed={d} failed={d} source=mcp-server",
-        .{ s.running, s.pending, s.completed, s.failed },
+        "scheduler running={d} pending={d} completed={d} failed={d} cancelled={d} total_tasks={d} source=mcp-server",
+        .{ s.running, s.pending, s.completed, s.failed, s.cancelled, s.total_tasks },
     );
 }
 

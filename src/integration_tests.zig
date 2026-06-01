@@ -490,6 +490,102 @@ test "httpPostForm round-trips against loopback server" {
     std.testing.allocator.free(request_buf);
 }
 
+test "wdbx 3d spatial index through Store: insert, radius, and nearest-neighbor" {
+    var store = wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+
+    try store.putSpatial3D(1, .{ .x = 0, .y = 0, .z = 0 }, "origin");
+    try store.putSpatial3D(2, .{ .x = 1, .y = 0, .z = 0 }, "unit-x");
+    try store.putSpatial3D(3, .{ .x = 0, .y = 1, .z = 0 }, "unit-y");
+    try store.putSpatial3D(4, .{ .x = 0, .y = 0, .z = 1 }, "unit-z");
+    try store.putSpatial3D(5, .{ .x = 5, .y = 5, .z = 5 }, "far-away");
+
+    const stats = store.stats();
+    try std.testing.expectEqual(@as(usize, 5), stats.spatial_records);
+
+    const neighbors = try store.searchSpatial3D(.{ .x = 0, .y = 0, .z = 0 }, 3, .euclidean);
+    defer std.testing.allocator.free(neighbors);
+    try std.testing.expectEqual(@as(usize, 3), neighbors.len);
+    try std.testing.expectEqual(@as(u32, 1), neighbors[0].id);
+    try std.testing.expect(neighbors[0].distance <= neighbors[1].distance);
+    try std.testing.expect(neighbors[1].distance <= neighbors[2].distance);
+
+    const self_radius = try store.spatial_index.radiusSearch(.{ .x = 0, .y = 0, .z = 0 }, 1.5, .euclidean);
+    defer std.testing.allocator.free(self_radius);
+    try std.testing.expect(self_radius.len >= 3);
+    for (self_radius) |r| {
+        try std.testing.expect(r.distance <= 1.5);
+    }
+
+    const far = try store.spatial_index.radiusSearch(.{ .x = 0, .y = 0, .z = 0 }, 0.5, .euclidean);
+    defer std.testing.allocator.free(far);
+    try std.testing.expectEqual(@as(usize, 1), far.len);
+    try std.testing.expectEqual(@as(u32, 1), far[0].id);
+}
+
+test "wdbx MVCC snapshot isolation: snapshot freezes the chain view" {
+    var store = wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+
+    const h1 = try store.appendBlock("abbey", 1, 1, "snap-1");
+    const h2 = try store.appendBlock("aviva", 2, 2, "snap-2");
+
+    var snap = store.chain.getSnapshot();
+
+    try std.testing.expectEqual(@as(usize, 2), snap.len());
+    const snap_first = snap.getBlock(h1);
+    try std.testing.expect(snap_first != null);
+    try std.testing.expectEqualStrings("abbey", snap_first.?.data.profile);
+    try std.testing.expect(std.mem.eql(u8, &snap_first.?.data.prev_id, &std.mem.zeroes([32]u8)));
+
+    store.chain.releaseSnapshot();
+
+    _ = try store.appendBlock("abi", 3, 3, "snap-3");
+    _ = try store.appendBlock("abbey", 4, 4, "snap-4");
+
+    try std.testing.expectEqual(@as(usize, 4), store.blockCount());
+    try std.testing.expectEqual(@as(usize, 2), snap.len());
+
+    var it = snap.iterator();
+    var seen: usize = 0;
+    while (it.next()) |node| : (seen += 1) {
+        if (seen == 0) try std.testing.expectEqualStrings("abbey", node.data.profile);
+        if (seen == 1) try std.testing.expectEqualStrings("aviva", node.data.profile);
+    }
+    try std.testing.expectEqual(@as(usize, 2), seen);
+
+    try std.testing.expect(std.mem.eql(u8, &snap.getBlock(h2).?.header.hash, &h2));
+    const h3 = try store.appendBlock("aviva", 5, 5, "snap-5");
+    try std.testing.expect(snap.getBlock(h3) == null);
+}
+
+test "wdbx tampered block detection: corrupted metadata invalidates verifyBlocks" {
+    var store = wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+
+    _ = try store.appendBlock("abbey", 1, 1, "clean-1");
+    _ = try store.appendBlock("aviva", 2, 2, "clean-2");
+    _ = try store.appendBlock("abi", 3, 3, "clean-3");
+    try std.testing.expect(store.verifyBlocks());
+
+    const head_hash = store.chain.getTailHash().?;
+    const node = store.chain.getBlock(head_hash).?;
+    const original_metadata = node.data.metadata;
+    try std.testing.expect(std.mem.indexOf(u8, original_metadata, "clean-3") != null);
+
+    // Real tamper: @constCast the metadata slice and flip a byte. This breaks
+    // the SHA-256 commitment inside the block header. verifyBlocks() walks the
+    // chain, recomputes each block's hash from its captured inputs, and should
+    // now return false. The byte is restored afterwards so the test is
+    // repeatable.
+    const tampered = @constCast(node.data.metadata);
+    const original_byte = tampered[0];
+    tampered[0] = tampered[0] ^ 0xFF;
+    try std.testing.expect(!store.verifyBlocks());
+    tampered[0] = original_byte;
+    try std.testing.expect(store.verifyBlocks());
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
