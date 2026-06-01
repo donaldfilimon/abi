@@ -5,7 +5,7 @@ const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("
 const foundation_pool = @import("../../foundation/pool_allocator.zig");
 
 pub const MAX_LAYERS = 4;
-const HNSW_DIMENSIONS = 128;
+pub const HNSW_DIMENSIONS = 128;
 pub const VECTOR_PADDED_BYTES = HNSW_DIMENSIONS * @sizeOf(f32);
 
 pub const StoreConfig = struct {
@@ -246,6 +246,35 @@ pub const index = struct {
                 return 0;
             }
         };
+    }
+};
+
+pub const persistence = struct {
+    pub const HEADER = "# ABI-WDBX v1";
+
+    pub const PersistenceError = error{
+        InvalidHeader,
+        UnknownLineType,
+        MissingField,
+        OutOfMemory,
+        DuplicateVectorId,
+        DimensionMismatch,
+    };
+
+    pub fn serialize(_: std.mem.Allocator, _: *const Store) ![]u8 {
+        return error.FeatureDisabled;
+    }
+
+    pub fn deserialize(_: std.mem.Allocator, _: []const u8) !Store {
+        return error.FeatureDisabled;
+    }
+
+    pub fn saveToPath(_: std.Io, _: std.mem.Allocator, _: *const Store, _: []const u8) !void {
+        return error.FeatureDisabled;
+    }
+
+    pub fn loadFromPath(_: std.Io, _: std.mem.Allocator, _: []const u8) !Store {
+        return error.FeatureDisabled;
     }
 };
 

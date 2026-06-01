@@ -7,10 +7,11 @@ const memory = @import("../../core/memory.zig");
 pub const index = @import("hnsw.zig");
 pub const storage = @import("chain.zig");
 pub const spatial_3d = @import("spatial_3d.zig");
+pub const persistence = @import("persistence.zig");
 
 pub const MAX_LAYERS = 4;
 
-const HNSW_DIMENSIONS = 128;
+pub const HNSW_DIMENSIONS = 128;
 pub const VECTOR_PADDED_BYTES = HNSW_DIMENSIONS * @sizeOf(f32);
 
 pub const VectorRecord = struct {

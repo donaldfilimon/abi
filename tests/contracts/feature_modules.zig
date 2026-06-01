@@ -103,12 +103,27 @@ test "feature modules expose safe runtime contracts" {
         } else {
             try std.testing.expect(accel.mode == features.gpu.ExecutionMode.cpu_fallback);
         }
+
+        // Persistence feature: a serialize/deserialize round-trip locks the public
+        // snapshot surface and verifies the store is reconstructed without widening
+        // vector dimensionality (padded-width regression guard).
+        const snapshot = try features.wdbx.persistence.serialize(std.testing.allocator, &store);
+        defer std.testing.allocator.free(snapshot);
+        try std.testing.expect(snapshot.len > 0);
+        var restored = try features.wdbx.persistence.deserialize(std.testing.allocator, snapshot);
+        defer restored.deinit();
+        try std.testing.expectEqual(store.vectorCount(), restored.vectorCount());
+        const restored_hits = try restored.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 1);
+        defer std.testing.allocator.free(restored_hits);
+        try std.testing.expect(restored_hits.len == 1);
     } else {
         // Disabled wdbx must degrade cleanly (per AGENTS.md + feature stub contract)
         var store = features.wdbx.Store.init(std.testing.allocator);
         defer store.deinit();
         try std.testing.expectError(error.FeatureDisabled, store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 }));
         try std.testing.expectError(error.FeatureDisabled, store.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 1));
+        // Disabled persistence must also refuse, never fabricate a snapshot.
+        try std.testing.expectError(error.FeatureDisabled, features.wdbx.persistence.serialize(std.testing.allocator, &store));
         const stats = store.stats();
         try std.testing.expect(stats.acceleration.message.len > 0);
         // Stub reports disabled message
