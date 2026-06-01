@@ -1,6 +1,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const foundation_time = @import("../../foundation/time.zig");
+const foundation_pool = @import("../../foundation/pool_allocator.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
 const memory = @import("../../core/memory.zig");
 
@@ -11,6 +12,7 @@ pub const spatial_3d = @import("spatial_3d.zig");
 pub const MAX_LAYERS = 4;
 
 const HNSW_DIMENSIONS = 128;
+pub const VECTOR_PADDED_BYTES = HNSW_DIMENSIONS * @sizeOf(f32);
 
 pub const VectorRecord = struct {
     id: u32,
@@ -48,6 +50,14 @@ pub const StoreStats = struct {
     acceleration: AccelerationStatus,
 };
 
+pub const StoreConfig = struct {
+    /// Optional fixed-block pool allocator used for the per-vector padding
+    /// buffers in `putVector` and `search`. Block size must be at least
+    /// `VECTOR_PADDED_BYTES`. When null, the store uses the heap allocator
+    /// directly. The pool is borrowed; the caller owns its lifecycle.
+    pool_alloc: ?*foundation_pool.PoolAllocator = null,
+};
+
 pub const Store = struct {
     allocator: std.mem.Allocator,
     entries: std.StringHashMap([]const u8),
@@ -58,8 +68,13 @@ pub const Store = struct {
     vector_dimensions: ?usize = null,
     acceleration: AccelerationStatus,
     tracker: ?*memory.MemoryTracker = null,
+    pool_alloc: ?*foundation_pool.PoolAllocator = null,
 
     pub fn init(a: std.mem.Allocator) Store {
+        return initWithConfig(a, .{});
+    }
+
+    pub fn initWithConfig(a: std.mem.Allocator, config: StoreConfig) Store {
         return .{
             .allocator = a,
             .entries = std.StringHashMap([]const u8).init(a),
@@ -68,7 +83,25 @@ pub const Store = struct {
             .spatial_index = spatial_3d.SpatialIndex3D.init(a),
             .acceleration = defaultAcceleration(),
             .tracker = null,
+            .pool_alloc = config.pool_alloc,
         };
+    }
+
+    fn paddedAlloc(self: *Store) ![]f32 {
+        if (self.pool_alloc) |pool| {
+            const block = try pool.alloc();
+            return @ptrCast(@alignCast(block));
+        }
+        return try self.allocator.alloc(f32, HNSW_DIMENSIONS);
+    }
+
+    fn paddedFree(self: *Store, padded: []f32) void {
+        if (self.pool_alloc) |pool| {
+            const block: []u8 = @ptrCast(padded);
+            pool.free(block);
+        } else {
+            self.allocator.free(padded);
+        }
     }
 
     pub fn deinit(self: *Store) void {
@@ -142,11 +175,11 @@ pub const Store = struct {
             self.vector_dimensions = values.len;
         }
 
-        const padded_size = HNSW_DIMENSIONS * @sizeOf(f32);
+        const padded_size = VECTOR_PADDED_BYTES;
 
-        var padded_values = try self.allocator.alloc(f32, HNSW_DIMENSIONS);
+        var padded_values = try self.paddedAlloc();
         errdefer {
-            self.allocator.free(padded_values);
+            self.paddedFree(padded_values);
             if (self.tracker) |t| t.trackFreeNoTag(padded_size);
         }
         if (self.tracker) |t| t.trackAllocNoTag(padded_size);
@@ -156,7 +189,7 @@ pub const Store = struct {
         const id = self.next_vector_id;
         self.next_vector_id += 1;
         try self.index.insert(id, padded_values);
-        self.allocator.free(padded_values);
+        self.paddedFree(padded_values);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
         self.acceleration = try runAccelerationKernel("wdbx.putVector", values.len);
         return id;
@@ -169,11 +202,11 @@ pub const Store = struct {
             if (dims != query.len) return error.DimensionMismatch;
         }
 
-        const padded_size = HNSW_DIMENSIONS * @sizeOf(f32);
+        const padded_size = VECTOR_PADDED_BYTES;
 
-        var padded_query = try self.allocator.alloc(f32, HNSW_DIMENSIONS);
+        var padded_query = try self.paddedAlloc();
         errdefer {
-            self.allocator.free(padded_query);
+            self.paddedFree(padded_query);
             if (self.tracker) |t| t.trackFreeNoTag(padded_size);
         }
         if (self.tracker) |t| t.trackAllocNoTag(padded_size);
@@ -181,7 +214,7 @@ pub const Store = struct {
         @memcpy(padded_query[0..query.len], query);
 
         const results = try self.index.search(padded_query, limit);
-        self.allocator.free(padded_query);
+        self.paddedFree(padded_query);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
         self.acceleration = try runAccelerationKernel("wdbx.search", query.len * self.index.count());
         return results;
@@ -350,6 +383,32 @@ test "Store validates edge cases and exports complete stats" {
     defer std.testing.allocator.free(manifest);
     try std.testing.expect(std.mem.indexOf(u8, manifest, "\"spatial_records\":1") != null);
     try std.testing.expect(std.mem.indexOf(u8, manifest, "\"vector_dimensions\":null") != null);
+}
+
+test "Store reuses pool-allocated padded buffers for putVector and search" {
+    var pool = foundation_pool.PoolAllocator.init(std.testing.allocator, VECTOR_PADDED_BYTES);
+    defer pool.deinit();
+
+    var store_obj = Store.initWithConfig(std.testing.allocator, .{ .pool_alloc = &pool });
+    defer store_obj.deinit();
+
+    const initial_chunks = pool.chunks.items.len;
+
+    var i: usize = 0;
+    while (i < 5) : (i += 1) {
+        var v: [4]f32 = .{ 0, 0, 0, 0 };
+        v[0] = @as(f32, @floatFromInt(i));
+        _ = try store_obj.putVector(&v);
+    }
+
+    try std.testing.expectEqual(@as(usize, 5), store_obj.vectorCount());
+    // Pool should have allocated exactly one chunk to satisfy 5 padded buffers
+    // (each chunk holds 64 blocks of VECTOR_PADDED_BYTES).
+    try std.testing.expectEqual(initial_chunks + 1, pool.chunks.items.len);
+
+    const results = try store_obj.search(&.{ 0, 0, 0, 0 }, 5);
+    defer std.testing.allocator.free(results);
+    try std.testing.expect(results.len > 0);
 }
 
 test {

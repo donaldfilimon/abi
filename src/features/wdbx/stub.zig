@@ -2,8 +2,14 @@ const std = @import("std");
 const build_options = @import("build_options");
 const memory = @import("../../core/memory.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
+const foundation_pool = @import("../../foundation/pool_allocator.zig");
 
 pub const MAX_LAYERS = 4;
+pub const VECTOR_PADDED_BYTES = 128 * @sizeOf(f32);
+
+pub const StoreConfig = struct {
+    pool_alloc: ?*foundation_pool.PoolAllocator = null,
+};
 
 pub const VectorRecord = struct {
     id: u32,
@@ -371,6 +377,12 @@ pub const storage = struct {
 pub const Store = struct {
     pub fn init(a: std.mem.Allocator) Store {
         _ = a;
+        return .{};
+    }
+
+    pub fn initWithConfig(a: std.mem.Allocator, config: StoreConfig) Store {
+        _ = a;
+        _ = config;
         return .{};
     }
 
