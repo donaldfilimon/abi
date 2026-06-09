@@ -110,6 +110,7 @@ pub fn computeInfo() anyerror!u8 {
     const best = wdbx.compute.bestCpuBackend();
     const sel = wdbx.compute.select(.npu_ane);
     std.debug.print("dynamic selection: best_cpu={s}; request npu-ane -> effective={s} ({s})\n", .{ best.name(), sel.effective.name(), sel.message });
+    std.debug.print("apple neural engine: hardware_present={any} native_dispatch=false (CoreML/ANE path requires Apple frameworks, not linked; CPU fallback)\n", .{wdbx.compute.aneHardwarePresent()});
     return 0;
 }
 

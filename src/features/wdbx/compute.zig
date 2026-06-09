@@ -74,6 +74,16 @@ pub fn bestCpuBackend() Backend {
     };
 }
 
+/// Whether this build targets an Apple-Silicon macOS host, where the Apple
+/// Neural Engine is physically present. IMPORTANT: presence is NOT execution —
+/// no CoreML/ANE dispatch path is linked (that requires Apple ObjC frameworks,
+/// not pure Zig, and cannot be verified to run on the ANE vs CPU/GPU without
+/// on-device profiling), so ANE-selected workloads use the CPU fallback. This
+/// reports hardware availability honestly; it is not a claim of ANE execution.
+pub fn aneHardwarePresent() bool {
+    return builtin.cpu.arch == .aarch64 and builtin.os.tag == .macos;
+}
+
 fn isAccelerator(b: Backend) bool {
     return switch (b) {
         .gpu_cuda, .gpu_metal, .gpu_vulkan, .npu_ane, .tpu_remote => true,
@@ -162,6 +172,11 @@ test "compute: selection falls back to a CPU SIMD path for accelerators" {
 
     const cpu = select(.cpu_scalar);
     try std.testing.expectEqual(Backend.cpu_scalar, cpu.effective);
+}
+
+test "compute: ANE hardware detection matches the build target" {
+    const expected = builtin.cpu.arch == .aarch64 and builtin.os.tag == .macos;
+    try std.testing.expectEqual(expected, aneHardwarePresent());
 }
 
 test "compute: capability table enumerates all backend classes" {
