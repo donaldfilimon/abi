@@ -22,28 +22,52 @@ const BenchResult = struct {
     avg_ms: f64,
     min_ms: f64,
     max_ms: f64,
+    p50_ms: f64,
+    p95_ms: f64,
+    p99_ms: f64,
     iterations: usize,
 };
+
+/// Nearest-rank percentile (p in [0,100]) over a sorted copy of `samples`.
+/// Returns 0 for empty input. Uses page_allocator for the scratch copy, matching
+/// the rest of this file; on alloc failure degrades to 0 rather than failing the
+/// benchmark run.
+fn percentile(samples: []const f64, p: u8) f64 {
+    if (samples.len == 0) return 0.0;
+    const copy = std.heap.page_allocator.dupe(f64, samples) catch return 0.0;
+    defer std.heap.page_allocator.free(copy);
+    std.mem.sort(f64, copy, {}, std.sort.asc(f64));
+    const idx_f = @ceil(@as(f64, @floatFromInt(p)) / 100.0 * @as(f64, @floatFromInt(copy.len)));
+    const raw_idx = @as(usize, @intFromFloat(idx_f));
+    const clamped = if (raw_idx == 0) 0 else @min(raw_idx, copy.len) - 1;
+    return copy[clamped];
+}
 
 /// Accumulated across all bench tests in this run; serialized to
 /// BENCH_ARTIFACT_PATH by the final "write benchmark artifact" test. Labels are
 /// comptime string literals (static lifetime), so storing the slice is safe.
 var bench_results: std.ArrayListUnmanaged(BenchResult) = .empty;
 
-fn recordBench(label: []const u8, avg_ms: f64, min_ms: f64, max_ms: f64) void {
+fn recordBench(label: []const u8, avg_ms: f64, min_ms: f64, max_ms: f64, p50_ms: f64, p95_ms: f64, p99_ms: f64) void {
     bench_results.append(std.heap.page_allocator, .{
         .label = label,
         .avg_ms = avg_ms,
         .min_ms = min_ms,
         .max_ms = max_ms,
+        .p50_ms = p50_ms,
+        .p95_ms = p95_ms,
+        .p99_ms = p99_ms,
         .iterations = ITERATIONS,
     }) catch |err| std.debug.print("bench record failed: {s}\n", .{@errorName(err)});
 }
 
-fn measure(comptime label: []const u8, total_ms: f64, min_ms: f64, max_ms: f64) void {
+fn measure(comptime label: []const u8, total_ms: f64, min_ms: f64, max_ms: f64, samples: ?[]const f64) void {
     const avg_ms = total_ms / @as(f64, @floatFromInt(ITERATIONS));
-    recordBench(label, avg_ms, min_ms, max_ms);
-    std.debug.print("bench [{s}]: avg {d:.3}ms min {d:.3}ms max {d:.3}ms ({d} iters)\n", .{ label, avg_ms, min_ms, max_ms, ITERATIONS });
+    const p50 = if (samples) |s| percentile(s, 50) else 0.0;
+    const p95 = if (samples) |s| percentile(s, 95) else 0.0;
+    const p99 = if (samples) |s| percentile(s, 99) else 0.0;
+    recordBench(label, avg_ms, min_ms, max_ms, p50, p95, p99);
+    std.debug.print("bench [{s}]: avg {d:.3}ms p50 {d:.3}ms p95 {d:.3}ms p99 {d:.3}ms min {d:.3}ms max {d:.3}ms ({d} iters)\n", .{ label, avg_ms, p50, p95, p99, min_ms, max_ms, ITERATIONS });
 }
 
 fn runBench(comptime label: []const u8, comptime fn_run: anytype) void {
@@ -52,6 +76,7 @@ fn runBench(comptime label: []const u8, comptime fn_run: anytype) void {
         fn_run();
     }
 
+    var samples_buf: [ITERATIONS]f64 = undefined;
     var total_ms: f64 = 0;
     var min_ms: f64 = std.math.floatMax(f64);
     var max_ms: f64 = 0;
@@ -63,9 +88,10 @@ fn runBench(comptime label: []const u8, comptime fn_run: anytype) void {
         total_ms += elapsed_ms;
         min_ms = @min(min_ms, elapsed_ms);
         max_ms = @max(max_ms, elapsed_ms);
+        samples_buf[i] = elapsed_ms;
     }
 
-    measure(label, total_ms, min_ms, max_ms);
+    measure(label, total_ms, min_ms, max_ms, &samples_buf);
 }
 
 fn runBenchWithContext(comptime label: []const u8, context: anytype, comptime fn_run: anytype) void {
@@ -74,6 +100,7 @@ fn runBenchWithContext(comptime label: []const u8, context: anytype, comptime fn
         fn_run(context);
     }
 
+    var samples_buf: [ITERATIONS]f64 = undefined;
     var total_ms: f64 = 0;
     var min_ms: f64 = std.math.floatMax(f64);
     var max_ms: f64 = 0;
@@ -85,9 +112,10 @@ fn runBenchWithContext(comptime label: []const u8, context: anytype, comptime fn
         total_ms += elapsed_ms;
         min_ms = @min(min_ms, elapsed_ms);
         max_ms = @max(max_ms, elapsed_ms);
+        samples_buf[i] = elapsed_ms;
     }
 
-    measure(label, total_ms, min_ms, max_ms);
+    measure(label, total_ms, min_ms, max_ms, &samples_buf);
 }
 
 /// Serialize all collected benchmark results to BENCH_ARTIFACT_PATH as JSON.
@@ -98,14 +126,17 @@ fn writeBenchArtifact() void {
     var out: std.ArrayListUnmanaged(u8) = .empty;
     defer out.deinit(alloc);
 
-    out.print(alloc, "{{\"schema\":\"abi-bench/v1\",\"iterations\":{d},\"benchmarks\":[", .{ITERATIONS}) catch return;
+    out.print(alloc, "{{\"schema\":\"abi-bench/v2\",\"iterations\":{d},\"benchmarks\":[", .{ITERATIONS}) catch return;
     for (bench_results.items, 0..) |r, idx| {
-        out.print(alloc, "{s}{{\"label\":\"{s}\",\"avg_ms\":{d:.4},\"min_ms\":{d:.4},\"max_ms\":{d:.4},\"iterations\":{d}}}", .{
+        out.print(alloc, "{s}{{\"label\":\"{s}\",\"avg_ms\":{d:.4},\"min_ms\":{d:.4},\"max_ms\":{d:.4},\"p50_ms\":{d:.4},\"p95_ms\":{d:.4},\"p99_ms\":{d:.4},\"iterations\":{d}}}", .{
             if (idx == 0) "" else ",",
             r.label,
             r.avg_ms,
             r.min_ms,
             r.max_ms,
+            r.p50_ms,
+            r.p95_ms,
+            r.p99_ms,
             r.iterations,
         }) catch return;
     }

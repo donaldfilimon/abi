@@ -95,6 +95,37 @@ pub fn appendBlock(io: std.Io, allocator: std.mem.Allocator, path: []const u8, p
     try appendRecord(io, allocator, path, buf.written());
 }
 
+/// Append a vector record. `id` must be the value the originating `putVector`
+/// call assigned, and `values` the original (unpadded) components. The JSON
+/// shape is byte-identical to the snapshot serializer (`persistence.serialize`)
+/// so replay's `applyVector` validates id ordering and reconstructs the HNSW
+/// index through the exact same path as checkpoint restore.
+///
+/// This record type round-trips correctly for a full-history WAL (vector ids
+/// start at 1 and increment, matching a fresh replay). It is NOT yet invoked
+/// per-mutation by `Store.putVector`: the durable Session keeps only a
+/// post-checkpoint delta WAL, whose absolute vector ids would fail the
+/// sequential `applyVector` check on a fresh replay. Wiring it in awaits a
+/// recovery path that replays the WAL delta on top of the checkpoint store.
+pub fn appendVector(io: std.Io, allocator: std.mem.Allocator, path: []const u8, id: u32, values: []const f32) !void {
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    var w = std.json.Stringify{ .writer = &buf.writer, .options = .{ .whitespace = .minified } };
+    try w.beginObject();
+    try w.objectField("type");
+    try w.write("vector");
+    try w.objectField("id");
+    try w.write(id);
+    try w.objectField("values");
+    try w.beginArray();
+    for (values) |v| {
+        try w.write(v);
+    }
+    try w.endArray();
+    try w.endObject();
+    try appendRecord(io, allocator, path, buf.written());
+}
+
 /// Append a temporal timestamp record. Replay routes this through the snapshot
 /// parser, so WAL and JSONL checkpoint restore keep the same validation path.
 pub fn appendTemporalNode(io: std.Io, allocator: std.mem.Allocator, path: []const u8, id: u32, timestamp_ms: i64) !void {
@@ -256,6 +287,35 @@ test "wal: rejects a missing or wrong header" {
     defer deleteTestFileIfExists(path);
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = path, .data = "garbage\n{\"type\":\"kv\"}\n" });
     try std.testing.expectError(error.InvalidHeader, replay(std.testing.io, allocator, path));
+}
+
+test "wal: vector records survive append, verify, and replay" {
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-wal-vector.wal";
+    defer deleteTestFileIfExists(path);
+    deleteTestFileIfExists(path);
+
+    // Mirror what Store.putVector logs: counter-assigned ids starting at 1, in
+    // insertion order, with the original (unpadded) components.
+    try appendVector(std.testing.io, allocator, path, 1, &.{ 1.0, 0.0, 0.0, 0.0 });
+    try appendVector(std.testing.io, allocator, path, 2, &.{ 0.0, 1.0, 0.0, 0.0 });
+    try appendKv(std.testing.io, allocator, path, "agent:abbey", "trained");
+
+    try std.testing.expectEqual(@as(usize, 3), try verify(std.testing.io, allocator, path));
+
+    var store = try replay(std.testing.io, allocator, path);
+    defer store.deinit();
+
+    // Vectors are durable through the WAL alone, with the kv mutation intact.
+    try std.testing.expectEqual(@as(usize, 2), store.vectorCount());
+    try std.testing.expectEqualStrings("trained", store.get("agent:abbey").?);
+
+    // The replayed HNSW index ranks the matching vector first.
+    const results = try store.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 1);
+    defer allocator.free(results);
+    try std.testing.expectEqual(@as(usize, 1), results.len);
+    try std.testing.expectEqual(@as(u32, 1), results[0].id);
+    try std.testing.expect(results[0].score > 0.99);
 }
 
 test {

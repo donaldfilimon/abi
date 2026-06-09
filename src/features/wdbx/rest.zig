@@ -10,8 +10,19 @@
 
 const std = @import("std");
 const wdbx = @import("mod.zig");
+const retrieval = @import("retrieval.zig");
+const temporal = @import("temporal.zig");
+const foundation_time = @import("../../foundation/time.zig");
 
 pub const MAX_REQUEST_SIZE: usize = 64 * 1024;
+
+/// Neutral persona weight for the REST query (no conversation persona context,
+/// matching the path-addressed CLI `wdbx query`). Keeps the API-layer ranking
+/// honest: semantic × temporal × causal, persona held flat.
+fn constPersona(id: u32) f32 {
+    _ = id;
+    return 0.5;
+}
 
 pub const Response = struct {
     status: u16,
@@ -76,10 +87,64 @@ pub fn route(allocator: std.mem.Allocator, store: *wdbx.Store, method: []const u
             .object => |o| o,
             else => return json(allocator, 400, "{{\"error\":\"expected object\"}}", .{}),
         };
-        const key = if (obj.get("key")) |k| strField(k) else null;
-        if (key == null) return json(allocator, 400, "{{\"error\":\"need key\"}}", .{});
-        const val = store.get(key.?) orelse return json(allocator, 404, "{{\"error\":\"not found\"}}", .{});
-        return json(allocator, 200, "{{\"value\":\"{s}\"}}", .{val});
+        // KV lookup: {"key":..}
+        if (obj.get("key")) |k| {
+            const key = strField(k) orelse return json(allocator, 400, "{{\"error\":\"key must be a string\"}}", .{});
+            const val = store.get(key) orelse return json(allocator, 404, "{{\"error\":\"not found\"}}", .{});
+            return json(allocator, 200, "{{\"value\":\"{s}\"}}", .{val});
+        }
+        // Hybrid semantic search: {"vector":[..],"limit":N} — mirrors the CLI
+        // `wdbx query <path> <text>` path (semantic × temporal × causal × persona)
+        // but takes a pre-embedded query vector, since the REST server lives in
+        // the storage layer and must not depend on the AI embedding layer above.
+        if (obj.get("vector")) |vec_node| {
+            const arr = switch (vec_node) {
+                .array => |a| a,
+                else => return json(allocator, 400, "{{\"error\":\"vector must be an array\"}}", .{}),
+            };
+            if (arr.items.len == 0) return json(allocator, 400, "{{\"error\":\"vector must be non-empty\"}}", .{});
+            const query_vec = allocator.alloc(f32, arr.items.len) catch
+                return json(allocator, 500, "{{\"error\":\"oom\"}}", .{});
+            defer allocator.free(query_vec);
+            for (arr.items, 0..) |item, i| {
+                query_vec[i] = switch (item) {
+                    .float => |f| @floatCast(f),
+                    .integer => |n| @floatFromInt(n),
+                    else => return json(allocator, 400, "{{\"error\":\"vector elements must be numbers\"}}", .{}),
+                };
+            }
+            const limit: usize = if (obj.get("limit")) |l| switch (l) {
+                .integer => |n| if (n > 0 and n <= 100) @intCast(n) else 10,
+                else => 10,
+            } else 10;
+
+            const stats = store.stats();
+            if (stats.vectors == 0) return json(allocator, 200, "{{\"results\":[],\"vectors\":0}}", .{});
+
+            const scorer = temporal.HybridScorer{ .now_ms = foundation_time.unixMs(), .half_life_ms = 24 * 60 * 60 * 1000 };
+            const focus_id: u32 = if (stats.next_vector_id > 1) stats.next_vector_id - 1 else 1;
+            const ranked = retrieval.hybridSearch(allocator, store, query_vec, limit, &store.temporal_graph, scorer, focus_id, constPersona) catch |err|
+                return json(allocator, 400, "{{\"error\":\"{s}\"}}", .{@errorName(err)});
+            defer allocator.free(ranked);
+
+            var out: std.ArrayListUnmanaged(u8) = .empty;
+            errdefer out.deinit(allocator);
+            try out.print(allocator, "{{\"results\":[", .{});
+            for (ranked, 0..) |r, i| {
+                try out.print(allocator, "{s}{{\"id\":{d},\"score\":{d:.6},\"semantic\":{d:.6},\"temporal\":{d:.6},\"causal\":{d:.6},\"persona\":{d:.6}}}", .{
+                    if (i == 0) "" else ",",
+                    r.id,
+                    r.score,
+                    r.components.semantic,
+                    r.components.temporal,
+                    r.components.causal,
+                    r.components.persona,
+                });
+            }
+            try out.print(allocator, "],\"vectors\":{d},\"ranking\":\"hybrid\"}}", .{stats.vectors});
+            return .{ .status = 200, .body = try out.toOwnedSlice(allocator) };
+        }
+        return json(allocator, 400, "{{\"error\":\"need key or vector\"}}", .{});
     }
 
     return json(allocator, 404, "{{\"error\":\"no route for {s} {s}\"}}", .{ method, path });
@@ -200,6 +265,39 @@ test "rest: insert kv then query round-trips" {
     var miss = try route(allocator, &store, "POST", "/query", "{\"key\":\"nope\"}");
     defer miss.deinit(allocator);
     try std.testing.expectEqual(@as(u16, 404), miss.status);
+}
+
+test "rest: vector query returns hybrid-ranked results" {
+    const allocator = std.testing.allocator;
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    _ = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+    _ = try store.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+
+    var q = try route(allocator, &store, "POST", "/query", "{\"vector\":[1.0,0.0,0.0,0.0],\"limit\":2}");
+    defer q.deinit(allocator);
+    try std.testing.expectEqual(@as(u16, 200), q.status);
+    try std.testing.expect(std.mem.indexOf(u8, q.body, "\"ranking\":\"hybrid\"") != null);
+    // The matching vector (id 1) must appear with its scoring components.
+    try std.testing.expect(std.mem.indexOf(u8, q.body, "\"id\":1") != null);
+    try std.testing.expect(std.mem.indexOf(u8, q.body, "\"semantic\":") != null);
+
+    // Neither key nor vector -> 400.
+    var bad = try route(allocator, &store, "POST", "/query", "{}");
+    defer bad.deinit(allocator);
+    try std.testing.expectEqual(@as(u16, 400), bad.status);
+}
+
+test "rest: vector query over empty store reports zero vectors" {
+    const allocator = std.testing.allocator;
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var e = try route(allocator, &store, "POST", "/query", "{\"vector\":[1.0,0.0,0.0,0.0]}");
+    defer e.deinit(allocator);
+    try std.testing.expectEqual(@as(u16, 200), e.status);
+    try std.testing.expect(std.mem.indexOf(u8, e.body, "\"vectors\":0") != null);
 }
 
 test "rest: insert block then verify" {

@@ -86,11 +86,25 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     if (std.mem.eql(u8, sub, "cluster")) {
         if (args.len < 4) return usage();
         if (std.mem.eql(u8, args[3], "status")) {
+            // Report the real consensus state machine's view rather than a fixed
+            // string: a single-node cluster that elects itself leader. Honest
+            // single-process state — networked multi-host RPC is still Phase-2.
+            var cluster = wdbx.cluster.Cluster.init(allocator, 1) catch |err| {
+                std.debug.print("cluster status failed: {s}\n", .{@errorName(err)});
+                return 1;
+            };
+            defer cluster.deinit();
+            _ = cluster.startElection(0) catch |err|
+                std.debug.print("cluster election failed: {s}\n", .{@errorName(err)});
+            const line = cluster.statusLine(allocator) catch |err| {
+                std.debug.print("cluster status failed: {s}\n", .{@errorName(err)});
+                return 1;
+            };
+            defer allocator.free(line);
             std.debug.print(
-                \\cluster: nodes=1 role=standalone replication=none quorum=n/a
-                \\(single-node default; in-process multi-node consensus is available — run `abi wdbx cluster demo`)
-                \\
-            , .{});
+                "cluster: {s}\n(single-node default; in-process multi-node consensus is available — run `abi wdbx cluster demo`)\n",
+                .{line},
+            );
             return 0;
         } else if (std.mem.eql(u8, args[3], "demo")) {
             const nodes: usize = if (args.len >= 5) (std.fmt.parseInt(usize, args[4], 10) catch 3) else 3;
