@@ -17,6 +17,7 @@ pub const neural_compress = @import("neural_compress.zig");
 pub const crypto_he = @import("crypto_he.zig");
 pub const fhe = @import("fhe.zig");
 pub const compute = @import("compute.zig");
+pub const remote_compute = @import("remote_compute.zig");
 pub const rest = @import("rest.zig");
 pub const recovery = @import("recovery.zig");
 pub const retrieval = @import("retrieval.zig");
@@ -463,6 +464,7 @@ test {
     _ = @import("cluster_rpc.zig");
     _ = @import("neural_compress.zig");
     _ = @import("fhe.zig");
+    _ = @import("remote_compute.zig");
     _ = @import("compression.zig");
     _ = @import("crypto_he.zig");
     _ = @import("compute.zig");

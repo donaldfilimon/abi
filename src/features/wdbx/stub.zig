@@ -31,6 +31,7 @@ pub const neural_compress = struct {};
 pub const crypto_he = struct {};
 pub const fhe = struct {};
 pub const compute = struct {};
+pub const remote_compute = struct {};
 pub const rest = struct {};
 pub const recovery = struct {};
 pub const retrieval = struct {};
