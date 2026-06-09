@@ -152,7 +152,12 @@ pub const Client = struct {
         if (self.config.transport != .live) return ConnectorError.LiveTransportUnavailable;
         try validateTwilioConfig(self.config);
 
-        const escalation = classifyEscalation(event);
+        // Only classify escalation from actual user transcripts — mirror the
+        // local handler's per-kind guard. Lifecycle events (`setup`/`disconnect`/
+        // `interrupt`/`dtmf`) carry an empty transcript, which `classifyEscalation`
+        // would otherwise read as `.empty_transcript` and wrongly redirect the
+        // call on connect.
+        const escalation = if (event.kind == .user_transcript) classifyEscalation(event) else null;
         const escalation_url = if (self.config.escalation_url.len > 0) self.config.escalation_url else "";
         if (escalation != null and escalation_url.len == 0) {
             std.log.warn("Twilio escalation triggered but no escalation_url configured; redirect omitted", .{});
