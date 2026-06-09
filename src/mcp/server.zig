@@ -2,6 +2,7 @@ const std = @import("std");
 const protocol = @import("protocol.zig");
 const handlers = @import("handlers.zig");
 const json_helpers = @import("json_helpers.zig");
+const state = @import("state.zig");
 
 const DEFAULT_HTTP_PORT: u16 = 8080;
 const HTTP_PORT_ENV = "ABI_MCP_HTTP_PORT";
@@ -139,8 +140,8 @@ fn processRequest(allocator: std.mem.Allocator, io: std.Io, line: []const u8) !v
         .ping => try allocator.dupe(u8, "{}"),
         .shutdown => blk: {
             requestShutdown();
-            handlers.deinitMcpWdbxStore();
-            handlers.deinitMcpScheduler();
+            state.deinitWdbxStore();
+            state.deinitScheduler();
             break :blk try allocator.dupe(u8, "null");
         },
         .@"resources/list" => try allocator.dupe(u8, "{\"resources\":[]}"),
@@ -362,8 +363,8 @@ pub fn processJsonRpc(allocator: std.mem.Allocator, body: []const u8) ![]u8 {
         .ping => try allocator.dupe(u8, "{}"),
         .shutdown => blk: {
             requestShutdown();
-            handlers.deinitMcpWdbxStore();
-            handlers.deinitMcpScheduler();
+            state.deinitWdbxStore();
+            state.deinitScheduler();
             break :blk try allocator.dupe(u8, "null");
         },
         .@"resources/list" => try allocator.dupe(u8, "{\"resources\":[]}"),

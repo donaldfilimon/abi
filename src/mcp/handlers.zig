@@ -1,63 +1,10 @@
 const std = @import("std");
 const features = @import("abi").features;
 const json_helpers = @import("json_helpers.zig");
+const ai_tools = @import("ai_tools.zig");
 const connector_tools = @import("connector_tools.zig");
 const plugin_tools = @import("plugin_tools.zig");
 const abi = @import("abi");
-
-// Long-lived scheduler and WDBX store for the MCP server process.
-// This lets MCP completion/training/query/stats tools observe the same in-process state.
-var g_mcp_scheduler: ?abi.scheduler.Scheduler = null;
-var g_scheduler_initialized = std.atomic.Value(bool).init(false);
-var g_mcp_wdbx_store: ?abi.features.wdbx.Store = null;
-var g_wdbx_initialized = std.atomic.Value(bool).init(false);
-var g_wdbx_lock: abi.foundation.sync.SpinLock = .{};
-
-fn statDelta(after: usize, before: usize) usize {
-    return if (after >= before) after - before else 0;
-}
-
-fn ensureMcpScheduler() void {
-    if (g_scheduler_initialized.load(.acquire)) return;
-    if (g_scheduler_initialized.cmpxchgStrong(false, true, .acq_rel, .acquire) == null) {
-        g_mcp_scheduler = abi.scheduler.Scheduler.init(std.heap.page_allocator);
-    }
-}
-
-pub fn getMcpScheduler() *abi.scheduler.Scheduler {
-    ensureMcpScheduler();
-    return &g_mcp_scheduler.?;
-}
-
-pub fn deinitMcpScheduler() void {
-    if (g_mcp_scheduler) |*s| {
-        s.deinit();
-        g_mcp_scheduler = null;
-    }
-    g_scheduler_initialized.store(false, .release);
-}
-
-fn ensureMcpWdbxStore() void {
-    if (g_wdbx_initialized.load(.acquire)) return;
-    if (g_wdbx_initialized.cmpxchgStrong(false, true, .acq_rel, .acquire) == null) {
-        g_mcp_wdbx_store = abi.features.wdbx.Store.init(std.heap.page_allocator);
-    }
-}
-
-pub fn getMcpWdbxStore() *abi.features.wdbx.Store {
-    ensureMcpWdbxStore();
-    return &g_mcp_wdbx_store.?;
-}
-
-pub fn deinitMcpWdbxStore() void {
-    g_wdbx_lock.lock();
-    defer g_wdbx_lock.unlock();
-    if (g_mcp_wdbx_store) |*store| {
-        store.deinit();
-        g_mcp_wdbx_store = null;
-    }
-    g_wdbx_initialized.store(false, .release);
-}
 
 pub fn handleInitializeJson(allocator: std.mem.Allocator, params: ?std.json.Value) ![]u8 {
     _ = params;
@@ -178,7 +125,7 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         const args_obj = try toolArguments(params_obj);
         const input = try objectString(args_obj, "input", error.MissingInput);
         const model = objectString(args_obj, "model", error.MissingModel) catch "abi-local";
-        const text = try runLocalCompletion(allocator, input, model);
+        const text = try ai_tools.runLocalCompletion(allocator, input, model);
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
     }
@@ -195,47 +142,7 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
             .artifact_dir = artifact_dir,
         };
 
-        const store = getMcpWdbxStore();
-        g_wdbx_lock.lock();
-        defer g_wdbx_lock.unlock();
-
-        const before = store.stats();
-        var result = blk: {
-            var ctx = ai_mod.TrainingTaskContext{
-                .allocator = allocator,
-                .store = store,
-                .config = config,
-            };
-            if (ai_mod.submitTrainingTask(getMcpScheduler(), "train:mcp", &ctx)) |_| {
-                try getMcpScheduler().runAll();
-                break :blk ctx.result orelse return error.MissingTrainingResult;
-            } else |err| {
-                if (!ai_mod.isFeatureDisabled(err)) return err;
-                break :blk try ai_mod.train(allocator, config);
-            }
-        };
-        defer result.deinit(allocator);
-        const after = store.stats();
-
-        const status: []const u8 = if (result.accepted) "training accepted" else "training disabled";
-        const text = try std.fmt.allocPrint(
-            allocator,
-            "{s} profile={s} dataset={s} records={d} backend={s} wdbx_kv_entries={d} wdbx_vectors={d} wdbx_blocks={d} total_kv_entries={d} total_vectors={d} total_blocks={d}: {s}",
-            .{
-                status,
-                result.profile,
-                result.dataset_path,
-                result.records_stored,
-                result.acceleration_backend,
-                statDelta(after.kv_entries, before.kv_entries),
-                statDelta(after.vectors, before.vectors),
-                statDelta(after.blocks, before.blocks),
-                after.kv_entries,
-                after.vectors,
-                after.blocks,
-                result.message,
-            },
-        );
+        const text = try ai_tools.runTraining(allocator, config);
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
     }
@@ -243,13 +150,13 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
     if (std.mem.eql(u8, tool_name, "wdbx_query")) {
         const args_obj = try toolArguments(params_obj);
         const query = try objectString(args_obj, "query", error.MissingQuery);
-        const text = try runLocalWdbxQuery(allocator, query);
+        const text = try ai_tools.runLocalWdbxQuery(allocator, query);
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
     }
 
     if (std.mem.eql(u8, tool_name, "scheduler_stats") or std.mem.eql(u8, tool_name, "scheduler_info")) {
-        const text = try schedulerStatsText(allocator);
+        const text = try ai_tools.schedulerStatsText(allocator);
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
     }
@@ -276,22 +183,7 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
     }
 
     if (std.mem.eql(u8, tool_name, "wdbx_stats")) {
-        const store = getMcpWdbxStore();
-        g_wdbx_lock.lock();
-        defer g_wdbx_lock.unlock();
-
-        const s = store.stats();
-        const dims_str = if (s.vector_dimensions) |d|
-            std.fmt.allocPrint(allocator, "{d}", .{d}) catch "null"
-        else
-            try allocator.dupe(u8, "null");
-        defer allocator.free(dims_str);
-
-        const text = try std.fmt.allocPrint(
-            allocator,
-            "kv={d} vectors={d} blocks={d} spatial={d} dims={s} backend={s} source=mcp-store",
-            .{ s.kv_entries, s.vectors, s.blocks, s.spatial_records, dims_str, features.gpu.backendName(s.acceleration.backend) },
-        );
+        const text = try ai_tools.wdbxStatsText(allocator);
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
     }
@@ -319,67 +211,6 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
     }
 
     return error.UnknownTool;
-}
-
-fn schedulerStatsText(allocator: std.mem.Allocator) ![]u8 {
-    const sched = getMcpScheduler();
-    const s = sched.stats();
-    return try std.fmt.allocPrint(
-        allocator,
-        "scheduler running={d} pending={d} completed={d} failed={d} cancelled={d} total_tasks={d} source=mcp-server",
-        .{ s.running, s.pending, s.completed, s.failed, s.cancelled, s.total_tasks },
-    );
-}
-
-fn runLocalCompletion(allocator: std.mem.Allocator, input: []const u8, model: []const u8) ![]u8 {
-    const ai_mod = features.ai;
-    const store = getMcpWdbxStore();
-
-    g_wdbx_lock.lock();
-    defer g_wdbx_lock.unlock();
-
-    const before = store.stats();
-    const sched = getMcpScheduler();
-    var result = try ai_mod.completeWithScheduler(
-        allocator,
-        store,
-        sched,
-        "complete:mcp",
-        .{ .input = input, .model = model, .store_result = true },
-    );
-    defer result.deinit(allocator);
-    const stats = store.stats();
-    const persisted = result.query_vector_id != null and result.response_vector_id != null and result.block_id != null;
-
-    var out: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer out.deinit(allocator);
-    try out.print(
-        allocator,
-        "model={s} profile={s} audit_passed={s} persisted={s} kv_entries={d} vectors={d} blocks={d} total_kv_entries={d} total_vectors={d} total_blocks={d}",
-        .{
-            result.model,
-            result.selected_profile.label(),
-            if (result.audit.passed) "true" else "false",
-            if (persisted) "true" else "false",
-            statDelta(stats.kv_entries, before.kv_entries),
-            statDelta(stats.vectors, before.vectors),
-            statDelta(stats.blocks, before.blocks),
-            stats.kv_entries,
-            stats.vectors,
-            stats.blocks,
-        },
-    );
-    if (result.query_vector_id) |qid| {
-        try out.print(allocator, " query_vector_id={d} metadata_key=completion:{d}", .{ qid, qid });
-    }
-    if (result.response_vector_id) |rid| try out.print(allocator, " response_vector_id={d}", .{rid});
-    if (result.block_id) |block_id| {
-        const block_hex = std.fmt.bytesToHex(block_id, .lower);
-        try out.print(allocator, " block_id={s}", .{&block_hex});
-    }
-    if (!persisted) try out.print(allocator, " wdbx_status={s}", .{stats.acceleration.message});
-    try out.print(allocator, ": {s}", .{result.output});
-    return try out.toOwnedSlice(allocator);
 }
 
 fn toolArguments(params_obj: std.json.ObjectMap) !std.json.ObjectMap {
@@ -417,73 +248,4 @@ fn toolTextResult(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
     try json_helpers.appendJsonString(&out, allocator, text);
     try out.appendSlice(allocator, "}]}");
     return out.toOwnedSlice(allocator);
-}
-
-fn runLocalWdbxQuery(allocator: std.mem.Allocator, query: []const u8) ![]u8 {
-    const ai_mod = features.ai;
-    const store = getMcpWdbxStore();
-
-    g_wdbx_lock.lock();
-    defer g_wdbx_lock.unlock();
-
-    seedMcpProfileVectors(allocator, store) catch |err| {
-        if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
-        return err;
-    };
-
-    const query_vec = ai_mod.textEmbedding(query);
-    const results = store.search(&query_vec, 1) catch |err| {
-        if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
-        return err;
-    };
-    defer std.heap.page_allocator.free(results);
-
-    if (results.len == 0) return try allocator.dupe(u8, "wdbx query returned no local matches");
-    const stats = store.stats();
-    return try std.fmt.allocPrint(
-        allocator,
-        "wdbx local match profile={s} vector_id={d} score={d:.3} total_vectors={d} total_blocks={d}",
-        .{ profileForVector(store, results[0].id), results[0].id, results[0].score, stats.vectors, stats.blocks },
-    );
-}
-
-fn seedMcpProfileVectors(allocator: std.mem.Allocator, store: *features.wdbx.Store) !void {
-    if (store.get("wdbx:profiles_seeded") != null) return;
-
-    const profiles = [_]struct {
-        label: []const u8,
-        vector: [4]f32,
-    }{
-        .{ .label = "abbey", .vector = .{ 0.92, 0.48, 0.25, 0.76 } },
-        .{ .label = "aviva", .vector = .{ 0.34, 0.94, 0.82, 0.41 } },
-        .{ .label = "abi", .vector = .{ 0.71, 0.69, 0.88, 0.97 } },
-    };
-
-    for (profiles) |entry| {
-        const id = try store.putVector(&entry.vector);
-        const key = try std.fmt.allocPrint(allocator, "wdbx:profile:{d}", .{id});
-        defer allocator.free(key);
-        try store.store(key, entry.label);
-    }
-    try store.store("wdbx:profiles_seeded", "true");
-}
-
-fn profileForVector(store: *features.wdbx.Store, id: u32) []const u8 {
-    var key_buf: [64]u8 = undefined;
-    const profile_key = std.fmt.bufPrint(&key_buf, "wdbx:profile:{d}", .{id}) catch return "unknown";
-    if (store.get(profile_key)) |label| return label;
-
-    const completion_key = std.fmt.bufPrint(&key_buf, "completion:{d}", .{id}) catch return "unknown";
-    const metadata = store.get(completion_key) orelse return "unknown";
-    return profileFromCompletionMetadata(metadata);
-}
-
-fn profileFromCompletionMetadata(metadata: []const u8) []const u8 {
-    const needle = "\"profile\":";
-    const start = std.mem.indexOf(u8, metadata, needle) orelse return "stored-completion";
-    const after_key = metadata[start + needle.len ..];
-    if (after_key.len == 0 or after_key[0] != '"') return "stored-completion";
-    const value_start: usize = 1;
-    const value_end = std.mem.indexOfScalar(u8, after_key[value_start..], '"') orelse return "stored-completion";
-    return after_key[value_start .. value_start + value_end];
 }
