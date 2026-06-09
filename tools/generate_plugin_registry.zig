@@ -147,7 +147,7 @@ fn appendZigString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocato
     try out.append(allocator, '"');
     for (value) |byte| {
         switch (byte) {
-            '"' => try out.appendSlice(allocator, "\""),
+            '"' => try out.appendSlice(allocator, "\\\""),
             '\\' => try out.appendSlice(allocator, "\\\\"),
             '\n' => try out.appendSlice(allocator, "\\n"),
             '\r' => try out.appendSlice(allocator, "\\r"),
