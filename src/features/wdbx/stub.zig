@@ -30,6 +30,7 @@ pub const crypto_he = struct {};
 pub const compute = struct {};
 pub const rest = struct {};
 pub const recovery = struct {};
+pub const retrieval = struct {};
 
 pub const persistence = struct {
     pub const HEADER = "# ABI-WDBX v1";
