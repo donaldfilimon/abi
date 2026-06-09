@@ -13,6 +13,7 @@
 //!   "DOT <n> <a0> .. <a(n-1)> <b0> .. <b(n-1)>\n"  ->  "<dot>\n"
 
 const std = @import("std");
+const net_line = @import("net_line.zig");
 
 const Stream = std.Io.net.Stream;
 const Server = std.Io.net.Server;
@@ -53,9 +54,7 @@ pub fn serveOnce(io: std.Io, server: *Server, allocator: std.mem.Allocator) !voi
     defer conn.close(io);
 
     var buf: [MAX_MSG]u8 = undefined;
-    var rv: [1][]u8 = .{buf[0..]};
-    const n = try conn.read(io, &rv);
-    const line = std.mem.trimEnd(u8, buf[0..n], "\r\n");
+    const line = try net_line.readLine(io, conn, &buf);
 
     if (!std.mem.startsWith(u8, line, "DOT ")) return error.MalformedRequest;
     var it = std.mem.splitScalar(u8, line["DOT ".len..], ' ');
@@ -98,9 +97,7 @@ pub fn dialDot(io: std.Io, allocator: std.mem.Allocator, port: u16, a: []const f
 pub fn readDotReply(io: std.Io, conn: Stream) !f32 {
     defer conn.close(io);
     var buf: [64]u8 = undefined;
-    var rv: [1][]u8 = .{buf[0..]};
-    const n = try conn.read(io, &rv);
-    const line = std.mem.trimEnd(u8, buf[0..n], "\r\n");
+    const line = try net_line.readLine(io, conn, &buf);
     return std.fmt.parseFloat(f32, line) catch error.MalformedResponse;
 }
 
@@ -124,6 +121,26 @@ test "remote_compute: dot dispatched over loopback matches the local reference" 
     const got = try readDotReply(io, conn);
 
     try testing.expectApproxEqAbs(try localDot(&a, &b), got, 1e-4);
+}
+
+test "remote_compute: serveOnce rejects a malformed request" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
+    var address = try std.Io.net.IpAddress.parseIp4("127.0.0.1", 39312);
+    var server = try address.listen(io, .{ .reuse_address = true });
+    defer server.deinit(io);
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", 39312);
+    const conn = try caddr.connect(io, .{ .mode = .stream });
+    defer conn.close(io);
+    var wb: [64]u8 = undefined;
+    var sw = conn.writer(io, &wb);
+    try sw.interface.writeAll("GARBAGE not a dot request\n");
+    try sw.interface.flush();
+
+    // A request that does not start with "DOT " is surfaced, not mis-served.
+    try testing.expectError(error.MalformedRequest, serveOnce(io, &server, allocator));
 }
 
 test "remote_compute: unreachable endpoint yields null (caller falls back to CPU)" {

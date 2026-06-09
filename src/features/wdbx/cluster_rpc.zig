@@ -18,6 +18,7 @@
 
 const std = @import("std");
 const cluster = @import("cluster.zig");
+const net_line = @import("net_line.zig");
 
 const Stream = std.Io.net.Stream;
 const Server = std.Io.net.Server;
@@ -70,9 +71,7 @@ pub fn serveOnce(io: std.Io, server: *Server, node: *cluster.Node, allocator: st
     defer conn.close(io);
 
     var buf: [4096]u8 = undefined;
-    var rv: [1][]u8 = .{buf[0..]};
-    const n = try conn.read(io, &rv);
-    const line = std.mem.trimEnd(u8, buf[0..n], "\r\n");
+    const line = try net_line.readLine(io, conn, &buf);
 
     var resp_buf: [64]u8 = undefined;
     const resp: []const u8 = blk: {
@@ -145,9 +144,7 @@ pub fn dialAppend(io: std.Io, port: u16, term: u64, data: []const u8) !?Stream {
 pub fn readVoteReply(io: std.Io, conn: Stream) !VoteReply {
     defer conn.close(io);
     var buf: [64]u8 = undefined;
-    var rv: [1][]u8 = .{buf[0..]};
-    const n = try conn.read(io, &rv);
-    const line = std.mem.trimEnd(u8, buf[0..n], "\r\n");
+    const line = try net_line.readLine(io, conn, &buf);
     var it = std.mem.splitScalar(u8, line, ' ');
     const verb = it.next() orelse return error.MalformedResponse;
     const term_s = it.next() orelse return error.MalformedResponse;
@@ -159,9 +156,7 @@ pub fn readVoteReply(io: std.Io, conn: Stream) !VoteReply {
 pub fn readAppendReply(io: std.Io, conn: Stream) !AppendReply {
     defer conn.close(io);
     var buf: [64]u8 = undefined;
-    var rv: [1][]u8 = .{buf[0..]};
-    const n = try conn.read(io, &rv);
-    const line = std.mem.trimEnd(u8, buf[0..n], "\r\n");
+    const line = try net_line.readLine(io, conn, &buf);
     var it = std.mem.splitScalar(u8, line, ' ');
     const verb = it.next() orelse return error.MalformedResponse;
     const term_s = it.next() orelse return error.MalformedResponse;

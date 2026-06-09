@@ -441,6 +441,25 @@ test "wal: replayOnto folds a delta onto an existing store" {
     try std.testing.expectEqual(@as(usize, 3), store.vectorCount());
 }
 
+test "wal: a malformed base_epoch token is rejected as corruption" {
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-wal-badepoch.wal";
+    defer deleteTestFileIfExists(path);
+    deleteTestFileIfExists(path);
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = path, .data = WAL_HEADER_PREFIX ++ " base_epoch=NaN\n" });
+    try std.testing.expectError(error.WalCorruption, readBaseEpoch(std.testing.io, allocator, path));
+}
+
+test "wal: a frame missing the crc/json separator is corruption" {
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-wal-nosep.wal";
+    defer deleteTestFileIfExists(path);
+    deleteTestFileIfExists(path);
+    // Valid header, then a frame line lacking the "<crc> <json>" space split.
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = path, .data = WAL_HEADER_PREFIX ++ "\nnospaceframe\n" });
+    try std.testing.expectError(error.WalCorruption, verify(std.testing.io, allocator, path));
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
