@@ -104,6 +104,38 @@ See `tasks/roadmap-next.md` for the full refreshed view. High-level priorities:
 
 Zig 0.17 classic syntax work is largely complete. Focus is now architectural integration and test coverage for new functionality.
 
+## Session Summary (redesign/refactor + organization pass — June 2026)
+
+Multi-agent pass against `main` (work coordinated across disjoint slices; `./build.sh full-check` green throughout). Toolchain forward-ported to **Zig `0.17.0-dev.813`** (`.zigversion` bumped; `std.meta.fields`→`std.enums.values`, `@typeInfo(enum).fields`→`@hasField`, `error_set.?` removed — see `~/.claude` memory `zig-017-dev-gotchas`).
+
+**Completions (functionality that did nothing now works):**
+- **telemetry** — was an inert on-by-default feature (`record`/`increment` no-ops, 0 callsites). Now a real process-wide, lock-guarded, allocation-free counter sink with `counterValue`/`totalEvents`/`distinctCounters`/`droppedEvents`/`reset`; stub mirrors for parity. (`src/features/telemetry/`)
+- **metrics.snapshotGauges** — was a placeholder returning empty while `setGauge` populated the map (gauge data unreadable). Implemented to mirror `snapshotCounters`; added `getGauge`; fixed a key-string leak in `deinit`. (`src/features/metrics/`)
+- **live TUI** — dashboard loop blocked on `readKey` so it never auto-refreshed. Added `InteractiveTerminal.pollInput` (poll(2)); loop now redraws on a ~1s timer, responds to `q`/`r` instantly, flicker-free redraw (`homeScreen`+`clearToEnd`). (`src/features/tui/`, `src/abi_cli/handlers/dashboard.zig`)
+
+**Organization / dead-code:**
+- **MCP** `handlers.zig` decomposed: `connector_tools.zig`, `plugin_tools.zig`, `state.zig`, `ai_tools.zig`, rpc/shutdown split (584L → slim dispatch facade).
+- **WDBX** shared type extraction + disabled-stub-module organization; **CLI** `wdbx` handler responsibilities split.
+- **AI** disabled stub modules organized; public type definitions extracted.
+- **connectors** inline tests extracted to `src/connectors/tests.zig` (`mod.zig` 634L → 23L, re-export surface intact).
+- **dead code removed**: `OSController.execute` + its `Command` enum + `Registry.getOSController` + the `SystemInfo.total_memory_mb` placeholder (zero callers). (`src/foundation/os.zig`, `src/core/registry.zig`)
+
+**Verification:** `./build.sh full-check` (check + integration + benchmarks + TUI smoke) green; `check-parity` green; legacy-Zig-pattern sweep of `connectors/foundation/core/abi_cli/plugins` came back clean (already idiomatic).
+
+## Things To Do Next
+
+**Honest stubs — keep disclosed, do NOT fake-complete** (would violate `docs/contracts/external-claims-audit.md`):
+- `accelerator`, `shaders`, `mlir`, `mobile` real `mod.zig` are validation/metadata/simulation only; each discloses its limitation. Leave as-is unless wiring real native dispatch.
+
+**Still Proposed (in-process demos exist; production forms do not):**
+- Networked RPC transport for the cluster core (multi-host); native ANE/TPU/CUDA/Metal compute dispatch; learned/entropy compression codec; full multiplicative FHE; non-loopback REST hardening.
+
+**Remaining real work (disjoint, candidate next slices):**
+- WDBX Phase 1 finish: multi-segment storage + epoch reclamation, automatic startup recovery, wire the temporal/causal hybrid ranker into the default `wdbx_query` path + persist the causal graph.
+- `MemoryTracker.trackFree` ignores `ptr` (records are append-only; `getRecordCount` is cumulative, not live) — `src/core/memory.zig`. Decide: make it live, or rename to reflect cumulative semantics.
+- Deeper scheduler/memory wiring into more AI-pipeline stages; broader native/batched GPU acceleration beyond HNSW distance.
+- Loopback integration tests skip-and-leak on connection flake (`src/integration_tests.zig`) — fail hard or use a deterministic ready signal instead of nanosleep-retry + `detach`.
+
 ## Status Format
 
 - `✅ Done` — Implemented and passing tests
