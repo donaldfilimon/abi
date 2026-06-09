@@ -87,7 +87,7 @@ src/
 │   ├── mlir/          # Textual MLIR lowering (mod/stub)
 │   ├── hash/          # Hash utility surface (mod/stub, enabled by default)
 │   ├── metrics/       # Optional observability counters (mod/stub, disabled by default)
-│   ├── telemetry/     # Lightweight event/counter emission hooks (mod/stub, enabled by default)
+│   ├── telemetry/     # Fixed-capacity process-wide event/counter hooks (mod/stub, enabled by default)
 │   ├── tui/           # Diagnostics dashboard (mod/stub, enabled by default)
 │   ├── mobile/        # Mobile platform surface (mod/stub, disabled by default)
 │   └── os_control/    # Safe OS command policy controls (mod/stub)
@@ -238,7 +238,7 @@ The `src/core/` modules (`registry.zig`, `scheduler.zig`, `memory.zig`) and `src
 - Live stats and cooperative refresh tasks in the CLI/TUI dashboard.
 - Long-lived Scheduler instance owned by the MCP server with dedicated `scheduler_stats` / `scheduler_info` tools in the static, contract-tested MCP descriptor list.
 - `MemoryTracker` + `TrackingAllocator` attached via `setMemoryTracker` in the training path and dashboard; allocations performed under scheduler tasks are recorded.
-- Cross-feature observability wiring: Scheduler conditionally records task lifecycle metrics when `-Dfeat-metrics` is enabled. The default-on `feat-telemetry` feature (`src/features/telemetry/`) adds lightweight `record(name)` / `increment(name, delta)` event hooks — a minimal placeholder surface today that complements the opt-in `metrics` counters — with mod/stub parity preserved.
+- Cross-feature observability wiring: Scheduler conditionally records task lifecycle metrics when `-Dfeat-metrics` is enabled. The default-on `feat-telemetry` feature (`src/features/telemetry/`) provides allocation-free `record(name)` / `increment(name, delta)` hooks plus process-wide readback (`counterValue`, `totalEvents`, `distinctCounters`, `droppedEvents`, `reset`) through a fixed-capacity counter table. It complements the opt-in `metrics` registry, and mod/stub parity is preserved for disabled telemetry builds.
 - Dedicated integration test ("scheduler drives training tasks") validates end-to-end submission, execution, stats, and memory tracking.
 
 - Registry remains focused on plugin descriptors (RwLock-protected) today; it is the coordinator for the plugin execution seam (`plugin_manager` + `abi plugin run` / MCP `plugin_run`) but is not yet the broader cross-feature lifecycle registry envisioned originally.

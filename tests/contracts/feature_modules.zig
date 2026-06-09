@@ -76,6 +76,16 @@ test "feature modules expose safe runtime contracts" {
         try std.testing.expectEqual(@as(u64, 1), m.getCounter("contract.test").?);
     }
 
+    if (build_options.feat_telemetry) {
+        features.telemetry.reset();
+        defer features.telemetry.reset();
+        features.telemetry.record("contract.event");
+        features.telemetry.increment("contract.event", 2);
+        try std.testing.expectEqual(@as(u64, 3), features.telemetry.counterValue("contract.event"));
+        try std.testing.expectEqual(@as(u64, 3), features.telemetry.totalEvents());
+        try std.testing.expectEqual(@as(usize, 1), features.telemetry.distinctCounters());
+    }
+
     if (build_options.feat_wdbx) {
         var store = features.wdbx.Store.init(std.testing.allocator);
         defer store.deinit();
@@ -191,6 +201,15 @@ test "disabled feature modules expose explicit degraded behavior" {
         var m = features.metrics.Metrics.init(std.testing.allocator);
         defer m.deinit();
         try std.testing.expectError(error.FeatureDisabled, m.increment("x", 1));
+    }
+
+    if (!build_options.feat_telemetry) {
+        features.telemetry.record("contract.event");
+        features.telemetry.increment("contract.event", 2);
+        try std.testing.expectEqual(@as(u64, 0), features.telemetry.counterValue("contract.event"));
+        try std.testing.expectEqual(@as(u64, 0), features.telemetry.totalEvents());
+        try std.testing.expectEqual(@as(usize, 0), features.telemetry.distinctCounters());
+        try std.testing.expectEqual(@as(u64, 0), features.telemetry.droppedEvents());
     }
 
     if (!build_options.feat_os_control) {
