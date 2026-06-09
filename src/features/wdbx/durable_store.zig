@@ -149,20 +149,7 @@ pub const Session = struct {
     pub fn checkpoint(self: *Session) !void {
         const base = self.base_path orelse return;
         const io = self.io orelse return;
-        var segment_store = wdbx.segments.SegmentStore.init(self.allocator, io, base);
-        const new_epoch = try segment_store.flush(&self.store);
-        try wdbx.persistence.saveToPath(io, self.allocator, &self.store, base);
-        if (self.wal_path) |wp| {
-            // The delta is now folded into the epoch-`new_epoch` checkpoint, so
-            // drop it and start a fresh WAL tagged to the new epoch. A crash
-            // before the delete leaves a stale (older-epoch) WAL that recovery
-            // discards; a crash after it leaves a clean delta for next time.
-            std.Io.Dir.cwd().deleteFile(io, wp) catch |err| switch (err) {
-                error.FileNotFound => {},
-                else => return err,
-            };
-            try wdbx.wal.createWithEpoch(io, self.allocator, wp, new_epoch);
-        }
+        _ = try checkpointAt(io, self.allocator, base, &self.store);
     }
 
     pub fn deinit(self: *Session) void {
@@ -176,6 +163,29 @@ pub const Session = struct {
         self.* = undefined;
     }
 };
+
+/// Checkpoint `store` at base path `base`: flush a new immutable segment, mirror
+/// the monolithic snapshot for explicit-path tooling, then fold/reset the sidecar
+/// WAL — delete the now-redundant log and start a fresh one tagged to the new
+/// epoch. Returns the new epoch. Shared by the durable `Session` and the
+/// explicit-path `abi wdbx` CLI handlers so both keep identical checkpoint
+/// semantics (delta WAL + epoch-gated recovery).
+pub fn checkpointAt(io: std.Io, allocator: std.mem.Allocator, base: []const u8, store: *const wdbx.Store) !u64 {
+    var segment_store = wdbx.segments.SegmentStore.init(allocator, io, base);
+    const new_epoch = try segment_store.flush(store);
+    try wdbx.persistence.saveToPath(io, allocator, store, base);
+
+    const wp = try wdbx.recovery.walPath(allocator, base);
+    defer allocator.free(wp);
+    // A crash before the delete leaves a stale (older-epoch) WAL that recovery
+    // discards; a crash after it leaves a clean delta tagged to the new epoch.
+    std.Io.Dir.cwd().deleteFile(io, wp) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => return err,
+    };
+    try wdbx.wal.createWithEpoch(io, allocator, wp, new_epoch);
+    return new_epoch;
+}
 
 const testing = std.testing;
 

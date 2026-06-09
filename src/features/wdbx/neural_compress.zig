@@ -236,6 +236,42 @@ test "neural compression: encode/decode round-trip uses caller buffers (alloc-fr
     for (out) |v| try testing.expect(std.math.isFinite(v));
 }
 
+test "neural compression: training stays stable at a higher learning rate" {
+    const allocator = testing.allocator;
+    var prng = std.Random.DefaultPrng.init(0x5151ABCD);
+    const rand = prng.random();
+    const basis = [2][6]f32{
+        .{ 0.3, -0.2, 0.1, 0.2, -0.1, 0.15 },
+        .{ -0.1, 0.25, 0.2, -0.15, 0.2, -0.1 },
+    };
+    var storage: [16][6]f32 = undefined;
+    var dataset: [16][]const f32 = undefined;
+    for (0..16) |n| {
+        const c0 = rand.float(f32) - 0.5;
+        const c1 = rand.float(f32) - 0.5;
+        for (0..6) |i| storage[n][i] = c0 * basis[0][i] + c1 * basis[1][i];
+        dataset[n] = &storage[n];
+    }
+
+    var ae = try Autoencoder.init(allocator, 6, 2, 0x2727BEEF);
+    defer ae.deinit();
+    var before: f32 = 0;
+    for (dataset) |v| before += ae.reconstructionMse(v);
+    before /= dataset.len;
+
+    var e: usize = 0;
+    while (e < 200) : (e += 1) _ = ae.trainEpoch(&dataset, 0.4);
+
+    var after: f32 = 0;
+    for (dataset) |v| after += ae.reconstructionMse(v);
+    after /= dataset.len;
+
+    // The small-init weights keep tanh near-linear, so a higher lr (0.4) still
+    // converges rather than diverging to NaN/inf or a worse error.
+    try testing.expect(std.math.isFinite(after));
+    try testing.expect(after < before);
+}
+
 test "neural compression: identical seed yields identical weights and latent codes" {
     const allocator = testing.allocator;
     var a = try Autoencoder.init(allocator, 8, 3, 0xBEEF1234);

@@ -40,13 +40,6 @@ pub fn endpoint() ?[]const u8 {
     return if (span.len == 0) null else span;
 }
 
-fn writeMsg(io: std.Io, conn: Stream, msg: []const u8) !void {
-    var wb: [MAX_MSG]u8 = undefined;
-    var sw = conn.writer(io, &wb);
-    try sw.interface.writeAll(msg);
-    try sw.interface.flush();
-}
-
 /// Accept one connection, evaluate the DOT op, and respond. This is the
 /// reference/mock remote accelerator — a real endpoint would compute on its TPU.
 pub fn serveOnce(io: std.Io, server: *Server, allocator: std.mem.Allocator) !void {
@@ -72,7 +65,7 @@ pub fn serveOnce(io: std.Io, server: *Server, allocator: std.mem.Allocator) !voi
 
     var out: [64]u8 = undefined;
     const resp = try std.fmt.bufPrint(&out, "{d}\n", .{result});
-    try writeMsg(io, conn, resp);
+    try net_line.writeLine(io, conn, resp);
 }
 
 /// Connect to the endpoint and send a DOT request, returning the open stream
@@ -86,11 +79,7 @@ pub fn dialDot(io: std.Io, allocator: std.mem.Allocator, port: u16, a: []const f
     for (b) |y| try msg.print(allocator, " {d}", .{y});
     try msg.append(allocator, '\n');
 
-    var address = std.Io.net.IpAddress.parseIp4("127.0.0.1", port) catch return null;
-    const conn = address.connect(io, .{ .mode = .stream }) catch return null;
-    errdefer conn.close(io);
-    try writeMsg(io, conn, msg.items);
-    return conn;
+    return net_line.dial(io, port, msg.items);
 }
 
 /// Read and parse a DOT reply, then close the connection.

@@ -93,10 +93,7 @@ pub fn serveOnce(io: std.Io, server: *Server, node: *cluster.Node, allocator: st
         break :blk "ERR 0\n";
     };
 
-    var wb: [64]u8 = undefined;
-    var sw = conn.writer(io, &wb);
-    try sw.interface.writeAll(resp);
-    try sw.interface.flush();
+    try net_line.writeLine(io, conn, resp);
 }
 
 /// Serve a node's consensus RPC endpoint, applying RequestVote/AppendEntries to
@@ -110,26 +107,13 @@ pub fn serveLoop(io: std.Io, server: *Server, node: *cluster.Node, allocator: st
     }
 }
 
-fn dial(io: std.Io, port: u16, msg: []const u8) !?Stream {
-    var address = std.Io.net.IpAddress.parseIp4("127.0.0.1", port) catch return null;
-    // A refused/unreachable peer (e.g. a downed node) yields null rather than an
-    // error: the caller treats it as a missing vote/ack, like a real cluster.
-    const conn = address.connect(io, .{ .mode = .stream }) catch return null;
-    errdefer conn.close(io);
-    var wb: [4096]u8 = undefined;
-    var sw = conn.writer(io, &wb);
-    try sw.interface.writeAll(msg);
-    try sw.interface.flush();
-    return conn;
-}
-
 /// Connect to a peer and send a RequestVote, returning the open stream (read the
 /// reply with `readVoteReply`). Null if the peer is unreachable. Two-phase so a
 /// single driver can dial every peer before any peer is served.
 pub fn dialVote(io: std.Io, port: u16, term: u64, candidate: u32) !?Stream {
     var msg_buf: [64]u8 = undefined;
     const msg = try std.fmt.bufPrint(&msg_buf, "VOTE {d} {d}\n", .{ term, candidate });
-    return dial(io, port, msg);
+    return net_line.dial(io, port, msg);
 }
 
 /// Connect to a peer and send an AppendEntries, returning the open stream (read
@@ -137,7 +121,7 @@ pub fn dialVote(io: std.Io, port: u16, term: u64, candidate: u32) !?Stream {
 pub fn dialAppend(io: std.Io, port: u16, term: u64, data: []const u8) !?Stream {
     var msg_buf: [4096]u8 = undefined;
     const msg = try std.fmt.bufPrint(&msg_buf, "APPEND {d} {s}\n", .{ term, data });
-    return dial(io, port, msg);
+    return net_line.dial(io, port, msg);
 }
 
 /// Read and parse a vote reply, then close the connection.

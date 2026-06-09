@@ -12,6 +12,26 @@ const std = @import("std");
 
 const Stream = std.Io.net.Stream;
 
+/// Write `bytes` to `conn` and flush. The Writer flushes automatically when its
+/// stack buffer fills, so a modest buffer handles messages larger than itself.
+pub fn writeLine(io: std.Io, conn: Stream, bytes: []const u8) !void {
+    var wb: [4096]u8 = undefined;
+    var sw = conn.writer(io, &wb);
+    try sw.interface.writeAll(bytes);
+    try sw.interface.flush();
+}
+
+/// Connect to a 127.0.0.1 peer on `port` and send `msg`, returning the open
+/// stream (read the reply with `readLine`). Null if the peer is unreachable
+/// (connection refused / bad address) — callers treat that as a down peer.
+pub fn dial(io: std.Io, port: u16, msg: []const u8) !?Stream {
+    var address = std.Io.net.IpAddress.parseIp4("127.0.0.1", port) catch return null;
+    const conn = address.connect(io, .{ .mode = .stream }) catch return null;
+    errdefer conn.close(io);
+    try writeLine(io, conn, msg);
+    return conn;
+}
+
 /// Read one newline-terminated frame into `buf`, reassembling across reads.
 /// Returns the bytes up to (not including) the first '\n', trimmed of a trailing
 /// '\r'. If the peer closes before a newline, returns whatever was received.

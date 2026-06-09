@@ -15,23 +15,9 @@ fn deleteWalIfPresent(io: std.Io, allocator: std.mem.Allocator, path: []const u8
 }
 
 fn checkpointStore(io: std.Io, allocator: std.mem.Allocator, path: []const u8, store: *const wdbx.Store) !void {
-    var segment_store = wdbx.segments.SegmentStore.init(allocator, io, path);
-    const new_epoch = try segment_store.flush(store);
-
-    // Compatibility mirror for existing tooling that still opens the monolithic
-    // snapshot path directly. Runtime open/verify prefers the segment manifest.
-    try wdbx.persistence.saveToPath(io, allocator, store, path);
-
-    // Fold the WAL into the new checkpoint and start a fresh delta tagged to the
-    // new epoch (delta semantics, matching the durable Session). Recovery merges
-    // a same-epoch WAL on top of the checkpoint and discards an older one.
-    const wp = try wdbx.recovery.walPath(allocator, path);
-    defer allocator.free(wp);
-    std.Io.Dir.cwd().deleteFile(io, wp) catch |err| switch (err) {
-        error.FileNotFound => {},
-        else => return err,
-    };
-    try wdbx.wal.createWithEpoch(io, allocator, wp, new_epoch);
+    // Shared with the durable Session so both keep identical checkpoint semantics
+    // (segment flush + monolithic mirror + delta-WAL reset tagged to the new epoch).
+    _ = try wdbx.durable_store.checkpointAt(io, allocator, path, store);
 }
 
 fn openRecovered(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !wdbx.recovery.Opened {
