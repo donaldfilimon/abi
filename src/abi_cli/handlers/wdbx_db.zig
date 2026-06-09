@@ -1,4 +1,5 @@
 const std = @import("std");
+const build_options = @import("build_options");
 const features = @import("../../features/mod.zig");
 const foundation_time = @import("../../foundation/time.zig");
 
@@ -207,20 +208,55 @@ fn personaScopeKeep(ctx: *const anyopaque, id: u32) bool {
     return std.mem.eql(u8, personaForVector(scope.store, id), scope.target);
 }
 
-/// Resolve a vector's persona label from the durable tags written at insert
-/// time: a seeded `wdbx:profile:{id}` KV entry, else the routed profile embedded
-/// in the `completion:{id}` block metadata. Unknown when neither is present.
+/// Resolve a vector's persona label from durable state written at insert time,
+/// in priority order: (1) a seeded `wdbx:profile:{id}` KV tag; (2) the routed
+/// profile embedded in the `completion:{id}` block metadata (covers the QUERY
+/// vector); (3) the conversation block that recorded this id as its query or
+/// response vector (covers the RESPONSE vector too, with no extra KV — the
+/// block already carries the profile). Unknown when none resolve.
 fn personaForVector(store: *const wdbx.Store, id: u32) []const u8 {
     var key_buf: [64]u8 = undefined;
-    const profile_key = std.fmt.bufPrint(&key_buf, "wdbx:profile:{d}", .{id}) catch return "unknown";
-    if (store.get(profile_key)) |label| return label;
-    const completion_key = std.fmt.bufPrint(&key_buf, "completion:{d}", .{id}) catch return "unknown";
-    const metadata = store.get(completion_key) orelse return "unknown";
+    if (std.fmt.bufPrint(&key_buf, "wdbx:profile:{d}", .{id})) |k| {
+        if (store.get(k)) |label| return label;
+    } else |_| {}
+    if (std.fmt.bufPrint(&key_buf, "completion:{d}", .{id})) |k| {
+        if (store.get(k)) |metadata| {
+            if (profileFromMetadata(metadata)) |p| return p;
+        }
+    } else |_| {}
+    // Block-backed fallback: scan the conversation chain for the block whose
+    // query_id or response_id is this vector, and return its profile.
+    var it = store.chain.iterator();
+    defer store.chain.releaseIterator();
+    while (it.next()) |node| {
+        if (node.data.query_id == id or node.data.response_id == id) return node.data.profile;
+    }
+    return "unknown";
+}
+
+fn profileFromMetadata(metadata: []const u8) ?[]const u8 {
     const needle = "\"profile\":\"";
-    const start = std.mem.indexOf(u8, metadata, needle) orelse return "unknown";
+    const start = std.mem.indexOf(u8, metadata, needle) orelse return null;
     const after = metadata[start + needle.len ..];
-    const end = std.mem.indexOfScalar(u8, after, '"') orelse return "unknown";
+    const end = std.mem.indexOfScalar(u8, after, '"') orelse return null;
     return after[0..end];
+}
+
+test "personaForVector resolves query AND response vectors via the conversation block" {
+    if (!build_options.feat_wdbx) return;
+    const allocator = std.testing.allocator;
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    const qid = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+    const rid = try store.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+    _ = try store.appendBlock("abbey", qid, rid, "{\"profile\":\"abbey\"}");
+
+    // No wdbx:profile / completion KV tags are set — both ids must still resolve
+    // to the persona via the block that recorded them (response vector included).
+    try std.testing.expectEqualStrings("abbey", personaForVector(&store, qid));
+    try std.testing.expectEqualStrings("abbey", personaForVector(&store, rid));
+    try std.testing.expectEqualStrings("unknown", personaForVector(&store, 9999));
 }
 
 test {
