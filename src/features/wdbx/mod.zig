@@ -186,15 +186,10 @@ pub const Store = struct {
         self.paddedFree(padded_values);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
         self.acceleration = try runtime.runAccelerationKernel("wdbx.putVector", values.len);
-        // NOTE: vectors are intentionally NOT yet logged to the WAL per mutation.
-        // The WAL vector record exists (`wal.appendVector`) and replays correctly
-        // for a full-history log, but the durable Session deletes the WAL on each
-        // checkpoint, so a live WAL holds only the post-checkpoint delta. Replay
-        // rebuilds into a fresh store whose vector counter restarts at 1, while a
-        // delta's vector ids are absolute (> 1), which `applyVector` rejects as
-        // CorruptVectorId. Activating per-mutation vector durability therefore
-        // requires recovery to replay the WAL delta on top of the checkpoint (or
-        // an absolute-id WAL replay path). Vectors remain durable via checkpoint.
+        // Durably log the vector like blocks/kv/temporal mutations. Recovery now
+        // folds the WAL delta on top of the checkpoint (preserving the vector-id
+        // counter), so an absolute id in a post-checkpoint delta replays cleanly.
+        if (self.wal_binding) |w| try wal.appendVector(w.io, self.allocator, w.path, id, values);
         return id;
     }
 

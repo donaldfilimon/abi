@@ -15,11 +15,22 @@ fn deleteWalIfPresent(io: std.Io, allocator: std.mem.Allocator, path: []const u8
 
 fn checkpointStore(io: std.Io, allocator: std.mem.Allocator, path: []const u8, store: *const wdbx.Store) !void {
     var segment_store = wdbx.segments.SegmentStore.init(allocator, io, path);
-    _ = try segment_store.flush(store);
+    const new_epoch = try segment_store.flush(store);
 
     // Compatibility mirror for existing tooling that still opens the monolithic
     // snapshot path directly. Runtime open/verify prefers the segment manifest.
     try wdbx.persistence.saveToPath(io, allocator, store, path);
+
+    // Fold the WAL into the new checkpoint and start a fresh delta tagged to the
+    // new epoch (delta semantics, matching the durable Session). Recovery merges
+    // a same-epoch WAL on top of the checkpoint and discards an older one.
+    const wp = try wdbx.recovery.walPath(allocator, path);
+    defer allocator.free(wp);
+    std.Io.Dir.cwd().deleteFile(io, wp) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => return err,
+    };
+    try wdbx.wal.createWithEpoch(io, allocator, wp, new_epoch);
 }
 
 fn openRecovered(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !wdbx.recovery.Opened {
@@ -51,25 +62,45 @@ pub fn verifyDb(io: std.Io, allocator: std.mem.Allocator, path: []const u8) anye
     const blocks_ok = opened.store.verifyBlocks();
     const s = opened.store.stats();
     std.debug.print(
-        "checkpoint OK: source={s} kv={d} vectors={d} blocks={d} spatial={d} temporal_nodes={d} temporal_edges={d} chain_valid={any}\n",
-        .{ @tagName(opened.source), s.kv_entries, s.vectors, s.blocks, s.spatial_records, s.temporal_nodes, s.temporal_edges, blocks_ok },
+        "checkpoint OK: source={s} epoch={d} kv={d} vectors={d} blocks={d} spatial={d} temporal_nodes={d} temporal_edges={d} chain_valid={any}\n",
+        .{ @tagName(opened.source), opened.checkpoint_epoch, s.kv_entries, s.vectors, s.blocks, s.spatial_records, s.temporal_nodes, s.temporal_edges, blocks_ok },
     );
 
     const wp = try wdbx.recovery.walPath(allocator, path);
     defer allocator.free(wp);
-    var wal_store = wdbx.wal.replay(io, allocator, wp) catch |err| switch (err) {
-        error.FileNotFound => return if (blocks_ok) 0 else 1,
-        else => {
-            std.debug.print("WAL verify FAILED: {s}: {s}\n", .{ wp, @errorName(err) });
-            return 1;
-        },
-    };
-    defer wal_store.deinit();
+    if (!try wdbx.wal.exists(io, allocator, wp)) return if (blocks_ok) 0 else 1;
 
-    const wal_blocks = wal_store.blockCount();
-    const consistent = wal_blocks == s.blocks and wal_store.verifyBlocks();
-    std.debug.print("WAL replay OK: blocks={d} consistent_with_checkpoint={any}\n", .{ wal_blocks, consistent });
-    return if (blocks_ok and consistent) 0 else 1;
+    // The WAL is a post-checkpoint delta, not a divergent full history. First
+    // verify per-frame CRC integrity (corruption/tamper detection)...
+    const frames = wdbx.wal.verify(io, allocator, wp) catch |err| {
+        std.debug.print("WAL verify FAILED: {s}: {s}\n", .{ wp, @errorName(err) });
+        return 1;
+    };
+    const wal_base = wdbx.wal.readBaseEpoch(io, allocator, wp) catch |err| {
+        std.debug.print("WAL verify FAILED: {s}: {s}\n", .{ wp, @errorName(err) });
+        return 1;
+    };
+
+    // ...then confirm the delta folds cleanly onto a fresh checkpoint copy and
+    // the merged chain is intact. A WAL whose epoch predates the checkpoint is a
+    // superseded log that recovery will discard — reported, not an error.
+    if (wal_base != opened.checkpoint_epoch) {
+        std.debug.print("WAL note: frames={d} base_epoch={d} predates checkpoint epoch={d}; discarded on recovery\n", .{ frames, wal_base, opened.checkpoint_epoch });
+        return if (blocks_ok) 0 else 1;
+    }
+
+    var merged = wdbx.recovery.openCheckpoint(io, allocator, path) catch {
+        std.debug.print("verify FAILED: checkpoint reload {s}\n", .{path});
+        return 1;
+    };
+    defer merged.store.deinit();
+    _ = wdbx.wal.replayOnto(io, allocator, wp, &merged.store) catch |err| {
+        std.debug.print("WAL replay FAILED: {s}: {s}\n", .{ wp, @errorName(err) });
+        return 1;
+    };
+    const merged_ok = merged.store.verifyBlocks();
+    std.debug.print("WAL OK: frames={d} merged_blocks={d} merged_chain_valid={any}\n", .{ frames, merged.store.blockCount(), merged_ok });
+    return if (blocks_ok and merged_ok) 0 else 1;
 }
 
 pub fn blockInsert(io: std.Io, allocator: std.mem.Allocator, path: []const u8, profile: []const u8, metadata: []const u8) anyerror!u8 {
@@ -81,6 +112,11 @@ pub fn blockInsert(io: std.Io, allocator: std.mem.Allocator, path: []const u8, p
 
     const wp = try wdbx.recovery.walPath(allocator, path);
     defer allocator.free(wp);
+    // Ensure the WAL is tagged to the current checkpoint epoch before appending.
+    // If recovery discarded a stale WAL, a bare appendBlock would create a
+    // legacy (base_epoch=0) header; a crash before the next checkpoint would
+    // then make recovery discard this block as superseded. Mirrors Session.openAt.
+    try wdbx.wal.createWithEpoch(io, allocator, wp, opened.checkpoint_epoch);
     try wdbx.wal.appendBlock(io, allocator, wp, profile, 0, 0, metadata, last.timestamp_ms);
     try checkpointStore(io, allocator, path, &opened.store);
 

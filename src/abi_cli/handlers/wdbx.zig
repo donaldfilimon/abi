@@ -182,24 +182,49 @@ test "wdbx db init + block insert + verify + query round-trip" {
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path }));
 }
 
-test "wdbx db verify detects WAL/snapshot divergence" {
+test "wdbx db verify detects a corrupted WAL frame" {
     if (!build_options.feat_wdbx) return;
     const allocator = std.testing.allocator;
-    const path = "zig-out/wdbx-cli-divergence.jsonl";
-    const wp = "zig-out/wdbx-cli-divergence.jsonl.wal";
+    const path = "zig-out/wdbx-cli-corrupt.jsonl";
+    const wp = "zig-out/wdbx-cli-corrupt.jsonl.wal";
     defer cleanupTestDb(path);
     cleanupTestDb(path);
 
-    // A consistent snapshot+WAL with one block verifies clean.
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "init", path }));
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "insert", path, "abbey", "{\"turn\":1}" }));
+
+    // A valid post-checkpoint delta (one logged block) is NOT divergence — it
+    // folds onto the checkpoint and verifies clean.
+    try wdbx.wal.appendBlock(std.testing.io, allocator, wp, "aviva", 0, 0, "{\"turn\":2}", 4242);
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
 
-    // Append a block to the durable WAL only, leaving the snapshot behind. The
-    // log now records more history than the checkpoint — verify must surface
-    // the divergence (exit 1), not silently trust the checkpoint.
-    try wdbx.wal.appendBlock(std.testing.io, allocator, wp, "aviva", 0, 0, "{\"turn\":2}", 4242);
+    // Flip a byte inside the WAL's framed JSON: verify must surface the
+    // corruption (exit 1), not silently trust a damaged log.
+    const content = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, wp, allocator, .limited(64 * 1024));
+    defer allocator.free(content);
+    const idx = std.mem.indexOf(u8, content, "turn").?;
+    content[idx] = 'X';
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = wp, .data = content });
     try std.testing.expectEqual(@as(u8, 1), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
+}
+
+test "wdbx CLI keeps the live WAL tagged to the checkpoint epoch" {
+    if (!build_options.feat_wdbx) return;
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-cli-epoch.jsonl";
+    const wp = "zig-out/wdbx-cli-epoch.jsonl.wal";
+    defer cleanupTestDb(path);
+    cleanupTestDb(path);
+
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "init", path }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "insert", path, "abbey", "{\"turn\":1}" }));
+
+    // The live WAL must carry the current checkpoint epoch; otherwise a
+    // crash-pending delta appended to it would be discarded as superseded.
+    var cp = try wdbx.recovery.openCheckpoint(std.testing.io, allocator, path);
+    defer cp.store.deinit();
+    const wal_base = try wdbx.wal.readBaseEpoch(std.testing.io, allocator, wp);
+    try std.testing.expectEqual(cp.checkpoint_epoch, wal_base);
 }
 
 test "wdbx runtime commands recover WAL-ahead state before reading or writing" {
@@ -213,11 +238,11 @@ test "wdbx runtime commands recover WAL-ahead state before reading or writing" {
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "init", path }));
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "insert", path, "abbey", "{\"turn\":1}" }));
 
-    // Simulate a crash after the WAL append but before checkpointing:
-    // runtime commands should recover the WAL-ahead block, while db verify still
-    // surfaces the divergence as a consistency problem.
+    // Simulate a crash after the WAL append but before checkpointing: the WAL
+    // holds a valid post-checkpoint delta. verify reports it clean (it folds
+    // onto the checkpoint), and runtime commands recover the merged block.
     try wdbx.wal.appendBlock(std.testing.io, allocator, wp, "aviva", 0, 0, "{\"turn\":2}", 4242);
-    try std.testing.expectEqual(@as(u8, 1), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "get", path }));
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path }));
 

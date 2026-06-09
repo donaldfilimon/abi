@@ -14,8 +14,14 @@
 const std = @import("std");
 const wdbx_mod = @import("mod.zig");
 const persistence = @import("persistence.zig");
+const persistence_parse = @import("persistence_parse.zig");
 
-pub const WAL_HEADER = "# ABI-WDBX-WAL v1";
+/// Header line prefix. A WAL written after a checkpoint additionally carries a
+/// ` base_epoch=N` token naming the checkpoint epoch it is a delta from; legacy
+/// headers without the token are treated as base_epoch 0 (full-history WAL).
+pub const WAL_HEADER_PREFIX = "# ABI-WDBX-WAL v1";
+/// Legacy exact header (no epoch tag). Retained for back-compat and tests.
+pub const WAL_HEADER = WAL_HEADER_PREFIX;
 
 pub const WalError = error{
     InvalidHeader,
@@ -170,6 +176,68 @@ pub fn verify(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !usize
     return count;
 }
 
+/// Whether a WAL file exists at `path`.
+pub fn exists(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !bool {
+    return fileExists(io, allocator, path);
+}
+
+fn fileExists(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !bool {
+    _ = allocator;
+    std.Io.Dir.cwd().access(io, path, .{}) catch |err| switch (err) {
+        error.FileNotFound => return false,
+        else => return err,
+    };
+    return true;
+}
+
+/// Create a WAL tagged as a delta from checkpoint `base_epoch`, if one does not
+/// already exist. NEVER truncates an existing WAL: a present log may hold an
+/// un-checkpointed delta that must survive. Recovery compares this epoch against
+/// the checkpoint's to decide merge (equal) vs discard (WAL older).
+pub fn createWithEpoch(io: std.Io, allocator: std.mem.Allocator, path: []const u8, base_epoch: u64) !void {
+    if (try fileExists(io, allocator, path)) return;
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    try buf.writer.print("{s} base_epoch={d}\n", .{ WAL_HEADER_PREFIX, base_epoch });
+    try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = buf.written() });
+}
+
+/// Parse the checkpoint epoch this WAL is a delta from. Returns 0 for an absent
+/// file or a legacy header without a `base_epoch=` token (full-history WAL).
+pub fn readBaseEpoch(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !u64 {
+    const content = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(256 * 1024 * 1024)) catch |err| switch (err) {
+        error.FileNotFound => return 0,
+        else => return err,
+    };
+    defer allocator.free(content);
+    const nl = std.mem.indexOfScalar(u8, content, '\n') orelse content.len;
+    const header = std.mem.trim(u8, content[0..nl], " \t\r");
+    if (!std.mem.startsWith(u8, header, WAL_HEADER_PREFIX)) return error.InvalidHeader;
+    const rest = std.mem.trim(u8, header[WAL_HEADER_PREFIX.len..], " \t\r");
+    if (std.mem.startsWith(u8, rest, "base_epoch=")) {
+        return std.fmt.parseInt(u64, rest["base_epoch=".len..], 10) catch return error.WalCorruption;
+    }
+    return 0;
+}
+
+/// Replay WAL frames ON TOP of an existing `store` (used by recovery to fold a
+/// post-checkpoint delta into the recovered checkpoint). Applies each verified
+/// record through the same `persistence_parse.applyLine` path as snapshot
+/// restore — so vector-id continuity holds: a delta logged against a checkpoint
+/// with K vectors replays cleanly onto a store whose counter is already at K+1.
+/// Returns the number of frames applied; corruption propagates.
+pub fn replayOnto(io: std.Io, allocator: std.mem.Allocator, path: []const u8, store: *wdbx_mod.Store) !usize {
+    const content = try std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(256 * 1024 * 1024));
+    defer allocator.free(content);
+    var count: usize = 0;
+    var it = frameIterator(content);
+    while (try it.next()) |json| {
+        try persistence_parse.applyLine(allocator, store, json);
+        count += 1;
+    }
+    return count;
+}
+
 /// Replay the WAL into a fresh Store. Reuses `persistence.deserialize` so the
 /// apply semantics (id/timestamp/hash fidelity, range checks) are identical to
 /// snapshot restore.
@@ -201,7 +269,7 @@ const FrameIterator = struct {
     fn next(self: *FrameIterator) !?[]const u8 {
         if (!self.started) {
             const header = self.lines.next() orelse return error.InvalidHeader;
-            if (!std.mem.eql(u8, std.mem.trim(u8, header, " \t\r"), WAL_HEADER)) return error.InvalidHeader;
+            if (!std.mem.startsWith(u8, std.mem.trim(u8, header, " \t\r"), WAL_HEADER_PREFIX)) return error.InvalidHeader;
             self.started = true;
         }
         while (self.lines.next()) |raw| {
@@ -316,6 +384,61 @@ test "wal: vector records survive append, verify, and replay" {
     try std.testing.expectEqual(@as(usize, 1), results.len);
     try std.testing.expectEqual(@as(u32, 1), results[0].id);
     try std.testing.expect(results[0].score > 0.99);
+}
+
+test "wal: createWithEpoch writes a parseable base_epoch and does not truncate" {
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-wal-epoch.wal";
+    defer deleteTestFileIfExists(path);
+    deleteTestFileIfExists(path);
+
+    try createWithEpoch(std.testing.io, allocator, path, 42);
+    try std.testing.expectEqual(@as(u64, 42), try readBaseEpoch(std.testing.io, allocator, path));
+
+    // A record then a second createWithEpoch must NOT clobber the existing WAL.
+    try appendKv(std.testing.io, allocator, path, "k", "v");
+    try createWithEpoch(std.testing.io, allocator, path, 99);
+    try std.testing.expectEqual(@as(u64, 42), try readBaseEpoch(std.testing.io, allocator, path));
+    try std.testing.expectEqual(@as(usize, 1), try verify(std.testing.io, allocator, path));
+}
+
+test "wal: readBaseEpoch is 0 for legacy header and absent file" {
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-wal-legacy.wal";
+    defer deleteTestFileIfExists(path);
+    deleteTestFileIfExists(path);
+
+    // Absent file -> 0.
+    try std.testing.expectEqual(@as(u64, 0), try readBaseEpoch(std.testing.io, allocator, path));
+    // Legacy header (appendRecord creates it without an epoch token) -> 0.
+    try appendKv(std.testing.io, allocator, path, "k", "v");
+    try std.testing.expectEqual(@as(u64, 0), try readBaseEpoch(std.testing.io, allocator, path));
+}
+
+test "wal: replayOnto folds a delta onto an existing store" {
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-wal-onto.wal";
+    defer deleteTestFileIfExists(path);
+    deleteTestFileIfExists(path);
+
+    // Baseline store with 1 block + 2 vectors (counter now at 3).
+    var store = wdbx_mod.Store.init(allocator);
+    defer store.deinit();
+    _ = try store.appendBlock("abbey", 0, 0, "{\"t\":1}");
+    _ = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+    _ = try store.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+
+    // Delta WAL: a new block and the next vector (absolute id 3) — exactly what
+    // putVector/appendBlock would log against this baseline.
+    try createWithEpoch(std.testing.io, allocator, path, 7);
+    try appendBlock(std.testing.io, allocator, path, "aviva", 0, 0, "{\"t\":2}", 2000);
+    try appendVector(std.testing.io, allocator, path, 3, &.{ 0.0, 0.0, 1.0, 0.0 });
+
+    const applied = try replayOnto(std.testing.io, allocator, path, &store);
+    try std.testing.expectEqual(@as(usize, 2), applied);
+    // Continuity holds: the delta merged without CorruptVectorId.
+    try std.testing.expectEqual(@as(usize, 2), store.blockCount());
+    try std.testing.expectEqual(@as(usize, 3), store.vectorCount());
 }
 
 test {

@@ -108,6 +108,12 @@ pub const Session = struct {
         const wp = try wdbx.recovery.walPath(allocator, owned_base);
         errdefer allocator.free(wp);
 
+        // Ensure a WAL tagged to the current checkpoint epoch exists so every
+        // mutation this session logs is a recoverable delta. No-op if recovery
+        // left a valid (already-merged) WAL in place; creates a fresh one if a
+        // stale WAL was discarded or none existed.
+        try wdbx.wal.createWithEpoch(io, allocator, wp, opened.checkpoint_epoch);
+
         opened.store.attachWal(io, wp);
         return .{
             .store = opened.store,
@@ -144,13 +150,18 @@ pub const Session = struct {
         const base = self.base_path orelse return;
         const io = self.io orelse return;
         var segment_store = wdbx.segments.SegmentStore.init(self.allocator, io, base);
-        _ = try segment_store.flush(&self.store);
+        const new_epoch = try segment_store.flush(&self.store);
         try wdbx.persistence.saveToPath(io, self.allocator, &self.store, base);
         if (self.wal_path) |wp| {
+            // The delta is now folded into the epoch-`new_epoch` checkpoint, so
+            // drop it and start a fresh WAL tagged to the new epoch. A crash
+            // before the delete leaves a stale (older-epoch) WAL that recovery
+            // discards; a crash after it leaves a clean delta for next time.
             std.Io.Dir.cwd().deleteFile(io, wp) catch |err| switch (err) {
                 error.FileNotFound => {},
                 else => return err,
             };
+            try wdbx.wal.createWithEpoch(io, self.allocator, wp, new_epoch);
         }
     }
 
@@ -211,6 +222,40 @@ test "durable_store: persistent round-trip recovers state after close" {
     defer reopened.deinit();
     try testing.expectEqual(@as(usize, 1), reopened.storePtr().blockCount());
     try testing.expectEqualStrings("trained", reopened.storePtr().get("agent:abbey").?);
+}
+
+test "durable_store: vector mutations survive a crash via the WAL delta" {
+    const base = "zig-out/durable-vec-crash.jsonl";
+    const wp = "zig-out/durable-vec-crash.jsonl.wal";
+    const manifest = "zig-out/durable-vec-crash.jsonl.manifest";
+    const seg0 = "zig-out/durable-vec-crash.jsonl.seg.0.jsonl";
+    defer {
+        deleteIfExists(base);
+        deleteIfExists(wp);
+        deleteIfExists(manifest);
+        deleteIfExists(seg0);
+    }
+    deleteIfExists(base);
+    deleteIfExists(wp);
+    deleteIfExists(manifest);
+    deleteIfExists(seg0);
+
+    // Session inserts two vectors, then "crashes" — freed WITHOUT checkpointing,
+    // so only the WAL (no segment) holds them.
+    {
+        var session = try Session.openAt(testing.io, testing.allocator, base);
+        _ = try session.storePtr().putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+        _ = try session.storePtr().putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+        session.store.deinit();
+        if (session.wal_path) |p| testing.allocator.free(p);
+        if (session.base_path) |p| testing.allocator.free(p);
+        // Intentionally NOT session.checkpoint()/deinit(): simulate a crash.
+    }
+
+    // Reopen: recovery folds the WAL delta onto the (empty) checkpoint.
+    var reopened = try Session.openAt(testing.io, testing.allocator, base);
+    defer reopened.deinit();
+    try testing.expectEqual(@as(usize, 2), reopened.storePtr().vectorCount());
 }
 
 test "durable_store: :memory: sentinel and falsey persist flag map to in-memory" {
