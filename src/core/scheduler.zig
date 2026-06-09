@@ -114,8 +114,13 @@ pub const Scheduler = struct {
         self.lock.lock();
         defer self.lock.unlock();
 
-        try self.heap.push(self.allocator, task);
+        // Insert into the owning `tasks` list first (deinit frees `task.name`
+        // from there); the heap holds a non-owning alias. If the heap push fails,
+        // roll the tasks entry back so the outer errdefer frees `name_copy`
+        // without leaving a dangling alias in either container.
         try self.tasks.append(self.allocator, task);
+        errdefer _ = self.tasks.swapRemove(self.tasks.items.len - 1);
+        try self.heap.push(self.allocator, task);
         _ = self.pending_count.fetchAdd(1, .monotonic);
 
         self.recordMetric("scheduler.tasks.submitted", 1);
