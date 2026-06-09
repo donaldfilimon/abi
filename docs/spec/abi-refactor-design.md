@@ -55,6 +55,7 @@ src/
 │   │   ├── mod.zig    # Public API: run, complete, train, profiles, router
 │   │   ├── stub.zig   # No-op stubs when feat-ai disabled
 │   │   ├── types.zig  # Public request/result/profile types re-exported by mod.zig
+│   │   ├── training_support.zig # Dataset/profile validation and profile embeddings used by training paths
 │   │   ├── helpers.zig # countNonEmptyLines, textEmbedding, responseEmbedding
 │   │   ├── router.zig # AdaptiveModulator, analyzeSentiment, profile routing
 │   │   ├── constitution.zig # 6-principle governance validation

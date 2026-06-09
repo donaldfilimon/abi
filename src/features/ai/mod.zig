@@ -4,11 +4,11 @@ const accelerator = if (build_options.feat_accelerator) @import("../accelerator/
 const mlir = if (build_options.feat_mlir) @import("../mlir/mod.zig") else @import("../mlir/stub.zig");
 const shaders = if (build_options.feat_shader) @import("../shaders/mod.zig") else @import("../shaders/stub.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
-const foundation_io = @import("../../foundation/io/mod.zig");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const memory_mod = @import("../../core/memory.zig");
 const helpers = @import("helpers.zig");
 const types = @import("types.zig");
+const training_support = @import("training_support.zig");
 
 const router = @import("router.zig");
 pub const abbey = router.abbey;
@@ -33,12 +33,6 @@ pub const CompletionRequest = types.CompletionRequest;
 pub const CompletionResult = types.CompletionResult;
 pub const CompletionTaskContext = types.CompletionTaskContext;
 pub const TrainingTaskContext = types.TrainingTaskContext;
-
-const DatasetSummary = struct {
-    available: bool = false,
-    records: usize = 0,
-    bytes: usize = 0,
-};
 
 pub const AgentConfig = types.AgentConfig;
 pub const AgentResult = types.AgentResult;
@@ -182,8 +176,8 @@ fn appendMetadataJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem
 }
 
 pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingResult {
-    try validateTrainingConfig(config);
-    const summary = try inspectDataset(allocator, config.dataset);
+    try training_support.validateTrainingConfig(config);
+    const summary = try training_support.inspectDataset(allocator, config.dataset);
 
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
@@ -231,7 +225,7 @@ pub fn trainWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, config: 
     const key = try std.fmt.allocPrint(allocator, "agent:{s}:training", .{config.profile});
     defer allocator.free(key);
 
-    const profile_vector = profileEmbedding(try parseAgentProfile(config.profile));
+    const profile_vector = training_support.profileEmbedding(try training_support.parseAgentProfile(config.profile));
     const query_id = store.putVector(&profile_vector) catch |err| {
         if (isFeatureDisabled(err)) {
             result.records_stored = 0;
@@ -312,7 +306,7 @@ pub fn trainKnownProfiles(allocator: std.mem.Allocator, store: *wdbx.Store, data
 }
 
 pub fn evaluate(config: TrainingConfig) !TrainingResult {
-    try validateTrainingConfig(config);
+    try training_support.validateTrainingConfig(config);
     return .{
         .accepted = true,
         .profile = config.profile,
@@ -342,77 +336,11 @@ pub fn runAgent(allocator: std.mem.Allocator, config: AgentConfig, input: []cons
     return .{ .output = output, .requires_review = requires_review };
 }
 
-fn validateTrainingConfig(config: TrainingConfig) !void {
-    if (config.profile.len == 0) return error.InvalidTrainingProfile;
-    _ = parseAgentProfile(config.profile) catch return error.InvalidTrainingProfile;
-    if (config.dataset.path.len == 0) return error.InvalidDatasetPath;
-    if (config.artifact_dir.len == 0) return error.InvalidArtifactPath;
-}
-
 pub fn isFeatureDisabled(err: anyerror) bool {
     return err == error.FeatureDisabled;
 }
 
-fn inspectDataset(allocator: std.mem.Allocator, dataset: DatasetSpec) !DatasetSummary {
-    const path = foundation_io.resolvePath(allocator, dataset.path) catch |err| switch (err) {
-        error.FileNotFound => return .{ .available = false, .records = 0, .bytes = dataset.path.len },
-        else => return err,
-    };
-    defer allocator.free(path);
-
-    const data = foundation_io.asyncReadFile(allocator, path) catch |err| switch (err) {
-        error.FileNotFound => return .{ .available = false, .records = 0, .bytes = dataset.path.len },
-        else => return err,
-    };
-    defer allocator.free(data);
-
-    return .{
-        .available = true,
-        .records = try countDatasetRecords(allocator, dataset.format, data),
-        .bytes = data.len,
-    };
-}
-
-fn countDatasetRecords(allocator: std.mem.Allocator, format: DatasetFormat, data: []const u8) !usize {
-    return switch (format) {
-        .text => helpers.countNonEmptyLines(data),
-        .csv => blk: {
-            const lines = helpers.countNonEmptyLines(data);
-            break :blk if (lines > 0) lines - 1 else 0;
-        },
-        .jsonl => try countJsonlRecords(allocator, data),
-    };
-}
-
-fn countJsonlRecords(allocator: std.mem.Allocator, data: []const u8) !usize {
-    var records: usize = 0;
-    var lines = std.mem.splitScalar(u8, data, '\n');
-    while (lines.next()) |line| {
-        const trimmed = std.mem.trim(u8, line, " \t\r");
-        if (trimmed.len == 0) continue;
-        const parsed = try std.json.parseFromSlice(std.json.Value, allocator, trimmed, .{});
-        defer parsed.deinit();
-        records += 1;
-    }
-    return records;
-}
-
 pub const countNonEmptyLines = helpers.countNonEmptyLines;
-
-fn parseAgentProfile(name: []const u8) !AgentProfile {
-    inline for (known_profiles) |p| {
-        if (std.mem.eql(u8, name, p.label())) return p;
-    }
-    return error.UnknownAgentProfile;
-}
-
-fn profileEmbedding(agent: AgentProfile) [4]f32 {
-    return switch (agent) {
-        .abbey => .{ 0.92, 0.48, 0.25, 0.76 },
-        .aviva => .{ 0.34, 0.94, 0.82, 0.41 },
-        .abi => .{ 0.71, 0.69, 0.88, 0.97 },
-    };
-}
 
 pub const responseEmbedding = helpers.responseEmbedding;
 
@@ -658,5 +586,6 @@ test {
     _ = @import("streaming.zig");
     _ = @import("constitution.zig");
     _ = @import("types.zig");
+    _ = @import("training_support.zig");
     std.testing.refAllDecls(@This());
 }
