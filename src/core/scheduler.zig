@@ -6,6 +6,7 @@ const errors = @import("../foundation/errors.zig");
 
 const build_options = @import("build_options");
 const metrics = if (build_options.feat_metrics) @import("../features/metrics/mod.zig") else @import("../features/metrics/stub.zig");
+const telemetry = if (build_options.feat_telemetry) @import("../features/telemetry/mod.zig") else @import("../features/telemetry/stub.zig");
 const memory = @import("memory.zig");
 
 pub const TaskStatus = enum(u8) {
@@ -133,6 +134,7 @@ pub const Scheduler = struct {
                 task.status = .cancelled;
                 _ = self.pending_count.fetchSub(1, .monotonic);
                 _ = self.cancelled_count.fetchAdd(1, .monotonic);
+                self.recordMetric("scheduler.tasks.cancelled", 1);
                 return;
             }
         }
@@ -316,6 +318,10 @@ pub const Scheduler = struct {
                 std.log.warn("scheduler metric increment failed: name={s} err={s}", .{ name, @errorName(err) });
             }
         }
+        // Always-on lightweight telemetry (no-op when -Dfeat-telemetry=false), so
+        // the on-by-default telemetry sink observes task lifecycle even when the
+        // richer opt-in metrics instance is absent.
+        telemetry.increment(name, delta);
     }
 
     /// Attach an external MemoryTracker so this scheduler can participate
@@ -520,4 +526,24 @@ test "Scheduler pending_count atomic decrements on runNext" {
     try std.testing.expectEqual(@as(usize, 1), scheduler.getPendingCount());
     try std.testing.expectEqual(@as(usize, 1), scheduler.getCompletedCount());
     try std.testing.expectEqual(@as(usize, 2), scheduler.getTaskCount());
+}
+
+test "Scheduler feeds telemetry counters across the task lifecycle" {
+    if (!build_options.feat_telemetry) return;
+    telemetry.reset();
+    defer telemetry.reset();
+
+    var scheduler = Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    _ = try scheduler.submit("t1", .normal, dummyTask, null);
+    const cancel_id = try scheduler.submit("t2", .low, dummyTask, null);
+    try scheduler.cancel(cancel_id);
+    try scheduler.runAll();
+
+    // submitted x2, completed x1 (t1), cancelled x1 (t2) — all routed through
+    // recordMetric into the on-by-default telemetry sink.
+    try std.testing.expect(telemetry.counterValue("scheduler.tasks.submitted") >= 2);
+    try std.testing.expect(telemetry.counterValue("scheduler.tasks.completed") >= 1);
+    try std.testing.expect(telemetry.counterValue("scheduler.tasks.cancelled") >= 1);
 }
