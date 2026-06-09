@@ -118,7 +118,9 @@ src/
 │       ├── plugin.zig
 │       ├── train.zig
 │       ├── twilio.zig
-│       └── wdbx.zig   # WDBX runtime control surface (db/block/query/benchmark/cluster/compute/secure/gpu/api)
+│       ├── wdbx.zig   # WDBX command dispatch facade
+│       ├── wdbx_db.zig # Snapshot/WAL db/block/query operations
+│       └── wdbx_runtime.zig # benchmark/cluster/compute/secure/gpu/api demos
 ├── mcp/               # MCP JSON-RPC 2.0 server
 │   ├── main.zig       # stdio loop + loopback HTTP/SSE
 │   ├── handlers.zig   # Tool call implementations
