@@ -3,6 +3,8 @@ const protocol = @import("protocol.zig");
 const handlers = @import("handlers.zig");
 const json_helpers = @import("json_helpers.zig");
 const state = @import("state.zig");
+const rpc = @import("rpc.zig");
+const shutdown = @import("shutdown.zig");
 
 const DEFAULT_HTTP_PORT: u16 = 8080;
 const HTTP_PORT_ENV = "ABI_MCP_HTTP_PORT";
@@ -16,31 +18,10 @@ const appendJsonString = json_helpers.appendJsonString;
 
 // --- Shutdown Coordination ---
 
-var g_shutdown_requested = std.atomic.Value(bool).init(false);
-
-pub fn requestShutdown() void {
-    g_shutdown_requested.store(true, .release);
-}
-
-pub fn isShutdownRequested() bool {
-    return g_shutdown_requested.load(.acquire);
-}
-
-pub fn installSignalHandlers() void {
-    const posix = std.posix;
-    const handler = posix.Sigaction{
-        .handler = .{ .handler = signalHandler },
-        .mask = posix.sigemptyset(),
-        .flags = 0,
-    };
-    posix.sigaction(posix.SIG.INT, &handler, null);
-    posix.sigaction(posix.SIG.TERM, &handler, null);
-}
-
-fn signalHandler(sig: @TypeOf(std.posix.SIG.INT)) callconv(.c) void {
-    _ = sig;
-    g_shutdown_requested.store(true, .release);
-}
+pub const requestShutdown = shutdown.request;
+pub const isShutdownRequested = shutdown.isRequested;
+pub const installSignalHandlers = shutdown.installSignalHandlers;
+pub const processJsonRpc = rpc.processJsonRpc;
 
 // --- Stdio Transport ---
 
@@ -345,56 +326,4 @@ test "MCP HTTP port parser rejects invalid overrides" {
     try std.testing.expectEqual(@as(?u16, null), parseHttpPort("0"));
     try std.testing.expectEqual(@as(?u16, null), parseHttpPort("65536"));
     try std.testing.expectEqual(@as(?u16, null), parseHttpPort("not-a-port"));
-}
-
-pub fn processJsonRpc(allocator: std.mem.Allocator, body: []const u8) ![]u8 {
-    const request = std.json.parseFromSlice(JsonRpcRequest, allocator, body, .{
-        .ignore_unknown_fields = true,
-    }) catch return error.ParseError;
-    defer request.deinit();
-
-    if (!std.mem.eql(u8, request.value.jsonrpc, "2.0")) return error.InvalidRequest;
-
-    const method = McpMethod.fromString(request.value.method);
-    const result_json = switch (method) {
-        .initialize => try handlers.handleInitializeJson(allocator, request.value.params),
-        .@"tools/list" => try handlers.handleToolsListJson(allocator),
-        .@"tools/call" => try handlers.handleToolsCallJson(allocator, request.value.params),
-        .ping => try allocator.dupe(u8, "{}"),
-        .shutdown => blk: {
-            requestShutdown();
-            state.deinitWdbxStore();
-            state.deinitScheduler();
-            break :blk try allocator.dupe(u8, "null");
-        },
-        .@"resources/list" => try allocator.dupe(u8, "{\"resources\":[]}"),
-        .@"prompts/list" => try allocator.dupe(u8, "{\"prompts\":[]}"),
-        .unknown => return error.MethodNotFound,
-    };
-    defer allocator.free(result_json);
-
-    const id_json = if (request.value.id) |id_val| try valueToJson(id_val, allocator) else try allocator.dupe(u8, "null");
-    defer allocator.free(id_json);
-
-    return try std.fmt.allocPrint(allocator, "{{\"jsonrpc\":\"2.0\",\"id\":{s},\"result\":{s}}}", .{ id_json, result_json });
-}
-
-test "processJsonRpc handles tools list and preserves ids" {
-    const allocator = std.testing.allocator;
-
-    const numeric = try processJsonRpc(allocator, "{\"jsonrpc\":\"2.0\",\"id\":42,\"method\":\"tools/list\"}");
-    defer allocator.free(numeric);
-    try std.testing.expect(std.mem.indexOf(u8, numeric, "\"id\":42") != null);
-    try std.testing.expect(std.mem.indexOf(u8, numeric, "\"tools\"") != null);
-
-    const string_id = try processJsonRpc(allocator, "{\"jsonrpc\":\"2.0\",\"id\":\"abc\",\"method\":\"ping\"}");
-    defer allocator.free(string_id);
-    try std.testing.expect(std.mem.indexOf(u8, string_id, "\"id\":\"abc\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, string_id, "\"result\":{}") != null);
-}
-
-test "processJsonRpc rejects invalid requests" {
-    try std.testing.expectError(error.ParseError, processJsonRpc(std.testing.allocator, "not json"));
-    try std.testing.expectError(error.InvalidRequest, processJsonRpc(std.testing.allocator, "{\"jsonrpc\":\"1.0\",\"method\":\"ping\"}"));
-    try std.testing.expectError(error.MethodNotFound, processJsonRpc(std.testing.allocator, "{\"jsonrpc\":\"2.0\",\"method\":\"unknown\"}"));
 }

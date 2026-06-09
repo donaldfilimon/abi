@@ -122,7 +122,10 @@ src/
 │   ├── handlers.zig   # Tool call implementations
 │   ├── json_helpers.zig # JSON parsing utilities
 │   ├── protocol.zig   # JSON-RPC protocol types
-│   └── server.zig     # Server transport layer
+│   ├── rpc.zig        # Shared JSON-RPC request processing
+│   ├── shutdown.zig   # Signal/shutdown coordination
+│   ├── state.zig      # Long-lived MCP feature state
+│   └── server.zig     # Stdio and HTTP/SSE transport layer
 ├── plugins/           # Plugin manifests and local plugin manager
 │   ├── abi-plugin.json         # Top-level plugin manifest (core ABI surface)
 │   ├── plugin_manager.zig      # Load/unload/list from required JSON manifests
