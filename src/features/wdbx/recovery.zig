@@ -301,6 +301,29 @@ test "recovery: corrupt WAL frame propagates rather than silently dropping" {
     try testing.expectError(error.WalCorruption, open(testing.io, allocator, path));
 }
 
+test "recovery: an orphan segment file without a manifest is ignored (crash before manifest commit)" {
+    const allocator = testing.allocator;
+    const path = "zig-out/wdbx-recovery-orphan.jsonl";
+    const seg0 = "zig-out/wdbx-recovery-orphan.jsonl.seg.0.jsonl";
+    defer deleteTestFileIfExists(path);
+    defer deleteTestFileIfExists(seg0);
+    deleteTestFileIfExists(path);
+    deleteTestFileIfExists(seg0);
+
+    // Crash point C1: the segment file is on disk but the manifest that lists it
+    // was never committed. The manifest is the source of truth, so recovery must
+    // ignore the orphan rather than load partial/uncommitted state.
+    var store = wdbx_mod.Store.init(allocator);
+    _ = try store.appendBlock("abbey", 0, 0, "{\"t\":1}");
+    try persistence.saveToPath(testing.io, allocator, &store, seg0);
+    store.deinit();
+
+    var opened = try open(testing.io, allocator, path);
+    defer opened.store.deinit();
+    try testing.expectEqual(Source.empty, opened.source);
+    try testing.expectEqual(@as(usize, 0), opened.store.blockCount());
+}
+
 test "recovery: empty when neither snapshot nor WAL exists" {
     const allocator = testing.allocator;
     const path = "zig-out/wdbx-recovery-absent.jsonl";

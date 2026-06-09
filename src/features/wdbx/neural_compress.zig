@@ -236,6 +236,26 @@ test "neural compression: encode/decode round-trip uses caller buffers (alloc-fr
     for (out) |v| try testing.expect(std.math.isFinite(v));
 }
 
+test "neural compression: identical seed yields identical weights and latent codes" {
+    const allocator = testing.allocator;
+    var a = try Autoencoder.init(allocator, 8, 3, 0xBEEF1234);
+    defer a.deinit();
+    var b = try Autoencoder.init(allocator, 8, 3, 0xBEEF1234);
+    defer b.deinit();
+
+    // Seeded init is deterministic — a persisted codec reloaded from the same
+    // seed reproduces the same weights, hence the same latent codes.
+    try testing.expectEqualSlices(f32, a.we, b.we);
+    try testing.expectEqualSlices(f32, a.wd, b.wd);
+
+    const x = [_]f32{ 0.1, -0.2, 0.05, 0.0, -0.1, 0.15, 0.2, -0.05 };
+    var la: [3]f32 = undefined;
+    var lb: [3]f32 = undefined;
+    a.encode(&x, &la);
+    b.encode(&x, &lb);
+    try testing.expectEqualSlices(f32, &la, &lb);
+}
+
 test {
     testing.refAllDecls(@This());
 }

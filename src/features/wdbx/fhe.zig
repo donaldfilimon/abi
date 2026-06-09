@@ -13,8 +13,10 @@
 //! small noise m+2r is recovered exactly while it stays below p/2.
 //!
 //! HONEST SCOPE: reference parameters (~126-bit p, ~2^20 noise) chosen so
-//! correctness is exactly testable and depth ≤ 2 multiplications stay within the
-//! noise budget. These are NOT cryptographically secure sizes and the scheme is
+//! correctness is exactly testable and a small multiplicative depth stays within
+//! the noise budget (depth-3 chained multiplies are verified in tests; deeper
+//! circuits eventually exceed the budget). These are NOT cryptographically
+//! secure sizes and the scheme is
 //! not bootstrapped — it demonstrates the homomorphic add+multiply capability,
 //! it is not a production cryptosystem. Correctness is proven by the tests
 //! below over many random keys and circuits.
@@ -123,6 +125,25 @@ test "fhe: a depth-2 circuit evaluates correctly on ciphertexts" {
 
         const want: u1 = (a & b) ^ (c & d);
         try testing.expectEqual(want, decrypt(kp, e_res));
+    }
+}
+
+test "fhe: chained multiplications stay within the noise budget (depth 3)" {
+    var prng = std.Random.DefaultPrng.init(0x9988776655443322);
+    const rand = prng.random();
+
+    var trial: usize = 0;
+    while (trial < 48) : (trial += 1) {
+        const kp = keygen(rand);
+        const a: u1 = @intCast(rand.uintLessThan(u8, 2));
+        const b: u1 = @intCast(rand.uintLessThan(u8, 2));
+        const c: u1 = @intCast(rand.uintLessThan(u8, 2));
+        const d: u1 = @intCast(rand.uintLessThan(u8, 2));
+
+        // Three chained multiplies (depth 3): each consumes a noise level, so
+        // this exercises the multiplicative-depth budget far past a single mul.
+        const e = mul(kp, mul(kp, mul(kp, encrypt(kp, rand, a), encrypt(kp, rand, b)), encrypt(kp, rand, c)), encrypt(kp, rand, d));
+        try testing.expectEqual(a & b & c & d, decrypt(kp, e));
     }
 }
 

@@ -27,15 +27,20 @@ pub fn textEmbedding(input: []const u8) [EMBED_DIM]f32 {
     }
 
     var window: [3]u8 = undefined;
-    inline for (.{ 1, 2, 3 }) |n| {
+    // Longer shared substrings are stronger evidence of similarity, so weight
+    // trigrams > bigrams > unigrams: a shared rare trigram should move cosine
+    // more than an incidental shared single character.
+    const grams = .{ .{ .n = 1, .w = 0.5 }, .{ .n = 2, .w = 1.0 }, .{ .n = 3, .w = 1.5 } };
+    inline for (grams) |g| {
+        const n = g.n;
+        const w: f32 = g.w;
         var i: usize = 0;
         while (i + n <= input.len) : (i += 1) {
             for (0..n) |k| window[k] = std.ascii.toLower(input[i + k]);
             // Seed by n so unigram/bigram/trigram feature spaces stay distinct.
             const h = std.hash.Wyhash.hash(n, window[0..n]);
             const bucket = h % EMBED_DIM;
-            const sign: f32 = if ((h >> 63) & 1 == 0) 1.0 else -1.0;
-            out[bucket] += sign;
+            out[bucket] += if ((h >> 63) & 1 == 0) w else -w;
         }
     }
 
@@ -89,6 +94,19 @@ test "textEmbedding: shared n-grams yield higher similarity than unrelated text"
     // Lexical overlap must score strictly higher than an unrelated string —
     // the property a per-position character hash cannot provide.
     try std.testing.expect(cosine(base, similar) > cosine(base, unrelated));
+}
+
+test "textEmbedding: single-character inputs are deterministic unit vectors" {
+    // A 1-byte input has only a unigram feature; confirm it is deterministic,
+    // normalized, and that a longer input carrying the same char still differs
+    // (its bi/tri-gram features populate other buckets).
+    const a1 = textEmbedding("a");
+    const a2 = textEmbedding("a");
+    try std.testing.expectEqualSlices(f32, &a1, &a2);
+    var norm: f32 = 0;
+    for (a1) |v| norm += v * v;
+    try std.testing.expect(@abs(norm - 1.0) < 0.001);
+    try std.testing.expect(cosine(a1, textEmbedding("ab")) < 0.999);
 }
 
 test "responseEmbedding perturbs each dimension deterministically" {

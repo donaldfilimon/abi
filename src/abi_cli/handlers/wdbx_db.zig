@@ -168,11 +168,16 @@ pub fn query(io: std.Io, allocator: std.mem.Allocator, path: []const u8, text: ?
     // Anchor causal proximity on the most recent vector when present.
     const focus_id: u32 = if (stats.next_vector_id > 1) stats.next_vector_id - 1 else 1;
 
+    // One pass over the chain so persona resolution (scoped filtering below and
+    // the result display) is O(1) per vector instead of an O(blocks) chain scan.
+    var persona_cache = try buildPersonaCache(allocator, store);
+    defer persona_cache.deinit(allocator);
+
     const ranked = if (persona) |p| blk: {
         // Isolation: only this persona's memories, resolved via the durable
-        // profile tags written at insert time (`wdbx:profile:{id}` / completion
-        // metadata) — keeps persona semantics out of the storage layer.
-        const scope = PersonaScope{ .store = store, .target = p };
+        // profile tags / block-backed cache — keeps persona semantics out of the
+        // storage layer.
+        const scope = PersonaScope{ .store = store, .cache = &persona_cache, .target = p };
         break :blk try wdbx.retrieval.hybridSearchScoped(allocator, store, &query_vec, 10, &store.temporal_graph, scorer, focus_id, &scope, personaScopeKeep);
     } else try wdbx.retrieval.hybridSearch(allocator, store, &query_vec, 10, &store.temporal_graph, scorer, focus_id, constPersona);
     defer allocator.free(ranked);
@@ -186,7 +191,7 @@ pub fn query(io: std.Io, allocator: std.mem.Allocator, path: []const u8, text: ?
     for (ranked, 0..) |r, i| {
         std.debug.print(
             "  {d}. vector_id={d} persona={s} score={d:.4} semantic={d:.4} temporal={d:.4} causal={d:.4} persona_w={d:.4}\n",
-            .{ i + 1, r.id, personaForVector(store, r.id), r.score, r.components.semantic, r.components.temporal, r.components.causal, r.components.persona },
+            .{ i + 1, r.id, resolvePersona(store, &persona_cache, r.id), r.score, r.components.semantic, r.components.temporal, r.components.causal, r.components.persona },
         );
     }
     return 0;
@@ -198,51 +203,49 @@ fn constPersona(id: u32) f32 {
     return 0.5;
 }
 
+/// vector_id -> persona label, built once per query from the conversation chain.
+const PersonaCache = std.AutoHashMapUnmanaged(u32, []const u8);
+
+/// Build the persona cache in a single pass over the chain. Each block records
+/// the profile for its query and response vectors, so this resolves BOTH without
+/// a per-vector scan — turning the prior O(results · blocks) display/filter cost
+/// into O(blocks) once. Caller owns and deinits the map. Profile slices are
+/// borrowed from the store and valid for its lifetime.
+fn buildPersonaCache(allocator: std.mem.Allocator, store: *const wdbx.Store) !PersonaCache {
+    var cache: PersonaCache = .{};
+    errdefer cache.deinit(allocator);
+    var it = store.chain.iterator();
+    defer store.chain.releaseIterator();
+    while (it.next()) |node| {
+        try cache.put(allocator, node.data.query_id, node.data.profile);
+        try cache.put(allocator, node.data.response_id, node.data.profile);
+    }
+    return cache;
+}
+
+/// Resolve a vector's persona in O(1): a seeded `wdbx:profile:{id}` KV tag first
+/// (MCP persona prototypes), else the block-backed cache (covers query AND
+/// response vectors of every completion), else "unknown".
+fn resolvePersona(store: *const wdbx.Store, cache: *const PersonaCache, id: u32) []const u8 {
+    var key_buf: [64]u8 = undefined;
+    if (std.fmt.bufPrint(&key_buf, "wdbx:profile:{d}", .{id})) |k| {
+        if (store.get(k)) |label| return label;
+    } else |_| {}
+    return cache.get(id) orelse "unknown";
+}
+
 const PersonaScope = struct {
     store: *const wdbx.Store,
+    cache: *const PersonaCache,
     target: []const u8,
 };
 
 fn personaScopeKeep(ctx: *const anyopaque, id: u32) bool {
     const scope: *const PersonaScope = @ptrCast(@alignCast(ctx));
-    return std.mem.eql(u8, personaForVector(scope.store, id), scope.target);
+    return std.mem.eql(u8, resolvePersona(scope.store, scope.cache, id), scope.target);
 }
 
-/// Resolve a vector's persona label from durable state written at insert time,
-/// in priority order: (1) a seeded `wdbx:profile:{id}` KV tag; (2) the routed
-/// profile embedded in the `completion:{id}` block metadata (covers the QUERY
-/// vector); (3) the conversation block that recorded this id as its query or
-/// response vector (covers the RESPONSE vector too, with no extra KV — the
-/// block already carries the profile). Unknown when none resolve.
-fn personaForVector(store: *const wdbx.Store, id: u32) []const u8 {
-    var key_buf: [64]u8 = undefined;
-    if (std.fmt.bufPrint(&key_buf, "wdbx:profile:{d}", .{id})) |k| {
-        if (store.get(k)) |label| return label;
-    } else |_| {}
-    if (std.fmt.bufPrint(&key_buf, "completion:{d}", .{id})) |k| {
-        if (store.get(k)) |metadata| {
-            if (profileFromMetadata(metadata)) |p| return p;
-        }
-    } else |_| {}
-    // Block-backed fallback: scan the conversation chain for the block whose
-    // query_id or response_id is this vector, and return its profile.
-    var it = store.chain.iterator();
-    defer store.chain.releaseIterator();
-    while (it.next()) |node| {
-        if (node.data.query_id == id or node.data.response_id == id) return node.data.profile;
-    }
-    return "unknown";
-}
-
-fn profileFromMetadata(metadata: []const u8) ?[]const u8 {
-    const needle = "\"profile\":\"";
-    const start = std.mem.indexOf(u8, metadata, needle) orelse return null;
-    const after = metadata[start + needle.len ..];
-    const end = std.mem.indexOfScalar(u8, after, '"') orelse return null;
-    return after[0..end];
-}
-
-test "personaForVector resolves query AND response vectors via the conversation block" {
+test "resolvePersona resolves query AND response vectors via the block cache" {
     if (!build_options.feat_wdbx) return;
     const allocator = std.testing.allocator;
     var store = wdbx.Store.init(allocator);
@@ -252,11 +255,14 @@ test "personaForVector resolves query AND response vectors via the conversation 
     const rid = try store.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
     _ = try store.appendBlock("abbey", qid, rid, "{\"profile\":\"abbey\"}");
 
-    // No wdbx:profile / completion KV tags are set — both ids must still resolve
-    // to the persona via the block that recorded them (response vector included).
-    try std.testing.expectEqualStrings("abbey", personaForVector(&store, qid));
-    try std.testing.expectEqualStrings("abbey", personaForVector(&store, rid));
-    try std.testing.expectEqualStrings("unknown", personaForVector(&store, 9999));
+    var cache = try buildPersonaCache(allocator, &store);
+    defer cache.deinit(allocator);
+
+    // No wdbx:profile KV tags set — both ids resolve to the persona via the
+    // block-backed cache (response vector included). Unknown id -> "unknown".
+    try std.testing.expectEqualStrings("abbey", resolvePersona(&store, &cache, qid));
+    try std.testing.expectEqualStrings("abbey", resolvePersona(&store, &cache, rid));
+    try std.testing.expectEqualStrings("unknown", resolvePersona(&store, &cache, 9999));
 }
 
 test {
