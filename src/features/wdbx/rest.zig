@@ -118,8 +118,13 @@ pub fn serve(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store, port:
     std.log.info("WDBX REST listening on http://127.0.0.1:{d} (/insert /query /verify /health /stats)", .{port});
 
     while (true) {
-        const conn = server.accept(io) catch continue;
-        handleConnection(allocator, io, store, conn) catch {};
+        const conn = server.accept(io) catch |err| {
+            std.log.warn("WDBX REST accept failed: {s}", .{@errorName(err)});
+            continue;
+        };
+        handleConnection(allocator, io, store, conn) catch |err| {
+            std.log.warn("WDBX REST request failed: {s}", .{@errorName(err)});
+        };
     }
 }
 
@@ -127,7 +132,10 @@ fn handleConnection(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store
     defer conn.close(io);
     var read_buf: [MAX_REQUEST_SIZE]u8 = undefined;
     var read_vec: [1][]u8 = .{&read_buf};
-    const n = conn.read(io, &read_vec) catch return;
+    const n = conn.read(io, &read_vec) catch |err| {
+        std.log.warn("WDBX REST read failed: {s}", .{@errorName(err)});
+        return;
+    };
     if (n == 0) return;
     const raw = read_buf[0..n];
 
@@ -141,8 +149,10 @@ fn handleConnection(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store
 
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
-    const resp = route(arena.allocator(), store, method, path, body) catch
-        Response{ .status = 500, .body = @constCast("{\"error\":\"internal\"}") };
+    const resp = route(arena.allocator(), store, method, path, body) catch |err| blk: {
+        std.log.warn("WDBX REST route failed: {s}", .{@errorName(err)});
+        break :blk Response{ .status = 500, .body = @constCast("{\"error\":\"internal\"}") };
+    };
 
     const header = try std.fmt.allocPrint(
         arena.allocator(),
