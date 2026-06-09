@@ -73,6 +73,7 @@ src/
 │   ├── wdbx/          # Vector Store & Block Chain (mod/stub, flat layout)
 │   │   ├── mod.zig    # Store, putVector, search, appendBlock
 │   │   ├── stub.zig   # No-op stubs when feat-wdbx disabled
+│   │   ├── types.zig  # Shared constants and record/stat types re-exported by mod.zig
 │   │   ├── hnsw.zig   # HNSW index with SIMD cosine distance
 │   │   ├── chain.zig  # Block chain with MVCC snapshots
 │   │   ├── persistence.zig # JSONL snapshot serialize/restore with SHA-256 integrity line

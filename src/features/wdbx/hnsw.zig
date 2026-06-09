@@ -3,9 +3,9 @@ const build_options = @import("build_options");
 const sync = @import("../../foundation/sync.zig");
 const memory = @import("../../core/memory.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
-const wdbx_mod = @import("mod.zig");
+const types = @import("types.zig");
 
-pub const MAX_LAYERS = wdbx_mod.MAX_LAYERS;
+pub const MAX_LAYERS = types.MAX_LAYERS;
 pub const M = 16;
 pub const EF_CONSTRUCTION = 40;
 pub const EF_SEARCH = 32;
@@ -310,13 +310,13 @@ pub fn HnswIndex(comptime D: usize) type {
             }
         }
 
-        pub fn search(self: *Self, query: []const f32, limit: usize) ![]wdbx_mod.SearchResult {
+        pub fn search(self: *Self, query: []const f32, limit: usize) ![]types.SearchResult {
             if (query.len != D) return error.DimensionMismatch;
 
             self.lock.lockRead();
             defer self.lock.unlockRead();
 
-            if (self.entry_node == null) return self.allocator.alloc(wdbx_mod.SearchResult, 0);
+            if (self.entry_node == null) return self.allocator.alloc(types.SearchResult, 0);
 
             var candidates: std.ArrayListUnmanaged(Candidate) = .empty;
             defer candidates.deinit(self.allocator);
@@ -367,7 +367,7 @@ pub fn HnswIndex(comptime D: usize) type {
             std.mem.sort(Candidate, candidates.items, {}, lessDistance);
 
             const result_count = @min(limit, candidates.items.len);
-            const results = try self.allocator.alloc(wdbx_mod.SearchResult, result_count);
+            const results = try self.allocator.alloc(types.SearchResult, result_count);
             for (results, 0..) |*res, idx| {
                 res.* = .{
                     .id = self.nodes.items[candidates.items[idx].id].id,

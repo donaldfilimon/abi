@@ -1,7 +1,7 @@
 const std = @import("std");
 const sync = @import("../../foundation/sync.zig");
 const foundation_time = @import("../../foundation/time.zig");
-const wdbx_mod = @import("mod.zig");
+const types = @import("types.zig");
 
 pub const HASH_LEN = 32;
 pub const GENESIS_HASH: [HASH_LEN]u8 = std.mem.zeroes([HASH_LEN]u8);
@@ -15,7 +15,7 @@ pub const BlockHeader = struct {
 
 pub const MvccBlock = struct {
     header: BlockHeader,
-    data: wdbx_mod.ConversationBlock,
+    data: types.ConversationBlock,
     next: ?*MvccBlock = null,
     version: u64 = 0,
     lock: sync.SpinLock = .{},
