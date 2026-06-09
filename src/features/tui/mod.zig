@@ -192,6 +192,16 @@ pub const InteractiveTerminal = struct {
         if (n == 0) return null;
         return buf[0];
     }
+
+    /// Block up to `timeout_ms` for input to become readable (a negative
+    /// timeout blocks indefinitely). Returns true if a key is ready to read,
+    /// false on timeout or error. This lets the dashboard loop refresh on a
+    /// timer while staying responsive to keystrokes.
+    pub fn pollInput(self: *InteractiveTerminal, timeout_ms: i32) bool {
+        var fds = [_]std.posix.pollfd{.{ .fd = self.fd, .events = std.posix.POLL.IN, .revents = 0 }};
+        const n = std.posix.poll(&fds, timeout_ms) catch return false;
+        return n > 0 and (fds[0].revents & std.posix.POLL.IN) != 0;
+    }
 };
 
 /// Check if a key press is a quit command (q or Escape).
@@ -214,6 +224,18 @@ pub fn initScreenWriter(writer: anytype) !void {
 
 pub fn clearScreen() !void {
     std.debug.print("\x1b[2J\x1b[H", .{});
+}
+
+/// Move the cursor to the top-left WITHOUT clearing — for flicker-free redraws.
+/// Pair with `clearToEnd` after writing a frame to wipe any stale trailing rows.
+pub fn homeScreen() void {
+    std.debug.print("\x1b[H", .{});
+}
+
+/// Clear from the cursor to the end of the screen (removes stale trailing rows
+/// left by a shorter frame).
+pub fn clearToEnd() void {
+    std.debug.print("\x1b[0J", .{});
 }
 
 pub fn clearScreenWriter(writer: anytype) !void {

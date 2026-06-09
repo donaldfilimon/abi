@@ -56,6 +56,12 @@ pub const InteractiveTerminal = struct {
         _ = self;
         return null;
     }
+
+    pub fn pollInput(self: *InteractiveTerminal, timeout_ms: i32) bool {
+        _ = self;
+        _ = timeout_ms;
+        return false;
+    }
 };
 
 pub const ScreenState = struct {
@@ -68,6 +74,8 @@ pub fn initScreenWriter(writer: anytype) !void {
     _ = writer;
 }
 pub fn clearScreen() !void {}
+pub fn homeScreen() void {}
+pub fn clearToEnd() void {}
 pub fn clearScreenWriter(writer: anytype) !void {
     _ = writer;
 }

@@ -43,8 +43,14 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
 
         try renderAndPrint(allocator, &scheduler, &store, &registry, plugin_names);
 
-        const key = term.readKey() orelse break;
-        if (abi.features.tui.isQuitKey(key)) break;
+        // Wait up to ~1s for a keystroke; on timeout, loop and redraw with
+        // fresh stats so the dashboard is genuinely live. A closed stdin (EOF)
+        // ends the loop.
+        if (term.pollInput(1000)) {
+            const key = term.readKey() orelse break;
+            if (abi.features.tui.isQuitKey(key)) break;
+            // 'r'/'R' and any other key simply force an immediate redraw.
+        }
     }
 
     return 0;
@@ -90,8 +96,11 @@ fn renderAndPrint(allocator: std.mem.Allocator, scheduler: anytype, store: anyty
     });
     defer allocator.free(rendered);
 
-    try abi.features.tui.clearScreen();
-    std.debug.print("{s}", .{rendered});
+    // Flicker-free redraw: home the cursor, overwrite the frame in place, then
+    // clear any trailing rows a shorter frame would have left behind.
+    abi.features.tui.homeScreen();
+    std.debug.print("{s}\n[q] quit   [r] refresh   (live, auto-refresh ~1s)\n", .{rendered});
+    abi.features.tui.clearToEnd();
 }
 
 pub const renderTui = handleDashboard;
