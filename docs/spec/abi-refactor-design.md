@@ -55,6 +55,7 @@ src/
 │   │   ├── mod.zig    # Public API: run, complete, train, profiles, router
 │   │   ├── stub.zig   # No-op stubs when feat-ai disabled
 │   │   ├── types.zig  # Public request/result/profile types re-exported by mod.zig
+│   │   ├── stub_types.zig / stub_profile.zig / stub_constitution.zig
 │   │   ├── completion.zig # Completion routing, scheduler task, and optional WDBX persistence
 │   │   ├── training.zig # Training/evaluation workflow, scheduler task, and WDBX training records
 │   │   ├── training_support.zig # Dataset/profile validation and profile embeddings used by training paths
