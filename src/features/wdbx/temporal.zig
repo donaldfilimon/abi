@@ -9,6 +9,7 @@
 //! Every factor is kept in [0, 1] so the product is a well-behaved ranking key.
 
 const std = @import("std");
+const memory = @import("../../core/memory.zig");
 
 pub const ScoreComponents = struct {
     semantic: f32,
@@ -51,12 +52,23 @@ pub const TemporalCausalGraph = struct {
     allocator: std.mem.Allocator,
     timestamps: std.AutoHashMapUnmanaged(u32, i64) = .empty,
     adjacency: std.AutoHashMapUnmanaged(u32, std.ArrayListUnmanaged(u32)) = .empty,
+    /// Optional allocation observer. Tracks logical node/edge bytes per insert
+    /// and frees the running total on deinit (precise pairing, not a heap-exact
+    /// estimate of hashmap overhead).
+    tracker: ?*memory.MemoryTracker = null,
+    tracked_bytes: usize = 0,
 
     pub fn init(allocator: std.mem.Allocator) TemporalCausalGraph {
         return .{ .allocator = allocator };
     }
 
+    pub fn setTracker(self: *TemporalCausalGraph, t: *memory.MemoryTracker) void {
+        self.tracker = t;
+    }
+
     pub fn deinit(self: *TemporalCausalGraph) void {
+        if (self.tracker) |t| t.trackFreeNoTag(self.tracked_bytes);
+        self.tracked_bytes = 0;
         self.timestamps.deinit(self.allocator);
         var it = self.adjacency.valueIterator();
         while (it.next()) |list| list.deinit(self.allocator);
@@ -64,7 +76,13 @@ pub const TemporalCausalGraph = struct {
     }
 
     pub fn addNode(self: *TemporalCausalGraph, id: u32, timestamp_ms: i64) !void {
-        try self.timestamps.put(self.allocator, id, timestamp_ms);
+        const gop = try self.timestamps.getOrPut(self.allocator, id);
+        if (!gop.found_existing) {
+            const est = @sizeOf(u32) + @sizeOf(i64);
+            if (self.tracker) |t| t.trackAllocNoTag(est);
+            self.tracked_bytes += est;
+        }
+        gop.value_ptr.* = timestamp_ms;
     }
 
     pub fn nodeCount(self: *const TemporalCausalGraph) usize {
@@ -92,6 +110,8 @@ pub const TemporalCausalGraph = struct {
         if (!gop.found_existing) gop.value_ptr.* = .empty;
         for (gop.value_ptr.items) |e| if (e == to) return;
         try gop.value_ptr.append(self.allocator, to);
+        if (self.tracker) |t| t.trackAllocNoTag(@sizeOf(u32));
+        self.tracked_bytes += @sizeOf(u32);
     }
 
     /// Record that `cause` causally precedes `effect`. Stored both directions

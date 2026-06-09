@@ -1,5 +1,6 @@
 const std = @import("std");
 const features = @import("../../features/mod.zig");
+const foundation_time = @import("../../foundation/time.zig");
 
 const wdbx = features.wdbx;
 
@@ -102,14 +103,54 @@ pub fn blockGet(io: std.Io, allocator: std.mem.Allocator, path: []const u8) anye
     return 0;
 }
 
-pub fn query(io: std.Io, allocator: std.mem.Allocator, path: []const u8) anyerror!u8 {
+/// `abi wdbx query <path> [text]`. With no text, prints the store-stats
+/// manifest (unchanged legacy behavior). With text, embeds the query and
+/// returns hybrid-ranked (semantic × temporal × causal × persona) results
+/// over the recovered store's vectors.
+pub fn query(io: std.Io, allocator: std.mem.Allocator, path: []const u8, text: ?[]const u8) anyerror!u8 {
     var opened = openRecovered(io, allocator, path) catch return 1;
     defer opened.store.deinit();
 
-    const manifest = try opened.store.exportManifest(allocator);
-    defer allocator.free(manifest);
-    std.debug.print("{s}\n", .{manifest});
+    const q = text orelse {
+        const manifest = try opened.store.exportManifest(allocator);
+        defer allocator.free(manifest);
+        std.debug.print("{s}\n", .{manifest});
+        return 0;
+    };
+
+    const store = &opened.store;
+    const stats = store.stats();
+    if (stats.vectors == 0) {
+        std.debug.print("no vectors in {s}; nothing to rank (populate with `abi complete`)\n", .{path});
+        return 0;
+    }
+
+    const query_vec = features.ai.textEmbedding(q);
+    const scorer = wdbx.temporal.HybridScorer{ .now_ms = foundation_time.unixMs(), .half_life_ms = 24 * 60 * 60 * 1000 };
+    // Anchor causal proximity on the most recent vector when present.
+    const focus_id: u32 = if (stats.next_vector_id > 1) stats.next_vector_id - 1 else 1;
+    const ranked = try wdbx.retrieval.hybridSearch(allocator, store, &query_vec, 10, &store.temporal_graph, scorer, focus_id, constPersona);
+    defer allocator.free(ranked);
+
+    if (ranked.len == 0) {
+        std.debug.print("no matches for \"{s}\"\n", .{q});
+        return 0;
+    }
+    std.debug.print("query \"{s}\" -> {d} ranked result(s) over {d} vectors (ranking=hybrid):\n", .{ q, ranked.len, stats.vectors });
+    for (ranked, 0..) |r, i| {
+        std.debug.print(
+            "  {d}. vector_id={d} score={d:.4} semantic={d:.4} temporal={d:.4} causal={d:.4} persona={d:.4}\n",
+            .{ i + 1, r.id, r.score, r.components.semantic, r.components.temporal, r.components.causal, r.components.persona },
+        );
+    }
     return 0;
+}
+
+/// Neutral persona weight for the path-addressed CLI query (no conversation
+/// persona context, unlike the MCP tool which weights by routed profile).
+fn constPersona(id: u32) f32 {
+    _ = id;
+    return 0.5;
 }
 
 test {

@@ -137,6 +137,7 @@ pub const Store = struct {
     pub fn setTracker(self: *Store, t: *memory.MemoryTracker) void {
         self.tracker = t;
         self.index.setTracker(t);
+        self.temporal_graph.setTracker(t);
     }
 
     /// Bind a sidecar WAL so supported mutations (kv, block, temporal node/edge)

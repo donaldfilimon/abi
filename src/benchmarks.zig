@@ -12,6 +12,40 @@ const selectBestProfile = router.selectBestProfile;
 const ITERATIONS = 10;
 const WARMUP = 1;
 
+/// Versioned machine-readable artifact path (relative to the build root). The
+/// `benchmarks` build step regenerates this; treat checked-in numbers as the
+/// reproducible source for any external performance claim.
+pub const BENCH_ARTIFACT_PATH = "zig-out/bench/results.json";
+
+const BenchResult = struct {
+    label: []const u8,
+    avg_ms: f64,
+    min_ms: f64,
+    max_ms: f64,
+    iterations: usize,
+};
+
+/// Accumulated across all bench tests in this run; serialized to
+/// BENCH_ARTIFACT_PATH by the final "write benchmark artifact" test. Labels are
+/// comptime string literals (static lifetime), so storing the slice is safe.
+var bench_results: std.ArrayListUnmanaged(BenchResult) = .empty;
+
+fn recordBench(label: []const u8, avg_ms: f64, min_ms: f64, max_ms: f64) void {
+    bench_results.append(std.heap.page_allocator, .{
+        .label = label,
+        .avg_ms = avg_ms,
+        .min_ms = min_ms,
+        .max_ms = max_ms,
+        .iterations = ITERATIONS,
+    }) catch |err| std.debug.print("bench record failed: {s}\n", .{@errorName(err)});
+}
+
+fn measure(comptime label: []const u8, total_ms: f64, min_ms: f64, max_ms: f64) void {
+    const avg_ms = total_ms / @as(f64, @floatFromInt(ITERATIONS));
+    recordBench(label, avg_ms, min_ms, max_ms);
+    std.debug.print("bench [{s}]: avg {d:.3}ms min {d:.3}ms max {d:.3}ms ({d} iters)\n", .{ label, avg_ms, min_ms, max_ms, ITERATIONS });
+}
+
 fn runBench(comptime label: []const u8, comptime fn_run: anytype) void {
     var i: usize = 0;
     while (i < WARMUP) : (i += 1) {
@@ -19,16 +53,19 @@ fn runBench(comptime label: []const u8, comptime fn_run: anytype) void {
     }
 
     var total_ms: f64 = 0;
+    var min_ms: f64 = std.math.floatMax(f64);
+    var max_ms: f64 = 0;
     i = 0;
     while (i < ITERATIONS) : (i += 1) {
         const start = foundation_time.monotonicNs();
         fn_run();
-        const elapsed_ns = foundation_time.monotonicNs() - start;
-        total_ms += @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0;
+        const elapsed_ms = @as(f64, @floatFromInt(foundation_time.monotonicNs() - start)) / 1_000_000.0;
+        total_ms += elapsed_ms;
+        min_ms = @min(min_ms, elapsed_ms);
+        max_ms = @max(max_ms, elapsed_ms);
     }
 
-    const avg_ms = total_ms / @as(f64, @floatFromInt(ITERATIONS));
-    std.debug.print("bench [{s}]: avg {d:.3}ms ({d} iters)\n", .{ label, avg_ms, ITERATIONS });
+    measure(label, total_ms, min_ms, max_ms);
 }
 
 fn runBenchWithContext(comptime label: []const u8, context: anytype, comptime fn_run: anytype) void {
@@ -38,16 +75,52 @@ fn runBenchWithContext(comptime label: []const u8, context: anytype, comptime fn
     }
 
     var total_ms: f64 = 0;
+    var min_ms: f64 = std.math.floatMax(f64);
+    var max_ms: f64 = 0;
     i = 0;
     while (i < ITERATIONS) : (i += 1) {
         const start = foundation_time.monotonicNs();
         fn_run(context);
-        const elapsed_ns = foundation_time.monotonicNs() - start;
-        total_ms += @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0;
+        const elapsed_ms = @as(f64, @floatFromInt(foundation_time.monotonicNs() - start)) / 1_000_000.0;
+        total_ms += elapsed_ms;
+        min_ms = @min(min_ms, elapsed_ms);
+        max_ms = @max(max_ms, elapsed_ms);
     }
 
-    const avg_ms = total_ms / @as(f64, @floatFromInt(ITERATIONS));
-    std.debug.print("bench [{s}]: avg {d:.3}ms ({d} iters)\n", .{ label, avg_ms, ITERATIONS });
+    measure(label, total_ms, min_ms, max_ms);
+}
+
+/// Serialize all collected benchmark results to BENCH_ARTIFACT_PATH as JSON.
+/// Best-effort: failures are logged, not fatal (a missing artifact must not
+/// fail the benchmark run).
+fn writeBenchArtifact() void {
+    const alloc = std.heap.page_allocator;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    defer out.deinit(alloc);
+
+    out.print(alloc, "{{\"schema\":\"abi-bench/v1\",\"iterations\":{d},\"benchmarks\":[", .{ITERATIONS}) catch return;
+    for (bench_results.items, 0..) |r, idx| {
+        out.print(alloc, "{s}{{\"label\":\"{s}\",\"avg_ms\":{d:.4},\"min_ms\":{d:.4},\"max_ms\":{d:.4},\"iterations\":{d}}}", .{
+            if (idx == 0) "" else ",",
+            r.label,
+            r.avg_ms,
+            r.min_ms,
+            r.max_ms,
+            r.iterations,
+        }) catch return;
+    }
+    out.appendSlice(alloc, "]}\n") catch return;
+
+    const dir = std.fs.path.dirname(BENCH_ARTIFACT_PATH) orelse ".";
+    std.Io.Dir.cwd().createDirPath(std.testing.io, dir) catch |err| {
+        std.debug.print("bench artifact dir create failed ({s}): {s}\n", .{ dir, @errorName(err) });
+        return;
+    };
+    std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = BENCH_ARTIFACT_PATH, .data = out.items }) catch |err| {
+        std.debug.print("bench artifact write failed ({s}): {s}\n", .{ BENCH_ARTIFACT_PATH, @errorName(err) });
+        return;
+    };
+    std.debug.print("bench artifact written: {s} ({d} benchmarks)\n", .{ BENCH_ARTIFACT_PATH, bench_results.items.len });
 }
 
 test "bench vector dot product" {
@@ -204,6 +277,12 @@ test "bench wdbx store operations" {
     };
 
     runBench("wdbx store put/get", StoreBench.run);
+}
+
+// Runs after all bench tests (source order), serializing the collected results.
+test "write benchmark artifact" {
+    writeBenchArtifact();
+    try std.testing.expect(bench_results.items.len >= 7);
 }
 
 test {

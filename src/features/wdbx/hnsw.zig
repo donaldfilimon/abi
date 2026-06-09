@@ -64,6 +64,7 @@ pub fn HnswIndex(comptime D: usize) type {
 
         pub fn deinit(self: *Self) void {
             for (self.nodes.items) |*node| {
+                if (self.tracker) |t| t.trackFreeNoTag((node.level + 1) * M * @sizeOf(u32));
                 node.deinit(self.allocator);
             }
             self.nodes.deinit(self.allocator);
@@ -109,6 +110,10 @@ pub fn HnswIndex(comptime D: usize) type {
                 },
             };
             try self.nodes.append(self.allocator, node);
+            // Edge lists are the node's persistent allocation: (level+1) layers,
+            // each reserved at capacity M and capped at M (no realloc). Track the
+            // exact footprint; the matching free is accounted in deinit.
+            if (self.tracker) |t| t.trackAllocNoTag((level + 1) * M * @sizeOf(u32));
 
             const node_idx = self.nodes.items.len - 1;
 
@@ -204,13 +209,20 @@ pub fn HnswIndex(comptime D: usize) type {
 
             if (self.entry_node == null) return self.allocator.alloc(types.SearchResult, 0);
 
+            // Per-query scratch arena: the candidate list, visited set, and batch
+            // distance temporaries live and die within this call, so one arena
+            // (freed on return via defer) removes per-append allocator churn and
+            // cannot outlive the search — no use-after-free risk. The returned
+            // results array escapes to the caller, so it uses the index allocator.
+            var arena = std.heap.ArenaAllocator.init(self.allocator);
+            defer arena.deinit();
+            const scratch = arena.allocator();
+
             var candidates: std.ArrayListUnmanaged(Candidate) = .empty;
-            defer candidates.deinit(self.allocator);
 
-            var visited = std.AutoHashMap(u32, void).init(self.allocator);
-            defer visited.deinit();
+            var visited = std.AutoHashMap(u32, void).init(scratch);
 
-            try candidates.append(self.allocator, .{
+            try candidates.append(scratch, .{
                 .id = self.entry_node.?,
                 .distance = self.cosineDistance(
                     self.storage.get(self.nodes.items[self.entry_node.?].id),
@@ -244,7 +256,7 @@ pub fn HnswIndex(comptime D: usize) type {
                         neighbor_count += 1;
                     }
                     try distance.batchCosineDistancesWithOps(
-                        self.allocator,
+                        scratch,
                         self.distance_ops,
                         query,
                         neighbor_vectors[0..neighbor_count],
@@ -255,7 +267,7 @@ pub fn HnswIndex(comptime D: usize) type {
                             curr = neighbor;
                             changed = true;
                         }
-                        try candidates.append(self.allocator, .{ .id = neighbor, .distance = dist });
+                        try candidates.append(scratch, .{ .id = neighbor, .distance = dist });
                     }
                 }
                 if (curr_level == 0) break;
@@ -356,6 +368,30 @@ test "HnswIndex multiple inserts" {
     const results = try index.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 5);
     defer std.testing.allocator.free(results);
     try std.testing.expect(results.len == 5);
+}
+
+test "HnswIndex tracks edge-list memory and searches via scratch arena" {
+    const Index = HnswIndex(4);
+    var index = Index.init(std.testing.allocator);
+    defer index.deinit();
+
+    var tracker = memory.MemoryTracker.init(std.testing.allocator);
+    defer tracker.deinit();
+    index.setTracker(&tracker);
+
+    var i: usize = 0;
+    while (i < 12) : (i += 1) {
+        const id: u32 = @intCast(i + 1);
+        const vals = [_]f32{ @as(f32, @floatFromInt(i)) / 12.0, @as(f32, @floatFromInt(12 - i)) / 12.0, 0.0, 0.0 };
+        try index.insert(id, &vals);
+    }
+    // Edge-list allocations were observed by the tracker.
+    try std.testing.expect(tracker.getPeakUsage() > 0);
+
+    // Search runs entirely on its per-query arena and returns owned results.
+    const results = try index.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 5);
+    defer std.testing.allocator.free(results);
+    try std.testing.expectEqual(@as(usize, 5), results.len);
 }
 
 test {

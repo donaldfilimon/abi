@@ -29,7 +29,7 @@ fn usage() u8 {
         \\  db verify <path>               Verify snapshot integrity + block chain (+ WAL if present)
         \\  block insert <path> <profile> <metadata>   Append a conversation block (snapshot + WAL)
         \\  block get <path>               Print the most recent block
-        \\  query <path>                   Print store statistics
+        \\  query <path> [text]            Store statistics, or hybrid-ranked semantic search when text is given
         \\  benchmark [count]              Measure local insert/search timing
         \\  cluster status                 Report cluster topology (single-node default)
         \\  cluster demo [nodes]           Run in-process consensus: elect, replicate, fail over
@@ -73,8 +73,9 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     }
 
     if (std.mem.eql(u8, sub, "query")) {
-        if (args.len != 4) return usage();
-        return db_commands.query(io, allocator, args[3]);
+        if (args.len == 4) return db_commands.query(io, allocator, args[3], null);
+        if (args.len == 5) return db_commands.query(io, allocator, args[3], args[4]);
+        return usage();
     }
 
     if (std.mem.eql(u8, sub, "benchmark")) {
