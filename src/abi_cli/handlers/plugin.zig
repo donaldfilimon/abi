@@ -3,6 +3,13 @@ const Registry = @import("../../core/registry.zig").Registry;
 const usage_mod = @import("../usage.zig");
 const abi = @import("../../root.zig");
 
+fn loadBundledPlugin(pm: *abi.plugins.PluginManager, path: []const u8) void {
+    _ = pm.loadPlugin(path) catch |err| switch (err) {
+        error.AlreadyLoaded => {},
+        else => std.log.warn("failed to load bundled plugin path={s} err={s}", .{ path, @errorName(err) }),
+    };
+}
+
 pub fn handlePlugin(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len < 3) return usage_mod.usageError("usage: abi plugin list | run <name> [input]");
 
@@ -33,8 +40,8 @@ pub fn handlePlugin(allocator: std.mem.Allocator, args: []const []const u8) !u8 
         defer pm.deinit();
 
         // Load the two known bundled plugins so run can find them.
-        _ = pm.loadPlugin("src/plugins/example-plugin") catch {};
-        _ = pm.loadPlugin("src/plugins/example-wdbx-plugin") catch {};
+        loadBundledPlugin(&pm, "src/plugins/example-plugin");
+        loadBundledPlugin(&pm, "src/plugins/example-wdbx-plugin");
 
         const output = try pm.run(allocator, name, input);
         defer allocator.free(output);
