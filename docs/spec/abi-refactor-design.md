@@ -74,6 +74,7 @@ src/
 │   │   ├── mod.zig    # Store, putVector, search, appendBlock
 │   │   ├── stub.zig   # No-op stubs when feat-wdbx disabled
 │   │   ├── types.zig  # Shared constants and record/stat types re-exported by mod.zig
+│   │   ├── stub_types.zig / stub_index.zig / stub_storage.zig / stub_spatial_3d.zig
 │   │   ├── hnsw.zig   # HNSW index with SIMD cosine distance
 │   │   ├── chain.zig  # Block chain with MVCC snapshots
 │   │   ├── persistence.zig # JSONL snapshot serialize/restore with SHA-256 integrity line
