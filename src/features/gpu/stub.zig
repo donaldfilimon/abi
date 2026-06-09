@@ -84,6 +84,13 @@ pub const VectorOps = struct {
         if (aa == 0 or bb == 0) return 0;
         return ab / @sqrt(aa * bb);
     }
+
+    pub fn batchCosineSimilarity(self: VectorOps, query: []const f32, candidates: []const []const f32, out: []f32) !void {
+        if (out.len != candidates.len) return error.DimensionMismatch;
+        for (candidates, out) |cand, *slot| {
+            slot.* = try self.cosineSimilarity(query, cand);
+        }
+    }
 };
 
 pub fn backendName(backend: Backend) []const u8 {

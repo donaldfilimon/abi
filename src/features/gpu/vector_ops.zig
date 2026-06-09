@@ -88,6 +88,28 @@ pub const VectorOps = struct {
         if (aa == 0 or bb == 0) return 0;
         return ab / @sqrt(aa * bb);
     }
+
+    /// Cosine similarity of `query` against each row of `candidates`, written
+    /// into `out` (len must equal candidates.len). The batched form of
+    /// `cosineSimilarity`: the query norm is computed once and reused across the
+    /// whole batch (instead of re-deriving it per pair), while each dot still
+    /// routes through the same accelerated/SIMD path. Useful for scoring a query
+    /// against a candidate set in one call.
+    pub fn batchCosineSimilarity(self: VectorOps, query: []const f32, candidates: []const []const f32, out: []f32) !void {
+        if (out.len != candidates.len) return error.DimensionMismatch;
+        const q_norm_sq = try self.dot(query, query);
+        const q_norm = @sqrt(q_norm_sq);
+        for (candidates, out) |cand, *slot| {
+            if (cand.len != query.len) return error.DimensionMismatch;
+            const cc = try self.dot(cand, cand);
+            if (q_norm == 0 or cc == 0) {
+                slot.* = 0;
+                continue;
+            }
+            const qc = try self.dot(query, cand);
+            slot.* = qc / (q_norm * @sqrt(cc));
+        }
+    }
 };
 
 pub fn executeKernel(spec: backends.KernelSpec) !backends.KernelResult {
@@ -111,4 +133,23 @@ test "gpu vector ops provide deterministic acceleration" {
     try std.testing.expectEqual(@as(f32, 32), try ops.dot(&.{ 1, 2, 3 }, &.{ 4, 5, 6 }));
     try std.testing.expectEqual(@as(f32, 27), try ops.squaredL2(&.{ 1, 2, 3 }, &.{ 4, 5, 6 }));
     try std.testing.expect((try ops.cosineSimilarity(&.{ 1, 0 }, &.{ 1, 0 })) == 1);
+}
+
+test "gpu batched cosine similarity matches the pairwise result" {
+    const ops = vectorOps();
+    const query = [_]f32{ 1, 0, 0 };
+    const c0 = [_]f32{ 1, 0, 0 };
+    const c1 = [_]f32{ 0, 1, 0 };
+    const c2 = [_]f32{ 1, 1, 0 };
+    const candidates = [_][]const f32{ &c0, &c1, &c2 };
+
+    var out: [3]f32 = undefined;
+    try ops.batchCosineSimilarity(&query, &candidates, &out);
+
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), out[0], 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), out[1], 1e-6);
+    try std.testing.expectApproxEqAbs(try ops.cosineSimilarity(&query, &c2), out[2], 1e-6);
+
+    var bad: [1]f32 = undefined;
+    try std.testing.expectError(error.DimensionMismatch, ops.batchCosineSimilarity(&query, &candidates, &bad));
 }
