@@ -24,6 +24,13 @@ pub fn readLine(io: std.Io, conn: Stream, buf: []u8) ![]const u8 {
         total += n;
         if (std.mem.indexOfScalar(u8, buf[0..total], '\n') != null) break;
     }
-    const end = std.mem.indexOfScalar(u8, buf[0..total], '\n') orelse total;
+    const end = std.mem.indexOfScalar(u8, buf[0..total], '\n') orelse {
+        // No newline and the buffer is full: the frame exceeds `buf` and was
+        // truncated. Signal it rather than handing back a silently-cut line.
+        if (total == buf.len) return error.LineTooLong;
+        // Otherwise the peer closed before sending a newline (incomplete frame);
+        // return what arrived so the caller's parser rejects it.
+        return std.mem.trimEnd(u8, buf[0..total], "\r");
+    };
     return std.mem.trimEnd(u8, buf[0..end], "\r");
 }

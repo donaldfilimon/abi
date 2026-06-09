@@ -57,22 +57,21 @@ pub fn appendRecord(io: std.Io, allocator: std.mem.Allocator, path: []const u8, 
         return;
     }
 
-    // Existing log: append only the new framed record at EOF. Opening
-    // read_write does not truncate; the positional writer seeked to the current
-    // size pwrites the record without rereading prior contents — O(1) per call.
+    // Existing log: append only the new framed record at EOF via a single
+    // positional write (pwrite) at the current size — O(1), no reread of prior
+    // contents, and no seek (matches the `writePositionalAll` idiom used in
+    // src/foundation/io, avoiding the std seekTo flush footgun).
     var file = try cwd.openFile(io, path, .{ .mode = .read_write });
     defer file.close(io);
     const end = (try file.stat(io)).size;
 
-    var wbuf: [8192]u8 = undefined;
-    var fw = file.writer(io, &wbuf);
-    try fw.seekTo(end);
-    const w = &fw.interface;
-    try w.writeAll(&crc);
-    try w.writeAll(" ");
-    try w.writeAll(json);
-    try w.writeAll("\n");
-    try w.flush();
+    var frame: std.Io.Writer.Allocating = .init(allocator);
+    defer frame.deinit();
+    try frame.writer.writeAll(&crc);
+    try frame.writer.writeAll(" ");
+    try frame.writer.writeAll(json);
+    try frame.writer.writeAll("\n");
+    try file.writePositionalAll(io, frame.written(), end);
 }
 
 /// Append a key/value mutation record.
