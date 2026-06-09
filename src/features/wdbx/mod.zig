@@ -17,6 +17,7 @@ pub const compute = @import("compute.zig");
 pub const rest = @import("rest.zig");
 pub const recovery = @import("recovery.zig");
 pub const retrieval = @import("retrieval.zig");
+pub const segments = @import("segments.zig");
 
 pub const MAX_LAYERS = types.MAX_LAYERS;
 pub const HNSW_DIMENSIONS = types.HNSW_DIMENSIONS;
