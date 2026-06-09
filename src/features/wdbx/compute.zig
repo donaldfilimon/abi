@@ -126,18 +126,24 @@ pub fn select(requested: Backend) Selection {
     };
 }
 
-/// Execute a dot product on the selected backend. The result is identical
-/// across backends (the accelerators fall back to the same CPU SIMD kernel), so
-/// CPU/GPU parity holds by construction.
+/// Host-optimal SIMD lane count for f32 (8 on AVX2, 16 on AVX512, 4 on NEON),
+/// falling back to 4 where the compiler offers no suggestion. Matches the width
+/// selection used by the HNSW distance kernel rather than a hardcoded vector.
+pub const SIMD_LANES: usize = std.simd.suggestVectorLength(f32) orelse 4;
+
+/// Execute a dot product on the selected backend using the host-matched SIMD
+/// width. The result is identical across backends (the accelerators fall back to
+/// the same CPU SIMD kernel), so CPU/GPU parity holds by construction.
 pub fn dot(sel: Selection, a: []const f32, b: []const f32) !f32 {
     if (a.len != b.len) return error.DimensionMismatch;
     _ = sel;
-    const Vec = @Vector(4, f32);
+    const lanes = SIMD_LANES;
+    const Vec = @Vector(lanes, f32);
     var acc: Vec = @splat(0);
     var i: usize = 0;
-    while (i + 4 <= a.len) : (i += 4) {
-        const va: Vec = a[i..][0..4].*;
-        const vb: Vec = b[i..][0..4].*;
+    while (i + lanes <= a.len) : (i += lanes) {
+        const va: Vec = a[i..][0..lanes].*;
+        const vb: Vec = b[i..][0..lanes].*;
         acc += va * vb;
     }
     var sum: f32 = @reduce(.Add, acc);
@@ -181,6 +187,21 @@ test "compute: CPU/GPU parity — dot product matches across backends" {
     try std.testing.expectApproxEqAbs(expected, cpu, 1e-5);
     try std.testing.expectApproxEqAbs(cpu, gpu, 1e-6);
     try std.testing.expectApproxEqAbs(cpu, npu, 1e-6);
+}
+
+test "compute: dot is correct across host SIMD width with a ragged tail" {
+    // Length 17 is not a multiple of 4/8/16, so the scalar tail runs under any
+    // host vector width — guards the width-adaptive loop + remainder handling.
+    var a: [17]f32 = undefined;
+    var b: [17]f32 = undefined;
+    var expected: f32 = 0;
+    for (&a, &b, 0..) |*ai, *bi, i| {
+        ai.* = @floatFromInt(i + 1);
+        bi.* = 2.0;
+        expected += ai.* * bi.*;
+    }
+    try std.testing.expect(SIMD_LANES >= 4);
+    try std.testing.expectApproxEqAbs(expected, try dot(select(.cpu_scalar), &a, &b), 1e-4);
 }
 
 test {
