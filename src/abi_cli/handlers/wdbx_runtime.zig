@@ -101,6 +101,27 @@ pub fn clusterDemo(allocator: std.mem.Allocator, nodes: usize) anyerror!u8 {
     return 0;
 }
 
+pub fn clusterServe(io: std.Io, allocator: std.mem.Allocator, port: u16, node_id: u32) anyerror!u8 {
+    var node = wdbx.cluster.Node{ .id = node_id };
+    defer {
+        for (node.log.items) |e| allocator.free(e.data);
+        node.log.deinit(allocator);
+    }
+
+    var server = wdbx.cluster_rpc.listen(io, port) catch |err| {
+        std.debug.print("cluster serve: bind 127.0.0.1:{d} failed: {s}\n", .{ port, @errorName(err) });
+        return 1;
+    };
+    defer server.deinit(io);
+
+    std.debug.print(
+        "cluster node {d} serving consensus RPC on 127.0.0.1:{d} (RequestVote/AppendEntries); peers connect via the cluster_rpc transport. Ctrl-C to stop.\n",
+        .{ node_id, port },
+    );
+    try wdbx.cluster_rpc.serveLoop(io, &server, &node, allocator);
+    return 0;
+}
+
 pub fn computeInfo() anyerror!u8 {
     const caps = wdbx.compute.capabilities();
     std.debug.print("compute backends (native dispatch not linked in this build; CPU fallback active):\n", .{});

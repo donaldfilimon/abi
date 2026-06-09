@@ -100,6 +100,17 @@ pub fn serveOnce(io: std.Io, server: *Server, node: *cluster.Node, allocator: st
     try sw.interface.flush();
 }
 
+/// Serve a node's consensus RPC endpoint, applying RequestVote/AppendEntries to
+/// `node` until the process is stopped. One request per connection; a failed
+/// connection is logged and the loop continues (same posture as the REST server).
+pub fn serveLoop(io: std.Io, server: *Server, node: *cluster.Node, allocator: std.mem.Allocator) !void {
+    while (true) {
+        serveOnce(io, server, node, allocator) catch |err| {
+            std.log.warn("cluster RPC serve error: {s}", .{@errorName(err)});
+        };
+    }
+}
+
 fn dial(io: std.Io, port: u16, msg: []const u8) !?Stream {
     var address = std.Io.net.IpAddress.parseIp4("127.0.0.1", port) catch return null;
     // A refused/unreachable peer (e.g. a downed node) yields null rather than an
