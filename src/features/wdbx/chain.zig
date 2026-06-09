@@ -67,6 +67,14 @@ pub const BlockChain = struct {
     }
 
     pub fn append(self: *BlockChain, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8) ![HASH_LEN]u8 {
+        return self.appendAt(profile, query_id, response_id, metadata, foundation_time.unixMs());
+    }
+
+    /// Append a block with an explicit `timestamp_ms` instead of the current
+    /// clock. Used by snapshot restore so the recomputed block hashes match the
+    /// originals exactly (the hash is deterministic over prev_hash, timestamp,
+    /// sequence, profile, and metadata, and blocks restore in original order).
+    pub fn appendAt(self: *BlockChain, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8, timestamp_ms: i64) ![HASH_LEN]u8 {
         if (profile.len == 0) return error.InvalidProfile;
 
         self.write_lock.lock();
@@ -74,7 +82,6 @@ pub const BlockChain = struct {
 
         const prev_hash = if (self.tail) |t| t.header.hash else GENESIS_HASH;
         const sequence = self.next_sequence;
-        const timestamp_ms = foundation_time.unixMs();
 
         const hash = computeBlockHash(prev_hash, timestamp_ms, sequence, profile, metadata);
 

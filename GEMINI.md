@@ -13,7 +13,7 @@ zig build test-integration    # explicit integration suite
 zig build benchmarks          # explicit benchmark suite
 ```
 
-Zig is pinned by `.zigversion` to `0.17.0-dev.329+21b7ceb5e`; `build.zig.zon` keeps `0.17.0-dev.304+9787df942` as the package minimum. Plain `zig build` may work with a compatible local toolchain, but use `./build.sh ...` on macOS for the documented Darwin workflow.
+Zig is pinned by `.zigversion` to `0.17.0-dev.813+2153f8143`; `build.zig.zon` keeps `0.17.0-dev.304+9787df942` as the package minimum. Plain `zig build` may work with a compatible local toolchain, but use `./build.sh ...` on macOS for the documented Darwin workflow.
 
 ## Current CLI Examples
 

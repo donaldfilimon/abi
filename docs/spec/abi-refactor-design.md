@@ -71,12 +71,21 @@ src/
 │   │   ├── stub.zig   # No-op stubs when feat-wdbx disabled
 │   │   ├── hnsw.zig   # HNSW index with SIMD cosine distance
 │   │   ├── chain.zig  # Block chain with MVCC snapshots
+│   │   ├── persistence.zig # JSONL snapshot serialize/restore with SHA-256 integrity line
+│   │   ├── wal.zig    # Write-ahead log: CRC32-framed records, replay, corruption detection
+│   │   ├── temporal.zig # Temporal/causal graph + semantic×temporal×causal×persona hybrid ranking
+│   │   ├── cluster.zig # In-process Raft-style consensus demo: election/quorum/failover (no networked transport)
+│   │   ├── compression.zig # int8 embedding quantization round-trip demo (not a learned codec)
+│   │   ├── crypto_he.zig # Additive single-key homomorphic aggregation demo (not full FHE)
+│   │   ├── compute.zig # CPU/GPU/NPU/TPU backend selector w/ deterministic CPU fallback (native dispatch not linked)
+│   │   ├── rest.zig   # Loopback REST listener: POST /insert /query /verify, GET /health /stats
 │   │   └── spatial_3d.zig # In-memory 3D spatial index
 │   ├── accelerator/   # Backend selection metadata (mod/stub)
 │   ├── shaders/       # Local shader validation (mod/stub)
 │   ├── mlir/          # Textual MLIR lowering (mod/stub)
 │   ├── hash/          # Hash utility surface (mod/stub, enabled by default)
 │   ├── metrics/       # Optional observability counters (mod/stub, disabled by default)
+│   ├── telemetry/     # Lightweight event/counter emission hooks (mod/stub, enabled by default)
 │   ├── tui/           # Diagnostics dashboard (mod/stub, enabled by default)
 │   ├── mobile/        # Mobile platform surface (mod/stub, disabled by default)
 │   └── os_control/    # Safe OS command policy controls (mod/stub)
@@ -101,7 +110,8 @@ src/
 │       ├── dashboard.zig
 │       ├── plugin.zig
 │       ├── train.zig
-│       └── twilio.zig
+│       ├── twilio.zig
+│       └── wdbx.zig   # WDBX runtime control surface (db/block/query/benchmark/cluster/compute/secure/gpu/api)
 ├── mcp/               # MCP JSON-RPC 2.0 server
 │   ├── main.zig       # stdio loop + loopback HTTP/SSE
 │   ├── handlers.zig   # Tool call implementations
@@ -176,6 +186,33 @@ const ConversationBlock = struct {
 - Readers acquire a snapshot/iterator view while writers append through the chain API; concurrency details stay behind the chain API.
 - Contract tests verify appended metadata can be retrieved through both the store's last-block view and a block-chain snapshot lookup.
 
+### 4.3 Snapshot Persistence
+
+`src/features/wdbx/persistence.zig` serializes a `Store` to a line-delimited JSON (JSONL) snapshot and restores it deterministically.
+
+- **Format**: a `# ABI-WDBX v1` header line, one minified JSON object per record (`kv`, `vector`, `block`, `spatial`), and a trailing `# checksum:<sha256-hex>` integrity line covering the record body.
+- **Integrity**: the SHA-256 checksum is verified on load when present (checksum-less snapshots remain loadable for backward compatibility); a truncated or tampered body is rejected with `error.ChecksumMismatch` rather than restoring partial state.
+- **Faithful restore**: vectors restore to their original monotonically-assigned ids (a mismatch is `error.CorruptVectorId`); blocks restore with their original timestamps so the SHA-256 chain hashes reproduce exactly and `verifyBlocks()` still holds.
+- **Untrusted input**: integer fields out of `u32` range fail with `error.FieldOutOfRange` instead of panicking, so a corrupt snapshot fails cleanly.
+- **IO**: `saveToPath`/`loadFromPath` wrap serialize/deserialize over `std.Io` with a 64 MB read cap. WDBX-disabled builds expose no persistence surface.
+
+### 4.4 WDBX Runtime Control Surface (`abi wdbx`) and Roadmap Modules
+
+`src/abi_cli/handlers/wdbx.zig` adds an `abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` namespace — the 11th frozen CLI command, with its contract row in `tests/contracts/surface.zig`. It is comptime-gated on `build_options.feat_wdbx` and backed by the in-process store, JSONL snapshots, and the write-ahead log:
+
+- `db init|verify`, `block insert|get`, `query` — snapshot + WAL lifecycle; `db verify` cross-checks WAL replay against the snapshot block count.
+- `benchmark [count]` — local in-memory insert/search timing (explicitly *not* a published throughput claim).
+- `gpu info` — GPU backend capability report.
+
+The namespace also exercises forward-looking WDBX modules that are deliberately scoped as honest, **in-process demonstrations — not production or distributed capabilities**. See `docs/spec/wdbx-north-star.md` for the Current/Partial/Proposed mapping and `docs/contracts/external-claims-audit.md` for the claim boundary:
+
+- `cluster status|demo` (`cluster.zig`) — an in-process Raft-style core (leader election, majority-quorum replication, failover). There is **no** networked RPC transport; `cluster status` reports `nodes=1 role=standalone`.
+- `compute info` (`compute.zig`) — a CPU/GPU/NPU/TPU backend selector that always degrades to the deterministic CPU SIMD path; native accelerator dispatch is not linked.
+- `secure demo` (`compression.zig` + `crypto_he.zig`) — int8 embedding quantization round-trip plus additive single-key homomorphic aggregation. This is not a learned codec and not full (multiplicative) FHE.
+- `api serve [port]` (`rest.zig`) — a loopback-only REST listener (`POST /insert /query /verify`, `GET /health /stats`, default port 8081) built on a pure, unit-tested routing core.
+
+All of these preserve mod/stub parity: `mod.zig` exports `wal`, `temporal`, `cluster`, `compression`, `crypto_he`, `compute`, and `rest`, while `stub.zig` carries matching empty parity markers so `zig build check-parity` holds with `-Dfeat-wdbx=false`.
+
 ---
 
 ## 5. AI Pipeline: Abbey-Aviva-Abi
@@ -199,7 +236,7 @@ The `src/core/` modules (`registry.zig`, `scheduler.zig`, `memory.zig`) and `src
 - Live stats and cooperative refresh tasks in the CLI/TUI dashboard.
 - Long-lived Scheduler instance owned by the MCP server with dedicated `scheduler_stats` / `scheduler_info` tools in the static, contract-tested MCP descriptor list.
 - `MemoryTracker` + `TrackingAllocator` attached via `setMemoryTracker` in the training path and dashboard; allocations performed under scheduler tasks are recorded.
-- Cross-feature observability wiring: Scheduler conditionally records task lifecycle metrics when `-Dfeat-metrics` is enabled.
+- Cross-feature observability wiring: Scheduler conditionally records task lifecycle metrics when `-Dfeat-metrics` is enabled. The default-on `feat-telemetry` feature (`src/features/telemetry/`) adds lightweight `record(name)` / `increment(name, delta)` event hooks — a minimal placeholder surface today that complements the opt-in `metrics` counters — with mod/stub parity preserved.
 - Dedicated integration test ("scheduler drives training tasks") validates end-to-end submission, execution, stats, and memory tracking.
 
 - Registry remains focused on plugin descriptors (RwLock-protected) today; it is the coordinator for the plugin execution seam (`plugin_manager` + `abi plugin run` / MCP `plugin_run`) but is not yet the broader cross-feature lifecycle registry envisioned originally.

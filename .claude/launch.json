@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "abi-mcp",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "./build.sh mcp && ./mcp/launcher.sh stdio"],
+      "port": 8080
+    }
+  ]
+}

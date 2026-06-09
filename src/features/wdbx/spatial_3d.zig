@@ -1,4 +1,5 @@
 const std = @import("std");
+const foundation_pool = @import("../../foundation/pool_allocator.zig");
 
 pub const Point3D = struct {
     x: f32,
@@ -10,6 +11,7 @@ pub const SpatialRecord3D = struct {
     id: u32,
     point: Point3D,
     payload: []const u8,
+    pooled_block: ?[]u8 = null,
 };
 
 pub const DistanceMetric = enum {
@@ -23,6 +25,11 @@ pub const SpatialSearchResult = struct {
     distance: f32,
     point: Point3D,
     payload: []const u8,
+};
+
+const PayloadAllocation = struct {
+    payload: []const u8,
+    pooled_block: ?[]u8 = null,
 };
 
 pub fn euclideanDistance(p1: Point3D, p2: Point3D) f32 {
@@ -55,30 +62,70 @@ pub fn calculateDistance(p1: Point3D, p2: Point3D, metric: DistanceMetric) f32 {
 
 pub const SpatialIndex3D = struct {
     allocator: std.mem.Allocator,
+    pool_alloc: ?*foundation_pool.PoolAllocator = null,
     records: std.ArrayListUnmanaged(SpatialRecord3D) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) SpatialIndex3D {
+        return initWithPool(allocator, null);
+    }
+
+    pub fn initWithPool(allocator: std.mem.Allocator, pool_alloc: ?*foundation_pool.PoolAllocator) SpatialIndex3D {
         return .{
             .allocator = allocator,
+            .pool_alloc = pool_alloc,
         };
     }
 
     pub fn deinit(self: *SpatialIndex3D) void {
         for (self.records.items) |rec| {
-            self.allocator.free(rec.payload);
+            self.freePayload(rec);
         }
         self.records.deinit(self.allocator);
     }
 
     pub fn insert(self: *SpatialIndex3D, id: u32, point: Point3D, payload: []const u8) !void {
-        const owned_payload = try self.allocator.dupe(u8, payload);
-        errdefer self.allocator.free(owned_payload);
+        const owned = try self.dupePayload(payload);
+        errdefer self.freePayloadAllocation(owned);
 
         try self.records.append(self.allocator, .{
             .id = id,
             .point = point,
-            .payload = owned_payload,
+            .payload = owned.payload,
+            .pooled_block = owned.pooled_block,
         });
+    }
+
+    fn dupePayload(self: *SpatialIndex3D, payload: []const u8) !PayloadAllocation {
+        if (self.pool_alloc) |pool| {
+            if (payload.len <= pool.block_size) {
+                const block = try pool.alloc();
+                @memcpy(block[0..payload.len], payload);
+                return .{
+                    .payload = block[0..payload.len],
+                    .pooled_block = block,
+                };
+            }
+        }
+
+        const owned_payload = try self.allocator.dupe(u8, payload);
+        return .{
+            .payload = owned_payload,
+            .pooled_block = null,
+        };
+    }
+
+    fn freePayload(self: *SpatialIndex3D, rec: SpatialRecord3D) void {
+        self.freePayloadAllocation(.{ .payload = rec.payload, .pooled_block = rec.pooled_block });
+    }
+
+    fn freePayloadAllocation(self: *SpatialIndex3D, allocation: PayloadAllocation) void {
+        if (allocation.pooled_block) |block| {
+            if (self.pool_alloc) |pool| {
+                pool.free(block);
+                return;
+            }
+        }
+        self.allocator.free(allocation.payload);
     }
 
     pub fn count(self: *const SpatialIndex3D) usize {

@@ -20,7 +20,7 @@ zig build test-integration
 zig build benchmarks
 ```
 
-Feature flags default to enabled except `feat-mobile`. The check gate smoke-tests every feature-off stub and the real mobile module through `tools/check_feature_stubs.sh` using focused feature contracts plus feature-aware public contracts:
+Feature flags default to enabled except `feat-mobile` and `feat-metrics`; `feat-telemetry` is enabled by default. The check gate smoke-tests every feature-off stub and the real mobile module through `tools/check_feature_stubs.sh` using focused feature contracts plus feature-aware public contracts:
 
 ```bash
 ./build.sh check -Dfeat-tui=false
@@ -78,6 +78,20 @@ Render diagnostics:
 ./zig-out/bin/abi tui
 ```
 
+Operate the WDBX runtime control surface:
+
+```bash
+./zig-out/bin/abi wdbx db init /tmp/abi-demo.wdbx.jsonl
+./zig-out/bin/abi wdbx block insert /tmp/abi-demo.wdbx.jsonl Abbey "demo metadata"
+./zig-out/bin/abi wdbx db verify /tmp/abi-demo.wdbx.jsonl
+./zig-out/bin/abi wdbx cluster status
+./zig-out/bin/abi wdbx compute info
+./zig-out/bin/abi wdbx secure demo
+./zig-out/bin/abi wdbx api serve 8081
+```
+
+`abi wdbx` is a local runtime/demo namespace. Snapshot, WAL, block, query, benchmark, GPU, and loopback REST paths operate local state; `cluster`, `compute`, and `secure` demonstrate in-process consensus, backend selection with CPU fallback, int8 quantization, and additive aggregation. They do not prove distributed clustering, native NPU/TPU execution, learned compression, or full homomorphic encryption.
+
 ## GPU Backend
 
 On macOS, the GPU module links Metal/Foundation/objc when `feat-gpu=true`. Runtime vector operations attempt to initialize a Metal context through Objective-C runtime messages and fall back to vectorized CPU operations if Metal setup fails. With `-Dfeat-gpu=false`, the public GPU API remains available through `src/features/gpu/stub.zig` and reports a deterministic CPU fallback.
@@ -96,7 +110,7 @@ The AI profile router includes `AdaptiveModulator`, which maintains EMA-smoothed
 modulator:weights
 ```
 
-When used with a WDBX `Store`, modulator weights can be loaded, updated, serialized as JSON, and stored back into the key-value surface. API callers must set `CompletionRequest.store_result=true` to persist completion vectors/metadata; `store_result=false`, invalid completion input, and disabled WDBX leave the store unchanged. WDBX manifests now report key-value, vector, block, spatial-record, vector-dimension, next-vector-id, backend, and execution-mode fields; disabled builds keep a compatible manifest shape with `"disabled":true`.
+When used with a WDBX `Store`, modulator weights can be loaded, updated, serialized as JSON, and stored back into the key-value surface. API callers must set `CompletionRequest.store_result=true` to persist completion vectors/metadata; `store_result=false`, invalid completion input, and disabled WDBX leave the store unchanged. WDBX manifests now report key-value, vector, block, spatial-record, vector-dimension, next-vector-id, backend, and execution-mode fields; disabled builds keep a compatible manifest shape with `"disabled":true`. JSONL snapshots include an integrity line, and the write-ahead log replays framed records with corruption detection.
 
 ## MCP Server
 

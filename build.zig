@@ -16,6 +16,7 @@ pub fn build(b: *std.Build) void {
     const feat_os_control = b.option(bool, "feat-os-control", "Enable OS command policy controls") orelse true;
     const feat_hash = b.option(bool, "feat-hash", "Enable stable portable hashing utilities") orelse true;
     const feat_metrics = b.option(bool, "feat-metrics", "Enable lightweight in-process metrics for observability") orelse false;
+    const feat_telemetry = b.option(bool, "feat-telemetry", "Enable lightweight telemetry event emission") orelse true;
 
     const options = b.addOptions();
     options.addOption(bool, "feat_ai", feat_ai);
@@ -29,6 +30,7 @@ pub fn build(b: *std.Build) void {
     options.addOption(bool, "feat_os_control", feat_os_control);
     options.addOption(bool, "feat_hash", feat_hash);
     options.addOption(bool, "feat_metrics", feat_metrics);
+    options.addOption(bool, "feat_telemetry", feat_telemetry);
     const options_mod = options.createModule();
 
     // Plugin Registry Generation

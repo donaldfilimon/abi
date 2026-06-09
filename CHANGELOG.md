@@ -16,6 +16,9 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 - Tightened disabled-feature stubs: AI mirrors empty-input/training/agent validation while preserving requested completion models, MLIR/shader stubs validate inputs before disabled artifacts, and WDBX nested writes report disabled behavior without recording phantom vectors or blocks.
 - Added AI/WDBX edge coverage for empty completion input, disabled-WDBX training degradation, append-linked completion blocks, and WDBX block-chain ownership/tamper detection.
 - Added an external-claims audit doc and public-doc contract test so Drive/investor collateral can reuse only repo-backed ABI/WDBX claims.
+- Added WDBX JSONL snapshot integrity, CRC32-framed write-ahead log replay/corruption detection, temporal/causal ranking primitives, and a frozen `abi wdbx` CLI namespace.
+- Added honest in-process WDBX roadmap demonstrations for local consensus, backend selection with CPU fallback, int8 embedding quantization, additive aggregation, and loopback REST.
+- Added the default-on `telemetry` feature surface for lightweight event/counter hooks with mod/stub parity.
 
 ### Validation
 

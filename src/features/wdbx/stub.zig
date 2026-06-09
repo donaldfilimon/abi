@@ -58,6 +58,7 @@ pub const spatial_3d = struct {
         id: u32,
         point: Point3D,
         payload: []const u8,
+        pooled_block: ?[]u8 = null,
     };
     pub const DistanceMetric = enum {
         euclidean,
@@ -101,6 +102,12 @@ pub const spatial_3d = struct {
     pub const SpatialIndex3D = struct {
         pub fn init(allocator: std.mem.Allocator) SpatialIndex3D {
             _ = allocator;
+            return .{};
+        }
+
+        pub fn initWithPool(allocator: std.mem.Allocator, pool_alloc: ?*foundation_pool.PoolAllocator) SpatialIndex3D {
+            _ = allocator;
+            _ = pool_alloc;
             return .{};
         }
 
@@ -249,8 +256,22 @@ pub const index = struct {
     }
 };
 
+// WAL, temporal/causal index, cluster, compression, homomorphic crypto,
+// compute-backend selection, and the REST listener are compiled out when the
+// feature is disabled. Callers gate access at comptime (see abi_cli wdbx
+// handler); these markers exist only to preserve mod/stub top-level declaration
+// parity.
+pub const wal = struct {};
+pub const temporal = struct {};
+pub const cluster = struct {};
+pub const compression = struct {};
+pub const crypto_he = struct {};
+pub const compute = struct {};
+pub const rest = struct {};
+
 pub const persistence = struct {
     pub const HEADER = "# ABI-WDBX v1";
+    pub const CHECKSUM_PREFIX = "# checksum:";
 
     pub const PersistenceError = error{
         InvalidHeader,
@@ -259,6 +280,9 @@ pub const persistence = struct {
         OutOfMemory,
         DuplicateVectorId,
         DimensionMismatch,
+        CorruptVectorId,
+        ChecksumMismatch,
+        FieldOutOfRange,
     };
 
     pub fn serialize(_: std.mem.Allocator, _: *const Store) ![]u8 {
@@ -332,6 +356,11 @@ pub const storage = struct {
             _ = metadata;
             if (profile.len == 0) return error.InvalidProfile;
             return error.FeatureDisabled;
+        }
+
+        pub fn appendAt(self: *BlockChain, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8, timestamp_ms: i64) ![HASH_LEN]u8 {
+            _ = timestamp_ms;
+            return self.append(profile, query_id, response_id, metadata);
         }
 
         pub fn getBlock(self: *BlockChain, hash: [HASH_LEN]u8) ?*const MvccBlock {
@@ -489,6 +518,11 @@ pub const Store = struct {
         return error.FeatureDisabled;
     }
 
+    pub fn restoreBlock(self: *Store, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8, timestamp_ms: i64) ![32]u8 {
+        _ = timestamp_ms;
+        return self.appendBlock(profile, query_id, response_id, metadata);
+    }
+
     pub fn blockCount(self: *const Store) usize {
         _ = self;
         return 0;
@@ -566,6 +600,7 @@ test "wdbx stub reports disabled operations" {
     try std.testing.expectError(error.FeatureDisabled, store.putVector(&.{1.0}));
     try std.testing.expectError(error.FeatureDisabled, store.search(&.{1.0}, 1));
     try std.testing.expectError(error.FeatureDisabled, store.appendBlock("abi", 1, 2, "metadata"));
+    try std.testing.expectError(error.FeatureDisabled, store.restoreBlock("abi", 1, 2, "metadata", 123));
     try std.testing.expectError(error.FeatureDisabled, store.putSpatial3D(1, .{ .x = 0, .y = 0, .z = 0 }, "payload"));
     try std.testing.expectError(error.FeatureDisabled, store.searchSpatial3D(.{ .x = 0, .y = 0, .z = 0 }, 1, .euclidean));
     try std.testing.expectError(error.FeatureDisabled, store.searchSpatialRadius3D(.{ .x = 0, .y = 0, .z = 0 }, 1.0, .euclidean));
@@ -593,7 +628,10 @@ test "wdbx stub nested writes are explicit disabled operations" {
 
     var spatial = spatial_3d.SpatialIndex3D.init(std.testing.allocator);
     defer spatial.deinit();
+    var spatial_pooled = spatial_3d.SpatialIndex3D.initWithPool(std.testing.allocator, null);
+    defer spatial_pooled.deinit();
     try std.testing.expectEqual(@as(usize, 0), spatial.count());
+    try std.testing.expectEqual(@as(usize, 0), spatial_pooled.count());
     try std.testing.expectEqual(@as(f32, 1.0), spatial_3d.euclideanDistance(.{ .x = 0, .y = 0, .z = 0 }, .{ .x = 1, .y = 0, .z = 0 }));
     try std.testing.expectError(error.FeatureDisabled, spatial.insert(1, .{ .x = 0, .y = 0, .z = 0 }, "payload"));
 
@@ -603,6 +641,7 @@ test "wdbx stub nested writes are explicit disabled operations" {
     try std.testing.expect(chain.verifyChain());
     try std.testing.expectError(error.InvalidProfile, chain.append("", 1, 2, "metadata"));
     try std.testing.expectError(error.FeatureDisabled, chain.append("abi", 1, 2, "metadata"));
+    try std.testing.expectError(error.FeatureDisabled, chain.appendAt("abi", 1, 2, "metadata", 123));
     var it = chain.iterator();
     try std.testing.expect(it.next() == null);
     chain.releaseIterator();

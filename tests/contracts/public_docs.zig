@@ -50,7 +50,7 @@ test "external claims audit records repo-backed replacement language" {
     );
     defer std.testing.allocator.free(audit);
 
-    try expectContains(audit, "Zig `0.17.0-dev.329+21b7ceb5e`");
+    try expectContains(audit, "Zig `0.17.0-dev.387+31f157d80`");
     try expectContains(audit, "in-process vector/key-value/block store");
     try expectContains(audit, "Not currently proven by repo source or tests");
     try expectContains(audit, "does not currently prove distributed sharding");

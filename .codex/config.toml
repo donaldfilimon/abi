@@ -1,0 +1,7 @@
+personality = "friendly"
+
+[mcp_servers]
+
+[mcp_servers.abi-mcp]
+command = "./mcp/launcher.sh"
+args = ["stdio"]

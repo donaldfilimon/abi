@@ -49,6 +49,7 @@ graph TD
 | Constitution | `src/features/ai/constitution.zig` | Response validation against repository-defined principles. |
 | WDBX | `src/features/wdbx/mod.zig` | In-process key/value, vector, block, spatial, and stats surfaces. |
 | HNSW | `src/features/wdbx/hnsw.zig` | HNSW-style cosine search with SIMD path and GPU-vector-op fallback integration. |
+| Persistence | `src/features/wdbx/persistence.zig` | JSONL snapshot serialize/restore with SHA-256 integrity and tamper rejection. |
 | CLI | `src/abi_cli/` | Frozen command surface and handlers. |
 | MCP | `src/mcp/` | JSON-RPC 2.0 stdio and optional loopback HTTP/SSE tool surface. |
 
@@ -106,6 +107,7 @@ WDBX is currently an in-process store. Repo-backed capabilities include:
 - HNSW-style vector search with ordered result contracts;
 - SHA-256-linked conversation blocks with snapshot iteration and integrity verification;
 - in-memory 3D spatial records and distance searches;
+- JSONL snapshot persistence (`persistence.zig`) with a SHA-256 integrity line, faithful id/timestamp/hash restore, and clean rejection of tampered or out-of-range records;
 - store stats and acceleration status reporting;
 - disabled-feature stubs that preserve public shape and return explicit disabled errors for write/search paths.
 
@@ -127,8 +129,9 @@ The frozen top-level CLI commands are:
 - `twilio`
 - `tui`
 - `dashboard`
+- `wdbx`
 
-The `abi --tui` shortcut is handled separately by `src/main.zig`.
+The `abi --tui` shortcut is handled separately by `src/main.zig`. `abi wdbx` is a WDBX runtime control surface (snapshot/WAL `db`/`block`/`query`, local `benchmark`, `gpu` info, and honest in-process `cluster`/`compute`/`secure` demonstrations); it does not introduce distributed, native-accelerator, or production-database claims (see `docs/spec/wdbx-north-star.md`).
 
 ### MCP
 

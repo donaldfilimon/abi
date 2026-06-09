@@ -46,9 +46,9 @@ pub fn formatError(err: AbiError) []const u8 {
 }
 
 pub fn describeError(err: anyerror) []const u8 {
-    inline for (@typeInfo(AbiError).error_set.?) |e| {
-        if (std.mem.eql(u8, @errorName(err), e.name)) {
-            return formatError(@as(AbiError, @field(AbiError, e.name)));
+    inline for (comptime std.meta.fieldNames(AbiError)) |name| {
+        if (std.mem.eql(u8, @errorName(err), name)) {
+            return formatError(@as(AbiError, @field(AbiError, name)));
         }
     }
     return "unknown error";

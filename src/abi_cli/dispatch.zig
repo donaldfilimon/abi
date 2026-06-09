@@ -60,6 +60,7 @@ const dispatch_table = [_]DispatchEntry{
     .{ .name = "twilio", .handler = handleTwilioWrapper },
     .{ .name = "tui", .handler = handleTuiWrapper },
     .{ .name = "dashboard", .handler = handleDashboardWrapper },
+    .{ .name = "wdbx", .handler = handlers.handleWdbx },
 };
 
 pub fn runCli(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {

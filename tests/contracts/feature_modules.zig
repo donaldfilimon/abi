@@ -27,6 +27,10 @@ fn expectContains(haystack: []const u8, needle: []const u8) !void {
 
 test "feature modules expose safe runtime contracts" {
     const features = abi.features;
+    try std.testing.expect(@hasDecl(features.wdbx.persistence, "CHECKSUM_PREFIX"));
+    try std.testing.expect(@hasDecl(features.wdbx.Store, "restoreBlock"));
+    try std.testing.expect(@hasDecl(features.wdbx.storage.BlockChain, "appendAt"));
+    try std.testing.expect(@hasDecl(features.wdbx.spatial_3d.SpatialIndex3D, "initWithPool"));
 
     const gpu_caps = features.gpu.backendCapabilitiesList();
     try std.testing.expectEqual(@as(usize, 7), gpu_caps.len);

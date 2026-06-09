@@ -2,6 +2,24 @@
 
 Status tracking for incomplete work items. Reference: `docs/spec/abi-refactor-design.md`
 
+North-star vision (long-horizon direction, current-vs-proposed mapping): `docs/spec/wdbx-north-star.md`. Near-term Phase 1 work (durable WAL/segment storage, recovery tests, persona-weighted scoring, loopback REST transport) is tracked there; only **Current**/**Partial** rows are repo-backed.
+
+### North-Star Phase 1 — landed this pass (all `./build.sh check` green, parity OK)
+
+| Item | Status | Notes |
+| ---- | ------ | ----- |
+| WDBX write-ahead log + recovery | ✅ Done | `src/features/wdbx/wal.zig`: CRC32-framed append-only records, deterministic replay (reuses `persistence.deserialize`), flipped-byte + bad-header rejection. 3 unit tests. |
+| Temporal/causal graph + hybrid ranker | ✅ Done | `src/features/wdbx/temporal.zig`: recency half-life decay, causal BFS hop weight, `semantic × temporal × causal × persona` ranker. 4 unit tests. |
+| `wdbx` CLI namespace | ✅ Done | `src/abi_cli/handlers/wdbx.zig`: `db init/verify`, `block insert/get`, `query`, `benchmark`, `cluster status/demo`, `compute info`, `secure demo`, `gpu info`, `api serve`. Frozen-CLI contract = 11 commands (`tests/contracts/surface.zig`). `db verify` cross-checks WAL replay vs snapshot. Comptime-gated on `feat_wdbx`. |
+| Mod/stub parity for new wdbx modules | ✅ Done | `wal`, `temporal`, `cluster`, `compression`, `crypto_he`, `compute`, `rest` exported from `mod.zig`; matching empty parity markers in `stub.zig`; `zig build check-parity` green with `-Dfeat-wdbx=false`. |
+| In-process cluster consensus (demo) | ✅ Done (in-process) | `src/features/wdbx/cluster.zig`: Raft-style leader election, majority-quorum replication, leader failover, quorum-loss detection over an in-process node array; `abi wdbx cluster demo`. 4 named tests. **Not** networked/multi-host. |
+| Compute backend selector | ✅ Done | `src/features/wdbx/compute.zig`: CPU (`scalar`/`avx2`/`avx512`/`neon`, host-detected) / GPU / NPU / TPU enumeration + dynamic selection, always degrading to the deterministic CPU SIMD path; `abi wdbx compute info`. 3 named tests. Native ANE/TPU/CUDA/Metal dispatch **not linked**. |
+| Embedding compression (demo) | ✅ Done | `src/features/wdbx/compression.zig`: int8 scalar quantization round-trip (~4×, bounded error); `abi wdbx secure demo`. 3 named tests. **Not** a learned/entropy codec. |
+| Additive homomorphic aggregation (demo) | ✅ Done | `src/features/wdbx/crypto_he.zig`: additive single-key homomorphism over GF(p) — ciphertext sums decrypt to plaintext sums; `abi wdbx secure demo`. 5 named tests. **Not** full (multiplicative) FHE. |
+| Loopback REST listener | ✅ Done | `src/features/wdbx/rest.zig`: pure unit-tested `route(method, path, body)` core + 127.0.0.1 listener serving `POST /insert /query /verify`, `GET /health /stats`; `abi wdbx api serve [port]` (default 8081). 4 named tests. **Loopback only** — not hardened for external exposure. |
+
+**Remaining Phase 1 (not yet done):** multi-segment storage + epoch reclamation, automatic startup recovery, and wiring the temporal/causal hybrid ranker into the default `wdbx_query` path + persisting the causal graph. **Still Proposed** — in-process demos exist (rows above), but the production/scaled forms do not, so do not present them as shipped: a **networked** RPC transport so the cluster core spans separate hosts, **native** ANE/TPU/CUDA/Metal compute dispatch, a **learned** compression codec, full **multiplicative** FHE, and hardening the REST listener for non-loopback exposure. See `docs/spec/wdbx-north-star.md` §2/§8 for the Current/Partial/Proposed mapping.
+
 ## Priority: HIGH
 
 | Item | Status | Notes |
@@ -69,6 +87,7 @@ See `tasks/roadmap-next.md` for the full refreshed view. High-level priorities:
 - Tests for real scheduler usage in training: ✅ added ("scheduler drives training tasks" integration test + agent handler now submits real TrainTask via sched).
 - Live transport integration tests: ✅ Done (LoopbackHttpServer + httpPostJson/Form round-trip tests).
 - MemoryTracker in WDBX hot paths (putVector, search): ✅ Done (non-fallible trackAllocNoTag/trackFreeNoTag + integration test).
+- Pool allocator adoption in WDBX: ✅ Done for padded vector buffers and small spatial payload copies through `Store.initWithConfig`.
 - TUI interactivity: ✅ Done (InteractiveTerminal in tui/mod.zig owns raw mode + key reading; dashboard.zig simplified).
 
 **Integration & Architecture**
@@ -103,5 +122,7 @@ Zig 0.17 classic syntax work is largely complete. Focus is now architectural int
 - **Live transport tests (Stream 5)**: Added LoopbackHttpServer to test_helpers.zig; httpPostJson and httpPostForm round-trip integration tests against loopback.
 - **TUI InteractiveTerminal**: Moved raw mode + key reading into tui/mod.zig; dashboard.zig simplified to use it; stub parity maintained.
 - **AI scheduler helper surface**: Added `CompletionTaskContext`, `TrainingTaskContext`, `submitCompletionTask`, and `submitTrainingTask`; wired CLI/MCP completion and agent training through the helpers with feature-disabled fallback.
+- **WDBX pool allocator adoption**: `StoreConfig.pool_alloc` now feeds both padded vector/search buffers and small `SpatialIndex3D` payload copies, with heap fallback for oversized payloads; stub and contract surface updated.
+- **ArrayList cleanup**: Removed the final live `std.ArrayList(...)` use from `src/testing/test_helpers.zig`; `rg "std\\.ArrayList\\("` now returns no source hits.
 - **Docs reconciliation**: roadmap-next.md and todo.md reflect all new closures.
-- `./build.sh check` + parity green post-changes (pending rerun after AI scheduler helper expansion).
+- `./build.sh check` + parity green after WDBX pool/spatial payload expansion.

@@ -8,6 +8,8 @@
 
 **Tech Stack:** Zig 0.17, existing `core/scheduler.zig`, `core/memory.zig`, `features/ai`, `./build.sh` gates, mod/stub discipline.
 
+**Status note (2026-06-09):** The AI scheduler/helper work, production call-site wiring, and test expansion have since landed in the broader workspace. The "advanced stateful feature" track materialized as the default-on `telemetry` feature; the active WDBX follow-through now lives in `tasks/todo.md` and `docs/spec/wdbx-north-star.md`.
+
 ---
 
 ## PR Plan
@@ -115,7 +117,7 @@
    git commit -m "test: comprehensive coverage for AI scheduler/memory integration"
    ```
 
-### PR 4: Scaffold one new advanced stateful feature with submodules
+### PR 4: Scaffold one new advanced stateful feature with submodules (implemented as `telemetry`)
 
 **Description:** Using the exact modern scaffolding process validated with `hash` and `metrics`, add one additional advanced feature that is stateful (has init/deinit owning state), contains at least one submodule that requires mod/stub parity, and demonstrates cross-import wiring (e.g. into scheduler or AI).
 

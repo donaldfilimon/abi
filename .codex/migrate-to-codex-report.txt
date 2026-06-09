@@ -1,0 +1,12 @@
+Migration inventory:
+  inactive: instruction files - none found
+  inactive: skills - none found
+  inactive: command sources - none found
+  inactive: subagents - none found
+Migration surfaces:
+  inactive: AGENTS.md - No supported instruction file found.
+  inactive: skills - Not selected by CLI flags.
+  active: MCP config - 1 MCP server(s) converted into config.toml.
+  inactive: subagents - Not selected by CLI flags.
+Migration report:
+  rewritten: .codex/config.toml - Converted 1 MCP server entries.

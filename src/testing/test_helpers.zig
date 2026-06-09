@@ -151,7 +151,8 @@ pub const LoopbackHttpServer = struct {
             const conn = self.server.accept(io) catch break;
             defer conn.close(io);
 
-            var read_buf = std.ArrayList(u8).initCapacity(allocator, 4096) catch break;
+            var read_buf: std.ArrayListUnmanaged(u8) = .empty;
+            read_buf.ensureTotalCapacity(allocator, 4096) catch break;
             defer read_buf.deinit(allocator);
 
             while (true) {

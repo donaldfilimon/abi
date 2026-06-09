@@ -11,7 +11,7 @@ This audit reconciles public collateral claims from the Drive files opened on 20
 
 | Claim area | Current repo evidence | Safe external wording |
 | --- | --- | --- |
-| Toolchain | `.zigversion`, `build.zig`, README quick start | ABI targets Zig `0.17.0-dev.329+21b7ceb5e`; older Zig 0.16 wording is stale. |
+| Toolchain | `.zigversion`, `build.zig`, README quick start | ABI targets Zig `0.17.0-dev.813+2153f8143`; older Zig 0.16 wording is stale. |
 | WDBX vector store | `src/features/wdbx/mod.zig`, `hnsw.zig`, `tests/contracts/surface.zig` | WDBX provides an in-process vector store with fixed-capacity padded vectors, HNSW-style indexing, SIMD cosine distance, ordered search-result contract coverage, and disabled-feature stubs. |
 | Block history | `src/features/wdbx/chain.zig`, `tests/contracts/surface.zig` | WDBX provides SHA-256-linked conversation blocks with snapshot iteration and integrity verification coverage. |
 | Spatial records | `src/features/wdbx/spatial_3d.zig`, `Store.stats()` | WDBX includes an in-memory 3D spatial index with Euclidean, Manhattan, and cosine-distance searches. |
@@ -20,6 +20,7 @@ This audit reconciles public collateral claims from the Drive files opened on 20
 | MCP/CLI | `src/abi_cli/usage.zig`, `src/mcp/handlers.zig`, contract tests | Public CLI commands and MCP tools are small, frozen surfaces guarded by contract tests. |
 | GPU | `src/features/gpu/`, `build.zig`, contract tests | GPU support is capability/status reporting plus vector operations that deterministically fall back to CPU when native kernels are unavailable. |
 | Connectors | `src/connectors/`, `docs/contracts/public-api.md` | OpenAI, Anthropic, Discord, Grok, and Twilio connectors validate local/live boundaries; live HTTP dispatch is explicit. |
+| WDBX roadmap demos | `src/features/wdbx/{wal,temporal,cluster,compute,compression,crypto_he,rest}.zig`, `src/abi_cli/handlers/wdbx.zig`, `docs/spec/wdbx-north-star.md` | The `abi wdbx` namespace adds a durable write-ahead log (replay + corruption detection) and a temporal/causal hybrid ranker, plus **in-process demonstrations**: `cluster demo` (single-host Raft-style consensus), `compute info` (CPU/GPU/NPU/TPU selection with deterministic CPU fallback), `secure demo` (int8 quantization + additive single-key homomorphic aggregation), and `api serve` (loopback REST). Present these as in-process/roadmap demos only — **not** distributed clustering, native NPU/TPU execution, learned compression, or full FHE. |
 
 ## Claims To Remove Or Downgrade
 

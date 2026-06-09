@@ -1,10 +1,10 @@
 # ABI Framework
 
-ABI is a **Zig 0.17.0-dev.329+21b7ceb5e** framework for local AI service orchestration, semantic vector storage, GPU capability reporting, and runtime primitives.
+ABI is a **Zig 0.17.0-dev.813+2153f8143** framework for local AI service orchestration, semantic vector storage, GPU capability reporting, and runtime primitives.
 
 ## Quick Start
 ```bash
-zig version             # Confirm Zig 0.17.0-dev.329+ compatible toolchain
+zig version             # Confirm Zig 0.17.0-dev.813+ compatible toolchain
 ./build.sh check        # Primary validation gate on macOS/Darwin
 ./build.sh full-check   # Check + integration tests + benchmarks + TUI smoke
 ./build.sh cli          # Build zig-out/bin/abi

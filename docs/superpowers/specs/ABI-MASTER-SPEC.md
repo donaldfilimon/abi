@@ -3,7 +3,7 @@
 This document serves as the master reference for the ABI Framework, encompassing both the architectural design of the core system and the plugin ecosystem.
 
 ## 1. Architectural Vision (Refactor 2026-05-14)
-The ABI framework is built on a data-oriented composition model targeting Zig 0.17.0, with feature-gated modules, explicit ownership, and a generated static plugin registry that preserves plugin manifest metadata. Public claims should stay inside what the current source and validation gates prove.
+The ABI framework is built on a data-oriented composition model targeting Zig 0.17, with feature-gated modules, explicit ownership, and a generated static plugin registry that preserves plugin manifest metadata. Public claims should stay inside what the current source and validation gates prove.
 
 ### Core Principles
 - **Explicit Memory Management**: Custom allocators (Arena, Pool).
@@ -12,8 +12,10 @@ The ABI framework is built on a data-oriented composition model targeting Zig 0.
 - **Registry-Based Lifecycle & Observability (Significantly Advanced)**: 
   - `core/scheduler.zig` now drives real user work (`abi agent train` submits prioritized TrainTasks; dashboard emits live ticks; MCP owns a long-lived scheduler instance exposed via `scheduler_stats` tool). `Scheduler.stats()` + `MemoryTracker` attachment provide deep visibility.
   - Metrics counters (`submitted`/`completed`/`failed`) are live on task lifecycle when `-Dfeat-metrics`.
+  - The default-on `telemetry` feature exposes lightweight `record` / `increment` hooks.
   - MemoryTracker + TrackingAllocator are wired into production CLI paths (agent train arenas + dashboard scheduler) and integration tests.
   - WDBX `Store` + HNSW acceleration status is updated on every vector op and surfaced in stats/manifest/MCP/CLI.
+  - The `abi wdbx` namespace operates local snapshots, WAL verification, blocks, queries, benchmarks, GPU info, loopback REST, and in-process roadmap demos.
   - All of this is exercised by contract tests and the new accelerated HNSW GPU path coverage.
 
 ## 2. Directory & Module Structure
@@ -28,7 +30,7 @@ src/
 ├── foundation/        # OS and primitive abstractions (io, time, sync)
 ├── features/          # Domain-specific modules
 │   ├── ai/            # Abbey-Aviva-Abi Pipeline (Router, profiles, governance)
-│   └── wdbx/          # Vector Storage & Block Chain (HNSW index, MVCC chain)
+│   └── wdbx/          # Vector Storage & Runtime (HNSW, chain, snapshots, WAL, demos)
 ├── plugins/           # Static plugin manifests and local plugin manager
 ├── integration_tests.zig
 └── benchmarks.zig
@@ -37,6 +39,8 @@ src/
 ## 3. Core Features (WDBX Substrate)
 - **HNSW Index**: Hierarchical Navigable Small World index. Cosine distance uses a portable SIMD implementation (`cosineDistanceSIMD` with `@Vector` + scalar fallback) with an optional real GPU-accelerated fast path (via `gpu.vectorOps().cosineSimilarity` / dot when `feat-gpu` + backend reports accelerated + Metal context available on macOS). The accelerated path is exercised by new dedicated contract tests in `tests/contracts/feature_modules.zig` (using the existing `gpu.vectorOps()` surface + HNSW via `Store.putVector`/`search`).
 - **Block Chain Memory**: Cryptographically chained conversation blocks (SHA-256) with MVCC-based snapshot lookup for immutable state management; contract tests cover metadata round-tripping and snapshot access.
+- **Durability**: JSONL snapshots include a SHA-256 integrity line; the WAL uses CRC32-framed append records with replay and corruption detection. `abi wdbx db verify` cross-checks local snapshot and WAL state.
+- **Roadmap Modules**: `cluster`, `compute`, `compression`, `crypto_he`, and `rest` provide in-process demonstrations and loopback APIs. They are intentionally scoped as demos unless source/tests later prove distributed transport, native accelerator dispatch, learned compression, or full FHE.
 - **Observability & Lifecycle**: `Store` exposes `stats()` + `accelerationStatus()` (backend/mode/message) updated on vector/spatial ops. Acceleration reporting is also surfaced via `exportManifest()`.
 - **Claim Boundary**: The current repo does not prove distributed sharding, AES/RBAC, Swift/Python/TensorFlow runtime support, Kubernetes/H100 deployments, regulatory certifications, production QPS/latency/accuracy, energy efficiency, or comparative model benchmark scores. (Note: real GPU acceleration for HNSW cosine *has* been implemented and contract-tested as of Phase 2.)
 
@@ -67,6 +71,7 @@ Each plugin must provide a manifest. `entry_point` must be a safe relative `.zig
 
 ### CLI & Build Integration
 - **CLI**: `abi plugin list` lists the statically generated registry contents with plugin count, version, target feature, entry point, and description metadata.
+- **WDBX CLI**: `abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` is a contract-tested local runtime surface. The `cluster`, `compute`, and `secure` subcommands are in-process demonstrations, not distributed or native-accelerator claims.
 - **Build System**: `build.zig` runs `tools/generate_plugin_registry.zig`, generating `src/plugin_registry.zig` before CLI/check builds.
 - **Validation**: Plugin feature surfaces with `mod.zig`/`stub.zig` pairs are checked by `zig build check-parity`; this checks top-level public declaration names, not complete signatures. Generated multi-plugin registry metadata is covered by `tests/contracts/plugin_registry.zig`.
 - **Security**: No dynamic loading (shared libraries) is allowed; static compilation integrity is maintained.

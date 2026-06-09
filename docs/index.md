@@ -6,6 +6,7 @@ Welcome to the ABI framework documentation. This hub provides central access to 
 - [ABI Refactor Design](spec/abi-refactor-design.md)
 - [ABI Master Specification](superpowers/specs/ABI-MASTER-SPEC.md)
 - [Multi-Persona Technical Overview](spec/multi-persona-technical.md)
+- [WDBX North-Star (vision/roadmap — Current vs. Proposed)](spec/wdbx-north-star.md)
 - [Public API Contract](contracts/public-api.md)
 - [External Claims Audit](contracts/external-claims-audit.md)
 

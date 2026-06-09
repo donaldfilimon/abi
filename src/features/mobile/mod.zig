@@ -54,14 +54,7 @@ pub fn detectPlatform() PlatformStatus {
         };
     }
 
-    if (comptime has: {
-        const Tag = std.Target.Os.Tag;
-        const info = @typeInfo(Tag).@"enum";
-        for (info.fields) |field| {
-            if (std.mem.eql(u8, field.name, "android")) break :has true;
-        }
-        break :has false;
-    }) {
+    if (comptime @hasField(std.Target.Os.Tag, "android")) {
         if (builtin.target.os.tag == .android) {
             return .{
                 .platform = .android,

@@ -8,6 +8,13 @@ pub const index = @import("hnsw.zig");
 pub const storage = @import("chain.zig");
 pub const spatial_3d = @import("spatial_3d.zig");
 pub const persistence = @import("persistence.zig");
+pub const wal = @import("wal.zig");
+pub const temporal = @import("temporal.zig");
+pub const cluster = @import("cluster.zig");
+pub const compression = @import("compression.zig");
+pub const crypto_he = @import("crypto_he.zig");
+pub const compute = @import("compute.zig");
+pub const rest = @import("rest.zig");
 
 pub const MAX_LAYERS = 4;
 
@@ -51,10 +58,10 @@ pub const StoreStats = struct {
 };
 
 pub const StoreConfig = struct {
-    /// Optional fixed-block pool allocator used for the per-vector padding
-    /// buffers in `putVector` and `search`. Block size must be at least
-    /// `VECTOR_PADDED_BYTES`. When null, the store uses the heap allocator
-    /// directly. The pool is borrowed; the caller owns its lifecycle.
+    /// Optional fixed-block pool allocator used for hot-path padded vector
+    /// buffers and small spatial payload copies. Block size must be at least
+    /// `VECTOR_PADDED_BYTES`. Larger payloads fall back to the heap allocator.
+    /// The pool is borrowed; the caller owns its lifecycle.
     pool_alloc: ?*foundation_pool.PoolAllocator = null,
 };
 
@@ -80,7 +87,7 @@ pub const Store = struct {
             .entries = std.StringHashMap([]const u8).init(a),
             .index = index.HnswIndex(HNSW_DIMENSIONS).init(a),
             .chain = storage.BlockChain.init(a),
-            .spatial_index = spatial_3d.SpatialIndex3D.init(a),
+            .spatial_index = spatial_3d.SpatialIndex3D.initWithPool(a, config.pool_alloc),
             .acceleration = defaultAcceleration(),
             .tracker = null,
             .pool_alloc = config.pool_alloc,
@@ -227,6 +234,12 @@ pub const Store = struct {
 
     pub fn appendBlock(self: *Store, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8) ![32]u8 {
         return try self.chain.append(profile, query_id, response_id, metadata);
+    }
+
+    /// Append a block preserving an explicit `timestamp_ms`. Used by snapshot
+    /// restore so reconstructed block hashes match the originals exactly.
+    pub fn restoreBlock(self: *Store, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8, timestamp_ms: i64) ![32]u8 {
+        return try self.chain.appendAt(profile, query_id, response_id, metadata, timestamp_ms);
     }
 
     pub fn blockCount(self: *const Store) usize {
@@ -385,7 +398,7 @@ test "Store validates edge cases and exports complete stats" {
     try std.testing.expect(std.mem.indexOf(u8, manifest, "\"vector_dimensions\":null") != null);
 }
 
-test "Store reuses pool-allocated padded buffers for putVector and search" {
+test "Store reuses pool-allocated buffers for vectors and spatial payloads" {
     var pool = foundation_pool.PoolAllocator.init(std.testing.allocator, VECTOR_PADDED_BYTES);
     defer pool.deinit();
 
@@ -409,10 +422,24 @@ test "Store reuses pool-allocated padded buffers for putVector and search" {
     const results = try store_obj.search(&.{ 0, 0, 0, 0 }, 5);
     defer std.testing.allocator.free(results);
     try std.testing.expect(results.len > 0);
+
+    try store_obj.putSpatial3D(99, .{ .x = 1, .y = 2, .z = 3 }, "pooled-payload");
+    try std.testing.expectEqual(initial_chunks + 1, pool.chunks.items.len);
+    const spatial_results = try store_obj.searchSpatial3D(.{ .x = 1, .y = 2, .z = 3 }, 1, .euclidean);
+    defer std.testing.allocator.free(spatial_results);
+    try std.testing.expectEqual(@as(usize, 1), spatial_results.len);
+    try std.testing.expectEqualStrings("pooled-payload", spatial_results[0].payload);
 }
 
 test {
     _ = @import("hnsw.zig");
     _ = @import("chain.zig");
+    _ = @import("wal.zig");
+    _ = @import("temporal.zig");
+    _ = @import("cluster.zig");
+    _ = @import("compression.zig");
+    _ = @import("crypto_he.zig");
+    _ = @import("compute.zig");
+    _ = @import("rest.zig");
     std.testing.refAllDecls(@This());
 }

@@ -7,6 +7,7 @@ pub const auth_mod = @import("auth.zig");
 pub const plugin_mod = @import("plugin.zig");
 pub const twilio_mod = @import("twilio.zig");
 pub const dashboard_mod = @import("dashboard.zig");
+pub const wdbx_mod = @import("wdbx.zig");
 
 // Re-export all handler functions for backward compatibility
 pub const handleBackends = backends_mod.handleBackends;
@@ -19,6 +20,7 @@ pub const handlePlugin = plugin_mod.handlePlugin;
 pub const handleTwilio = twilio_mod.handleTwilio;
 pub const handleDashboard = dashboard_mod.handleDashboard;
 pub const renderTui = dashboard_mod.renderTui;
+pub const handleWdbx = wdbx_mod.handleWdbx;
 
 test {
     std.testing.refAllDecls(@This());

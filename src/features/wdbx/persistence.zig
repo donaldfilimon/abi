@@ -2,6 +2,7 @@ const std = @import("std");
 const wdbx_mod = @import("mod.zig");
 
 pub const HEADER = "# ABI-WDBX v1";
+pub const CHECKSUM_PREFIX = "# checksum:";
 
 pub const PersistenceError = error{
     InvalidHeader,
@@ -10,6 +11,9 @@ pub const PersistenceError = error{
     OutOfMemory,
     DuplicateVectorId,
     DimensionMismatch,
+    CorruptVectorId,
+    ChecksumMismatch,
+    FieldOutOfRange,
 };
 
 pub fn serialize(allocator: std.mem.Allocator, store: *const wdbx_mod.Store) ![]u8 {
@@ -99,6 +103,18 @@ pub fn serialize(allocator: std.mem.Allocator, store: *const wdbx_mod.Store) ![]
         try out.writer.writeAll("\n");
     }
 
+    // Trailing integrity line: SHA-256 over the record body (everything after the
+    // header line). Covers kv/spatial/vector/block records uniformly so a
+    // truncated or tampered snapshot is rejected on load rather than silently
+    // restoring partial state. Verification on read is optional for backward
+    // compatibility with checksum-less snapshots.
+    const body = out.written()[HEADER.len + 1 ..];
+    var digest: [32]u8 = undefined;
+    std.crypto.hash.sha2.Sha256.hash(body, &digest, .{});
+    try out.writer.writeAll(CHECKSUM_PREFIX);
+    try out.writer.writeAll(&std.fmt.bytesToHex(digest, .lower));
+    try out.writer.writeAll("\n");
+
     return out.toOwnedSlice();
 }
 
@@ -110,9 +126,22 @@ pub fn deserialize(allocator: std.mem.Allocator, content: []const u8) !wdbx_mod.
     const first = lines.next() orelse return error.InvalidHeader;
     if (!std.mem.eql(u8, first, HEADER)) return error.InvalidHeader;
 
+    // Optional integrity check: if a trailing checksum line is present, the
+    // record body must hash to it. Older checksum-less snapshots skip this.
+    if (std.mem.lastIndexOf(u8, content, "\n" ++ CHECKSUM_PREFIX)) |nl_pos| {
+        const expected = std.mem.trim(u8, content[nl_pos + 1 + CHECKSUM_PREFIX.len ..], " \t\r\n");
+        const body = content[HEADER.len + 1 .. nl_pos + 1];
+        var digest: [32]u8 = undefined;
+        std.crypto.hash.sha2.Sha256.hash(body, &digest, .{});
+        if (!std.mem.eql(u8, expected, &std.fmt.bytesToHex(digest, .lower))) {
+            return error.ChecksumMismatch;
+        }
+    }
+
     while (lines.next()) |raw| {
         const line = std.mem.trim(u8, raw, " \t\r");
         if (line.len == 0) continue;
+        if (line[0] == '#') continue; // header/checksum/comment line
         try applyLine(allocator, &store, line);
     }
 
@@ -159,7 +188,9 @@ fn applyLine(allocator: std.mem.Allocator, store: *wdbx_mod.Store, line: []const
         };
         try store.store(key_s, val_s);
     } else if (std.mem.eql(u8, type_slice, "vector")) {
+        const id_node = obj.get("id") orelse return error.MissingField;
         const values_node = obj.get("values") orelse return error.MissingField;
+        const expected_id = try jsonU32(id_node);
         const values_arr = switch (values_node) {
             .array => |a| a,
             else => return error.MissingField,
@@ -172,39 +203,39 @@ fn applyLine(allocator: std.mem.Allocator, store: *wdbx_mod.Store, line: []const
             values[n] = jsonNumberAsF32(v) orelse return error.MissingField;
             n += 1;
         }
-        _ = try store.putVector(values[0..n]);
+        // Vectors are append-only with monotonically assigned ids, so a valid
+        // snapshot restores each vector to its original id. A mismatch means the
+        // records were reordered or tampered with — fail rather than load silently.
+        const assigned = try store.putVector(values[0..n]);
+        if (assigned != expected_id) return error.CorruptVectorId;
     } else if (std.mem.eql(u8, type_slice, "block")) {
         const profile_node = obj.get("profile") orelse return error.MissingField;
         const query_id_node = obj.get("query_id") orelse return error.MissingField;
         const response_id_node = obj.get("response_id") orelse return error.MissingField;
         const metadata_node = obj.get("metadata") orelse return error.MissingField;
+        const timestamp_node = obj.get("timestamp_ms") orelse return error.MissingField;
         const profile_s = switch (profile_node) {
             .string => |s| s,
             else => return error.MissingField,
         };
-        const query_id = switch (query_id_node) {
-            .integer => |i| @as(u32, @intCast(i)),
-            else => return error.MissingField,
-        };
-        const response_id = switch (response_id_node) {
-            .integer => |i| @as(u32, @intCast(i)),
-            else => return error.MissingField,
-        };
+        const query_id = try jsonU32(query_id_node);
+        const response_id = try jsonU32(response_id_node);
         const metadata_s = switch (metadata_node) {
             .string => |s| s,
             else => return error.MissingField,
         };
-        _ = try store.appendBlock(profile_s, query_id, response_id, metadata_s);
+        const timestamp_ms = switch (timestamp_node) {
+            .integer => |i| @as(i64, @intCast(i)),
+            else => return error.MissingField,
+        };
+        _ = try store.restoreBlock(profile_s, query_id, response_id, metadata_s, timestamp_ms);
     } else if (std.mem.eql(u8, type_slice, "spatial")) {
         const id_node = obj.get("id") orelse return error.MissingField;
         const x_node = obj.get("x") orelse return error.MissingField;
         const y_node = obj.get("y") orelse return error.MissingField;
         const z_node = obj.get("z") orelse return error.MissingField;
         const payload_node = obj.get("payload") orelse return error.MissingField;
-        const id = switch (id_node) {
-            .integer => |i| @as(u32, @intCast(i)),
-            else => return error.MissingField,
-        };
+        const id = try jsonU32(id_node);
         const x = jsonNumberAsF32(x_node) orelse return error.MissingField;
         const y = jsonNumberAsF32(y_node) orelse return error.MissingField;
         const z = jsonNumberAsF32(z_node) orelse return error.MissingField;
@@ -216,6 +247,17 @@ fn applyLine(allocator: std.mem.Allocator, store: *wdbx_mod.Store, line: []const
     } else {
         return error.UnknownLineType;
     }
+}
+
+/// Extract a `u32` from an untrusted JSON value. Returns `MissingField` if the
+/// node is not an integer and `FieldOutOfRange` if it does not fit in `u32`,
+/// so a corrupt/tampered snapshot fails cleanly instead of panicking on cast.
+fn jsonU32(v: std.json.Value) PersistenceError!u32 {
+    const i = switch (v) {
+        .integer => |x| x,
+        else => return error.MissingField,
+    };
+    return std.math.cast(u32, i) orelse error.FieldOutOfRange;
 }
 
 fn jsonNumberAsF32(v: std.json.Value) ?f32 {
@@ -264,6 +306,61 @@ test "persistence: round-trip kv, vector, block, spatial via JSONL" {
     defer std.testing.allocator.free(nearest);
     try std.testing.expect(nearest.len == 1);
     try std.testing.expect(nearest[0].score > 0.99);
+}
+
+test "persistence: block timestamps and hashes survive round-trip exactly" {
+    var src = wdbx_mod.Store.init(std.testing.allocator);
+    defer src.deinit();
+
+    _ = try src.appendBlock("abbey", 1, 2, "{\"turn\":1}");
+    _ = try src.appendBlock("aviva", 3, 4, "{\"turn\":2}");
+    const src_last = src.lastBlock().?;
+
+    const bytes = try serialize(std.testing.allocator, &src);
+    defer std.testing.allocator.free(bytes);
+
+    var dst = try deserialize(std.testing.allocator, bytes);
+    defer dst.deinit();
+
+    const dst_last = dst.lastBlock().?;
+    // Faithful restore: identical timestamp reproduces an identical SHA-256 hash.
+    try std.testing.expectEqual(src_last.timestamp_ms, dst_last.timestamp_ms);
+    try std.testing.expect(std.mem.eql(u8, &src_last.id, &dst_last.id));
+    try std.testing.expect(std.mem.eql(u8, &src_last.prev_id, &dst_last.prev_id));
+    try std.testing.expect(dst.verifyBlocks());
+}
+
+test "persistence: detects body corruption via trailing checksum" {
+    var src = wdbx_mod.Store.init(std.testing.allocator);
+    defer src.deinit();
+    try src.store("k1", "v1");
+    try src.putSpatial3D(1, .{ .x = 1, .y = 2, .z = 3 }, "p");
+
+    const bytes = try serialize(std.testing.allocator, &src);
+    defer std.testing.allocator.free(bytes);
+
+    // A clean snapshot round-trips; flipping any body byte must be rejected.
+    // Target the quoted kv value so the header version "v1" is not disturbed.
+    const idx = std.mem.indexOf(u8, bytes, "\"v1\"").?;
+    bytes[idx + 1] = 'X';
+    try std.testing.expectError(error.ChecksumMismatch, deserialize(std.testing.allocator, bytes));
+}
+
+test "persistence: rejects tampered vector id" {
+    const tampered = HEADER ++ "\n" ++
+        "{\"type\":\"vector\",\"id\":42,\"values\":[1.0,0.0,0.0,0.0]}\n";
+    try std.testing.expectError(error.CorruptVectorId, deserialize(std.testing.allocator, tampered));
+}
+
+test "persistence: rejects out-of-range integer field without panicking" {
+    // id exceeds u32; a corrupt/tampered snapshot must fail cleanly, not panic.
+    const overflow = HEADER ++ "\n" ++
+        "{\"type\":\"vector\",\"id\":4294967296,\"values\":[1.0,0.0,0.0,0.0]}\n";
+    try std.testing.expectError(error.FieldOutOfRange, deserialize(std.testing.allocator, overflow));
+
+    const negative = HEADER ++ "\n" ++
+        "{\"type\":\"spatial\",\"id\":-1,\"x\":0,\"y\":0,\"z\":0,\"payload\":\"p\"}\n";
+    try std.testing.expectError(error.FieldOutOfRange, deserialize(std.testing.allocator, negative));
 }
 
 test "persistence: rejects unknown header" {

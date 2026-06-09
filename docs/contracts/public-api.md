@@ -25,6 +25,7 @@ Feature modules are selected by `src/features/mod.zig` from `build_options` and 
 - `gpu`
 - `hash`
 - `metrics`
+- `telemetry`
 - `mlir`
 - `os_control`
 - `shaders`
@@ -62,8 +63,11 @@ The CLI command surface is guarded by `tests/contracts/surface.zig` and currentl
 - `twilio`
 - `tui`
 - `dashboard`
+- `wdbx`
 
 The top-level `abi --tui` shortcut is handled in `src/main.zig` outside the frozen `usage.commands` array. `abi complete` prints completion persistence observability (`persisted=`, WDBX counts, vector IDs, metadata key, and block hash when available) for its transient in-memory WDBX store.
+
+`abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` is a WDBX runtime control surface backed by the in-process store, JSONL snapshots, and the write-ahead log (`src/abi_cli/handlers/wdbx.zig`). `db`/`block`/`query`/`benchmark`/`gpu`/`api` operate the durable store and report state; `cluster`, `compute`, and `secure` are honest in-process demonstrations (single-host Raft-style consensus, backend selection with deterministic CPU fallback, int8 quantization, and additive single-key homomorphic aggregation). They are **not** distributed clustering, native NPU/TPU execution, learned compression, or full FHE — see `docs/spec/wdbx-north-star.md` and `docs/contracts/external-claims-audit.md`.
 
 ## MCP contract
 

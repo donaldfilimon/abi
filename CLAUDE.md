@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Trust executable config over prose: when this file conflicts with `build.zig`, `tools/build.sh`, or source, trust the executable source. `AGENTS.md` is a richer companion to this file; `tasks/lessons.md` is the session-start checklist and `tasks/todo.md` tracks active work and known failures.
 
-Toolchain is pinned to Zig `0.17.0-dev.329+21b7ceb5e` (see `.zigversion`). On macOS/Darwin, prefer `./build.sh ...` (a thin wrapper over `tools/build.sh` → `zig build`) over raw `zig build` for the documented workflow.
+Toolchain is pinned to Zig `0.17.0-dev.813+2153f8143` (see `.zigversion`). On macOS/Darwin, prefer `./build.sh ...` (a thin wrapper over `tools/build.sh` → `zig build`) over raw `zig build` for the documented workflow.
 
 ## Common Development Commands
 
@@ -51,10 +51,11 @@ Note: `src/mcp/` is the Zig MCP server; the **repo-root `mcp/`** directory holds
 - **Mod/Stub Pattern**: Ensure public API stability by checking mod/stub parity frequently. Every feature has real `mod.zig` and disabled `stub.zig`; update both when changing public APIs.
 - **Build Flow**: `./build.sh check` includes contract tests plus focused feature-off and feature-aware public contracts for every `-Dfeat-*` stub.
 - **Feature Flags**: 
-  - Enabled by default: `feat-ai`, `feat-wdbx`, `feat-gpu`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-os-control`, `feat-tui`, `feat-hash`
+  - Enabled by default: `feat-ai`, `feat-wdbx`, `feat-gpu`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-os-control`, `feat-tui`, `feat-hash`, `feat-telemetry`
   - Disabled by default: `feat-mobile`, `feat-metrics`
+  - Each flag selects between a feature's `mod.zig` (enabled) and `stub.zig` (disabled) in `src/features/mod.zig`; keep both in declaration-name parity (`zig build check-parity`).
 - **Import Rules**: Within `src/`, use relative `.zig` imports. `@import("abi")` is only allowed from `src/mcp/main.zig` and `src/mcp/handlers.zig`. Always include `.zig` extension on path imports.
-- **CLI Contracts** (frozen, contract-tested in `tests/contracts/`): top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, plus the `abi --tui` shortcut handled outside `src/abi_cli/usage.zig`. `agent` subcommands: `plan | train <profile|all> | tui | os <dry-run|execute --confirm>`. Do **not** dispatch legacy names: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, `serve`.
+- **CLI Contracts** (frozen, contract-tested in `tests/contracts/`): top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, plus the `abi --tui` shortcut handled outside `src/abi_cli/usage.zig`. `agent` subcommands: `plan | train <profile|all> | tui | os <dry-run|execute --confirm>`. `wdbx` subcommands: `db <init|verify> | block <insert|get> | query | benchmark | cluster <status|demo> | compute info | secure demo | gpu info | api serve` (see `src/abi_cli/handlers/wdbx.zig`). Do **not** dispatch legacy names: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, `serve`.
 - **MCP Contracts**: Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. JSON-RPC 2.0 over stdio with a 64 KB request cap; optional HTTP on `127.0.0.1:8080` (`ABI_MCP_HTTP_PORT` to override; empty/invalid/zero/out-of-range falls back to 8080; bind failure leaves stdio running). HTTP endpoints: `GET /sse`, `POST /message`.
 - **Generated Code**: Do not manually edit `src/plugin_registry.zig`; the build regenerates it from `src/plugins/*/abi-plugin.json` via `tools/generate_plugin_registry.zig`. Plugin manifests must include `name`, `version`, `description`, `target_feature`, and a safe relative `.zig` `entry_point` that exists under the plugin directory (`targetFeature` / `entryPoint` aliases accepted).
 - **Zig 0.17 Patterns**: 
