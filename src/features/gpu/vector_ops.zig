@@ -135,6 +135,27 @@ test "gpu vector ops provide deterministic acceleration" {
     try std.testing.expect((try ops.cosineSimilarity(&.{ 1, 0 }, &.{ 1, 0 })) == 1);
 }
 
+test "gpu vector ops: active backend matches scalar reference (CPU/GPU parity)" {
+    // Whatever backend init() selected — the Metal kernel when initialized on
+    // macOS, otherwise the vectorized CPU fallback — must agree with an
+    // independent scalar reference. This is the mandated CPU/GPU parity check:
+    // it validates the active path rather than asserting a specific backend.
+    const ops = vectorOps();
+    // Length 10 exercises both the 4-wide vector loop and the scalar tail.
+    const a = [_]f32{ 0.5, -1.0, 2.25, 3.0, -0.75, 1.5, 0.0, 4.0, -2.0, 0.125 };
+    const b = [_]f32{ 1.0, 2.0, -0.5, 0.25, 4.0, -1.0, 3.0, 0.5, 1.25, -3.0 };
+
+    var ref_dot: f32 = 0;
+    var ref_l2: f32 = 0;
+    for (a, b) |x, y| {
+        ref_dot += x * y;
+        ref_l2 += (x - y) * (x - y);
+    }
+
+    try std.testing.expectApproxEqAbs(ref_dot, try ops.dot(&a, &b), 1e-3);
+    try std.testing.expectApproxEqAbs(ref_l2, try ops.squaredL2(&a, &b), 1e-3);
+}
+
 test "gpu batched cosine similarity matches the pairwise result" {
     const ops = vectorOps();
     const query = [_]f32{ 1, 0, 0 };
