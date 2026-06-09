@@ -56,6 +56,7 @@ src/
 │   │   ├── stub.zig   # No-op stubs when feat-ai disabled
 │   │   ├── types.zig  # Public request/result/profile types re-exported by mod.zig
 │   │   ├── completion.zig # Completion routing, scheduler task, and optional WDBX persistence
+│   │   ├── training.zig # Training/evaluation workflow, scheduler task, and WDBX training records
 │   │   ├── training_support.zig # Dataset/profile validation and profile embeddings used by training paths
 │   │   ├── helpers.zig # countNonEmptyLines, textEmbedding, responseEmbedding
 │   │   ├── router.zig # AdaptiveModulator, analyzeSentiment, profile routing
