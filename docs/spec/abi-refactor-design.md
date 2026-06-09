@@ -105,7 +105,8 @@ src/
 │   ├── anthropic.zig  # Anthropic connector
 │   ├── discord.zig    # Discord connector with credential/snowflake-like/message validation
 │   ├── twilio.zig     # Twilio ConversationRelay simulator with SID/token/base-url/timeout validation
-│   └── grok.zig       # Grok/xAI connector (local deterministic + .live opt-in)
+│   ├── grok.zig       # Grok/xAI connector (local deterministic + .live opt-in)
+│   └── tests.zig      # Connector contract and live-boundary tests imported by mod.zig
 ├── abi_cli/           # CLI dispatch, handlers, usage
 │   ├── dispatch.zig   # Top-level command routing
 │   ├── usage.zig      # Source of truth for CLI help text
