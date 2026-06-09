@@ -8,6 +8,7 @@ const scheduler_mod = @import("../../core/scheduler.zig");
 const memory_mod = @import("../../core/memory.zig");
 const helpers = @import("helpers.zig");
 const types = @import("types.zig");
+const completion = @import("completion.zig");
 const training_support = @import("training_support.zig");
 
 const router = @import("router.zig");
@@ -44,28 +45,8 @@ pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     return response;
 }
 
-pub fn complete(allocator: std.mem.Allocator, request: CompletionRequest) !CompletionResult {
-    if (request.input.len == 0) return error.InvalidCompletionInput;
-    const weights = profile.analyzeSentiment(request.input);
-    const selected = profile.selectBestProfile(weights);
-    const response = try profile.routeInput(allocator, request.input);
-    errdefer allocator.free(response);
-    const audit = constitution.Constitution.validate(response);
-    if (!audit.passed) std.log.warn("Constitutional violation!", .{});
-    return .{
-        .model = request.model,
-        .selected_profile = selected,
-        .output = response,
-        .audit = audit,
-    };
-}
-
-pub fn submitCompletionTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx: *CompletionTaskContext) !u64 {
-    if (sched.getMemoryTracker()) |tracker| {
-        ctx.store.setTracker(tracker);
-    }
-    return try sched.submit(name, .high, runCompletionTask, ctx);
-}
+pub const complete = completion.complete;
+pub const submitCompletionTask = completion.submitCompletionTask;
 
 pub fn submitTrainingTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx: *TrainingTaskContext) !u64 {
     if (sched.getMemoryTracker()) |tracker| {
@@ -74,23 +55,7 @@ pub fn submitTrainingTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx
     return try sched.submit(name, .high, runTrainingTask, ctx);
 }
 
-pub fn completeWithScheduler(allocator: std.mem.Allocator, store: *wdbx.Store, sched: *scheduler_mod.Scheduler, name: []const u8, request: CompletionRequest) !CompletionResult {
-    var ctx = CompletionTaskContext{
-        .allocator = allocator,
-        .store = store,
-        .request = request,
-    };
-
-    _ = try submitCompletionTask(sched, name, &ctx);
-    try sched.runAll();
-    return ctx.result orelse error.MissingCompletionResult;
-}
-
-fn runCompletionTask(ctx: ?*anyopaque) anyerror!void {
-    const c = @as(*CompletionTaskContext, @ptrCast(@alignCast(ctx orelse return error.MissingTaskContext)));
-    if (c.result) |old| old.deinit(c.allocator);
-    c.result = try completeWithStore(c.allocator, c.store, c.request);
-}
+pub const completeWithScheduler = completion.completeWithScheduler;
 
 fn runTrainingTask(ctx: ?*anyopaque) anyerror!void {
     const c = @as(*TrainingTaskContext, @ptrCast(@alignCast(ctx orelse return error.MissingTaskContext)));
@@ -98,82 +63,7 @@ fn runTrainingTask(ctx: ?*anyopaque) anyerror!void {
     c.result = try trainWithStore(c.allocator, c.store, c.config);
 }
 
-pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, request: CompletionRequest) !CompletionResult {
-    var result = try complete(allocator, request);
-    errdefer result.deinit(allocator);
-
-    if (!request.store_result) return result;
-
-    const query_vec = helpers.textEmbedding(request.input);
-    const response_vec = helpers.textEmbedding(result.output);
-    const query_id = store.putVector(&query_vec) catch |err| {
-        if (isFeatureDisabled(err)) return result;
-        return err;
-    };
-    const response_id = store.putVector(&response_vec) catch |err| {
-        if (isFeatureDisabled(err)) return result;
-        return err;
-    };
-
-    const metadata = try completionMetadataJson(allocator, request, result, query_id, response_id);
-    defer allocator.free(metadata);
-
-    const key = try std.fmt.allocPrint(allocator, "completion:{d}", .{query_id});
-    defer allocator.free(key);
-    try store.store(key, metadata);
-
-    const block_id = try store.appendBlock(result.selected_profile.label(), query_id, response_id, metadata);
-    result.query_vector_id = query_id;
-    result.response_vector_id = response_id;
-    result.block_id = block_id;
-    return result;
-}
-
-fn completionMetadataJson(
-    allocator: std.mem.Allocator,
-    request: CompletionRequest,
-    result: CompletionResult,
-    query_id: u32,
-    response_id: u32,
-) ![]u8 {
-    var out: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer out.deinit(allocator);
-
-    try out.appendSlice(allocator, "{\"kind\":\"completion\",\"model\":");
-    try appendMetadataJsonString(&out, allocator, request.model);
-    try out.appendSlice(allocator, ",\"profile\":");
-    try appendMetadataJsonString(&out, allocator, result.selected_profile.label());
-    const audit_passed = if (result.audit.passed) "true" else "false";
-    try out.print(
-        allocator,
-        ",\"audit_passed\":{s},\"input_bytes\":{d},\"output_bytes\":{d},\"query_vector_id\":{d},\"response_vector_id\":{d}}}",
-        .{ audit_passed, request.input.len, result.output.len, query_id, response_id },
-    );
-
-    return try out.toOwnedSlice(allocator);
-}
-
-fn appendMetadataJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
-    try out.append(allocator, 0x22);
-    for (value) |byte| {
-        switch (byte) {
-            '"' => try out.appendSlice(allocator, "\\\""),
-            '\\' => try out.appendSlice(allocator, "\\\\"),
-            '\n' => try out.appendSlice(allocator, "\\n"),
-            '\r' => try out.appendSlice(allocator, "\\r"),
-            '\t' => try out.appendSlice(allocator, "\\t"),
-            else => {
-                if (byte < 0x20) {
-                    try out.appendSlice(allocator, "\\u00");
-                    try out.print(allocator, "{X:0>2}", .{byte});
-                } else {
-                    try out.append(allocator, byte);
-                }
-            },
-        }
-    }
-    try out.append(allocator, 0x22);
-}
+pub const completeWithStore = completion.completeWithStore;
 
 pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingResult {
     try training_support.validateTrainingConfig(config);
@@ -583,6 +473,7 @@ test "completion with store honors store_result=false" {
 test {
     _ = @import("router.zig");
     _ = @import("pipeline.zig");
+    _ = @import("completion.zig");
     _ = @import("streaming.zig");
     _ = @import("constitution.zig");
     _ = @import("types.zig");
