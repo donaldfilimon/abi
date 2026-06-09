@@ -43,7 +43,7 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
 
         try renderAndPrint(allocator, &scheduler, &store, &registry, plugin_names);
 
-        // Wait up to ~1s for a keystroke; on timeout, loop and redraw with
+        // Wait up to 1s for a keystroke; on timeout, loop and redraw with
         // fresh stats so the dashboard is genuinely live. A closed stdin (EOF)
         // ends the loop.
         if (term.pollInput(1000)) {
@@ -99,7 +99,7 @@ fn renderAndPrint(allocator: std.mem.Allocator, scheduler: anytype, store: anyty
     // Flicker-free redraw: home the cursor, overwrite the frame in place, then
     // clear any trailing rows a shorter frame would have left behind.
     abi.features.tui.homeScreen();
-    std.debug.print("{s}\n[q] quit   [r] refresh   (live, auto-refresh ~1s)\n", .{rendered});
+    std.debug.print("{s}\n[q] quit   [r] refresh   (live, auto-refresh 1s)\n", .{rendered});
     abi.features.tui.clearToEnd();
 }
 

@@ -92,7 +92,7 @@ src/
 │   ├── hash/          # Hash utility surface (mod/stub, enabled by default)
 │   ├── metrics/       # Optional observability counters (mod/stub, disabled by default)
 │   ├── telemetry/     # Fixed-capacity process-wide event/counter hooks (mod/stub, enabled by default)
-│   ├── tui/           # Diagnostics dashboard (mod/stub, enabled by default)
+│   ├── tui/           # Diagnostics dashboard + live terminal redraw helpers (mod/stub, enabled by default)
 │   ├── mobile/        # Mobile platform surface (mod/stub, disabled by default)
 │   └── os_control/    # Safe OS command policy controls (mod/stub)
 ├── connectors/        # External service connectors
@@ -242,7 +242,7 @@ The `src/core/` modules (`registry.zig`, `scheduler.zig`, `memory.zig`) and `src
 **Current state (as of 2026-06):** Real usage exists and is exercised on key surfaces:
 - Scheduler drives actual high-priority training work in `abi agent train` (TrainTask submission + `runAll`, with Arena-wrapped contexts).
 - Scheduler-backed completion is exposed through `completeWithScheduler()` and used by CLI/MCP completion paths while preserving direct completion APIs.
-- Live stats and cooperative refresh tasks in the CLI/TUI dashboard.
+- Live stats and cooperative refresh tasks in the CLI/TUI dashboard, with terminal input polling and flicker-free redraw helpers mirrored in the TUI stub.
 - Long-lived Scheduler instance owned by the MCP server with dedicated `scheduler_stats` / `scheduler_info` tools in the static, contract-tested MCP descriptor list.
 - `MemoryTracker` + `TrackingAllocator` attached via `setMemoryTracker` in the training path and dashboard; allocations performed under scheduler tasks are recorded.
 - Cross-feature observability wiring: Scheduler conditionally records task lifecycle metrics when `-Dfeat-metrics` is enabled. The default-on `feat-telemetry` feature (`src/features/telemetry/`) provides allocation-free `record(name)` / `increment(name, delta)` hooks plus process-wide readback (`counterValue`, `totalEvents`, `distinctCounters`, `droppedEvents`, `reset`) through a fixed-capacity counter table. It complements the opt-in `metrics` registry, and mod/stub parity is preserved for disabled telemetry builds.

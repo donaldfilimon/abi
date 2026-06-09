@@ -226,7 +226,7 @@ pub fn clearScreen() !void {
     std.debug.print("\x1b[2J\x1b[H", .{});
 }
 
-/// Move the cursor to the top-left WITHOUT clearing — for flicker-free redraws.
+/// Move the cursor to the top-left without clearing for flicker-free redraws.
 /// Pair with `clearToEnd` after writing a frame to wipe any stale trailing rows.
 pub fn homeScreen() void {
     std.debug.print("\x1b[H", .{});
