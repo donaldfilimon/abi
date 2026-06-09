@@ -1,8 +1,7 @@
 const std = @import("std");
-const build_options = @import("build_options");
 const foundation_pool = @import("../../foundation/pool_allocator.zig");
-const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
 const memory = @import("../../core/memory.zig");
+const runtime = @import("runtime.zig");
 
 pub const index = @import("hnsw.zig");
 pub const storage = @import("chain.zig");
@@ -41,11 +40,7 @@ pub const ConversationBlock = struct {
     metadata: []const u8,
 };
 
-pub const AccelerationStatus = struct {
-    backend: gpu.Backend,
-    mode: gpu.ExecutionMode,
-    message: []const u8,
-};
+pub const AccelerationStatus = runtime.AccelerationStatus;
 
 pub const StoreStats = struct {
     kv_entries: usize,
@@ -88,7 +83,7 @@ pub const Store = struct {
             .index = index.HnswIndex(HNSW_DIMENSIONS).init(a),
             .chain = storage.BlockChain.init(a),
             .spatial_index = spatial_3d.SpatialIndex3D.initWithPool(a, config.pool_alloc),
-            .acceleration = defaultAcceleration(),
+            .acceleration = runtime.defaultAcceleration(),
             .tracker = null,
             .pool_alloc = config.pool_alloc,
         };
@@ -198,7 +193,7 @@ pub const Store = struct {
         try self.index.insert(id, padded_values);
         self.paddedFree(padded_values);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
-        self.acceleration = try runAccelerationKernel("wdbx.putVector", values.len);
+        self.acceleration = try runtime.runAccelerationKernel("wdbx.putVector", values.len);
         return id;
     }
 
@@ -223,7 +218,7 @@ pub const Store = struct {
         const results = try self.index.search(padded_query, limit);
         self.paddedFree(padded_query);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
-        self.acceleration = try runAccelerationKernel("wdbx.search", query.len * self.index.count());
+        self.acceleration = try runtime.runAccelerationKernel("wdbx.search", query.len * self.index.count());
         return results;
     }
 
@@ -263,20 +258,20 @@ pub const Store = struct {
 
     pub fn putSpatial3D(self: *Store, id: u32, point: spatial_3d.Point3D, payload: []const u8) !void {
         try self.spatial_index.insert(id, point, payload);
-        self.acceleration = try runAccelerationKernel("wdbx.putSpatial3D", 3);
+        self.acceleration = try runtime.runAccelerationKernel("wdbx.putSpatial3D", 3);
     }
 
     pub fn searchSpatial3D(self: *const Store, center: spatial_3d.Point3D, k: usize, metric: spatial_3d.DistanceMetric) ![]spatial_3d.SpatialSearchResult {
         const results = try self.spatial_index.nearestNeighbors(center, k, metric);
         const self_mut = @constCast(self);
-        self_mut.acceleration = try runAccelerationKernel("wdbx.searchSpatial3D", 3 * self.spatial_index.count());
+        self_mut.acceleration = try runtime.runAccelerationKernel("wdbx.searchSpatial3D", 3 * self.spatial_index.count());
         return results;
     }
 
     pub fn searchSpatialRadius3D(self: *const Store, center: spatial_3d.Point3D, radius: f32, metric: spatial_3d.DistanceMetric) ![]spatial_3d.SpatialSearchResult {
         const results = try self.spatial_index.radiusSearch(center, radius, metric);
         const self_mut = @constCast(self);
-        self_mut.acceleration = try runAccelerationKernel("wdbx.searchSpatialRadius3D", 3 * self.spatial_index.count());
+        self_mut.acceleration = try runtime.runAccelerationKernel("wdbx.searchSpatialRadius3D", 3 * self.spatial_index.count());
         return results;
     }
 
@@ -297,33 +292,11 @@ pub const Store = struct {
         try out.print(
             allocator,
             ",\"next_vector_id\":{d},\"backend\":\"{s}\",\"mode\":\"{s}\"}}",
-            .{ s.next_vector_id, gpu.backendName(s.acceleration.backend), executionModeName(s.acceleration.mode) },
+            .{ s.next_vector_id, runtime.backendName(s.acceleration.backend), runtime.executionModeName(s.acceleration.mode) },
         );
         return out.toOwnedSlice(allocator);
     }
 };
-
-fn executionModeName(mode: gpu.ExecutionMode) []const u8 {
-    return switch (mode) {
-        .cpu_fallback => "cpu_fallback",
-        .simulated_gpu => "simulated_gpu",
-        .native_gpu => "native_gpu",
-    };
-}
-
-fn defaultAcceleration() AccelerationStatus {
-    const status = gpu.detectBackend();
-    return .{
-        .backend = status.backend,
-        .mode = if (status.accelerated) .native_gpu else .simulated_gpu,
-        .message = status.message,
-    };
-}
-
-fn runAccelerationKernel(name: []const u8, work_items: usize) !AccelerationStatus {
-    const result = try gpu.executeKernel(.{ .name = name, .work_items = work_items });
-    return .{ .backend = result.backend, .mode = result.mode, .message = result.message };
-}
 
 test "Store owns and replaces entries" {
     var store_obj = Store.init(std.testing.allocator);
@@ -441,5 +414,6 @@ test {
     _ = @import("crypto_he.zig");
     _ = @import("compute.zig");
     _ = @import("rest.zig");
+    _ = @import("runtime.zig");
     std.testing.refAllDecls(@This());
 }
