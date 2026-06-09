@@ -1,6 +1,8 @@
 const std = @import("std");
 const features = @import("abi").features;
 const json_helpers = @import("json_helpers.zig");
+const connector_tools = @import("connector_tools.zig");
+const plugin_tools = @import("plugin_tools.zig");
 const abi = @import("abi");
 
 // Long-lived scheduler and WDBX store for the MCP server process.
@@ -256,7 +258,7 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         const args_obj = try toolArguments(params_obj);
         const service = try objectString(args_obj, "service", error.MissingConnectorService);
         const input = try objectString(args_obj, "input", error.MissingInput);
-        const text = try runConnectorTest(allocator, service, input);
+        const text = try connector_tools.runConnectorTest(allocator, service, input);
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
     }
@@ -295,7 +297,7 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
     }
 
     if (std.mem.eql(u8, tool_name, "plugin_list")) {
-        const text = try runPluginList(allocator);
+        const text = try plugin_tools.runPluginList(allocator);
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
     }
@@ -308,7 +310,7 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         var pm = abi.plugins.PluginManager.init(allocator);
         defer pm.deinit();
 
-        try loadBundledPlugins(&pm);
+        try plugin_tools.loadBundledPlugins(&pm);
 
         const output = try pm.run(allocator, name, input);
         defer allocator.free(output);
@@ -327,103 +329,6 @@ fn schedulerStatsText(allocator: std.mem.Allocator) ![]u8 {
         "scheduler running={d} pending={d} completed={d} failed={d} cancelled={d} total_tasks={d} source=mcp-server",
         .{ s.running, s.pending, s.completed, s.failed, s.cancelled, s.total_tasks },
     );
-}
-
-fn runConnectorTest(allocator: std.mem.Allocator, service: []const u8, input: []const u8) ![]u8 {
-    const connectors = abi.connectors;
-
-    if (std.mem.eql(u8, service, "openai")) {
-        var client = connectors.openai.Client.init(allocator, .{ .api_key = "mcp-local-key", .base_url = "https://api.openai.com" });
-        defer client.deinit();
-        const messages = try buildUserMessages(allocator, input);
-        defer allocator.free(messages);
-        var response = try client.chatCompletion(allocator, "gpt-local", messages);
-        defer response.deinit(allocator);
-        return try std.fmt.allocPrint(allocator, "connector=openai status={d} body={s}", .{ response.status, response.body });
-    }
-
-    if (std.mem.eql(u8, service, "anthropic")) {
-        var client = connectors.anthropic.Client.init(allocator, .{ .api_key = "mcp-local-key", .base_url = "https://api.anthropic.com" });
-        defer client.deinit();
-        var response = try client.message(allocator, "claude-local", input, 256);
-        defer response.deinit(allocator);
-        return try std.fmt.allocPrint(allocator, "connector=anthropic status={d} body={s}", .{ response.status, response.body });
-    }
-
-    if (std.mem.eql(u8, service, "discord")) {
-        var bot = connectors.discord.Bot.init(allocator, .{ .token = "mcp-local-token", .client_id = "123456789012345678" });
-        defer bot.deinit();
-        try bot.connect();
-        const body = try bot.sendMessage(allocator, "234567890123456789", input);
-        defer allocator.free(body);
-        return try std.fmt.allocPrint(allocator, "connector=discord status=200 body={s}", .{body});
-    }
-
-    if (std.mem.eql(u8, service, "twilio")) {
-        var client = connectors.twilio.Client.init(allocator, connectors.twilio.TwilioConfig.local());
-        defer client.deinit();
-        var response = try client.handleConversationRelayEvent(allocator, .{
-            .kind = .user_transcript,
-            .conversation_id = "CA" ++ "0123456789abcdef0123456789abcdef",
-            .customer_id = "+15551234567",
-            .transcript = input,
-        }, "ABI local relay acknowledged.");
-        defer response.deinit(allocator);
-        return try std.fmt.allocPrint(allocator, "connector=twilio status=200 body={s}", .{response.text});
-    }
-
-    if (std.mem.eql(u8, service, "grok")) {
-        var client = connectors.grok.Client.init(allocator, connectors.grok.grokConfig());
-        defer client.deinit();
-        const messages = try buildUserMessages(allocator, input);
-        defer allocator.free(messages);
-        var response = try client.chatCompletion(allocator, "grok-local", messages);
-        defer response.deinit(allocator);
-        return try std.fmt.allocPrint(allocator, "connector=grok status={d} body={s}", .{ response.status, response.body });
-    }
-
-    return error.UnknownConnector;
-}
-
-fn buildUserMessages(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    var out: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer out.deinit(allocator);
-    try out.appendSlice(allocator, "[{\"role\":\"user\",\"content\":");
-    try abi.connectors.json.appendJsonString(&out, allocator, input);
-    try out.appendSlice(allocator, "}]");
-    return try out.toOwnedSlice(allocator);
-}
-
-fn loadBundledPlugins(pm: *abi.plugins.PluginManager) !void {
-    _ = pm.loadPlugin("src/plugins/example-plugin") catch |err| switch (err) {
-        error.AlreadyLoaded => {},
-        else => return err,
-    };
-    _ = pm.loadPlugin("src/plugins/example-wdbx-plugin") catch |err| switch (err) {
-        error.AlreadyLoaded => {},
-        else => return err,
-    };
-}
-
-fn runPluginList(allocator: std.mem.Allocator) ![]u8 {
-    var pm = abi.plugins.PluginManager.init(allocator);
-    defer pm.deinit();
-    try loadBundledPlugins(&pm);
-
-    const list = try pm.listPlugins();
-    defer allocator.free(list);
-
-    var out: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer out.deinit(allocator);
-    try out.print(allocator, "plugins count={d}", .{list.len});
-    for (list) |plugin| {
-        try out.print(
-            allocator,
-            " name={s} version={s} target={s} entry={s} description={s};",
-            .{ plugin.name, plugin.version, plugin.target_feature, plugin.entry_point, plugin.description },
-        );
-    }
-    return try out.toOwnedSlice(allocator);
 }
 
 fn runLocalCompletion(allocator: std.mem.Allocator, input: []const u8, model: []const u8) ![]u8 {
