@@ -4,11 +4,16 @@ const sync = @import("../../foundation/sync.zig");
 const memory = @import("../../core/memory.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
 const types = @import("types.zig");
+const storage = @import("hnsw_storage.zig");
+const distance = @import("hnsw_distance.zig");
 
 pub const MAX_LAYERS = types.MAX_LAYERS;
 pub const M = 16;
 pub const EF_CONSTRUCTION = 40;
 pub const EF_SEARCH = 32;
+pub const VectorStorage = storage.VectorStorage;
+pub const Candidate = distance.Candidate;
+pub const cosineDistanceSIMD = distance.cosineDistanceSIMD;
 
 pub const HnswNode = struct {
     id: u32,
@@ -33,125 +38,6 @@ pub const HnswNode = struct {
         }
     }
 };
-
-pub const VectorStorage = struct {
-    allocator: std.mem.Allocator,
-    data: std.ArrayListUnmanaged(f32),
-    present: std.AutoHashMap(u32, void),
-    dimensions: usize = 0,
-    capacity: usize = 0,
-    tracker: ?*memory.MemoryTracker = null,
-    tracked_data_bytes: usize = 0,
-
-    pub fn init(allocator: std.mem.Allocator, dimensions: usize, initial_capacity: usize) VectorStorage {
-        return .{
-            .allocator = allocator,
-            .data = .empty,
-            .present = std.AutoHashMap(u32, void).init(allocator),
-            .dimensions = dimensions,
-            .capacity = initial_capacity,
-        };
-    }
-
-    pub fn deinit(self: *VectorStorage) void {
-        if (self.tracker) |tracker| {
-            if (self.tracked_data_bytes > 0) tracker.trackFreeNoTag(self.tracked_data_bytes);
-        }
-        self.present.deinit();
-        self.data.deinit(self.allocator);
-    }
-
-    pub fn setTracker(self: *VectorStorage, tracker: *memory.MemoryTracker) void {
-        self.tracker = tracker;
-    }
-
-    pub fn insert(self: *VectorStorage, id: u32, values: []const f32) !void {
-        if (values.len != self.dimensions) return error.DimensionMismatch;
-        const needed = (id + 1) * self.dimensions;
-        if (needed > self.data.items.len) {
-            const old_len = self.data.items.len;
-            const new_cap = @max(needed, self.data.items.len * 2 + 64);
-            try self.data.resize(self.allocator, new_cap);
-            if (self.tracker) |tracker| {
-                const old_bytes = old_len * @sizeOf(f32);
-                const new_bytes = new_cap * @sizeOf(f32);
-                const tracked_growth = new_bytes - @min(old_bytes, new_bytes);
-                if (tracked_growth > 0) {
-                    tracker.trackAllocNoTag(tracked_growth);
-                    self.tracked_data_bytes += tracked_growth;
-                }
-            }
-            @memset(self.data.items[old_len..new_cap], 0);
-        }
-        const offset = id * self.dimensions;
-        @memcpy(self.data.items[offset .. offset + self.dimensions], values);
-        try self.present.put(id, {});
-    }
-
-    pub fn get(self: *const VectorStorage, id: u32) []const f32 {
-        const offset = id * self.dimensions;
-        return self.data.items[offset .. offset + self.dimensions];
-    }
-
-    pub fn contains(self: *const VectorStorage, id: u32) bool {
-        return self.present.contains(id);
-    }
-};
-
-pub const Candidate = struct {
-    id: u32,
-    distance: f32,
-};
-
-fn greaterDistance(_: void, lhs: Candidate, rhs: Candidate) bool {
-    return lhs.distance > rhs.distance;
-}
-
-fn lessDistance(_: void, lhs: Candidate, rhs: Candidate) bool {
-    return lhs.distance < rhs.distance;
-}
-
-pub fn cosineDistanceSIMD(a: []const f32, b: []const f32) f32 {
-    if (a.len != b.len) return 1.0;
-    const len = a.len;
-    if (len == 0) return 1.0;
-
-    const simd_width = std.simd.suggestVectorLength(f32) orelse 4;
-
-    var dot: f32 = 0;
-    var norm_a: f32 = 0;
-    var norm_b: f32 = 0;
-
-    const simd_len = (len / simd_width) * simd_width;
-
-    var i: usize = 0;
-    while (i < simd_len) : (i += simd_width) {
-        const va: @Vector(simd_width, f32) = a[i .. i + simd_width][0..simd_width].*;
-        const vb: @Vector(simd_width, f32) = b[i .. i + simd_width][0..simd_width].*;
-        dot += @reduce(.Add, va * vb);
-        norm_a += @reduce(.Add, va * va);
-        norm_b += @reduce(.Add, vb * vb);
-    }
-
-    while (i < len) : (i += 1) {
-        dot += a[i] * b[i];
-        norm_a += a[i] * a[i];
-        norm_b += b[i] * b[i];
-    }
-
-    const denom = @sqrt(norm_a) * @sqrt(norm_b);
-    if (denom == 0) return 1.0;
-    return 1.0 - (dot / denom);
-}
-
-fn cosineDistanceWithOps(ops: gpu.VectorOps, a: []const f32, b: []const f32) f32 {
-    if (a.len != b.len) return 1.0;
-    const similarity = ops.cosineSimilarity(a, b) catch |err| {
-        std.log.warn("gpu vector cosine distance failed: {s}; using SIMD fallback", .{@errorName(err)});
-        return cosineDistanceSIMD(a, b);
-    };
-    return 1.0 - similarity;
-}
 
 pub fn HnswIndex(comptime D: usize) type {
     return struct {
@@ -197,7 +83,7 @@ pub fn HnswIndex(comptime D: usize) type {
         }
 
         fn cosineDistance(self: *const Self, a: []const f32, b: []const f32) f32 {
-            return cosineDistanceWithOps(self.distance_ops, a, b);
+            return distance.cosineDistanceWithOps(self.distance_ops, a, b);
         }
 
         pub fn insert(self: *Self, id: u32, values: []const f32) !void {
@@ -364,7 +250,7 @@ pub fn HnswIndex(comptime D: usize) type {
                 curr_level -= 1;
             }
 
-            std.mem.sort(Candidate, candidates.items, {}, lessDistance);
+            std.mem.sort(Candidate, candidates.items, {}, distance.lessDistance);
 
             const result_count = @min(limit, candidates.items.len);
             const results = try self.allocator.alloc(types.SearchResult, result_count);
@@ -402,30 +288,6 @@ test "HnswIndex insert and search" {
     try std.testing.expect(results[0].score >= results[1].score);
 }
 
-test "cosineDistanceSIMD identical vectors" {
-    const a = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
-    const b = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
-    const dist = cosineDistanceSIMD(&a, &b);
-    try std.testing.expect(dist < 0.001);
-}
-
-test "cosineDistanceSIMD orthogonal vectors" {
-    const a = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
-    const b = [_]f32{ 0.0, 1.0, 0.0, 0.0 };
-    const dist = cosineDistanceSIMD(&a, &b);
-    try std.testing.expect(dist > 0.99);
-}
-
-test "cosineDistanceWithOps matches SIMD fallback" {
-    const ops = gpu.vectorOps();
-    const a = [_]f32{ 0.25, 0.5, 0.75, 1.0 };
-    const b = [_]f32{ 1.0, 0.75, 0.5, 0.25 };
-    const accelerated = cosineDistanceWithOps(ops, &a, &b);
-    const simd = cosineDistanceSIMD(&a, &b);
-    try std.testing.expect(@abs(accelerated - simd) < 0.0001);
-    try std.testing.expectEqual(@as(f32, 1.0), cosineDistanceWithOps(ops, &a, &.{ 1.0, 2.0 }));
-}
-
 test "HnswIndex dimension mismatch" {
     const Index = HnswIndex(4);
     var index = Index.init(std.testing.allocator);
@@ -445,24 +307,6 @@ test "HnswIndex empty search" {
     const results = try index.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 5);
     defer std.testing.allocator.free(results);
     try std.testing.expect(results.len == 0);
-}
-
-test "VectorStorage insert and get" {
-    var storage = VectorStorage.init(std.testing.allocator, 3, 8);
-    defer storage.deinit();
-
-    try storage.insert(0, &.{ 1.0, 2.0, 3.0 });
-    try storage.insert(5, &.{ 4.0, 5.0, 6.0 });
-
-    const v0 = storage.get(0);
-    try std.testing.expectEqualSlices(f32, &.{ 1.0, 2.0, 3.0 }, v0);
-
-    const v5 = storage.get(5);
-    try std.testing.expectEqualSlices(f32, &.{ 4.0, 5.0, 6.0 }, v5);
-
-    try std.testing.expect(storage.contains(0));
-    try std.testing.expect(storage.contains(5));
-    try std.testing.expect(!storage.contains(10));
 }
 
 test "HnswNode deinit" {
@@ -503,5 +347,7 @@ test "HnswIndex multiple inserts" {
 }
 
 test {
+    _ = @import("hnsw_distance.zig");
+    _ = @import("hnsw_storage.zig");
     std.testing.refAllDecls(@This());
 }
