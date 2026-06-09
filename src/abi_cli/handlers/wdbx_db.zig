@@ -139,11 +139,12 @@ pub fn blockGet(io: std.Io, allocator: std.mem.Allocator, path: []const u8) anye
     return 0;
 }
 
-/// `abi wdbx query <path> [text]`. With no text, prints the store-stats
-/// manifest (unchanged legacy behavior). With text, embeds the query and
-/// returns hybrid-ranked (semantic × temporal × causal × persona) results
-/// over the recovered store's vectors.
-pub fn query(io: std.Io, allocator: std.mem.Allocator, path: []const u8, text: ?[]const u8) anyerror!u8 {
+/// `abi wdbx query <path> [text] [persona]`. With no text, prints the
+/// store-stats manifest (unchanged legacy behavior). With text, embeds the query
+/// and returns hybrid-ranked (semantic × temporal × causal × persona) results.
+/// With a persona, results are ISOLATED to that persona's memories rather than
+/// blended — multi-persona memory routing over the recovered store's vectors.
+pub fn query(io: std.Io, allocator: std.mem.Allocator, path: []const u8, text: ?[]const u8, persona: ?[]const u8) anyerror!u8 {
     var opened = openRecovered(io, allocator, path) catch return 1;
     defer opened.store.deinit();
 
@@ -165,28 +166,61 @@ pub fn query(io: std.Io, allocator: std.mem.Allocator, path: []const u8, text: ?
     const scorer = wdbx.temporal.HybridScorer{ .now_ms = foundation_time.unixMs(), .half_life_ms = 24 * 60 * 60 * 1000 };
     // Anchor causal proximity on the most recent vector when present.
     const focus_id: u32 = if (stats.next_vector_id > 1) stats.next_vector_id - 1 else 1;
-    const ranked = try wdbx.retrieval.hybridSearch(allocator, store, &query_vec, 10, &store.temporal_graph, scorer, focus_id, constPersona);
+
+    const ranked = if (persona) |p| blk: {
+        // Isolation: only this persona's memories, resolved via the durable
+        // profile tags written at insert time (`wdbx:profile:{id}` / completion
+        // metadata) — keeps persona semantics out of the storage layer.
+        const scope = PersonaScope{ .store = store, .target = p };
+        break :blk try wdbx.retrieval.hybridSearchScoped(allocator, store, &query_vec, 10, &store.temporal_graph, scorer, focus_id, &scope, personaScopeKeep);
+    } else try wdbx.retrieval.hybridSearch(allocator, store, &query_vec, 10, &store.temporal_graph, scorer, focus_id, constPersona);
     defer allocator.free(ranked);
 
+    const scope_label = persona orelse "all";
     if (ranked.len == 0) {
-        std.debug.print("no matches for \"{s}\"\n", .{q});
+        std.debug.print("no matches for \"{s}\" (persona={s})\n", .{ q, scope_label });
         return 0;
     }
-    std.debug.print("query \"{s}\" -> {d} ranked result(s) over {d} vectors (ranking=hybrid):\n", .{ q, ranked.len, stats.vectors });
+    std.debug.print("query \"{s}\" persona={s} -> {d} ranked result(s) over {d} vectors (ranking=hybrid):\n", .{ q, scope_label, ranked.len, stats.vectors });
     for (ranked, 0..) |r, i| {
         std.debug.print(
-            "  {d}. vector_id={d} score={d:.4} semantic={d:.4} temporal={d:.4} causal={d:.4} persona={d:.4}\n",
-            .{ i + 1, r.id, r.score, r.components.semantic, r.components.temporal, r.components.causal, r.components.persona },
+            "  {d}. vector_id={d} persona={s} score={d:.4} semantic={d:.4} temporal={d:.4} causal={d:.4} persona_w={d:.4}\n",
+            .{ i + 1, r.id, personaForVector(store, r.id), r.score, r.components.semantic, r.components.temporal, r.components.causal, r.components.persona },
         );
     }
     return 0;
 }
 
-/// Neutral persona weight for the path-addressed CLI query (no conversation
-/// persona context, unlike the MCP tool which weights by routed profile).
+/// Neutral persona weight for the blended (non-scoped) path-addressed CLI query.
 fn constPersona(id: u32) f32 {
     _ = id;
     return 0.5;
+}
+
+const PersonaScope = struct {
+    store: *const wdbx.Store,
+    target: []const u8,
+};
+
+fn personaScopeKeep(ctx: *const anyopaque, id: u32) bool {
+    const scope: *const PersonaScope = @ptrCast(@alignCast(ctx));
+    return std.mem.eql(u8, personaForVector(scope.store, id), scope.target);
+}
+
+/// Resolve a vector's persona label from the durable tags written at insert
+/// time: a seeded `wdbx:profile:{id}` KV entry, else the routed profile embedded
+/// in the `completion:{id}` block metadata. Unknown when neither is present.
+fn personaForVector(store: *const wdbx.Store, id: u32) []const u8 {
+    var key_buf: [64]u8 = undefined;
+    const profile_key = std.fmt.bufPrint(&key_buf, "wdbx:profile:{d}", .{id}) catch return "unknown";
+    if (store.get(profile_key)) |label| return label;
+    const completion_key = std.fmt.bufPrint(&key_buf, "completion:{d}", .{id}) catch return "unknown";
+    const metadata = store.get(completion_key) orelse return "unknown";
+    const needle = "\"profile\":\"";
+    const start = std.mem.indexOf(u8, metadata, needle) orelse return "unknown";
+    const after = metadata[start + needle.len ..];
+    const end = std.mem.indexOfScalar(u8, after, '"') orelse return "unknown";
+    return after[0..end];
 }
 
 test {

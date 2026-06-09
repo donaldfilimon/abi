@@ -29,7 +29,7 @@ fn usage() u8 {
         \\  db verify <path>               Verify snapshot integrity + block chain (+ WAL if present)
         \\  block insert <path> <profile> <metadata>   Append a conversation block (snapshot + WAL)
         \\  block get <path>               Print the most recent block
-        \\  query <path> [text]            Store statistics, or hybrid-ranked semantic search when text is given
+        \\  query <path> [text] [persona]  Store statistics; hybrid semantic search with text; isolated to one persona's memories when a persona is given
         \\  benchmark [count]              Measure local insert/search timing
         \\  cluster status                 Report cluster topology (single-node default)
         \\  cluster demo [nodes]           Run in-process consensus: elect, replicate, fail over
@@ -73,8 +73,9 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     }
 
     if (std.mem.eql(u8, sub, "query")) {
-        if (args.len == 4) return db_commands.query(io, allocator, args[3], null);
-        if (args.len == 5) return db_commands.query(io, allocator, args[3], args[4]);
+        if (args.len == 4) return db_commands.query(io, allocator, args[3], null, null);
+        if (args.len == 5) return db_commands.query(io, allocator, args[3], args[4], null);
+        if (args.len == 6) return db_commands.query(io, allocator, args[3], args[4], args[5]);
         return usage();
     }
 
@@ -206,6 +207,30 @@ test "wdbx db verify detects a corrupted WAL frame" {
     content[idx] = 'X';
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = wp, .data = content });
     try std.testing.expectEqual(@as(u8, 1), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
+}
+
+test "wdbx query runs scoped to a persona over a recovered store" {
+    if (!build_options.feat_wdbx) return;
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-cli-persona.jsonl";
+    defer cleanupTestDb(path);
+    cleanupTestDb(path);
+
+    // A store with two persona-tagged vectors (the durable convention written at
+    // insert time): id 1 -> abbey, id 2 -> aviva.
+    {
+        var s = wdbx.Store.init(allocator);
+        defer s.deinit();
+        _ = try s.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+        try s.store("wdbx:profile:1", "abbey");
+        _ = try s.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+        try s.store("wdbx:profile:2", "aviva");
+        try wdbx.persistence.saveToPath(std.testing.io, allocator, &s, path);
+    }
+
+    // Persona-scoped query and unscoped query both succeed over the recovery.
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path, "hello", "abbey" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path, "hello" }));
 }
 
 test "wdbx CLI keeps the live WAL tagged to the checkpoint epoch" {
