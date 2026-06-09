@@ -27,9 +27,13 @@ Build the CLI, then exercise the local surfaces without live network credentials
 ./zig-out/bin/abi wdbx db init zig-out/local-memory.jsonl
 ./zig-out/bin/abi wdbx block insert zig-out/local-memory.jsonl abi "{\"note\":\"local memory checkpoint\"}"
 ./zig-out/bin/abi wdbx query zig-out/local-memory.jsonl
+./zig-out/bin/abi wdbx benchmark 256          # local insert/query timing with P50/P95/P99
+./zig-out/bin/abi wdbx compute info           # CPU/GPU/NPU/TPU backends, ANE detection, remote-dispatch endpoint
+./zig-out/bin/abi wdbx secure demo            # int8 + autoencoder compression; additive + DGHV (add/multiply) homomorphic encryption
+./zig-out/bin/abi wdbx cluster serve 8090     # networked consensus RPC node endpoint (loopback)
 ```
 
-`abi scheduler status` runs a one-shot scheduler probe and reports task/memory counters. `abi agent plan` and `abi agent train` run through the scheduler-backed AI helper surface and print scheduler/memory tracker summaries. Training writes local WDBX records when `feat-ai` and `feat-wdbx` are enabled; feature-disabled builds return explicit degraded responses instead of fabricating work.
+`abi scheduler status` runs a one-shot scheduler probe and reports task/memory counters. `abi agent plan` and `abi agent train` run through the scheduler-backed AI helper surface and print scheduler/memory tracker summaries. Training writes local WDBX records when `feat-ai` and `feat-wdbx` are enabled; feature-disabled builds return explicit degraded responses instead of fabricating work. `wdbx query <path> [text] [persona]` does store-stats, hybrid semantic search, or persona-isolated retrieval; `cluster serve`/`compute info`/`secure demo` expose the networked consensus RPC, accelerator selection, and security demos honestly as single-host / reference-scoped surfaces (see `docs/spec/wdbx-north-star.md` for the Current/Partial/Proposed mapping).
 
 For MCP smoke testing, build the server and call the same contract tools through an MCP client:
 
