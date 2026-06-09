@@ -403,8 +403,21 @@ test "httpPostJson round-trips against loopback server" {
     }
 
     var final_response = response orelse {
-        server_thread.detach();
-        return error.SkipZigTest;
+        // The listener is bound (in this thread) before the client connects, so
+        // a total connect failure is a real bug, not a flake. Unblock the
+        // server's pending accept() with a throwaway connection so the thread
+        // exits cleanly (no leaked/detached thread), join it, free anything it
+        // captured, then fail hard rather than silently skipping.
+        if (std.Io.net.IpAddress.parseIp4("127.0.0.1", server.port)) |wake_addr_const| {
+            var wake_addr = wake_addr_const;
+            if (wake_addr.connect(io, .{ .mode = .stream })) |stream| {
+                var s = stream;
+                s.close(io);
+            } else |_| {}
+        } else |_| {}
+        server_thread.join();
+        if (request_buf.len > 0) std.testing.allocator.free(request_buf);
+        return error.LoopbackConnectFailed;
     };
     defer final_response.deinit(std.testing.allocator);
 
@@ -475,8 +488,21 @@ test "httpPostForm round-trips against loopback server" {
     }
 
     var final_response = response orelse {
-        server_thread.detach();
-        return error.SkipZigTest;
+        // The listener is bound (in this thread) before the client connects, so
+        // a total connect failure is a real bug, not a flake. Unblock the
+        // server's pending accept() with a throwaway connection so the thread
+        // exits cleanly (no leaked/detached thread), join it, free anything it
+        // captured, then fail hard rather than silently skipping.
+        if (std.Io.net.IpAddress.parseIp4("127.0.0.1", server.port)) |wake_addr_const| {
+            var wake_addr = wake_addr_const;
+            if (wake_addr.connect(io, .{ .mode = .stream })) |stream| {
+                var s = stream;
+                s.close(io);
+            } else |_| {}
+        } else |_| {}
+        server_thread.join();
+        if (request_buf.len > 0) std.testing.allocator.free(request_buf);
+        return error.LoopbackConnectFailed;
     };
     defer final_response.deinit(std.testing.allocator);
 
