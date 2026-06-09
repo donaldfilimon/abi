@@ -4,7 +4,7 @@
 **Status:** **VISION / ROADMAP — not a statement of current capabilities.**
 **Scope:** Long-term direction for evolving ABI from a local multi-persona assistant into a WDBX-centered cognitive runtime spanning storage, indexing, compute, security, clustering, and transport.
 
-> **Claims discipline (read first).** This document is aspirational. Every item below is tagged **Current**, **Partial**, or **Proposed**. Only **Current** items are backed by repo source, tests, or benchmark artifacts today. **Proposed** items — distributed clustering, Apple Neural Engine / TPU execution, neural compression, homomorphic encryption, and any throughput/latency figure — are **not** repo-proven and MUST NOT be presented as existing ABI capabilities in external collateral. This file is the proposal record the external-claims policy permits; see `docs/contracts/external-claims-audit.md` and the `tests/contracts/public_docs.zig` claim-boundary test. When this vision and the source disagree, the source wins (`build.zig`, `src/`, contract tests).
+> **Claims discipline (read first).** This document is aspirational. Every item below is tagged **Current**, **Partial**, or **Proposed**, backed by repo source/tests for the Current/Partial rows. The genuinely **not-repo-proven** items that MUST NOT be presented as existing ABI capabilities in external collateral are: **native Apple Neural Engine / GPU / TPU execution** (only detection, CPU fallback, and a remote-dispatch transport exist — no native accelerator kernels), **multi-host distributed deployment and data sharding** (the consensus RPC is real but exercised over loopback, not across hosts), **production-secure / bootstrapped homomorphic encryption** (only a reference-parameter somewhat-homomorphic scheme exists), a **production/learned-SOTA compression codec**, and **any throughput/latency/accuracy figure**. This file is the proposal record the external-claims policy permits; see `docs/contracts/external-claims-audit.md` and the `tests/contracts/public_docs.zig` claim-boundary test. When this vision and the source disagree, the source wins (`build.zig`, `src/`, contract tests).
 
 ---
 
@@ -20,10 +20,10 @@ Persona Router          (Current)
 WDBX Runtime
  ├─ Storage Layer       (Current — in-process + segment/WAL persistence)
  ├─ Index Layer         (Current — HNSW/SIMD + snapshot-persisted temporal/causal ranker)
- ├─ Compute Layer       (Partial — CPU SIMD + GPU fallback; NPU/TPU Proposed)
- ├─ Security Layer      (Partial — SHA-256 chain + snapshot checksum)
- ├─ Cluster Layer       (Proposed)
- └─ Transport Layer     (Partial — stdio/JSON-RPC + loopback HTTP/SSE)
+ ├─ Compute Layer       (Partial — CPU SIMD + GPU fallback + CPU/GPU parity; ANE detection; TPU remote-dispatch transport)
+ ├─ Security Layer      (Partial — SHA-256 chain + snapshot checksum + DGHV add/multiply SHE)
+ ├─ Cluster Layer       (Partial — in-process Raft + networked RPC transport over loopback)
+ └─ Transport Layer     (Partial — stdio/JSON-RPC + loopback HTTP/SSE + REST + cluster/remote-compute RPC)
 ```
 
 ---
@@ -38,13 +38,13 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 | Temporal-causal retrieval | **Current (single-node/MCP)** | `temporal.zig` implements temporal decay + causal BFS graph scoring, `retrieval.zig` composes HNSW semantic search with the `semantic × temporal × causal × persona` hybrid ranker, JSONL snapshots persist `temporal_node` / `temporal_edge` records, and MCP `wdbx_query` uses hybrid ranking by default. Gap: broader CLI semantic query UX if that becomes a product surface. |
 | Multi-persona memory routing | **Current** | `src/features/ai/router.zig` keyword-weighted Abbey/Aviva/Abi routing; conversation blocks labeled by profile in `src/features/wdbx/chain.zig`. |
 | SIMD-accelerated search | **Current** | HNSW `@Vector` cosine distance: `src/features/wdbx/hnsw.zig`. |
-| GPU-accelerated retrieval | **Partial** | HNSW distance routes through `gpu.vectorOps().cosineSimilarity()` with deterministic CPU fallback; `compute.zig` adds a CPU/GPU/NPU/TPU backend selector. Gap: native Metal/CUDA/Vulkan compute kernels are not linked. |
-| Apple Neural Engine / TPU integration | **Partial** | `compute.zig` enumerates `npu_ane`/`tpu_remote` as first-class selectable backends with dynamic selection + deterministic CPU fallback (unit-tested parity). Gap: native ANE/TPU dispatch is not linked. |
-| Distributed clustering | **Partial** | `cluster.zig` implements an in-process Raft-style core: leader election, majority-quorum log replication, and leader failover (4 unit tests; `abi wdbx cluster demo`). Gap: a networked RPC transport across hosts. |
+| GPU-accelerated retrieval | **Partial** | HNSW distance routes through `gpu.vectorOps().cosineSimilarity()` with deterministic CPU fallback; `compute.zig` adds a CPU/GPU/NPU/TPU backend selector; host-matched SIMD width via `std.simd.suggestVectorLength`; a CPU/GPU parity test validates the active backend against a scalar reference (`gpu/vector_ops.zig`). Gap: native Metal/CUDA/Vulkan compute kernels are not linked. |
+| Apple Neural Engine / TPU integration | **Partial** | ANE: `compute.aneHardwarePresent()` truthfully reports Apple-Silicon ANE presence (`wdbx compute info`); native execution is **not** linked (CoreML/ObjC only, not pure Zig, ANE residency unverifiable in-environment). TPU: `remote_compute.zig` is a real "remote execution" dispatch transport over TCP (`ABI_REMOTE_COMPUTE_ENDPOINT`, loopback-tested, CPU fallback) — the operator points it at their own accelerator service; no accelerator is bundled. Gap: native ANE execution + a production remote-accelerator endpoint. |
+| Distributed clustering | **Partial** | `cluster.zig` in-process Raft core (election, majority-quorum replication, failover; `abi wdbx cluster demo`) **plus** `cluster_rpc.zig`, a real TCP transport (RequestVote/AppendEntries) with election/replication/downed-node tests over 127.0.0.1 and a runnable `abi wdbx cluster serve <port>` node endpoint. Gap: multi-host production deployment and data sharding (a routable bind address is the only code change for multi-host; sharding is unbuilt). |
 | Cryptographic verification | **Current** | SHA-256-linked blocks + `verifyBlocks()`; snapshot integrity line rejects tampering (`error.ChecksumMismatch`); WAL CRC32 frames: `chain.zig`, `persistence.zig`, `wal.zig`. |
-| Zero-copy memory access | **Partial** | Pool/arena allocators in `src/foundation/pool_allocator.zig`; padded contiguous vector storage. Gap: a proven zero-copy read path. |
-| Neural / embedding compression | **Partial** | `compression.zig` scalar int8 embedding quantization, ~4× with bounded reconstruction error (3 tests; `abi wdbx secure demo`). Gap: a learned/entropy codec. |
-| Homomorphic encryption | **Partial** | `crypto_he.zig` additive single-key homomorphism over GF(p): ciphertext sums decrypt to plaintext sums (5 tests; `secure demo`). Gap: multiplication / full FHE (research horizon). |
+| Zero-copy memory access | **Partial** | `Store.getVector` returns a borrowed slice aliasing the index's contiguous backing buffer — no allocation/copy — proven by a pointer-aliasing test (`mod.zig`); pool/arena allocators in `src/foundation/pool_allocator.zig`. Gap: an end-to-end zero-copy path across the whole query. |
+| Neural / embedding compression | **Partial** | `compression.zig` int8 quantization (~4×) **plus** `neural_compress.zig`, an in-process-trained autoencoder codec (hand-written backprop/SGD; reconstruction-error + determinism tests). Gap: a SOTA/production-scale learned codec. |
+| Homomorphic encryption | **Partial** | `crypto_he.zig` additive single-key homomorphism, **plus** `fhe.zig`, a real DGHV **somewhat-homomorphic** scheme supporting encrypted **add (XOR) and multiply (AND)** to a small depth (depth-3 chained multiply tested; `secure demo`). Reference parameters / bounded depth — **not** security-audited. Gap: production-secure parameters and bootstrapped full FHE. |
 
 ---
 
@@ -64,20 +64,21 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
   `semantic` comes from HNSW cosine, `temporal` from recency half-life decay, `causal` from causal-edge hop distance, `persona` from the router profile weight. JSONL snapshots persist temporal nodes and causal edges.
 
 ### 3.3 Compute Layer
-- **Current:** CPU SIMD via Zig `@Vector`; GPU *capability reporting* with deterministic CPU fallback; `compute.zig` dynamic backend selector across CPU (`scalar`/`avx2`/`avx512`/`neon`, host-detected), GPU (`cuda`/`metal`/`vulkan`), NPU (`ane`), and TPU (`remote`), each degrading to the CPU SIMD path with verified CPU/GPU parity.
-- **Proposed:** native compute kernels for the accelerator backends (CUDA / Metal / Vulkan Compute / ANE / remote TPU). Selection is already **dynamic** and always degrades to the deterministic CPU path.
+- **Current:** CPU SIMD via Zig `@Vector` with host-matched width (`std.simd.suggestVectorLength`); GPU *capability reporting* + real Metal path with deterministic CPU fallback and a CPU/GPU parity test; `compute.zig` dynamic backend selector across CPU (`scalar`/`avx2`/`avx512`/`neon`, host-detected), GPU (`cuda`/`metal`/`vulkan`), NPU (`ane`, with honest `aneHardwarePresent()` detection), and TPU (`remote`). `remote_compute.zig` adds a real TCP dispatch transport for the remote-accelerator backend (endpoint-configured, CPU fallback).
+- **Proposed:** native compute kernels for the local accelerator backends (CUDA / Metal / Vulkan Compute / ANE). ANE native execution specifically requires Apple CoreML/ObjC (not pure Zig) and on-device profiling to verify residency. Selection is already **dynamic** and always degrades to the deterministic CPU path.
 
 ### 3.4 Security Layer
-- **Current:** SHA-256 block chaining with integrity verification; snapshot checksum + WAL CRC32 frames with clean rejection of tampered/out-of-range records; `crypto_he.zig` additive homomorphic encryption (encrypted aggregation under a single key); connector credential validation; constitution governance on responses.
-- **Proposed:** at-rest snapshot encryption, signed snapshots, and a fully homomorphic (multiplicative) query path (Phase 4). No encryption/RBAC claims beyond what is implemented and tested.
+- **Current:** SHA-256 block chaining with integrity verification; snapshot checksum + WAL CRC32 frames with clean rejection of tampered/out-of-range records; `crypto_he.zig` additive homomorphic encryption (encrypted aggregation under a single key) and `fhe.zig` DGHV **somewhat-homomorphic** encryption (encrypted add + multiply on bits, small depth, reference parameters — not security-audited); connector credential validation; constitution governance on responses.
+- **Proposed:** at-rest snapshot encryption, signed snapshots, and production-secure / bootstrapped full FHE (Phase 4). No encryption/RBAC claims beyond what is implemented and tested.
 
 ### 3.5 Cluster Layer
-- **Current (in-process):** `cluster.zig` Raft-style core — leader election, majority-quorum log replication, leader failover, quorum-loss detection — exercised over an in-process node array with a deterministic step model (4 unit tests; `abi wdbx cluster demo`).
-- **Proposed:** a networked RPC transport so the consensus core spans separate hosts. Until that lands, ABI is **not** a distributed multi-host deployment.
+- **Current (single-host):** `cluster.zig` Raft-style core — leader election, majority-quorum log replication, leader failover, quorum-loss detection (deterministic step model; `abi wdbx cluster demo`) — **and** `cluster_rpc.zig`, a real TCP RequestVote/AppendEntries transport with election/replication/downed-node tests over 127.0.0.1 and a runnable `abi wdbx cluster serve <port>` node endpoint.
+- **Proposed:** multi-host deployment (a routable bind address is the only code change) and data sharding/partitioning across nodes. Until a multi-host deployment is exercised, ABI is **not** a distributed multi-host system, and sharding is unbuilt.
 
 ### 3.6 Transport Layer
 - **Current:** MCP JSON-RPC 2.0 over stdio (64 KB request cap) + optional loopback HTTP/SSE (`GET /sse`, `POST /message`) on `127.0.0.1:8080`; **WDBX REST listener** (`rest.zig`) serving `POST /insert /query /verify` and `GET /health /stats` on a loopback port (`abi wdbx api serve [port]`, default 8081), with a fully unit-tested pure routing core.
-- **Proposed:** gRPC, WebSocket streaming, cluster RPC; hardening the REST listener for non-loopback use.
+- **Current (added):** cluster consensus RPC and remote-compute dispatch over TCP (`cluster_rpc.zig`, `remote_compute.zig`), loopback-tested via a shared `net_line` framing helper.
+- **Proposed:** gRPC, WebSocket streaming; hardening the listeners for non-loopback/production use.
 
 ---
 
@@ -104,16 +105,17 @@ Served by `abi wdbx api serve [port]` (default 8081). The routing core is a pure
 wdbx db init <path>        wdbx db verify <path>        # segment checkpoint + WAL integrity
 wdbx block insert <path> <profile> <metadata>           # writes segment checkpoint + WAL
 wdbx block get <path>
-wdbx query <path>                                       # store stats manifest
-wdbx benchmark [count]                                  # local in-memory timing
-wdbx cluster status                                     # honest single-node report
+wdbx query <path> [text] [persona]                      # stats manifest, or hybrid/persona-scoped semantic search
+wdbx benchmark [count]                                  # local in-memory timing with P50/P95/P99
+wdbx cluster status                                     # real Raft state-machine status line
 wdbx cluster demo [nodes]                               # in-process election/quorum/failover
-wdbx compute info                                       # CPU/GPU/NPU/TPU backends + selection
-wdbx secure demo                                        # int8 compression + additive HE aggregation
+wdbx cluster serve <port> [node]                        # serve this node's networked consensus RPC (loopback)
+wdbx compute info                                       # CPU/GPU/NPU/TPU backends + ANE detection + remote endpoint
+wdbx secure demo                                        # int8 compression + additive HE + DGHV add/multiply SHE
 wdbx gpu info                                           # GPU backend capabilities
 wdbx api serve [port]                                   # loopback REST listener (default 8081)
 ```
-`cluster status` reports `nodes=1 role=standalone` (no distributed claim); `cluster demo` runs the in-process Raft-style core (§3.5). `api serve` starts the loopback REST listener implemented in `rest.zig` (`POST /insert /query /verify`, `GET /health /stats`; §3.6/§4). Native distributed transport, NPU/TPU dispatch, learned compression, and full (multiplicative) FHE remain **Proposed** (§2).
+`cluster status` reports the real in-process Raft state-machine status line; `cluster demo` runs the consensus core and `cluster serve` exposes its networked RequestVote/AppendEntries transport over loopback (§3.5). `api serve` starts the loopback REST listener implemented in `rest.zig` (`POST /insert /query /verify`, `GET /health /stats`; §3.6/§4). **Native local-accelerator (CUDA/Vulkan/Metal-kernel/ANE) execution, multi-host distributed deployment + sharding, a production/learned compression codec, and production-secure/bootstrapped FHE remain Proposed** (§2).
 
 ---
 
@@ -123,7 +125,7 @@ wdbx api serve [port]                                   # loopback REST listener
 
 - Dimensions to track: insert latency, query latency, throughput, memory bandwidth, GPU utilization, ANE utilization.
 - Distribution metrics: P50 / P95 / P99.
-- Current state: `src/benchmarks.zig` covers functional vector-op / HNSW / chain / routing / constitution timing; it does not yet emit a checked-in latency/throughput artifact. Until it does, treat all of the above as targets.
+- Current state: `src/benchmarks.zig` covers functional vector-op / HNSW / chain / routing / constitution timing and now emits a machine-readable artifact with **P50/P95/P99** (schema `abi-bench/v2`) to `zig-out/bench/results.json`; `abi wdbx benchmark` also reports per-op percentiles. The artifact is gitignored (not yet checked in), so until a committed artifact exists, treat all numbers as targets and publish none. Memory-bandwidth / GPU / ANE utilization are not yet instrumented.
 
 ---
 
