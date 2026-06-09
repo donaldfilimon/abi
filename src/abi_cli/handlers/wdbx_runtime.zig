@@ -136,8 +136,20 @@ pub fn secureDemo(allocator: std.mem.Allocator) anyerror!u8 {
         plain_sum += i * 100;
     }
     const decrypted = try key.decrypt(acc);
-    std.debug.print("homomorphic add: sum of 5 encrypted values decrypts to {d} (expected {d}, match={any})\n", .{ decrypted, plain_sum, decrypted == plain_sum });
-    std.debug.print("(additive single-key homomorphism; full FHE with multiplication is a research-horizon item)\n", .{});
+    std.debug.print("additive HE: sum of 5 encrypted values decrypts to {d} (expected {d}, match={any})\n", .{ decrypted, plain_sum, decrypted == plain_sum });
+
+    // Somewhat-homomorphic encryption supporting BOTH add (XOR) and multiply
+    // (AND) on encrypted bits — evaluate a small circuit entirely on ciphertexts.
+    var prng = std.Random.DefaultPrng.init(0x5EEDF00DC0FFEE11);
+    const rand = prng.random();
+    const kp = wdbx.fhe.keygen(rand);
+    const e1 = wdbx.fhe.encrypt(kp, rand, 1);
+    const e1b = wdbx.fhe.encrypt(kp, rand, 1);
+    const e0 = wdbx.fhe.encrypt(kp, rand, 0);
+    const e_eval = wdbx.fhe.add(kp, wdbx.fhe.mul(kp, e1, e1b), e0); // (1 AND 1) XOR 0
+    const eval_bit = wdbx.fhe.decrypt(kp, e_eval);
+    std.debug.print("homomorphic eval: enc((1 AND 1) XOR 0) decrypts to {d} (expected 1, match={any})\n", .{ eval_bit, eval_bit == 1 });
+    std.debug.print("(DGHV somewhat-homomorphic scheme: real encrypted add+multiply on ciphertexts, reference parameters / bounded depth — not security-audited)\n", .{});
     return 0;
 }
 
