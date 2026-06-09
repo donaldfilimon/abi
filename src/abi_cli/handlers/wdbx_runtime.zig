@@ -4,9 +4,26 @@ const foundation_time = @import("../../foundation/time.zig");
 
 const wdbx = features.wdbx;
 
+/// Nearest-rank percentile (p in [0,100]) over an already-sorted ascending
+/// slice. Returns 0 for empty input.
+fn percentileSorted(sorted: []const u64, p: u8) u64 {
+    if (sorted.len == 0) return 0;
+    const idx_f = @ceil(@as(f64, @floatFromInt(p)) / 100.0 * @as(f64, @floatFromInt(sorted.len)));
+    const raw_idx = @as(usize, @intFromFloat(idx_f));
+    const clamped = if (raw_idx == 0) 0 else @min(raw_idx, sorted.len) - 1;
+    return sorted[clamped];
+}
+
 pub fn benchmark(allocator: std.mem.Allocator, count: usize) anyerror!u8 {
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
+
+    // Per-op latency samples so we can report P50/P95/P99, not just averages.
+    const insert_samples = try allocator.alloc(u64, count);
+    defer allocator.free(insert_samples);
+    const queries: usize = @min(count, 200);
+    const search_samples = try allocator.alloc(u64, queries);
+    defer allocator.free(search_samples);
 
     const insert_start = foundation_time.monotonicNs();
     var i: usize = 0;
@@ -14,27 +31,43 @@ pub fn benchmark(allocator: std.mem.Allocator, count: usize) anyerror!u8 {
         var v: [4]f32 = .{ 0, 0, 0, 0 };
         v[0] = @floatFromInt(i % 97);
         v[1] = @floatFromInt(i % 31);
+        const op_start = foundation_time.monotonicNs();
         _ = try store.putVector(&v);
+        insert_samples[i] = @intCast(@max(@as(i64, 0), foundation_time.monotonicNs() - op_start));
     }
     const insert_ns: u64 = @intCast(@max(@as(i64, 0), foundation_time.monotonicNs() - insert_start));
 
     const search_start = foundation_time.monotonicNs();
-    const queries: usize = @min(count, 200);
     var j: usize = 0;
     while (j < queries) : (j += 1) {
+        const op_start = foundation_time.monotonicNs();
         const r = try store.search(&.{ 1, 0, 0, 0 }, 10);
+        search_samples[j] = @intCast(@max(@as(i64, 0), foundation_time.monotonicNs() - op_start));
         allocator.free(r);
     }
     const search_ns: u64 = @intCast(@max(@as(i64, 0), foundation_time.monotonicNs() - search_start));
+
+    std.mem.sort(u64, insert_samples, {}, std.sort.asc(u64));
+    std.mem.sort(u64, search_samples, {}, std.sort.asc(u64));
 
     const ins_avg = if (count > 0) insert_ns / count else 0;
     const srch_avg = if (queries > 0) search_ns / queries else 0;
     std.debug.print(
         \\benchmark (local, in-memory; not a published throughput claim):
         \\  inserts: {d} in {d} ns  (avg {d} ns/op; includes per-op acceleration-kernel dispatch)
+        \\    p50={d} ns  p95={d} ns  p99={d} ns
         \\  searches: {d} in {d} ns (avg {d} ns/op, k=10 over {d} vectors)
+        \\    p50={d} ns  p95={d} ns  p99={d} ns
         \\
-    , .{ count, insert_ns, ins_avg, queries, search_ns, srch_avg, store.vectorCount() });
+    , .{
+        count,                                insert_ns,
+        ins_avg,                              percentileSorted(insert_samples, 50),
+        percentileSorted(insert_samples, 95), percentileSorted(insert_samples, 99),
+        queries,                              search_ns,
+        srch_avg,                             store.vectorCount(),
+        percentileSorted(search_samples, 50), percentileSorted(search_samples, 95),
+        percentileSorted(search_samples, 99),
+    });
     return 0;
 }
 
