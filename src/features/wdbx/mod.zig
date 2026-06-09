@@ -240,9 +240,15 @@ pub const Store = struct {
         return self.temporal_graph.timestampFor(id);
     }
 
+    /// Zero-copy borrowed view of a stored vector, trimmed to the active
+    /// dimensionality. The returned slice ALIASES the index's contiguous backing
+    /// buffer — no allocation, no copy — and is valid until the next mutation
+    /// that grows or frees that buffer. Returns null if `id` is absent.
     pub fn getVector(self: *const Store, id: u32) ?[]const f32 {
         if (!self.index.storage.contains(id)) return null;
-        return self.index.storage.get(id);
+        const stored = self.index.storage.get(id);
+        const dims = self.vector_dimensions orelse return stored;
+        return stored[0..dims];
     }
 
     pub fn appendBlock(self: *Store, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8) ![32]u8 {
@@ -358,6 +364,22 @@ test "Store accelerates vector search and block chain memory" {
     const manifest = try store_obj.exportManifest(std.testing.allocator);
     defer std.testing.allocator.free(manifest);
     try std.testing.expect(std.mem.indexOf(u8, manifest, "\"vectors\":3") != null);
+}
+
+test "getVector is a zero-copy view aliasing the backing buffer" {
+    var store_obj = Store.init(std.testing.allocator);
+    defer store_obj.deinit();
+
+    const id = try store_obj.putVector(&.{ 1.0, 2.0, 3.0, 4.0 });
+    const view = store_obj.getVector(id) orelse return error.MissingVector;
+
+    // Trimmed to the active dimensionality (not the padded HNSW width).
+    try std.testing.expectEqual(@as(usize, 4), view.len);
+    try std.testing.expectEqualSlices(f32, &.{ 1.0, 2.0, 3.0, 4.0 }, view);
+
+    // Zero-copy: the view's data pointer is the same address as the raw backing
+    // storage slice — no allocation or copy was made to satisfy the read.
+    try std.testing.expectEqual(store_obj.index.storage.get(id).ptr, view.ptr);
 }
 
 test "Store rejects mismatched vector dimensions" {
