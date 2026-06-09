@@ -27,7 +27,9 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
         return 0;
     } else if (std.mem.eql(u8, sub_cmd, "train")) {
         if (args.len != 4) return usage_mod.usageError("usage: abi agent train <abbey|aviva|abi|all>");
-        var store = abi.features.wdbx.Store.init(allocator);
+        var session = try abi.features.wdbx.durable_store.Session.open(io, allocator);
+        defer session.deinit();
+        const store = session.storePtr();
 
         const dataset = abi.features.ai.DatasetSpec{ .path = "datasets/local-training.jsonl" };
         const artifact_dir = "zig-cache/agent-artifacts";
@@ -39,7 +41,6 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
 
         var mem_tracker = abi.memory.MemoryTracker.init(allocator);
         defer mem_tracker.deinit();
-        defer store.deinit();
         var tracking_alloc = abi.memory.TrackingAllocator.init(allocator, &mem_tracker);
         sched.setMemoryTracker(&mem_tracker);
 
@@ -60,7 +61,7 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
                 const ctx = try task_alloc.create(abi.features.ai.TrainingTaskContext);
                 ctx.* = .{
                     .allocator = allocator,
-                    .store = &store,
+                    .store = store,
                     .config = .{
                         .profile = label,
                         .dataset = dataset,
@@ -78,7 +79,7 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
             const ctx = try task_alloc.create(abi.features.ai.TrainingTaskContext);
             ctx.* = .{
                 .allocator = allocator,
-                .store = &store,
+                .store = store,
                 .config = .{
                     .profile = profile_arg,
                     .dataset = dataset,
@@ -102,9 +103,9 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
 
         if (training_contexts.items.len == 0) {
             const result = if (is_all)
-                try abi.features.ai.trainKnownProfiles(allocator, &store, dataset, artifact_dir)
+                try abi.features.ai.trainKnownProfiles(allocator, store, dataset, artifact_dir)
             else
-                try abi.features.ai.trainWithStore(allocator, &store, .{
+                try abi.features.ai.trainWithStore(allocator, store, .{
                     .profile = profile_arg,
                     .dataset = dataset,
                     .artifact_dir = artifact_dir,

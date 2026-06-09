@@ -10,9 +10,10 @@ pub fn handleTrain(allocator: std.mem.Allocator, input: []const u8) !u8 {
     return 0;
 }
 
-pub fn handleComplete(allocator: std.mem.Allocator, input: []const u8) !u8 {
-    var store = features.wdbx.Store.init(allocator);
-    defer store.deinit();
+pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8) !u8 {
+    var session = try features.wdbx.durable_store.Session.open(io, allocator);
+    defer session.deinit();
+    const store = session.storePtr();
 
     var scheduler = scheduler_mod.Scheduler.init(allocator);
     defer scheduler.deinit();
@@ -22,7 +23,7 @@ pub fn handleComplete(allocator: std.mem.Allocator, input: []const u8) !u8 {
 
     var result = try features.ai.completeWithScheduler(
         allocator,
-        &store,
+        store,
         &scheduler,
         "complete:cli",
         .{ .input = input, .model = "abi-local", .store_result = true },

@@ -33,6 +33,47 @@ pub const recovery = struct {};
 pub const retrieval = struct {};
 pub const segments = struct {};
 
+// Durable-session shim: when wdbx is disabled the session is a thin in-memory
+// wrapper over the stub Store, so MCP/CLI callers compile and run without
+// persistence (all underlying writes return error.FeatureDisabled).
+pub const durable_store = struct {
+    pub const Session = struct {
+        store: Store,
+
+        pub fn open(io: std.Io, allocator: std.mem.Allocator) !Session {
+            _ = io;
+            return .{ .store = Store.init(allocator) };
+        }
+
+        pub fn openAt(io: std.Io, allocator: std.mem.Allocator, base: []const u8) !Session {
+            _ = io;
+            _ = base;
+            return .{ .store = Store.init(allocator) };
+        }
+
+        pub fn openInMemory(allocator: std.mem.Allocator) Session {
+            return .{ .store = Store.init(allocator) };
+        }
+
+        pub fn isPersistent(self: *const Session) bool {
+            _ = self;
+            return false;
+        }
+
+        pub fn storePtr(self: *Session) *Store {
+            return &self.store;
+        }
+
+        pub fn checkpoint(self: *Session) !void {
+            _ = self;
+        }
+
+        pub fn deinit(self: *Session) void {
+            self.store.deinit();
+        }
+    };
+};
+
 pub const persistence = struct {
     pub const HEADER = "# ABI-WDBX v1";
     pub const CHECKSUM_PREFIX = "# checksum:";
@@ -87,6 +128,12 @@ pub const Store = struct {
     pub fn setTracker(self: *Store, t: *memory.MemoryTracker) void {
         _ = self;
         _ = t;
+    }
+
+    pub fn attachWal(self: *Store, io: std.Io, path: []const u8) void {
+        _ = self;
+        _ = io;
+        _ = path;
     }
 
     pub fn store(self: *Store, key: []const u8, val: []const u8) !void {

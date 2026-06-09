@@ -18,6 +18,7 @@ pub const rest = @import("rest.zig");
 pub const recovery = @import("recovery.zig");
 pub const retrieval = @import("retrieval.zig");
 pub const segments = @import("segments.zig");
+pub const durable_store = @import("durable_store.zig");
 
 pub const MAX_LAYERS = types.MAX_LAYERS;
 pub const HNSW_DIMENSIONS = types.HNSW_DIMENSIONS;
@@ -30,6 +31,14 @@ pub const StoreStats = types.StoreStats;
 pub const StoreConfig = types.StoreConfig;
 
 pub const Store = struct {
+    /// Optional sidecar write-ahead-log binding. When set (via `attachWal`),
+    /// supported mutations append a durable record per mutation. The path is
+    /// borrowed; its owner (a `durable_store.Session`) outlives the Store.
+    pub const WalBinding = struct {
+        io: std.Io,
+        path: []const u8,
+    };
+
     allocator: std.mem.Allocator,
     entries: std.StringHashMap([]const u8),
     index: index.HnswIndex(HNSW_DIMENSIONS),
@@ -41,6 +50,7 @@ pub const Store = struct {
     acceleration: AccelerationStatus,
     tracker: ?*memory.MemoryTracker = null,
     pool_alloc: ?*foundation_pool.PoolAllocator = null,
+    wal_binding: ?WalBinding = null,
 
     pub fn init(a: std.mem.Allocator) Store {
         return initWithConfig(a, .{});
@@ -105,10 +115,11 @@ pub const Store = struct {
             self.allocator.free(owned_key);
             self.allocator.free(result.value_ptr.*);
             result.value_ptr.* = owned_val;
-            return;
+        } else {
+            result.key_ptr.* = owned_key;
+            result.value_ptr.* = owned_val;
         }
-        result.key_ptr.* = owned_key;
-        result.value_ptr.* = owned_val;
+        if (self.wal_binding) |w| try wal.appendKv(w.io, self.allocator, w.path, key, val);
     }
 
     pub fn get(self: *const Store, key: []const u8) ?[]const u8 {
@@ -126,6 +137,12 @@ pub const Store = struct {
     pub fn setTracker(self: *Store, t: *memory.MemoryTracker) void {
         self.tracker = t;
         self.index.setTracker(t);
+    }
+
+    /// Bind a sidecar WAL so supported mutations (kv, block, temporal node/edge)
+    /// are logged per mutation. `path` is borrowed and must outlive the Store.
+    pub fn attachWal(self: *Store, io: std.Io, path: []const u8) void {
+        self.wal_binding = .{ .io = io, .path = path };
     }
 
     pub fn stats(self: *const Store) StoreStats {
@@ -198,10 +215,12 @@ pub const Store = struct {
 
     pub fn addTemporalNode(self: *Store, id: u32, timestamp_ms: i64) !void {
         try self.temporal_graph.addNode(id, timestamp_ms);
+        if (self.wal_binding) |w| try wal.appendTemporalNode(w.io, self.allocator, w.path, id, timestamp_ms);
     }
 
     pub fn addTemporalEdge(self: *Store, cause: u32, effect: u32) !void {
         try self.temporal_graph.addCausalEdge(cause, effect);
+        if (self.wal_binding) |w| try wal.appendTemporalEdge(w.io, self.allocator, w.path, cause, effect);
     }
 
     pub fn temporalNodeCount(self: *const Store) usize {
@@ -222,7 +241,14 @@ pub const Store = struct {
     }
 
     pub fn appendBlock(self: *Store, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8) ![32]u8 {
-        return try self.chain.append(profile, query_id, response_id, metadata);
+        const hash = try self.chain.append(profile, query_id, response_id, metadata);
+        if (self.wal_binding) |w| {
+            // Log with the timestamp the chain assigned so a replayed block
+            // reproduces the same SHA-256 hash.
+            const last = self.lastBlock().?;
+            try wal.appendBlock(w.io, self.allocator, w.path, profile, query_id, response_id, metadata, last.timestamp_ms);
+        }
+        return hash;
     }
 
     /// Append a block preserving an explicit `timestamp_ms`. Used by snapshot

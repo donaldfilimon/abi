@@ -3,6 +3,7 @@ const protocol = @import("protocol.zig");
 const handlers = @import("handlers.zig");
 const server = @import("server.zig");
 const json_helpers = @import("json_helpers.zig");
+const state = @import("state.zig");
 
 const McpMethod = protocol.McpMethod;
 const validateRequest = protocol.validateRequest;
@@ -11,6 +12,13 @@ const appendJsonString = json_helpers.appendJsonString;
 
 pub fn main(init: std.process.Init) !void {
     server.installSignalHandlers();
+
+    // Persist the WDBX store across server restarts (default-ON). The durable
+    // store is opened lazily on first use with this IO handle; the defer
+    // guarantees a checkpoint on the normal-exit path (the `shutdown` RPC also
+    // checkpoints, and deinit is idempotent).
+    state.setIo(init.io);
+    defer state.deinitWdbxStore();
 
     // Spawn HTTP/SSE server thread
     const http_thread = std.Thread.spawn(.{}, server.runHttpServer, .{ init.gpa, init.io }) catch |err| {

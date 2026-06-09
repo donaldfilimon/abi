@@ -16,9 +16,8 @@ fn handleTrainWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []cons
 }
 
 fn handleCompleteWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
-    _ = io;
     if (args.len != 3) return usage_mod.usageError("usage: abi complete <input>");
-    return handlers.handleComplete(alloc, args[2]);
+    return handlers.handleComplete(io, alloc, args[2]);
 }
 
 fn handleBackendsWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {

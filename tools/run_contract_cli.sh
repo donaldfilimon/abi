@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Keep the CLI contract hermetic: the default-ON durable WDBX store would
+# otherwise persist into ~/.abi/wdbx during the run. Force in-memory.
+export ABI_WDBX_PERSIST=0
+
 ABI="${ABI_EXE:-zig-out/bin/abi}"
 
 if [[ ! -x "$ABI" ]]; then
