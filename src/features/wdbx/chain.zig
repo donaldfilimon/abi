@@ -207,8 +207,13 @@ pub const BlockChain = struct {
 
     pub const Iterator = struct {
         current: ?*const MvccBlock,
+        remaining: ?usize = null,
 
         pub fn next(self: *Iterator) ?*const MvccBlock {
+            if (self.remaining) |remaining| {
+                if (remaining == 0) return null;
+                self.remaining = remaining - 1;
+            }
             const node = self.current orelse return null;
             self.current = node.next;
             return node;
@@ -222,7 +227,10 @@ pub const BlockChain = struct {
 
         pub fn getBlock(self: *const Snapshot, hash: [HASH_LEN]u8) ?*const MvccBlock {
             var current = self.head;
+            var remaining = self.length;
             while (current) |node| {
+                if (remaining == 0) break;
+                remaining -= 1;
                 if (std.mem.eql(u8, &node.header.hash, &hash)) {
                     return node;
                 }
@@ -232,7 +240,7 @@ pub const BlockChain = struct {
         }
 
         pub fn iterator(self: *const Snapshot) Iterator {
-            return .{ .current = self.head };
+            return .{ .current = self.head, .remaining = self.length };
         }
 
         pub fn len(self: *const Snapshot) usize {

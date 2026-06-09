@@ -143,43 +143,58 @@ pub const LoopbackHttpServer = struct {
         self.server.deinit(io);
     }
 
-    /// Accept up to max_accepts connections, send HTTP 200 JSON responses, and return the last raw request bytes.
+    /// Accept one connection, send an HTTP 200 JSON response, and return the raw request bytes.
     pub fn acceptAndRespond(self: *LoopbackHttpServer, io: std.Io, allocator: std.mem.Allocator, response_body: []const u8) ![]u8 {
-        var last_request: ?[]u8 = null;
-        var accepts: usize = 0;
-        while (accepts < 5) : (accepts += 1) {
-            const conn = self.server.accept(io) catch break;
-            defer conn.close(io);
+        const conn = try self.server.accept(io);
+        defer conn.close(io);
 
-            var read_buf: std.ArrayListUnmanaged(u8) = .empty;
-            read_buf.ensureTotalCapacity(allocator, 4096) catch break;
-            defer read_buf.deinit(allocator);
+        var read_buf: std.ArrayListUnmanaged(u8) = .empty;
+        try read_buf.ensureTotalCapacity(allocator, 4096);
+        defer read_buf.deinit(allocator);
 
-            while (true) {
-                const cap = read_buf.unusedCapacitySlice();
-                if (cap.len == 0) break;
-                var read_vec: [1][]u8 = .{cap[0..1]};
-                const n = conn.read(io, &read_vec) catch break;
-                if (n == 0) break;
-                read_buf.items.len += n;
-            }
-
-            const header = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n", .{response_body.len});
-            defer allocator.free(header);
-
-            var write_buf: [4096]u8 = undefined;
-            var stream_writer = conn.writer(io, &write_buf);
-            const writer = &stream_writer.interface;
-            writer.writeAll(header) catch continue;
-            writer.writeAll(response_body) catch continue;
-            writer.flush() catch continue;
-
-            if (last_request) |prev| allocator.free(prev);
-            last_request = try read_buf.toOwnedSlice(allocator);
+        while (true) {
+            const cap = read_buf.unusedCapacitySlice();
+            if (cap.len == 0) break;
+            var read_vec: [1][]u8 = .{cap[0..1]};
+            const n = conn.read(io, &read_vec) catch break;
+            if (n == 0) break;
+            read_buf.items.len += n;
+            if (httpRequestComplete(read_buf.items)) break;
         }
-        return last_request orelse error.ConnectionRefused;
+
+        const header = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n", .{response_body.len});
+        defer allocator.free(header);
+
+        var write_buf: [4096]u8 = undefined;
+        var stream_writer = conn.writer(io, &write_buf);
+        const writer = &stream_writer.interface;
+        try writer.writeAll(header);
+        try writer.writeAll(response_body);
+        try writer.flush();
+
+        return try read_buf.toOwnedSlice(allocator);
     }
 };
+
+fn httpRequestComplete(request: []const u8) bool {
+    const header_end = std.mem.indexOf(u8, request, "\r\n\r\n") orelse return false;
+    const body_start = header_end + 4;
+    const headers = request[0..header_end];
+    const body_len = request.len - body_start;
+
+    var content_len: usize = 0;
+    var lines = std.mem.splitSequence(u8, headers, "\r\n");
+    while (lines.next()) |line| {
+        const colon = std.mem.indexOfScalar(u8, line, ':') orelse continue;
+        const name = std.mem.trim(u8, line[0..colon], " \t");
+        if (!std.ascii.eqlIgnoreCase(name, "Content-Length")) continue;
+        const raw = std.mem.trim(u8, line[colon + 1 ..], " \t");
+        content_len = std.fmt.parseInt(usize, raw, 10) catch return false;
+        break;
+    }
+
+    return body_len >= content_len;
+}
 
 pub fn bench(comptime label: []const u8, fn_run: anytype) BenchResult {
     const start = std.time.Instant.now() catch @panic("no timer");
