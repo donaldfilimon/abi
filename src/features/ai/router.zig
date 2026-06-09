@@ -1,5 +1,5 @@
 const std = @import("std");
-const ai = @import("mod.zig");
+const types = @import("types.zig");
 
 pub const ProfileWeights = struct {
     w_abbey: f32,
@@ -184,7 +184,7 @@ pub fn analyzeSentiment(input: []const u8) ProfileWeights {
     return weights_val;
 }
 
-pub fn selectBestProfile(weights_val: ProfileWeights) ai.AgentProfile {
+pub fn selectBestProfile(weights_val: ProfileWeights) types.AgentProfile {
     if (weights_val.w_abbey >= weights_val.w_aviva and weights_val.w_abbey >= weights_val.w_abi) {
         return .abbey;
     } else if (weights_val.w_aviva >= weights_val.w_abi) {
@@ -195,7 +195,7 @@ pub fn selectBestProfile(weights_val: ProfileWeights) ai.AgentProfile {
 }
 
 /// Helper function to route to the appropriate profile based on profile selector
-pub fn routeToProfile(allocator: std.mem.Allocator, profile_sel: ai.AgentProfile, input: []const u8) ![]u8 {
+pub fn routeToProfile(allocator: std.mem.Allocator, profile_sel: types.AgentProfile, input: []const u8) ![]u8 {
     return switch (profile_sel) {
         .abbey => abbey.processInput(allocator, input),
         .aviva => aviva.processInput(allocator, input),
@@ -271,13 +271,13 @@ test "analyzeSentiment is case-insensitive" {
 
 test "selectBestProfile picks highest weight" {
     const weights_val = ProfileWeights{ .w_abbey = 0.6, .w_aviva = 0.2, .w_abi = 0.2 };
-    try std.testing.expectEqual(ai.AgentProfile.abbey, selectBestProfile(weights_val));
+    try std.testing.expectEqual(types.AgentProfile.abbey, selectBestProfile(weights_val));
 
     const weights2 = ProfileWeights{ .w_abbey = 0.2, .w_aviva = 0.6, .w_abi = 0.2 };
-    try std.testing.expectEqual(ai.AgentProfile.aviva, selectBestProfile(weights2));
+    try std.testing.expectEqual(types.AgentProfile.aviva, selectBestProfile(weights2));
 
     const weights3 = ProfileWeights{ .w_abbey = 0.2, .w_aviva = 0.2, .w_abi = 0.6 };
-    try std.testing.expectEqual(ai.AgentProfile.abi, selectBestProfile(weights3));
+    try std.testing.expectEqual(types.AgentProfile.abi, selectBestProfile(weights3));
 }
 
 test "routeInput returns response from selected profile" {

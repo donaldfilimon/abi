@@ -8,6 +8,7 @@ const foundation_io = @import("../../foundation/io/mod.zig");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const memory_mod = @import("../../core/memory.zig");
 const helpers = @import("helpers.zig");
+const types = @import("types.zig");
 
 const router = @import("router.zig");
 pub const abbey = router.abbey;
@@ -22,107 +23,16 @@ pub const constitution = @import("constitution.zig");
 pub const AuditResult = constitution.AuditResult;
 pub const Principle = constitution.Principle;
 
-pub const AgentProfile = enum {
-    abbey,
-    aviva,
-    abi,
-
-    pub fn label(self: AgentProfile) []const u8 {
-        return switch (self) {
-            .abbey => "abbey",
-            .aviva => "aviva",
-            .abi => "abi",
-        };
-    }
-};
-
-pub const known_profiles = [_]AgentProfile{ .abbey, .aviva, .abi };
-
-pub const DatasetFormat = enum {
-    jsonl,
-    csv,
-    text,
-};
-
-pub const DatasetSpec = struct {
-    path: []const u8,
-    format: DatasetFormat = .jsonl,
-};
-
-pub const TrainingConfig = struct {
-    profile: []const u8,
-    dataset: DatasetSpec,
-    artifact_dir: []const u8,
-};
-
-pub const TrainingResult = struct {
-    accepted: bool,
-    profile: []const u8,
-    dataset_path: []const u8,
-    artifact_dir: []const u8,
-    message: []const u8,
-    records_stored: usize = 0,
-    acceleration_backend: []const u8 = "unknown",
-    query_vector_id: ?u32 = null,
-    response_vector_id: ?u32 = null,
-    owned: bool = false,
-
-    pub fn deinit(self: TrainingResult, allocator: std.mem.Allocator) void {
-        if (!self.owned) return;
-        allocator.free(self.profile);
-        allocator.free(self.dataset_path);
-        allocator.free(self.artifact_dir);
-        allocator.free(self.message);
-    }
-};
-
-pub const CompletionRequest = struct {
-    input: []const u8,
-    model: []const u8 = "abi-local",
-    store_result: bool = false,
-};
-
-pub const CompletionResult = struct {
-    model: []const u8,
-    selected_profile: AgentProfile,
-    output: []u8,
-    audit: AuditResult,
-    query_vector_id: ?u32 = null,
-    response_vector_id: ?u32 = null,
-    block_id: ?[32]u8 = null,
-
-    pub fn deinit(self: CompletionResult, allocator: std.mem.Allocator) void {
-        allocator.free(self.output);
-    }
-};
-
-pub const CompletionTaskContext = struct {
-    allocator: std.mem.Allocator,
-    store: *wdbx.Store,
-    request: CompletionRequest,
-    result: ?CompletionResult = null,
-
-    pub fn deinitResult(self: *CompletionTaskContext) void {
-        if (self.result) |res| {
-            res.deinit(self.allocator);
-            self.result = null;
-        }
-    }
-};
-
-pub const TrainingTaskContext = struct {
-    allocator: std.mem.Allocator,
-    store: *wdbx.Store,
-    config: TrainingConfig,
-    result: ?TrainingResult = null,
-
-    pub fn deinitResult(self: *TrainingTaskContext) void {
-        if (self.result) |res| {
-            res.deinit(self.allocator);
-            self.result = null;
-        }
-    }
-};
+pub const AgentProfile = types.AgentProfile;
+pub const known_profiles = types.known_profiles;
+pub const DatasetFormat = types.DatasetFormat;
+pub const DatasetSpec = types.DatasetSpec;
+pub const TrainingConfig = types.TrainingConfig;
+pub const TrainingResult = types.TrainingResult;
+pub const CompletionRequest = types.CompletionRequest;
+pub const CompletionResult = types.CompletionResult;
+pub const CompletionTaskContext = types.CompletionTaskContext;
+pub const TrainingTaskContext = types.TrainingTaskContext;
 
 const DatasetSummary = struct {
     available: bool = false,
@@ -130,20 +40,8 @@ const DatasetSummary = struct {
     bytes: usize = 0,
 };
 
-pub const AgentConfig = struct {
-    name: []const u8,
-    instructions: []const u8,
-    dry_run: bool = true,
-};
-
-pub const AgentResult = struct {
-    output: []u8,
-    requires_review: bool,
-
-    pub fn deinit(self: AgentResult, allocator: std.mem.Allocator) void {
-        allocator.free(self.output);
-    }
-};
+pub const AgentConfig = types.AgentConfig;
+pub const AgentResult = types.AgentResult;
 
 pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     const response = try profile.routeInput(allocator, input);
@@ -759,5 +657,6 @@ test {
     _ = @import("pipeline.zig");
     _ = @import("streaming.zig");
     _ = @import("constitution.zig");
+    _ = @import("types.zig");
     std.testing.refAllDecls(@This());
 }
