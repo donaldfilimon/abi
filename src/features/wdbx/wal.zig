@@ -34,32 +34,45 @@ fn crc32Hex(bytes: []const u8) [8]u8 {
     return std.fmt.bytesToHex(std.mem.toBytes(std.mem.nativeToBig(u32, sum)), .lower);
 }
 
-/// Append one already-encoded JSON record to the WAL at `path`, creating the
-/// log (with header) on first write. The record is framed with a CRC32 of its
-/// bytes so replay can detect corruption.
+/// Append one already-encoded JSON record to the WAL at `path`. O(1): an
+/// existing log is opened and the framed record is written at EOF via a
+/// positional writer (no full-file read-rewrite); a missing log is created with
+/// the header line first. The record is framed with a CRC32 of its bytes so
+/// replay can detect corruption.
 pub fn appendRecord(io: std.Io, allocator: std.mem.Allocator, path: []const u8, json: []const u8) !void {
     const cwd = std.Io.Dir.cwd();
-    const existing = cwd.readFileAlloc(io, path, allocator, .limited(256 * 1024 * 1024)) catch |err| switch (err) {
-        error.FileNotFound => null,
-        else => return err,
-    };
-    defer if (existing) |e| allocator.free(e);
-
-    var out: std.Io.Writer.Allocating = .init(allocator);
-    defer out.deinit();
-    if (existing) |e| {
-        try out.writer.writeAll(e);
-    } else {
-        try out.writer.writeAll(WAL_HEADER);
-        try out.writer.writeAll("\n");
-    }
     const crc = crc32Hex(json);
-    try out.writer.writeAll(&crc);
-    try out.writer.writeAll(" ");
-    try out.writer.writeAll(json);
-    try out.writer.writeAll("\n");
 
-    try cwd.writeFile(io, .{ .sub_path = path, .data = out.written() });
+    if (!try fileExists(io, allocator, path)) {
+        // First write: create the log with the legacy header + this record.
+        var out: std.Io.Writer.Allocating = .init(allocator);
+        defer out.deinit();
+        try out.writer.writeAll(WAL_HEADER_PREFIX);
+        try out.writer.writeAll("\n");
+        try out.writer.writeAll(&crc);
+        try out.writer.writeAll(" ");
+        try out.writer.writeAll(json);
+        try out.writer.writeAll("\n");
+        try cwd.writeFile(io, .{ .sub_path = path, .data = out.written() });
+        return;
+    }
+
+    // Existing log: append only the new framed record at EOF. Opening
+    // read_write does not truncate; the positional writer seeked to the current
+    // size pwrites the record without rereading prior contents — O(1) per call.
+    var file = try cwd.openFile(io, path, .{ .mode = .read_write });
+    defer file.close(io);
+    const end = (try file.stat(io)).size;
+
+    var wbuf: [8192]u8 = undefined;
+    var fw = file.writer(io, &wbuf);
+    try fw.seekTo(end);
+    const w = &fw.interface;
+    try w.writeAll(&crc);
+    try w.writeAll(" ");
+    try w.writeAll(json);
+    try w.writeAll("\n");
+    try w.flush();
 }
 
 /// Append a key/value mutation record.
