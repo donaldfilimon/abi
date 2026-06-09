@@ -55,8 +55,8 @@ test "validatePluginStructure rejects unsafe manifests" {
     try resetPluginFixture(fixture_dir);
     defer cleanupPluginFixture(fixture_dir);
 
-    try writePluginFixtureFile(fixture_dir, "mod.zig", "pub fn main() void {}\n");
-    try writePluginFixtureFile(fixture_dir, "stub.zig", "pub fn main() void {}\n");
+    try writePluginFixtureFile(fixture_dir, "mod.zig", "pub fn run() []const u8 { return \"fixture\"; }\n");
+    try writePluginFixtureFile(fixture_dir, "stub.zig", "pub fn run() []const u8 { return \"fixture-stub\"; }\n");
 
     try writePluginFixtureFile(fixture_dir, "abi-plugin.json",
         \\{"name":"bad-plugin","version":"0.1.0","description":"bad","target_feature":"plugins","entry_point":"../mod.zig"}
@@ -80,12 +80,12 @@ test "validatePluginStructure accepts camelCase aliases and nested entry" {
     try resetPluginFixture(fixture_dir);
     defer cleanupPluginFixture(fixture_dir);
 
-    try writePluginFixtureFile(fixture_dir, "mod.zig", "pub fn main() void {}\n");
-    try writePluginFixtureFile(fixture_dir, "stub.zig", "pub fn main() void {}\n");
+    try writePluginFixtureFile(fixture_dir, "mod.zig", "pub fn run() []const u8 { return \"fixture\"; }\n");
+    try writePluginFixtureFile(fixture_dir, "stub.zig", "pub fn run() []const u8 { return \"fixture-stub\"; }\n");
     const nested_dir = try std.fs.path.join(std.testing.allocator, &.{ fixture_dir, "nested" });
     defer std.testing.allocator.free(nested_dir);
     try std.Io.Dir.createDirPath(.cwd(), std.Options.debug_io, nested_dir);
-    try writePluginFixtureFile(fixture_dir, "nested/entry.zig", "pub fn main() void {}\n");
+    try writePluginFixtureFile(fixture_dir, "nested/entry.zig", "pub fn run() []const u8 { return \"nested\"; }\n");
     try writePluginFixtureFile(fixture_dir, "abi-plugin.json",
         \\{"name":"nested-plugin","version":"0.1.0","description":"ok","targetFeature":"plugins","entryPoint":"nested/entry.zig"}
     );

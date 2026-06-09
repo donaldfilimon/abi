@@ -155,7 +155,10 @@ pub const SegmentStore = struct {
             if (e < keep_from_epoch) {
                 const sp = try self.segmentPath(e);
                 defer self.allocator.free(sp);
-                std.Io.Dir.cwd().deleteFile(self.io, sp) catch {};
+                std.Io.Dir.cwd().deleteFile(self.io, sp) catch |err| switch (err) {
+                    error.FileNotFound => {},
+                    else => return err,
+                };
                 deleted += 1;
             } else {
                 try kept.append(self.allocator, e);
@@ -167,20 +170,50 @@ pub const SegmentStore = struct {
         try self.writeManifest(m);
         return deleted;
     }
+
+    /// Remove all manifest-listed segments and the manifest itself. This is
+    /// used by `wdbx db init` to make reinitialization deterministic without a
+    /// directory scan.
+    pub fn reset(self: *SegmentStore) !void {
+        var m = try self.readManifest();
+        defer m.deinit(self.allocator);
+
+        for (m.active.items) |e| {
+            const sp = try self.segmentPath(e);
+            defer self.allocator.free(sp);
+            std.Io.Dir.cwd().deleteFile(self.io, sp) catch |err| switch (err) {
+                error.FileNotFound => {},
+                else => return err,
+            };
+        }
+
+        const mp = try self.manifestPath();
+        defer self.allocator.free(mp);
+        std.Io.Dir.cwd().deleteFile(self.io, mp) catch |err| switch (err) {
+            error.FileNotFound => {},
+            else => return err,
+        };
+    }
 };
 
 const testing = std.testing;
 
 fn cleanup(base: []const u8) void {
-    const cwd = std.Io.Dir.cwd();
     var buf: [256]u8 = undefined;
     const mp = std.fmt.bufPrint(&buf, "{s}.manifest", .{base}) catch return;
-    cwd.deleteFile(testing.io, mp) catch {};
+    deleteTestFileIfExists(mp);
     var e: u64 = 0;
     while (e < 8) : (e += 1) {
         const sp = std.fmt.bufPrint(&buf, "{s}.seg.{d}.jsonl", .{ base, e }) catch continue;
-        cwd.deleteFile(testing.io, sp) catch {};
+        deleteTestFileIfExists(sp);
     }
+}
+
+fn deleteTestFileIfExists(path: []const u8) void {
+    std.Io.Dir.cwd().deleteFile(testing.io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
+    };
 }
 
 test "segments: flush assigns monotonic epochs and loadLatest reads the newest" {
@@ -236,6 +269,26 @@ test "segments: reclaim drops epochs below the watermark" {
     var loaded = try ss.loadLatest();
     defer loaded.deinit();
     try testing.expectEqual(@as(usize, 1), loaded.blockCount());
+}
+
+test "segments: reset removes manifest-listed checkpoints" {
+    const allocator = testing.allocator;
+    const base = "zig-out/wdbx-seg-reset";
+    cleanup(base);
+    defer cleanup(base);
+
+    var ss = SegmentStore.init(allocator, testing.io, base);
+    var s = wdbx_mod.Store.init(allocator);
+    defer s.deinit();
+    _ = try s.appendBlock("p", 0, 0, "{\"t\":1}");
+    _ = try ss.flush(&s);
+
+    try ss.reset();
+    try testing.expectEqual(@as(?u64, null), try ss.latestEpoch());
+
+    var loaded = try ss.loadLatest();
+    defer loaded.deinit();
+    try testing.expectEqual(@as(usize, 0), loaded.blockCount());
 }
 
 test {

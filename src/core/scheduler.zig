@@ -52,11 +52,9 @@ pub const Scheduler = struct {
     cancelled_count: std.atomic.Value(usize),
 
     // Metrics instance (populated only when -Dfeat-metrics; used for task lifecycle counters).
-    // Part of approved "Deeper src/ Integration & Observability Pass".
     metrics_instance: ?metrics.Metrics = null,
 
-    // Optional MemoryTracker for the allocations performed by/through this scheduler
-    // (e.g. task names, TaskCtx arenas in training paths). Wired in Phase 1 memory step.
+    // Optional MemoryTracker for allocations performed by scheduler-driven work.
     memory_tracker: ?*memory.MemoryTracker = null,
 
     pub fn init(allocator: std.mem.Allocator) Scheduler {
@@ -310,7 +308,6 @@ pub const Scheduler = struct {
         return self.submit(name, priority, fn_ptr, ctx);
     }
 
-    // --- Metrics wiring (Phase 1 of approved deeper-integration plan) ---
     // Real counters when -Dfeat-metrics; metric failures are logged and remain non-fatal.
     fn recordMetric(self: *Scheduler, name: []const u8, delta: u64) void {
         if (self.metrics_instance) |*m| {
@@ -324,8 +321,7 @@ pub const Scheduler = struct {
         telemetry.increment(name, delta);
     }
 
-    /// Attach an external MemoryTracker so this scheduler can participate
-    /// in cross-layer memory observability (training paths, task ctxs, etc.).
+    /// Attach an external MemoryTracker for scheduler-driven work.
     pub fn setMemoryTracker(self: *Scheduler, tracker: *memory.MemoryTracker) void {
         self.memory_tracker = tracker;
     }
@@ -337,7 +333,7 @@ pub const Scheduler = struct {
 
 test {
     std.testing.refAllDecls(@This());
-    _ = metrics; // metrics feature wired for real task lifecycle counters (Phase 1 of approved integration plan)
+    _ = metrics;
 }
 
 fn dummyTask(ctx: ?*anyopaque) anyerror!void {

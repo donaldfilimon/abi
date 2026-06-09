@@ -231,14 +231,26 @@ pub fn HnswIndex(comptime D: usize) type {
                         query,
                     );
                     const edges = self.nodes.items[curr].edges[curr_level].items;
+                    var neighbor_ids: [M]u32 = undefined;
+                    var neighbor_vectors: [M][]const f32 = undefined;
+                    var neighbor_distances: [M]f32 = undefined;
+                    var neighbor_count: usize = 0;
                     for (edges) |neighbor| {
                         if (neighbor >= self.nodes.items.len) continue;
                         if (visited.contains(neighbor)) continue;
                         try visited.put(neighbor, {});
-                        const dist = self.cosineDistance(
-                            self.storage.get(self.nodes.items[neighbor].id),
-                            query,
-                        );
+                        neighbor_ids[neighbor_count] = neighbor;
+                        neighbor_vectors[neighbor_count] = self.storage.get(self.nodes.items[neighbor].id);
+                        neighbor_count += 1;
+                    }
+                    try distance.batchCosineDistancesWithOps(
+                        self.allocator,
+                        self.distance_ops,
+                        query,
+                        neighbor_vectors[0..neighbor_count],
+                        neighbor_distances[0..neighbor_count],
+                    );
+                    for (neighbor_ids[0..neighbor_count], neighbor_distances[0..neighbor_count]) |neighbor, dist| {
                         if (dist < curr_dist) {
                             curr = neighbor;
                             changed = true;

@@ -59,21 +59,61 @@ pub const MemoryTracker = struct {
     pub fn trackFree(self: *MemoryTracker, ptr: [*]const u8, size: usize) void {
         // Keep records scoped to live allocations; newest match wins for reused addresses.
         const addr = @intFromPtr(ptr);
+        const record_index = self.findNewestRecord(addr);
+        const freed_size = if (record_index) |i| self.records.items[i].size else size;
+        if (record_index) |i| {
+            self.allocator.free(self.records.items[i].tag);
+            _ = self.records.swapRemove(i);
+        }
+
+        self.total_freed += freed_size;
+        if (self.current_usage >= freed_size) {
+            self.current_usage -= freed_size;
+        } else {
+            self.current_usage = 0;
+        }
+    }
+
+    pub fn trackResize(self: *MemoryTracker, old_ptr: [*]const u8, old_size: usize, new_ptr: [*]const u8, new_size: usize) void {
+        const old_addr = @intFromPtr(old_ptr);
+        if (self.findNewestRecord(old_addr)) |i| {
+            const tracked_old_size = self.records.items[i].size;
+            self.records.items[i].ptr = @intFromPtr(new_ptr);
+            self.records.items[i].size = new_size;
+            self.adjustUsageForResize(tracked_old_size, new_size);
+            return;
+        }
+
+        // If allocation tracking failed earlier, still keep aggregate counters
+        // conservative for callers that only read totals/current/peak.
+        self.adjustUsageForResize(old_size, new_size);
+    }
+
+    fn findNewestRecord(self: *const MemoryTracker, addr: usize) ?usize {
         var i: usize = self.records.items.len;
         while (i > 0) {
             i -= 1;
-            if (self.records.items[i].ptr == addr) {
-                self.allocator.free(self.records.items[i].tag);
-                _ = self.records.swapRemove(i);
-                break;
-            }
+            if (self.records.items[i].ptr == addr) return i;
         }
+        return null;
+    }
 
-        self.total_freed += size;
-        if (self.current_usage >= size) {
-            self.current_usage -= size;
+    fn adjustUsageForResize(self: *MemoryTracker, old_size: usize, new_size: usize) void {
+        if (new_size >= old_size) {
+            const delta = new_size - old_size;
+            self.total_allocated += delta;
+            self.current_usage += delta;
+            if (self.current_usage > self.peak_usage) {
+                self.peak_usage = self.current_usage;
+            }
         } else {
-            self.current_usage = 0;
+            const delta = old_size - new_size;
+            self.total_freed += delta;
+            if (self.current_usage >= delta) {
+                self.current_usage -= delta;
+            } else {
+                self.current_usage = 0;
+            }
         }
     }
 
@@ -222,12 +262,16 @@ pub const TrackingAllocator = struct {
 
     fn resizeFn(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
-        return self.parent.rawResize(buf, alignment, new_len, ret_addr);
+        if (!self.parent.rawResize(buf, alignment, new_len, ret_addr)) return false;
+        self.tracker.trackResize(buf.ptr, buf.len, buf.ptr, new_len);
+        return true;
     }
 
     fn remapFn(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
-        return self.parent.rawRemap(buf, alignment, new_len, ret_addr);
+        const new_ptr = self.parent.rawRemap(buf, alignment, new_len, ret_addr) orelse return null;
+        self.tracker.trackResize(buf.ptr, buf.len, new_ptr, new_len);
+        return new_ptr;
     }
 
     fn freeFn(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
@@ -282,6 +326,33 @@ test "MemoryTracker trackFree removes the matching live record" {
     tracker.trackFree(&b, 32);
     try std.testing.expectEqual(@as(usize, 0), tracker.getRecordCount());
     try std.testing.expectEqual(@as(usize, 0), tracker.getCurrentUsage());
+}
+
+test "MemoryTracker trackResize updates live record and usage" {
+    var tracker = MemoryTracker.init(std.testing.allocator);
+    defer tracker.deinit();
+
+    var a: [64]u8 = undefined;
+    var b: [32]u8 = undefined;
+    try tracker.trackAlloc(&a, 64, "buffer");
+
+    tracker.trackResize(&a, 64, &a, 96);
+    try std.testing.expectEqual(@as(usize, 1), tracker.getRecordCount());
+    try std.testing.expectEqual(@as(usize, 96), tracker.getCurrentUsage());
+    try std.testing.expectEqual(@as(usize, 96), tracker.getPeakUsage());
+    try std.testing.expectEqual(@as(usize, 96), tracker.getRecords()[0].size);
+
+    tracker.trackResize(&a, 96, &b, 32);
+    try std.testing.expectEqual(@as(usize, 1), tracker.getRecordCount());
+    try std.testing.expectEqual(@as(usize, 32), tracker.getCurrentUsage());
+    try std.testing.expectEqual(@as(usize, 96), tracker.getPeakUsage());
+    try std.testing.expectEqual(@intFromPtr(&b), tracker.getRecords()[0].ptr);
+    try std.testing.expectEqual(@as(usize, 32), tracker.getLeakedBytes());
+
+    tracker.trackFree(&b, 32);
+    try std.testing.expectEqual(@as(usize, 0), tracker.getRecordCount());
+    try std.testing.expectEqual(@as(usize, 0), tracker.getCurrentUsage());
+    try std.testing.expectEqual(@as(usize, 0), tracker.getLeakedBytes());
 }
 
 test "MemoryPool alloc and reset" {
@@ -347,9 +418,18 @@ test "TrackingAllocator" {
     var tracking = TrackingAllocator.init(std.testing.allocator, &tracker);
     const alloc = tracking.allocator();
 
-    const buf = try alloc.alloc(u8, 50);
-    defer alloc.free(buf);
+    var buf = try alloc.alloc(u8, 50);
 
     try std.testing.expect(tracker.getRecordCount() > 0);
     try std.testing.expect(tracker.getCurrentUsage() > 0);
+
+    if (alloc.resize(buf, 25)) {
+        buf = buf.ptr[0..25];
+        try std.testing.expectEqual(@as(usize, 1), tracker.getRecordCount());
+        try std.testing.expectEqual(@as(usize, 25), tracker.getCurrentUsage());
+    }
+
+    alloc.free(buf);
+    try std.testing.expectEqual(@as(usize, 0), tracker.getRecordCount());
+    try std.testing.expectEqual(@as(usize, 0), tracker.getCurrentUsage());
 }

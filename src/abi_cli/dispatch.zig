@@ -50,6 +50,11 @@ fn handleDashboardWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []
     return handlers.handleDashboard(alloc);
 }
 
+fn handleSchedulerWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
+    _ = io;
+    return handlers.handleScheduler(alloc, args);
+}
+
 const dispatch_table = [_]DispatchEntry{
     .{ .name = "train", .handler = handleTrainWrapper },
     .{ .name = "complete", .handler = handleCompleteWrapper },
@@ -61,6 +66,7 @@ const dispatch_table = [_]DispatchEntry{
     .{ .name = "tui", .handler = handleTuiWrapper },
     .{ .name = "dashboard", .handler = handleDashboardWrapper },
     .{ .name = "wdbx", .handler = handlers.handleWdbx },
+    .{ .name = "scheduler", .handler = handleSchedulerWrapper },
 };
 
 pub fn runCli(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {

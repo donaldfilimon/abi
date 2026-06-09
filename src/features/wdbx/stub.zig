@@ -119,6 +119,8 @@ pub const Store = struct {
             .vectors = 0,
             .blocks = 0,
             .spatial_records = 0,
+            .temporal_nodes = 0,
+            .temporal_edges = 0,
             .vector_dimensions = null,
             .next_vector_id = 0,
             .acceleration = .{ .backend = .simulated, .mode = .cpu_fallback, .message = "wdbx feature is disabled" },
@@ -136,6 +138,36 @@ pub const Store = struct {
         _ = query;
         _ = limit;
         return error.FeatureDisabled;
+    }
+
+    pub fn addTemporalNode(self: *Store, id: u32, timestamp_ms: i64) !void {
+        _ = self;
+        _ = id;
+        _ = timestamp_ms;
+        return error.FeatureDisabled;
+    }
+
+    pub fn addTemporalEdge(self: *Store, cause: u32, effect: u32) !void {
+        _ = self;
+        _ = cause;
+        _ = effect;
+        return error.FeatureDisabled;
+    }
+
+    pub fn temporalNodeCount(self: *const Store) usize {
+        _ = self;
+        return 0;
+    }
+
+    pub fn temporalEdgeCount(self: *const Store) usize {
+        _ = self;
+        return 0;
+    }
+
+    pub fn temporalTimestamp(self: *const Store, id: u32) ?i64 {
+        _ = self;
+        _ = id;
+        return null;
     }
 
     pub fn getVector(self: *const Store, id: u32) ?[]const f32 {
@@ -204,7 +236,7 @@ pub const Store = struct {
 
     pub fn exportManifest(self: *const Store, allocator: std.mem.Allocator) ![]u8 {
         _ = self;
-        return try allocator.dupe(u8, "{\"kv_entries\":0,\"vectors\":0,\"blocks\":0,\"spatial_records\":0,\"vector_dimensions\":null,\"next_vector_id\":0,\"backend\":\"simulated\",\"mode\":\"cpu_fallback\",\"disabled\":true}");
+        return try allocator.dupe(u8, "{\"kv_entries\":0,\"vectors\":0,\"blocks\":0,\"spatial_records\":0,\"temporal_nodes\":0,\"temporal_edges\":0,\"vector_dimensions\":null,\"next_vector_id\":0,\"backend\":\"simulated\",\"mode\":\"cpu_fallback\",\"disabled\":true}");
     }
 };
 
@@ -219,6 +251,9 @@ test "wdbx stub reports disabled operations" {
     try std.testing.expectEqual(@as(usize, 0), store.count());
     try std.testing.expectEqual(@as(usize, 0), store.vectorCount());
     try std.testing.expectEqual(@as(usize, 0), store.blockCount());
+    try std.testing.expectEqual(@as(usize, 0), store.temporalNodeCount());
+    try std.testing.expectEqual(@as(usize, 0), store.temporalEdgeCount());
+    try std.testing.expect(store.temporalTimestamp(1) == null);
     try std.testing.expect(store.get("missing") == null);
     try std.testing.expect(store.getVector(1) == null);
     try std.testing.expect(store.lastBlock() == null);
@@ -227,6 +262,8 @@ test "wdbx stub reports disabled operations" {
     const stats_value = store.stats();
     try std.testing.expectEqual(@as(usize, 0), stats_value.vectors);
     try std.testing.expectEqual(@as(usize, 0), stats_value.blocks);
+    try std.testing.expectEqual(@as(usize, 0), stats_value.temporal_nodes);
+    try std.testing.expectEqual(@as(usize, 0), stats_value.temporal_edges);
     try std.testing.expectEqual(@as(?usize, null), stats_value.vector_dimensions);
     try std.testing.expectEqual(gpu.ExecutionMode.cpu_fallback, stats_value.acceleration.mode);
 
@@ -234,6 +271,8 @@ test "wdbx stub reports disabled operations" {
     try std.testing.expectError(error.FeatureDisabled, store.store("metadata", "value"));
     try std.testing.expectError(error.FeatureDisabled, store.putVector(&.{1.0}));
     try std.testing.expectError(error.FeatureDisabled, store.search(&.{1.0}, 1));
+    try std.testing.expectError(error.FeatureDisabled, store.addTemporalNode(1, 123));
+    try std.testing.expectError(error.FeatureDisabled, store.addTemporalEdge(1, 2));
     try std.testing.expectError(error.FeatureDisabled, store.appendBlock("abi", 1, 2, "metadata"));
     try std.testing.expectError(error.FeatureDisabled, store.restoreBlock("abi", 1, 2, "metadata", 123));
     try std.testing.expectError(error.FeatureDisabled, store.putSpatial3D(1, .{ .x = 0, .y = 0, .z = 0 }, "payload"));
@@ -243,6 +282,8 @@ test "wdbx stub reports disabled operations" {
     const manifest = try store.exportManifest(std.testing.allocator);
     defer std.testing.allocator.free(manifest);
     try std.testing.expect(std.mem.indexOf(u8, manifest, "\"spatial_records\":0") != null);
+    try std.testing.expect(std.mem.indexOf(u8, manifest, "\"temporal_nodes\":0") != null);
+    try std.testing.expect(std.mem.indexOf(u8, manifest, "\"temporal_edges\":0") != null);
     try std.testing.expect(std.mem.indexOf(u8, manifest, "\"vector_dimensions\":null") != null);
     try std.testing.expect(std.mem.indexOf(u8, manifest, "\"mode\":\"cpu_fallback\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, manifest, "\"disabled\":true") != null);

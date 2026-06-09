@@ -37,4 +37,9 @@ auth_out="$("$ABI" auth status 2>&1)"
 require_substring "$auth_out" "Authentication Status:"
 require_substring "$auth_out" "OpenAI:"
 
+scheduler_out="$("$ABI" scheduler status 2>&1)"
+require_substring "$scheduler_out" "scheduler status"
+require_substring "$scheduler_out" "source=cli-scheduler-status"
+require_substring "$scheduler_out" "completed=1"
+
 echo "run_contract_cli: ok"

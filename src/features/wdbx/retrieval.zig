@@ -13,6 +13,7 @@ const wdbx_mod = @import("mod.zig");
 const temporal = @import("temporal.zig");
 
 pub const RankedNode = temporal.RankedNode;
+pub const PersonaWeightFn = *const fn (*const anyopaque, u32) f32;
 
 /// Semantic search + temporal/causal/persona re-ranking, highest combined score
 /// first. `allocator` must be the Store's allocator (it owns/frees the search
@@ -36,6 +37,37 @@ pub fn hybridSearch(
         cands[i] = .{ .id = r.id, .semantic = std.math.clamp(r.score, 0.0, 1.0) };
     }
     return scorer.rank(allocator, graph, focus_id, cands, personaFor);
+}
+
+/// Semantic search + hybrid re-ranking using a context-aware persona callback.
+/// This is the default-query building block for long-lived stores where persona
+/// labels live in WDBX metadata rather than a global lookup table.
+pub fn hybridSearchWithPersonaContext(
+    allocator: std.mem.Allocator,
+    store: *wdbx_mod.Store,
+    query_vec: []const f32,
+    limit: usize,
+    graph: *const temporal.TemporalCausalGraph,
+    scorer: temporal.HybridScorer,
+    focus_id: u32,
+    persona_ctx: *const anyopaque,
+    personaFor: PersonaWeightFn,
+) ![]temporal.RankedNode {
+    const results = try store.search(query_vec, limit);
+    defer allocator.free(results);
+
+    var out = try allocator.alloc(temporal.RankedNode, results.len);
+    errdefer allocator.free(out);
+    for (results, 0..) |r, i| {
+        const comps = try scorer.score(graph, focus_id, r.id, r.score, personaFor(persona_ctx, r.id));
+        out[i] = .{ .id = r.id, .score = comps.combined(), .components = comps };
+    }
+    std.mem.sort(temporal.RankedNode, out, {}, struct {
+        fn lessThan(_: void, a: temporal.RankedNode, b: temporal.RankedNode) bool {
+            return a.score > b.score;
+        }
+    }.lessThan);
+    return out;
 }
 
 const testing = std.testing;
@@ -69,6 +101,37 @@ test "hybridSearch re-ranks equal-semantic candidates by recency + causality" {
     // are actually applied on top of HNSW similarity.
     try testing.expectEqual(id_new, ranked[0].id);
     try testing.expect(ranked[0].score >= ranked[1].score);
+}
+
+const PersonaContext = struct {
+    boosted: u32,
+};
+
+fn contextualPersona(ctx: *const anyopaque, id: u32) f32 {
+    const persona_ctx: *const PersonaContext = @ptrCast(@alignCast(ctx));
+    return if (id == persona_ctx.boosted) 1.0 else 0.2;
+}
+
+test "hybridSearchWithPersonaContext applies metadata-backed persona weights" {
+    const allocator = testing.allocator;
+    var store = wdbx_mod.Store.init(allocator);
+    defer store.deinit();
+
+    const low_persona = try store.putVector(&.{ 1, 0, 0, 0 });
+    const high_persona = try store.putVector(&.{ 1, 0, 0, 0 });
+    var graph = temporal.TemporalCausalGraph.init(allocator);
+    defer graph.deinit();
+    try graph.addNode(low_persona, 1000);
+    try graph.addNode(high_persona, 1000);
+
+    const scorer = temporal.HybridScorer{ .now_ms = 1000, .half_life_ms = 1000 };
+    const persona_ctx = PersonaContext{ .boosted = high_persona };
+    const ranked = try hybridSearchWithPersonaContext(allocator, &store, &.{ 1, 0, 0, 0 }, 10, &graph, scorer, high_persona, &persona_ctx, contextualPersona);
+    defer allocator.free(ranked);
+
+    try testing.expectEqual(@as(usize, 2), ranked.len);
+    try testing.expectEqual(high_persona, ranked[0].id);
+    try testing.expect(ranked[0].components.persona > ranked[1].components.persona);
 }
 
 test {

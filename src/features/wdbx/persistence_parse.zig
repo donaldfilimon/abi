@@ -24,6 +24,10 @@ pub fn applyLine(allocator: std.mem.Allocator, store: *wdbx_mod.Store, line: []c
         try applyBlock(store, obj);
     } else if (std.mem.eql(u8, type_slice, "spatial")) {
         try applySpatial(store, obj);
+    } else if (std.mem.eql(u8, type_slice, "temporal_node")) {
+        try applyTemporalNode(store, obj);
+    } else if (std.mem.eql(u8, type_slice, "temporal_edge")) {
+        try applyTemporalEdge(store, obj);
     } else {
         return error.UnknownLineType;
     }
@@ -101,6 +105,25 @@ fn applySpatial(store: *wdbx_mod.Store, obj: std.json.ObjectMap) !void {
         else => return error.MissingField,
     };
     try store.putSpatial3D(id, .{ .x = x, .y = y, .z = z }, payload_s);
+}
+
+fn applyTemporalNode(store: *wdbx_mod.Store, obj: std.json.ObjectMap) !void {
+    const id_node = obj.get("id") orelse return error.MissingField;
+    const timestamp_node = obj.get("timestamp_ms") orelse return error.MissingField;
+    const id = try jsonU32(id_node);
+    const timestamp_ms = switch (timestamp_node) {
+        .integer => |i| @as(i64, @intCast(i)),
+        else => return error.MissingField,
+    };
+    try store.addTemporalNode(id, timestamp_ms);
+}
+
+fn applyTemporalEdge(store: *wdbx_mod.Store, obj: std.json.ObjectMap) !void {
+    const cause_node = obj.get("cause") orelse return error.MissingField;
+    const effect_node = obj.get("effect") orelse return error.MissingField;
+    const cause = try jsonU32(cause_node);
+    const effect = try jsonU32(effect_node);
+    try store.addTemporalEdge(cause, effect);
 }
 
 /// Extract a `u32` from an untrusted JSON value. Corrupt snapshots fail cleanly

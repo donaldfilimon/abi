@@ -38,24 +38,102 @@ test "feature modules expose safe runtime contracts" {
     const ops = features.gpu.vectorOps();
     try std.testing.expectEqual(@as(f32, 32), try ops.dot(&.{ 1, 2, 3 }, &.{ 4, 5, 6 }));
     try std.testing.expectError(error.DimensionMismatch, ops.dot(&.{1}, &.{ 1, 2 }));
+    try std.testing.expect(@hasDecl(features.gpu.VectorOps, "batchCosineSimilarity"));
 
     // Exercise the distance primitive used by HNSW/WDBX. VectorOps.dot /
-    // squaredL2 / cosineSimilarity select the native GPU kernel path (Metal on
-    // macOS when feat-gpu + backend.accelerated + metal context initialized) or
-    // fall back to vectorized CPU. HNSW routes cosine distance through this same
-    // abstraction and retains its SIMD fallback for deterministic disabled paths.
+    // squaredL2 / cosineSimilarity / batchCosineSimilarity select the native GPU
+    // kernel path only when the backend reports initialized native kernels; otherwise
+    // they fall back to vectorized CPU. HNSW routes cosine distance through this
+    // same abstraction and retains its SIMD fallback for deterministic disabled paths.
     try std.testing.expectEqual(@as(f32, 27), try ops.squaredL2(&.{ 1, 2, 3 }, &.{ 4, 5, 6 }));
     const cos_ident = try ops.cosineSimilarity(&.{ 1.0, 0.0, 0.0 }, &.{ 1.0, 0.0, 0.0 });
     try std.testing.expectEqual(@as(f32, 1.0), cos_ident);
     const cos_ortho = try ops.cosineSimilarity(&.{ 1.0, 0.0 }, &.{ 0.0, 1.0 });
     try std.testing.expectEqual(@as(f32, 0.0), cos_ortho);
+    const batch_candidates = [_][]const f32{
+        &.{ 1.0, 0.0, 0.0 },
+        &.{ 0.0, 1.0, 0.0 },
+    };
+    var batch_out: [2]f32 = undefined;
+    try ops.batchCosineSimilarity(&.{ 1.0, 0.0, 0.0 }, &batch_candidates, &batch_out);
+    try std.testing.expectEqual(@as(f32, 1.0), batch_out[0]);
+    try std.testing.expectEqual(@as(f32, 0.0), batch_out[1]);
+    var bad_batch_out: [1]f32 = undefined;
+    try std.testing.expectError(error.DimensionMismatch, ops.batchCosineSimilarity(&.{ 1.0, 0.0, 0.0 }, &batch_candidates, &bad_batch_out));
 
     const accelerator_selection = features.accelerator.selectBackend(.training);
     try std.testing.expect(accelerator_selection.message.len > 0);
+    try std.testing.expect(@hasDecl(features.accelerator, "SelectionReport"));
+    try std.testing.expect(@hasDecl(features.accelerator, "selectionReport"));
+    try std.testing.expect(@hasDecl(features.accelerator, "workloadName"));
+    const accelerator_report = features.accelerator.selectionReport(.training);
+    try std.testing.expectEqual(features.accelerator.Workload.training, accelerator_report.workload);
+    try std.testing.expectEqualStrings("training", features.accelerator.workloadName(accelerator_report.workload));
+    try std.testing.expect(features.accelerator.backendName(accelerator_report.selected_backend).len > 0);
+    try std.testing.expect(features.accelerator.backendName(accelerator_report.fallback_backend).len > 0);
+    try std.testing.expect(accelerator_report.message.len > 0);
+    if (accelerator_report.native_available) {
+        try std.testing.expect(features.accelerator.isAccelerated(accelerator_selection));
+    } else {
+        try std.testing.expect(!accelerator_report.gpu_accelerated);
+    }
 
     try std.testing.expect(features.shaders.compilerStatus().message.len > 0);
+    try std.testing.expect(@hasDecl(features.shaders, "ValidationReport"));
+    try std.testing.expect(@hasDecl(features.shaders, "validateDetailed"));
+    const shader_report = try features.shaders.validateDetailed(.{ .name = "contract", .source = "fn main() void {}" });
+    try std.testing.expectEqualStrings("main", shader_report.entry_point);
+    try std.testing.expectEqual(@as(usize, "fn main() void {}".len), shader_report.source_bytes);
+    try std.testing.expect(shader_report.checksum != 0);
+    try std.testing.expectError(error.UnbalancedShaderDelimiters, features.shaders.validate(.{ .name = "contract", .source = "fn main() void {" }));
+
     try std.testing.expect(features.mlir.toolchainStatus().message.len > 0);
+    try std.testing.expect(@hasDecl(features.mlir, "ModuleAnalysis"));
+    try std.testing.expect(@hasDecl(features.mlir, "analyze"));
+    const mlir_analysis = try features.mlir.analyze(.{ .name = "contract", .operations = &.{ "matmul", "relu" } });
+    try std.testing.expectEqual(@as(usize, 2), mlir_analysis.operation_count);
+    try std.testing.expect(mlir_analysis.checksum != 0);
+    try std.testing.expectError(error.InvalidMlirModuleName, features.mlir.analyze(.{ .name = "bad name" }));
+    const mlir_lowered = try features.mlir.lower(std.testing.allocator, .{ .name = "contract", .operations = &.{"quote \" op"} });
+    defer mlir_lowered.deinit(std.testing.allocator);
+    if (build_options.feat_mlir) {
+        try expectContains(mlir_lowered.ir, "quote \\22 op");
+    }
+
     try std.testing.expect(features.mobile.detectPlatform().message.len > 0);
+    try std.testing.expect(@hasDecl(features.mobile, "RuntimeMode"));
+    try std.testing.expect(@hasDecl(features.mobile, "MobileProfile"));
+    try std.testing.expect(@hasDecl(features.mobile, "DeviceProfile"));
+    try std.testing.expect(@hasDecl(features.mobile, "profile"));
+    try std.testing.expect(@hasDecl(features.mobile, "deviceProfile"));
+    try std.testing.expect(@hasDecl(features.mobile, "layoutSummary"));
+    try std.testing.expect(@hasDecl(features.mobile, "runtimeModeName"));
+    const mobile_runtime = features.mobile.profile();
+    try std.testing.expect(mobile_runtime.message.len > 0);
+    try std.testing.expect(mobile_runtime.hardware_model.len > 0);
+    try std.testing.expect(!mobile_runtime.native_dispatch);
+    try std.testing.expect(features.mobile.runtimeModeName(mobile_runtime.mode).len > 0);
+    var mobile_profile = features.mobile.deviceProfile();
+    mobile_profile.item_count = 2;
+    if (build_options.feat_mobile) {
+        try std.testing.expect(mobile_runtime.mode == .native_platform or mobile_runtime.mode == .simulated_profile);
+        const summary = try features.mobile.layoutSummary(mobile_profile);
+        try std.testing.expect(summary.width > 0);
+        try std.testing.expect(summary.height > 0);
+        try std.testing.expect(summary.density > 0);
+        const mobile_view = try features.mobile.renderMobileView(std.testing.allocator, "ABI", &.{ "one", "two" });
+        defer std.testing.allocator.free(mobile_view);
+        try expectContains(mobile_view, "items=2");
+        try expectContains(mobile_view, "native_dispatch=false");
+    } else {
+        try std.testing.expectEqual(features.mobile.RuntimeMode.disabled, mobile_runtime.mode);
+        try std.testing.expectError(error.InvalidMobileView, features.mobile.layoutSummary(mobile_profile));
+    }
+    const mobile_task = try features.mobile.executeMobileTask(std.testing.allocator, "sync");
+    defer std.testing.allocator.free(mobile_task);
+    try expectContains(mobile_task, "native_dispatch=false");
+    try std.testing.expectError(error.InvalidMobileView, features.mobile.renderMobileView(std.testing.allocator, "ABI", &.{""}));
+    try std.testing.expectError(error.InvalidTaskName, features.mobile.executeMobileTask(std.testing.allocator, "bad\x00task"));
 
     const dashboard = try features.tui.renderDashboard(std.testing.allocator, .{ .title = "ABI" });
     defer std.testing.allocator.free(dashboard);
@@ -164,6 +242,12 @@ test "disabled feature modules expose explicit degraded behavior" {
         try std.testing.expectEqual(features.accelerator.Backend.cpu, selection.backend);
         try std.testing.expect(!features.accelerator.isAccelerated(selection));
         try expectContains(selection.message, "disabled");
+        const report = features.accelerator.selectionReport(.training);
+        try std.testing.expectEqual(features.accelerator.Backend.cpu, report.selected_backend);
+        try std.testing.expectEqual(features.accelerator.Backend.cpu, report.fallback_backend);
+        try std.testing.expect(!report.native_available);
+        try std.testing.expect(!report.gpu_available);
+        try std.testing.expect(!report.gpu_accelerated);
     }
 
     if (!build_options.feat_mlir) {
@@ -174,6 +258,10 @@ test "disabled feature modules expose explicit degraded behavior" {
         defer lowered.deinit(std.testing.allocator);
         try std.testing.expectEqualStrings("disabled", lowered.target_backend);
         try expectContains(lowered.ir, "disabled");
+        const analysis = try features.mlir.analyze(.{ .name = "contract", .operations = &.{"matmul"} });
+        try std.testing.expectEqual(@as(usize, 1), analysis.operation_count);
+        try std.testing.expect(analysis.checksum != 0);
+        try std.testing.expectError(error.InvalidMlirModuleName, features.mlir.analyze(.{ .name = "bad name" }));
     }
 
     if (!build_options.feat_shader) {
@@ -181,10 +269,14 @@ test "disabled feature modules expose explicit degraded behavior" {
         try std.testing.expect(!status.available);
         try std.testing.expectEqualStrings("disabled", status.backend);
         try std.testing.expectError(error.MissingShaderEntryPoint, features.shaders.validate(.{ .name = "contract", .source = "kernel" }));
+        try std.testing.expectError(error.UnbalancedShaderDelimiters, features.shaders.validate(.{ .name = "contract", .source = "fn main() void {" }));
         try features.shaders.validate(.{ .name = "contract", .source = "fn main() void {}" });
+        const report = try features.shaders.validateDetailed(.{ .name = "contract", .source = "fn main() void {}" });
+        try std.testing.expectEqualStrings("main", report.entry_point);
         const artifact = try features.shaders.compile(std.testing.allocator, .{ .name = "contract", .source = "fn main() void {}" });
         defer artifact.deinit(std.testing.allocator);
         try std.testing.expectEqualStrings("disabled", artifact.backend);
+        try std.testing.expectEqualStrings("main", artifact.entry_point);
         try expectContains(artifact.bytes, "disabled");
     }
 
@@ -227,14 +319,26 @@ test "disabled feature modules expose explicit degraded behavior" {
         try std.testing.expect(!status.available);
         try std.testing.expect(!status.accelerated);
         try std.testing.expectEqual(features.mobile.Platform.unknown, status.platform);
+        const mobile_runtime = features.mobile.profile();
+        try std.testing.expectEqual(features.mobile.RuntimeMode.disabled, mobile_runtime.mode);
+        try std.testing.expectEqual(@as(u32, 0), mobile_runtime.screen.width);
+        try std.testing.expect(!mobile_runtime.native_dispatch);
+        const profile = features.mobile.deviceProfile();
+        try std.testing.expectEqual(features.mobile.Platform.unknown, profile.platform);
+        try std.testing.expectEqual(features.mobile.RuntimeMode.disabled, profile.mode);
+        try std.testing.expect(!profile.native_dispatch);
+        try std.testing.expect(!profile.simulated);
+        try std.testing.expectEqual(@as(u32, 0), profile.width);
         var info = try features.mobile.getDeviceInfo(std.testing.allocator);
         defer info.deinit(std.testing.allocator);
         try std.testing.expectEqual(features.mobile.Platform.unknown, info.platform);
         const view = try features.mobile.renderMobileView(std.testing.allocator, "ABI", &.{"item"});
         defer std.testing.allocator.free(view);
         try expectContains(view, "disabled");
+        try expectContains(view, "mode=disabled");
         const task = try features.mobile.executeMobileTask(std.testing.allocator, "sync");
         defer std.testing.allocator.free(task);
         try expectContains(task, "disabled");
+        try expectContains(task, "mode=disabled");
     }
 }

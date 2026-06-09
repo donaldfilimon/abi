@@ -17,6 +17,8 @@ pub fn build(b: *std.Build) void {
     const feat_hash = b.option(bool, "feat-hash", "Enable stable portable hashing utilities") orelse true;
     const feat_metrics = b.option(bool, "feat-metrics", "Enable lightweight in-process metrics for observability") orelse false;
     const feat_telemetry = b.option(bool, "feat-telemetry", "Enable lightweight telemetry event emission") orelse true;
+    const test_filter = b.option([]const u8, "test-filter", "Only run tests whose names contain this text");
+    const test_filters: []const []const u8 = if (test_filter) |filter| &.{filter} else &.{};
 
     const options = b.addOptions();
     options.addOption(bool, "feat_ai", feat_ai);
@@ -104,6 +106,7 @@ pub fn build(b: *std.Build) void {
     // Tests
     const mod_tests = b.addTest(.{
         .root_module = abi_mod,
+        .filters = test_filters,
     });
     const run_mod_tests = b.addRunArtifact(mod_tests);
 
@@ -116,6 +119,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "build_options", .module = options_mod },
             },
         }),
+        .filters = test_filters,
     });
     const run_connector_tests = b.addRunArtifact(connector_tests);
 
@@ -129,6 +133,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "build_options", .module = options_mod },
             },
         }),
+        .filters = test_filters,
     });
     feature_contract_tests.step.dependOn(&run_gen_plugin_registry.step);
     const run_feature_contract_tests = b.addRunArtifact(feature_contract_tests);
@@ -151,6 +156,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "build_options", .module = options_mod },
             },
         }),
+        .filters = test_filters,
     });
     const run_integration_tests = b.addRunArtifact(integration_tests);
 
@@ -168,6 +174,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "build_options", .module = options_mod },
             },
         }),
+        .filters = test_filters,
     });
     const run_benchmarks = b.addRunArtifact(benchmarks);
 
@@ -199,6 +206,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "mcp_handlers", .module = mcp_handlers_mod },
             },
         }),
+        .filters = test_filters,
     });
     const run_contract_surface_tests = b.addRunArtifact(contract_surface_tests);
 
@@ -213,6 +221,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "build_options", .module = options_mod },
             },
         }),
+        .filters = test_filters,
     });
     const run_contract_mcp_tests = b.addRunArtifact(contract_mcp_tests);
 
@@ -228,6 +237,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "abi", .module = abi_mod },
             },
         }),
+        .filters = test_filters,
     });
     contract_plugin_registry_tests.step.dependOn(&run_gen_plugin_registry.step);
     const run_contract_plugin_registry_tests = b.addRunArtifact(contract_plugin_registry_tests);
@@ -238,6 +248,7 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
         }),
+        .filters = test_filters,
     });
     const run_contract_public_docs_tests = b.addRunArtifact(contract_public_docs_tests);
 

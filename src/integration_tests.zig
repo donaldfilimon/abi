@@ -10,6 +10,30 @@ const AgentProfile = @import("features/ai/mod.zig").AgentProfile;
 const analyzeSentiment = router.analyzeSentiment;
 const selectProfile = router.selectBestProfile;
 
+const LoopbackThreadGuard = struct {
+    server: *test_helpers.LoopbackHttpServer,
+    io: std.Io,
+    thread: std.Thread,
+    joined: bool = false,
+
+    pub fn init(server: *test_helpers.LoopbackHttpServer, io: std.Io, thread: std.Thread) LoopbackThreadGuard {
+        return .{ .server = server, .io = io, .thread = thread };
+    }
+
+    pub fn join(self: *LoopbackThreadGuard) void {
+        if (self.joined) return;
+        self.thread.join();
+        self.joined = true;
+    }
+
+    pub fn deinit(self: *LoopbackThreadGuard) void {
+        if (self.joined) return;
+        self.server.wake(self.io);
+        self.thread.join();
+        self.joined = true;
+    }
+};
+
 test "wdbx index insert and search" {
     var store = wdbx.Store.init(std.testing.allocator);
     defer store.deinit();
@@ -269,8 +293,6 @@ test "scheduler drives training tasks (real usage in agent training path)" {
     var store = wdbx_mod.Store.init(std.testing.allocator);
     defer store.deinit();
 
-    // MemoryTracker wiring demo for the approved plan (Phase 1, scheduler training path).
-    // This proves real allocation tracking flows through scheduler-driven TrainTask work.
     var tracker = memory.MemoryTracker.init(std.testing.allocator);
     defer tracker.deinit();
     var tracking_alloc = memory.TrackingAllocator.init(std.testing.allocator, &tracker);
@@ -302,13 +324,10 @@ test "scheduler drives training tasks (real usage in agent training path)" {
         }
     };
 
-    // Arena for per-task contexts (matches agent handler pattern, zero leaks in test).
-    // Backed by TrackingAllocator so the attached scheduler MemoryTracker records the work.
     var arena = std.heap.ArenaAllocator.init(tracking_alloc.allocator());
     defer arena.deinit();
     const task_alloc = arena.allocator();
 
-    // Submit two training tasks via scheduler (simulates `abi agent train all` path)
     {
         const ctx1 = try task_alloc.create(TaskCtx);
         ctx1.* = .{
@@ -343,7 +362,6 @@ test "scheduler drives training tasks (real usage in agent training path)" {
     try std.testing.expectEqual(@as(usize, 2), s.completed);
     try std.testing.expectEqual(@as(usize, 0), s.failed);
 
-    // Verify memory tracking flowed through the scheduler training path (plan Phase 1).
     try std.testing.expect(tracker.getPeakUsage() > 0 or tracker.getRecordCount() > 0);
 }
 
@@ -360,27 +378,16 @@ test "httpPostJson round-trips against loopback server" {
     defer server.deinit(io);
 
     const response_body = "{\"status\":\"ok\"}";
-    var request_buf_raw: [4096]u8 = undefined;
-    var request_buf: []u8 = request_buf_raw[0..0];
+    var exchange = test_helpers.LoopbackHttpExchange.init(&server, io, std.testing.allocator, response_body);
+    defer exchange.deinit();
 
-    const ServerContext = struct {
-        server: *test_helpers.LoopbackHttpServer,
-        io: std.Io,
-        response_body: []const u8,
-        out: *[]u8,
-    };
-    var ctx = ServerContext{
-        .server = &server,
-        .io = io,
-        .response_body = response_body,
-        .out = &request_buf,
-    };
     const server_thread = try std.Thread.spawn(.{}, struct {
-        fn run(c: *ServerContext) !void {
-            const raw = try c.server.acceptAndRespond(c.io, std.testing.allocator, c.response_body);
-            c.out.* = raw;
+        fn run(e: *test_helpers.LoopbackHttpExchange) void {
+            e.serveOne();
         }
-    }.run, .{&ctx});
+    }.run, .{&exchange});
+    var server_guard = LoopbackThreadGuard.init(&server, io, server_thread);
+    defer server_guard.deinit();
 
     const url = try std.fmt.allocPrint(std.testing.allocator, "http://127.0.0.1:{d}", .{server.port});
     defer std.testing.allocator.free(url);
@@ -391,44 +398,18 @@ test "httpPostJson round-trips against loopback server" {
         .transport = .live,
     };
 
-    // Retry loop to avoid nanosleep race condition
-    var response: ?connector.Response = null;
-    var retries: usize = 0;
-    while (retries < 5) : (retries += 1) {
-        response = http.httpPostJson(io, std.testing.allocator, config, "/test", "{\"hello\":\"world\"}", &.{}) catch null;
-        if (response != null) break;
-        var ts = std.mem.zeroes(std.c.timespec);
-        ts.nsec = 10_000_000;
-        _ = std.c.nanosleep(&ts, null);
-    }
-
-    var final_response = response orelse {
-        // The listener is bound (in this thread) before the client connects, so
-        // a total connect failure is a real bug, not a flake. Unblock the
-        // server's pending accept() with a throwaway connection so the thread
-        // exits cleanly (no leaked/detached thread), join it, free anything it
-        // captured, then fail hard rather than silently skipping.
-        if (std.Io.net.IpAddress.parseIp4("127.0.0.1", server.port)) |wake_addr_const| {
-            var wake_addr = wake_addr_const;
-            if (wake_addr.connect(io, .{ .mode = .stream })) |stream| {
-                var s = stream;
-                s.close(io);
-            } else |_| {}
-        } else |_| {}
-        server_thread.join();
-        if (request_buf.len > 0) std.testing.allocator.free(request_buf);
-        return error.LoopbackConnectFailed;
-    };
+    var final_response = try http.httpPostJson(io, std.testing.allocator, config, "/test", "{\"hello\":\"world\"}", &.{});
     defer final_response.deinit(std.testing.allocator);
+
+    server_guard.join();
+    const raw = try exchange.requestBytes();
 
     try std.testing.expectEqual(@as(u16, 200), final_response.status);
     try std.testing.expect(std.mem.indexOf(u8, final_response.body, "ok") != null);
 
-    server_thread.join();
-    const raw = request_buf[0..];
     try std.testing.expect(std.mem.indexOf(u8, raw, "POST") != null);
     try std.testing.expect(std.mem.indexOf(u8, raw, "/test") != null);
-    std.testing.allocator.free(request_buf);
+    try std.testing.expect(std.mem.indexOf(u8, raw, "{\"hello\":\"world\"}") != null);
 }
 
 test "httpPostForm round-trips against loopback server" {
@@ -444,27 +425,16 @@ test "httpPostForm round-trips against loopback server" {
     defer server.deinit(io);
 
     const response_body = "{\"sid\":\"SM123\"}";
-    var request_buf_raw: [4096]u8 = undefined;
-    var request_buf: []u8 = request_buf_raw[0..0];
+    var exchange = test_helpers.LoopbackHttpExchange.init(&server, io, std.testing.allocator, response_body);
+    defer exchange.deinit();
 
-    const ServerContext = struct {
-        server: *test_helpers.LoopbackHttpServer,
-        io: std.Io,
-        response_body: []const u8,
-        out: *[]u8,
-    };
-    var ctx = ServerContext{
-        .server = &server,
-        .io = io,
-        .response_body = response_body,
-        .out = &request_buf,
-    };
     const server_thread = try std.Thread.spawn(.{}, struct {
-        fn run(c: *ServerContext) !void {
-            const raw = try c.server.acceptAndRespond(c.io, std.testing.allocator, c.response_body);
-            c.out.* = raw;
+        fn run(e: *test_helpers.LoopbackHttpExchange) void {
+            e.serveOne();
         }
-    }.run, .{&ctx});
+    }.run, .{&exchange});
+    var server_guard = LoopbackThreadGuard.init(&server, io, server_thread);
+    defer server_guard.deinit();
 
     const url = try std.fmt.allocPrint(std.testing.allocator, "http://127.0.0.1:{d}", .{server.port});
     defer std.testing.allocator.free(url);
@@ -476,44 +446,19 @@ test "httpPostForm round-trips against loopback server" {
     };
     const body = "From=%2B15551234567&To=%2B15559876543&Body=hello";
 
-    // Retry loop to avoid nanosleep race condition
-    var response: ?connector_config.Response = null;
-    var retries: usize = 0;
-    while (retries < 5) : (retries += 1) {
-        response = http.httpPostForm(io, std.testing.allocator, config, "/2010-04-01/Accounts/AC123/Messages.json", body, &.{}) catch null;
-        if (response != null) break;
-        var ts = std.mem.zeroes(std.c.timespec);
-        ts.nsec = 10_000_000;
-        _ = std.c.nanosleep(&ts, null);
-    }
-
-    var final_response = response orelse {
-        // The listener is bound (in this thread) before the client connects, so
-        // a total connect failure is a real bug, not a flake. Unblock the
-        // server's pending accept() with a throwaway connection so the thread
-        // exits cleanly (no leaked/detached thread), join it, free anything it
-        // captured, then fail hard rather than silently skipping.
-        if (std.Io.net.IpAddress.parseIp4("127.0.0.1", server.port)) |wake_addr_const| {
-            var wake_addr = wake_addr_const;
-            if (wake_addr.connect(io, .{ .mode = .stream })) |stream| {
-                var s = stream;
-                s.close(io);
-            } else |_| {}
-        } else |_| {}
-        server_thread.join();
-        if (request_buf.len > 0) std.testing.allocator.free(request_buf);
-        return error.LoopbackConnectFailed;
-    };
+    var final_response = try http.httpPostForm(io, std.testing.allocator, config, "/2010-04-01/Accounts/AC123/Messages.json", body, &.{});
     defer final_response.deinit(std.testing.allocator);
+
+    server_guard.join();
+    const raw = try exchange.requestBytes();
 
     try std.testing.expectEqual(@as(u16, 200), final_response.status);
     try std.testing.expect(std.mem.indexOf(u8, final_response.body, "SM123") != null);
 
-    server_thread.join();
-    const raw = request_buf[0..];
     try std.testing.expect(std.mem.indexOf(u8, raw, "POST") != null);
     try std.testing.expect(std.mem.indexOf(u8, raw, "Messages.json") != null);
-    std.testing.allocator.free(request_buf);
+    try std.testing.expect(std.mem.indexOf(u8, raw, "From=%2B15551234567") != null);
+    try std.testing.expect(std.mem.indexOf(u8, raw, "Body=hello") != null);
 }
 
 test "wdbx 3d spatial index through Store: insert, radius, and nearest-neighbor" {

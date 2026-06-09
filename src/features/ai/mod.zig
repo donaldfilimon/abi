@@ -31,6 +31,7 @@ pub const CompletionRequest = types.CompletionRequest;
 pub const CompletionResult = types.CompletionResult;
 pub const CompletionTaskContext = types.CompletionTaskContext;
 pub const TrainingTaskContext = types.TrainingTaskContext;
+pub const AgentTaskContext = types.AgentTaskContext;
 
 pub const AgentConfig = types.AgentConfig;
 pub const AgentResult = types.AgentResult;
@@ -71,6 +72,37 @@ pub fn runAgent(allocator: std.mem.Allocator, config: AgentConfig, input: []cons
         .{ config.name, mode, selected.label(), if (requires_review) "true" else "false", config.instructions, response },
     );
     return .{ .output = output, .requires_review = requires_review };
+}
+
+pub fn submitAgentTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx: *AgentTaskContext) !u64 {
+    return try sched.submit(name, .normal, runAgentTask, ctx);
+}
+
+pub fn runAgentWithScheduler(
+    allocator: std.mem.Allocator,
+    sched: *scheduler_mod.Scheduler,
+    name: []const u8,
+    config: AgentConfig,
+    input: []const u8,
+) !AgentResult {
+    var ctx = AgentTaskContext{
+        .allocator = allocator,
+        .config = config,
+        .input = input,
+    };
+    defer ctx.deinitResult();
+
+    _ = try submitAgentTask(sched, name, &ctx);
+    try sched.runAll();
+    const result = ctx.result orelse return error.MissingAgentResult;
+    ctx.result = null;
+    return result;
+}
+
+fn runAgentTask(ctx: ?*anyopaque) anyerror!void {
+    const c = @as(*AgentTaskContext, @ptrCast(@alignCast(ctx orelse return error.MissingTaskContext)));
+    if (c.result) |old| old.deinit(c.allocator);
+    c.result = try runAgent(c.allocator, c.config, c.input);
 }
 
 pub const isFeatureDisabled = training.isFeatureDisabled;
@@ -180,6 +212,10 @@ test "scheduled training task records result and scheduler stats" {
     var scheduler = scheduler_mod.Scheduler.init(std.testing.allocator);
     defer scheduler.deinit();
 
+    var tracker = memory_mod.MemoryTracker.init(std.testing.allocator);
+    defer tracker.deinit();
+    scheduler.setMemoryTracker(&tracker);
+
     var store = wdbx.Store.init(std.testing.allocator);
     defer store.deinit();
 
@@ -202,6 +238,39 @@ test "scheduled training task records result and scheduler stats" {
     try std.testing.expectEqual(@as(usize, 0), stats.failed);
     const result = ctx.result orelse return error.MissingTrainingResult;
     try std.testing.expect(result.accepted);
+    if (build_options.feat_wdbx) {
+        try std.testing.expect(result.query_vector_id != null);
+        try std.testing.expect(result.response_vector_id != null);
+        try std.testing.expectEqual(@as(usize, 2), store.vectorCount());
+        try std.testing.expectEqual(@as(usize, 1), store.blockCount());
+        try std.testing.expect(tracker.getPeakUsage() > 0);
+    }
+}
+
+test "scheduled agent task records result and scheduler stats" {
+    var scheduler = scheduler_mod.Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    var tracker = memory_mod.MemoryTracker.init(std.testing.allocator);
+    defer tracker.deinit();
+    scheduler.setMemoryTracker(&tracker);
+
+    var tracking_alloc = memory_mod.TrackingAllocator.init(std.testing.allocator, &tracker);
+
+    var result = try runAgentWithScheduler(
+        tracking_alloc.allocator(),
+        &scheduler,
+        "agent:plan",
+        .{ .name = "test-agent", .instructions = "Plan only", .dry_run = true },
+        "plan a safe refactor",
+    );
+    defer result.deinit(tracking_alloc.allocator());
+
+    const stats = scheduler.stats();
+    try std.testing.expectEqual(@as(usize, 1), stats.completed);
+    try std.testing.expectEqual(@as(usize, 0), stats.failed);
+    try std.testing.expect(std.mem.indexOf(u8, result.output, "agent=test-agent") != null);
+    try std.testing.expect(tracker.getPeakUsage() > 0);
 }
 
 test "completion with store records vectors metadata and block" {

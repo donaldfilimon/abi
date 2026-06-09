@@ -83,6 +83,30 @@ test "root public namespaces are frozen" {
     }
 }
 
+test "connector namespaces are frozen" {
+    const connectors = abi.connectors;
+    inline for (.{
+        "connector",
+        "http",
+        "json",
+        "openai",
+        "anthropic",
+        "discord",
+        "twilio",
+        "grok",
+    }) |decl_name| {
+        try std.testing.expect(@hasDecl(connectors, decl_name));
+    }
+
+    try std.testing.expect(@hasDecl(connectors.grok, "Client"));
+    try std.testing.expect(@hasDecl(connectors.grok, "grokConfig"));
+    try std.testing.expect(@hasDecl(connectors.grok, "validateGrokConfig"));
+    try std.testing.expect(@hasDecl(connectors.grok.Client, "chatCompletion"));
+    try std.testing.expect(@hasDecl(connectors.grok.Client, "chatCompletionLive"));
+    try std.testing.expect(@hasDecl(connectors.grok.Client, "streamChatCompletion"));
+    try std.testing.expect(@hasDecl(connectors.grok.Client, "streamChatCompletionLive"));
+}
+
 test "feature module surfaces expose safe defaults" {
     const features = abi.features;
     inline for (.{
@@ -134,6 +158,18 @@ test "feature module surfaces expose safe defaults" {
 
 test "nested feature public surfaces are frozen across feature flags" {
     const ai = abi.features.ai;
+    inline for (.{
+        "CompletionTaskContext",
+        "TrainingTaskContext",
+        "AgentTaskContext",
+        "submitCompletionTask",
+        "submitTrainingTask",
+        "submitAgentTask",
+        "completeWithScheduler",
+        "runAgentWithScheduler",
+    }) |decl_name| {
+        try std.testing.expect(@hasDecl(ai, decl_name));
+    }
     try std.testing.expect(@hasDecl(ai.streaming.openai, "OpenAIRequest"));
     try std.testing.expect(@hasDecl(ai.streaming.openai, "OpenAIStreamChunk"));
     try std.testing.expect(@hasDecl(ai.streaming.openai, "parseRequest"));
@@ -283,9 +319,9 @@ test "AI completion invalid or disabled input does not mutate WDBX" {
 
 test "CLI command surface is frozen" {
     const expected = [_][]const u8{
-        "help",   "complete", "train",  "agent", "backends",
-        "plugin", "auth",     "twilio", "tui",   "dashboard",
-        "wdbx",
+        "help",   "complete",  "train",  "agent", "backends",
+        "plugin", "auth",      "twilio", "tui",   "dashboard",
+        "wdbx",   "scheduler",
     };
     try std.testing.expectEqual(expected.len, usage.commands.len);
     for (expected, usage.commands) |name, cmd| {
@@ -371,6 +407,8 @@ test "WDBX store contract preserves search ordering and block metadata" {
         const manifest = try store.exportManifest(std.testing.allocator);
         defer std.testing.allocator.free(manifest);
         try std.testing.expect(std.mem.indexOf(u8, manifest, "\"disabled\":true") != null);
+        try std.testing.expect(std.mem.indexOf(u8, manifest, "\"temporal_nodes\":0") != null);
+        try std.testing.expect(std.mem.indexOf(u8, manifest, "\"temporal_edges\":0") != null);
         return;
     };
     const near_id = try store.putVector(&.{ 0.95, 0.05, 0, 0 });

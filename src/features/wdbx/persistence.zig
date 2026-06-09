@@ -104,6 +104,38 @@ pub fn serialize(allocator: std.mem.Allocator, store: *const wdbx_mod.Store) ![]
         try out.writer.writeAll("\n");
     }
 
+    var temporal_nodes = store.temporal_graph.timestamps.iterator();
+    while (temporal_nodes.next()) |entry| {
+        var w = std.json.Stringify{ .writer = &out.writer, .options = .{ .whitespace = .minified } };
+        try w.beginObject();
+        try w.objectField("type");
+        try w.write("temporal_node");
+        try w.objectField("id");
+        try w.write(entry.key_ptr.*);
+        try w.objectField("timestamp_ms");
+        try w.write(entry.value_ptr.*);
+        try w.endObject();
+        try out.writer.writeAll("\n");
+    }
+
+    var temporal_edges = store.temporal_graph.adjacency.iterator();
+    while (temporal_edges.next()) |entry| {
+        const cause = entry.key_ptr.*;
+        for (entry.value_ptr.items) |effect| {
+            if (cause > effect) continue;
+            var w = std.json.Stringify{ .writer = &out.writer, .options = .{ .whitespace = .minified } };
+            try w.beginObject();
+            try w.objectField("type");
+            try w.write("temporal_edge");
+            try w.objectField("cause");
+            try w.write(cause);
+            try w.objectField("effect");
+            try w.write(effect);
+            try w.endObject();
+            try out.writer.writeAll("\n");
+        }
+    }
+
     // Trailing integrity line: SHA-256 over the record body (everything after the
     // header line). Covers kv/spatial/vector/block records uniformly so a
     // truncated or tampered snapshot is rejected on load rather than silently
@@ -178,6 +210,9 @@ test "persistence: round-trip kv, vector, block, spatial via JSONL" {
 
     try src.putSpatial3D(1, .{ .x = 1, .y = 2, .z = 3 }, "origin-near");
     try src.putSpatial3D(2, .{ .x = 10, .y = 10, .z = 10 }, "far");
+    try src.addTemporalNode(1, 1000);
+    try src.addTemporalNode(2, 2000);
+    try src.addTemporalEdge(1, 2);
 
     const bytes = try serialize(std.testing.allocator, &src);
     defer std.testing.allocator.free(bytes);
@@ -192,6 +227,9 @@ test "persistence: round-trip kv, vector, block, spatial via JSONL" {
     try std.testing.expectEqual(@as(usize, 3), dst.vectorCount());
     try std.testing.expectEqual(@as(usize, 2), dst.blockCount());
     try std.testing.expectEqual(@as(usize, 2), dst.spatial_index.count());
+    try std.testing.expectEqual(@as(usize, 2), dst.temporalNodeCount());
+    try std.testing.expectEqual(@as(usize, 1), dst.temporalEdgeCount());
+    try std.testing.expectEqual(@as(?i64, 1000), dst.temporalTimestamp(1));
 
     try std.testing.expect(dst.verifyBlocks());
 
@@ -282,7 +320,7 @@ test "persistence: save and load round-trip via std.testing.io" {
 
     const path = "zig-out/wdbx-persistence-rt.jsonl";
     try saveToPath(std.testing.io, std.testing.allocator, &src, path);
-    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
+    defer deleteTestFileIfExists(path);
 
     var dst = try loadFromPath(std.testing.io, std.testing.allocator, path);
     defer dst.deinit();
@@ -298,4 +336,11 @@ test "persistence: save and load round-trip via std.testing.io" {
 test {
     _ = @import("persistence_parse.zig");
     std.testing.refAllDecls(@This());
+}
+
+fn deleteTestFileIfExists(path: []const u8) void {
+    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
+    };
 }

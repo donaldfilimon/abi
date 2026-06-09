@@ -27,6 +27,16 @@ pub const Selection = struct {
     message: []const u8,
 };
 
+pub const SelectionReport = struct {
+    workload: Workload,
+    selected_backend: Backend,
+    fallback_backend: Backend,
+    native_available: bool,
+    gpu_available: bool,
+    gpu_accelerated: bool,
+    message: []const u8,
+};
+
 pub fn backendName(backend: Backend) []const u8 {
     return switch (backend) {
         .cpu => "cpu",
@@ -41,7 +51,25 @@ pub fn backendName(backend: Backend) []const u8 {
     };
 }
 
+pub fn workloadName(workload: Workload) []const u8 {
+    return switch (workload) {
+        .inference => "inference",
+        .training => "training",
+        .shader_compile => "shader-compile",
+        .graph_lowering => "graph-lowering",
+    };
+}
+
 pub fn selectBackend(workload: Workload) Selection {
+    const report = selectionReport(workload);
+    return .{
+        .backend = report.selected_backend,
+        .workload = report.workload,
+        .message = report.message,
+    };
+}
+
+pub fn selectionReport(workload: Workload) SelectionReport {
     const gpu_status = gpu.detectBackend();
     if (gpu_status.available and gpu_status.accelerated) {
         const gpu_backend: Backend = switch (gpu_status.backend) {
@@ -53,17 +81,64 @@ pub fn selectBackend(workload: Workload) Selection {
             .opengl => .gpu_opengl,
             .webgl2 => .gpu_webgl2,
         };
-        return .{ .backend = gpu_backend, .workload = workload, .message = gpu_status.message };
+        return .{
+            .workload = workload,
+            .selected_backend = gpu_backend,
+            .fallback_backend = fallbackBackend(workload),
+            .native_available = true,
+            .gpu_available = true,
+            .gpu_accelerated = true,
+            .message = gpu_status.message,
+        };
     }
 
     if (gpu_status.available) {
-        return .{ .backend = .gpu_simulated, .workload = workload, .message = gpu_status.message };
+        return .{
+            .workload = workload,
+            .selected_backend = .gpu_simulated,
+            .fallback_backend = fallbackBackend(workload),
+            .native_available = false,
+            .gpu_available = true,
+            .gpu_accelerated = false,
+            .message = gpu_status.message,
+        };
     }
 
     return switch (workload) {
-        .graph_lowering => .{ .backend = .mlir, .workload = workload, .message = "MLIR textual lowering selected with CPU execution fallback" },
-        .shader_compile => .{ .backend = .gpu_simulated, .workload = workload, .message = "Zig shader validation selected with deterministic GPU metadata" },
-        .inference, .training => .{ .backend = .gpu_simulated, .workload = workload, .message = "Vectorized CPU accelerator selected for deterministic execution" },
+        .graph_lowering => .{
+            .workload = workload,
+            .selected_backend = .mlir,
+            .fallback_backend = .cpu,
+            .native_available = false,
+            .gpu_available = false,
+            .gpu_accelerated = false,
+            .message = "MLIR textual lowering selected with CPU execution fallback",
+        },
+        .shader_compile => .{
+            .workload = workload,
+            .selected_backend = .gpu_simulated,
+            .fallback_backend = .cpu,
+            .native_available = false,
+            .gpu_available = false,
+            .gpu_accelerated = false,
+            .message = "Zig shader validation selected with deterministic GPU metadata",
+        },
+        .inference, .training => .{
+            .workload = workload,
+            .selected_backend = .gpu_simulated,
+            .fallback_backend = .cpu,
+            .native_available = false,
+            .gpu_available = false,
+            .gpu_accelerated = false,
+            .message = "Vectorized CPU accelerator selected for deterministic execution",
+        },
+    };
+}
+
+fn fallbackBackend(workload: Workload) Backend {
+    return switch (workload) {
+        .graph_lowering => .mlir,
+        .shader_compile, .inference, .training => .cpu,
     };
 }
 
@@ -81,4 +156,18 @@ test {
 test "training selects a safe accelerator" {
     const selection = selectBackend(.training);
     try std.testing.expect(selection.message.len > 0);
+}
+
+test "accelerator selection report exposes fallback and native status" {
+    const report = selectionReport(.graph_lowering);
+    try std.testing.expectEqual(Workload.graph_lowering, report.workload);
+    try std.testing.expect(report.message.len > 0);
+    try std.testing.expect(backendName(report.selected_backend).len > 0);
+    try std.testing.expect(backendName(report.fallback_backend).len > 0);
+    try std.testing.expectEqualStrings("graph-lowering", workloadName(report.workload));
+    if (report.native_available) {
+        try std.testing.expect(isAccelerated(.{ .backend = report.selected_backend, .workload = report.workload, .message = report.message }));
+    } else {
+        try std.testing.expect(!report.gpu_accelerated);
+    }
 }

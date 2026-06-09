@@ -35,6 +35,7 @@ pub const Store = struct {
     index: index.HnswIndex(HNSW_DIMENSIONS),
     chain: storage.BlockChain,
     spatial_index: spatial_3d.SpatialIndex3D,
+    temporal_graph: temporal.TemporalCausalGraph,
     next_vector_id: u32 = 1,
     vector_dimensions: ?usize = null,
     acceleration: AccelerationStatus,
@@ -52,6 +53,7 @@ pub const Store = struct {
             .index = index.HnswIndex(HNSW_DIMENSIONS).init(a),
             .chain = storage.BlockChain.init(a),
             .spatial_index = spatial_3d.SpatialIndex3D.initWithPool(a, config.pool_alloc),
+            .temporal_graph = temporal.TemporalCausalGraph.init(a),
             .acceleration = runtime.defaultAcceleration(),
             .tracker = null,
             .pool_alloc = config.pool_alloc,
@@ -86,6 +88,7 @@ pub const Store = struct {
         self.index.deinit();
         self.chain.deinit();
         self.spatial_index.deinit();
+        self.temporal_graph.deinit();
     }
 
     pub fn store(self: *Store, key: []const u8, val: []const u8) !void {
@@ -131,6 +134,8 @@ pub const Store = struct {
             .vectors = self.index.count(),
             .blocks = self.chain.len(),
             .spatial_records = self.spatial_index.count(),
+            .temporal_nodes = self.temporal_graph.nodeCount(),
+            .temporal_edges = self.temporal_graph.edgeCount(),
             .vector_dimensions = self.vector_dimensions,
             .next_vector_id = self.next_vector_id,
             .acceleration = self.acceleration,
@@ -189,6 +194,26 @@ pub const Store = struct {
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
         self.acceleration = try runtime.runAccelerationKernel("wdbx.search", query.len * self.index.count());
         return results;
+    }
+
+    pub fn addTemporalNode(self: *Store, id: u32, timestamp_ms: i64) !void {
+        try self.temporal_graph.addNode(id, timestamp_ms);
+    }
+
+    pub fn addTemporalEdge(self: *Store, cause: u32, effect: u32) !void {
+        try self.temporal_graph.addCausalEdge(cause, effect);
+    }
+
+    pub fn temporalNodeCount(self: *const Store) usize {
+        return self.temporal_graph.nodeCount();
+    }
+
+    pub fn temporalEdgeCount(self: *const Store) usize {
+        return self.temporal_graph.edgeCount();
+    }
+
+    pub fn temporalTimestamp(self: *const Store, id: u32) ?i64 {
+        return self.temporal_graph.timestampFor(id);
     }
 
     pub fn getVector(self: *const Store, id: u32) ?[]const f32 {
@@ -252,7 +277,7 @@ pub const Store = struct {
         const s = self.stats();
         var out: std.ArrayListUnmanaged(u8) = .empty;
         errdefer out.deinit(allocator);
-        try out.print(allocator, "{{\"kv_entries\":{d},\"vectors\":{d},\"blocks\":{d},\"spatial_records\":{d},\"vector_dimensions\":", .{ s.kv_entries, s.vectors, s.blocks, s.spatial_records });
+        try out.print(allocator, "{{\"kv_entries\":{d},\"vectors\":{d},\"blocks\":{d},\"spatial_records\":{d},\"temporal_nodes\":{d},\"temporal_edges\":{d},\"vector_dimensions\":", .{ s.kv_entries, s.vectors, s.blocks, s.spatial_records, s.temporal_nodes, s.temporal_edges });
         if (s.vector_dimensions) |dims| {
             try out.print(allocator, "{d}", .{dims});
         } else {

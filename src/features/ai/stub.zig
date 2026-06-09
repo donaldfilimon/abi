@@ -16,6 +16,7 @@ pub const CompletionRequest = types.CompletionRequest;
 pub const CompletionResult = types.CompletionResult;
 pub const CompletionTaskContext = types.CompletionTaskContext;
 pub const TrainingTaskContext = types.TrainingTaskContext;
+pub const AgentTaskContext = types.AgentTaskContext;
 pub const AgentConfig = types.AgentConfig;
 pub const AgentResult = types.AgentResult;
 
@@ -106,6 +107,19 @@ pub fn submitTrainingTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx
     _ = ctx;
     _ = sched;
     return error.FeatureDisabled;
+}
+
+pub fn submitAgentTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx: *AgentTaskContext) !u64 {
+    _ = name;
+    _ = ctx;
+    _ = sched;
+    return error.FeatureDisabled;
+}
+
+pub fn runAgentWithScheduler(allocator: std.mem.Allocator, sched: *scheduler_mod.Scheduler, name: []const u8, config: AgentConfig, input: []const u8) !AgentResult {
+    _ = sched;
+    _ = name;
+    return runAgent(allocator, config, input);
 }
 
 pub fn completeWithScheduler(allocator: std.mem.Allocator, store: anytype, sched: *scheduler_mod.Scheduler, name: []const u8, request: CompletionRequest) !CompletionResult {
@@ -258,6 +272,13 @@ test "ai stub preserves disabled feature contracts" {
         .config = .{ .profile = "abi", .dataset = .{ .path = "data.jsonl" }, .artifact_dir = "zig-cache/agents" },
     };
     try std.testing.expectError(error.FeatureDisabled, submitTrainingTask(&scheduler, "train", &training_ctx));
+
+    var agent_ctx = AgentTaskContext{
+        .allocator = allocator,
+        .config = .{ .name = "abi", .instructions = "be safe" },
+        .input = "hello",
+    };
+    try std.testing.expectError(error.FeatureDisabled, submitAgentTask(&scheduler, "agent", &agent_ctx));
 
     try std.testing.expectError(error.InvalidAgentConfig, runAgent(allocator, .{ .name = "", .instructions = "be safe" }, "hello"));
 

@@ -82,6 +82,9 @@ src/
 │   │   ├── persistence.zig / persistence_parse.zig # JSONL snapshot IO plus per-record parser
 │   │   ├── wal.zig    # Write-ahead log: CRC32-framed records, replay, corruption detection
 │   │   ├── temporal.zig # Temporal/causal graph + semantic×temporal×causal×persona hybrid ranking
+│   │   ├── retrieval.zig # HNSW semantic search composed with hybrid ranking
+│   │   ├── recovery.zig # Snapshot/WAL startup recovery helper
+│   │   ├── segments.zig # Manifest-backed segment checkpoints + epoch reclamation
 │   │   ├── cluster.zig # In-process Raft-style consensus demo: election/quorum/failover (no networked transport)
 │   │   ├── compression.zig # int8 embedding quantization round-trip demo (not a learned codec)
 │   │   ├── crypto_he.zig # Additive single-key homomorphic aggregation demo (not full FHE)
@@ -95,7 +98,7 @@ src/
 │   ├── metrics/       # Optional observability counters (mod/stub, disabled by default)
 │   ├── telemetry/     # Fixed-capacity process-wide event/counter hooks (mod/stub, enabled by default)
 │   ├── tui/           # Diagnostics dashboard + live terminal redraw helpers (mod/stub, enabled by default)
-│   ├── mobile/        # Mobile platform surface (mod/stub, disabled by default)
+│   ├── mobile/        # Mobile runtime profile surface (mod/stub, disabled by default)
 │   └── os_control/    # Safe OS command policy controls (mod/stub)
 ├── connectors/        # External service connectors
 │   ├── mod.zig        # Re-exports and connector registration
@@ -202,21 +205,23 @@ const ConversationBlock = struct {
 
 ### 4.3 Snapshot Persistence
 
-`src/features/wdbx/persistence.zig` serializes a `Store` to a line-delimited JSON (JSONL) snapshot and restores it deterministically.
+`src/features/wdbx/persistence.zig` serializes a `Store` to a line-delimited JSON (JSONL) checkpoint body and restores it deterministically. `src/features/wdbx/segments.zig` is the default runtime checkpoint orchestrator for CLI DB/block/query commands; the monolithic snapshot path remains a compatibility mirror.
 
-- **Format**: a `# ABI-WDBX v1` header line, one minified JSON object per record (`kv`, `vector`, `block`, `spatial`), and a trailing `# checksum:<sha256-hex>` integrity line covering the record body.
+- **Format**: a `# ABI-WDBX v1` header line, one minified JSON object per record (`kv`, `vector`, `block`, `spatial`, `temporal_node`, `temporal_edge`), and a trailing `# checksum:<sha256-hex>` integrity line covering the record body.
 - **Integrity**: the SHA-256 checksum is verified on load when present (checksum-less snapshots remain loadable for backward compatibility); a truncated or tampered body is rejected with `error.ChecksumMismatch` rather than restoring partial state.
-- **Faithful restore**: vectors restore to their original monotonically-assigned ids (a mismatch is `error.CorruptVectorId`); blocks restore with their original timestamps so the SHA-256 chain hashes reproduce exactly and `verifyBlocks()` still holds.
+- **Faithful restore**: vectors restore to their original monotonically-assigned ids (a mismatch is `error.CorruptVectorId`); blocks restore with their original timestamps so the SHA-256 chain hashes reproduce exactly and `verifyBlocks()` still holds; temporal graph nodes and causal edges restore into the store graph used by hybrid retrieval.
 - **Untrusted input**: integer fields out of `u32` range fail with `error.FieldOutOfRange` instead of panicking, so a corrupt snapshot fails cleanly.
 - **IO**: `saveToPath`/`loadFromPath` wrap serialize/deserialize over `std.Io` with a 64 MB read cap. WDBX-disabled builds expose no persistence surface.
 
 ### 4.4 WDBX Runtime Control Surface (`abi wdbx`) and Roadmap Modules
 
-`src/abi_cli/handlers/wdbx.zig` adds an `abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` namespace — the 11th frozen CLI command, with its contract row in `tests/contracts/surface.zig`. It is comptime-gated on `build_options.feat_wdbx` and backed by the in-process store, JSONL snapshots, and the write-ahead log:
+`src/abi_cli/handlers/wdbx.zig` adds an `abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` namespace — the 11th frozen CLI command, with its contract row in `tests/contracts/surface.zig`. It is comptime-gated on `build_options.feat_wdbx` and backed by the in-process store, segment checkpoints, the compatibility JSONL snapshot mirror, and the write-ahead log:
 
-- `db init|verify`, `block insert|get`, `query` — snapshot + WAL lifecycle; `db verify` cross-checks WAL replay against the snapshot block count.
+- `db init|verify`, `block insert|get`, `query` — segment checkpoint + WAL lifecycle; runtime reads/writes recover WAL-ahead state, while `db verify` cross-checks WAL replay against the current checkpoint block count and reports divergence until a write checkpoints it. Legacy snapshot files are still written as mirrors for direct-load tooling.
 - `benchmark [count]` — local in-memory insert/search timing (explicitly *not* a published throughput claim).
 - `gpu info` — GPU backend capability report.
+
+MCP `wdbx_query` uses the same in-process WDBX substrate through `src/mcp/ai_tools.zig`: it seeds local Abbey/Aviva/Abi profile vectors, records temporal nodes/causal edges, and returns the `retrieval.zig` hybrid ranker output (`semantic`, `temporal`, `causal`, `persona`, `ranking=hybrid`) when WDBX is enabled.
 
 The namespace also exercises forward-looking WDBX modules that are deliberately scoped as honest, **in-process demonstrations — not production or distributed capabilities**. See `docs/spec/wdbx-north-star.md` for the Current/Partial/Proposed mapping and `docs/contracts/external-claims-audit.md` for the claim boundary:
 
@@ -225,7 +230,7 @@ The namespace also exercises forward-looking WDBX modules that are deliberately 
 - `secure demo` (`compression.zig` + `crypto_he.zig`) — int8 embedding quantization round-trip plus additive single-key homomorphic aggregation. This is not a learned codec and not full (multiplicative) FHE.
 - `api serve [port]` (`rest.zig`) — a loopback-only REST listener (`POST /insert /query /verify`, `GET /health /stats`, default port 8081) built on a pure, unit-tested routing core.
 
-All of these preserve mod/stub parity: `mod.zig` exports `wal`, `temporal`, `cluster`, `compression`, `crypto_he`, `compute`, and `rest`, while `stub.zig` carries matching empty parity markers so `zig build check-parity` holds with `-Dfeat-wdbx=false`.
+All of these preserve mod/stub parity: `mod.zig` exports `wal`, `temporal`, `retrieval`, `recovery`, `segments`, `cluster`, `compression`, `crypto_he`, `compute`, and `rest`, while `stub.zig` carries matching empty parity markers so `zig build check-parity` holds with `-Dfeat-wdbx=false`.
 
 ---
 
@@ -254,7 +259,7 @@ The `src/core/` modules (`registry.zig`, `scheduler.zig`, `memory.zig`) and `src
 - Dedicated integration test ("scheduler drives training tasks") validates end-to-end submission, execution, stats, and memory tracking.
 
 - Registry remains focused on plugin descriptors (RwLock-protected) today; it is the coordinator for the plugin execution seam (`plugin_manager` + `abi plugin run` / MCP `plugin_run`) but is not yet the broader cross-feature lifecycle registry envisioned originally.
-- Deeper adoption opportunities remain: MemoryTracker in more stages of the AI pipeline and HNSW storage internals; making the Registry a more general component lifecycle coordinator; potential unification or clearer boundary between `core/memory` and `foundation/pool_allocator`. WDBX `Store.putVector` and `Store.search` now expose hot-path allocation activity through optional `MemoryTracker` instrumentation.
+- Deeper adoption opportunities remain: MemoryTracker in lower-level AI internals and HNSW storage internals; making the Registry a more general component lifecycle coordinator; potential unification or clearer boundary between `core/memory` and `foundation/pool_allocator`. AI completion/training/agent planning now have scheduler helper surfaces, and WDBX `Store.putVector`/`Store.search` expose hot-path allocation activity through optional `MemoryTracker` instrumentation.
 
 See `tasks/roadmap-next.md` (Streams 1-2), `tasks/todo.md` (Core scheduler + memory row marked Done), and `tasks/scheduler-memory-wireup.md` for the detailed surfaces and the integration sketches that were executed. All integration changes preserved mod/stub parity, used relative `.zig` imports inside `src/`, and passed the full `./build.sh check` + `check-parity` + feature-off contract matrix. The original "primary remaining gap" language has been retired because the observability + real-work scheduling vision has been substantially delivered.
 

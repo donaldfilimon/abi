@@ -71,6 +71,22 @@ pub const TemporalCausalGraph = struct {
         return self.timestamps.count();
     }
 
+    pub fn timestampFor(self: *const TemporalCausalGraph, id: u32) ?i64 {
+        return self.timestamps.get(id);
+    }
+
+    pub fn edgeCount(self: *const TemporalCausalGraph) usize {
+        var count: usize = 0;
+        var it = self.adjacency.iterator();
+        while (it.next()) |entry| {
+            const from = entry.key_ptr.*;
+            for (entry.value_ptr.items) |to| {
+                if (from < to) count += 1;
+            }
+        }
+        return count;
+    }
+
     fn link(self: *TemporalCausalGraph, from: u32, to: u32) !void {
         const gop = try self.adjacency.getOrPut(self.allocator, from);
         if (!gop.found_existing) gop.value_ptr.* = .empty;
@@ -240,6 +256,21 @@ test "hybrid rank orders candidates by combined score" {
     // Node 2 has higher persona weight, so it outranks node 1 at equal semantic/temporal.
     try std.testing.expectEqual(@as(u32, 2), ranked[0].id);
     try std.testing.expect(ranked[0].score >= ranked[1].score);
+}
+
+test "temporal graph reports timestamps and unique undirected edge count" {
+    var g = TemporalCausalGraph.init(std.testing.allocator);
+    defer g.deinit();
+    try g.addNode(1, 1000);
+    try g.addNode(2, 2000);
+    try g.addNode(3, 3000);
+    try g.addCausalEdge(1, 2);
+    try g.addCausalEdge(2, 1); // duplicate undirected relationship
+    try g.addCausalEdge(2, 3);
+
+    try std.testing.expectEqual(@as(?i64, 1000), g.timestampFor(1));
+    try std.testing.expectEqual(@as(?i64, null), g.timestampFor(99));
+    try std.testing.expectEqual(@as(usize, 2), g.edgeCount());
 }
 
 test {

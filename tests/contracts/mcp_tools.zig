@@ -144,6 +144,8 @@ test "MCP wdbx_query tool contract" {
     ;
     if (build_options.feat_wdbx) {
         try expectToolJsonContains(allocator, call, "wdbx local match profile=");
+        try expectToolJsonContains(allocator, call, "ranking=hybrid");
+        try expectToolJsonContains(allocator, call, "persona=");
     } else {
         try expectToolJsonContains(allocator, call, "wdbx local match unavailable");
         try expectToolJsonContains(allocator, call, "wdbx feature is disabled");

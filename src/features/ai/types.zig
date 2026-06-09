@@ -105,6 +105,20 @@ pub const TrainingTaskContext = struct {
     }
 };
 
+pub const AgentTaskContext = struct {
+    allocator: std.mem.Allocator,
+    config: AgentConfig,
+    input: []const u8,
+    result: ?AgentResult = null,
+
+    pub fn deinitResult(self: *AgentTaskContext) void {
+        if (self.result) |res| {
+            res.deinit(self.allocator);
+            self.result = null;
+        }
+    }
+};
+
 pub const AgentConfig = struct {
     name: []const u8,
     instructions: []const u8,

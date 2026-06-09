@@ -123,6 +123,27 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     return usage();
 }
 
+fn cleanupTestDb(path: []const u8) void {
+    var buf: [256]u8 = undefined;
+    deleteTestFileIfExists(path);
+    const wp = std.fmt.bufPrint(&buf, "{s}.wal", .{path}) catch return;
+    deleteTestFileIfExists(wp);
+    const manifest = std.fmt.bufPrint(&buf, "{s}.manifest", .{path}) catch return;
+    deleteTestFileIfExists(manifest);
+    var epoch: u64 = 0;
+    while (epoch < 8) : (epoch += 1) {
+        const segment = std.fmt.bufPrint(&buf, "{s}.seg.{d}.jsonl", .{ path, epoch }) catch continue;
+        deleteTestFileIfExists(segment);
+    }
+}
+
+fn deleteTestFileIfExists(path: []const u8) void {
+    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
+    };
+}
+
 test "wdbx handler usage returns non-zero without args" {
     // db/block require args; bare invocation prints usage with exit code 2.
     const args = [_][]const u8{ "abi", "wdbx" };
@@ -134,11 +155,8 @@ test "wdbx db init + block insert + verify + query round-trip" {
     if (!build_options.feat_wdbx) return;
     const allocator = std.testing.allocator;
     const path = "zig-out/wdbx-cli-rt.jsonl";
-    const wp = "zig-out/wdbx-cli-rt.jsonl.wal";
-    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
-    defer std.Io.Dir.cwd().deleteFile(std.testing.io, wp) catch {};
-    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
-    std.Io.Dir.cwd().deleteFile(std.testing.io, wp) catch {};
+    defer cleanupTestDb(path);
+    cleanupTestDb(path);
 
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "init", path }));
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "insert", path, "abbey", "{\"turn\":1}" }));
@@ -154,10 +172,8 @@ test "wdbx db verify detects WAL/snapshot divergence" {
     const allocator = std.testing.allocator;
     const path = "zig-out/wdbx-cli-divergence.jsonl";
     const wp = "zig-out/wdbx-cli-divergence.jsonl.wal";
-    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
-    defer std.Io.Dir.cwd().deleteFile(std.testing.io, wp) catch {};
-    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
-    std.Io.Dir.cwd().deleteFile(std.testing.io, wp) catch {};
+    defer cleanupTestDb(path);
+    cleanupTestDb(path);
 
     // A consistent snapshot+WAL with one block verifies clean.
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "init", path }));
@@ -165,10 +181,62 @@ test "wdbx db verify detects WAL/snapshot divergence" {
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
 
     // Append a block to the durable WAL only, leaving the snapshot behind. The
-    // log now records more history than the snapshot — verify must surface the
-    // divergence (exit 1), not silently trust the snapshot.
+    // log now records more history than the checkpoint — verify must surface
+    // the divergence (exit 1), not silently trust the checkpoint.
     try wdbx.wal.appendBlock(std.testing.io, allocator, wp, "aviva", 0, 0, "{\"turn\":2}", 4242);
     try std.testing.expectEqual(@as(u8, 1), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
+}
+
+test "wdbx runtime commands recover WAL-ahead state before reading or writing" {
+    if (!build_options.feat_wdbx) return;
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-cli-recovery.jsonl";
+    const wp = "zig-out/wdbx-cli-recovery.jsonl.wal";
+    defer cleanupTestDb(path);
+    cleanupTestDb(path);
+
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "init", path }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "insert", path, "abbey", "{\"turn\":1}" }));
+
+    // Simulate a crash after the WAL append but before checkpointing:
+    // runtime commands should recover the WAL-ahead block, while db verify still
+    // surfaces the divergence as a consistency problem.
+    try wdbx.wal.appendBlock(std.testing.io, allocator, wp, "aviva", 0, 0, "{\"turn\":2}", 4242);
+    try std.testing.expectEqual(@as(u8, 1), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "get", path }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path }));
+
+    // A subsequent normal write starts from recovered state and checkpoints it.
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "insert", path, "abi", "{\"turn\":3}" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
+
+    var recovered_snapshot = try wdbx.persistence.loadFromPath(std.testing.io, allocator, path);
+    defer recovered_snapshot.deinit();
+    try std.testing.expectEqual(@as(usize, 3), recovered_snapshot.blockCount());
+}
+
+test "wdbx runtime commands use segment checkpoints without snapshot mirror" {
+    if (!build_options.feat_wdbx) return;
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-cli-segment-default.jsonl";
+    const wp = "zig-out/wdbx-cli-segment-default.jsonl.wal";
+    defer cleanupTestDb(path);
+    cleanupTestDb(path);
+
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "init", path }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "insert", path, "abbey", "{\"turn\":1}" }));
+
+    // Remove legacy mirrors; the segment manifest remains the runtime
+    // checkpoint source.
+    deleteTestFileIfExists(path);
+    deleteTestFileIfExists(wp);
+
+    var opened = try wdbx.recovery.open(std.testing.io, allocator, path);
+    defer opened.store.deinit();
+    try std.testing.expectEqual(wdbx.recovery.Source.segment, opened.source);
+    try std.testing.expectEqual(@as(usize, 1), opened.store.blockCount());
+
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path }));
 }
 
 test {

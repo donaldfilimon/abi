@@ -143,6 +143,13 @@ pub const LoopbackHttpServer = struct {
         self.server.deinit(io);
     }
 
+    pub fn wake(self: *const LoopbackHttpServer, io: std.Io) void {
+        const addr_const = std.Io.net.IpAddress.parseIp4("127.0.0.1", self.port) catch return;
+        var addr = addr_const;
+        var stream = addr.connect(io, .{ .mode = .stream }) catch return;
+        stream.close(io);
+    }
+
     /// Accept one connection, send an HTTP 200 JSON response, and return the raw request bytes.
     pub fn acceptAndRespond(self: *LoopbackHttpServer, io: std.Io, allocator: std.mem.Allocator, response_body: []const u8) ![]u8 {
         const conn = try self.server.accept(io);
@@ -173,6 +180,47 @@ pub const LoopbackHttpServer = struct {
         try writer.flush();
 
         return try read_buf.toOwnedSlice(allocator);
+    }
+};
+
+pub const LoopbackHttpExchange = struct {
+    server: *LoopbackHttpServer,
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    response_body: []const u8,
+    request: []u8 = &.{},
+    request_owned: bool = false,
+    err: ?anyerror = null,
+
+    pub fn init(server: *LoopbackHttpServer, io: std.Io, allocator: std.mem.Allocator, response_body: []const u8) LoopbackHttpExchange {
+        return .{
+            .server = server,
+            .io = io,
+            .allocator = allocator,
+            .response_body = response_body,
+        };
+    }
+
+    pub fn deinit(self: *LoopbackHttpExchange) void {
+        if (self.request_owned) {
+            self.allocator.free(self.request);
+            self.request = &.{};
+            self.request_owned = false;
+        }
+    }
+
+    pub fn serveOne(self: *LoopbackHttpExchange) void {
+        self.request = self.server.acceptAndRespond(self.io, self.allocator, self.response_body) catch |err| {
+            self.err = err;
+            return;
+        };
+        self.request_owned = true;
+    }
+
+    pub fn requestBytes(self: *const LoopbackHttpExchange) ![]const u8 {
+        if (self.err) |err| return err;
+        if (!self.request_owned) return error.LoopbackRequestMissing;
+        return self.request;
     }
 };
 

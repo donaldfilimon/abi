@@ -9,42 +9,49 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
     const sub_cmd = args[2];
     if (std.mem.eql(u8, sub_cmd, "plan")) {
         if (args.len != 4) return usage_mod.usageError("usage: abi agent plan <input>");
-        const result = try abi.features.ai.runAgent(allocator, .{ .name = "cli-agent", .instructions = "Plan only; do not execute.", .dry_run = true }, args[3]);
-        defer result.deinit(allocator);
+        var sched = abi.scheduler.Scheduler.init(allocator);
+        defer sched.deinit();
+
+        var mem_tracker = abi.memory.MemoryTracker.init(allocator);
+        defer mem_tracker.deinit();
+        var tracking_alloc = abi.memory.TrackingAllocator.init(allocator, &mem_tracker);
+        sched.setMemoryTracker(&mem_tracker);
+
+        const plan_allocator = tracking_alloc.allocator();
+        const result = try abi.features.ai.runAgentWithScheduler(plan_allocator, &sched, "agent:plan", .{ .name = "cli-agent", .instructions = "Plan only; do not execute.", .dry_run = true }, args[3]);
+        defer result.deinit(plan_allocator);
         std.debug.print("{s}\n", .{result.output});
+        const s = sched.stats();
+        std.debug.print("scheduler: running={d} pending={d} completed={d} failed={d}\n", .{ s.running, s.pending, s.completed, s.failed });
+        std.debug.print("memory (tracker): peak={d}B records={d}\n", .{ mem_tracker.getPeakUsage(), mem_tracker.getRecordCount() });
         return 0;
     } else if (std.mem.eql(u8, sub_cmd, "train")) {
         if (args.len != 4) return usage_mod.usageError("usage: abi agent train <abbey|aviva|abi|all>");
         var store = abi.features.wdbx.Store.init(allocator);
-        defer store.deinit();
 
         const dataset = abi.features.ai.DatasetSpec{ .path = "datasets/local-training.jsonl" };
         const artifact_dir = "zig-cache/agent-artifacts";
         const profile_arg = args[3];
         const is_all = std.mem.eql(u8, profile_arg, "all");
 
-        // Massive functionality improvement (addressing repeated gaps in roadmap, design doc,
-        // master spec, and todo after full .md/docs review):
-        // The rich Scheduler (O(log N) priority, stats, cancellation) was previously unused
-        // for real user work. Now `abi agent train` (the primary training surface) submits
-        // the actual training as real scheduler tasks. This makes scheduler_stats, the TUI
-        // scheduler pane, and future integration show *real* user-triggered work with
-        // proper priority, status, and observability.
         var sched = abi.scheduler.Scheduler.init(allocator);
         defer sched.deinit();
 
-        // MemoryTracker wiring for production CLI train path (deeper observability per plan,
-        // focusing on src/abi_cli as requested). Uses the Scheduler setter + TrackingAllocator
-        // on the task arena (matches the pattern proven in integration tests).
         var mem_tracker = abi.memory.MemoryTracker.init(allocator);
+        defer mem_tracker.deinit();
+        defer store.deinit();
         var tracking_alloc = abi.memory.TrackingAllocator.init(allocator, &mem_tracker);
         sched.setMemoryTracker(&mem_tracker);
 
-        // Use an arena for all per-task context (names + TaskCtx) so we have zero leaks
-        // and follow Zig 0.17 careful allocator discipline (per zig-017-modernization skill).
         var arena = std.heap.ArenaAllocator.init(tracking_alloc.allocator());
         defer arena.deinit();
         const task_alloc = arena.allocator();
+
+        var training_contexts: std.ArrayListUnmanaged(*abi.features.ai.TrainingTaskContext) = .empty;
+        defer {
+            for (training_contexts.items) |ctx| ctx.deinitResult();
+            training_contexts.deinit(allocator);
+        }
 
         if (is_all) {
             for (abi.features.ai.known_profiles) |p| {
@@ -60,9 +67,11 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
                         .artifact_dir = artifact_dir,
                     },
                 };
-                _ = abi.features.ai.submitTrainingTask(&sched, name, ctx) catch |err| {
+                if (abi.features.ai.submitTrainingTask(&sched, name, ctx)) |_| {
+                    try training_contexts.append(allocator, ctx);
+                } else |err| {
                     if (!abi.features.ai.isFeatureDisabled(err)) return err;
-                };
+                }
             }
         } else {
             const name = try std.fmt.allocPrint(task_alloc, "train:{s}", .{profile_arg});
@@ -76,33 +85,53 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
                     .artifact_dir = artifact_dir,
                 },
             };
-            _ = abi.features.ai.submitTrainingTask(&sched, name, ctx) catch |err| {
+            if (abi.features.ai.submitTrainingTask(&sched, name, ctx)) |_| {
+                try training_contexts.append(allocator, ctx);
+            } else |err| {
                 if (!abi.features.ai.isFeatureDisabled(err)) return err;
-            };
+            }
         }
 
-        // Run the real scheduled training work
         try sched.runAll();
 
         const s = sched.stats();
         std.debug.print("training executed via scheduler (real tasks, not demos)\n", .{});
         std.debug.print("scheduler: running={d} pending={d} completed={d} failed={d}\n", .{ s.running, s.pending, s.completed, s.failed });
 
-        // Memory observability (new in this CLI focus)
         std.debug.print("memory (tracker): peak={d}B records={d}\n", .{ mem_tracker.getPeakUsage(), mem_tracker.getRecordCount() });
 
-        // Preserve previous user-visible output
-        const result = if (is_all)
-            try abi.features.ai.trainKnownProfiles(allocator, &store, dataset, artifact_dir)
-        else
-            try abi.features.ai.trainWithStore(allocator, &store, .{
-                .profile = profile_arg,
-                .dataset = dataset,
-                .artifact_dir = artifact_dir,
-            });
-        defer result.deinit(allocator);
+        if (training_contexts.items.len == 0) {
+            const result = if (is_all)
+                try abi.features.ai.trainKnownProfiles(allocator, &store, dataset, artifact_dir)
+            else
+                try abi.features.ai.trainWithStore(allocator, &store, .{
+                    .profile = profile_arg,
+                    .dataset = dataset,
+                    .artifact_dir = artifact_dir,
+                });
+            defer result.deinit(allocator);
 
-        std.debug.print("{s}: {s} ({d} wdbx record(s), backend={s})\n", .{ result.profile, result.message, store.count(), result.acceleration_backend });
+            std.debug.print("{s}: {s} ({d} wdbx record(s), backend={s})\n", .{ result.profile, result.message, store.count(), result.acceleration_backend });
+            return 0;
+        }
+
+        if (is_all) {
+            var records_stored: usize = 0;
+            var backend: []const u8 = "unknown";
+            for (training_contexts.items) |ctx| {
+                const result = ctx.result orelse return error.MissingTrainingResult;
+                records_stored += result.records_stored;
+                backend = result.acceleration_backend;
+            }
+            const message: []const u8 = if (records_stored == 0)
+                "known agent profiles accepted; wdbx feature is disabled for this build"
+            else
+                "known agent profiles recorded in wdbx";
+            std.debug.print("abbey,aviva,abi: {s} ({d} wdbx record(s), backend={s})\n", .{ message, store.count(), backend });
+        } else {
+            const result = training_contexts.items[0].result orelse return error.MissingTrainingResult;
+            std.debug.print("{s}: {s} ({d} wdbx record(s), backend={s})\n", .{ result.profile, result.message, store.count(), result.acceleration_backend });
+        }
         return 0;
     } else if (std.mem.eql(u8, sub_cmd, "tui")) {
         if (args.len != 3) return usage_mod.usageError("usage: abi agent tui");

@@ -18,6 +18,7 @@ pub const commands = [_]Command{
     .{ .name = "tui", .usage = "abi tui", .summary = "Render the diagnostics dashboard" },
     .{ .name = "dashboard", .usage = "abi dashboard", .summary = "Render the diagnostics dashboard" },
     .{ .name = "wdbx", .usage = "abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api> ...", .summary = "Operate the WDBX runtime: snapshots, WAL, blocks, stats, benchmark" },
+    .{ .name = "scheduler", .usage = "abi scheduler status", .summary = "Report one-shot CLI scheduler task and memory tracker status" },
 };
 
 pub fn printUsage() void {

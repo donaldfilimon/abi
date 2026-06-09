@@ -9,8 +9,8 @@ const router = @import("features/ai/router.zig");
 const analyzeSentiment = router.analyzeSentiment;
 const selectBestProfile = router.selectBestProfile;
 
-const ITERATIONS = 100;
-const WARMUP = 3;
+const ITERATIONS = 10;
+const WARMUP = 1;
 
 fn runBench(comptime label: []const u8, comptime fn_run: anytype) void {
     var i: usize = 0;
@@ -23,6 +23,25 @@ fn runBench(comptime label: []const u8, comptime fn_run: anytype) void {
     while (i < ITERATIONS) : (i += 1) {
         const start = foundation_time.monotonicNs();
         fn_run();
+        const elapsed_ns = foundation_time.monotonicNs() - start;
+        total_ms += @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0;
+    }
+
+    const avg_ms = total_ms / @as(f64, @floatFromInt(ITERATIONS));
+    std.debug.print("bench [{s}]: avg {d:.3}ms ({d} iters)\n", .{ label, avg_ms, ITERATIONS });
+}
+
+fn runBenchWithContext(comptime label: []const u8, context: anytype, comptime fn_run: anytype) void {
+    var i: usize = 0;
+    while (i < WARMUP) : (i += 1) {
+        fn_run(context);
+    }
+
+    var total_ms: f64 = 0;
+    i = 0;
+    while (i < ITERATIONS) : (i += 1) {
+        const start = foundation_time.monotonicNs();
+        fn_run(context);
         const elapsed_ns = foundation_time.monotonicNs() - start;
         total_ms += @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0;
     }
@@ -71,27 +90,28 @@ test "bench HNSW insert" {
 }
 
 test "bench HNSW search" {
+    var store = wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+    var i: usize = 0;
+    while (i < 100) : (i += 1) {
+        const vals = [_]f32{
+            @as(f32, @floatFromInt(i)) / 100.0,
+            @as(f32, @floatFromInt(100 - i)) / 100.0,
+            0.0,
+            0.0,
+        };
+        _ = try store.putVector(&vals);
+    }
+
     const SearchBench = struct {
-        pub fn run() void {
-            var store = wdbx.Store.init(std.testing.allocator);
-            defer store.deinit();
-            var i: usize = 0;
-            while (i < 100) : (i += 1) {
-                const vals = [_]f32{
-                    @as(f32, @floatFromInt(i)) / 100.0,
-                    @as(f32, @floatFromInt(100 - i)) / 100.0,
-                    0.0,
-                    0.0,
-                };
-                _ = store.putVector(&vals) catch unreachable;
-            }
+        pub fn run(bench_store: *wdbx.Store) void {
             const query = [_]f32{ 0.5, 0.5, 0.0, 0.0 };
-            const results = store.search(&query, 10) catch unreachable;
+            const results = bench_store.search(&query, 10) catch unreachable;
             std.testing.allocator.free(results);
         }
     };
 
-    runBench("HNSW search", SearchBench.run);
+    runBenchWithContext("HNSW search", &store, SearchBench.run);
 }
 
 test "bench block chain append" {

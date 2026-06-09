@@ -8,17 +8,18 @@ North-star vision (long-horizon direction, current-vs-proposed mapping): `docs/s
 
 | Item | Status | Notes |
 | ---- | ------ | ----- |
-| WDBX write-ahead log + recovery | ✅ Done | `src/features/wdbx/wal.zig`: CRC32-framed append-only records, deterministic replay (reuses `persistence.deserialize`), flipped-byte + bad-header rejection. 3 unit tests. |
-| Temporal/causal graph + hybrid ranker | ✅ Done | `src/features/wdbx/temporal.zig`: recency half-life decay, causal BFS hop weight, `semantic × temporal × causal × persona` ranker. 4 unit tests. |
-| `wdbx` CLI namespace | ✅ Done | `src/abi_cli/handlers/wdbx.zig`: `db init/verify`, `block insert/get`, `query`, `benchmark`, `cluster status/demo`, `compute info`, `secure demo`, `gpu info`, `api serve`. Frozen-CLI contract = 11 commands (`tests/contracts/surface.zig`). `db verify` cross-checks WAL replay vs snapshot. Comptime-gated on `feat_wdbx`. |
-| Mod/stub parity for new wdbx modules | ✅ Done | `wal`, `temporal`, `cluster`, `compression`, `crypto_he`, `compute`, `rest` exported from `mod.zig`; matching empty parity markers in `stub.zig`; `zig build check-parity` green with `-Dfeat-wdbx=false`. |
+| WDBX write-ahead log + recovery | ✅ Done | `src/features/wdbx/wal.zig`: CRC32-framed append-only records for kv, blocks, temporal nodes, and causal edges; deterministic replay (reuses `persistence.deserialize`); flipped-byte + bad-header rejection. `src/features/wdbx/recovery.zig` selects WAL-ahead state over stale checkpoints. CLI runtime commands now recover before `block get`, `query`, and the next `block insert`, while `db verify` still surfaces divergence. |
+| Multi-segment storage + epoch reclamation | ✅ Done (default runtime checkpoint) | `src/features/wdbx/segments.zig`: manifest-backed immutable segment checkpoints, monotonic epochs, `loadLatest`, active epoch listing, reset, and watermark reclamation. `src/features/wdbx/recovery.zig` prefers segment checkpoints over legacy snapshots, and `abi wdbx db/block/query` now writes/opens through the segment checkpoint path while keeping the monolithic snapshot as a compatibility mirror. |
+| Temporal/causal graph + hybrid ranker | ✅ Done (persisted + default MCP path) | `src/features/wdbx/temporal.zig`: recency half-life decay, causal BFS hop weight, `semantic × temporal × causal × persona` ranker. `src/features/wdbx/retrieval.zig` composes HNSW semantic search with the hybrid ranker, JSONL snapshots persist temporal nodes/edges, and MCP `wdbx_query` now returns hybrid-ranked local matches with component scores. |
+| `wdbx` CLI namespace | ✅ Done | `src/abi_cli/handlers/wdbx.zig`: `db init/verify`, `block insert/get`, `query`, `benchmark`, `cluster status/demo`, `compute info`, `secure demo`, `gpu info`, `api serve`. Frozen-CLI contract = 11 commands (`tests/contracts/surface.zig`). `db verify` cross-checks WAL replay vs the current checkpoint; runtime commands recover WAL-ahead state. Comptime-gated on `feat_wdbx`. |
+| Mod/stub parity for new wdbx modules | ✅ Done | `wal`, `temporal`, `recovery`, `retrieval`, `segments`, `cluster`, `compression`, `crypto_he`, `compute`, `rest` exported from `mod.zig`; matching empty parity markers in `stub.zig`; `zig build check-parity` green with `-Dfeat-wdbx=false`. |
 | In-process cluster consensus (demo) | ✅ Done (in-process) | `src/features/wdbx/cluster.zig`: Raft-style leader election, majority-quorum replication, leader failover, quorum-loss detection over an in-process node array; `abi wdbx cluster demo`. 4 named tests. **Not** networked/multi-host. |
 | Compute backend selector | ✅ Done | `src/features/wdbx/compute.zig`: CPU (`scalar`/`avx2`/`avx512`/`neon`, host-detected) / GPU / NPU / TPU enumeration + dynamic selection, always degrading to the deterministic CPU SIMD path; `abi wdbx compute info`. 3 named tests. Native ANE/TPU/CUDA/Metal dispatch **not linked**. |
 | Embedding compression (demo) | ✅ Done | `src/features/wdbx/compression.zig`: int8 scalar quantization round-trip (~4×, bounded error); `abi wdbx secure demo`. 3 named tests. **Not** a learned/entropy codec. |
 | Additive homomorphic aggregation (demo) | ✅ Done | `src/features/wdbx/crypto_he.zig`: additive single-key homomorphism over GF(p) — ciphertext sums decrypt to plaintext sums; `abi wdbx secure demo`. 5 named tests. **Not** full (multiplicative) FHE. |
 | Loopback REST listener | ✅ Done | `src/features/wdbx/rest.zig`: pure unit-tested `route(method, path, body)` core + 127.0.0.1 listener serving `POST /insert /query /verify`, `GET /health /stats`; `abi wdbx api serve [port]` (default 8081). 4 named tests. **Loopback only** — not hardened for external exposure. |
 
-**Remaining Phase 1 (not yet done):** multi-segment storage + epoch reclamation, automatic startup recovery, and wiring the temporal/causal hybrid ranker into the default `wdbx_query` path + persisting the causal graph. **Still Proposed** — in-process demos exist (rows above), but the production/scaled forms do not, so do not present them as shipped: a **networked** RPC transport so the cluster core spans separate hosts, **native** ANE/TPU/CUDA/Metal compute dispatch, a **learned** compression codec, full **multiplicative** FHE, and hardening the REST listener for non-loopback exposure. See `docs/spec/wdbx-north-star.md` §2/§8 for the Current/Partial/Proposed mapping.
+**Phase 1 single-node status:** the retrieval/persistence path now includes runtime WAL recovery, segment-backed checkpoint loading/writing, snapshot-persisted temporal/causal graph records, and hybrid-ranked MCP `wdbx_query` results. **Still Proposed** — in-process demos exist (rows above), but the production/scaled forms do not, so do not present them as shipped: a **networked** RPC transport so the cluster core spans separate hosts, **native** ANE/TPU/CUDA/Metal compute dispatch, a **learned** compression codec, full **multiplicative** FHE, and hardening the REST listener for non-loopback exposure. See `docs/spec/wdbx-north-star.md` §2/§8 for the Current/Partial/Proposed mapping.
 
 ## Priority: HIGH
 
@@ -28,7 +29,7 @@ North-star vision (long-horizon direction, current-vs-proposed mapping): `docs/s
 | WDBX block chain with MVCC | ✅ Done | SHA-256 chained blocks, snapshot isolation |
 | AI pipeline router (Abbey-Aviva-Abi) | ✅ Done | Sentiment analysis, adaptive weighting, profile routing |
 | Constitution governance module | ✅ Done | 6-principle validation with scoring |
-| LLM connectors (OpenAI, Anthropic, Discord) | ✅ Done | Deterministic local responses plus opt-in live HTTP methods requiring credentials/network |
+| LLM connectors (OpenAI, Anthropic, Discord, Grok/xAI) | ✅ Done | Deterministic local responses plus opt-in live HTTP methods requiring credentials/network; Grok/xAI is exported and covered by connector/MCP contracts |
 | MCP JSON-RPC 2.0 server | ✅ Done | stdio transport, initialize/tools/ping/shutdown |
 | AI streaming server (OpenAI SSE) | ✅ Done | SSE streaming + non-streaming JSON |
 | Aviva & Abi profile implementations | ✅ Done | Creative/exploratory + concise/action-oriented |
@@ -42,7 +43,7 @@ North-star vision (long-horizon direction, current-vs-proposed mapping): `docs/s
 | GPU/WDBX/model completion expansion | ✅ Done | Backend capability reporting, WDBX stats/manifest APIs, local completion APIs, CLI/MCP completion surfaces verified |
 | Codebase readiness/build/docs pass | ✅ Done | Manifest-driven plugin registry, plugin manager module coverage, full-check integration+benchmark gate, TUI scheduler snapshot, docs refreshed |
 | Full module/GPU contract completion pass | ✅ Done | Root/feature namespace contracts, GPU real/stub fallback tests, all feature-off `test-feature-contracts -Dfeat-*=false` smoke checks, connector hardening, MCP/plugin contract expansion |
-| Core scheduler + memory lifecycle integration | ✅ Done | `scheduler.stats()` + live data in CLI dashboard/TUI + agent train. MCP owns long-lived Scheduler + new tools (scheduler_stats etc). Real training tasks now submitted via scheduler (see integration test + agent handler). Phase 1+2 complete. |
+| Core scheduler + memory lifecycle integration | ✅ Done | `scheduler.stats()` + live data in CLI dashboard/TUI + agent train. MCP owns long-lived Scheduler + new tools (scheduler_stats etc). `abi scheduler status` reports a one-shot CLI scheduler probe with task/memory counters. Real training tasks now submitted via scheduler (see integration test + agent handler). Phase 1+2 complete. |
 
 ## Priority: MEDIUM
 
@@ -71,7 +72,7 @@ North-star vision (long-horizon direction, current-vs-proposed mapping): `docs/s
 | Plugin registry enhancements | ✅ Done | PluginManager with manifest validation, load/unload/list |
 | Cross-compilation CI | ✅ Done | GitHub Actions native checks plus Linux/macOS cross-compile smoke builds |
 | GPU backend stubs completion | ✅ Done | Metal framework linked on macOS with Objective-C runtime initialization path; vector operations fall back safely when native kernels are unavailable |
-| Mobile mod/stub pair | ✅ Done | feat-mobile mod.zig + stub.zig created, parity verified, 4 tests |
+| Mobile mod/stub pair | ✅ Done | feat-mobile mod.zig + stub.zig created; runtime profile/mode artifacts, layout validation, disabled-stub parity, and feature-on/off contract coverage are verified |
 | Twilio live transport | ✅ Done | httpPostForm helper, ConversationRelayEventLive with Basic auth, TwiML builder, configurable escalation |
 | Modernization follow-up contract and release-note pass | ✅ Done | Added plugin validator/WDBX edge coverage, disabled WDBX manifest shape parity, and CHANGELOG release-note highlights |
 
@@ -86,13 +87,17 @@ See `tasks/roadmap-next.md` for the full refreshed view. High-level priorities:
 **Stabilization**
 - Tests for real scheduler usage in training: ✅ added ("scheduler drives training tasks" integration test + agent handler now submits real TrainTask via sched).
 - Live transport integration tests: ✅ Done (LoopbackHttpServer + httpPostJson/Form round-trip tests).
-- MemoryTracker in WDBX hot paths (putVector, search): ✅ Done (non-fallible trackAllocNoTag/trackFreeNoTag + integration test).
+- MemoryTracker in WDBX hot paths (putVector, search): ✅ Done (non-fallible trackAllocNoTag/trackFreeNoTag + integration test). Tagged allocations now use live-record semantics: `trackFree` removes the newest matching pointer record, `trackResize` updates pointer/size accounting, and `TrackingAllocator` keeps current usage/record count live across free/remap/resize paths.
 - Pool allocator adoption in WDBX: ✅ Done for padded vector buffers and small spatial payload copies through `Store.initWithConfig`.
 - TUI interactivity: ✅ Done (InteractiveTerminal in tui/mod.zig owns raw mode + key reading; dashboard.zig simplified).
 
 **Integration & Architecture**
-- AI scheduler/memory integration: ✅ Advanced (`submitCompletionTask`/`submitTrainingTask`, CLI/MCP completion wiring, agent training helper wiring; broader AI internals remain future work).
-- GPU vector-op integration for HNSW distance calculations: ✅ Done (routes through `gpu.vectorOps()` with SIMD fallback); broader native/batched WDBX acceleration remains future work.
+- AI scheduler/memory integration: ✅ Advanced (`submitCompletionTask`/`submitTrainingTask`/`submitAgentTask`, CLI/MCP completion wiring, agent plan/train helper wiring, scheduled CLI task result ownership; broader AI internals remain future work).
+- GPU vector-op integration for WDBX search: ✅ Advanced (HNSW pairwise distance and neighbor-expansion batch scoring route through `gpu.vectorOps()` with SIMD fallback); native/batched backend expansion beyond local vector ops remains future work.
+- Accelerator selection report: ✅ Improved (`selectionReport` exposes workload, selected/fallback backend, native availability, and GPU availability/acceleration flags; CLI `abi backends` reports it).
+- Shader validation artifact: ✅ Improved (`validateDetailed` reports language, detected entry point, source bytes, checksum; delimiter-balance validation now shared by real/stub shader modules).
+- MLIR textual lowering artifact: ✅ Improved (`analyze` validates module symbols, reports operation count/checksum; `lower` escapes operation attributes; real/stub surfaces match).
+- Mobile runtime profile artifact: ✅ Improved (`profile` reports runtime mode, screen profile, hardware label, status message, and explicit native-dispatch status; disabled stub mirrors the profile contract).
 - Plugin execution: **Real dispatch implemented** for bundled plugins.
 
 **MCP / Observability / UX**
@@ -125,16 +130,13 @@ Multi-agent pass against `main` (work coordinated across disjoint slices; `./bui
 ## Things To Do Next
 
 **Honest stubs — keep disclosed, do NOT fake-complete** (would violate `docs/contracts/external-claims-audit.md`):
-- `accelerator`, `shaders`, `mlir`, `mobile` real `mod.zig` are validation/metadata/simulation only; each discloses its limitation. Leave as-is unless wiring real native dispatch.
+- `accelerator`, `shaders`, `mlir`, and `mobile` now provide stronger local selection/validation/lowering/profile artifacts but still disclose that native accelerator/platform dispatch and external compiler/toolchains are not linked. Leave as-is unless wiring real native dispatch/toolchains.
 
 **Still Proposed (in-process demos exist; production forms do not):**
 - Networked RPC transport for the cluster core (multi-host); native ANE/TPU/CUDA/Metal compute dispatch; learned/entropy compression codec; full multiplicative FHE; non-loopback REST hardening.
 
 **Remaining real work (disjoint, candidate next slices):**
-- WDBX Phase 1 finish: multi-segment storage + epoch reclamation, automatic startup recovery, wire the temporal/causal hybrid ranker into the default `wdbx_query` path + persist the causal graph.
-- `MemoryTracker.trackFree` ignores `ptr` (records are append-only; `getRecordCount` is cumulative, not live) — `src/core/memory.zig`. Decide: make it live, or rename to reflect cumulative semantics.
-- Deeper scheduler/memory wiring into more AI-pipeline stages; broader native/batched GPU acceleration beyond HNSW distance.
-- Loopback integration tests skip-and-leak on connection flake (`src/integration_tests.zig`) — fail hard or use a deterministic ready signal instead of nanosleep-retry + `detach`.
+- Deeper scheduler/memory wiring into lower-level AI internals; broader native backend acceleration beyond the current local batched WDBX vector-op path.
 
 ## Status Format
 
@@ -148,13 +150,26 @@ Multi-agent pass against `main` (work coordinated across disjoint slices; `./bui
 - feat-hash + feat-metrics fully wired (build, features/mod, contracts, stub checks, parity).
 - Scheduler lifecycle: real training dispatch + stats + MCP long-lived + dashboard live ticks + dedicated integration test.
 - Plugin system: real run() dispatch implemented (calls actual plugin code for examples); CLI/MCP surfaces execute it.
+- Grok/xAI connector: exported through `src/connectors/mod.zig`, deterministic local chat/stream paths, explicit live-transport methods, config validation, and MCP `connector_test` coverage.
 - All example plugins made valid self-contained .zig modules.
 - **MemoryTracker in WDBX hot paths**: Added non-fallible trackAllocNoTag/trackFreeNoTag to MemoryTracker; wired into Store.putVector and Store.search; integration test added.
+- **MemoryTracker live records**: `trackFree` removes matching live records, `trackResize` updates pointer/size accounting, and TrackingAllocator free/resize/remap hooks keep current usage live instead of cumulative-only.
 - **GPU vector-op integration for HNSW**: HNSW cosine distance now routes through `gpu.vectorOps().cosineSimilarity()` and falls back to the existing SIMD path if the GPU/vector abstraction errors; focused test coverage added.
 - **Live transport tests (Stream 5)**: Added LoopbackHttpServer to test_helpers.zig; httpPostJson and httpPostForm round-trip integration tests against loopback.
+- **Loopback live transport hardening**: Removed nanosleep retry loops from httpPostJson/Form integration tests; listener bind is now treated as readiness, failures unblock/join the server thread and report the original client error.
+- **Loopback live transport deterministic cleanup**: `LoopbackHttpExchange` now captures server-thread request/error state, and JSON/form live transport tests use unconditional wake/join cleanup with no retry masking after listener readiness.
 - **TUI InteractiveTerminal**: Moved raw mode + key reading into tui/mod.zig; dashboard.zig simplified to use it; stub parity maintained.
-- **AI scheduler helper surface**: Added `CompletionTaskContext`, `TrainingTaskContext`, `submitCompletionTask`, and `submitTrainingTask`; wired CLI/MCP completion and agent training through the helpers with feature-disabled fallback.
+- **AI scheduler helper surface**: Added `CompletionTaskContext`, `TrainingTaskContext`, `AgentTaskContext`, `submitCompletionTask`, `submitTrainingTask`, and `submitAgentTask`; wired CLI/MCP completion plus `abi agent plan/train` through the helpers with feature-disabled fallback. `abi agent train` now reports the scheduled task results directly instead of re-running training, and deinitializes the owned results.
+- **Scheduler CLI status**: Added `abi scheduler status` as a contract-smoked one-shot scheduler probe that reports task counters plus attached `MemoryTracker` state without claiming a long-running CLI daemon.
+- **Accelerator selection artifact**: Added `SelectionReport`/`selectionReport`/`workloadName`; `abi backends` now prints selected/fallback backend plus native/GPU availability flags. Stubs mirror disabled CPU fallback reporting.
+- **Shader validation artifact**: Added `ValidationReport`/`validateDetailed`; compile artifacts now use detected entry points and checksum/source-byte metadata, while stubs mirror validation before returning disabled artifacts.
+- **MLIR textual lowering artifact**: Added `ModuleAnalysis`/`analyze`; textual lowering now validates module symbols, emits operation count/checksum metadata, and escapes operation names in attributes; stubs mirror validation before disabled output.
+- **Mobile runtime profile artifact**: Added `RuntimeMode`/`MobileProfile`/`profile`/`runtimeModeName`; real and stub modules report mode/screen/hardware/status plus explicit `native_dispatch=false` instead of implying platform dispatch.
 - **WDBX pool allocator adoption**: `StoreConfig.pool_alloc` now feeds both padded vector/search buffers and small `SpatialIndex3D` payload copies, with heap fallback for oversized payloads; stub and contract surface updated.
 - **ArrayList cleanup**: Removed the final live `std.ArrayList(...)` use from `src/testing/test_helpers.zig`; `rg "std\\.ArrayList\\("` now returns no source hits.
+- **WDBX runtime recovery**: `abi wdbx block get`, `query`, and subsequent `block insert` now open through `wdbx.recovery.open`, so a WAL-ahead checkpoint is recovered for normal runtime reads/writes; `db verify` still reports the divergence until a write checkpoints it.
+- **WDBX temporal WAL records**: `wal.appendTemporalNode` and `wal.appendTemporalEdge` persist temporal/causal graph records through the same framed WAL replay path used by snapshots.
+- **WDBX batched vector scoring**: HNSW neighbor expansion now uses `gpu.VectorOps.batchCosineSimilarity()` through a distance helper, retaining deterministic SIMD fallback and avoiding native-dispatch claims.
 - **Docs reconciliation**: roadmap-next.md and todo.md reflect all new closures.
+- **MemoryTracker roadmap reconciliation**: `tasks/scheduler-memory-wireup.md` now matches current source: `trackFree` is pointer-aware, `trackResize` updates live records, WDBX hot paths use no-tag aggregate tracking, and dashboard/MCP/AI scheduler consumers are no longer listed as missing.
 - `./build.sh check` + parity green after WDBX pool/spatial payload expansion.

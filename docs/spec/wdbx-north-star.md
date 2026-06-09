@@ -18,8 +18,8 @@ ABI
 Persona Router          (Current)
  ↓
 WDBX Runtime
- ├─ Storage Layer       (Partial — in-process + snapshot persistence)
- ├─ Index Layer         (Partial — HNSW/SIMD now; temporal/causal Proposed)
+ ├─ Storage Layer       (Current — in-process + segment/WAL persistence)
+ ├─ Index Layer         (Current — HNSW/SIMD + snapshot-persisted temporal/causal ranker)
  ├─ Compute Layer       (Partial — CPU SIMD + GPU fallback; NPU/TPU Proposed)
  ├─ Security Layer      (Partial — SHA-256 chain + snapshot checksum)
  ├─ Cluster Layer       (Proposed)
@@ -34,8 +34,8 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 
 | Capability | Status | Evidence / Gap |
 | --- | --- | --- |
-| Persistent long-term memory | **Partial→Current (single-node)** | JSONL snapshot (`persistence.zig`) **and** a CRC32-framed write-ahead log with replay + corruption detection (`wal.zig`); `abi wdbx db init/verify`, `block insert` (snapshot + WAL), `db verify` cross-checks WAL replay against the snapshot. Gap: automatic always-on load on every process start; multi-segment storage + epoch reclamation. |
-| Temporal-causal retrieval | **Partial** | `temporal.zig` implements an in-memory temporal decay + causal BFS graph and the `semantic × temporal × causal × persona` hybrid ranker (unit-tested). Gap: wiring the hybrid ranker into the default WDBX query path and persisting the causal graph. |
+| Persistent long-term memory | **Current (single-node)** | JSONL snapshot codec (`persistence.zig`), CRC32-framed write-ahead log with replay + corruption detection (`wal.zig`), automatic segment/WAL recovery for runtime CLI reads/writes (`recovery.zig`, `wdbx_db.zig`), and a multi-segment checkpoint store with epoch reclamation (`segments.zig`). `abi wdbx db init/verify`, `block insert/get`, and `query` exercise the segment/WAL lifecycle; the legacy snapshot file remains a compatibility mirror. Gap: full MVCC visibility and compaction policy for larger stores. |
+| Temporal-causal retrieval | **Current (single-node/MCP)** | `temporal.zig` implements temporal decay + causal BFS graph scoring, `retrieval.zig` composes HNSW semantic search with the `semantic × temporal × causal × persona` hybrid ranker, JSONL snapshots persist `temporal_node` / `temporal_edge` records, and MCP `wdbx_query` uses hybrid ranking by default. Gap: broader CLI semantic query UX if that becomes a product surface. |
 | Multi-persona memory routing | **Current** | `src/features/ai/router.zig` keyword-weighted Abbey/Aviva/Abi routing; conversation blocks labeled by profile in `src/features/wdbx/chain.zig`. |
 | SIMD-accelerated search | **Current** | HNSW `@Vector` cosine distance: `src/features/wdbx/hnsw.zig`. |
 | GPU-accelerated retrieval | **Partial** | HNSW distance routes through `gpu.vectorOps().cosineSimilarity()` with deterministic CPU fallback; `compute.zig` adds a CPU/GPU/NPU/TPU backend selector. Gap: native Metal/CUDA/Vulkan compute kernels are not linked. |
@@ -51,17 +51,17 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 ## 3. Layered Architecture
 
 ### 3.1 Storage Layer
-- **Current:** in-process key/value, fixed-capacity padded vectors, SHA-256 block chain, 3D spatial records; JSONL snapshot save/load with integrity checksum; **write-ahead log** (`wal.zig`) with CRC32-framed append-only records, deterministic replay (reuses `persistence.deserialize`), and corruption detection. `abi wdbx db verify` replays the WAL and cross-checks it against the snapshot.
-- **Proposed:** multi-segment storage, full MVCC visibility, epoch-based reclamation, automatic recovery on startup.
-- **Invariants:** append-only, deterministic, verifiable — enforced today by the snapshot checksum and the WAL CRC frames; segments + epoch reclamation extend this to larger-than-memory state.
+- **Current:** in-process key/value, fixed-capacity padded vectors, SHA-256 block chain, 3D spatial records; JSONL snapshot save/load with integrity checksum; **write-ahead log** (`wal.zig`) with CRC32-framed append-only records, deterministic replay (reuses `persistence.deserialize`), and corruption detection. `abi wdbx db verify` replays the WAL and cross-checks it against the current checkpoint; runtime `block`/`query` commands recover WAL-ahead state before reading or writing; `segments.zig` provides immutable epoch checkpoints, reset, active epoch listing, and watermark reclamation. CLI runtime commands now write/open segment checkpoints by default and keep a monolithic snapshot as a compatibility mirror.
+- **Proposed:** full MVCC visibility, larger-store compaction policy, and cross-process/concurrent checkpoint coordination.
+- **Invariants:** append-only, deterministic, verifiable — enforced today by the snapshot checksum, WAL CRC frames, and segment manifest.
 
 ### 3.2 Index Layer
-- **Current:** HNSW graph with SIMD cosine distance and ordered result contracts; **temporal/causal graph + hybrid ranker** (`temporal.zig`): exponential recency decay, causal BFS proximity, and the combined ranking key below (unit-tested).
-- **Scoring model (implemented in `temporal.zig`, not yet the default query path):**
+- **Current:** HNSW graph with SIMD cosine distance and ordered result contracts; **temporal/causal graph + hybrid ranker** (`temporal.zig`): exponential recency decay, causal BFS proximity, and the combined ranking key below (unit-tested and used by MCP `wdbx_query`).
+- **Scoring model (implemented in `temporal.zig`, composed with HNSW in `retrieval.zig`, and default for MCP-local `wdbx_query`):**
   ```
   score = semantic × temporal × causal × persona
   ```
-  `semantic` comes from HNSW cosine, `temporal` from recency half-life decay, `causal` from causal-edge hop distance, `persona` from the router profile weight. **Gap:** make this the default ranking in `wdbx_query` and persist the causal graph.
+  `semantic` comes from HNSW cosine, `temporal` from recency half-life decay, `causal` from causal-edge hop distance, `persona` from the router profile weight. JSONL snapshots persist temporal nodes and causal edges.
 
 ### 3.3 Compute Layer
 - **Current:** CPU SIMD via Zig `@Vector`; GPU *capability reporting* with deterministic CPU fallback; `compute.zig` dynamic backend selector across CPU (`scalar`/`avx2`/`avx512`/`neon`, host-detected), GPU (`cuda`/`metal`/`vulkan`), NPU (`ane`), and TPU (`remote`), each degrading to the CPU SIMD path with verified CPU/GPU parity.
@@ -101,8 +101,8 @@ Served by `abi wdbx api serve [port]` (default 8081). The routing core is a pure
 
 **`wdbx` command namespace — implemented** (`src/abi_cli/handlers/wdbx.zig`, contract row added to `tests/contracts/surface.zig`):
 ```
-wdbx db init <path>        wdbx db verify <path>        # snapshot + WAL integrity
-wdbx block insert <path> <profile> <metadata>           # writes snapshot + WAL
+wdbx db init <path>        wdbx db verify <path>        # segment checkpoint + WAL integrity
+wdbx block insert <path> <profile> <metadata>           # writes segment checkpoint + WAL
 wdbx block get <path>
 wdbx query <path>                                       # store stats manifest
 wdbx benchmark [count]                                  # local in-memory timing
@@ -131,10 +131,10 @@ wdbx api serve [port]                                   # loopback REST listener
 
 | Suite | Status | Notes |
 | --- | --- | --- |
-| Unit — storage / indexing / checksums | **Current** | Inline tests across `wdbx/*` incl. persistence round-trip, tamper, and integrity tests. |
+| Unit — storage / indexing / checksums | **Current** | Inline tests across `wdbx/*` incl. persistence round-trip with vector/block/spatial/temporal records, tamper, and integrity tests. |
 | Integration — insert / query / verify | **Current** | `src/integration_tests.zig`, contract tests in `tests/contracts/`. |
 | GPU — CPU/GPU parity | **Current** | HNSW distance parity test + `compute.zig` dot-product parity across cpu/gpu/npu backends. Broaden as native kernels land. |
-| Recovery — WAL replay / corruption | **Current** | `wal.zig` tests: append→replay reconstruction, flipped-byte CRC rejection, bad-header rejection; `wdbx db verify` cross-checks WAL vs snapshot. Gap: automatic startup recovery. |
+| Recovery — WAL replay / corruption | **Current** | `wal.zig` tests: append→replay reconstruction, flipped-byte CRC rejection, bad-header rejection; `recovery.zig` prefers segment checkpoints over legacy snapshots and selects WAL-ahead state over stale checkpoints; CLI runtime tests cover `block get`, `query`, the next `block insert` recovering/checkpointing WAL-ahead state, and reopening from segment checkpoints without the snapshot mirror. Retrieval tests cover hybrid semantic/temporal/causal/persona re-ranking and the MCP contract checks `ranking=hybrid`. |
 | Cluster — node failure / failover / replication | **Current (in-process)** | `cluster.zig` tests: single-leader election, quorum replication + commit, leader failover at higher term, quorum-loss unavailability. Gap: cross-host transport tests. |
 
 ---
@@ -143,14 +143,14 @@ wdbx api serve [port]                                   # loopback REST listener
 
 | Phase | Theme | Gate |
 | --- | --- | --- |
-| **1** | Single-node cognitive runtime: durable storage (WAL + segments + recovery), persona-weighted scoring, always-on persistence, REST `/insert /query /verify`. | **In progress** — WAL + replay/corruption recovery, the temporal/causal hybrid ranker, and the `wdbx` CLI are landed and tested. Remaining: multi-segment storage, startup auto-recovery, wiring the hybrid ranker into the default query path, and the REST listener. |
+| **1** | Single-node cognitive runtime: durable storage (WAL + segments + recovery), persona-weighted scoring, always-on persistence, REST `/insert /query /verify`. | **Landed for single-node/MCP** — WAL + replay/corruption recovery, segment checkpoints as the default runtime checkpoint source, epoch reclamation, runtime CLI auto-recovery, snapshot-persisted temporal/causal records, MCP default hybrid ranking, the `wdbx` CLI, and the loopback REST listener are landed and tested. |
 | **2** | Multi-node cluster: membership, replication, leader failover, cluster RPC. | First **Proposed** layer; gate on real tests before any "distributed" claim. |
 | **3** | Neural compression of stored embeddings/state. | Requires measured compression artifact before claiming ratios. |
 | **4** | Homomorphic encryption for query-over-encrypted-memory. | Research horizon; claim only with a working, tested path. |
 | **5** | Self-optimizing planner (adaptive backend + index selection). | Builds on dynamic backend selection + scheduler/metrics. |
 | **6** | Autonomous cognitive fabric: agents + personas operate over WDBX as shared substrate across hardware tiers. | Culmination; depends on all prior phases. |
 
-**Near-term execution order (Phase 1 first):** WAL/segment storage → recovery tests → persona term in the scoring model → REST transport behind the existing contract discipline. Each step keeps mod/stub parity and passes `./build.sh check` before it is marked done in `tasks/todo.md` / `tasks/roadmap-next.md`.
+**Near-term execution order after Phase 1:** keep larger-store compaction, broader CLI semantic retrieval UX, and future transport/compute/security layers behind the existing contract discipline. Each step keeps mod/stub parity and passes `./build.sh check` before it is marked done in `tasks/todo.md` / `tasks/roadmap-next.md`.
 
 ---
 

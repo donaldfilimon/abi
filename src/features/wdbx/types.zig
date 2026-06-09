@@ -32,6 +32,8 @@ pub const StoreStats = struct {
     vectors: usize,
     blocks: usize,
     spatial_records: usize,
+    temporal_nodes: usize,
+    temporal_edges: usize,
     vector_dimensions: ?usize,
     next_vector_id: u32,
     acceleration: AccelerationStatus,

@@ -4,6 +4,7 @@
 //! and response formatting for AI completion/training and WDBX query/status.
 
 const std = @import("std");
+const build_options = @import("build_options");
 const abi = @import("abi");
 const state = @import("state.zig");
 
@@ -143,23 +144,78 @@ pub fn runLocalWdbxQuery(allocator: std.mem.Allocator, query: []const u8) ![]u8 
     };
 
     const query_vec = ai_mod.textEmbedding(query);
-    const results = store.search(&query_vec, 1) catch |err| {
-        if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
-        return err;
-    };
-    defer std.heap.page_allocator.free(results);
+    if (comptime build_options.feat_wdbx) {
+        const weights = ai_mod.profile.analyzeSentiment(query);
+        const selected = ai_mod.profile.selectBestProfile(weights);
+        const focus_id = profileVectorId(store, selected.label()) orelse 1;
+        const query_ctx = QueryPersonaContext{ .store = store, .weights = weights };
+        const scorer = features.wdbx.temporal.HybridScorer{ .now_ms = 1000, .half_life_ms = 24 * 60 * 60 * 1000 };
+        const ranked = features.wdbx.retrieval.hybridSearchWithPersonaContext(
+            std.heap.page_allocator,
+            store,
+            &query_vec,
+            3,
+            &store.temporal_graph,
+            scorer,
+            focus_id,
+            &query_ctx,
+            queryPersonaWeight,
+        ) catch |err| {
+            if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
+            return err;
+        };
+        defer std.heap.page_allocator.free(ranked);
 
-    if (results.len == 0) return try allocator.dupe(u8, "wdbx query returned no local matches");
-    const stats = store.stats();
-    return try std.fmt.allocPrint(
-        allocator,
-        "wdbx local match profile={s} vector_id={d} score={d:.3} total_vectors={d} total_blocks={d}",
-        .{ profileForVector(store, results[0].id), results[0].id, results[0].score, stats.vectors, stats.blocks },
-    );
+        if (ranked.len == 0) return try allocator.dupe(u8, "wdbx query returned no local matches");
+        const stats = store.stats();
+        return try std.fmt.allocPrint(
+            allocator,
+            "wdbx local match profile={s} vector_id={d} score={d:.3} semantic={d:.3} temporal={d:.3} causal={d:.3} persona={d:.3} total_vectors={d} total_blocks={d} ranking=hybrid",
+            .{
+                profileForVector(store, ranked[0].id),
+                ranked[0].id,
+                ranked[0].score,
+                ranked[0].components.semantic,
+                ranked[0].components.temporal,
+                ranked[0].components.causal,
+                ranked[0].components.persona,
+                stats.vectors,
+                stats.blocks,
+            },
+        );
+    } else {
+        const results = store.search(&query_vec, 1) catch |err| {
+            if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
+            return err;
+        };
+        defer std.heap.page_allocator.free(results);
+
+        if (results.len == 0) return try allocator.dupe(u8, "wdbx query returned no local matches");
+        const stats = store.stats();
+        return try std.fmt.allocPrint(
+            allocator,
+            "wdbx local match profile={s} vector_id={d} score={d:.3} total_vectors={d} total_blocks={d}",
+            .{ profileForVector(store, results[0].id), results[0].id, results[0].score, stats.vectors, stats.blocks },
+        );
+    }
+}
+
+const QueryPersonaContext = struct {
+    store: *const features.wdbx.Store,
+    weights: features.ai.profile.ProfileWeights,
+};
+
+fn queryPersonaWeight(ctx: *const anyopaque, id: u32) f32 {
+    const query_ctx: *const QueryPersonaContext = @ptrCast(@alignCast(ctx));
+    const label = profileForVector(query_ctx.store, id);
+    if (std.mem.eql(u8, label, "abbey")) return query_ctx.weights.w_abbey;
+    if (std.mem.eql(u8, label, "aviva")) return query_ctx.weights.w_aviva;
+    if (std.mem.eql(u8, label, "abi")) return query_ctx.weights.w_abi;
+    return 0.5;
 }
 
 fn seedMcpProfileVectors(allocator: std.mem.Allocator, store: *features.wdbx.Store) !void {
-    if (store.get("wdbx:profiles_seeded") != null) return;
+    if (store.get("wdbx:profiles_seeded") != null and store.temporalNodeCount() > 0) return;
 
     const profiles = [_]struct {
         label: []const u8,
@@ -170,16 +226,21 @@ fn seedMcpProfileVectors(allocator: std.mem.Allocator, store: *features.wdbx.Sto
         .{ .label = "abi", .vector = .{ 0.71, 0.69, 0.88, 0.97 } },
     };
 
-    for (profiles) |entry| {
+    var seeded_ids: [profiles.len]u32 = undefined;
+    for (profiles, 0..) |entry, i| {
         const id = try store.putVector(&entry.vector);
+        seeded_ids[i] = id;
         const key = try std.fmt.allocPrint(allocator, "wdbx:profile:{d}", .{id});
         defer allocator.free(key);
         try store.store(key, entry.label);
+        try store.addTemporalNode(id, 1000);
     }
+    try store.addTemporalEdge(seeded_ids[0], seeded_ids[1]);
+    try store.addTemporalEdge(seeded_ids[1], seeded_ids[2]);
     try store.store("wdbx:profiles_seeded", "true");
 }
 
-fn profileForVector(store: *features.wdbx.Store, id: u32) []const u8 {
+fn profileForVector(store: *const features.wdbx.Store, id: u32) []const u8 {
     var key_buf: [64]u8 = undefined;
     const profile_key = std.fmt.bufPrint(&key_buf, "wdbx:profile:{d}", .{id}) catch return "unknown";
     if (store.get(profile_key)) |label| return label;
@@ -187,6 +248,15 @@ fn profileForVector(store: *features.wdbx.Store, id: u32) []const u8 {
     const completion_key = std.fmt.bufPrint(&key_buf, "completion:{d}", .{id}) catch return "unknown";
     const metadata = store.get(completion_key) orelse return "unknown";
     return profileFromCompletionMetadata(metadata);
+}
+
+fn profileVectorId(store: *const features.wdbx.Store, label: []const u8) ?u32 {
+    const stats = store.stats();
+    var id: u32 = 1;
+    while (id < stats.next_vector_id) : (id += 1) {
+        if (std.mem.eql(u8, profileForVector(store, id), label)) return id;
+    }
+    return null;
 }
 
 fn profileFromCompletionMetadata(metadata: []const u8) []const u8 {
@@ -202,6 +272,18 @@ fn profileFromCompletionMetadata(metadata: []const u8) []const u8 {
 test "completion metadata profile parser finds profile value" {
     try std.testing.expectEqualStrings("abbey", profileFromCompletionMetadata("{\"profile\":\"abbey\"}"));
     try std.testing.expectEqualStrings("stored-completion", profileFromCompletionMetadata("{}"));
+}
+
+test "query persona weight follows stored profile labels" {
+    if (!build_options.feat_wdbx) return;
+    var store = features.wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+
+    try store.store("wdbx:profile:7", "aviva");
+    const weights = features.ai.profile.ProfileWeights{ .w_abbey = 0.1, .w_aviva = 0.8, .w_abi = 0.1 };
+    const ctx = QueryPersonaContext{ .store = &store, .weights = weights };
+    try std.testing.expectApproxEqAbs(@as(f32, 0.8), queryPersonaWeight(&ctx, 7), 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), queryPersonaWeight(&ctx, 99), 1e-6);
 }
 
 test {

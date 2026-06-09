@@ -95,6 +95,39 @@ pub fn appendBlock(io: std.Io, allocator: std.mem.Allocator, path: []const u8, p
     try appendRecord(io, allocator, path, buf.written());
 }
 
+/// Append a temporal timestamp record. Replay routes this through the snapshot
+/// parser, so WAL and JSONL checkpoint restore keep the same validation path.
+pub fn appendTemporalNode(io: std.Io, allocator: std.mem.Allocator, path: []const u8, id: u32, timestamp_ms: i64) !void {
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    var w = std.json.Stringify{ .writer = &buf.writer, .options = .{ .whitespace = .minified } };
+    try w.beginObject();
+    try w.objectField("type");
+    try w.write("temporal_node");
+    try w.objectField("id");
+    try w.write(id);
+    try w.objectField("timestamp_ms");
+    try w.write(timestamp_ms);
+    try w.endObject();
+    try appendRecord(io, allocator, path, buf.written());
+}
+
+/// Append one causal edge record for temporal/causal hybrid ranking recovery.
+pub fn appendTemporalEdge(io: std.Io, allocator: std.mem.Allocator, path: []const u8, cause: u32, effect: u32) !void {
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    var w = std.json.Stringify{ .writer = &buf.writer, .options = .{ .whitespace = .minified } };
+    try w.beginObject();
+    try w.objectField("type");
+    try w.write("temporal_edge");
+    try w.objectField("cause");
+    try w.write(cause);
+    try w.objectField("effect");
+    try w.write(effect);
+    try w.endObject();
+    try appendRecord(io, allocator, path, buf.written());
+}
+
 /// Verify every frame's CRC32 and return the number of records, without
 /// building a Store. Use for a fast integrity check (`wdbx db verify`).
 pub fn verify(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !usize {
@@ -159,18 +192,28 @@ fn frameIterator(content: []const u8) FrameIterator {
     return .{ .lines = std.mem.splitScalar(u8, content, '\n') };
 }
 
+fn deleteTestFileIfExists(path: []const u8) void {
+    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
+    };
+}
+
 test "wal: append and replay reconstruct kv + block state" {
     const allocator = std.testing.allocator;
     const path = "zig-out/wdbx-wal-replay.wal";
-    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
-    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
+    defer deleteTestFileIfExists(path);
+    deleteTestFileIfExists(path);
 
     try appendKv(std.testing.io, allocator, path, "agent:abbey", "trained");
     try appendKv(std.testing.io, allocator, path, "agent:aviva", "creative");
     try appendBlock(std.testing.io, allocator, path, "abbey", 1, 2, "{\"turn\":1}", 1000);
     try appendBlock(std.testing.io, allocator, path, "aviva", 3, 4, "{\"turn\":2}", 2000);
+    try appendTemporalNode(std.testing.io, allocator, path, 1, 1000);
+    try appendTemporalNode(std.testing.io, allocator, path, 2, 2000);
+    try appendTemporalEdge(std.testing.io, allocator, path, 1, 2);
 
-    try std.testing.expectEqual(@as(usize, 4), try verify(std.testing.io, allocator, path));
+    try std.testing.expectEqual(@as(usize, 7), try verify(std.testing.io, allocator, path));
 
     var store = try replay(std.testing.io, allocator, path);
     defer store.deinit();
@@ -181,13 +224,16 @@ test "wal: append and replay reconstruct kv + block state" {
     try std.testing.expect(store.verifyBlocks());
     const last = store.lastBlock().?;
     try std.testing.expectEqual(@as(i64, 2000), last.timestamp_ms);
+    try std.testing.expectEqual(@as(usize, 2), store.temporalNodeCount());
+    try std.testing.expectEqual(@as(usize, 1), store.temporalEdgeCount());
+    try std.testing.expectEqual(@as(?i64, 1000), store.temporalTimestamp(1));
 }
 
 test "wal: detects a flipped byte in a framed record" {
     const allocator = std.testing.allocator;
     const path = "zig-out/wdbx-wal-corrupt.wal";
-    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
-    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
+    defer deleteTestFileIfExists(path);
+    deleteTestFileIfExists(path);
 
     try appendKv(std.testing.io, allocator, path, "k1", "v1");
 
@@ -207,7 +253,7 @@ test "wal: detects a flipped byte in a framed record" {
 test "wal: rejects a missing or wrong header" {
     const allocator = std.testing.allocator;
     const path = "zig-out/wdbx-wal-badheader.wal";
-    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
+    defer deleteTestFileIfExists(path);
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = path, .data = "garbage\n{\"type\":\"kv\"}\n" });
     try std.testing.expectError(error.InvalidHeader, replay(std.testing.io, allocator, path));
 }
