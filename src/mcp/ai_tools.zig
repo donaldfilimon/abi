@@ -217,22 +217,18 @@ fn queryPersonaWeight(ctx: *const anyopaque, id: u32) f32 {
 fn seedMcpProfileVectors(allocator: std.mem.Allocator, store: *features.wdbx.Store) !void {
     if (store.get("wdbx:profiles_seeded") != null and store.temporalNodeCount() > 0) return;
 
-    const profiles = [_]struct {
-        label: []const u8,
-        vector: [4]f32,
-    }{
-        .{ .label = "abbey", .vector = .{ 0.92, 0.48, 0.25, 0.76 } },
-        .{ .label = "aviva", .vector = .{ 0.34, 0.94, 0.82, 0.41 } },
-        .{ .label = "abi", .vector = .{ 0.71, 0.69, 0.88, 0.97 } },
-    };
+    const labels = [_][]const u8{ "abbey", "aviva", "abi" };
 
-    var seeded_ids: [profiles.len]u32 = undefined;
-    for (profiles, 0..) |entry, i| {
-        const id = try store.putVector(&entry.vector);
+    var seeded_ids: [labels.len]u32 = undefined;
+    for (labels, 0..) |label, i| {
+        // Each persona's prototype is the embedding of its name, so it shares the
+        // feature space and dimensionality of every other stored vector.
+        const vector = features.ai.textEmbedding(label);
+        const id = try store.putVector(&vector);
         seeded_ids[i] = id;
         const key = try std.fmt.allocPrint(allocator, "wdbx:profile:{d}", .{id});
         defer allocator.free(key);
-        try store.store(key, entry.label);
+        try store.store(key, label);
         try store.addTemporalNode(id, 1000);
     }
     try store.addTemporalEdge(seeded_ids[0], seeded_ids[1]);

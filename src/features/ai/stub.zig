@@ -3,6 +3,9 @@ const build_options = @import("build_options");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const types = @import("stub_types.zig");
+// `helpers` is dependency-free (std only), so the disabled-AI stub can reuse the
+// real embedding to keep dimensionality identical across the mod/stub boundary.
+const helpers = @import("helpers.zig");
 
 pub const Principle = types.Principle;
 pub const AuditResult = types.AuditResult;
@@ -192,13 +195,12 @@ pub fn countNonEmptyLines(data: []const u8) usize {
     return count;
 }
 
-pub fn textEmbedding(input: []const u8) [4]f32 {
-    _ = input;
-    return .{ 0.25, 0.25, 0.25, 0.25 };
+pub fn textEmbedding(input: []const u8) [helpers.EMBED_DIM]f32 {
+    return helpers.textEmbedding(input);
 }
 
-pub fn responseEmbedding(query: [4]f32) [4]f32 {
-    return query;
+pub fn responseEmbedding(query: [helpers.EMBED_DIM]f32) [helpers.EMBED_DIM]f32 {
+    return helpers.responseEmbedding(query);
 }
 
 fn validateTrainingConfig(config: TrainingConfig) !void {

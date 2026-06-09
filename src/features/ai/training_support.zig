@@ -43,12 +43,11 @@ pub fn parseAgentProfile(name: []const u8) !types.AgentProfile {
     return error.UnknownAgentProfile;
 }
 
-pub fn profileEmbedding(agent: types.AgentProfile) [4]f32 {
-    return switch (agent) {
-        .abbey => .{ 0.92, 0.48, 0.25, 0.76 },
-        .aviva => .{ 0.34, 0.94, 0.82, 0.41 },
-        .abi => .{ 0.71, 0.69, 0.88, 0.97 },
-    };
+pub fn profileEmbedding(agent: types.AgentProfile) [helpers.EMBED_DIM]f32 {
+    // Derive each persona's signature vector from its label via the shared
+    // embedding, so profile vectors share the dimensionality and feature space
+    // of every other stored vector (no dimension mismatch across train/complete).
+    return helpers.textEmbedding(agent.label());
 }
 
 fn countDatasetRecords(allocator: std.mem.Allocator, format: types.DatasetFormat, data: []const u8) !usize {

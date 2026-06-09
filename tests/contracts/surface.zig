@@ -286,7 +286,7 @@ test "AI completion WDBX persistence is opt-in and append-only" {
     try std.testing.expectEqual(@as(usize, 2), final_stats.kv_entries);
     try std.testing.expectEqual(@as(usize, 4), final_stats.vectors);
     try std.testing.expectEqual(@as(usize, 2), final_stats.blocks);
-    try std.testing.expectEqual(@as(?usize, 4), final_stats.vector_dimensions);
+    try std.testing.expectEqual(@as(?usize, 32), final_stats.vector_dimensions); // helpers.EMBED_DIM
     try std.testing.expectEqual(second_rid + 1, final_stats.next_vector_id);
 }
 
