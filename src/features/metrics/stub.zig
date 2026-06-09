@@ -54,6 +54,12 @@ pub const Metrics = struct {
         return null;
     }
 
+    pub fn getGauge(self: *const Metrics, name: []const u8) ?f64 {
+        _ = self;
+        _ = name;
+        return null;
+    }
+
     pub fn snapshotCounters(self: *const Metrics, allocator: std.mem.Allocator) ![]CounterSnapshot {
         _ = self;
         _ = allocator;
