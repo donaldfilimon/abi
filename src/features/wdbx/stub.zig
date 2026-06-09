@@ -25,6 +25,7 @@ pub const index = @import("stub_index.zig");
 pub const wal = struct {};
 pub const temporal = struct {};
 pub const cluster = struct {};
+pub const cluster_rpc = struct {};
 pub const compression = struct {};
 pub const crypto_he = struct {};
 pub const compute = struct {};

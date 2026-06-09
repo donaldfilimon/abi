@@ -11,6 +11,7 @@ pub const persistence = @import("persistence.zig");
 pub const wal = @import("wal.zig");
 pub const temporal = @import("temporal.zig");
 pub const cluster = @import("cluster.zig");
+pub const cluster_rpc = @import("cluster_rpc.zig");
 pub const compression = @import("compression.zig");
 pub const crypto_he = @import("crypto_he.zig");
 pub const compute = @import("compute.zig");
@@ -457,6 +458,7 @@ test {
     _ = @import("wal.zig");
     _ = @import("temporal.zig");
     _ = @import("cluster.zig");
+    _ = @import("cluster_rpc.zig");
     _ = @import("compression.zig");
     _ = @import("crypto_he.zig");
     _ = @import("compute.zig");
