@@ -1,6 +1,5 @@
 //! Core Registry System
 const std = @import("std");
-const os = @import("../foundation/os.zig");
 const sync = @import("../foundation/sync.zig");
 
 pub const PluginDescriptor = struct {
@@ -161,13 +160,6 @@ pub const Registry = struct {
         }
 
         return try out.toOwnedSlice(allocator);
-    }
-
-    pub fn getOSController(self: *Registry, gated: bool) !os.OSController {
-        self.lock.lockRead();
-        defer self.lock.unlockRead();
-        if (!gated) return error.AccessDenied;
-        return os.OSController.init(self.allocator, std.Options.debug_io);
     }
 };
 

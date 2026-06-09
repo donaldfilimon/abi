@@ -1,26 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-pub const Command = enum {
-    list_processes,
-    get_process_info,
-    get_pid,
-    get_parent_pid,
-    get_cpu_usage,
-    get_memory_usage,
-    get_system_info,
-    read_file,
-    write_file,
-    stat_file,
-    list_directory,
-    get_env_var,
-    get_env_vars,
-    get_cwd,
-    get_platform,
-    get_arch,
-    get_hostname,
-};
-
 pub const Limits = struct {
     max_memory_mb: u32 = 1024,
     max_cpu_percent: u8 = 50,
@@ -61,7 +41,6 @@ pub const SystemInfo = struct {
     arch: Arch,
     hostname: []const u8,
     cpu_count: u32,
-    total_memory_mb: u64,
 };
 
 pub const OSController = struct {
@@ -70,30 +49,6 @@ pub const OSController = struct {
 
     pub fn init(allocator: std.mem.Allocator, io: std.Io) OSController {
         return .{ .allocator = allocator, .io = io };
-    }
-
-    pub fn execute(self: *OSController, command: Command) !void {
-        _ = self;
-        switch (command) {
-            .list_processes => std.log.info("Executing list_processes...", .{}),
-            .get_cpu_usage => std.log.info("Executing get_cpu_usage...", .{}),
-            .get_process_info,
-            .get_memory_usage,
-            .get_system_info,
-            .read_file,
-            .write_file,
-            .stat_file,
-            .list_directory,
-            .get_env_var,
-            .get_env_vars,
-            .get_cwd,
-            .get_platform,
-            .get_arch,
-            .get_hostname,
-            .get_pid,
-            .get_parent_pid,
-            => std.log.info("Executing {any}...", .{command}),
-        }
     }
 
     pub fn getPid(self: *OSController) u32 {
@@ -195,7 +150,6 @@ pub const OSController = struct {
             .arch = self.getArch(),
             .hostname = hostname,
             .cpu_count = @as(u32, @intCast(try std.Thread.getCpuCount())),
-            .total_memory_mb = 0,
         };
     }
 
