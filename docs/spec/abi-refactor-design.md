@@ -79,7 +79,7 @@ src/
 │   │   ├── hnsw.zig   # HNSW index with SIMD cosine distance
 │   │   ├── hnsw_storage.zig / hnsw_distance.zig # Vector storage and distance helpers re-exported by hnsw.zig
 │   │   ├── chain.zig  # Block chain with MVCC snapshots
-│   │   ├── persistence.zig # JSONL snapshot serialize/restore with SHA-256 integrity line
+│   │   ├── persistence.zig / persistence_parse.zig # JSONL snapshot IO plus per-record parser
 │   │   ├── wal.zig    # Write-ahead log: CRC32-framed records, replay, corruption detection
 │   │   ├── temporal.zig # Temporal/causal graph + semantic×temporal×causal×persona hybrid ranking
 │   │   ├── cluster.zig # In-process Raft-style consensus demo: election/quorum/failover (no networked transport)
