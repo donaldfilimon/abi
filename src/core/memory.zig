@@ -57,7 +57,18 @@ pub const MemoryTracker = struct {
     }
 
     pub fn trackFree(self: *MemoryTracker, ptr: [*]const u8, size: usize) void {
-        _ = ptr;
+        // Keep records scoped to live allocations; newest match wins for reused addresses.
+        const addr = @intFromPtr(ptr);
+        var i: usize = self.records.items.len;
+        while (i > 0) {
+            i -= 1;
+            if (self.records.items[i].ptr == addr) {
+                self.allocator.free(self.records.items[i].tag);
+                _ = self.records.swapRemove(i);
+                break;
+            }
+        }
+
         self.total_freed += size;
         if (self.current_usage >= size) {
             self.current_usage -= size;
@@ -249,6 +260,28 @@ test "MemoryTracker track allocations" {
     try std.testing.expectEqual(@as(usize, 1), tracker.getRecordCount());
     try std.testing.expectEqual(@as(usize, 100), tracker.getCurrentUsage());
     try std.testing.expectEqual(@as(usize, 100), tracker.getPeakUsage());
+}
+
+test "MemoryTracker trackFree removes the matching live record" {
+    var tracker = MemoryTracker.init(std.testing.allocator);
+    defer tracker.deinit();
+
+    var a: [16]u8 = undefined;
+    var b: [32]u8 = undefined;
+    try tracker.trackAlloc(&a, 16, "a");
+    try tracker.trackAlloc(&b, 32, "b");
+    try std.testing.expectEqual(@as(usize, 2), tracker.getRecordCount());
+    try std.testing.expectEqual(@as(usize, 48), tracker.getCurrentUsage());
+
+    // Freeing `a` drops its record and leaves `b` live.
+    tracker.trackFree(&a, 16);
+    try std.testing.expectEqual(@as(usize, 1), tracker.getRecordCount());
+    try std.testing.expectEqual(@as(usize, 32), tracker.getCurrentUsage());
+    try std.testing.expectEqualStrings("b", tracker.getRecords()[0].tag);
+
+    tracker.trackFree(&b, 32);
+    try std.testing.expectEqual(@as(usize, 0), tracker.getRecordCount());
+    try std.testing.expectEqual(@as(usize, 0), tracker.getCurrentUsage());
 }
 
 test "MemoryPool alloc and reset" {
