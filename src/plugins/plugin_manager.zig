@@ -1,6 +1,8 @@
 const std = @import("std");
+const build_options = @import("build_options");
 const sync = @import("../foundation/sync.zig");
 const plugin_validator = @import("../foundation/plugin_validator.zig");
+const telemetry = if (build_options.feat_telemetry) @import("../features/telemetry/mod.zig") else @import("../features/telemetry/stub.zig");
 const isSafeEntryPoint = plugin_validator.isSafeEntryPoint;
 
 pub const ManifestSchemaError = error{
@@ -193,6 +195,7 @@ pub const PluginManager = struct {
         const loaded = LoadedPlugin{ .info = plugin_info };
         try self.plugins.put(self.allocator, owned_key, loaded);
 
+        telemetry.record("plugin.loaded");
         return plugin_info;
     }
 
@@ -213,6 +216,8 @@ pub const PluginManager = struct {
         self.allocator.free(info.target_feature);
         self.allocator.free(info.entry_point);
         self.allocator.free(info.path);
+
+        telemetry.record("plugin.unloaded");
     }
 
     pub fn getPlugin(self: *PluginManager, name: []const u8) !PluginInfo {
@@ -254,6 +259,7 @@ pub const PluginManager = struct {
         defer self.lock.unlockRead();
 
         _ = self.plugins.getEntry(name) orelse return error.PluginNotFound;
+        telemetry.record("plugin.run");
 
         // Real dispatch for known bundled plugins (the only ones loadable today via manifest).
         if (std.mem.eql(u8, name, "example-plugin")) {
