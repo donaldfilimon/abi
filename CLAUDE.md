@@ -17,7 +17,7 @@ Toolchain is pinned to Zig `0.17.0-dev.813+2153f8143` (see `.zigversion`). On ma
 - `zig build lint` – Runs `zig fmt --check` on all source files for formatting compliance.
 - `zig build fix` – Automatically formats source files based on project standards.
 - `zig build check-parity` – Verifies top-level public declaration-name parity for feature/plugin `mod.zig` and `stub.zig` pairs.
-- Run a single test: `zig build test -- --test-filter "<pattern>"`
+- Run a single test: `zig build test -Dtest-filter="<pattern>"` (the `test-filter` build option feeds `.filters` on every `addTest`; on macOS use `./build.sh test -Dtest-filter="<pattern>"`). Note: the post-`--` form `zig build test -- --test-filter …` is **not** wired up and is silently ignored.
 
 ### Running Tests
 - `zig build test-integration` – Executes the integration test suite.
