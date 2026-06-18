@@ -137,6 +137,16 @@ const MetalContext = struct {
         self.l2_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, l2_func, @ptrCast(&err));
         if (self.l2_pipeline == null) return error.CreatePipelineStateFailed;
 
+        // Release one-time init temporaries; the pipeline states and queue stay retained.
+        const sel_release = objc.sel_registerName("release");
+        const msg_send_void_ret_void = @as(MsgSendVoidRetVoid, @ptrCast(&objc.objc_msgSend));
+        msg_send_void_ret_void(dot_func, sel_release);
+        msg_send_void_ret_void(l2_func, sel_release);
+        msg_send_void_ret_void(library, sel_release);
+        msg_send_void_ret_void(dot_func_name, sel_release);
+        msg_send_void_ret_void(l2_func_name, sel_release);
+        msg_send_void_ret_void(source_nsstring, sel_release);
+
         self.initialized = true;
     }
 
