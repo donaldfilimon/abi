@@ -174,6 +174,87 @@ fn findBody(raw: []const u8) []const u8 {
     return "";
 }
 
+/// Outcome of reading a full HTTP request off the connection.
+const HttpReadResult = union(enum) {
+    /// Bytes received, framed by `\r\n\r\n` (and Content-Length when present).
+    request: []const u8,
+    /// The peer closed before any bytes arrived.
+    empty,
+    /// The request exceeded MAX_REQUEST_SIZE before completing.
+    too_large,
+};
+
+/// Read a complete HTTP request into `buf`, reassembling across TCP segments.
+///
+/// A single `conn.read` may return only part of the request: clients routinely
+/// flush headers before the body. This accumulates until the `\r\n\r\n` header
+/// terminator, parses any `Content-Length`, then keeps reading until the
+/// declared body has arrived. Termination is bounded three ways so the loop can
+/// never hang or grow without limit: `buf` is a fixed MAX_REQUEST_SIZE-sized
+/// array (a full buffer yields `.too_large`), a 0-length read (EOF) stops the
+/// loop, and the body target is capped at the buffer length.
+///
+/// This mirrors `readHttpRequest` in src/mcp/server.zig. The two transports use
+/// the same `std.Io.net.Stream` conn type and the same MAX_REQUEST_SIZE-bounded
+/// framing, but live in separate feature modules with no shared HTTP helper; the
+/// logic is duplicated rather than forced through a fragile cross-module
+/// abstraction. Keep the two in sync. (Chunked Transfer-Encoding is unsupported
+/// in both.)
+fn readHttpRequest(io: std.Io, conn: std.Io.net.Stream, buf: []u8) HttpReadResult {
+    var total: usize = 0;
+    var header_end: ?usize = null; // index just past "\r\n\r\n"
+    var want_total: ?usize = null; // header_end + Content-Length, when known
+
+    while (true) {
+        if (header_end == null) {
+            if (std.mem.indexOf(u8, buf[0..total], "\r\n\r\n")) |idx| {
+                const end = idx + 4;
+                header_end = end;
+                const declared = parseContentLength(buf[0..end]) orelse 0;
+                // Cap the body target at the buffer; an over-cap declaration is
+                // caught as `.too_large` once the buffer fills.
+                const target = end + declared;
+                want_total = if (target > buf.len) buf.len + 1 else target;
+            }
+        }
+
+        if (want_total) |want| {
+            if (total >= want) break;
+        }
+
+        if (total >= buf.len) {
+            // Buffer full before the request completed: either the headers alone
+            // overflow, or the declared/streamed body exceeds the cap.
+            return .too_large;
+        }
+
+        var rv: [1][]u8 = .{buf[total..]};
+        const n = conn.read(io, &rv) catch break;
+        if (n == 0) break; // EOF / peer closed
+        total += n;
+    }
+
+    if (total == 0) return .empty;
+    return .{ .request = buf[0..total] };
+}
+
+/// Parse the `Content-Length` request header (case-insensitive) from the raw
+/// header block. Returns null when absent or unparseable. Mirrors the helper of
+/// the same name in src/mcp/server.zig.
+fn parseContentLength(header_block: []const u8) ?usize {
+    var lines = std.mem.splitSequence(u8, header_block, "\r\n");
+    _ = lines.next(); // skip the request line
+    while (lines.next()) |line| {
+        if (line.len == 0) break; // end of headers
+        const colon = std.mem.indexOfScalar(u8, line, ':') orelse continue;
+        const key = std.mem.trim(u8, line[0..colon], " \t");
+        if (!std.ascii.eqlIgnoreCase(key, "Content-Length")) continue;
+        const value = std.mem.trim(u8, line[colon + 1 ..], " \t");
+        return std.fmt.parseInt(usize, value, 10) catch null;
+    }
+    return null;
+}
+
 /// Bind a loopback listener and serve REST requests against `store` until the
 /// process is stopped. One request per connection (Connection: close).
 pub fn serve(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store, port: u16) !void {
@@ -196,13 +277,15 @@ pub fn serve(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store, port:
 fn handleConnection(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store, conn: std.Io.net.Stream) !void {
     defer conn.close(io);
     var read_buf: [MAX_REQUEST_SIZE]u8 = undefined;
-    var read_vec: [1][]u8 = .{&read_buf};
-    const n = conn.read(io, &read_vec) catch |err| {
-        std.log.warn("WDBX REST read failed: {s}", .{@errorName(err)});
-        return;
+    const raw = switch (readHttpRequest(io, conn, &read_buf)) {
+        .empty => return,
+        .too_large => {
+            const err_resp = "HTTP/1.1 413 Payload Too Large\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"request too large\"}";
+            try writeAll(io, conn, err_resp);
+            return;
+        },
+        .request => |req| req,
     };
-    if (n == 0) return;
-    const raw = read_buf[0..n];
 
     var line_end: usize = 0;
     while (line_end < raw.len and raw[line_end] != '\n') : (line_end += 1) {}
@@ -229,6 +312,14 @@ fn handleConnection(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store
     const w = &sw.interface;
     try w.writeAll(header);
     try w.writeAll(resp.body);
+    try w.flush();
+}
+
+fn writeAll(io: std.Io, conn: std.Io.net.Stream, bytes: []const u8) !void {
+    var write_buf: [1024]u8 = undefined;
+    var sw = conn.writer(io, &write_buf);
+    const w = &sw.interface;
+    try w.writeAll(bytes);
     try w.flush();
 }
 
@@ -328,6 +419,149 @@ test "rest: bad json and unknown route" {
     var nf = try route(allocator, &store, "GET", "/nope", "");
     defer nf.deinit(allocator);
     try std.testing.expectEqual(@as(u16, 404), nf.status);
+}
+
+test "rest: Content-Length header parser" {
+    try std.testing.expectEqual(
+        @as(?usize, 42),
+        parseContentLength("POST /insert HTTP/1.1\r\nContent-Length: 42\r\n\r\n"),
+    );
+    // Header name match is case-insensitive and tolerates surrounding whitespace.
+    try std.testing.expectEqual(
+        @as(?usize, 7),
+        parseContentLength("POST /insert HTTP/1.1\r\nHost: x\r\ncontent-length:   7  \r\n\r\n"),
+    );
+    // Absent header -> null.
+    try std.testing.expectEqual(
+        @as(?usize, null),
+        parseContentLength("POST /insert HTTP/1.1\r\nHost: x\r\n\r\n"),
+    );
+    // Garbage value -> null rather than a wrong length.
+    try std.testing.expectEqual(
+        @as(?usize, null),
+        parseContentLength("POST /insert HTTP/1.1\r\nContent-Length: abc\r\n\r\n"),
+    );
+}
+
+extern fn getsockname(sockfd: std.posix.fd_t, addr: *std.posix.sockaddr, addrlen: *std.posix.socklen_t) c_int;
+
+// Bind a 127.0.0.1 listener on an ephemeral port and return both it and the
+// kernel-assigned port (mirrors the loopback helper in src/mcp/server.zig and
+// src/testing/test_helpers.zig).
+fn bindLoopback(io: std.Io) !struct { server: std.Io.net.Server, port: u16 } {
+    const address = try std.Io.net.IpAddress.parseIp4("127.0.0.1", 0);
+    var srv = try address.listen(io, .{ .mode = .stream, .reuse_address = true });
+    errdefer srv.deinit(io);
+
+    var addr: std.posix.sockaddr = undefined;
+    var addrlen: std.posix.socklen_t = @sizeOf(std.posix.sockaddr);
+    if (getsockname(srv.socket.handle, &addr, &addrlen) != 0) return error.GetSockNameFailed;
+    const addr_in: *const std.posix.sockaddr.in = @ptrCast(@alignCast(&addr));
+    const port = std.mem.toNative(u16, addr_in.port, .big);
+    if (port == 0) return error.PortIsZero;
+
+    return .{ .server = srv, .port = port };
+}
+
+fn readHttpResponse(io: std.Io, conn: std.Io.net.Stream, buf: []u8) ![]const u8 {
+    var total: usize = 0;
+    while (total < buf.len) {
+        var rv: [1][]u8 = .{buf[total..]};
+        const n = conn.read(io, &rv) catch break;
+        if (n == 0) break;
+        total += n;
+    }
+    return buf[0..total];
+}
+
+// Regression: a POST whose headers and body arrive in separate TCP segments must
+// still be parsed in full. Before the read loop, handleConnection performed a
+// single read and treated everything after the first CRLFCRLF as the complete
+// body, truncating multi-segment requests into invalid JSON (a 400 parse error).
+test "rest: HTTP transport reassembles a multi-segment request body" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    // A well-formed insert whose body is intentionally split from its headers.
+    const body = "{\"key\":\"agent:abbey\",\"value\":\"trained\"}";
+    const headers = try std.fmt.allocPrint(
+        allocator,
+        "POST /insert HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {d}\r\n\r\n",
+        .{body.len},
+    );
+    defer allocator.free(headers);
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    // Segment 1: headers only (flushed), then segment 2: body only.
+    {
+        var wb: [512]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(headers);
+        try sw.interface.flush();
+        try sw.interface.writeAll(body);
+        try sw.interface.flush();
+    }
+
+    const conn = try bound.server.accept(io);
+    try handleConnection(allocator, io, &store, conn);
+
+    var resp_buf: [2048]u8 = undefined;
+    const resp = try readHttpResponse(io, client, &resp_buf);
+
+    // The full body parsed and inserted: 200 OK, not a 400 truncation error.
+    try std.testing.expect(std.mem.indexOf(u8, resp, "200 OK") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "400") == null);
+    // The value round-tripped into the store via the loopback path.
+    var q = try route(allocator, &store, "POST", "/query", "{\"key\":\"agent:abbey\"}");
+    defer q.deinit(allocator);
+    try std.testing.expect(std.mem.indexOf(u8, q.body, "trained") != null);
+}
+
+// Happy path: the common single-write request must behave exactly as before.
+test "rest: HTTP transport handles a single-write request" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    const body = "{\"key\":\"agent:abi\",\"value\":\"routed\"}";
+    const request = try std.fmt.allocPrint(
+        allocator,
+        "POST /insert HTTP/1.1\r\nContent-Length: {d}\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+    defer allocator.free(request);
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [512]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+
+    const conn = try bound.server.accept(io);
+    try handleConnection(allocator, io, &store, conn);
+
+    var resp_buf: [2048]u8 = undefined;
+    const resp = try readHttpResponse(io, client, &resp_buf);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "200 OK") != null);
 }
 
 test {

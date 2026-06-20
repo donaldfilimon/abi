@@ -228,6 +228,28 @@ pub fn build(b: *std.Build) void {
     const contract_mcp_step = b.step("test-mcp-contracts", "Run MCP tool contract tests");
     contract_mcp_step.dependOn(&run_contract_mcp_tests.step);
 
+    // The MCP server transport (stdio + HTTP) is only reachable through the
+    // `abi-mcp` executable, so its in-file tests are wired here as their own
+    // test artifact; without this the HTTP read-loop tests would never run.
+    const mcp_server_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/mcp/server.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = abi_mod },
+                .{ .name = "build_options", .module = options_mod },
+            },
+        }),
+        .filters = test_filters,
+    });
+    mcp_server_tests.step.dependOn(&run_gen_plugin_registry.step);
+    const run_mcp_server_tests = b.addRunArtifact(mcp_server_tests);
+
+    const mcp_server_step = b.step("test-mcp-server", "Run MCP server transport tests");
+    mcp_server_step.dependOn(&run_mcp_server_tests.step);
+    test_step.dependOn(&run_mcp_server_tests.step);
+
     const contract_plugin_registry_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("tests/contracts/plugin_registry.zig"),
@@ -255,6 +277,7 @@ pub fn build(b: *std.Build) void {
     const contract_step = b.step("test-contracts", "Run public API contract tests");
     contract_step.dependOn(&run_contract_surface_tests.step);
     contract_step.dependOn(&run_contract_mcp_tests.step);
+    contract_step.dependOn(&run_mcp_server_tests.step);
     contract_step.dependOn(&run_contract_plugin_registry_tests.step);
     contract_step.dependOn(&run_contract_public_docs_tests.step);
 

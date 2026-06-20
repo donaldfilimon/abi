@@ -184,9 +184,14 @@ pub const Store = struct {
         @memset(padded_values, 0);
         @memcpy(padded_values[0..values.len], values);
 
+        // Reserve the id but only commit the counter once the insert succeeds. If
+        // `index.insert` fails (e.g. OOM appending an HNSW node) an early increment
+        // would burn this id: the next successful putVector would log a
+        // non-contiguous id to the WAL, which `applyVector` rejects with
+        // `error.CorruptVectorId` during replay, leaving the store unrecoverable.
         const id = self.next_vector_id;
-        self.next_vector_id += 1;
         try self.index.insert(id, padded_values);
+        self.next_vector_id += 1;
         self.paddedFree(padded_values);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
         self.acceleration = try runtime.runAccelerationKernel("wdbx.putVector", values.len);
@@ -393,6 +398,107 @@ test "Store rejects mismatched vector dimensions" {
     _ = try store_obj.putVector(&.{ 1, 0, 0, 0 });
     try std.testing.expectError(error.DimensionMismatch, store_obj.putVector(&.{ 1, 0 }));
     try std.testing.expectError(error.DimensionMismatch, store_obj.search(&.{ 1, 0 }, 1));
+}
+
+// An allocator wrapper that passes everything through to a backing allocator
+// until `armed` is set, after which the next allocation/grow returns OOM. Unlike
+// `std.testing.FailingAllocator`'s `fail_index`, arming by flag is immune to the
+// exact allocation count Store/index make before the targeted call, so the test
+// keeps pinning the invariant even if surrounding allocation patterns change.
+const ArmedFailingAllocator = struct {
+    backing: std.mem.Allocator,
+    armed: bool = false,
+
+    fn allocator(self: *ArmedFailingAllocator) std.mem.Allocator {
+        return .{
+            .ptr = self,
+            .vtable = &.{
+                .alloc = alloc,
+                .resize = resize,
+                .remap = remap,
+                .free = free,
+            },
+        };
+    }
+
+    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ra: usize) ?[*]u8 {
+        const self: *ArmedFailingAllocator = @ptrCast(@alignCast(ctx));
+        if (self.armed) return null;
+        return self.backing.rawAlloc(len, alignment, ra);
+    }
+
+    fn resize(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ra: usize) bool {
+        const self: *ArmedFailingAllocator = @ptrCast(@alignCast(ctx));
+        if (self.armed) return false;
+        return self.backing.rawResize(buf, alignment, new_len, ra);
+    }
+
+    fn remap(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ra: usize) ?[*]u8 {
+        const self: *ArmedFailingAllocator = @ptrCast(@alignCast(ctx));
+        if (self.armed) return null;
+        return self.backing.rawRemap(buf, alignment, new_len, ra);
+    }
+
+    fn free(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, ra: usize) void {
+        const self: *ArmedFailingAllocator = @ptrCast(@alignCast(ctx));
+        self.backing.rawFree(buf, alignment, ra);
+    }
+};
+
+test "Store.putVector does not burn the vector id when index.insert fails" {
+    // A pool serves the padded scratch buffer so the failing allocator is only
+    // ever exercised by `index.insert`; that isolates the failure to the exact
+    // call whose ordering the fix protects.
+    var pool = foundation_pool.PoolAllocator.init(std.testing.allocator, VECTOR_PADDED_BYTES);
+    defer pool.deinit();
+
+    var failing = ArmedFailingAllocator{ .backing = std.testing.allocator };
+    var store_obj = Store.initWithConfig(failing.allocator(), .{ .pool_alloc = &pool });
+    defer store_obj.deinit();
+
+    // First vector succeeds: id 1, counter advances to 2.
+    try std.testing.expectEqual(@as(u32, 1), try store_obj.putVector(&.{ 1, 0, 0, 0 }));
+    try std.testing.expectEqual(@as(u32, 2), store_obj.next_vector_id);
+
+    // Force `index.insert` to OOM. The counter must NOT advance: an early
+    // increment would burn id 2 and the next vector would log a non-contiguous
+    // id that `applyVector` rejects with error.CorruptVectorId on replay.
+    failing.armed = true;
+    try std.testing.expectError(error.OutOfMemory, store_obj.putVector(&.{ 0, 1, 0, 0 }));
+    failing.armed = false;
+
+    try std.testing.expectEqual(@as(u32, 2), store_obj.next_vector_id);
+    try std.testing.expectEqual(@as(usize, 1), store_obj.vectorCount());
+
+    // The retry reuses the un-burned id 2 (contiguous), not 3.
+    try std.testing.expectEqual(@as(u32, 2), try store_obj.putVector(&.{ 0, 1, 0, 0 }));
+    try std.testing.expectEqual(@as(usize, 2), store_obj.vectorCount());
+}
+
+test "WAL replay survives an id reused after a failed index.insert" {
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-wal-burned-id.wal";
+    const cleanup = struct {
+        fn run(p: []const u8) void {
+            std.Io.Dir.cwd().deleteFile(std.testing.io, p) catch |err| switch (err) {
+                error.FileNotFound => {},
+                else => {},
+            };
+        }
+    }.run;
+    defer cleanup(path);
+    cleanup(path);
+
+    // Mirror exactly what Store.putVector would log around a failed insert: the
+    // counter never skips, so the ids stay contiguous (1, 2) in the WAL.
+    try wal.appendVector(std.testing.io, allocator, path, 1, &.{ 1, 0, 0, 0 });
+    try wal.appendVector(std.testing.io, allocator, path, 2, &.{ 0, 1, 0, 0 });
+
+    // A fresh replay re-derives ids via putVector and asserts each matches the
+    // logged id; contiguous ids replay cleanly (no error.CorruptVectorId).
+    var replayed = try wal.replay(std.testing.io, allocator, path);
+    defer replayed.deinit();
+    try std.testing.expectEqual(@as(usize, 2), replayed.vectorCount());
 }
 
 test "Store validates edge cases and exports complete stats" {
