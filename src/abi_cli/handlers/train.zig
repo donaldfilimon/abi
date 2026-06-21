@@ -2,6 +2,9 @@ const std = @import("std");
 const features = @import("../../features/mod.zig");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const memory_mod = @import("../../core/memory.zig");
+const usage_mod = @import("../usage.zig");
+const credentials = @import("../../foundation/credentials.zig");
+const anthropic = @import("../../connectors/anthropic.zig");
 
 pub fn handleTrain(allocator: std.mem.Allocator, input: []const u8) !u8 {
     const response = try features.ai.run(allocator, input);
@@ -10,10 +13,17 @@ pub fn handleTrain(allocator: std.mem.Allocator, input: []const u8) !u8 {
     return 0;
 }
 
-pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: ?[]const u8) !u8 {
-    // null => default label; otherwise pass the requested id through to
-    // `complete()`, which alias-resolves it against the model catalog.
-    const selected_model = model orelse features.ai.models.default_model;
+/// `abi complete [--live] [--model <id>] <input>`.
+///
+/// `model` is the raw `--model` value (or null for the default). It is
+/// alias-resolved at this edge through the model catalog so `fable-5` records
+/// the canonical `claude-fable-5`. With `live`, an anthropic-provider model is
+/// served by the real `anthropic.messageLive` path using stored credentials;
+/// otherwise the local persona router runs and the completion is persisted.
+pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: ?[]const u8, live: bool) !u8 {
+    const selected_model = if (model) |m| features.ai.models.canonical(m) else features.ai.models.default_model;
+
+    if (live) return handleLiveComplete(io, allocator, input, selected_model);
 
     var session = try features.wdbx.durable_store.Session.open(io, allocator);
     defer session.deinit();
@@ -30,7 +40,7 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u
         store,
         &scheduler,
         "complete:cli",
-        .{ .input = input, .model = model, .store_result = true },
+        .{ .input = input, .model = selected_model, .store_result = true },
     );
     defer result.deinit(allocator);
 
@@ -51,4 +61,41 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u
     if (!persisted) std.debug.print("wdbx_status={s}\n", .{stats.acceleration.message});
     std.debug.print("{s}\n", .{result.output});
     return 0;
+}
+
+/// Stage 2: the live anthropic path behind `--live`. Only anthropic-provider
+/// models are supported; the API key is read from the credential store and the
+/// request crosses the explicit `.live` transport boundary.
+fn handleLiveComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: []const u8) !u8 {
+    if (features.ai.models.providerOf(model) != .anthropic) {
+        return usage_mod.usageError("--live currently supports anthropic models only (e.g. --model fable-5)");
+    }
+
+    var creds = credentials.loadCredentials(allocator) catch {
+        std.debug.print("error: no credentials found; run `abi auth signin anthropic`\n", .{});
+        return 2;
+    };
+    defer creds.deinit(allocator);
+
+    const api_key = creds.anthropic_api_key orelse {
+        std.debug.print("error: no anthropic credentials configured; run `abi auth signin anthropic`\n", .{});
+        return 2;
+    };
+
+    var client = anthropic.Client.init(allocator, .{
+        .api_key = api_key,
+        .base_url = "https://api.anthropic.com",
+        .transport = .live,
+    });
+    defer client.deinit();
+
+    var resp = client.messageLive(io, allocator, model, input, 1024) catch |err| {
+        std.debug.print("error: anthropic live request failed: {s}\n", .{@errorName(err)});
+        return 1;
+    };
+    defer resp.deinit(allocator);
+
+    std.debug.print("model={s} provider=anthropic transport=live status={d}\n", .{ model, resp.status });
+    std.debug.print("{s}\n", .{resp.body});
+    return if (resp.status >= 200 and resp.status < 300) 0 else 1;
 }
