@@ -16,8 +16,27 @@ fn handleTrainWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []cons
 }
 
 fn handleCompleteWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
-    if (args.len != 3) return usage_mod.usageError("usage: abi complete <input>");
-    return handlers.handleComplete(io, alloc, args[2]);
+    const usage = "usage: abi complete [--live] [--model <id>] <input>";
+    var model: ?[]const u8 = null;
+    var input: ?[]const u8 = null;
+    var live = false;
+    var i: usize = 2;
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
+        if (std.mem.eql(u8, arg, "--model")) {
+            i += 1;
+            if (i >= args.len) return usage_mod.usageError(usage);
+            model = args[i];
+        } else if (std.mem.eql(u8, arg, "--live")) {
+            live = true;
+        } else if (input == null) {
+            input = arg;
+        } else {
+            return usage_mod.usageError(usage);
+        }
+    }
+    const text = input orelse return usage_mod.usageError(usage);
+    return handlers.handleComplete(io, alloc, text, model, live);
 }
 
 fn handleBackendsWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {

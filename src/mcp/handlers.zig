@@ -125,9 +125,9 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         const args_obj = try toolArguments(params_obj);
         const input = try objectString(args_obj, "input", error.MissingInput);
         const requested = objectString(args_obj, "model", error.MissingModel) catch "abi-local";
-        // Resolve catalog aliases (e.g. "fable-5" -> "claude-fable-5") so the
+        // Canonicalize catalog aliases (e.g. "fable-5" -> "claude-fable-5") so the
         // recorded model label is canonical; unknown ids pass through unchanged.
-        const model = features.ai.models.resolve(requested) orelse requested;
+        const model = features.ai.models.canonical(requested);
         const text = try ai_tools.runLocalCompletion(allocator, input, model);
         defer allocator.free(text);
         return try toolTextResult(allocator, text);

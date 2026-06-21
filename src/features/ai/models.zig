@@ -65,13 +65,21 @@ pub fn isKnown(id: []const u8) bool {
     return resolve(id) != null;
 }
 
+/// Canonicalize a user-supplied id at the CLI/MCP edge: resolve a known alias
+/// or id to its canonical catalog id, or pass a freeform id through unchanged.
+/// This is the entry point that makes the catalog reachable — `--model fable-5`
+/// and `--model claude-fable-5` both record the canonical `claude-fable-5`.
+pub fn canonical(id: []const u8) []const u8 {
+    return resolve(id) orelse id;
+}
+
 /// Classify a model id to its serving provider. Catalog ids are authoritative;
 /// unknown ids fall back to prefix heuristics so freeform ids still route
 /// sensibly, and anything unrecognized stays `.local`.
 pub fn providerOf(id: []const u8) Provider {
-    if (resolve(id)) |canonical| {
+    if (resolve(id)) |cid| {
         for (catalog) |entry| {
-            if (std.mem.eql(u8, canonical, entry.id)) return entry.provider;
+            if (std.mem.eql(u8, cid, entry.id)) return entry.provider;
         }
     }
     if (std.mem.startsWith(u8, id, "claude-")) return .anthropic;
@@ -85,6 +93,13 @@ test "fable 5 is recognized and routes to anthropic" {
     try std.testing.expectEqualStrings(fable5, resolve("fable-5").?);
     try std.testing.expectEqualStrings(fable5, resolve("fable5").?);
     try std.testing.expectEqual(Provider.anthropic, providerOf(fable5));
+}
+
+test "canonical resolves aliases and passes freeform ids through" {
+    try std.testing.expectEqualStrings(fable5, canonical("fable-5"));
+    try std.testing.expectEqualStrings(fable5, canonical(fable5));
+    try std.testing.expectEqualStrings(default_model, canonical(default_model));
+    try std.testing.expectEqualStrings("gpt-5-mystery", canonical("gpt-5-mystery"));
 }
 
 test "default model stays local and is recognized" {

@@ -10,7 +10,11 @@ pub fn handleTrain(allocator: std.mem.Allocator, input: []const u8) !u8 {
     return 0;
 }
 
-pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8) !u8 {
+pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: ?[]const u8) !u8 {
+    // null => default label; otherwise pass the requested id through to
+    // `complete()`, which alias-resolves it against the model catalog.
+    const selected_model = model orelse features.ai.models.default_model;
+
     var session = try features.wdbx.durable_store.Session.open(io, allocator);
     defer session.deinit();
     const store = session.storePtr();
@@ -26,7 +30,7 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u
         store,
         &scheduler,
         "complete:cli",
-        .{ .input = input, .model = "abi-local", .store_result = true },
+        .{ .input = input, .model = model, .store_result = true },
     );
     defer result.deinit(allocator);
 
