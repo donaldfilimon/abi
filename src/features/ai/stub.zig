@@ -83,6 +83,11 @@ pub const streaming = struct {
 
 pub const constitution = @import("stub_constitution.zig");
 
+// `models` is dependency-free (std only) plain data, so the disabled-AI stub
+// reuses the real catalog to keep declaration parity across the mod/stub
+// boundary (`zig build check-parity`).
+pub const models = @import("models.zig");
+
 pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     _ = input;
     return try allocator.dupe(u8, "AI feature is disabled");

@@ -27,6 +27,7 @@ pub const DatasetFormat = types.DatasetFormat;
 pub const DatasetSpec = types.DatasetSpec;
 pub const TrainingConfig = types.TrainingConfig;
 pub const TrainingResult = types.TrainingResult;
+pub const models = @import("models.zig");
 pub const CompletionRequest = types.CompletionRequest;
 pub const CompletionResult = types.CompletionResult;
 pub const CompletionTaskContext = types.CompletionTaskContext;
@@ -393,5 +394,6 @@ test {
     _ = @import("constitution.zig");
     _ = @import("types.zig");
     _ = @import("training_support.zig");
+    _ = @import("models.zig");
     std.testing.refAllDecls(@This());
 }
