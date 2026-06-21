@@ -115,6 +115,7 @@ Run these explicitly when touched:
 ```bash
 zig build test-integration
 zig build benchmarks
+zig build test-mcp-server     # MCP server transport tests (stdio + HTTP/SSE)
 ```
 
 `tasks/todo.md` is the current source of truth for known failures. At the current modernization point, no known test failures are reproduced locally.

@@ -5,10 +5,16 @@ const helpers = @import("helpers.zig");
 const router = @import("router.zig");
 const constitution = @import("constitution.zig");
 const types = @import("types.zig");
+const models = @import("models.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 
 pub fn complete(allocator: std.mem.Allocator, request: types.CompletionRequest) !types.CompletionResult {
     if (request.input.len == 0) return error.InvalidCompletionInput;
+    // Resolve catalog aliases (e.g. "fable-5" -> "claude-fable-5") to their
+    // canonical id; unknown/freeform ids pass through unchanged. Both branches
+    // yield a non-owned slice (static catalog literal or the caller's slice),
+    // matching the existing borrowed-`model` lifetime — `deinit` never frees it.
+    const resolved_model = models.resolve(request.model) orelse request.model;
     const weights = router.analyzeSentiment(request.input);
     const selected = router.selectBestProfile(weights);
     const response = try router.routeInput(allocator, request.input);
@@ -16,7 +22,7 @@ pub fn complete(allocator: std.mem.Allocator, request: types.CompletionRequest) 
     const audit = constitution.Constitution.validate(response);
     if (!audit.passed) std.log.warn("Constitutional violation!", .{});
     return .{
-        .model = request.model,
+        .model = resolved_model,
         .selected_profile = selected,
         .output = response,
         .audit = audit,

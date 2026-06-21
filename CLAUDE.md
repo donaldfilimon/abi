@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Trust executable config over prose: when this file conflicts with `build.zig`, `tools/build.sh`, or source, trust the executable source. `AGENTS.md` is a richer companion to this file; `tasks/lessons.md` is the session-start checklist and `tasks/todo.md` tracks active work and known failures.
 
-Toolchain is pinned to Zig `0.17.0-dev.813+2153f8143` (see `.zigversion`). On macOS/Darwin, prefer `./build.sh ...` (a thin wrapper over `tools/build.sh` → `zig build`) over raw `zig build` for the documented workflow.
+This file has two sibling instruction files at the repo root — `AGENTS.md` (for Codex) and `GEMINI.md` (for Gemini) — that restate the same repository conventions. When you change a durable convention here (commands, contracts, feature flags, Zig patterns), propagate it to both so the three stay consistent.
+
+Toolchain is pinned to Zig `0.17.0-dev.813+2153f8143` (see `.zigversion`). On macOS/Darwin, prefer `./build.sh ...` (a thin wrapper over `tools/build.sh` → `zig build`) over raw `zig build` for the documented workflow. Builds are incremental against `.zig-cache/`; the first cold build/check is slow, subsequent runs are fast.
 
 ## Common Development Commands
 
@@ -26,6 +28,7 @@ Toolchain is pinned to Zig `0.17.0-dev.813+2153f8143` (see `.zigversion`). On ma
 - `zig build test-feature-contracts` – Feature module contracts.
 - `zig build test-contracts` – Surface/MCP/plugin/docs contracts.
 - `zig build test-mcp-contracts` – MCP tool contract tests.
+- `zig build test-mcp-server` – MCP server transport tests (stdio + HTTP/SSE).
 
 ## Architecture Overview
 
@@ -88,5 +91,6 @@ For full validation including integration tests, benchmarks, and TUI smoke:
 
 - `tasks/lessons.md` – Startup checklist and conventions
 - `tasks/todo.md` – Current work items and known failures
+- `tasks/` – Working-notes directory beyond the two above (e.g. `roadmap-next.md`, `audit-report.md`, `scheduler-memory-wireup.md`); consult for in-flight context
 - `docs/index.md` – Architecture, public API contracts, onboarding, and development guides
 - `CHANGELOG.md` – Release-note style modernization highlights
