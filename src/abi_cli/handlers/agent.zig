@@ -150,8 +150,11 @@ pub fn handleAgentOs(io: std.Io, allocator: std.mem.Allocator, args: []const []c
     const start: usize = if (std.mem.eql(u8, os_cmd, "execute") and args.len >= 6 and std.mem.eql(u8, args[4], "--confirm")) 5 else 4;
     if (start >= args.len) return usage_mod.usageError("usage: abi agent os <dry-run|execute --confirm> <cmd> [args...]");
 
+    // Intent is honest audit metadata: arbitrary user argv is not provably
+    // read-only, so it is classified `.unknown` (the policy gate is the
+    // allow-list + workspace containment, not this label).
     const request = abi.features.os_control.CommandRequest{
-        .intent = .read_only,
+        .intent = .unknown,
         .argv = args[start..],
     };
 
@@ -162,7 +165,14 @@ pub fn handleAgentOs(io: std.Io, allocator: std.mem.Allocator, args: []const []c
         return 0;
     } else if (std.mem.eql(u8, os_cmd, "execute")) {
         if (start != 5) return usage_mod.usageError("usage: abi agent os execute --confirm <cmd> [args...]");
-        const workspace_root = if (std.c.getenv("PWD")) |pwd| std.mem.span(pwd) else "/";
+        // Workspace containment (os_control.pathsContained) only rejects
+        // absolute path args that escape `workspace_root`. Falling back to "/"
+        // when PWD is unset would make every absolute path "contained" and
+        // silently disable the guard, so refuse instead of widening the sandbox.
+        const workspace_root = if (std.c.getenv("PWD")) |pwd| std.mem.span(pwd) else "";
+        if (workspace_root.len == 0 or !std.fs.path.isAbsolute(workspace_root)) {
+            return usage_mod.usageError("cannot determine an absolute workspace root (PWD unset); refusing to execute");
+        }
         const policy = abi.features.os_control.Policy{
             .workspace_root = workspace_root,
             .dry_run_only = false,
@@ -171,7 +181,7 @@ pub fn handleAgentOs(io: std.Io, allocator: std.mem.Allocator, args: []const []c
             .require_confirmation = true,
         };
         const execute_request = abi.features.os_control.CommandRequest{
-            .intent = .read_only,
+            .intent = .unknown,
             .argv = args[start..],
             .confirm_execution = true,
         };
@@ -181,4 +191,22 @@ pub fn handleAgentOs(io: std.Io, allocator: std.mem.Allocator, args: []const []c
     } else {
         return usage_mod.usageError("usage: abi agent os <dry-run|execute --confirm> <cmd> [args...]");
     }
+}
+
+test "agent dispatch rejects malformed grammar with exit code 2" {
+    const allocator = std.testing.allocator;
+    const t = std.testing.io;
+    // Only the cheap usage branches are exercised — none of these spin up the
+    // scheduler, store, or TUI, and none execute an OS command.
+    try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "bogus" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "plan" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "train" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "os" }));
+    // `execute` without the mandatory `--confirm` token must refuse.
+    try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "os", "execute", "ls" }));
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

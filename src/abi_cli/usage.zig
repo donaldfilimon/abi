@@ -8,7 +8,7 @@ pub const Command = struct {
 
 pub const commands = [_]Command{
     .{ .name = "help", .usage = "abi help [command]", .summary = "Show top-level or command-specific help" },
-    .{ .name = "complete", .usage = "abi complete [--model <id>] <input>", .summary = "Run local model completion with WDBX metadata; --model selects a catalog id (e.g. claude-fable-5)" },
+    .{ .name = "complete", .usage = "abi complete [--live] [--model <id>] <input>", .summary = "Run local model completion with WDBX metadata; --model selects a catalog id (e.g. claude-fable-5); --live serves anthropic models over the live transport" },
     .{ .name = "train", .usage = "abi train <input>", .summary = "Run the AI pipeline compatibility command" },
     .{ .name = "agent", .usage = "abi agent <plan|train|tui|os> ...", .summary = "Run safe agent planning, WDBX-backed local training, TUI, or OS dry-runs" },
     .{ .name = "backends", .usage = "abi backends", .summary = "Show GPU, accelerator, shader, and MLIR backend status" },

@@ -23,12 +23,13 @@
 ## API And Contract Gotchas
 - Public feature API changes usually require matching real/stub declarations and disabled behavior returning `error.FeatureDisabled`; run `zig build check-parity`.
 - Frozen CLI surface is contract-tested. Top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`; `abi --tui` is handled separately in `src/main.zig`.
+- Subcommand grammar (do not drift from `src/abi_cli/`): `complete [--live] [--model <id>] <input>` (alias-resolves via the model catalog; `--live` serves anthropic models over the live transport); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; `wdbx <db <init|verify> | block <insert|get> | query | benchmark | cluster <status|demo|serve> | compute info | secure demo | gpu info | api serve>`. Malformed numeric args (counts/ports/node ids) return usage (exit 2), not a silent default.
 - Do not resurrect legacy CLI names such as `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, or `serve`.
 - MCP tools are contract-tested: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`.
 - MCP stdio has a 64 KB request cap; optional HTTP/SSE binds loopback `127.0.0.1:8080` unless `ABI_MCP_HTTP_PORT` selects another valid port.
 
 ## Zig Conventions Agents Miss
-- Inside `src/`, use relative `.zig` imports. Only `src/mcp/main.zig` and `src/mcp/handlers.zig` should import `@import("abi")`.
+- Inside `src/`, use relative `.zig` imports. Only the MCP executable + handler module graph (`src/mcp/main.zig` plus the `handlers.zig` group: `handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) should import `@import("abi")`; never modules re-exported by `src/root.zig`.
 - Use Zig 0.17 idioms already present here: `pub fn main(init: std.process.Init) !void`, `ArrayListUnmanaged(T).empty`, `std.mem.trimEnd`, `splitScalar`/`splitAny`/`splitSequence`, and `foundation.time.unixMs()`.
 - Inline tests are the norm; modules should end with `std.testing.refAllDecls(@This())` coverage unless there is a clear reason not to.
 - Avoid silent empty `catch {}` in persistence, inference, connector, or data-access paths; propagate or log errors.

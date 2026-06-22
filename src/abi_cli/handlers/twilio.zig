@@ -33,3 +33,16 @@ pub fn handleTwilio(allocator: std.mem.Allocator, args: []const []const u8) !u8 
     }
     return 0;
 }
+
+test "twilio dispatch rejects malformed grammar with exit code 2" {
+    const allocator = std.testing.allocator;
+    // Wrong arity and a non-`simulate` subcommand both reject with usage (exit 2)
+    // before any AI run or connector init.
+    try std.testing.expectEqual(@as(u8, 2), try handleTwilio(allocator, &.{ "abi", "twilio" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleTwilio(allocator, &.{ "abi", "twilio", "notsimulate", "hi" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleTwilio(allocator, &.{ "abi", "twilio", "simulate", "a", "b" }));
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

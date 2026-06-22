@@ -40,6 +40,11 @@ pub fn main(init: std.process.Init) !void {
     while (try walker.next(io)) |entry| {
         if (entry.kind != .file) continue;
         if (!std.mem.eql(u8, std.fs.path.basename(entry.path), "abi-plugin.json")) continue;
+        // A plugin is a *directory* under `plugins_dir` that contains its
+        // manifest and entry point; a manifest at the walk root (dirname == null)
+        // has no owning plugin directory, so it is intentionally ignored rather
+        // than registered. Do not remove this guard to "simplify" discovery — it
+        // is what keeps a stray top-level `abi-plugin.json` from being ingested.
         if (std.fs.path.dirname(entry.path) == null) continue;
 
         const path = try std.fs.path.join(allocator, &.{ plugins_dir, entry.path });

@@ -22,6 +22,7 @@ Build the CLI, then exercise the local surfaces without live network credentials
 ./zig-out/bin/abi backends
 ./zig-out/bin/abi scheduler status
 ./zig-out/bin/abi complete "summarize ABI scheduler status"
+./zig-out/bin/abi complete --model fable-5 "summarize ABI scheduler status"   # alias resolves to claude-fable-5; unknown ids warn and pass through
 ./zig-out/bin/abi agent plan "stage a safe WDBX refactor"
 ./zig-out/bin/abi agent train all
 ./zig-out/bin/abi wdbx db init zig-out/local-memory.jsonl
@@ -33,7 +34,7 @@ Build the CLI, then exercise the local surfaces without live network credentials
 ./zig-out/bin/abi wdbx cluster serve 8090     # networked consensus RPC node endpoint (loopback)
 ```
 
-`abi scheduler status` runs a one-shot scheduler probe and reports task/memory counters. `abi agent plan` and `abi agent train` run through the scheduler-backed AI helper surface and print scheduler/memory tracker summaries. Training writes local WDBX records when `feat-ai` and `feat-wdbx` are enabled; feature-disabled builds return explicit degraded responses instead of fabricating work. `wdbx query <path> [text] [persona]` does store-stats, hybrid semantic search, or persona-isolated retrieval; `cluster serve`/`compute info`/`secure demo` expose the networked consensus RPC, accelerator selection, and security demos honestly as single-host / reference-scoped surfaces (see `docs/spec/wdbx-north-star.md` for the Current/Partial/Proposed mapping).
+`abi scheduler status` runs a one-shot scheduler probe and reports task/memory counters. `abi agent plan` and `abi agent train` run through the scheduler-backed AI helper surface and print scheduler/memory tracker summaries. Training writes local WDBX records when `feat-ai` and `feat-wdbx` are enabled; feature-disabled builds return explicit degraded responses instead of fabricating work. `wdbx query <path> [text] [persona]` does store-stats, hybrid semantic search, or persona-isolated retrieval; `cluster serve`/`compute info`/`secure demo` expose the networked consensus RPC, accelerator selection, and security demos honestly as single-host / reference-scoped surfaces (see `docs/spec/wdbx-north-star.md` for the Current/Partial/Proposed mapping). `complete --model <id>` records the catalog-canonical id (aliases such as `fable-5` → `claude-fable-5`; unrecognized ids print a stderr warning and pass through); `complete --live` serves anthropic-provider models over the explicit live transport and therefore needs stored credentials (`abi auth signin anthropic`).
 
 For MCP smoke testing, build the server and call the same contract tools through an MCP client:
 

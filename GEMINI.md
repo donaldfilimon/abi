@@ -30,6 +30,8 @@ Zig is pinned by `.zigversion` to `0.17.0-dev.813+2153f8143`; `build.zig.zon` ke
 
 Supported top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, and `scheduler`. The top-level `abi --tui` shortcut also renders the dashboard.
 
+Subcommand grammar mirrors `src/abi_cli/`: `complete [--live] [--model <id>] <input>` (the model id alias-resolves through the catalog, `--live` serves anthropic models over the live transport, and an unrecognized id prints a stderr warning before passing through); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; and `wdbx <db <init|verify> | block <insert|get> | query | benchmark | cluster <status|demo|serve> | compute info | secure demo | gpu info | api serve>`. Malformed numeric arguments return usage with exit code 2 rather than silently using a default.
+
 Do not assume old command names exist: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, and `serve` are not currently dispatched.
 
 ## Project Map
@@ -86,7 +88,7 @@ There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 - Plugin manifests require `name`, `version`, `description`, `target_feature`, and a safe relative `.zig` `entry_point` whose file exists under the plugin directory; `targetFeature` / `entryPoint` aliases are accepted. Generated multi-plugin registry metadata is covered by `tests/contracts/plugin_registry.zig`.
 - Discord connector IDs are validated as numeric snowflake-like IDs, and local/live paths enforce printable non-whitespace credentials, author ID validation, and message-size checks.
 - Twilio validates account SIDs as `AC` + 32 hex characters, auth tokens as 32 hex characters, non-empty base URL, non-zero timeout, explicit `.live` transport selection, XML/form escaping, and ConversationRelay aliases before local/live dispatch.
-- Only MCP executable/handler files (`src/mcp/main.zig`, `src/mcp/handlers.zig`) may import `@import("abi")` from inside `src/`; other `src` imports should be relative `.zig` imports.
+- Only the MCP executable + handler module graph (`src/mcp/main.zig` plus the `handlers.zig` group: `handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) may import `@import("abi")` from inside `src/` — never modules re-exported by `src/root.zig`; other `src` imports should be relative `.zig` imports.
 - Do not use plain `rm`; use safe alternatives.
 
 ## Zig 0.17 Notes

@@ -56,14 +56,31 @@ pub fn validateArguments(fields: []const FieldSpec, params_obj: std.json.ObjectM
         else => return error.MissingArguments,
     };
 
+    // Pass 1: presence and type for every field. A missing or ill-typed
+    // *required* field must win over a *content* rejection (enum/path/length) on
+    // any other field, because the historical handlers extracted all required
+    // strings before running semantic checks. Validating content in a single
+    // pass would let an invalid enum on an earlier field preempt a missing
+    // required field declared later, diverging from the frozen MCP error
+    // contract this module exists to preserve.
     for (fields) |field| {
         const value = args.get(field.name) orelse {
             if (field.required) return field.missing_error;
             continue;
         };
+        switch (value) {
+            .string => {},
+            else => return field.missing_error,
+        }
+    }
+
+    // Pass 2: content checks (NUL bytes, length, path traversal, enum
+    // membership) on the present string fields.
+    for (fields) |field| {
+        const value = args.get(field.name) orelse continue;
         const s = switch (value) {
             .string => |str| str,
-            else => return field.missing_error,
+            else => continue, // proven a string in pass 1
         };
         try validateString(field, s);
     }
@@ -143,6 +160,21 @@ test "validateArguments rejects unknown enum value" {
     );
     defer parsed.deinit();
     try std.testing.expectError(error.UnknownConnector, validateArguments(&fields, parsed.value.object));
+}
+
+test "validateArguments reports a missing required field before an invalid enum on another field" {
+    // service is an invalid enum AND the required input is absent. The missing
+    // required field must win, matching the historical handler order (required
+    // strings extracted before semantic checks) and the frozen MCP error contract.
+    const fields = [_]FieldSpec{
+        .{ .name = "service", .required = true, .kind = .enum_choice, .missing_error = error.MissingConnectorService, .invalid_error = error.UnknownConnector, .choices = &.{ "openai", "grok" } },
+        .{ .name = "input", .required = true, .missing_error = error.MissingInput },
+    };
+    var parsed = try argsObject(std.testing.allocator,
+        \\{"arguments":{"service":"pirate"}}
+    );
+    defer parsed.deinit();
+    try std.testing.expectError(error.MissingInput, validateArguments(&fields, parsed.value.object));
 }
 
 test "validateArguments rejects null bytes" {

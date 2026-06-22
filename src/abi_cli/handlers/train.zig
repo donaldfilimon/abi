@@ -23,6 +23,15 @@ pub fn handleTrain(allocator: std.mem.Allocator, input: []const u8) !u8 {
 pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: ?[]const u8, live: bool) !u8 {
     const selected_model = if (model) |m| features.ai.models.canonical(m) else features.ai.models.default_model;
 
+    // Pass-through of unknown ids is the documented contract, but a silent
+    // pass-through hides typos (e.g. `claud-fable-5`). Surface a one-line note
+    // on stderr without changing what gets recorded.
+    if (model) |m| {
+        if (!features.ai.models.isKnown(m)) {
+            std.debug.print("warning: '{s}' is not a recognized model id; passing it through unchanged\n", .{m});
+        }
+    }
+
     if (live) return handleLiveComplete(io, allocator, input, selected_model);
 
     var session = try features.wdbx.durable_store.Session.open(io, allocator);
@@ -98,4 +107,17 @@ fn handleLiveComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u
     std.debug.print("model={s} provider=anthropic transport=live status={d}\n", .{ model, resp.status });
     std.debug.print("{s}\n", .{resp.body});
     return if (resp.status >= 200 and resp.status < 300) 0 else 1;
+}
+
+test "complete --live rejects non-anthropic models before any network or credential read" {
+    const allocator = std.testing.allocator;
+    // `abi-local` is a known catalog model whose provider is `.local`, so the
+    // live path must reject it with usage (exit 2) before touching the
+    // credential store or the network transport.
+    const code = try handleComplete(std.testing.io, allocator, "hello", "abi-local", true);
+    try std.testing.expectEqual(@as(u8, 2), code);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }
