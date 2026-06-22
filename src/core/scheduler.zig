@@ -261,12 +261,24 @@ pub const Scheduler = struct {
         const self_mut = @constCast(self);
         self_mut.lock.lock();
         defer self_mut.lock.unlock();
-        return self.heap.peek();
+        // `cancel` flips a task's status in `self.tasks` and decrements
+        // `pending_count`, but leaves its stale copy in `self.heap` (which
+        // `runNext` purges lazily). Reading `heap.peek()` directly would report
+        // an already-cancelled task as the next runnable one. Scan the
+        // authoritative `tasks` for the highest-priority still-pending task.
+        var best: ?Task = null;
+        for (self.tasks.items) |task| {
+            if (task.status != .pending) continue;
+            if (best == null or compareTasks({}, task, best.?) == .lt) best = task;
+        }
+        return best;
     }
 
-    /// Returns true when the scheduler has no pending tasks.
+    /// Returns true when the scheduler has no pending tasks. Backed by the
+    /// `pending_count` invariant that `submit`/`cancel`/`runNext` maintain, so
+    /// it stays correct after a cancel even though the heap keeps a stale copy.
     pub fn isEmpty(self: *const Scheduler) bool {
-        return self.peek() == null;
+        return self.pending_count.load(.monotonic) == 0;
     }
 
     pub fn getTasks(self: *const Scheduler, allocator: std.mem.Allocator) ![]Task {
@@ -480,6 +492,22 @@ test "Scheduler peek returns highest priority task without removing" {
     const peeked_again = scheduler.peek();
     try std.testing.expect(peeked_again != null);
     try std.testing.expectEqual(peeked.?.id, peeked_again.?.id);
+}
+
+test "Scheduler peek/isEmpty ignore cancelled tasks" {
+    var scheduler = Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    const id = try scheduler.submit("solo", .high, dummyTask, null);
+    try std.testing.expect(!scheduler.isEmpty());
+    try std.testing.expect(scheduler.peek() != null);
+
+    // Cancelling the only task must read as empty even though a stale copy
+    // lingers in the heap until runNext purges it.
+    try scheduler.cancel(id);
+    try std.testing.expect(scheduler.isEmpty());
+    try std.testing.expect(scheduler.peek() == null);
+    try std.testing.expectEqual(@as(usize, 0), scheduler.getPendingCount());
 }
 
 test "Scheduler scheduleTask is an alias for submit" {
