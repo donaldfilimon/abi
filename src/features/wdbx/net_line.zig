@@ -54,3 +54,62 @@ pub fn readLine(io: std.Io, conn: Stream, buf: []u8) ![]const u8 {
     };
     return std.mem.trimEnd(u8, buf[0..end], "\r");
 }
+
+// --- Tests ---
+//
+// `readLine` is the load-bearing framing primitive for both RPC transports
+// (cluster_rpc, remote_compute) yet was only exercised transitively by their
+// loopback tests. These drive it directly over a real 127.0.0.1 socket pair
+// (the same `std.testing.io` + loopback pattern those modules use) to pin the
+// three frame-boundary outcomes: clean frame, incomplete frame on early close,
+// and over-length frame.
+
+test "net_line: readLine returns a single frame and strips trailing CRLF" {
+    const io = std.testing.io;
+    var server = try std.Io.net.IpAddress.parseIp4("127.0.0.1", 39401);
+    var listener = try server.listen(io, .{ .reuse_address = true });
+    defer listener.deinit(io);
+
+    const client = (try dial(io, 39401, "hello world\r\n")).?;
+    defer client.close(io);
+    const conn = try listener.accept(io);
+    defer conn.close(io);
+
+    var buf: [64]u8 = undefined;
+    try std.testing.expectEqualStrings("hello world", try readLine(io, conn, &buf));
+}
+
+test "net_line: readLine returns the partial frame when the peer closes without a newline" {
+    const io = std.testing.io;
+    var server = try std.Io.net.IpAddress.parseIp4("127.0.0.1", 39402);
+    var listener = try server.listen(io, .{ .reuse_address = true });
+    defer listener.deinit(io);
+
+    // Write an unterminated frame, then close so the server reads EOF mid-frame.
+    const client = (try dial(io, 39402, "partial")).?;
+    client.close(io);
+    const conn = try listener.accept(io);
+    defer conn.close(io);
+
+    var buf: [64]u8 = undefined;
+    try std.testing.expectEqualStrings("partial", try readLine(io, conn, &buf));
+}
+
+test "net_line: readLine reports LineTooLong when a frame fills the buffer with no newline" {
+    const io = std.testing.io;
+    var server = try std.Io.net.IpAddress.parseIp4("127.0.0.1", 39403);
+    var listener = try server.listen(io, .{ .reuse_address = true });
+    defer listener.deinit(io);
+
+    const client = (try dial(io, 39403, "aaaaaaaaaaaaaaaa")).?; // 16 bytes, no '\n'
+    defer client.close(io);
+    const conn = try listener.accept(io);
+    defer conn.close(io);
+
+    var buf: [8]u8 = undefined; // smaller than the payload, so it fills before any newline
+    try std.testing.expectError(error.LineTooLong, readLine(io, conn, &buf));
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}
