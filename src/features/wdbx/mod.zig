@@ -1,5 +1,6 @@
 const std = @import("std");
 const foundation_pool = @import("../../foundation/pool_allocator.zig");
+const foundation_time = @import("../../foundation/time.zig");
 const memory = @import("../../core/memory.zig");
 const runtime = @import("runtime.zig");
 const types = @import("types.zig");
@@ -268,12 +269,15 @@ pub const Store = struct {
     }
 
     pub fn appendBlock(self: *Store, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8) ![32]u8 {
-        const hash = try self.chain.append(profile, query_id, response_id, metadata);
+        // Capture the timestamp here and hand it to appendAt (what chain.append
+        // does internally), so the WAL can log the exact value the block hashed
+        // over without re-deriving it via an O(N) lastBlock() walk per append.
+        const timestamp_ms = foundation_time.unixMs();
+        const hash = try self.chain.appendAt(profile, query_id, response_id, metadata, timestamp_ms);
         if (self.wal_binding) |w| {
             // Log with the timestamp the chain assigned so a replayed block
             // reproduces the same SHA-256 hash.
-            const last = self.lastBlock().?;
-            try wal.appendBlock(w.io, self.allocator, w.path, profile, query_id, response_id, metadata, last.timestamp_ms);
+            try wal.appendBlock(w.io, self.allocator, w.path, profile, query_id, response_id, metadata, timestamp_ms);
         }
         return hash;
     }
