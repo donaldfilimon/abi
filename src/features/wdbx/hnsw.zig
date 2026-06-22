@@ -284,6 +284,18 @@ pub fn HnswIndex(comptime D: usize) type {
                     .score = 1.0 - candidates.items[idx].distance,
                 };
             }
+
+            // Record the per-query scratch working set (candidate list + visited
+            // set + batch temporaries) as a balanced alloc/free pair: it was
+            // allocated and is about to be freed by the arena `defer`, so search
+            // memory cost becomes observable in the tracker (peak + total) without
+            // registering a false leak. The returned `results` array escapes to
+            // the caller and is intentionally NOT tracked here.
+            if (self.tracker) |t| {
+                const scratch_bytes = arena.queryCapacity();
+                t.trackAllocNoTag(scratch_bytes);
+                t.trackFreeNoTag(scratch_bytes);
+            }
             return results;
         }
 
@@ -370,7 +382,7 @@ test "HnswIndex multiple inserts" {
     try std.testing.expect(results.len == 5);
 }
 
-test "HnswIndex tracks edge-list memory and searches via scratch arena" {
+test "HnswIndex tracks edge-list memory and balanced search-scratch memory" {
     const Index = HnswIndex(4);
     var index = Index.init(std.testing.allocator);
     defer index.deinit();
@@ -388,10 +400,17 @@ test "HnswIndex tracks edge-list memory and searches via scratch arena" {
     // Edge-list allocations were observed by the tracker.
     try std.testing.expect(tracker.getPeakUsage() > 0);
 
-    // Search runs entirely on its per-query arena and returns owned results.
+    // Search now records its per-query scratch working set as a balanced
+    // alloc/free pair: cumulative allocation grows (search memory is observable)
+    // while current usage returns to the pre-search baseline — the arena scratch
+    // was freed, so no false leak is registered and the owned results escape.
+    const total_before = tracker.getTotalAllocated();
+    const current_before = tracker.getCurrentUsage();
     const results = try index.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 5);
     defer std.testing.allocator.free(results);
     try std.testing.expectEqual(@as(usize, 5), results.len);
+    try std.testing.expect(tracker.getTotalAllocated() > total_before);
+    try std.testing.expectEqual(current_before, tracker.getCurrentUsage());
 }
 
 test {
