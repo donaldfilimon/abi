@@ -144,6 +144,13 @@ pub const Store = struct {
         self.temporal_graph.setTracker(t);
     }
 
+    /// The attached MemoryTracker, if any. Lets callers that already hold the
+    /// store (e.g. the AI completion path) record their own transient
+    /// allocations on the same tracker without threading it through signatures.
+    pub fn getTracker(self: *const Store) ?*memory.MemoryTracker {
+        return self.tracker;
+    }
+
     /// Bind a sidecar WAL so supported mutations (kv, block, temporal node/edge)
     /// are logged per mutation. `path` is borrowed and must outlive the Store.
     pub fn attachWal(self: *Store, io: std.Io, path: []const u8) void {

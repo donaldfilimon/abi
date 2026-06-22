@@ -134,6 +134,11 @@ pub const Store = struct {
         _ = t;
     }
 
+    pub fn getTracker(self: *const Store) ?*memory.MemoryTracker {
+        _ = self;
+        return null;
+    }
+
     pub fn attachWal(self: *Store, io: std.Io, path: []const u8) void {
         _ = self;
         _ = io;
