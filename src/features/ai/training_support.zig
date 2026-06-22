@@ -86,6 +86,17 @@ test "dataset record counting handles text and csv" {
     try std.testing.expectEqual(@as(usize, 2), try countDatasetRecords(std.testing.allocator, .csv, "h\n1\n2\n"));
 }
 
+test "dataset record counting handles jsonl and surfaces malformed lines" {
+    const allocator = std.testing.allocator;
+    // Valid JSONL: one object per non-empty line; blank/whitespace lines skipped.
+    try std.testing.expectEqual(@as(usize, 2), try countDatasetRecords(allocator, .jsonl, "{\"a\":1}\n\n{\"b\":2}\n"));
+    try std.testing.expectEqual(@as(usize, 0), try countDatasetRecords(allocator, .jsonl, "\n  \n"));
+    // Current contract: a malformed JSONL line aborts the whole count (the parse
+    // error propagates) rather than being silently skipped. Pinned so a future
+    // skip-malformed change is a deliberate decision, not an accidental drift.
+    try std.testing.expect(if (countDatasetRecords(allocator, .jsonl, "{\"a\":1}\nnot json\n")) |_| false else |_| true);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
