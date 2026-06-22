@@ -43,3 +43,14 @@ pub fn handleBackends() !u8 {
     std.debug.print("MLIR: {s} backend={s} toolchain_available={any} ({s})\n", .{ features.mlir.dialectName(lowered.dialect), lowered.target_backend, mlir_status.available, mlir_status.message });
     return 0;
 }
+
+test "backends handler runs the full status path and returns success" {
+    // Smoke coverage: the GPU/accelerator/shader/MLIR report path executes
+    // end-to-end on the deterministic CPU-fallback surface and exits 0 without
+    // crashing. Guards against a regression in any of the four status reporters.
+    try std.testing.expectEqual(@as(u8, 0), try handleBackends());
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}
