@@ -33,7 +33,8 @@ pub const SENTIMENT_KEYWORDS = [_]SentimentKeyword{
     .{ .word = "imagine", .abbey_score = 0.1, .aviva_score = 0.95, .abi_score = 0.1 },
     .{ .word = "explore", .abbey_score = 0.3, .aviva_score = 0.85, .abi_score = 0.2 },
     .{ .word = "brainstorm", .abbey_score = 0.2, .aviva_score = 0.9, .abi_score = 0.15 },
-    .{ .word = "what if", .abbey_score = 0.2, .aviva_score = 0.8, .abi_score = 0.2 },
+    // Keywords are matched per whitespace-split token (see analyzeSentiment), so
+    // every entry must be a single word — multi-word phrases can never match.
     .{ .word = "run", .abbey_score = 0.2, .aviva_score = 0.1, .abi_score = 0.9 },
     .{ .word = "execute", .abbey_score = 0.3, .aviva_score = 0.1, .abi_score = 0.95 },
     .{ .word = "deploy", .abbey_score = 0.2, .aviva_score = 0.1, .abi_score = 0.9 },
@@ -172,7 +173,10 @@ pub fn analyzeSentiment(input: []const u8) ProfileWeights {
     while (it.next()) |word| {
         const trimmed = std.mem.trimEnd(u8, word, &.{ '.', ',', '!', '?', ':', ';', '"', '\'' });
         for (SENTIMENT_KEYWORDS) |kw| {
-            if (startsWithIgnoreCase(trimmed, kw.word) or endsWithIgnoreCase(trimmed, kw.word)) {
+            // Prefix-only match: keeps intended stems (quickly->quick,
+            // running->run) while dropping suffix false positives that shifted
+            // routing on unrelated words (overrun->run, unsafe->safe, prefix->fix).
+            if (startsWithIgnoreCase(trimmed, kw.word)) {
                 weights_val.w_abbey += kw.abbey_score * 0.1;
                 weights_val.w_aviva += kw.aviva_score * 0.1;
                 weights_val.w_abi += kw.abi_score * 0.1;
@@ -235,8 +239,28 @@ fn startsWithIgnoreCase(haystack: []const u8, needle: []const u8) bool {
     return haystack.len >= needle.len and std.ascii.eqlIgnoreCase(haystack[0..needle.len], needle);
 }
 
-fn endsWithIgnoreCase(haystack: []const u8, needle: []const u8) bool {
-    return haystack.len >= needle.len and std.ascii.eqlIgnoreCase(haystack[haystack.len - needle.len ..], needle);
+test "analyzeSentiment ignores suffix false positives but keeps prefix stems" {
+    // Words that merely END in a keyword must not shift routing (the bug fixed
+    // by prefix-only matching): compare against a guaranteed non-matching token.
+    const neutral = analyzeSentiment("zzzqqq");
+    inline for (.{ "overrun", "unsafe", "prefix", "redesign" }) |word| {
+        const w = analyzeSentiment(word);
+        try std.testing.expectApproxEqAbs(neutral.w_abbey, w.w_abbey, 0.0001);
+        try std.testing.expectApproxEqAbs(neutral.w_aviva, w.w_aviva, 0.0001);
+        try std.testing.expectApproxEqAbs(neutral.w_abi, w.w_abi, 0.0001);
+    }
+
+    // Intended prefix stems still match: "quickly"->"quick" and "running"->"run"
+    // both bias abi, the dominant weight for those keywords.
+    const quickly = analyzeSentiment("quickly");
+    try std.testing.expect(quickly.w_abi > quickly.w_abbey and quickly.w_abi > quickly.w_aviva);
+    const running = analyzeSentiment("running");
+    try std.testing.expect(running.w_abi > running.w_abbey and running.w_abi > running.w_aviva);
+
+    // A whole-word keyword still routes as before; removing the "what if" bigram
+    // entry is neutral (it never matched a single-token split).
+    const analyze = analyzeSentiment("analyze");
+    try std.testing.expect(analyze.w_abbey > analyze.w_aviva and analyze.w_abbey > analyze.w_abi);
 }
 
 test {
