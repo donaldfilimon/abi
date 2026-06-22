@@ -28,7 +28,7 @@ Zig is pinned by `.zigversion` to `0.17.0-dev.813+2153f8143`; `build.zig.zon` ke
 ./zig-out/bin/abi twilio simulate "I need support"
 ```
 
-Supported top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, and `dashboard`. The top-level `abi --tui` shortcut also renders the dashboard.
+Supported top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, and `scheduler`. The top-level `abi --tui` shortcut also renders the dashboard.
 
 Do not assume old command names exist: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, and `serve` are not currently dispatched.
 
