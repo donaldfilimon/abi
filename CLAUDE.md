@@ -40,14 +40,14 @@ The ABI framework is a modular Zig codebase with a clear separation of concerns 
 | **CLI** | `src/main.zig`, `src/abi_cli/` | Parses command-line arguments and delegates to sub-commands. |
 | **MCP Server** | `src/mcp/main.zig` | Implements a JSON-RPC 2.0 server over stdio and optional HTTP/SSE transport. |
 | **Feature Selection** | `src/features/mod.zig` | Enables/disables features via Zig build options (`-Dfeat-*`). Uses the *mod/stub* pattern. |
-| **AI Sub-system** | `src/features/ai/` | Implements AI profiles (Abbey, Aviva, Abi), routing, and constitution. |
+| **AI Sub-system** | `src/features/ai/` | Implements AI profiles (Abbey, Aviva, Abi), routing, constitution, and the model catalog (`models.zig`). |
 | **Vector Store (WDBX)** | `src/features/wdbx/` | Provides in-memory key-value and vector storage with HNSW index and MVCC-style snapshot chain. |
 | **GPU Backend** | `src/features/gpu/` | Reports GPU status, attempts Metal initialization on macOS, falls back to vectorized CPU implementation. The backend is runtime-selected; there is **no** `-Dgpu-backend` option. |
 | **Connectors** | `src/connectors/` | Provides local/live adapters for external services (OpenAI, Anthropic, Grok, Discord, Twilio, HTTP, JSON). |
 | **Plugin System** | `src/plugins/`, `src/plugin_registry.zig` | Validates plugin manifests and generates metadata registry. |
 | **Core Utilities** | `src/core/` + `src/foundation/` | Scheduler, memory, config, registry, time, sync, logger, IO, credentials, OS abstractions. |
 
-Note: `src/mcp/` is the Zig MCP server; the **repo-root `mcp/`** directory holds host launcher scripts (`mcp/launcher.sh` → `zig-out/bin/abi-mcp`), not Zig code. The repo-root `.mcp.json` wires `abi-mcp` for host MCP clients via that launcher.
+Note: `src/mcp/` is the Zig MCP server; the **repo-root `mcp/`** directory holds host launcher scripts (`mcp/launcher.sh` → `zig-out/bin/abi-mcp`), not Zig code. The repo-root `.mcp.json` wires `abi-mcp` for host MCP clients via that launcher. Within `src/mcp/`, `middleware.zig` runs declarative argument validation (NUL/length/path-traversal/enum checks) on every `tools/call` before dispatch, and `handlers.errorMessage` normalizes any `anyerror` to a stable, non-leaking client string on both transports.
 
 ### Key Areas to Focus On
 
@@ -60,6 +60,7 @@ Note: `src/mcp/` is the Zig MCP server; the **repo-root `mcp/`** directory holds
 - **Import Rules**: Within `src/`, use relative `.zig` imports. `@import("abi")` is only allowed from `src/mcp/main.zig` and `src/mcp/handlers.zig`. Always include `.zig` extension on path imports.
 - **CLI Contracts** (frozen, contract-tested in `tests/contracts/`): top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, plus the `abi --tui` shortcut handled outside `src/abi_cli/usage.zig`. `agent` subcommands: `plan | train <profile|all> | tui | os <dry-run|execute --confirm>`. `wdbx` subcommands: `db <init|verify> | block <insert|get> | query | benchmark | cluster <status|demo|serve> | compute info | secure demo | gpu info | api serve` (see `src/abi_cli/handlers/wdbx.zig`). Do **not** dispatch legacy names: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, `serve`.
 - **MCP Contracts**: Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. JSON-RPC 2.0 over stdio with a 64 KB request cap; optional HTTP on `127.0.0.1:8080` (`ABI_MCP_HTTP_PORT` to override; empty/invalid/zero/out-of-range falls back to 8080; bind failure leaves stdio running). HTTP endpoints: `GET /sse`, `POST /message`.
+- **Model Catalog** (`src/features/ai/models.zig`, `std`-only so `mod.zig`/`stub.zig` keep parity): single source of truth for recognized model ids, short aliases, and provider routing. Default model is `claude-fable-5` (`fable5`); `abi-local` stays selectable. `complete --model <id>` (CLI) and the `ai_complete` `model` arg (MCP) both run `models.canonical(...)` so aliases (e.g. `fable-5` → `claude-fable-5`) are recorded canonically and unknown ids pass through unchanged. Remote providers are only reachable across the explicit live-transport boundary in `connectors/`.
 - **Generated Code**: Do not manually edit `src/plugin_registry.zig`; the build regenerates it from `src/plugins/*/abi-plugin.json` via `tools/generate_plugin_registry.zig`. Plugin manifests must include `name`, `version`, `description`, `target_feature`, and a safe relative `.zig` `entry_point` that exists under the plugin directory (`targetFeature` / `entryPoint` aliases accepted).
 - **Zig 0.17 Patterns**: 
   - Entry: `pub fn main(init: std.process.Init) !void`

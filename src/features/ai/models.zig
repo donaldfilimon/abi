@@ -24,13 +24,16 @@ pub const Provider = enum {
     }
 };
 
+/// Anthropic Fable 5 — the model this catalog was introduced to make
+/// first-class and selectable across the CLI and MCP surfaces, and now the
+/// default recorded when a caller does not request a model.
+pub const fable5 = "claude-fable-5";
+
 /// Default model label recorded when a caller does not request one. Kept in
 /// sync with `CompletionRequest.model` and the MCP `ai_complete` default.
-pub const default_model = "abi-local";
-
-/// Anthropic Fable 5 — the model this catalog was introduced to make
-/// first-class and selectable across the CLI and MCP surfaces.
-pub const fable5 = "claude-fable-5";
+/// `abi-local` remains a selectable local model (see the catalog below); the
+/// default now points at first-class Claude Fable 5.
+pub const default_model = fable5;
 
 pub const Entry = struct {
     id: []const u8,
@@ -42,7 +45,7 @@ pub const Entry = struct {
 /// Recognized model catalog. Freeform ids are still accepted by callers; this
 /// list drives recognition, alias resolution, and provider routing.
 pub const catalog = [_]Entry{
-    .{ .id = default_model, .provider = .local },
+    .{ .id = "abi-local", .provider = .local },
     .{ .id = fable5, .provider = .anthropic, .aliases = &.{ "fable-5", "fable5" } },
     .{ .id = "claude-opus-4-8", .provider = .anthropic },
     .{ .id = "claude-sonnet-4-6", .provider = .anthropic },
@@ -104,7 +107,7 @@ test "canonical resolves aliases and passes freeform ids through" {
 
 test "default model stays local and is recognized" {
     try std.testing.expect(isKnown(default_model));
-    try std.testing.expectEqual(Provider.local, providerOf(default_model));
+    try std.testing.expectEqual(Provider.anthropic, providerOf(default_model));
 }
 
 test "unknown ids are not known but prefixes still classify" {

@@ -104,18 +104,7 @@ fn processRequest(allocator: std.mem.Allocator, io: std.Io, line: []const u8) !v
             return err;
         },
         .@"tools/call" => handlers.handleToolsCallJson(allocator, request.value.params) catch |err| {
-            const msg = switch (err) {
-                error.MissingParams => "Missing params",
-                error.MissingToolName => "Missing tool name",
-                error.MissingArguments => "Missing arguments",
-                error.MissingInput => "Missing input",
-                error.MissingProfile => "Missing profile",
-                error.MissingDataset => "Missing dataset",
-                error.MissingQuery => "Missing query",
-                error.UnknownTool => "Method not found",
-                else => "Internal error",
-            };
-            writeError(io, request.value.id, -32603, msg);
+            writeError(io, request.value.id, -32603, handlers.errorMessage(err));
             return err;
         },
         .ping => try allocator.dupe(u8, "{}"),
@@ -362,7 +351,7 @@ fn handleHttpConnection(allocator: std.mem.Allocator, io: std.Io, conn: std.Io.n
         defer arena.deinit();
 
         const result_json = processJsonRpc(arena.allocator(), body) catch |err| {
-            const err_body = try std.fmt.allocPrint(arena.allocator(), "{{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{{\"code\":-32603,\"message\":\"{s}\"}}}}", .{@errorName(err)});
+            const err_body = try std.fmt.allocPrint(arena.allocator(), "{{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{{\"code\":-32603,\"message\":\"{s}\"}}}}", .{handlers.errorMessage(err)});
             const header = try std.fmt.allocPrint(arena.allocator(), "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n", .{err_body.len});
             try writeHttpAll(io, conn, header);
             try writeHttpAll(io, conn, err_body);

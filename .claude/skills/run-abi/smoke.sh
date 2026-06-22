@@ -61,7 +61,7 @@ fi
 run "cli help"          "Usage: abi"        -- "$ABI" help
 run "cli backends"      "GPU backend report" -- "$ABI" backends
 run "cli scheduler"     "source=cli-scheduler-status" -- "$ABI" scheduler status
-run "cli complete"      "model=abi-local"   -- "$ABI" complete "smoke: summarize scheduler status"
+run "cli complete"      "model=claude-fable-5"   -- "$ABI" complete "smoke: summarize scheduler status"
 
 # --- WDBX store round-trip ----------------------------------------------
 rm -f "$STORE"

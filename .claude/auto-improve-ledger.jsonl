@@ -1,0 +1,3 @@
+{"ts":"2026-06-22T01:18:00Z","repo":"abi","category":"docs-hygiene","target":"wal.zig appendVector stale comment vs wired putVector","verdict":"PASS","status":"done","commit":"ec03b43","note":"comment-only; ./build.sh check green"}
+{"ts":"2026-06-22T01:20:00Z","repo":"abi","category":"docs-hygiene","target":"GEMINI.md missing wdbx+scheduler vs frozen CLI contract","verdict":"PASS","status":"done","commit":"f38762f","note":"doc not in build graph; aligned to surface.zig + AGENTS.md"}
+{"ts":"2026-06-22T01:24:00Z","repo":"abi","category":"test-gap","target":"net_line.readLine had no direct tests (framing primitive)","verdict":"PASS","status":"done","commit":"df19d21","note":"3 loopback tests; collection proven 76->77 via unique filter"}

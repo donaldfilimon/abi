@@ -114,7 +114,7 @@ test "MCP ai_complete defaults model" {
         allocator,
         \\{"name":"ai_complete","arguments":{"input":"hello"}}
     ,
-        "model=abi-local",
+        "model=claude-fable-5",
     );
 }
 

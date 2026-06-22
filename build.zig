@@ -225,8 +225,21 @@ pub fn build(b: *std.Build) void {
     });
     const run_contract_mcp_tests = b.addRunArtifact(contract_mcp_tests);
 
+    // handlers.zig owns the tool catalog + per-tool validation specs but is only
+    // imported as a module by the contract tests above, so its in-file tests
+    // (FieldSpec/schema parity) would never run without their own artifact —
+    // same rationale as the mcp_server tests below.
+    const mcp_handlers_tests = b.addTest(.{
+        .root_module = mcp_handlers_mod,
+        .filters = test_filters,
+    });
+    mcp_handlers_tests.step.dependOn(&run_gen_plugin_registry.step);
+    const run_mcp_handlers_tests = b.addRunArtifact(mcp_handlers_tests);
+
     const contract_mcp_step = b.step("test-mcp-contracts", "Run MCP tool contract tests");
     contract_mcp_step.dependOn(&run_contract_mcp_tests.step);
+    contract_mcp_step.dependOn(&run_mcp_handlers_tests.step);
+    test_step.dependOn(&run_mcp_handlers_tests.step);
 
     // The MCP server transport (stdio + HTTP) is only reachable through the
     // `abi-mcp` executable, so its in-file tests are wired here as their own
