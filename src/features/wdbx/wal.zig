@@ -119,12 +119,12 @@ pub fn appendBlock(io: std.Io, allocator: std.mem.Allocator, path: []const u8, p
 /// so replay's `applyVector` validates id ordering and reconstructs the HNSW
 /// index through the exact same path as checkpoint restore.
 ///
-/// This record type round-trips correctly for a full-history WAL (vector ids
-/// start at 1 and increment, matching a fresh replay). It is NOT yet invoked
-/// per-mutation by `Store.putVector`: the durable Session keeps only a
-/// post-checkpoint delta WAL, whose absolute vector ids would fail the
-/// sequential `applyVector` check on a fresh replay. Wiring it in awaits a
-/// recovery path that replays the WAL delta on top of the checkpoint store.
+/// `Store.putVector` invokes this per-mutation (see `mod.zig`), so vector
+/// writes are durably logged like block/kv/temporal mutations. The durable
+/// Session keeps only a post-checkpoint delta WAL with absolute vector ids;
+/// recovery folds that delta on top of the checkpoint store and preserves the
+/// vector-id counter, so an absolute id in a post-checkpoint delta replays
+/// cleanly through `applyVector` rather than failing its sequential check.
 pub fn appendVector(io: std.Io, allocator: std.mem.Allocator, path: []const u8, id: u32, values: []const f32) !void {
     var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
