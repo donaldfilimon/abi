@@ -218,6 +218,26 @@ test "trainWithStore tracks transient persistence memory and frees it" {
     try std.testing.expect(tracker.getTotalFreed() > 0);
 }
 
+test "evaluate accepts a valid config and rejects an invalid profile" {
+    const r = try evaluate(.{
+        .profile = "abbey",
+        .dataset = .{ .path = "datasets/x.jsonl" },
+        .artifact_dir = "zig-cache/agent-artifacts",
+    });
+    // evaluate borrows config strings (owned=false) and reports acceptance — no
+    // allocation, so no deinit is required.
+    try std.testing.expect(r.accepted);
+    try std.testing.expectEqual(@as(usize, 1), r.records_stored);
+    try std.testing.expectEqualStrings("abbey", r.profile);
+
+    // An unknown profile is rejected up front by validateTrainingConfig.
+    try std.testing.expectError(error.InvalidTrainingProfile, evaluate(.{
+        .profile = "notaprofile",
+        .dataset = .{ .path = "d" },
+        .artifact_dir = "a",
+    }));
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
