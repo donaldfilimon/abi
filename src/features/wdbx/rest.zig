@@ -113,9 +113,13 @@ pub fn route(allocator: std.mem.Allocator, store: *wdbx.Store, method: []const u
                     else => return json(allocator, 400, "{{\"error\":\"vector elements must be numbers\"}}", .{}),
                 };
             }
+            // A present-but-invalid limit is a client error (400), consistent with
+            // every other malformed field on this route — not a silent clamp that
+            // returns 200 with a different page size than the caller asked for.
+            // Absent limit still defaults to 10.
             const limit: usize = if (obj.get("limit")) |l| switch (l) {
-                .integer => |n| if (n > 0 and n <= 100) @intCast(n) else 10,
-                else => 10,
+                .integer => |n| if (n > 0 and n <= 100) @intCast(n) else return json(allocator, 400, "{{\"error\":\"limit must be between 1 and 100\"}}", .{}),
+                else => return json(allocator, 400, "{{\"error\":\"limit must be an integer\"}}", .{}),
             } else 10;
 
             const stats = store.stats();
@@ -378,6 +382,31 @@ test "rest: vector query returns hybrid-ranked results" {
     var bad = try route(allocator, &store, "POST", "/query", "{}");
     defer bad.deinit(allocator);
     try std.testing.expectEqual(@as(u16, 400), bad.status);
+}
+
+test "rest: vector query rejects a present-but-invalid limit" {
+    const allocator = std.testing.allocator;
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+    _ = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+
+    // A present-but-invalid limit is a 400 (consistent with the route's other
+    // fields), not a silent clamp that returns 200 with a different page size.
+    const invalid = [_][]const u8{
+        "{\"vector\":[1.0,0.0,0.0,0.0],\"limit\":0}",
+        "{\"vector\":[1.0,0.0,0.0,0.0],\"limit\":5000}",
+        "{\"vector\":[1.0,0.0,0.0,0.0],\"limit\":\"big\"}",
+    };
+    for (invalid) |body| {
+        var r = try route(allocator, &store, "POST", "/query", body);
+        defer r.deinit(allocator);
+        try std.testing.expectEqual(@as(u16, 400), r.status);
+    }
+
+    // An absent limit still defaults (no 400).
+    var ok = try route(allocator, &store, "POST", "/query", "{\"vector\":[1.0,0.0,0.0,0.0]}");
+    defer ok.deinit(allocator);
+    try std.testing.expectEqual(@as(u16, 200), ok.status);
 }
 
 test "rest: vector query over empty store reports zero vectors" {
