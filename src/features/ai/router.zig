@@ -167,9 +167,10 @@ pub fn analyzeSentiment(input: []const u8) ProfileWeights {
         .w_abi = 0.34,
     };
 
-    var lower_buffer: [4096]u8 = undefined;
-    const lower_input = toLowerSlice(input, &lower_buffer) orelse input;
-    var it = std.mem.splitScalar(u8, lower_input, ' ');
+    // Match the raw input directly: startsWithIgnoreCase is already
+    // case-insensitive, so a separate lowercasing pass was dead work (and its
+    // 4096-byte stack buffer silently fell back to the original for longer input).
+    var it = std.mem.splitScalar(u8, input, ' ');
     while (it.next()) |word| {
         const trimmed = std.mem.trimEnd(u8, word, &.{ '.', ',', '!', '?', ':', ';', '"', '\'' });
         for (SENTIMENT_KEYWORDS) |kw| {
@@ -225,14 +226,6 @@ pub fn routeInputAdaptive(allocator: std.mem.Allocator, store: anytype, input: [
     const blended = mod.weights();
     const profile_sel = selectBestProfile(blended);
     return routeToProfile(allocator, profile_sel, input);
-}
-
-fn toLowerSlice(input: []const u8, buffer: []u8) ?[]const u8 {
-    if (input.len > buffer.len) return null;
-    for (input, 0..) |byte, i| {
-        buffer[i] = std.ascii.toLower(byte);
-    }
-    return buffer[0..input.len];
 }
 
 fn startsWithIgnoreCase(haystack: []const u8, needle: []const u8) bool {
