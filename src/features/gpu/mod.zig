@@ -36,8 +36,17 @@ pub const backendStatusReport = reporting.backendStatusReport;
 pub const isAvailable = reporting.isAvailable;
 pub const preferredBackend = reporting.preferredBackend;
 
+// Parent GPU compute API: one backend-agnostic facade (Metal-real + CPU
+// fallback) with an honest per-backend availability matrix.
+pub const compute_api = @import("compute_api.zig");
+pub const GpuCompute = compute_api.GpuCompute;
+pub const Kernel = compute_api.Kernel;
+pub const BackendAvailability = compute_api.BackendAvailability;
+pub const backendMatrix = compute_api.backendMatrix;
+
 test {
     std.testing.refAllDecls(@This());
+    _ = compute_api;
 }
 
 test "gpu module reexports safe vector operations" {
