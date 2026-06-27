@@ -28,6 +28,7 @@ pub const cluster = struct {};
 pub const cluster_rpc = struct {};
 pub const compression = struct {};
 pub const neural_compress = struct {};
+pub const entropy = struct {};
 pub const crypto_he = struct {};
 pub const fhe = struct {};
 pub const compute = struct {};
