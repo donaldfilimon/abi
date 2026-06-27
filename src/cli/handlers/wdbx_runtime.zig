@@ -101,22 +101,24 @@ pub fn clusterDemo(allocator: std.mem.Allocator, nodes: usize) anyerror!u8 {
     return 0;
 }
 
-pub fn clusterServe(io: std.Io, allocator: std.mem.Allocator, port: u16, node_id: u32) anyerror!u8 {
+pub fn clusterServe(io: std.Io, allocator: std.mem.Allocator, host: []const u8, port: u16, node_id: u32) anyerror!u8 {
     var node = wdbx.cluster.Node{ .id = node_id };
     defer {
         for (node.log.items) |e| allocator.free(e.data);
         node.log.deinit(allocator);
     }
 
-    var server = wdbx.cluster_rpc.listen(io, port) catch |err| {
-        std.debug.print("cluster serve: bind 127.0.0.1:{d} failed: {s}\n", .{ port, @errorName(err) });
+    // Bind the requested host: "127.0.0.1" (loopback, default), "0.0.0.0" (all
+    // interfaces for multi-host), or a specific routable IPv4/IPv6 address.
+    var server = wdbx.cluster_rpc.listenAddr(io, host, port) catch |err| {
+        std.debug.print("cluster serve: bind {s}:{d} failed: {s}\n", .{ host, port, @errorName(err) });
         return 1;
     };
     defer server.deinit(io);
 
     std.debug.print(
-        "cluster node {d} serving consensus RPC on 127.0.0.1:{d} (RequestVote/AppendEntries); peers connect via the cluster_rpc transport. Ctrl-C to stop.\n",
-        .{ node_id, port },
+        "cluster node {d} serving consensus RPC on {s}:{d} (RequestVote/AppendEntries); peers connect via the cluster_rpc transport. Ctrl-C to stop.\n",
+        .{ node_id, host, port },
     );
     try wdbx.cluster_rpc.serveLoop(io, &server, &node, allocator);
     return 0;
