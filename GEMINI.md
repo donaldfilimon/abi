@@ -57,7 +57,7 @@ Do not assume old command names exist: `version`, `doctor`, `features`, `platfor
 
 Default enabled: `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`, `feat-hash`, `feat-telemetry`.
 
-Default disabled: `feat-mobile`, `feat-metrics`, `feat-sea` (`src/features/sea/`, Sparse Evidence Attention self-learning loop), `feat-foundationmodels` (`src/connectors/fm.zig`, Apple on-device FoundationModels — macOS-only; links `FoundationModels.framework` + a `swiftc`-built `libabi_fm_shim.dylib`; on-device generation works via a Swift `@c` shim (SE-0495), runtime-verified on Apple-Intelligence hardware).
+Default disabled: `feat-mobile`, `feat-metrics`, `feat-sea` (`src/features/sea/`, Sparse Evidence Attention self-learning loop), `feat-foundationmodels` (`src/connectors/fm.zig`, Apple on-device FoundationModels — macOS-only; links `FoundationModels.framework` + a `swiftc`-built `libabi_fm_shim.dylib`; on-device generation is wired through a Swift `@c` shim (SE-0495) and requires Apple-Intelligence hardware at runtime).
 
 Use `-Dfeat-<name>=false|true`, for example:
 

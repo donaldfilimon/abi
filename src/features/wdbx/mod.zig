@@ -110,20 +110,31 @@ pub const Store = struct {
         if (key.len == 0) return error.InvalidKey;
 
         const owned_key = try self.allocator.dupe(u8, key);
-        errdefer self.allocator.free(owned_key);
+        // *_pending disarm the errdefers once the map adopts each buffer, so the
+        // fallible WAL append below can't double-free a buffer the map now owns.
+        var key_pending = true;
+        errdefer if (key_pending) self.allocator.free(owned_key);
 
         const owned_val = try self.allocator.dupe(u8, val);
-        errdefer self.allocator.free(owned_val);
+        var val_pending = true;
+        errdefer if (val_pending) self.allocator.free(owned_val);
 
         const result = try self.entries.getOrPut(owned_key);
         if (result.found_existing) {
             self.allocator.free(owned_key);
+            key_pending = false;
             self.allocator.free(result.value_ptr.*);
             result.value_ptr.* = owned_val;
+            val_pending = false;
         } else {
             result.key_ptr.* = owned_key;
+            key_pending = false;
             result.value_ptr.* = owned_val;
+            val_pending = false;
         }
+        // Memory-first ordering preserved: the map owns both buffers before the
+        // WAL append, and the disarmed errdefers ensure an append error leaves the
+        // committed entry intact rather than double-freeing it.
         if (self.wal_binding) |w| try wal.appendKv(w.io, self.allocator, w.path, key, val);
     }
 
