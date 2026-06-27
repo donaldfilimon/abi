@@ -4,9 +4,12 @@
 //! a node serves RequestVote / AppendEntries on a loopback-or-host socket, and a
 //! client drives elections and replication across those sockets. This is the
 //! "Cluster RPC" transport — genuine network sockets (`std.Io.net`), not an
-//! in-process array. It is exercised on 127.0.0.1; binding a routable address is
-//! the only change for multi-host, so distribution is a deployment concern, not
-//! a code one.
+//! in-process array. Both bind and dial are host-aware (`listenAddr` /
+//! `dialVoteAddr` / `dialAppendAddr` take an explicit IPv4/IPv6 host, with
+//! `listen`/`dialVote`/`dialAppend` as loopback convenience wrappers), so a node
+//! can bind a routable address ("0.0.0.0" or a specific NIC) and peers on other
+//! hosts can reach it. Multi-host clustering is then a deployment concern (choose
+//! the bind host + reachable peer addresses); the transport code is routable.
 //!
 //! Wire protocol (one request/response per connection, newline-framed text):
 //!   "VOTE <term> <candidate>\n"      -> "GRANTED <term>\n" | "DENIED <term>\n"
@@ -58,10 +61,20 @@ pub fn applyAppend(node: *cluster.Node, allocator: std.mem.Allocator, term: u64,
     return true;
 }
 
-/// Bind a loopback listener for a node endpoint.
-pub fn listen(io: std.Io, port: u16) !Server {
-    var address = try std.Io.net.IpAddress.parseIp4("127.0.0.1", port);
+/// Bind a node endpoint on an explicit host address — the routable-cluster entry
+/// point. `host` accepts loopback ("127.0.0.1"), all-interfaces ("0.0.0.0" /
+/// "::"), or a specific routable IPv4/IPv6 address, so a node can be reached by
+/// peers on other hosts. Multi-host clustering is then purely a deployment
+/// concern (choose the bind host + reachable peer addresses).
+pub fn listenAddr(io: std.Io, host: []const u8, port: u16) !Server {
+    var address = try net_line.resolveHost(host, port);
     return address.listen(io, .{ .reuse_address = true });
+}
+
+/// Loopback convenience: `listenAddr(io, "127.0.0.1", port)`. Preserved for
+/// single-host use and tests.
+pub fn listen(io: std.Io, port: u16) !Server {
+    return listenAddr(io, "127.0.0.1", port);
 }
 
 /// Accept one connection, apply the RPC to `node`, and respond. One request per
@@ -111,17 +124,29 @@ pub fn serveLoop(io: std.Io, server: *Server, node: *cluster.Node, allocator: st
 /// reply with `readVoteReply`). Null if the peer is unreachable. Two-phase so a
 /// single driver can dial every peer before any peer is served.
 pub fn dialVote(io: std.Io, port: u16, term: u64, candidate: u32) !?Stream {
+    return dialVoteAddr(io, "127.0.0.1", port, term, candidate);
+}
+
+/// Routable RequestVote: dial a peer at an explicit `host` (loopback or any
+/// reachable IPv4/IPv6) for multi-host clusters.
+pub fn dialVoteAddr(io: std.Io, host: []const u8, port: u16, term: u64, candidate: u32) !?Stream {
     var msg_buf: [64]u8 = undefined;
     const msg = try std.fmt.bufPrint(&msg_buf, "VOTE {d} {d}\n", .{ term, candidate });
-    return net_line.dial(io, port, msg);
+    return net_line.dialAddr(io, host, port, msg);
 }
 
 /// Connect to a peer and send an AppendEntries, returning the open stream (read
 /// the reply with `readAppendReply`). Null if the peer is unreachable.
 pub fn dialAppend(io: std.Io, port: u16, term: u64, data: []const u8) !?Stream {
+    return dialAppendAddr(io, "127.0.0.1", port, term, data);
+}
+
+/// Routable AppendEntries: dial a peer at an explicit `host` for multi-host
+/// clusters.
+pub fn dialAppendAddr(io: std.Io, host: []const u8, port: u16, term: u64, data: []const u8) !?Stream {
     var msg_buf: [4096]u8 = undefined;
     const msg = try std.fmt.bufPrint(&msg_buf, "APPEND {d} {s}\n", .{ term, data });
-    return net_line.dial(io, port, msg);
+    return net_line.dialAddr(io, host, port, msg);
 }
 
 /// Read and parse a vote reply, then close the connection.
@@ -236,6 +261,29 @@ test "cluster_rpc: replication over loopback acks and records the entry" {
     try testing.expect(acks >= 2); // quorum replication
     try testing.expectEqual(@as(usize, 1), n1.log.items.len);
     try testing.expectEqualStrings("set k=v", n1.log.items[0].data);
+}
+
+test "cluster_rpc: routable bind on 0.0.0.0 accepts a RequestVote over the host-aware path" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
+    var n1 = cluster.Node{ .id = 1 };
+    defer deinitNode(&n1, allocator);
+
+    // Bind all interfaces (the routable-cluster bind), then reach it over the
+    // host-aware client path — proving multi-host bind/dial works end-to-end
+    // (a peer on another host would dial this node's routable address the same
+    // way; here the loopback route validates the 0.0.0.0 listener accepts it).
+    var s1 = try listenAddr(io, "0.0.0.0", 39131);
+    defer s1.deinit(io);
+
+    const c1 = (try dialVoteAddr(io, "127.0.0.1", 39131, 1, 0)).?;
+    try serveOnce(io, &s1, &n1, allocator);
+    const r1 = try readVoteReply(io, c1);
+
+    try testing.expect(r1.granted);
+    try testing.expectEqual(@as(u64, 1), n1.term);
+    try testing.expectEqual(@as(?u32, 0), n1.voted_for);
 }
 
 test {
