@@ -78,7 +78,16 @@ fn checkTree(io: std.Io, allocator: std.mem.Allocator, root_path: []const u8) !u
         defer allocator.free(stub_relative);
 
         root.access(io, stub_relative, .{}) catch |err| switch (err) {
-            error.FileNotFound => continue,
+            // The top-level feature dispatcher (src/features/mod.zig) is
+            // intentionally stub-less; every other mod.zig is a feature or plugin
+            // leaf that MUST ship a sibling stub.zig, so a missing one is a parity
+            // failure rather than a silent pass.
+            error.FileNotFound => {
+                if (std.mem.eql(u8, root_path, "src/features") and std.mem.eql(u8, entry.path, "mod.zig")) continue;
+                std.log.err("{s}/{s}: mod.zig present but has no sibling stub.zig", .{ root_path, entry.path });
+                failures += 1;
+                continue;
+            },
             else => return err,
         };
 
