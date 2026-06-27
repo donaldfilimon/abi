@@ -4,6 +4,7 @@ const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @impor
 const ai = if (build_options.feat_ai) @import("../ai/mod.zig") else @import("../ai/stub.zig");
 const router = @import("../ai/router.zig");
 const evidence = @import("evidence.zig");
+const query_plan = @import("query_plan.zig");
 const core_memory = @import("../../core/memory.zig");
 
 /// Configuration for one self-learning pass.
@@ -28,6 +29,9 @@ pub const LearnLoopResult = struct {
     completion: ai.CompletionResult,
     evidence_count: usize,
     adapted: bool,
+    /// The task intent inferred from the input for this turn (drives task-aware
+    /// retrieval). `.general` when nothing more specific matched.
+    query_task: query_plan.TaskType = .general,
 
     pub fn deinit(self: *LearnLoopResult, allocator: std.mem.Allocator) void {
         self.completion.deinit(allocator);
@@ -50,7 +54,10 @@ pub fn runLearnLoop(
     model: []const u8,
     config: LearnLoopConfig,
 ) !LearnLoopResult {
-    var ctx = try evidence.gatherEvidence(allocator, store, input, config.evidence_limit);
+    // Infer a task-aware plan once and thread it through retrieval, so e.g. a
+    // project_recall query shifts evidence weighting toward exact wording.
+    const plan = query_plan.infer(input);
+    var ctx = try evidence.gatherEvidenceWithPlan(allocator, store, input, config.evidence_limit, plan);
     defer ctx.deinit();
     const evidence_count = ctx.items.len;
 
@@ -86,7 +93,12 @@ pub fn runLearnLoop(
         }
     }
 
-    return .{ .completion = completion, .evidence_count = evidence_count, .adapted = adapted };
+    return .{
+        .completion = completion,
+        .evidence_count = evidence_count,
+        .adapted = adapted,
+        .query_task = plan.task,
+    };
 }
 
 test "runLearnLoop tracks adaptive-weight persistence when a tracker is set" {
@@ -136,6 +148,22 @@ test "runLearnLoop persists a turn that a later related turn recalls as evidence
     defer second.deinit(allocator);
 
     try std.testing.expect(second.evidence_count > 0);
+}
+
+test "runLearnLoop surfaces the inferred task intent on the result" {
+    if (!build_options.feat_wdbx or !build_options.feat_ai) return;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var result = try runLearnLoop(allocator, &store, "remember the prior decision we made", "abi-local", .{
+        .persist = false,
+        .adapt_router = false,
+    });
+    defer result.deinit(allocator);
+
+    try std.testing.expectEqual(query_plan.TaskType.project_recall, result.query_task);
 }
 
 test {

@@ -119,10 +119,48 @@ const PRINCIPLE_CHECKS = [_]PrincipleCheck{
     },
 };
 
+/// Per-principle weights for the weighted constitutional E-score, adapting the
+/// WDBX 4-pillar governance formula (`E = α·Autonomy + β·Non-Maleficence +
+/// γ·Beneficence + δ·Justice`, see `docs/spec/wdbx-rust-capability-extract.md`
+/// §3) onto ABI's 6 principles. Each pillar's weight is split across the
+/// principles that realize it; Non-Maleficence (the safety class) is
+/// deliberately over-weighted (0.35) so a safety regression dominates the score.
+///
+/// Pillar -> principle mapping (indexed by `@intFromEnum(Principle)`):
+///   Beneficence     0.20 -> truthfulness 0.20
+///   Non-Maleficence 0.35 -> safety 0.175 + privacy 0.175   (safety class)
+///   Autonomy        0.25 -> helpfulness 0.125 + transparency 0.125
+///   Justice         0.20 -> fairness 0.20
+/// The six weights sum to 1.0, so the E-score stays in `[0,1]`.
+pub const PRINCIPLE_WEIGHTS = [6]f32{
+    0.20, // truthfulness  (Beneficence)
+    0.175, // safety        (Non-Maleficence, safety class)
+    0.125, // helpfulness   (Autonomy)
+    0.20, // fairness      (Justice)
+    0.175, // privacy       (Non-Maleficence, safety class)
+    0.125, // transparency  (Autonomy)
+};
+
+/// Principles in the safety class (the Non-Maleficence pillar). A per-principle
+/// score below `SAFETY_VETO_THRESHOLD` on any of these hard-fails the turn
+/// regardless of the weighted E-score — the "hard safety veto".
+pub const SAFETY_CLASS = [_]Principle{ .safety, .privacy };
+
+/// Severity floor for the safety class. Mirrors the WDBX hard safety veto: a
+/// single critical safety/privacy hit blocks the response no matter how high the
+/// weighted average is.
+pub const SAFETY_VETO_THRESHOLD: f32 = 0.5;
+
 pub const AuditResult = struct {
     passed: bool,
     violations: std.bit_set.IntegerBitSet(6),
     scores: [6]f32,
+    /// Weighted constitutional E-score over the six principles in `[0,1]`.
+    /// Computed by `finalize`; `1.0` for a clean (all-1.0) response.
+    escore: f32 = 1.0,
+    /// True when the hard safety veto tripped (a safety-class principle fell
+    /// below `SAFETY_VETO_THRESHOLD`). A veto forces `passed = false`.
+    vetoed: bool = false,
     timestamp: i64,
 
     pub fn init() AuditResult {
@@ -130,8 +168,26 @@ pub const AuditResult = struct {
             .passed = true,
             .violations = std.bit_set.IntegerBitSet(6).empty,
             .scores = .{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+            .escore = 1.0,
+            .vetoed = false,
             .timestamp = time.unixMs(),
         };
+    }
+
+    /// Compute the weighted E-score and apply the hard safety veto from the
+    /// current per-principle `scores`. Idempotent; call once after every score
+    /// has been assigned. A tripped veto folds into `passed`.
+    pub fn finalize(self: *AuditResult) void {
+        var e: f32 = 0;
+        for (self.scores, PRINCIPLE_WEIGHTS) |s, w| e += s * w;
+        self.escore = std.math.clamp(e, 0.0, 1.0);
+
+        var vetoed = false;
+        for (SAFETY_CLASS) |p| {
+            if (self.scores[@intFromEnum(p)] < SAFETY_VETO_THRESHOLD) vetoed = true;
+        }
+        self.vetoed = vetoed;
+        if (vetoed) self.passed = false;
     }
 };
 
@@ -143,6 +199,7 @@ pub const Constitution = struct {
             result.passed = false;
             result.violations.set(@intFromEnum(Principle.truthfulness));
             result.scores[@intFromEnum(Principle.truthfulness)] = 0.0;
+            result.finalize();
             return result;
         }
 
@@ -161,6 +218,7 @@ pub const Constitution = struct {
             }
         }
 
+        result.finalize();
         return result;
     }
 
@@ -173,6 +231,7 @@ pub const Constitution = struct {
                 result.violations.set(@intFromEnum(p));
                 result.scores[@intFromEnum(p)] = 0.0;
             }
+            result.finalize();
             return result;
         }
 
@@ -186,6 +245,7 @@ pub const Constitution = struct {
             }
         }
 
+        result.finalize();
         return result;
     }
 
@@ -252,6 +312,52 @@ test "constitution principle labels include master spec aliases" {
 test "audit result has timestamp" {
     const result = AuditResult.init();
     try std.testing.expect(result.timestamp > 0);
+}
+
+test "principle weights sum to one" {
+    var sum: f32 = 0;
+    for (PRINCIPLE_WEIGHTS) |w| sum += w;
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), sum, 1e-5);
+}
+
+test "escore is 1.0 for a clean response" {
+    const result = Constitution.validate("this is a safe and helpful response for everyone");
+    try std.testing.expect(result.passed);
+    try std.testing.expect(!result.vetoed);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), result.escore, 1e-5);
+}
+
+test "safety violation trips the hard veto and lowers the escore" {
+    const result = Constitution.validate("this could cause harm to users");
+    // safety principle is zeroed -> below the veto threshold.
+    try std.testing.expect(result.vetoed);
+    try std.testing.expect(!result.passed);
+    // Lost exactly the safety weight (0.175) from a perfect 1.0.
+    try std.testing.expectApproxEqAbs(@as(f32, 0.825), result.escore, 1e-3);
+}
+
+test "privacy violation also trips the safety-class veto" {
+    const result = Constitution.validate("your password is exposed");
+    try std.testing.expect(result.vetoed);
+    try std.testing.expect(!result.passed);
+}
+
+test "fairness violation fails the audit but does NOT veto" {
+    const result = Constitution.validate("we should discriminate against them");
+    // fairness is not a safety-class principle: a violation fails `passed`
+    // but must not trip the hard safety veto.
+    try std.testing.expect(!result.passed);
+    try std.testing.expect(!result.vetoed);
+    // Lost exactly the fairness weight (0.20).
+    try std.testing.expectApproxEqAbs(@as(f32, 0.80), result.escore, 1e-3);
+}
+
+test "finalize is idempotent" {
+    var result = Constitution.validate("this could cause harm");
+    const first = result.escore;
+    result.finalize();
+    try std.testing.expectEqual(first, result.escore);
+    try std.testing.expect(result.vetoed);
 }
 
 test "containsIgnoreCase matches case-insensitive" {

@@ -2,6 +2,13 @@ const std = @import("std");
 const build_options = @import("build_options");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const helpers = @import("../ai/helpers.zig");
+const query_plan = @import("query_plan.zig");
+
+/// When a `QueryPlan` requests `exact_recall`, the recalled hit's semantic
+/// similarity is blended with lexical (keyword) overlap so exact-wording matches
+/// outrank fuzzy-but-distant ones. `0.5` weights the two evenly, shifting
+/// retrieval toward provenance/exact wording per the SEA design (§5.3).
+const EXACT_RECALL_KEYWORD_WEIGHT: f32 = 0.5;
 
 /// Known persona labels. `profile_label` on an `EvidenceItem` is *borrowed*: it
 /// always points at one of these static literals (or `unknown`), never at
@@ -60,15 +67,35 @@ fn staticProfileLabel(metadata: []const u8) []const u8 {
 
 /// Gather evidence relevant to `input` from a durable store.
 ///
-/// Phase 1: embed the input via the shared AI embedding, run a vector search,
-/// and read each hit's stored completion metadata (`completion:<id>`) as the
-/// snippet. An empty store (no vectors) yields an empty context; search/metadata
-/// failures degrade to skipping that hit rather than aborting the loop.
+/// Convenience wrapper: infers a `QueryPlan` from `input` (deterministic keyword
+/// heuristic, no model call) and delegates to `gatherEvidenceWithPlan`, so the
+/// existing call sites become task-aware automatically.
 pub fn gatherEvidence(
     allocator: std.mem.Allocator,
     store: *wdbx.Store,
     input: []const u8,
     limit: usize,
+) !EvidenceContext {
+    return gatherEvidenceWithPlan(allocator, store, input, limit, query_plan.infer(input));
+}
+
+/// Gather evidence relevant to `input` under an explicit `QueryPlan`.
+///
+/// Phase 1: embed the input via the shared AI embedding, run a vector search,
+/// and read each hit's stored completion metadata (`completion:<id>`) as the
+/// snippet. An empty store (no vectors) yields an empty context; search/metadata
+/// failures degrade to skipping that hit rather than aborting the loop.
+///
+/// Task-awareness: when `plan.exact_recall` is set (e.g. a `project_recall`
+/// task), each hit's semantic score is blended with its lexical keyword overlap
+/// against the query and the results are re-sorted, so exact-wording matches
+/// outrank fuzzy ones. Other plans keep the store's semantic ordering unchanged.
+pub fn gatherEvidenceWithPlan(
+    allocator: std.mem.Allocator,
+    store: *wdbx.Store,
+    input: []const u8,
+    limit: usize,
+    plan: query_plan.QueryPlan,
 ) !EvidenceContext {
     if (input.len == 0 or limit == 0 or store.vectorCount() == 0) {
         return .{ .items = &.{}, .allocator = allocator };
@@ -99,15 +126,58 @@ pub fn gatherEvidence(
         const snippet = try allocator.dupe(u8, metadata);
         errdefer allocator.free(snippet);
 
+        // Under exact_recall, blend the semantic score with lexical overlap so
+        // exact-wording matches are favored; otherwise keep the pure semantic
+        // score and the store's existing ordering.
+        const score = if (plan.exact_recall)
+            (1.0 - EXACT_RECALL_KEYWORD_WEIGHT) * hit.score +
+                EXACT_RECALL_KEYWORD_WEIGHT * keywordOverlap(input, metadata)
+        else
+            hit.score;
+
         try items.append(allocator, .{
             .vector_id = hit.id,
             .profile_label = staticProfileLabel(metadata),
             .snippet = snippet,
-            .score = hit.score,
+            .score = score,
         });
     }
 
-    return .{ .items = try items.toOwnedSlice(allocator), .allocator = allocator };
+    const owned = try items.toOwnedSlice(allocator);
+    // Re-sort by the re-weighted score; only meaningful when scores were blended.
+    if (plan.exact_recall) std.mem.sort(EvidenceItem, owned, {}, scoreDesc);
+    return .{ .items = owned, .allocator = allocator };
+}
+
+fn scoreDesc(_: void, a: EvidenceItem, b: EvidenceItem) bool {
+    return a.score > b.score;
+}
+
+/// Fraction of the query's significant tokens (>= 3 chars) that appear,
+/// case-insensitively, in `text`. Returns `[0,1]`; `0` when the query has no
+/// significant tokens. A deterministic, model-free lexical signal.
+fn keywordOverlap(query: []const u8, text: []const u8) f32 {
+    var total: usize = 0;
+    var hits: usize = 0;
+    var it = std.mem.tokenizeAny(u8, query, " \t\n\r.,;:!?\"'()[]{}<>/\\");
+    while (it.next()) |tok| {
+        if (tok.len < 3) continue;
+        total += 1;
+        if (containsIgnoreCase(text, tok)) hits += 1;
+    }
+    if (total == 0) return 0;
+    return @as(f32, @floatFromInt(hits)) / @as(f32, @floatFromInt(total));
+}
+
+/// Case-insensitive ASCII substring search (local to avoid cross-feature import).
+fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
+    if (needle.len == 0) return true;
+    if (needle.len > haystack.len) return false;
+    var i: usize = 0;
+    while (i + needle.len <= haystack.len) : (i += 1) {
+        if (std.ascii.eqlIgnoreCase(haystack[i .. i + needle.len], needle)) return true;
+    }
+    return false;
 }
 
 /// Build an augmented prompt by prepending recalled snippets as a preamble,
@@ -214,6 +284,48 @@ test "gatherEvidence maps an unrecognized profile to the unknown label" {
     defer ctx.deinit();
     try std.testing.expectEqual(@as(usize, 1), ctx.items.len);
     try std.testing.expectEqualStrings("unknown", ctx.items[0].profile_label);
+}
+
+test "keywordOverlap counts significant query tokens present in text" {
+    // Tokens shorter than 3 chars are ignored; both significant tokens present.
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), keywordOverlap("paris france", "paris is in france"), 1e-5);
+    // "paris" present, "berlin" absent -> 1/2.
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), keywordOverlap("paris berlin", "paris is nice"), 1e-5);
+    // All tokens < 3 chars -> no significant tokens -> 0.
+    try std.testing.expectEqual(@as(f32, 0.0), keywordOverlap("a an of", "anything"));
+}
+
+test "exact_recall re-weights retrieval toward lexical overlap and re-sorts" {
+    if (!build_options.feat_wdbx or !build_options.feat_ai) return;
+    const allocator = std.testing.allocator;
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    // Two stored turns. The query shares exact wording with the SECOND record's
+    // metadata but the embeddings may rank the first higher semantically; with
+    // exact_recall the lexically-matching record must surface at the top.
+    const e1 = helpers.textEmbedding("alpha topic overview");
+    const id1 = try store.putVector(&e1);
+    const k1 = try std.fmt.allocPrint(allocator, "completion:{d}", .{id1});
+    defer allocator.free(k1);
+    try store.store(k1, "{\"profile\":\"abbey\",\"text\":\"alpha topic overview\"}");
+
+    const e2 = helpers.textEmbedding("the prior decision about widget pricing");
+    const id2 = try store.putVector(&e2);
+    const k2 = try std.fmt.allocPrint(allocator, "completion:{d}", .{id2});
+    defer allocator.free(k2);
+    try store.store(k2, "{\"profile\":\"aviva\",\"text\":\"the prior decision about widget pricing\"}");
+
+    // "remember"/"prior"/"decision" -> project_recall -> exact_recall = true.
+    const plan = query_plan.infer("remember the prior decision about widget pricing");
+    try std.testing.expect(plan.exact_recall);
+
+    var ctx = try gatherEvidenceWithPlan(allocator, &store, plan.query, 5, plan);
+    defer ctx.deinit();
+
+    try std.testing.expect(ctx.items.len >= 1);
+    // The lexically-exact record (id2) ranks first under exact_recall.
+    try std.testing.expectEqual(id2, ctx.items[0].vector_id);
 }
 
 test {

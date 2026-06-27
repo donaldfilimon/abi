@@ -7,6 +7,7 @@ const constitution = @import("constitution.zig");
 const types = @import("types.zig");
 const models = @import("models.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
+const telemetry = if (build_options.feat_telemetry) @import("../telemetry/mod.zig") else @import("../telemetry/stub.zig");
 
 pub fn complete(allocator: std.mem.Allocator, request: types.CompletionRequest) !types.CompletionResult {
     if (request.input.len == 0) return error.InvalidCompletionInput;
@@ -20,6 +21,13 @@ pub fn complete(allocator: std.mem.Allocator, request: types.CompletionRequest) 
     const response = try router.routeInput(allocator, request.input);
     errdefer allocator.free(response);
     const audit = constitution.Constitution.validate(response);
+    // Per-turn governance telemetry: every evaluated turn is counted, and a
+    // tripped hard safety veto is counted separately (fire-and-forget; a no-op
+    // when `feat-telemetry` is compiled out). The float E-score itself is
+    // surfaced on `CompletionResult.audit.escore` and in the persisted metadata
+    // rather than the integer counter table.
+    telemetry.record("ai.constitution.evaluated");
+    if (audit.vetoed) telemetry.record("ai.constitution.vetoed");
     if (!audit.passed) std.log.warn("Constitutional violation!", .{});
     return .{
         .model = resolved_model,
@@ -117,10 +125,11 @@ fn completionMetadataJson(
     try out.appendSlice(allocator, ",\"profile\":");
     try appendMetadataJsonString(&out, allocator, result.selected_profile.label());
     const audit_passed = if (result.audit.passed) "true" else "false";
+    const audit_vetoed = if (result.audit.vetoed) "true" else "false";
     try out.print(
         allocator,
-        ",\"audit_passed\":{s},\"input_bytes\":{d},\"output_bytes\":{d},\"query_vector_id\":{d},\"response_vector_id\":{d}}}",
-        .{ audit_passed, request.input.len, result.output.len, query_id, response_id },
+        ",\"audit_passed\":{s},\"audit_vetoed\":{s},\"escore\":{d:.3},\"input_bytes\":{d},\"output_bytes\":{d},\"query_vector_id\":{d},\"response_vector_id\":{d}}}",
+        .{ audit_passed, audit_vetoed, result.audit.escore, request.input.len, result.output.len, query_id, response_id },
     );
 
     return try out.toOwnedSlice(allocator);
@@ -154,6 +163,36 @@ fn isFeatureDisabled(err: anyerror) bool {
 
 test "completion rejects empty input" {
     try std.testing.expectError(error.InvalidCompletionInput, complete(std.testing.allocator, .{ .input = "" }));
+}
+
+test "complete surfaces the weighted E-score and emits per-turn governance telemetry" {
+    if (!build_options.feat_telemetry) return;
+    telemetry.reset();
+    defer telemetry.reset();
+
+    const before = telemetry.counterValue("ai.constitution.evaluated");
+    var result = try complete(std.testing.allocator, .{ .input = "tell me something helpful" });
+    defer result.deinit(std.testing.allocator);
+
+    // E-score is surfaced on the completion result and stays in range.
+    try std.testing.expect(result.audit.escore >= 0.0 and result.audit.escore <= 1.0);
+    // The turn was counted exactly once through the existing telemetry path.
+    try std.testing.expectEqual(before + 1, telemetry.counterValue("ai.constitution.evaluated"));
+}
+
+test "metadata JSON includes the escore and veto fields" {
+    var result = types.CompletionResult{
+        .model = "m",
+        .selected_profile = .abbey,
+        .output = try std.testing.allocator.dupe(u8, "out"),
+        .audit = constitution.AuditResult.init(),
+    };
+    defer result.deinit(std.testing.allocator);
+
+    const metadata = try completionMetadataJson(std.testing.allocator, .{ .input = "in", .model = "m" }, result, 1, 2);
+    defer std.testing.allocator.free(metadata);
+    try std.testing.expect(std.mem.indexOf(u8, metadata, "\"escore\":1.000") != null);
+    try std.testing.expect(std.mem.indexOf(u8, metadata, "\"audit_vetoed\":false") != null);
 }
 
 test "metadata JSON escapes model and profile fields" {

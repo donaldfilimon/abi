@@ -30,10 +30,23 @@ pub const Principle = enum {
     }
 };
 
+/// Mirrors `constitution.PRINCIPLE_WEIGHTS` so the disabled-AI `AuditResult`
+/// keeps an identical E-score shape (see `constitution.zig` for the pillar
+/// mapping). Indexed by `@intFromEnum(Principle)`; sums to 1.0.
+pub const PRINCIPLE_WEIGHTS = [6]f32{ 0.20, 0.175, 0.125, 0.20, 0.175, 0.125 };
+
+/// Safety-class principles (Non-Maleficence pillar) — mirror of the real one.
+pub const SAFETY_CLASS = [_]Principle{ .safety, .privacy };
+
+/// Severity floor for the safety class — mirror of the real one.
+pub const SAFETY_VETO_THRESHOLD: f32 = 0.5;
+
 pub const AuditResult = struct {
     passed: bool,
     violations: std.bit_set.IntegerBitSet(6),
     scores: [6]f32 = .{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+    escore: f32 = 1.0,
+    vetoed: bool = false,
     timestamp: i64 = 0,
 
     pub fn init() AuditResult {
@@ -41,6 +54,21 @@ pub const AuditResult = struct {
             .passed = true,
             .violations = std.bit_set.IntegerBitSet(6).empty,
         };
+    }
+
+    /// Compute the weighted E-score and apply the hard safety veto from the
+    /// current `scores`. Mirror of `constitution.AuditResult.finalize`.
+    pub fn finalize(self: *AuditResult) void {
+        var e: f32 = 0;
+        for (self.scores, PRINCIPLE_WEIGHTS) |s, w| e += s * w;
+        self.escore = std.math.clamp(e, 0.0, 1.0);
+
+        var vetoed = false;
+        for (SAFETY_CLASS) |p| {
+            if (self.scores[@intFromEnum(p)] < SAFETY_VETO_THRESHOLD) vetoed = true;
+        }
+        self.vetoed = vetoed;
+        if (vetoed) self.passed = false;
     }
 };
 

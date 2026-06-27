@@ -11,6 +11,7 @@ pub const Constitution = struct {
             result.violations.set(@intFromEnum(Principle.truthfulness));
             result.scores[@intFromEnum(Principle.truthfulness)] = 0.0;
         }
+        result.finalize();
         return result;
     }
 
@@ -23,6 +24,7 @@ pub const Constitution = struct {
                 result.scores[@intFromEnum(p)] = 0.0;
             }
         }
+        result.finalize();
         return result;
     }
 };

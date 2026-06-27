@@ -33,6 +33,31 @@ pub const EvidenceContext = struct {
     }
 };
 
+/// Mirror of the real `TaskType` so callers compile unchanged with `feat-sea`
+/// off. Inference always degrades to `.general` (see `inferQueryPlan`).
+pub const TaskType = enum(u8) {
+    general,
+    implementation_design,
+    code_repair,
+    legal_review,
+    research_synthesis,
+    project_recall,
+    benchmark_review,
+
+    pub fn text(self: TaskType) []const u8 {
+        return @tagName(self);
+    }
+};
+
+pub const QueryPlan = struct {
+    task: TaskType = .general,
+    query: []const u8,
+    require_grounding: bool = true,
+    exact_recall: bool = false,
+    recency_bias: f32 = 0.40,
+    risk: f32 = 0.50,
+};
+
 pub const LearnLoopConfig = struct {
     evidence_limit: usize = 5,
     persist: bool = true,
@@ -44,11 +69,18 @@ pub const LearnLoopResult = struct {
     completion: ai.CompletionResult,
     evidence_count: usize = 0,
     adapted: bool = false,
+    query_task: TaskType = .general,
 
     pub fn deinit(self: *LearnLoopResult, allocator: std.mem.Allocator) void {
         self.completion.deinit(allocator);
     }
 };
+
+/// With the feature off there is no inference: every query degrades to a plain
+/// `.general` plan with no task-aware tuning.
+pub fn inferQueryPlan(query: []const u8) QueryPlan {
+    return .{ .query = query };
+}
 
 pub fn gatherEvidence(
     allocator: std.mem.Allocator,
@@ -59,6 +91,20 @@ pub fn gatherEvidence(
     _ = store;
     _ = input;
     _ = limit;
+    return .{ .items = &.{}, .allocator = allocator };
+}
+
+pub fn gatherEvidenceWithPlan(
+    allocator: std.mem.Allocator,
+    store: *wdbx.Store,
+    input: []const u8,
+    limit: usize,
+    plan: QueryPlan,
+) !EvidenceContext {
+    _ = store;
+    _ = input;
+    _ = limit;
+    _ = plan;
     return .{ .items = &.{}, .allocator = allocator };
 }
 
