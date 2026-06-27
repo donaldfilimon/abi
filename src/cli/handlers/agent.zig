@@ -136,7 +136,21 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
         return 0;
     } else if (std.mem.eql(u8, sub_cmd, "tui")) {
         if (args.len != 3) return usage_mod.usageError("usage: abi agent tui");
-        return dashboard_mod.handleDashboard(allocator);
+
+        var session = try abi.features.wdbx.durable_store.Session.open(io, allocator);
+        defer session.deinit();
+        const store = session.storePtr();
+
+        var sched = abi.scheduler.Scheduler.init(allocator);
+        defer sched.deinit();
+
+        var repl = abi.features.tui.ReplLoop.init(allocator, store, &sched, .{});
+        defer repl.deinit();
+        repl.run(io) catch |err| {
+            std.debug.print("error: interactive REPL failed: {s}\n", .{@errorName(err)});
+            return 1;
+        };
+        return 0;
     } else if (std.mem.eql(u8, sub_cmd, "os") and args.len >= 5) {
         return handleAgentOs(io, allocator, args);
     } else {
@@ -169,7 +183,10 @@ pub fn handleAgentOs(io: std.Io, allocator: std.mem.Allocator, args: []const []c
         // absolute path args that escape `workspace_root`. Falling back to "/"
         // when PWD is unset would make every absolute path "contained" and
         // silently disable the guard, so refuse instead of widening the sandbox.
-        const workspace_root = if (std.c.getenv("PWD")) |pwd| std.mem.span(pwd) else "";
+        // Portable env lookup (no libc), borrowed from the captured process
+        // environment. On Windows PWD is typically unset, so this resolves to
+        // the safe refuse path rather than widening the sandbox.
+        const workspace_root = abi.foundation.env.get("PWD") orelse "";
         if (workspace_root.len == 0 or !std.fs.path.isAbsolute(workspace_root)) {
             return usage_mod.usageError("cannot determine an absolute workspace root (PWD unset); refusing to execute");
         }

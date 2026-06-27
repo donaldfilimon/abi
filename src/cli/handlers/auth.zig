@@ -35,6 +35,13 @@ pub fn handleAuth(io_mod: std.Io, allocator: std.mem.Allocator, args: []const []
         if (args.len != 4) return usage_mod.usageError("usage: abi auth signin <openai|anthropic|discord|grok|twilio>");
         const service = args[3];
 
+        // Reject unknown services before any credential I/O or stdin prompt, so
+        // malformed grammar fails fast with exit 2 and never touches the
+        // credential store (and stays independent of $HOME for pure validation).
+        if (!isKnownService(service)) {
+            return usage_mod.usageError("usage: abi auth signin <openai|anthropic|discord|grok|twilio>");
+        }
+
         var creds = try credentials.loadCredentials(allocator);
         defer creds.deinit(allocator);
 
@@ -95,6 +102,15 @@ fn isBlankCredential(line: []const u8) bool {
 
 fn emptyCredentialError() u8 {
     return usage_mod.usageError("empty credential provided; nothing was saved");
+}
+
+/// Services the `signin` dispatch chain knows how to prompt for. Checked up
+/// front so unknown grammar rejects (exit 2) before any credential I/O.
+fn isKnownService(service: []const u8) bool {
+    inline for (.{ "openai", "anthropic", "discord", "grok", "twilio" }) |s| {
+        if (std.mem.eql(u8, service, s)) return true;
+    }
+    return false;
 }
 
 test "auth dispatch rejects malformed grammar with exit code 2" {

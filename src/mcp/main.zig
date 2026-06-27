@@ -4,6 +4,7 @@ const handlers = @import("handlers.zig");
 const server = @import("server.zig");
 const json_helpers = @import("json_helpers.zig");
 const state = @import("state.zig");
+const abi = @import("abi");
 
 const McpMethod = protocol.McpMethod;
 const validateRequest = protocol.validateRequest;
@@ -11,6 +12,12 @@ const MAX_REQUEST_SIZE = protocol.MAX_REQUEST_SIZE;
 const appendJsonString = json_helpers.appendJsonString;
 
 pub fn main(init: std.process.Init) !void {
+    // Capture the process environment for portable, libc-free env lookups used
+    // by the abi-module readers (durable store path, credentials, etc.).
+    abi.foundation.env.install(init.environ_map);
+    // Resolve the HTTP listen port here (main can reach the captured env; the
+    // transport module cannot, per the import rules) and hand it to the server.
+    server.setHttpPort(abi.foundation.env.get(server.HTTP_PORT_ENV));
     server.installSignalHandlers();
 
     // Persist the WDBX store across server restarts (default-ON). The durable

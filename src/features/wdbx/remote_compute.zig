@@ -14,6 +14,7 @@
 
 const std = @import("std");
 const net_line = @import("net_line.zig");
+const env = @import("../../foundation/env.zig");
 
 const Stream = std.Io.net.Stream;
 const Server = std.Io.net.Server;
@@ -35,9 +36,7 @@ pub fn localDot(a: []const f32, b: []const f32) !f32 {
 /// The configured remote endpoint ("host:port"), or null when unset — the honest
 /// signal that ops run on the local CPU fallback.
 pub fn endpoint() ?[]const u8 {
-    const raw = std.c.getenv(ENDPOINT_ENV) orelse return null;
-    const span = std.mem.span(raw);
-    return if (span.len == 0) null else span;
+    return env.get(ENDPOINT_ENV);
 }
 
 /// Accept one connection, evaluate the DOT op, and respond. This is the

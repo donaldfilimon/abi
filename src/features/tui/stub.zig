@@ -1,4 +1,68 @@
 const std = @import("std");
+const build_options = @import("build_options");
+const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
+const scheduler_mod = @import("../../core/scheduler.zig");
+
+/// Disabled-TUI REPL surface. Mirrors `repl.zig`'s public names so
+/// `zig build check-parity` holds; `ReplLoop.run` refuses with
+/// `error.FeatureDisabled`.
+pub const ReplConfig = struct {
+    model: []const u8 = "abi-local",
+    max_tokens: u32 = 512,
+    store_turns: bool = true,
+    prompt_prefix: []const u8 = "> ",
+};
+
+pub const ReplState = struct {
+    config: ReplConfig,
+    turn_count: usize = 0,
+    session_id: i64 = 0,
+
+    pub fn init(config: ReplConfig) ReplState {
+        return .{ .config = config, .turn_count = 0, .session_id = 0 };
+    }
+};
+
+pub const ReplLoop = struct {
+    allocator: std.mem.Allocator,
+    store: *wdbx.Store,
+    scheduler: *scheduler_mod.Scheduler,
+    state: ReplState,
+
+    pub fn init(
+        allocator: std.mem.Allocator,
+        store: *wdbx.Store,
+        scheduler: *scheduler_mod.Scheduler,
+        config: ReplConfig,
+    ) ReplLoop {
+        return .{
+            .allocator = allocator,
+            .store = store,
+            .scheduler = scheduler,
+            .state = ReplState.init(config),
+        };
+    }
+
+    pub fn deinit(self: *ReplLoop) void {
+        _ = self;
+    }
+
+    pub fn run(self: *ReplLoop, io: std.Io) !void {
+        _ = self;
+        _ = io;
+        return error.FeatureDisabled;
+    }
+};
+
+/// Namespace mirror of `repl.zig` so `tui.repl.*` resolves under the stub too.
+pub const repl = struct {
+    pub const SpecialCommand = enum { quit, reset, help, model, profile, history, unknown };
+
+    pub fn parseSpecialCommand(line: []const u8) SpecialCommand {
+        _ = line;
+        return .unknown;
+    }
+};
 
 pub const Status = enum { ready, busy, warning, disabled };
 pub const Item = struct { label: []const u8, value: []const u8 };
@@ -37,6 +101,10 @@ pub const DashboardState = struct {
     memory_current: usize = 0,
     memory_leaked: usize = 0,
 };
+
+pub fn stdinFd() std.posix.fd_t {
+    return std.Io.File.stdin().handle;
+}
 
 pub const InteractiveTerminal = struct {
     fd: std.posix.fd_t,

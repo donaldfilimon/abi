@@ -53,7 +53,7 @@ AI scheduler integration is exposed through `CompletionTaskContext`, `TrainingTa
 
 ## CLI command contract
 
-The CLI command surface is guarded by `tests/contracts/surface.zig` and currently includes the frozen `src/abi_cli/usage.zig` command array:
+The CLI command surface is guarded by `tests/contracts/surface.zig` and currently includes the frozen `src/cli/usage.zig` command array:
 
 - `help`
 - `complete`
@@ -70,7 +70,7 @@ The CLI command surface is guarded by `tests/contracts/surface.zig` and currentl
 
 The top-level `abi --tui` shortcut is handled in `src/main.zig` outside the frozen `usage.commands` array. `abi complete` prints completion persistence observability (`persisted=`, WDBX counts, vector IDs, metadata key, and block hash when available) for its transient in-memory WDBX store. `abi agent plan <input>` and `abi agent train <abbey|aviva|abi|all>` run through scheduler-backed AI helpers and print scheduler/memory tracker summaries; they do not imply live external model training. `abi scheduler status` reports a one-shot CLI scheduler probe with task counts and attached `MemoryTracker` counters; it is not a long-running daemon.
 
-`abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` is a WDBX runtime control surface backed by the in-process store, segment checkpoints, a legacy JSONL snapshot mirror, and the write-ahead log (`src/abi_cli/handlers/wdbx.zig`). `db`/`block`/`query`/`benchmark`/`gpu`/`api` operate the durable store and report state. Runtime `block get`, `query`, and the next `block insert` recover WAL-ahead state before serving data; `db verify` reports checkpoint/WAL divergence as a consistency failure until a write checkpoints it. `cluster`, `compute`, and `secure` are honest in-process demonstrations (single-host Raft-style consensus, backend selection with deterministic CPU fallback, int8 quantization, and additive single-key homomorphic aggregation). They are **not** distributed clustering, native NPU/TPU execution, learned compression, or full FHE — see `docs/spec/wdbx-north-star.md` and `docs/contracts/external-claims-audit.md`.
+`abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` is a WDBX runtime control surface backed by the in-process store, segment checkpoints, a legacy JSONL snapshot mirror, and the write-ahead log (`src/cli/handlers/wdbx.zig`). `db`/`block`/`query`/`benchmark`/`gpu`/`api` operate the durable store and report state. Runtime `block get`, `query`, and the next `block insert` recover WAL-ahead state before serving data; `db verify` reports checkpoint/WAL divergence as a consistency failure until a write checkpoints it. `cluster`, `compute`, and `secure` are honest in-process demonstrations (single-host Raft-style consensus, backend selection with deterministic CPU fallback, int8 quantization, and additive single-key homomorphic aggregation). They are **not** distributed clustering, native NPU/TPU execution, learned compression, or full FHE — see `docs/spec/wdbx-north-star.md` and `docs/contracts/external-claims-audit.md`.
 
 ## MCP contract
 

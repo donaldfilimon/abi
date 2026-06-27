@@ -17,7 +17,12 @@
 //!   ABI_WDBX_PERSIST  set to 0/false/no/off to force an in-memory store.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const wdbx = @import("mod.zig");
+const env = @import("../../foundation/env.zig");
+
+/// Home-dir env var name, Windows-aware (USERPROFILE vs HOME).
+const HOME_VAR = if (builtin.target.os.tag == .windows) "USERPROFILE" else "HOME";
 
 pub const PATH_ENV = "ABI_WDBX_PATH";
 pub const PERSIST_ENV = "ABI_WDBX_PERSIST";
@@ -39,12 +44,6 @@ pub const Config = struct {
     }
 };
 
-fn envSpan(key: [*:0]const u8) ?[]const u8 {
-    const raw = std.c.getenv(key) orelse return null;
-    const span = std.mem.span(raw);
-    return if (span.len == 0) null else span;
-}
-
 fn isFalsey(value: []const u8) bool {
     return std.mem.eql(u8, value, "0") or
         std.mem.eql(u8, value, "false") or
@@ -56,14 +55,14 @@ fn isFalsey(value: []const u8) bool {
 /// absent env yields the `~/.abi/wdbx` default. HOME being unset degrades to an
 /// in-memory store rather than writing to an unexpected location.
 pub fn resolveConfig(allocator: std.mem.Allocator) !Config {
-    if (envSpan(PERSIST_ENV)) |v| {
+    if (env.get(PERSIST_ENV)) |v| {
         if (isFalsey(v)) return .{ .base_path = null };
     }
-    if (envSpan(PATH_ENV)) |p| {
+    if (env.get(PATH_ENV)) |p| {
         if (std.mem.eql(u8, p, MEMORY_SENTINEL)) return .{ .base_path = null };
         return .{ .base_path = try allocator.dupe(u8, p) };
     }
-    const home = envSpan("HOME") orelse return .{ .base_path = null };
+    const home = env.get(HOME_VAR) orelse return .{ .base_path = null };
     return .{ .base_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ home, DEFAULT_SUBPATH }) };
 }
 

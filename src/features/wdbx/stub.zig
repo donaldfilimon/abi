@@ -19,7 +19,7 @@ pub const index = @import("stub_index.zig");
 
 // WAL, temporal/causal index, cluster, compression, homomorphic crypto,
 // compute-backend selection, and the REST listener are compiled out when the
-// feature is disabled. Callers gate access at comptime (see abi_cli wdbx
+// feature is disabled. Callers gate access at comptime (see cli wdbx
 // handler); these markers exist only to preserve mod/stub top-level declaration
 // parity.
 pub const wal = struct {};
@@ -349,7 +349,7 @@ test "wdbx stub nested writes are explicit disabled operations" {
     var vectors = index.VectorStorage.init(std.testing.allocator, 4, 4);
     defer vectors.deinit();
     try std.testing.expect(!vectors.contains(1));
-    try std.testing.expectEqual(@as(usize, 0), vectors.get(1).len);
+    try std.testing.expectEqual(@as(?[]const f32, null), vectors.get(1));
     try std.testing.expectError(error.FeatureDisabled, vectors.insert(1, &.{ 1, 2, 3, 4 }));
 
     var hnsw = index.HnswIndex(4).init(std.testing.allocator);

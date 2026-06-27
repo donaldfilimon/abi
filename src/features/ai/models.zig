@@ -13,6 +13,8 @@ pub const Provider = enum {
     anthropic,
     openai,
     grok,
+    /// Apple FoundationModels on-device runtime (see `connectors/fm.zig`).
+    fm,
 
     pub fn label(self: Provider) []const u8 {
         return switch (self) {
@@ -20,6 +22,7 @@ pub const Provider = enum {
             .anthropic => "anthropic",
             .openai => "openai",
             .grok => "grok",
+            .fm => "fm",
         };
     }
 };
@@ -50,6 +53,7 @@ pub const catalog = [_]Entry{
     .{ .id = "claude-opus-4-8", .provider = .anthropic },
     .{ .id = "claude-sonnet-4-6", .provider = .anthropic },
     .{ .id = "claude-haiku-4-5", .provider = .anthropic },
+    .{ .id = "apple-fm", .provider = .fm, .aliases = &.{ "fm-local", "fm" } },
 };
 
 /// Resolve a user-supplied id (including short aliases) to its canonical id,
@@ -88,6 +92,7 @@ pub fn providerOf(id: []const u8) Provider {
     if (std.mem.startsWith(u8, id, "claude-")) return .anthropic;
     if (std.mem.startsWith(u8, id, "gpt-")) return .openai;
     if (std.mem.startsWith(u8, id, "grok")) return .grok;
+    if (std.mem.startsWith(u8, id, "apple-")) return .fm;
     return .local;
 }
 
@@ -103,6 +108,16 @@ test "canonical resolves aliases and passes freeform ids through" {
     try std.testing.expectEqualStrings(fable5, canonical(fable5));
     try std.testing.expectEqualStrings(default_model, canonical(default_model));
     try std.testing.expectEqualStrings("gpt-5-mystery", canonical("gpt-5-mystery"));
+}
+
+test "apple-fm is recognized and routes to the on-device fm provider" {
+    try std.testing.expect(isKnown("apple-fm"));
+    try std.testing.expectEqualStrings("apple-fm", resolve("fm").?);
+    try std.testing.expectEqualStrings("apple-fm", resolve("fm-local").?);
+    try std.testing.expectEqualStrings("apple-fm", canonical("fm"));
+    try std.testing.expectEqual(Provider.fm, providerOf("apple-fm"));
+    try std.testing.expectEqual(Provider.fm, providerOf("apple-future-model"));
+    try std.testing.expectEqualStrings("fm", Provider.fm.label());
 }
 
 test "default model stays local and is recognized" {

@@ -108,6 +108,29 @@ test "MCP ai_complete tool contract" {
     }
 }
 
+test "MCP ai_learn tool contract" {
+    const allocator = std.testing.allocator;
+    const call =
+        \\{"name":"ai_learn","arguments":{"input":"hello","model":"abi-local","evidence_limit":3}}
+    ;
+    // Stable across flag configs: the model echoes back and the meta line always
+    // reports an evidence_count. The value depends on store/feature state (sea
+    // off => 0; sea on => recalled count), so only the field is asserted.
+    try expectToolJsonContains(allocator, call, "model=abi-local");
+    try expectToolJsonContains(allocator, call, "evidence_count=");
+    try expectToolJsonContains(allocator, call, "adapted=");
+}
+
+test "MCP ai_learn defaults model" {
+    const allocator = std.testing.allocator;
+    try expectToolJsonContains(
+        allocator,
+        \\{"name":"ai_learn","arguments":{"input":"hello"}}
+    ,
+        "model=claude-fable-5",
+    );
+}
+
 test "MCP ai_complete defaults model" {
     const allocator = std.testing.allocator;
     try expectToolJsonContains(
@@ -206,6 +229,8 @@ fn minimalCallFor(tool_name: []const u8) ?[]const u8 {
         return "{\"name\":\"ai_run\",\"arguments\":{\"input\":\"hello\"}}";
     if (std.mem.eql(u8, tool_name, "ai_complete"))
         return "{\"name\":\"ai_complete\",\"arguments\":{\"input\":\"hello\"}}";
+    if (std.mem.eql(u8, tool_name, "ai_learn"))
+        return "{\"name\":\"ai_learn\",\"arguments\":{\"input\":\"hello\"}}";
     if (std.mem.eql(u8, tool_name, "ai_train"))
         return "{\"name\":\"ai_train\",\"arguments\":{\"profile\":\"abi\",\"dataset\":\"data.jsonl\"}}";
     if (std.mem.eql(u8, tool_name, "wdbx_query"))

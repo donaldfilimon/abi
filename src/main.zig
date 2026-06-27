@@ -1,10 +1,13 @@
-//! ABI CLI executable entry — delegates to `abi_cli/dispatch.zig`.
+//! ABI CLI executable entry — delegates to `cli/dispatch.zig`.
 
 const std = @import("std");
-const dispatch_mod = @import("abi_cli/dispatch.zig");
-const handlers = @import("abi_cli/handlers/mod.zig");
+const dispatch_mod = @import("cli/dispatch.zig");
+const handlers = @import("cli/handlers/mod.zig");
+const env = @import("foundation/env.zig");
 
 pub fn main(init: std.process.Init) !void {
+    // Capture the process environment for portable, libc-free env lookups.
+    env.install(init.environ_map);
     const allocator = std.heap.page_allocator;
     const args = try init.minimal.args.toSlice(init.arena.allocator());
 

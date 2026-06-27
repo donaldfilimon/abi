@@ -241,9 +241,14 @@ test "wdbx query runs scoped to a persona over a recovered store" {
     {
         var s = wdbx.Store.init(allocator);
         defer s.deinit();
-        _ = try s.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+        // Insert vectors in the same EMBED_DIM space the query path embeds into
+        // (textEmbedding), so the recovered store's vector_dimensions matches the
+        // query vector instead of tripping DimensionMismatch on a toy 4-dim vector.
+        const v_abbey = features.ai.textEmbedding("abbey memory");
+        _ = try s.putVector(&v_abbey);
         try s.store("wdbx:profile:1", "abbey");
-        _ = try s.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+        const v_aviva = features.ai.textEmbedding("aviva memory");
+        _ = try s.putVector(&v_aviva);
         try s.store("wdbx:profile:2", "aviva");
         try wdbx.persistence.saveToPath(std.testing.io, allocator, &s, path);
     }

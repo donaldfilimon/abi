@@ -3,6 +3,7 @@ const build_options = @import("build_options");
 // ── AI & Data ──
 pub const ai = if (build_options.feat_ai) @import("ai/mod.zig") else @import("ai/stub.zig");
 pub const wdbx = if (build_options.feat_wdbx) @import("wdbx/mod.zig") else @import("wdbx/stub.zig");
+pub const sea = if (build_options.feat_sea) @import("sea/mod.zig") else @import("sea/stub.zig");
 
 // ── GPU & Compute ──
 pub const gpu = if (build_options.feat_gpu) @import("gpu/mod.zig") else @import("gpu/stub.zig");
@@ -27,6 +28,7 @@ test {
     // AI & Data
     std.testing.refAllDecls(ai);
     std.testing.refAllDecls(wdbx);
+    std.testing.refAllDecls(sea);
     // GPU & Compute
     std.testing.refAllDecls(gpu);
     std.testing.refAllDecls(accelerator);

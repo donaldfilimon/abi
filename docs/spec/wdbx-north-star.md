@@ -85,7 +85,7 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 ## 4. API Surface
 
 ### Current
-The contract-tested public surfaces are the CLI (`src/abi_cli/usage.zig`) and the MCP tool list (`src/mcp/handlers.zig`): `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `wdbx_stats`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `plugin_run`.
+The contract-tested public surfaces are the CLI (`src/cli/usage.zig`) and the MCP tool list (`src/mcp/handlers.zig`): `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `wdbx_stats`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `plugin_run`.
 
 ### REST (implemented, loopback — `rest.zig`)
 ```
@@ -100,7 +100,7 @@ Served by `abi wdbx api serve [port]` (default 8081). The routing core is a pure
 
 **Current frozen top-level commands** (contract-tested, do not break): `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx` (+ the `abi --tui` shortcut).
 
-**`wdbx` command namespace — implemented** (`src/abi_cli/handlers/wdbx.zig`, contract row added to `tests/contracts/surface.zig`):
+**`wdbx` command namespace — implemented** (`src/cli/handlers/wdbx.zig`, contract row added to `tests/contracts/surface.zig`):
 ```
 wdbx db init <path>        wdbx db verify <path>        # segment checkpoint + WAL integrity
 wdbx block insert <path> <profile> <metadata>           # writes segment checkpoint + WAL

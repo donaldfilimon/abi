@@ -19,7 +19,6 @@ pub const HnswNode = struct {
     id: u32,
     level: usize,
     edges: [MAX_LAYERS]std.ArrayListUnmanaged(u32),
-    lock: sync.SpinLock = .{},
 
     pub fn initEdges(allocator: std.mem.Allocator) [MAX_LAYERS]std.ArrayListUnmanaged(u32) {
         var arr: [MAX_LAYERS]std.ArrayListUnmanaged(u32) = undefined;
@@ -128,8 +127,8 @@ pub fn HnswIndex(comptime D: usize) type {
 
             while (curr_level > level) : (curr_level -= 1) {
                 var best_dist = self.cosineDistance(
-                    self.storage.get(self.nodes.items[curr].id),
-                    self.storage.get(id),
+                    self.storage.get(self.nodes.items[curr].id).?,
+                    self.storage.get(id).?,
                 );
                 var changed = true;
                 while (changed) {
@@ -138,8 +137,8 @@ pub fn HnswIndex(comptime D: usize) type {
                     for (edges) |neighbor| {
                         if (neighbor >= self.nodes.items.len) continue;
                         const dist = self.cosineDistance(
-                            self.storage.get(self.nodes.items[neighbor].id),
-                            self.storage.get(id),
+                            self.storage.get(self.nodes.items[neighbor].id).?,
+                            self.storage.get(id).?,
                         );
                         if (dist < best_dist) {
                             best_dist = dist;
@@ -153,8 +152,8 @@ pub fn HnswIndex(comptime D: usize) type {
             while (true) {
                 try self.connectNodes(curr, node_idx, curr_level);
                 var best_dist = self.cosineDistance(
-                    self.storage.get(self.nodes.items[curr].id),
-                    self.storage.get(id),
+                    self.storage.get(self.nodes.items[curr].id).?,
+                    self.storage.get(id).?,
                 );
                 var changed = true;
                 while (changed) {
@@ -163,8 +162,8 @@ pub fn HnswIndex(comptime D: usize) type {
                     for (edges) |neighbor| {
                         if (neighbor >= self.nodes.items.len) continue;
                         const dist = self.cosineDistance(
-                            self.storage.get(self.nodes.items[neighbor].id),
-                            self.storage.get(id),
+                            self.storage.get(self.nodes.items[neighbor].id).?,
+                            self.storage.get(id).?,
                         );
                         if (dist < best_dist) {
                             best_dist = dist;
@@ -225,7 +224,7 @@ pub fn HnswIndex(comptime D: usize) type {
             try candidates.append(scratch, .{
                 .id = self.entry_node.?,
                 .distance = self.cosineDistance(
-                    self.storage.get(self.nodes.items[self.entry_node.?].id),
+                    self.storage.get(self.nodes.items[self.entry_node.?].id).?,
                     query,
                 ),
             });
@@ -239,7 +238,7 @@ pub fn HnswIndex(comptime D: usize) type {
                 while (changed) {
                     changed = false;
                     const curr_dist = self.cosineDistance(
-                        self.storage.get(self.nodes.items[curr].id),
+                        self.storage.get(self.nodes.items[curr].id).?,
                         query,
                     );
                     const edges = self.nodes.items[curr].edges[curr_level].items;
@@ -252,7 +251,7 @@ pub fn HnswIndex(comptime D: usize) type {
                         if (visited.contains(neighbor)) continue;
                         try visited.put(neighbor, {});
                         neighbor_ids[neighbor_count] = neighbor;
-                        neighbor_vectors[neighbor_count] = self.storage.get(self.nodes.items[neighbor].id);
+                        neighbor_vectors[neighbor_count] = self.storage.get(self.nodes.items[neighbor].id).?;
                         neighbor_count += 1;
                     }
                     try distance.batchCosineDistancesWithOps(

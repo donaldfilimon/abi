@@ -199,10 +199,14 @@ pub const Store = struct {
         // `error.CorruptVectorId` during replay, leaving the store unrecoverable.
         const id = self.next_vector_id;
         try self.index.insert(id, padded_values);
+        // Run the (fallible) acceleration kernel before committing the id so a
+        // kernel error can't burn it (which would log a non-contiguous id to the
+        // WAL on the next successful putVector). On error the errdefer above
+        // still owns padded_values, so this also avoids a double free.
+        self.acceleration = try runtime.runAccelerationKernel("wdbx.putVector", values.len);
         self.next_vector_id += 1;
         self.paddedFree(padded_values);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
-        self.acceleration = try runtime.runAccelerationKernel("wdbx.putVector", values.len);
         // Durably log the vector like blocks/kv/temporal mutations. Recovery now
         // folds the WAL delta on top of the checkpoint (preserving the vector-id
         // counter), so an absolute id in a post-checkpoint delta replays cleanly.
@@ -262,8 +266,9 @@ pub const Store = struct {
     /// buffer — no allocation, no copy — and is valid until the next mutation
     /// that grows or frees that buffer. Returns null if `id` is absent.
     pub fn getVector(self: *const Store, id: u32) ?[]const f32 {
-        if (!self.index.storage.contains(id)) return null;
-        const stored = self.index.storage.get(id);
+        // `get` is now the presence authority (returns null for an absent id),
+        // so the separate `contains` pre-check is no longer needed.
+        const stored = self.index.storage.get(id) orelse return null;
         const dims = self.vector_dimensions orelse return stored;
         return stored[0..dims];
     }
@@ -399,7 +404,8 @@ test "getVector is a zero-copy view aliasing the backing buffer" {
 
     // Zero-copy: the view's data pointer is the same address as the raw backing
     // storage slice — no allocation or copy was made to satisfy the read.
-    try std.testing.expectEqual(store_obj.index.storage.get(id).ptr, view.ptr);
+    const raw = store_obj.index.storage.get(id) orelse return error.MissingVector;
+    try std.testing.expectEqual(raw.ptr, view.ptr);
 }
 
 test "Store rejects mismatched vector dimensions" {

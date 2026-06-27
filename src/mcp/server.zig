@@ -7,7 +7,14 @@ const rpc = @import("rpc.zig");
 const shutdown = @import("shutdown.zig");
 
 const DEFAULT_HTTP_PORT: u16 = 8080;
-const HTTP_PORT_ENV = "ABI_MCP_HTTP_PORT";
+pub const HTTP_PORT_ENV = "ABI_MCP_HTTP_PORT";
+
+// Resolved HTTP listen port. The MCP executable's `main` reads the
+// `ABI_MCP_HTTP_PORT` value from the captured process environment (which lives
+// in the `abi` module, reachable from `main` but not from this transport file
+// under the repo import rules) and pushes it here via `setHttpPort`. Defaults
+// to `DEFAULT_HTTP_PORT` when unset/invalid.
+var configured_http_port: u16 = DEFAULT_HTTP_PORT;
 
 const JsonRpcRequest = protocol.JsonRpcRequest;
 const McpMethod = protocol.McpMethod;
@@ -30,8 +37,12 @@ pub fn runStdioLoop(allocator: std.mem.Allocator, io: std.Io) !void {
     var line_buf: std.ArrayListUnmanaged(u8) = .empty;
     defer line_buf.deinit(allocator);
 
+    // Portable stdin read via the std `Io` File API (works on POSIX + Windows);
+    // replaces the POSIX-only `std.posix.read(STDIN_FILENO, ...)`.
+    const stdin = std.Io.File.stdin();
     while (!isShutdownRequested()) {
-        const n = std.posix.read(std.posix.STDIN_FILENO, &read_buf) catch break;
+        var bufs = [_][]u8{&read_buf};
+        const n = stdin.readStreaming(io, &bufs) catch break;
         if (n == 0) break;
 
         for (read_buf[0..n]) |byte| {
@@ -216,9 +227,15 @@ pub fn wakeHttpServer(io: std.Io) void {
     defer stream.close(io);
 }
 
+/// Set the HTTP listen port from a raw env value (typically
+/// `ABI_MCP_HTTP_PORT`). Empty/invalid/out-of-range/zero falls back to the
+/// default. Called once at MCP startup before the server thread spawns.
+pub fn setHttpPort(raw: ?[]const u8) void {
+    configured_http_port = if (raw) |r| (parseHttpPort(r) orelse DEFAULT_HTTP_PORT) else DEFAULT_HTTP_PORT;
+}
+
 pub fn configuredHttpPort() u16 {
-    const raw = std.c.getenv(HTTP_PORT_ENV) orelse return DEFAULT_HTTP_PORT;
-    return parseHttpPort(std.mem.span(raw)) orelse DEFAULT_HTTP_PORT;
+    return configured_http_port;
 }
 
 fn parseHttpPort(raw: []const u8) ?u16 {

@@ -115,6 +115,59 @@ pub fn runLocalCompletion(allocator: std.mem.Allocator, input: []const u8, model
     return try out.toOwnedSlice(allocator);
 }
 
+/// `ai_learn`: run one SEA self-learning pass against the ambient MCP WDBX store
+/// (the same long-lived store `ai_complete`/`ai_train` use). Mirrors
+/// `runLocalCompletion`'s reporting shape and adds `evidence_count` (recalled
+/// records) and `adapted` (router-weight update). `features.sea` is build-time
+/// selected, so with `-Dfeat-sea=false` the stub degrades to a plain persisted
+/// completion (evidence_count=0, adapted=false).
+pub fn runLearn(allocator: std.mem.Allocator, input: []const u8, model: []const u8, evidence_limit: usize) ![]u8 {
+    const store = state.getWdbxStore();
+
+    state.lockWdbxStore();
+    defer state.unlockWdbxStore();
+
+    const before = store.stats();
+    var result = try features.sea.runLearnLoop(allocator, store, input, model, .{ .evidence_limit = evidence_limit });
+    defer result.deinit(allocator);
+
+    const completion = result.completion;
+    const stats = store.stats();
+    const persisted = completion.query_vector_id != null and completion.response_vector_id != null and completion.block_id != null;
+
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer out.deinit(allocator);
+    try out.print(
+        allocator,
+        "model={s} profile={s} audit_passed={s} persisted={s} evidence_count={d} adapted={s} kv_entries={d} vectors={d} blocks={d} total_kv_entries={d} total_vectors={d} total_blocks={d}",
+        .{
+            completion.model,
+            completion.selected_profile.label(),
+            if (completion.audit.passed) "true" else "false",
+            if (persisted) "true" else "false",
+            result.evidence_count,
+            if (result.adapted) "true" else "false",
+            state.statDelta(stats.kv_entries, before.kv_entries),
+            state.statDelta(stats.vectors, before.vectors),
+            state.statDelta(stats.blocks, before.blocks),
+            stats.kv_entries,
+            stats.vectors,
+            stats.blocks,
+        },
+    );
+    if (completion.query_vector_id) |qid| {
+        try out.print(allocator, " query_vector_id={d} metadata_key=completion:{d}", .{ qid, qid });
+    }
+    if (completion.response_vector_id) |rid| try out.print(allocator, " response_vector_id={d}", .{rid});
+    if (completion.block_id) |block_id| {
+        const block_hex = std.fmt.bytesToHex(block_id, .lower);
+        try out.print(allocator, " block_id={s}", .{&block_hex});
+    }
+    if (!persisted) try out.print(allocator, " wdbx_status={s}", .{stats.acceleration.message});
+    try out.print(allocator, ": {s}", .{completion.output});
+    return try out.toOwnedSlice(allocator);
+}
+
 pub fn wdbxStatsText(allocator: std.mem.Allocator) ![]u8 {
     const store = state.getWdbxStore();
     state.lockWdbxStore();

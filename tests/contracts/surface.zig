@@ -353,6 +353,7 @@ test "MCP tools/list includes contract tools" {
     const expected = [_]struct { name: []const u8, required: []const []const u8 }{
         .{ .name = "ai_run", .required = &.{"input"} },
         .{ .name = "ai_complete", .required = &.{"input"} },
+        .{ .name = "ai_learn", .required = &.{"input"} },
         .{ .name = "ai_train", .required = &.{ "profile", "dataset" } },
         .{ .name = "wdbx_query", .required = &.{"query"} },
         .{ .name = "scheduler_stats", .required = &.{} },

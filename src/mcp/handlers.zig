@@ -42,6 +42,15 @@ const tools: []const ToolDescriptor = &.{
         },
     },
     .{
+        .name = "ai_learn",
+        .description = "Run the SEA self-learning completion: evidence-augmented completion with persona-router adaptation against the MCP WDBX store",
+        .input_schema = "{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"},\"model\":{\"type\":\"string\"},\"evidence_limit\":{\"type\":\"integer\"}},\"required\":[\"input\"]}",
+        .fields = &.{
+            .{ .name = "input", .required = true, .missing_error = error.MissingInput },
+            .{ .name = "model", .required = false, .missing_error = error.MissingModel },
+        },
+    },
+    .{
         .name = "ai_train",
         .description = "Train an agent profile",
         .input_schema = "{\"type\":\"object\",\"properties\":{\"profile\":{\"type\":\"string\"},\"dataset\":{\"type\":\"string\"},\"format\":{\"type\":\"string\",\"enum\":[\"jsonl\",\"csv\",\"text\"]},\"artifact_dir\":{\"type\":\"string\"}},\"required\":[\"profile\",\"dataset\"]}",
@@ -173,6 +182,19 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         return try toolTextResult(allocator, text);
     }
 
+    if (std.mem.eql(u8, tool_name, "ai_learn")) {
+        const args_obj = try toolArguments(params_obj);
+        const input = try objectString(args_obj, "input", error.MissingInput);
+        const requested = objectString(args_obj, "model", error.MissingModel) catch features.ai.models.default_model;
+        const model = features.ai.models.canonical(requested);
+        // `evidence_limit` is an optional integer; the middleware only validates
+        // string fields, so it is read here and defaults to the SEA loop default.
+        const evidence_limit = objectInteger(args_obj, "evidence_limit") orelse 5;
+        const text = try ai_tools.runLearn(allocator, input, model, evidence_limit);
+        defer allocator.free(text);
+        return try toolTextResult(allocator, text);
+    }
+
     if (std.mem.eql(u8, tool_name, "ai_train")) {
         const args_obj = try toolArguments(params_obj);
         const profile = try objectString(args_obj, "profile", error.MissingProfile);
@@ -300,6 +322,16 @@ fn objectString(obj: std.json.ObjectMap, key: []const u8, missing_error: anyerro
     return switch (value) {
         .string => |s| s,
         else => missing_error,
+    };
+}
+
+/// Read an optional non-negative integer argument. Returns null when the key is
+/// absent or is not a non-negative JSON integer, letting the caller default.
+fn objectInteger(obj: std.json.ObjectMap, key: []const u8) ?usize {
+    const value = obj.get(key) orelse return null;
+    return switch (value) {
+        .integer => |n| if (n < 0) null else @intCast(n),
+        else => null,
     };
 }
 

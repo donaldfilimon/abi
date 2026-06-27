@@ -2,6 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const io = @import("io/mod.zig");
 const utils = @import("utils.zig");
+const env = @import("env.zig");
 
 pub const Credentials = struct {
     openai_api_key: ?[]const u8 = null,
@@ -28,8 +29,12 @@ pub fn replaceOwnedString(allocator: std.mem.Allocator, field: *?[]const u8, val
 }
 
 pub fn getCredentialsPath(allocator: std.mem.Allocator) ![]const u8 {
-    const home = std.c.getenv("HOME") orelse return error.HomeNotFound;
-    return try utils.pathJoin(std.mem.span(home), ".abi/credentials.json", allocator);
+    // Portable home-dir resolution (no libc); borrowed from the captured
+    // process environment. Windows exposes the profile dir as USERPROFILE;
+    // POSIX uses HOME.
+    const home_var = if (builtin.target.os.tag == .windows) "USERPROFILE" else "HOME";
+    const home = env.get(home_var) orelse return error.HomeNotFound;
+    return try utils.pathJoin(home, ".abi/credentials.json", allocator);
 }
 
 pub fn loadCredentials(allocator: std.mem.Allocator) !Credentials {

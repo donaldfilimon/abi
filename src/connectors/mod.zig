@@ -9,11 +9,13 @@ pub const anthropic = @import("anthropic.zig");
 pub const discord = @import("discord.zig");
 pub const twilio = @import("twilio.zig");
 pub const grok = @import("grok.zig");
+pub const fm = @import("fm.zig");
 
 // Flatten shared types for backward compatibility
 pub const ConnectorError = connector.ConnectorError;
 pub const TransportMode = connector.TransportMode;
 pub const ConnectorConfig = connector.ConnectorConfig;
+pub const FmConfig = fm.FmConfig;
 pub const transportModeName = connector.transportModeName;
 pub const Response = connector.Response;
 

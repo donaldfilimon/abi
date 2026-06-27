@@ -13,7 +13,7 @@ zig build test-integration    # explicit integration suite
 zig build benchmarks          # explicit benchmark suite
 ```
 
-Zig is pinned by `.zigversion` to `0.17.0-dev.813+2153f8143`; `build.zig.zon` keeps `0.17.0-dev.304+9787df942` as the package minimum. Plain `zig build` may work with a compatible local toolchain, but use `./build.sh ...` on macOS for the documented Darwin workflow.
+Zig is pinned by `.zigversion` to `0.17.0-dev.978+a078d55a2`; `build.zig.zon` keeps `0.17.0-dev.978+a078d55a2` as the package minimum. Plain `zig build` may work with a compatible local toolchain, but use `./build.sh ...` on macOS for the documented Darwin workflow.
 
 ## Current CLI Examples
 
@@ -30,7 +30,7 @@ Zig is pinned by `.zigversion` to `0.17.0-dev.813+2153f8143`; `build.zig.zon` ke
 
 Supported top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, and `scheduler`. The top-level `abi --tui` shortcut also renders the dashboard.
 
-Subcommand grammar mirrors `src/abi_cli/`: `complete [--live] [--model <id>] <input>` (the model id alias-resolves through the catalog, `--live` serves anthropic models over the live transport, and an unrecognized id prints a stderr warning before passing through); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; and `wdbx <db <init|verify> | block <insert|get> | query | benchmark | cluster <status|demo|serve> | compute info | secure demo | gpu info | api serve>`. Malformed numeric arguments return usage with exit code 2 rather than silently using a default.
+Subcommand grammar mirrors `src/cli/`: `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (the model id alias-resolves through the catalog, `--live` serves anthropic models over the live transport, an unrecognized id prints a stderr warning before passing through, `--confirm` is required for on-device `apple-fm`, and `--learn` routes through the SEA self-learning loop; `agent tui` is now an interactive REPL); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; and `wdbx <db <init|verify> | block <insert|get> | query | benchmark | cluster <status|demo|serve> | compute info | secure demo | gpu info | api serve>`. Malformed numeric arguments return usage with exit code 2 rather than silently using a default.
 
 Do not assume old command names exist: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, and `serve` are not currently dispatched.
 
@@ -40,7 +40,7 @@ Do not assume old command names exist: `version`, `doctor`, `features`, `platfor
 | --- | --- |
 | `src/root.zig` | Public `abi` module root |
 | `src/main.zig` | CLI entry |
-| `src/abi_cli/` | CLI usage, dispatch, handlers |
+| `src/cli/` | CLI usage, dispatch, handlers |
 | `src/mcp/main.zig` | MCP entry point (spawns HTTP, runs stdio loop) |
 | `src/features/mod.zig` | Feature flag mod/stub selection |
 | `src/features/ai/` | AI profiles, router, constitution, training, local streaming helpers |
@@ -55,9 +55,9 @@ Do not assume old command names exist: `version`, `doctor`, `features`, `platfor
 
 ## Feature Flags
 
-Default enabled: `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`, `feat-hash`.
+Default enabled: `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`, `feat-hash`, `feat-telemetry`.
 
-Default disabled: `feat-mobile`, `feat-metrics`.
+Default disabled: `feat-mobile`, `feat-metrics`, `feat-sea` (`src/features/sea/`, Sparse Evidence Attention self-learning loop), `feat-foundationmodels` (`src/connectors/fm.zig`, Apple on-device FoundationModels — macOS-only; links `FoundationModels.framework` + a `swiftc`-built `libabi_fm_shim.dylib`; on-device generation works via a Swift `@c` shim (SE-0495), runtime-verified on Apple-Intelligence hardware).
 
 Use `-Dfeat-<name>=false|true`, for example:
 
@@ -77,7 +77,7 @@ There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 - HTTP endpoints: `GET /sse`, `POST /message`.
 - Request size limit: 64KB.
 - Methods: `initialize`, `tools/list`, `tools/call`, `resources/list`, `prompts/list`, `ping`, `shutdown`.
-- Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`.
+- Tools (12, count asserted in `tests/contracts/surface.zig`): `ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. (`ai_learn` runs the SEA loop; degrades to a stored completion when `feat-sea` is off.)
 
 ## Development Rules
 

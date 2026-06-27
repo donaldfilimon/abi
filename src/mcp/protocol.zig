@@ -51,3 +51,32 @@ pub fn validateRequest(line: []const u8) !void {
     while (i < line.len and (line[i] == ' ' or line[i] == '\t')) : (i += 1) {}
     if (i >= line.len or line[i] != '{') return error.InvalidJsonFormat;
 }
+
+test "protocol: McpMethod.fromString maps known and unknown methods" {
+    try std.testing.expectEqual(McpMethod.initialize, McpMethod.fromString("initialize"));
+    try std.testing.expectEqual(McpMethod.@"tools/call", McpMethod.fromString("tools/call"));
+    try std.testing.expectEqual(McpMethod.@"tools/list", McpMethod.fromString("tools/list"));
+    try std.testing.expectEqual(McpMethod.ping, McpMethod.fromString("ping"));
+    // Unrecognized and empty method names fall through to `.unknown`.
+    try std.testing.expectEqual(McpMethod.unknown, McpMethod.fromString("tools/run"));
+    try std.testing.expectEqual(McpMethod.unknown, McpMethod.fromString(""));
+}
+
+test "protocol: validateRequest accepts an object line and rejects malformed input" {
+    // Happy path: a JSON object, optionally with leading whitespace.
+    try validateRequest("{\"jsonrpc\":\"2.0\"}");
+    try validateRequest("  \t{\"a\":1}");
+
+    // Edge/malformed cases each map to a distinct, stable error.
+    try std.testing.expectError(error.EmptyRequest, validateRequest(""));
+    try std.testing.expectError(error.InvalidJsonFormat, validateRequest("not json"));
+    try std.testing.expectError(error.InvalidJsonFormat, validateRequest("   "));
+
+    var oversized: [MAX_REQUEST_SIZE + 1]u8 = undefined;
+    @memset(&oversized, '{');
+    try std.testing.expectError(error.RequestTooLarge, validateRequest(&oversized));
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

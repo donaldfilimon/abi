@@ -1,4 +1,10 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
+pub const repl = @import("repl.zig");
+pub const ReplLoop = repl.ReplLoop;
+pub const ReplState = repl.ReplState;
+pub const ReplConfig = repl.ReplConfig;
 
 pub const Status = enum {
     ready,
@@ -151,18 +157,33 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
 
 // --- Interactive Terminal Helpers ---
 
-extern fn isatty(fd: std.posix.fd_t) callconv(.c) c_int;
+/// Portable stdin file descriptor/handle. `std.Io.File.stdin().handle` is a
+/// `std.posix.fd_t` on every target (fd 0 on POSIX, the console HANDLE on
+/// Windows), avoiding the `STDIN_FILENO` comptime-int vs HANDLE mismatch.
+pub fn stdinFd() std.posix.fd_t {
+    return std.Io.File.stdin().handle;
+}
 
-pub const InteractiveTerminal = struct {
+/// Raw-mode interactive terminal. Comptime-selected per platform so non-POSIX
+/// targets never instantiate the termios/poll path. The public API (init/deinit/
+/// readKey/pollInput) is identical across platforms and mirrors `stub.zig`.
+pub const InteractiveTerminal = if (builtin.os.tag == .windows)
+    WindowsInteractiveTerminal
+else
+    PosixInteractiveTerminal;
+
+/// POSIX (macOS/Linux) raw-mode terminal. libc-free: TTY detection comes from
+/// `tcgetattr` failing with ENOTTY on a non-terminal, so no `isatty` extern is
+/// needed (which would be an undefined symbol on a no-libc Linux link).
+const PosixInteractiveTerminal = struct {
     fd: std.posix.fd_t,
     original: std.posix.termios,
     is_tty: bool,
 
-    pub fn init(fd: std.posix.fd_t) !InteractiveTerminal {
-        const is_tty = isatty(fd) != 0;
-        if (!is_tty) return error.NotATerminal;
-
-        const original = try std.posix.tcgetattr(fd);
+    pub fn init(fd: std.posix.fd_t) !PosixInteractiveTerminal {
+        // tcgetattr fails with ENOTTY on a non-tty; treat that as the
+        // "not a terminal" signal and let callers fall back to line mode.
+        const original = std.posix.tcgetattr(fd) catch return error.NotATerminal;
         var raw = original;
         raw.lflag.ICANON = false;
         raw.lflag.ECHO = false;
@@ -177,13 +198,13 @@ pub const InteractiveTerminal = struct {
         return .{ .fd = fd, .original = original, .is_tty = true };
     }
 
-    pub fn deinit(self: *InteractiveTerminal) void {
+    pub fn deinit(self: *PosixInteractiveTerminal) void {
         std.posix.tcsetattr(self.fd, .FLUSH, self.original) catch |err| {
             std.log.warn("failed to restore terminal: {s}", .{@errorName(err)});
         };
     }
 
-    pub fn readKey(self: *InteractiveTerminal) ?u8 {
+    pub fn readKey(self: *PosixInteractiveTerminal) ?u8 {
         var buf: [1]u8 = undefined;
         const n = std.posix.read(self.fd, &buf) catch |err| {
             std.log.warn("read stdin failed: {s}", .{@errorName(err)});
@@ -197,10 +218,41 @@ pub const InteractiveTerminal = struct {
     /// timeout blocks indefinitely). Returns true if a key is ready to read,
     /// false on timeout or error. This lets the dashboard loop refresh on a
     /// timer while staying responsive to keystrokes.
-    pub fn pollInput(self: *InteractiveTerminal, timeout_ms: i32) bool {
+    pub fn pollInput(self: *PosixInteractiveTerminal, timeout_ms: i32) bool {
         var fds = [_]std.posix.pollfd{.{ .fd = self.fd, .events = std.posix.POLL.IN, .revents = 0 }};
         const n = std.posix.poll(&fds, timeout_ms) catch return false;
         return n > 0 and (fds[0].revents & std.posix.POLL.IN) != 0;
+    }
+};
+
+/// Windows terminal: minimal first cut (option b). There is no POSIX termios/
+/// poll on Windows, so `init` reports `error.NotATerminal` and the REPL/dashboard
+/// engage their existing line-mode fallbacks, preserving the `agent tui` clean-
+/// exit contract. A real Console-API raw mode (GetConsoleMode/SetConsoleMode +
+/// ReadConsoleInput) can replace this later; the ANSI render helpers below are
+/// already portable.
+const WindowsInteractiveTerminal = struct {
+    fd: std.posix.fd_t,
+    is_tty: bool = false,
+
+    pub fn init(fd: std.posix.fd_t) !WindowsInteractiveTerminal {
+        _ = fd;
+        return error.NotATerminal;
+    }
+
+    pub fn deinit(self: *WindowsInteractiveTerminal) void {
+        _ = self;
+    }
+
+    pub fn readKey(self: *WindowsInteractiveTerminal) ?u8 {
+        _ = self;
+        return null;
+    }
+
+    pub fn pollInput(self: *WindowsInteractiveTerminal, timeout_ms: i32) bool {
+        _ = self;
+        _ = timeout_ms;
+        return false;
     }
 };
 
