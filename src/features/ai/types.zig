@@ -59,7 +59,7 @@ pub const TrainingResult = struct {
 
 pub const CompletionRequest = struct {
     input: []const u8,
-    model: []const u8 = "abi-local",
+    model: []const u8 = "claude-fable-5",
     store_result: bool = false,
 };
 

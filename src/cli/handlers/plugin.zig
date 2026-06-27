@@ -52,3 +52,16 @@ pub fn handlePlugin(allocator: std.mem.Allocator, args: []const []const u8) !u8 
 
     return usage_mod.usageError("usage: abi plugin list | run <name> [input]");
 }
+
+test "plugin dispatch rejects malformed grammar with exit code 2" {
+    const allocator = std.testing.allocator;
+    // Missing subcommand, unknown subcommand, and `run` without a name all reject
+    // with usage (exit 2) before the plugin registry is loaded.
+    try std.testing.expectEqual(@as(u8, 2), try handlePlugin(allocator, &.{ "abi", "plugin" }));
+    try std.testing.expectEqual(@as(u8, 2), try handlePlugin(allocator, &.{ "abi", "plugin", "bogus" }));
+    try std.testing.expectEqual(@as(u8, 2), try handlePlugin(allocator, &.{ "abi", "plugin", "run" }));
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -11,7 +11,7 @@ North-star vision (long-horizon direction, current-vs-proposed mapping): `docs/s
 | WDBX write-ahead log + recovery | ✅ Done | `src/features/wdbx/wal.zig`: CRC32-framed append-only records for kv, blocks, temporal nodes, and causal edges; deterministic replay (reuses `persistence.deserialize`); flipped-byte + bad-header rejection. `src/features/wdbx/recovery.zig` selects WAL-ahead state over stale checkpoints. CLI runtime commands now recover before `block get`, `query`, and the next `block insert`, while `db verify` still surfaces divergence. |
 | Multi-segment storage + epoch reclamation | ✅ Done (default runtime checkpoint) | `src/features/wdbx/segments.zig`: manifest-backed immutable segment checkpoints, monotonic epochs, `loadLatest`, active epoch listing, reset, and watermark reclamation. `src/features/wdbx/recovery.zig` prefers segment checkpoints over legacy snapshots, and `abi wdbx db/block/query` now writes/opens through the segment checkpoint path while keeping the monolithic snapshot as a compatibility mirror. |
 | Temporal/causal graph + hybrid ranker | ✅ Done (persisted + default MCP path) | `src/features/wdbx/temporal.zig`: recency half-life decay, causal BFS hop weight, `semantic × temporal × causal × persona` ranker. `src/features/wdbx/retrieval.zig` composes HNSW semantic search with the hybrid ranker, JSONL snapshots persist temporal nodes/edges, and MCP `wdbx_query` now returns hybrid-ranked local matches with component scores. |
-| `wdbx` CLI namespace | ✅ Done | `src/abi_cli/handlers/wdbx.zig`: `db init/verify`, `block insert/get`, `query`, `benchmark`, `cluster status/demo`, `compute info`, `secure demo`, `gpu info`, `api serve`. Frozen-CLI contract = 11 commands (`tests/contracts/surface.zig`). `db verify` cross-checks WAL replay vs the current checkpoint; runtime commands recover WAL-ahead state. Comptime-gated on `feat_wdbx`. |
+| `wdbx` CLI namespace | ✅ Done | `src/cli/handlers/wdbx.zig`: `db init/verify`, `block insert/get`, `query`, `benchmark`, `cluster status/demo`, `compute info`, `secure demo`, `gpu info`, `api serve`. Frozen-CLI contract = 11 commands (`tests/contracts/surface.zig`). `db verify` cross-checks WAL replay vs the current checkpoint; runtime commands recover WAL-ahead state. Comptime-gated on `feat_wdbx`. |
 | Mod/stub parity for new wdbx modules | ✅ Done | `wal`, `temporal`, `recovery`, `retrieval`, `segments`, `cluster`, `cluster_rpc`, `compression`, `neural_compress`, `crypto_he`, `fhe`, `compute`, `rest` exported from `mod.zig`; matching empty parity markers in `stub.zig`; `zig build check-parity` green with `-Dfeat-wdbx=false`. |
 | In-process cluster consensus (demo) | ✅ Done (in-process) | `src/features/wdbx/cluster.zig`: Raft-style leader election, majority-quorum replication, leader failover, quorum-loss detection over an in-process node array; `abi wdbx cluster demo`. 4 named tests. **Not** networked/multi-host. |
 | Compute backend selector | ✅ Done | `src/features/wdbx/compute.zig`: CPU (`scalar`/`avx2`/`avx512`/`neon`, host-detected) / GPU / NPU / TPU enumeration + dynamic selection, always degrading to the deterministic CPU SIMD path; `abi wdbx compute info`. 3 named tests. Native ANE/TPU/CUDA/Metal dispatch **not linked**. |
@@ -44,7 +44,7 @@ Advances the V18 success criteria beyond the Phase-1 demos above. **10 of 11 cri
 
 | Item | Status | Notes |
 | ---- | ------ | ----- |
-| WDBX HNSW index implementation | ✅ Done | SIMD cosine distance, concurrent insert with SpinLock |
+| WDBX HNSW index implementation | ✅ Done | SIMD cosine distance, inserts serialized under the index-level RwLock |
 | WDBX block chain with MVCC | ✅ Done | SHA-256 chained blocks, snapshot isolation |
 | AI pipeline router (Abbey-Aviva-Abi) | ✅ Done | Sentiment analysis, adaptive weighting, profile routing |
 | Constitution governance module | ✅ Done | 6-principle validation with scoring |
@@ -89,7 +89,7 @@ Advances the V18 success criteria beyond the Phase-1 demos above. **10 of 11 cri
 | Accelerator backend expansion | ✅ Done | Expanded to match GPU backend variants |
 | Foundation IO optimization | ✅ Done | Async IO layer with buffered reader/writer |
 | Plugin registry enhancements | ✅ Done | PluginManager with manifest validation, load/unload/list |
-| Cross-compilation CI | ✅ Done | GitHub Actions native checks plus Linux/macOS cross-compile smoke builds |
+| Cross-compilation (Linux/Windows/macOS) | ◑ Compiles; no CI yet | The CLI **and** MCP server now compile+link for `x86_64-linux-gnu`, `x86_64-windows-gnu`, and `aarch64-macos` (verify: `./tools/cross_smoke.sh` or `zig build cross-smoke`). Build-time tools (`gen_plugin_registry`, `check_parity`) are host-targeted (`b.graph.host`); env/time go through portable, libc-free layers (`foundation/env.zig` captures `Init.environ_map`; `foundation/time.zig` uses the `Io` real/awake clocks); TUI/signals/stdin are comptime-branched per OS (Windows raw-mode terminal + Ctrl-C handler are option-b stubs — documented gaps). Remaining: a `.github/` matrix, the test suite's `/tmp` + `std.c.getpid` test-only helpers for Windows runtime, and Windows runtime verification (not possible from a macOS host). |
 | GPU backend stubs completion | ✅ Done | Metal framework linked on macOS with Objective-C runtime initialization path; vector operations fall back safely when native kernels are unavailable |
 | Mobile mod/stub pair | ✅ Done | feat-mobile mod.zig + stub.zig created; runtime profile/mode artifacts, layout validation, disabled-stub parity, and feature-on/off contract coverage are verified |
 | Twilio live transport | ✅ Done | httpPostForm helper, ConversationRelayEventLive with Basic auth, TwiML builder, configurable escalation |
@@ -107,6 +107,7 @@ See `tasks/roadmap-next.md` for the full refreshed view. High-level priorities:
 - Tests for real scheduler usage in training: ✅ added ("scheduler drives training tasks" integration test + agent handler now submits real TrainTask via sched).
 - Live transport integration tests: ✅ Done (LoopbackHttpServer + httpPostJson/Form round-trip tests).
 - MemoryTracker in WDBX hot paths (putVector, search): ✅ Done (non-fallible trackAllocNoTag/trackFreeNoTag + integration test). Tagged allocations now use live-record semantics: `trackFree` removes the newest matching pointer record, `trackResize` updates pointer/size accounting, and `TrackingAllocator` keeps current usage/record count live across free/remap/resize paths.
+- MemoryTracker — HNSW search scratch + AI completion transient: ✅ Done (`15c98a4`, `e97d537`). `Index.search` records its per-query scratch arena and `completeWithStore` records its transient metadata/key buffers as balanced alloc/free pairs (escaping `results`/response are intentionally untracked). Reached parity-safely via method-only `Store.getTracker()` (mod returns tracker, stub returns null — top-level decl parity unchanged); `core/memory` gained `getTotalAllocated`/`getTotalFreed` so transient tracking is isolatable from persistent. Verified `./build.sh check` 510/510 + `check-parity` green. Remaining: training-pipeline + adaptive-weight AI internals.
 - Pool allocator adoption in WDBX: ✅ Done for padded vector buffers and small spatial payload copies through `Store.initWithConfig`.
 - TUI interactivity: ✅ Done (InteractiveTerminal in tui/mod.zig owns raw mode + key reading; dashboard.zig simplified).
 
@@ -135,7 +136,7 @@ Multi-agent pass against `main` (work coordinated across disjoint slices; `./bui
 **Completions (functionality that did nothing now works):**
 - **telemetry** — was an inert on-by-default feature (`record`/`increment` no-ops, 0 callsites). Now a real process-wide, lock-guarded, allocation-free counter sink with `counterValue`/`totalEvents`/`distinctCounters`/`droppedEvents`/`reset`; stub mirrors for parity. (`src/features/telemetry/`)
 - **metrics.snapshotGauges** — was a placeholder returning empty while `setGauge` populated the map (gauge data unreadable). Implemented to mirror `snapshotCounters`; added `getGauge`; fixed a key-string leak in `deinit`. (`src/features/metrics/`)
-- **live TUI** — dashboard loop blocked on `readKey` so it never auto-refreshed. Added `InteractiveTerminal.pollInput` (poll(2)); loop now redraws on a ~1s timer, responds to `q`/`r` instantly, flicker-free redraw (`homeScreen`+`clearToEnd`). (`src/features/tui/`, `src/abi_cli/handlers/dashboard.zig`)
+- **live TUI** — dashboard loop blocked on `readKey` so it never auto-refreshed. Added `InteractiveTerminal.pollInput` (poll(2)); loop now redraws on a ~1s timer, responds to `q`/`r` instantly, flicker-free redraw (`homeScreen`+`clearToEnd`). (`src/features/tui/`, `src/cli/handlers/dashboard.zig`)
 
 **Organization / dead-code:**
 - **MCP** `handlers.zig` decomposed: `connector_tools.zig`, `plugin_tools.zig`, `state.zig`, `ai_tools.zig`, rpc/shutdown split (584L → slim dispatch facade).
@@ -144,7 +145,7 @@ Multi-agent pass against `main` (work coordinated across disjoint slices; `./bui
 - **connectors** inline tests extracted to `src/connectors/tests.zig` (`mod.zig` 634L → 23L, re-export surface intact).
 - **dead code removed**: `OSController.execute` + its `Command` enum + `Registry.getOSController` + the `SystemInfo.total_memory_mb` placeholder (zero callers). (`src/foundation/os.zig`, `src/core/registry.zig`)
 
-**Verification:** `./build.sh full-check` (check + integration + benchmarks + TUI smoke) green; `check-parity` green; legacy-Zig-pattern sweep of `connectors/foundation/core/abi_cli/plugins` came back clean (already idiomatic).
+**Verification:** `./build.sh full-check` (check + integration + benchmarks + TUI smoke) green; `check-parity` green; legacy-Zig-pattern sweep of `connectors/foundation/core/cli/plugins` came back clean (already idiomatic).
 
 ## Things To Do Next
 

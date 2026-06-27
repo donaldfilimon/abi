@@ -58,7 +58,7 @@
 **Description:** Update the actual call sites in CLI handlers and MCP so that training and completion work is submitted through the new helpers when a scheduler context is available. Preserve all existing public signatures.
 
 **Files/components affected:**
-- Modify: `src/abi_cli/handlers/agent.zig`, `src/abi_cli/handlers/train.zig` (and any other AI entry points)
+- Modify: `src/cli/handlers/agent.zig`, `src/cli/handlers/train.zig` (and any other AI entry points)
 - Modify: `src/mcp/handlers.zig`
 - Modify: `src/features/ai/mod.zig` (internal wiring)
 - Tests: integration tests that exercise the paths
@@ -83,7 +83,7 @@
 
 - [ ] **Step 6: Commit**
    ```bash
-   git add src/abi_cli/handlers/ src/mcp/handlers.zig src/features/ai/
+   git add src/cli/handlers/ src/mcp/handlers.zig src/features/ai/
    git commit -m "feat: wire AI training/completion through scheduler (CLI + MCP)"
    ```
 

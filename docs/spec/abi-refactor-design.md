@@ -8,7 +8,7 @@
 
 ## 1. Architectural Vision: Data-Oriented Composition
 
-The current tree uses a flat, registry-based composition model optimized for Zig 0.17.0. Treat `build.zig`, `src/features/mod.zig`, `src/abi_cli/usage.zig`, and contract tests as source truth when this design drifts.
+The current tree uses a flat, registry-based composition model optimized for Zig 0.17.0. Treat `build.zig`, `src/features/mod.zig`, `src/cli/usage.zig`, and contract tests as source truth when this design drifts.
 
 ### 1.1 Core Principles
 - **Explicit Memory Management**: Use dedicated allocators (Arena, Pool) for different component lifecycles.
@@ -23,7 +23,7 @@ The current tree uses a flat, registry-based composition model optimized for Zig
 ```
 src/
 ├── root.zig           # Public API and feature exports
-├── main.zig           # CLI entry point (delegates to abi_cli/)
+├── main.zig           # CLI entry point (delegates to cli/)
 ├── interfaces.zig     # Cross-module contract types (small shared request/response structs for MCP/CLI surfaces; originally scoped as larger greenfield rewrite)
 ├── core/              # Registry, config, memory, scheduler
 │   ├── registry.zig
@@ -111,7 +111,7 @@ src/
 │   ├── twilio.zig     # Twilio ConversationRelay simulator with SID/token/base-url/timeout validation
 │   ├── grok.zig       # Grok/xAI connector (local deterministic + .live opt-in)
 │   └── tests.zig      # Connector contract and live-boundary tests imported by mod.zig
-├── abi_cli/           # CLI dispatch, handlers, usage
+├── cli/           # CLI dispatch, handlers, usage
 │   ├── dispatch.zig   # Top-level command routing
 │   ├── usage.zig      # Source of truth for CLI help text
 │   └── handlers/      # Per-command handler implementations
@@ -215,7 +215,7 @@ const ConversationBlock = struct {
 
 ### 4.4 WDBX Runtime Control Surface (`abi wdbx`) and Roadmap Modules
 
-`src/abi_cli/handlers/wdbx.zig` adds an `abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` namespace — the 11th frozen CLI command, with its contract row in `tests/contracts/surface.zig`. It is comptime-gated on `build_options.feat_wdbx` and backed by the in-process store, segment checkpoints, the compatibility JSONL snapshot mirror, and the write-ahead log:
+`src/cli/handlers/wdbx.zig` adds an `abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` namespace — the 11th frozen CLI command, with its contract row in `tests/contracts/surface.zig`. It is comptime-gated on `build_options.feat_wdbx` and backed by the in-process store, segment checkpoints, the compatibility JSONL snapshot mirror, and the write-ahead log:
 
 - `db init|verify`, `block insert|get`, `query` — segment checkpoint + WAL lifecycle; runtime reads/writes recover WAL-ahead state, while `db verify` cross-checks WAL replay against the current checkpoint block count and reports divergence until a write checkpoints it. Legacy snapshot files are still written as mirrors for direct-load tooling.
 - `benchmark [count]` — local in-memory insert/search timing (explicitly *not* a published throughput claim).
@@ -225,7 +225,7 @@ MCP `wdbx_query` uses the same in-process WDBX substrate through `src/mcp/ai_too
 
 The namespace also exercises forward-looking WDBX modules that are deliberately scoped as honest, **in-process demonstrations — not production or distributed capabilities**. See `docs/spec/wdbx-north-star.md` for the Current/Partial/Proposed mapping and `docs/contracts/external-claims-audit.md` for the claim boundary:
 
-- `cluster status|demo` (`cluster.zig`) — an in-process Raft-style core (leader election, majority-quorum replication, failover). There is **no** networked RPC transport; `cluster status` reports `nodes=1 role=standalone`.
+- `cluster status|demo|serve` (`cluster.zig`, `cluster_rpc.zig`) — an in-process Raft-style core (leader election, majority-quorum replication, failover). `cluster status` reports the real consensus state machine's view (a single node that elects itself leader); `cluster serve <port> [node]` serves that node's consensus RPC (RequestVote/AppendEntries) over **loopback `127.0.0.1` only**. Multi-host orchestration beyond loopback remains Phase-2.
 - `compute info` (`compute.zig`) — a CPU/GPU/NPU/TPU backend selector that always degrades to the deterministic CPU SIMD path; native accelerator dispatch is not linked.
 - `secure demo` (`compression.zig` + `crypto_he.zig`) — int8 embedding quantization round-trip plus additive single-key homomorphic aggregation. This is not a learned codec and not full (multiplicative) FHE.
 - `api serve [port]` (`rest.zig`) — a loopback-only REST listener (`POST /insert /query /verify`, `GET /health /stats`, default port 8081) built on a pure, unit-tested routing core.
@@ -267,16 +267,16 @@ See `tasks/roadmap-next.md` (Streams 1-2), `tasks/todo.md` (Core scheduler + mem
 
 ## 6. Maintenance Strategy
 
-1. **Source truth first**: Reconcile architecture prose against `build.zig`, `src/features/mod.zig`, `src/abi_cli/usage.zig`, `docs/contracts/public-api.md`, and contract tests before changing public surfaces.
+1. **Source truth first**: Reconcile architecture prose against `build.zig`, `src/features/mod.zig`, `src/cli/usage.zig`, `docs/contracts/public-api.md`, and contract tests before changing public surfaces.
 2. **Mod/stub parity**: Any public feature API change must update both `mod.zig` and `stub.zig`, including disabled-feature semantics, then pass `zig build check-parity`. The parity checker covers top-level public declaration names for feature/plugin pairs, not full signature equivalence. The check gate also runs focused feature-off behavior smoke tests and feature-aware public contracts for every `-Dfeat-*` flag.
 3. **Generated registry**: Do not edit `src/plugin_registry.zig`; update plugin manifests and regenerate through the build step. Required manifest fields are `name`, `version`, `description`, `target_feature`, and `entry_point`; `targetFeature` / `entryPoint` aliases are accepted. `entry_point` must be a safe relative `.zig` path that exists under the plugin directory. Contract coverage expects multiple bundled plugin fixtures to remain discoverable.
-4. **Import boundaries**: Library modules under `src/` use relative imports with `.zig` extensions. MCP executable/handler files (`src/mcp/main.zig`, `src/mcp/handlers.zig`) may import the public `abi` package because `build.zig` wires that package explicitly; never do so from modules re-exported by `src/root.zig`.
+4. **Import boundaries**: Library modules under `src/` use relative imports with `.zig` extensions. The MCP executable + handler module graph (`src/mcp/main.zig` plus the `handlers.zig` group: `handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) may import the public `abi` package because `build.zig` wires that package explicitly; never do so from modules re-exported by `src/root.zig`.
 5. **Verification gates**: For source changes run `./build.sh check`; for release/readiness changes run `./build.sh full-check` (`check` plus integration tests, benchmarks, and TUI smoke).
 6. **External claims**: Do not reuse spreadsheet or analysis-document claims for AES/RBAC, Swift/Python/TensorFlow stacks, distributed sharding, Kubernetes/H100 deployments, regulatory certifications, QPS/latency/accuracy, energy use, or SQuAD/CodeSearchNet/GPT comparisons unless the claim is tied to a current repo test, source implementation, or benchmark artifact.
 7. **Design doc hygiene**: When refreshing this file (or any architecture prose), treat the following as executable source of truth and diff against them before publishing updates:
    - `build.zig` (feature flag defaults and wiring)
    - `src/features/mod.zig` (mod/stub selection + re-exports)
-   - `src/abi_cli/usage.zig` (frozen CLI command surface)
+   - `src/cli/usage.zig` (frozen CLI command surface)
    - `src/root.zig` (public namespace exports)
    - `docs/contracts/public-api.md`
    - `tests/contracts/*.zig` (surface, mcp_tools, feature_modules, plugin_registry, public_docs)

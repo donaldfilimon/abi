@@ -329,6 +329,16 @@ test "CLI command surface is frozen" {
         try std.testing.expect(std.mem.startsWith(u8, cmd.usage, "abi "));
         try std.testing.expect(cmd.summary.len > 0);
     }
+
+    // Regression guard for the model-catalog doc-sync: the `complete` command
+    // must keep advertising both `--model` and `--live` in its summary so the
+    // help surface does not silently drop the flags the handler supports.
+    for (usage.commands) |cmd| {
+        if (std.mem.eql(u8, cmd.name, "complete")) {
+            try std.testing.expect(std.mem.indexOf(u8, cmd.summary, "--model") != null);
+            try std.testing.expect(std.mem.indexOf(u8, cmd.summary, "--live") != null);
+        }
+    }
 }
 
 test "MCP tools/list includes contract tools" {
@@ -343,6 +353,7 @@ test "MCP tools/list includes contract tools" {
     const expected = [_]struct { name: []const u8, required: []const []const u8 }{
         .{ .name = "ai_run", .required = &.{"input"} },
         .{ .name = "ai_complete", .required = &.{"input"} },
+        .{ .name = "ai_learn", .required = &.{"input"} },
         .{ .name = "ai_train", .required = &.{ "profile", "dataset" } },
         .{ .name = "wdbx_query", .required = &.{"query"} },
         .{ .name = "scheduler_stats", .required = &.{} },

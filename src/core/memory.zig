@@ -137,6 +137,21 @@ pub const MemoryTracker = struct {
         return self.total_allocated - self.total_freed;
     }
 
+    /// Cumulative bytes ever observed as allocated (never decreases). Unlike
+    /// `getCurrentUsage`, this still reflects transient allocations that were
+    /// allocated and freed within one operation (e.g. per-query search scratch),
+    /// so it can prove a balanced hot-path allocation was actually tracked.
+    pub fn getTotalAllocated(self: *const MemoryTracker) usize {
+        return self.total_allocated;
+    }
+
+    /// Cumulative bytes ever observed as freed (never decreases). Non-zero only
+    /// once a balanced/transient allocation has been released, so it isolates
+    /// transient tracking from persistent (never-freed-until-deinit) tracking.
+    pub fn getTotalFreed(self: *const MemoryTracker) usize {
+        return self.total_freed;
+    }
+
     /// Non-fallible tracking for hot-path use (no tag string allocation).
     pub fn trackAllocNoTag(self: *MemoryTracker, size: usize) void {
         self.total_allocated += size;

@@ -82,6 +82,17 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
 
     const key = try std.fmt.allocPrint(allocator, "completion:{d}", .{query_id});
     defer allocator.free(key);
+
+    // The metadata JSON and key string are transient owned buffers (freed by the
+    // defers above). Record them as a balanced alloc/free pair on the store's
+    // tracker so the completion persistence step's own memory cost is observable
+    // alongside the store's vector tracking, without registering a false leak.
+    if (store.getTracker()) |t| {
+        const transient = metadata.len + key.len;
+        t.trackAllocNoTag(transient);
+        t.trackFreeNoTag(transient);
+    }
+
     try store.store(key, metadata);
 
     const block_id = try store.appendBlock(result.selected_profile.label(), query_id, response_id, metadata);
@@ -158,6 +169,28 @@ test "metadata JSON escapes model and profile fields" {
     defer std.testing.allocator.free(metadata);
     try std.testing.expect(std.mem.indexOf(u8, metadata, "\"model\":\"m\\\"x\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, metadata, "\"profile\":\"abbey\"") != null);
+}
+
+test "completeWithStore tracks transient persistence memory and frees it" {
+    if (!build_options.feat_wdbx) return;
+    const memory = @import("../../core/memory.zig");
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+    var tracker = memory.MemoryTracker.init(allocator);
+    defer tracker.deinit();
+    store.setTracker(&tracker);
+
+    const result = try completeWithStore(allocator, &store, .{ .input = "trace memory", .store_result = true });
+    defer result.deinit(allocator);
+
+    // The completion persistence step records its transient metadata + key
+    // buffers as a balanced alloc/free pair. Vector inserts are persistent (never
+    // freed until store.deinit), so a non-zero total-freed isolates and proves the
+    // newly-wired AI-internal transient tracking actually fired and balanced.
+    try std.testing.expect(tracker.getTotalAllocated() > 0);
+    try std.testing.expect(tracker.getTotalFreed() > 0);
 }
 
 test {

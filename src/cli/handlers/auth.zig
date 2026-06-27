@@ -35,6 +35,13 @@ pub fn handleAuth(io_mod: std.Io, allocator: std.mem.Allocator, args: []const []
         if (args.len != 4) return usage_mod.usageError("usage: abi auth signin <openai|anthropic|discord|grok|twilio>");
         const service = args[3];
 
+        // Reject unknown services before any credential I/O or stdin prompt, so
+        // malformed grammar fails fast with exit 2 and never touches the
+        // credential store (and stays independent of $HOME for pure validation).
+        if (!isKnownService(service)) {
+            return usage_mod.usageError("usage: abi auth signin <openai|anthropic|discord|grok|twilio>");
+        }
+
         var creds = try credentials.loadCredentials(allocator);
         defer creds.deinit(allocator);
 
@@ -43,20 +50,30 @@ pub fn handleAuth(io_mod: std.Io, allocator: std.mem.Allocator, args: []const []
 
         if (std.mem.eql(u8, service, "openai")) {
             const key = try readSecretLine(&stdin_reader, "Enter API key/token for openai: ");
+            if (isBlankCredential(key)) return emptyCredentialError();
             try credentials.replaceOwnedString(allocator, &creds.openai_api_key, key);
         } else if (std.mem.eql(u8, service, "anthropic")) {
             const key = try readSecretLine(&stdin_reader, "Enter API key/token for anthropic: ");
+            if (isBlankCredential(key)) return emptyCredentialError();
             try credentials.replaceOwnedString(allocator, &creds.anthropic_api_key, key);
         } else if (std.mem.eql(u8, service, "discord")) {
             const key = try readSecretLine(&stdin_reader, "Enter API key/token for discord: ");
+            if (isBlankCredential(key)) return emptyCredentialError();
             try credentials.replaceOwnedString(allocator, &creds.discord_token, key);
         } else if (std.mem.eql(u8, service, "grok")) {
             const key = try readSecretLine(&stdin_reader, "Enter API key/token for grok: ");
+            if (isBlankCredential(key)) return emptyCredentialError();
             try credentials.replaceOwnedString(allocator, &creds.grok_api_key, key);
         } else if (std.mem.eql(u8, service, "twilio")) {
+            // Read→guard→dupe per line: `readSecretLine` returns a slice into the
+            // shared reader buffer that the next read overwrites, so each secret
+            // must be duped before the next is read. Guarding before
+            // `saveCredentials` leaves any existing on-disk credential untouched.
             const sid = try readSecretLine(&stdin_reader, "Enter Twilio Account SID: ");
-            const token = try readSecretLine(&stdin_reader, "Enter Twilio Auth Token: ");
+            if (isBlankCredential(sid)) return emptyCredentialError();
             try credentials.replaceOwnedString(allocator, &creds.twilio_account_sid, sid);
+            const token = try readSecretLine(&stdin_reader, "Enter Twilio Auth Token: ");
+            if (isBlankCredential(token)) return emptyCredentialError();
             try credentials.replaceOwnedString(allocator, &creds.twilio_auth_token, token);
         } else {
             return usage_mod.usageError("unknown service; use openai, anthropic, discord, grok, or twilio");
@@ -74,4 +91,48 @@ fn readSecretLine(stdin_reader: anytype, prompt: []const u8) ![]const u8 {
     std.debug.print("{s}", .{prompt});
     const line = (try stdin_reader.interface.takeDelimiter('\n')) orelse return error.EndOfStream;
     return utils.trimWhitespace(line);
+}
+
+/// A credential is blank when, after whitespace trimming, nothing remains.
+/// Storing a blank secret would make `auth status` report a service as
+/// "configured" while no usable credential exists, so signin rejects it.
+fn isBlankCredential(line: []const u8) bool {
+    return utils.trimWhitespace(line).len == 0;
+}
+
+fn emptyCredentialError() u8 {
+    return usage_mod.usageError("empty credential provided; nothing was saved");
+}
+
+/// Services the `signin` dispatch chain knows how to prompt for. Checked up
+/// front so unknown grammar rejects (exit 2) before any credential I/O.
+fn isKnownService(service: []const u8) bool {
+    inline for (.{ "openai", "anthropic", "discord", "grok", "twilio" }) |s| {
+        if (std.mem.eql(u8, service, s)) return true;
+    }
+    return false;
+}
+
+test "auth dispatch rejects malformed grammar with exit code 2" {
+    const allocator = std.testing.allocator;
+    const t = std.testing.io;
+    // No subcommand, unknown subcommand, signin wrong arity, and signin with an
+    // unknown service all reject with usage (exit 2) before any stdin read.
+    try std.testing.expectEqual(@as(u8, 2), try handleAuth(t, allocator, &.{ "abi", "auth" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleAuth(t, allocator, &.{ "abi", "auth", "bogus" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleAuth(t, allocator, &.{ "abi", "auth", "signin" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleAuth(t, allocator, &.{ "abi", "auth", "signin", "openai", "extra" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleAuth(t, allocator, &.{ "abi", "auth", "signin", "notaservice" }));
+}
+
+test "blank credential detection trims whitespace" {
+    try std.testing.expect(isBlankCredential(""));
+    try std.testing.expect(isBlankCredential("   "));
+    try std.testing.expect(isBlankCredential("\t \n"));
+    try std.testing.expect(!isBlankCredential("sk-abc"));
+    try std.testing.expect(!isBlankCredential("  sk-abc  "));
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

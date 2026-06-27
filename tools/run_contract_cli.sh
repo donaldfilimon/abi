@@ -24,7 +24,7 @@ require_substring() {
 }
 
 complete_out="$("$ABI" complete "hello world" 2>&1)"
-require_substring "$complete_out" "model=abi-local"
+require_substring "$complete_out" "model=claude-fable-5"
 require_substring "$complete_out" "audit_passed="
 require_substring "$complete_out" "persisted="
 require_substring "$complete_out" "wdbx kv_entries="

@@ -111,6 +111,16 @@ pub fn trainWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, config: 
     );
     defer allocator.free(value);
 
+    // Record the transient key + value persistence buffers (freed by the defers
+    // above) as a balanced alloc/free pair on the store's tracker — mirroring the
+    // completion path — so the training persistence step's own memory cost is
+    // observable alongside the store's vector tracking, without a false leak.
+    if (store.getTracker()) |t| {
+        const transient = key.len + value.len;
+        t.trackAllocNoTag(transient);
+        t.trackFreeNoTag(transient);
+    }
+
     try store.store(key, value);
     _ = try store.appendBlock(config.profile, query_id, response_id, value);
     const dataset_records = result.records_stored;
@@ -180,6 +190,51 @@ test "training config validation rejects empty paths" {
         .profile = "abbey",
         .dataset = .{ .path = "" },
         .artifact_dir = "zig-cache/agents",
+    }));
+}
+
+test "trainWithStore tracks transient persistence memory and frees it" {
+    if (!build_options.feat_wdbx) return;
+    const memory = @import("../../core/memory.zig");
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+    var tracker = memory.MemoryTracker.init(allocator);
+    defer tracker.deinit();
+    store.setTracker(&tracker);
+
+    var result = try trainWithStore(allocator, &store, .{
+        .profile = "abbey",
+        .dataset = .{ .path = "datasets/local-training.jsonl" },
+        .artifact_dir = "zig-cache/agent-artifacts",
+    });
+    defer result.deinit(allocator);
+
+    // Persistent putVector/appendBlock allocations never free until store.deinit,
+    // so a non-zero total-freed isolates and proves the newly-wired transient
+    // key/value tracking actually fired and balanced (mirrors the completion path).
+    try std.testing.expect(tracker.getTotalAllocated() > 0);
+    try std.testing.expect(tracker.getTotalFreed() > 0);
+}
+
+test "evaluate accepts a valid config and rejects an invalid profile" {
+    const r = try evaluate(.{
+        .profile = "abbey",
+        .dataset = .{ .path = "datasets/x.jsonl" },
+        .artifact_dir = "zig-cache/agent-artifacts",
+    });
+    // evaluate borrows config strings (owned=false) and reports acceptance — no
+    // allocation, so no deinit is required.
+    try std.testing.expect(r.accepted);
+    try std.testing.expectEqual(@as(usize, 1), r.records_stored);
+    try std.testing.expectEqualStrings("abbey", r.profile);
+
+    // An unknown profile is rejected up front by validateTrainingConfig.
+    try std.testing.expectError(error.InvalidTrainingProfile, evaluate(.{
+        .profile = "notaprofile",
+        .dataset = .{ .path = "d" },
+        .artifact_dir = "a",
     }));
 }
 

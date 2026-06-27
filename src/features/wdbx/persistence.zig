@@ -40,7 +40,11 @@ pub fn serialize(allocator: std.mem.Allocator, store: *const wdbx_mod.Store) ![]
 
     const vector_dims = store.vector_dimensions orelse 0;
     for (store.index.nodes.items) |node| {
-        const stored = store.index.storage.get(node.id);
+        // Every node in the index was inserted with its vector before being
+        // appended to `nodes` (hnsw.insert order), so `get` is always present
+        // here; `.?` asserts that invariant rather than silently dropping a
+        // vector from the export.
+        const stored = store.index.storage.get(node.id).?;
         const values = if (vector_dims > 0) stored[0..vector_dims] else stored;
         var w = std.json.Stringify{ .writer = &out.writer, .options = .{ .whitespace = .minified } };
         try w.beginObject();

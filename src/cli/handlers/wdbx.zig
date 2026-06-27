@@ -6,7 +6,7 @@ const runtime_commands = @import("wdbx_runtime.zig");
 
 const wdbx = features.wdbx;
 
-/// `abi wdbx <db|block|query|benchmark|cluster|gpu|api> ...`
+/// `abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api> ...`
 ///
 /// A WDBX runtime control surface backed by the in-process store, JSONL
 /// snapshot persistence, and the write-ahead log. Cluster/api report honest
@@ -81,7 +81,9 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     }
 
     if (std.mem.eql(u8, sub, "benchmark")) {
-        const count: usize = if (args.len >= 4) (std.fmt.parseInt(usize, args[3], 10) catch 256) else 256;
+        // A malformed count is a user typo, not a request for the default —
+        // surface usage rather than silently running 256 inserts.
+        const count: usize = if (args.len >= 4) (std.fmt.parseInt(usize, args[3], 10) catch return usage()) else 256;
         return runtime_commands.benchmark(allocator, count);
     }
 
@@ -109,13 +111,13 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
             );
             return 0;
         } else if (std.mem.eql(u8, args[3], "demo")) {
-            const nodes: usize = if (args.len >= 5) (std.fmt.parseInt(usize, args[4], 10) catch 3) else 3;
+            const nodes: usize = if (args.len >= 5) (std.fmt.parseInt(usize, args[4], 10) catch return usage()) else 3;
             if (nodes < 1) return usage();
             return runtime_commands.clusterDemo(allocator, nodes);
         } else if (std.mem.eql(u8, args[3], "serve")) {
             if (args.len < 5) return usage();
             const port: u16 = std.fmt.parseInt(u16, args[4], 10) catch return usage();
-            const node_id: u32 = if (args.len >= 6) (std.fmt.parseInt(u32, args[5], 10) catch 0) else 0;
+            const node_id: u32 = if (args.len >= 6) (std.fmt.parseInt(u32, args[5], 10) catch return usage()) else 0;
             return runtime_commands.clusterServe(io, allocator, port, node_id);
         }
         return usage();
@@ -138,7 +140,8 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
 
     if (std.mem.eql(u8, sub, "api")) {
         if (args.len < 4 or !std.mem.eql(u8, args[3], "serve")) return usage();
-        const port: u16 = if (args.len >= 5) (std.fmt.parseInt(u16, args[4], 10) catch 8081) else 8081;
+        // A bad port is a typo, not the default — fail loudly with usage.
+        const port: u16 = if (args.len >= 5) (std.fmt.parseInt(u16, args[4], 10) catch return usage()) else 8081;
         return runtime_commands.serveApi(io, allocator, port);
     }
 
@@ -171,6 +174,17 @@ test "wdbx handler usage returns non-zero without args" {
     const args = [_][]const u8{ "abi", "wdbx" };
     const code = try handleWdbx(std.testing.io, std.testing.allocator, &args);
     try std.testing.expectEqual(@as(u8, 2), code);
+}
+
+test "wdbx rejects malformed numeric args with usage instead of silent defaults" {
+    if (!build_options.feat_wdbx) return;
+    const allocator = std.testing.allocator;
+    // A typo'd count/port/node must surface usage (exit 2), not silently run
+    // the default value — this guards the parseInt-catch-return-usage paths.
+    try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "benchmark", "notanumber" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "cluster", "demo", "notanumber" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "api", "serve", "99999" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "cluster", "serve", "7000", "notanode" }));
 }
 
 test "wdbx db init + block insert + verify + query round-trip" {
@@ -227,9 +241,14 @@ test "wdbx query runs scoped to a persona over a recovered store" {
     {
         var s = wdbx.Store.init(allocator);
         defer s.deinit();
-        _ = try s.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+        // Insert vectors in the same EMBED_DIM space the query path embeds into
+        // (textEmbedding), so the recovered store's vector_dimensions matches the
+        // query vector instead of tripping DimensionMismatch on a toy 4-dim vector.
+        const v_abbey = features.ai.textEmbedding("abbey memory");
+        _ = try s.putVector(&v_abbey);
         try s.store("wdbx:profile:1", "abbey");
-        _ = try s.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+        const v_aviva = features.ai.textEmbedding("aviva memory");
+        _ = try s.putVector(&v_aviva);
         try s.store("wdbx:profile:2", "aviva");
         try wdbx.persistence.saveToPath(std.testing.io, allocator, &s, path);
     }

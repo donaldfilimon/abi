@@ -19,7 +19,6 @@ pub const HnswNode = struct {
     id: u32,
     level: usize,
     edges: [MAX_LAYERS]std.ArrayListUnmanaged(u32),
-    lock: sync.SpinLock = .{},
 
     pub fn initEdges(allocator: std.mem.Allocator) [MAX_LAYERS]std.ArrayListUnmanaged(u32) {
         var arr: [MAX_LAYERS]std.ArrayListUnmanaged(u32) = undefined;
@@ -128,8 +127,8 @@ pub fn HnswIndex(comptime D: usize) type {
 
             while (curr_level > level) : (curr_level -= 1) {
                 var best_dist = self.cosineDistance(
-                    self.storage.get(self.nodes.items[curr].id),
-                    self.storage.get(id),
+                    self.storage.get(self.nodes.items[curr].id).?,
+                    self.storage.get(id).?,
                 );
                 var changed = true;
                 while (changed) {
@@ -138,8 +137,8 @@ pub fn HnswIndex(comptime D: usize) type {
                     for (edges) |neighbor| {
                         if (neighbor >= self.nodes.items.len) continue;
                         const dist = self.cosineDistance(
-                            self.storage.get(self.nodes.items[neighbor].id),
-                            self.storage.get(id),
+                            self.storage.get(self.nodes.items[neighbor].id).?,
+                            self.storage.get(id).?,
                         );
                         if (dist < best_dist) {
                             best_dist = dist;
@@ -153,8 +152,8 @@ pub fn HnswIndex(comptime D: usize) type {
             while (true) {
                 try self.connectNodes(curr, node_idx, curr_level);
                 var best_dist = self.cosineDistance(
-                    self.storage.get(self.nodes.items[curr].id),
-                    self.storage.get(id),
+                    self.storage.get(self.nodes.items[curr].id).?,
+                    self.storage.get(id).?,
                 );
                 var changed = true;
                 while (changed) {
@@ -163,8 +162,8 @@ pub fn HnswIndex(comptime D: usize) type {
                     for (edges) |neighbor| {
                         if (neighbor >= self.nodes.items.len) continue;
                         const dist = self.cosineDistance(
-                            self.storage.get(self.nodes.items[neighbor].id),
-                            self.storage.get(id),
+                            self.storage.get(self.nodes.items[neighbor].id).?,
+                            self.storage.get(id).?,
                         );
                         if (dist < best_dist) {
                             best_dist = dist;
@@ -225,7 +224,7 @@ pub fn HnswIndex(comptime D: usize) type {
             try candidates.append(scratch, .{
                 .id = self.entry_node.?,
                 .distance = self.cosineDistance(
-                    self.storage.get(self.nodes.items[self.entry_node.?].id),
+                    self.storage.get(self.nodes.items[self.entry_node.?].id).?,
                     query,
                 ),
             });
@@ -239,7 +238,7 @@ pub fn HnswIndex(comptime D: usize) type {
                 while (changed) {
                     changed = false;
                     const curr_dist = self.cosineDistance(
-                        self.storage.get(self.nodes.items[curr].id),
+                        self.storage.get(self.nodes.items[curr].id).?,
                         query,
                     );
                     const edges = self.nodes.items[curr].edges[curr_level].items;
@@ -252,7 +251,7 @@ pub fn HnswIndex(comptime D: usize) type {
                         if (visited.contains(neighbor)) continue;
                         try visited.put(neighbor, {});
                         neighbor_ids[neighbor_count] = neighbor;
-                        neighbor_vectors[neighbor_count] = self.storage.get(self.nodes.items[neighbor].id);
+                        neighbor_vectors[neighbor_count] = self.storage.get(self.nodes.items[neighbor].id).?;
                         neighbor_count += 1;
                     }
                     try distance.batchCosineDistancesWithOps(
@@ -283,6 +282,18 @@ pub fn HnswIndex(comptime D: usize) type {
                     .id = self.nodes.items[candidates.items[idx].id].id,
                     .score = 1.0 - candidates.items[idx].distance,
                 };
+            }
+
+            // Record the per-query scratch working set (candidate list + visited
+            // set + batch temporaries) as a balanced alloc/free pair: it was
+            // allocated and is about to be freed by the arena `defer`, so search
+            // memory cost becomes observable in the tracker (peak + total) without
+            // registering a false leak. The returned `results` array escapes to
+            // the caller and is intentionally NOT tracked here.
+            if (self.tracker) |t| {
+                const scratch_bytes = arena.queryCapacity();
+                t.trackAllocNoTag(scratch_bytes);
+                t.trackFreeNoTag(scratch_bytes);
             }
             return results;
         }
@@ -370,7 +381,7 @@ test "HnswIndex multiple inserts" {
     try std.testing.expect(results.len == 5);
 }
 
-test "HnswIndex tracks edge-list memory and searches via scratch arena" {
+test "HnswIndex tracks edge-list memory and balanced search-scratch memory" {
     const Index = HnswIndex(4);
     var index = Index.init(std.testing.allocator);
     defer index.deinit();
@@ -388,10 +399,17 @@ test "HnswIndex tracks edge-list memory and searches via scratch arena" {
     // Edge-list allocations were observed by the tracker.
     try std.testing.expect(tracker.getPeakUsage() > 0);
 
-    // Search runs entirely on its per-query arena and returns owned results.
+    // Search now records its per-query scratch working set as a balanced
+    // alloc/free pair: cumulative allocation grows (search memory is observable)
+    // while current usage returns to the pre-search baseline — the arena scratch
+    // was freed, so no false leak is registered and the owned results escape.
+    const total_before = tracker.getTotalAllocated();
+    const current_before = tracker.getCurrentUsage();
     const results = try index.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 5);
     defer std.testing.allocator.free(results);
     try std.testing.expectEqual(@as(usize, 5), results.len);
+    try std.testing.expect(tracker.getTotalAllocated() > total_before);
+    try std.testing.expectEqual(current_before, tracker.getCurrentUsage());
 }
 
 test {

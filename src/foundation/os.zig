@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const env = @import("env.zig");
 
 pub const Limits = struct {
     max_memory_mb: u32 = 1024,
@@ -53,12 +54,23 @@ pub const OSController = struct {
 
     pub fn getPid(self: *OSController) u32 {
         _ = self;
-        return @as(u32, @intCast(std.c.getpid()));
+        // Portable PID without forcing libc on Linux/Windows: Linux uses the raw
+        // syscall wrapper, Windows the Win32 API, macOS/BSD libc (always linked).
+        return switch (builtin.target.os.tag) {
+            .windows => std.os.windows.GetCurrentProcessId(),
+            .linux => @intCast(std.os.linux.getpid()),
+            else => @intCast(std.c.getpid()),
+        };
     }
 
     pub fn getParentPid(self: *OSController) u32 {
         _ = self;
-        return @as(u32, @intCast(std.c.getppid()));
+        return switch (builtin.target.os.tag) {
+            // Windows has no cheap getppid; report 0 (unknown). Documented gap.
+            .windows => 0,
+            .linux => @intCast(std.os.linux.getppid()),
+            else => @intCast(std.c.getppid()),
+        };
     }
 
     pub fn readPath(self: *OSController, path: []const u8) ![]const u8 {
@@ -94,11 +106,10 @@ pub const OSController = struct {
     }
 
     pub fn getEnvVar(self: *OSController, key: []const u8) ![]const u8 {
-        const value = std.process.getEnvVar(self.allocator, key) catch |err| switch (err) {
-            error.EnvironmentVariableMissing => return error.EnvVarNotFound,
-            else => return err,
-        };
-        return value;
+        // Portable, libc-free lookup from the captured process environment;
+        // returns an owned copy (caller frees) to preserve the prior contract.
+        const value = env.get(key) orelse return error.EnvVarNotFound;
+        return try self.allocator.dupe(u8, value);
     }
 
     pub fn getCwd(self: *OSController) ![]const u8 {
@@ -131,18 +142,20 @@ pub const OSController = struct {
     }
 
     pub fn getHostname(self: *OSController) ![]const u8 {
+        // Windows has no POSIX gethostname / HOST_NAME_MAX; resolve via the
+        // COMPUTERNAME env var (owned copy) and fall back to "unknown". The
+        // comptime branch keeps Windows from ever instantiating HOST_NAME_MAX.
+        if (builtin.target.os.tag == .windows) {
+            const name = env.get("COMPUTERNAME") orelse "unknown";
+            return try self.allocator.dupe(u8, name);
+        }
         var buf: [std.posix.HOST_NAME_MAX]u8 = undefined;
         const hostname = try std.posix.gethostname(&buf);
         return try self.allocator.dupe(u8, hostname);
     }
 
     pub fn getSystemInfo(self: *OSController) !SystemInfo {
-        var hostname_buf: [std.posix.HOST_NAME_MAX]u8 = undefined;
-        const hostname_len = blk: {
-            const hostname_slice = try std.posix.gethostname(&hostname_buf);
-            break :blk std.mem.indexOfScalar(u8, &hostname_buf, 0) orelse hostname_slice.len;
-        };
-        const hostname = try self.allocator.dupe(u8, hostname_buf[0..hostname_len]);
+        const hostname = try self.getHostname();
         errdefer self.allocator.free(hostname);
 
         return SystemInfo{

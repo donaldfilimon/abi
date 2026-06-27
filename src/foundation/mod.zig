@@ -1,4 +1,5 @@
 pub const time = @import("time.zig");
+pub const env = @import("env.zig");
 pub const plugin_validator = @import("plugin_validator.zig");
 pub const sync = @import("sync.zig");
 pub const logger = @import("logger.zig");
@@ -22,6 +23,7 @@ test {
     _ = @import("logger.zig");
     _ = @import("pool_allocator.zig");
     _ = @import("time.zig");
+    _ = @import("env.zig");
     _ = @import("plugin_validator.zig");
     std.testing.refAllDecls(@This());
 }

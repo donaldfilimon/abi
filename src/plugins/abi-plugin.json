@@ -1,7 +1,0 @@
-{
-  "name": "example-plugin",
-  "version": "0.1.0",
-  "description": "An example plugin for the ABI framework",
-  "target_feature": "plugins",
-  "entry_point": "mod.zig"
-}

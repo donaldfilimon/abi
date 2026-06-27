@@ -13,6 +13,8 @@ pub const Provider = enum {
     anthropic,
     openai,
     grok,
+    /// Apple FoundationModels on-device runtime (see `connectors/fm.zig`).
+    fm,
 
     pub fn label(self: Provider) []const u8 {
         return switch (self) {
@@ -20,17 +22,21 @@ pub const Provider = enum {
             .anthropic => "anthropic",
             .openai => "openai",
             .grok => "grok",
+            .fm => "fm",
         };
     }
 };
 
+/// Anthropic Fable 5 — the model this catalog was introduced to make
+/// first-class and selectable across the CLI and MCP surfaces, and now the
+/// default recorded when a caller does not request a model.
+pub const fable5 = "claude-fable-5";
+
 /// Default model label recorded when a caller does not request one. Kept in
 /// sync with `CompletionRequest.model` and the MCP `ai_complete` default.
-pub const default_model = "abi-local";
-
-/// Anthropic Fable 5 — the model this catalog was introduced to make
-/// first-class and selectable across the CLI and MCP surfaces.
-pub const fable5 = "claude-fable-5";
+/// `abi-local` remains a selectable local model (see the catalog below); the
+/// default now points at first-class Claude Fable 5.
+pub const default_model = fable5;
 
 pub const Entry = struct {
     id: []const u8,
@@ -42,11 +48,12 @@ pub const Entry = struct {
 /// Recognized model catalog. Freeform ids are still accepted by callers; this
 /// list drives recognition, alias resolution, and provider routing.
 pub const catalog = [_]Entry{
-    .{ .id = default_model, .provider = .local },
+    .{ .id = "abi-local", .provider = .local },
     .{ .id = fable5, .provider = .anthropic, .aliases = &.{ "fable-5", "fable5" } },
     .{ .id = "claude-opus-4-8", .provider = .anthropic },
     .{ .id = "claude-sonnet-4-6", .provider = .anthropic },
     .{ .id = "claude-haiku-4-5", .provider = .anthropic },
+    .{ .id = "apple-fm", .provider = .fm, .aliases = &.{ "fm-local", "fm" } },
 };
 
 /// Resolve a user-supplied id (including short aliases) to its canonical id,
@@ -85,6 +92,7 @@ pub fn providerOf(id: []const u8) Provider {
     if (std.mem.startsWith(u8, id, "claude-")) return .anthropic;
     if (std.mem.startsWith(u8, id, "gpt-")) return .openai;
     if (std.mem.startsWith(u8, id, "grok")) return .grok;
+    if (std.mem.startsWith(u8, id, "apple-")) return .fm;
     return .local;
 }
 
@@ -102,9 +110,19 @@ test "canonical resolves aliases and passes freeform ids through" {
     try std.testing.expectEqualStrings("gpt-5-mystery", canonical("gpt-5-mystery"));
 }
 
+test "apple-fm is recognized and routes to the on-device fm provider" {
+    try std.testing.expect(isKnown("apple-fm"));
+    try std.testing.expectEqualStrings("apple-fm", resolve("fm").?);
+    try std.testing.expectEqualStrings("apple-fm", resolve("fm-local").?);
+    try std.testing.expectEqualStrings("apple-fm", canonical("fm"));
+    try std.testing.expectEqual(Provider.fm, providerOf("apple-fm"));
+    try std.testing.expectEqual(Provider.fm, providerOf("apple-future-model"));
+    try std.testing.expectEqualStrings("fm", Provider.fm.label());
+}
+
 test "default model stays local and is recognized" {
     try std.testing.expect(isKnown(default_model));
-    try std.testing.expectEqual(Provider.local, providerOf(default_model));
+    try std.testing.expectEqual(Provider.anthropic, providerOf(default_model));
 }
 
 test "unknown ids are not known but prefixes still classify" {

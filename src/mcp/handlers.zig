@@ -4,6 +4,7 @@ const json_helpers = @import("json_helpers.zig");
 const ai_tools = @import("ai_tools.zig");
 const connector_tools = @import("connector_tools.zig");
 const plugin_tools = @import("plugin_tools.zig");
+const middleware = @import("middleware.zig");
 const abi = @import("abi");
 
 pub fn handleInitializeJson(allocator: std.mem.Allocator, params: ?std.json.Value) ![]u8 {
@@ -17,6 +18,9 @@ const ToolDescriptor = struct {
     name: []const u8,
     description: []const u8,
     input_schema: []const u8, // pre-serialized JSON object (without outer {})
+    /// Declarative validation rules enforced by `middleware.validateArguments`
+    /// before dispatch. Empty for no-argument tools.
+    fields: []const middleware.FieldSpec = &.{},
 };
 
 const tools: []const ToolDescriptor = &.{
@@ -24,21 +28,46 @@ const tools: []const ToolDescriptor = &.{
         .name = "ai_run",
         .description = "Run AI inference with internal profile routing",
         .input_schema = "{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"}},\"required\":[\"input\"]}",
+        .fields = &.{
+            .{ .name = "input", .required = true, .missing_error = error.MissingInput },
+        },
     },
     .{
         .name = "ai_complete",
         .description = "Run local model completion and record metadata in the MCP WDBX store when available",
         .input_schema = "{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"},\"model\":{\"type\":\"string\"}},\"required\":[\"input\"]}",
+        .fields = &.{
+            .{ .name = "input", .required = true, .missing_error = error.MissingInput },
+            .{ .name = "model", .required = false, .missing_error = error.MissingModel },
+        },
+    },
+    .{
+        .name = "ai_learn",
+        .description = "Run the SEA self-learning completion: evidence-augmented completion with persona-router adaptation against the MCP WDBX store",
+        .input_schema = "{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"},\"model\":{\"type\":\"string\"},\"evidence_limit\":{\"type\":\"integer\"}},\"required\":[\"input\"]}",
+        .fields = &.{
+            .{ .name = "input", .required = true, .missing_error = error.MissingInput },
+            .{ .name = "model", .required = false, .missing_error = error.MissingModel },
+        },
     },
     .{
         .name = "ai_train",
         .description = "Train an agent profile",
         .input_schema = "{\"type\":\"object\",\"properties\":{\"profile\":{\"type\":\"string\"},\"dataset\":{\"type\":\"string\"},\"format\":{\"type\":\"string\",\"enum\":[\"jsonl\",\"csv\",\"text\"]},\"artifact_dir\":{\"type\":\"string\"}},\"required\":[\"profile\",\"dataset\"]}",
+        .fields = &.{
+            .{ .name = "profile", .required = true, .kind = .identifier, .missing_error = error.MissingProfile },
+            .{ .name = "dataset", .required = true, .kind = .file_path, .missing_error = error.MissingDataset },
+            .{ .name = "format", .required = false, .kind = .enum_choice, .missing_error = error.InvalidDatasetFormat, .invalid_error = error.InvalidDatasetFormat, .choices = &.{ "jsonl", "csv", "text" } },
+            .{ .name = "artifact_dir", .required = false, .kind = .file_path, .missing_error = error.MissingArtifactDir },
+        },
     },
     .{
         .name = "wdbx_query",
         .description = "Query the vector store",
         .input_schema = "{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}",
+        .fields = &.{
+            .{ .name = "query", .required = true, .missing_error = error.MissingQuery },
+        },
     },
     .{
         .name = "scheduler_stats",
@@ -54,6 +83,10 @@ const tools: []const ToolDescriptor = &.{
         .name = "connector_test",
         .description = "Exercise a connector through its deterministic local path",
         .input_schema = "{\"type\":\"object\",\"properties\":{\"service\":{\"type\":\"string\",\"enum\":[\"openai\",\"anthropic\",\"discord\",\"twilio\",\"grok\"]},\"input\":{\"type\":\"string\"}},\"required\":[\"service\",\"input\"]}",
+        .fields = &.{
+            .{ .name = "service", .required = true, .kind = .enum_choice, .missing_error = error.MissingConnectorService, .invalid_error = error.UnknownConnector, .choices = &.{ "openai", "anthropic", "discord", "twilio", "grok" } },
+            .{ .name = "input", .required = true, .missing_error = error.MissingInput },
+        },
     },
     .{
         .name = "gpu_status",
@@ -74,6 +107,10 @@ const tools: []const ToolDescriptor = &.{
         .name = "plugin_run",
         .description = "Execute a registered plugin",
         .input_schema = "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"input\":{\"type\":\"string\"}},\"required\":[\"name\"]}",
+        .fields = &.{
+            .{ .name = "name", .required = true, .kind = .identifier, .missing_error = error.MissingPluginName },
+            .{ .name = "input", .required = false, .missing_error = error.MissingInput },
+        },
     },
 };
 
@@ -112,6 +149,18 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         else => return error.MissingToolName,
     };
 
+    // Enforce each tool's declarative argument policy before dispatch. The
+    // descriptor's per-field `missing_error`/`invalid_error` mirror the handlers'
+    // historical errors, so the frozen MCP error contract is preserved while NUL,
+    // length, path-traversal, and enum checks now run uniformly. Unknown names
+    // match no descriptor and fall through to the UnknownTool arm below.
+    for (tools) |descriptor| {
+        if (std.mem.eql(u8, tool_name, descriptor.name)) {
+            try middleware.validateArguments(descriptor.fields, params_obj);
+            break;
+        }
+    }
+
     const ai_mod = features.ai;
     if (std.mem.eql(u8, tool_name, "ai_run")) {
         const args_obj = try toolArguments(params_obj);
@@ -124,11 +173,24 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
     if (std.mem.eql(u8, tool_name, "ai_complete")) {
         const args_obj = try toolArguments(params_obj);
         const input = try objectString(args_obj, "input", error.MissingInput);
-        const requested = objectString(args_obj, "model", error.MissingModel) catch "abi-local";
+        const requested = objectString(args_obj, "model", error.MissingModel) catch features.ai.models.default_model;
         // Canonicalize catalog aliases (e.g. "fable-5" -> "claude-fable-5") so the
         // recorded model label is canonical; unknown ids pass through unchanged.
         const model = features.ai.models.canonical(requested);
         const text = try ai_tools.runLocalCompletion(allocator, input, model);
+        defer allocator.free(text);
+        return try toolTextResult(allocator, text);
+    }
+
+    if (std.mem.eql(u8, tool_name, "ai_learn")) {
+        const args_obj = try toolArguments(params_obj);
+        const input = try objectString(args_obj, "input", error.MissingInput);
+        const requested = objectString(args_obj, "model", error.MissingModel) catch features.ai.models.default_model;
+        const model = features.ai.models.canonical(requested);
+        // `evidence_limit` is an optional integer; the middleware only validates
+        // string fields, so it is read here and defaults to the SEA loop default.
+        const evidence_limit = objectInteger(args_obj, "evidence_limit") orelse 5;
+        const text = try ai_tools.runLearn(allocator, input, model, evidence_limit);
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
     }
@@ -216,6 +278,37 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
     return error.UnknownTool;
 }
 
+/// Maps any error that can surface from request dispatch to a stable,
+/// non-leaking client message. Both the stdio and HTTP transports route through
+/// this so neither exposes raw `@errorName` identifiers (the HTTP path formerly
+/// interpolated `@errorName(err)` straight into the JSON-RPC error body).
+pub fn errorMessage(err: anyerror) []const u8 {
+    return switch (err) {
+        error.ParseError, error.InvalidJsonFormat, error.RequestTooLarge => "Parse error",
+        error.InvalidRequest => "Invalid Request",
+        error.MethodNotFound, error.UnknownTool => "Method not found",
+        error.MissingParams => "Missing params",
+        error.MissingToolName => "Missing tool name",
+        error.MissingArguments => "Missing arguments",
+        error.MissingInput => "Missing input",
+        error.MissingModel => "Missing model",
+        error.MissingProfile => "Missing profile",
+        error.MissingDataset => "Missing dataset",
+        error.MissingQuery => "Missing query",
+        error.MissingConnectorService => "Missing connector service",
+        error.MissingPluginName => "Missing plugin name",
+        error.MissingArtifactDir => "Missing artifact dir",
+        error.UnknownConnector => "Invalid connector service",
+        error.InvalidDatasetFormat => "Invalid dataset format",
+        error.InvalidFieldValue => "Invalid field value",
+        error.InvalidFieldEncoding => "Invalid field encoding",
+        error.FieldTooLong => "Field too long",
+        error.PathTraversal => "Invalid path",
+        error.InvalidCompletionInput => "Invalid input",
+        else => "Internal error",
+    };
+}
+
 fn toolArguments(params_obj: std.json.ObjectMap) !std.json.ObjectMap {
     const args_val = params_obj.get("arguments") orelse return error.MissingArguments;
     return switch (args_val) {
@@ -229,6 +322,16 @@ fn objectString(obj: std.json.ObjectMap, key: []const u8, missing_error: anyerro
     return switch (value) {
         .string => |s| s,
         else => missing_error,
+    };
+}
+
+/// Read an optional non-negative integer argument. Returns null when the key is
+/// absent or is not a non-negative JSON integer, letting the caller default.
+fn objectInteger(obj: std.json.ObjectMap, key: []const u8) ?usize {
+    const value = obj.get(key) orelse return null;
+    return switch (value) {
+        .integer => |n| if (n < 0) null else @intCast(n),
+        else => null,
     };
 }
 
@@ -251,4 +354,29 @@ fn toolTextResult(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
     try json_helpers.appendJsonString(&out, allocator, text);
     try out.appendSlice(allocator, "}]}");
     return out.toOwnedSlice(allocator);
+}
+
+// --- Tests ---
+
+// Pins the middleware↔catalog invariant the validation layer relies on: every
+// field a tool validates (its `fields` policy) must also be advertised in that
+// tool's `input_schema`. Without this, a validated-but-unadvertised field (or a
+// renamed schema property) would drift silently — the middleware would reject an
+// argument the published schema never mentioned.
+test "every validated field is advertised in the tool input schema" {
+    for (tools) |descriptor| {
+        for (descriptor.fields) |field| {
+            std.testing.expect(std.mem.indexOf(u8, descriptor.input_schema, field.name) != null) catch |err| {
+                std.debug.print(
+                    "tool '{s}' validates field '{s}' absent from its input_schema\n",
+                    .{ descriptor.name, field.name },
+                );
+                return err;
+            };
+        }
+    }
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

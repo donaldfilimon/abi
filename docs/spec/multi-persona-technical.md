@@ -50,7 +50,7 @@ graph TD
 | WDBX | `src/features/wdbx/mod.zig` | In-process key/value, vector, block, spatial, and stats surfaces. |
 | HNSW | `src/features/wdbx/hnsw.zig` | HNSW-style cosine search with SIMD path and GPU-vector-op fallback integration. |
 | Persistence | `src/features/wdbx/persistence.zig` | JSONL snapshot serialize/restore with SHA-256 integrity and tamper rejection. |
-| CLI | `src/abi_cli/` | Frozen command surface and handlers. |
+| CLI | `src/cli/` | Frozen command surface and handlers. |
 | MCP | `src/mcp/` | JSON-RPC 2.0 stdio and optional loopback HTTP/SSE tool surface. |
 
 ## 3. Persona Routing

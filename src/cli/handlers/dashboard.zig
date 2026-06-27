@@ -27,7 +27,7 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
     try scheduler.runAll();
 
     // Try interactive mode; fall back to one-shot on failure or non-TTY
-    var term = abi.features.tui.InteractiveTerminal.init(std.posix.STDIN_FILENO) catch {
+    var term = abi.features.tui.InteractiveTerminal.init(abi.features.tui.stdinFd()) catch {
         return renderOneShot(allocator, &scheduler, &store, &registry, plugin_names);
     };
     defer term.deinit();

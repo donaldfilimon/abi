@@ -189,7 +189,10 @@ perf.data*
 !/zig-abi-plugin/.claude-plugin/**
 
 # ── Local task tracking (agent notes) ────────────────────────────────
-/tasks/
+# Ignore the CONTENTS of tasks/ (not the directory itself): a `!/tasks/x`
+# negation cannot re-include a file when the parent `/tasks/` dir is excluded,
+# so `/tasks/*` is required for the todo.md/lessons.md negations to take effect.
+/tasks/*
 !/tasks/todo.md
 !/tasks/lessons.md
 

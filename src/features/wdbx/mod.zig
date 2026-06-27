@@ -1,5 +1,6 @@
 const std = @import("std");
 const foundation_pool = @import("../../foundation/pool_allocator.zig");
+const foundation_time = @import("../../foundation/time.zig");
 const memory = @import("../../core/memory.zig");
 const runtime = @import("runtime.zig");
 const types = @import("types.zig");
@@ -144,6 +145,13 @@ pub const Store = struct {
         self.temporal_graph.setTracker(t);
     }
 
+    /// The attached MemoryTracker, if any. Lets callers that already hold the
+    /// store (e.g. the AI completion path) record their own transient
+    /// allocations on the same tracker without threading it through signatures.
+    pub fn getTracker(self: *const Store) ?*memory.MemoryTracker {
+        return self.tracker;
+    }
+
     /// Bind a sidecar WAL so supported mutations (kv, block, temporal node/edge)
     /// are logged per mutation. `path` is borrowed and must outlive the Store.
     pub fn attachWal(self: *Store, io: std.Io, path: []const u8) void {
@@ -191,10 +199,14 @@ pub const Store = struct {
         // `error.CorruptVectorId` during replay, leaving the store unrecoverable.
         const id = self.next_vector_id;
         try self.index.insert(id, padded_values);
+        // Run the (fallible) acceleration kernel before committing the id so a
+        // kernel error can't burn it (which would log a non-contiguous id to the
+        // WAL on the next successful putVector). On error the errdefer above
+        // still owns padded_values, so this also avoids a double free.
+        self.acceleration = try runtime.runAccelerationKernel("wdbx.putVector", values.len);
         self.next_vector_id += 1;
         self.paddedFree(padded_values);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
-        self.acceleration = try runtime.runAccelerationKernel("wdbx.putVector", values.len);
         // Durably log the vector like blocks/kv/temporal mutations. Recovery now
         // folds the WAL delta on top of the checkpoint (preserving the vector-id
         // counter), so an absolute id in a post-checkpoint delta replays cleanly.
@@ -254,19 +266,23 @@ pub const Store = struct {
     /// buffer — no allocation, no copy — and is valid until the next mutation
     /// that grows or frees that buffer. Returns null if `id` is absent.
     pub fn getVector(self: *const Store, id: u32) ?[]const f32 {
-        if (!self.index.storage.contains(id)) return null;
-        const stored = self.index.storage.get(id);
+        // `get` is now the presence authority (returns null for an absent id),
+        // so the separate `contains` pre-check is no longer needed.
+        const stored = self.index.storage.get(id) orelse return null;
         const dims = self.vector_dimensions orelse return stored;
         return stored[0..dims];
     }
 
     pub fn appendBlock(self: *Store, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8) ![32]u8 {
-        const hash = try self.chain.append(profile, query_id, response_id, metadata);
+        // Capture the timestamp here and hand it to appendAt (what chain.append
+        // does internally), so the WAL can log the exact value the block hashed
+        // over without re-deriving it via an O(N) lastBlock() walk per append.
+        const timestamp_ms = foundation_time.unixMs();
+        const hash = try self.chain.appendAt(profile, query_id, response_id, metadata, timestamp_ms);
         if (self.wal_binding) |w| {
             // Log with the timestamp the chain assigned so a replayed block
             // reproduces the same SHA-256 hash.
-            const last = self.lastBlock().?;
-            try wal.appendBlock(w.io, self.allocator, w.path, profile, query_id, response_id, metadata, last.timestamp_ms);
+            try wal.appendBlock(w.io, self.allocator, w.path, profile, query_id, response_id, metadata, timestamp_ms);
         }
         return hash;
     }
@@ -388,7 +404,8 @@ test "getVector is a zero-copy view aliasing the backing buffer" {
 
     // Zero-copy: the view's data pointer is the same address as the raw backing
     // storage slice — no allocation or copy was made to satisfy the read.
-    try std.testing.expectEqual(store_obj.index.storage.get(id).ptr, view.ptr);
+    const raw = store_obj.index.storage.get(id) orelse return error.MissingVector;
+    try std.testing.expectEqual(raw.ptr, view.ptr);
 }
 
 test "Store rejects mismatched vector dimensions" {

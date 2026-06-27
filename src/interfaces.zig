@@ -12,7 +12,7 @@ pub const AiRunRequest = struct {
 
 pub const AiCompleteRequest = struct {
     input: []const u8,
-    model: []const u8 = "abi-local",
+    model: []const u8 = "claude-fable-5",
 };
 
 pub const AiTrainRequest = struct {

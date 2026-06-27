@@ -48,10 +48,10 @@ pub const VectorStorage = struct {
         return error.FeatureDisabled;
     }
 
-    pub fn get(self: *const VectorStorage, id: u32) []const f32 {
+    pub fn get(self: *const VectorStorage, id: u32) ?[]const f32 {
         _ = self;
         _ = id;
-        return &[_]f32{};
+        return null;
     }
 
     pub fn contains(self: *const VectorStorage, id: u32) bool {

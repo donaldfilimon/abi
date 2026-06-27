@@ -8,6 +8,14 @@ pub const ConnectorError = error{
     InvalidResponse,
     Timeout,
     LiveTransportUnavailable,
+    /// On-device Apple FoundationModels is not reachable: not built with
+    /// `-Dfeat-foundationmodels`, running on a non-macOS host, or the model
+    /// runtime is otherwise unavailable (Apple Intelligence not enabled, model
+    /// not downloaded, or OS too old).
+    FMUnavailable,
+    /// The on-device FoundationModels session was reachable but failed while
+    /// producing a response (the Swift `respond(to:)` call threw).
+    FMSessionFailed,
 };
 
 pub const TransportMode = enum {
