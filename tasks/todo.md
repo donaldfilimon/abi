@@ -35,9 +35,9 @@ These ship real local artifacts but truthfully disclose that native/external dis
 
 | Item | Status | Notes |
 | ---- | ------ | ----- |
-| MemoryTracker into deeper AI internals | 🟡 In progress | WDBX hot paths (`putVector`/`search`/HNSW scratch/completion transient) and SEA adaptive-weight save are tracked. Remaining: training-pipeline internals. |
-| Broader native/batched GPU acceleration | 🟡 In progress | HNSW pairwise + neighbor-expansion batch scoring route through `gpu.vectorOps()` with SIMD fallback; native/batched backend expansion beyond local vector ops remains. |
-| Cross-compilation CI | ◑ Compiles, no CI | CLI+MCP link for linux-gnu/windows-gnu/aarch64-macos (`zig build cross-smoke`). Remaining: a `.github/` matrix, Windows runtime verification (not possible from a macOS host), and Windows test-only helpers (`/tmp`, `std.c.getpid`). |
+| MemoryTracker into deeper AI internals | 🟡 In progress | WDBX hot paths (`putVector`/`search`/HNSW scratch/completion transient), SEA adaptive-weight save, and the AI training pipeline (`ai.pipeline.run` reports peak via a `MemoryTracker` over `trainWithStore`) are tracked. Remaining: finer-grained per-transient tracking inside `training.zig`/`training_support.zig`. |
+| Broader native/batched GPU acceleration | 🟡 In progress | HNSW pairwise + neighbor-expansion batch scoring route through `gpu.vectorOps()` with SIMD fallback. AI completion/SEA paths delegate similarity to `store.search` (already GPU-routed), so the remaining expansion is native kernel dispatch — the deferred 100%-Zig-constraint item, not a completable gap. |
+| Cross-compilation CI | ✅ Matrix added | `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` (linux-gnu/windows-gnu/aarch64-macos). Remaining (out of scope from a macOS host): Windows runtime verification + Windows test-only helpers (`/tmp`, `std.c.getpid`). |
 
 ---
 

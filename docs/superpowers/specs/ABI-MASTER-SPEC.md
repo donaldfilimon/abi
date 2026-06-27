@@ -24,13 +24,20 @@ src/
 ├── root.zig           # Public API and feature exports
 ├── core/              # Registry, config, memory, scheduler
 │   ├── registry.zig
+│   ├── config.zig
 │   ├── memory.zig
 │   └── scheduler.zig
 ├── interfaces.zig     # Cross-module contract types
 ├── foundation/        # OS and primitive abstractions (io, time, sync)
-├── features/          # Domain-specific modules
-│   ├── ai/            # Abbey-Aviva-Abi Pipeline (Router, profiles, governance)
-│   └── wdbx/          # Vector Storage & Runtime (HNSW, chain, snapshots, WAL, demos)
+├── features/          # Comptime-gated domain modules (each a mod.zig + stub.zig):
+│   │                  #   ai, wdbx, sea, gpu, accelerator, shaders, mlir,
+│   │                  #   os_control, mobile, metrics, tui, hash, telemetry
+│   ├── mod.zig        # Feature dispatcher: selects real mod vs stub per build flag
+│   ├── ai/            # Abbey-Aviva-Abi pipeline (router, profiles, governance, training)
+│   └── wdbx/          # Vector storage & runtime (HNSW, chain, snapshots, WAL, demos)
+├── connectors/        # openai, anthropic, discord, twilio, grok, http (+ live transport)
+├── mcp/               # MCP server (JSON-RPC stdio + HTTP/SSE), tool dispatch, durable state
+├── cli/               # CLI command dispatch + handlers
 ├── plugins/           # Static plugin manifests and local plugin manager
 ├── integration_tests.zig
 └── benchmarks.zig
