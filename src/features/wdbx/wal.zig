@@ -43,25 +43,31 @@ pub fn appendRecord(io: std.Io, allocator: std.mem.Allocator, path: []const u8, 
     const cwd = std.Io.Dir.cwd();
     const crc = crc32Hex(json);
 
-    if (!try fileExists(io, allocator, path)) {
-        // First write: create the log with the legacy header + this record.
-        var out: std.Io.Writer.Allocating = .init(allocator);
-        defer out.deinit();
-        try out.writer.writeAll(WAL_HEADER_PREFIX);
-        try out.writer.writeAll("\n");
-        try out.writer.writeAll(&crc);
-        try out.writer.writeAll(" ");
-        try out.writer.writeAll(json);
-        try out.writer.writeAll("\n");
-        try cwd.writeFile(io, .{ .sub_path = path, .data = out.written() });
-        return;
-    }
+    // Open the existing log directly and branch on FileNotFound for the
+    // create path, folding the create-vs-append decision into the open itself.
+    // This avoids a redundant `access()` probe per append and closes the
+    // access()-then-open TOCTOU window.
+    var file = cwd.openFile(io, path, .{ .mode = .read_write }) catch |err| switch (err) {
+        error.FileNotFound => {
+            // First write: create the log with the legacy header + this record.
+            var out: std.Io.Writer.Allocating = .init(allocator);
+            defer out.deinit();
+            try out.writer.writeAll(WAL_HEADER_PREFIX);
+            try out.writer.writeAll("\n");
+            try out.writer.writeAll(&crc);
+            try out.writer.writeAll(" ");
+            try out.writer.writeAll(json);
+            try out.writer.writeAll("\n");
+            try cwd.writeFile(io, .{ .sub_path = path, .data = out.written() });
+            return;
+        },
+        else => return err,
+    };
 
     // Existing log: append only the new framed record at EOF via a single
     // positional write (pwrite) at the current size — O(1), no reread of prior
     // contents, and no seek (matches the `writePositionalAll` idiom used in
     // src/foundation/io, avoiding the std seekTo flush footgun).
-    var file = try cwd.openFile(io, path, .{ .mode = .read_write });
     defer file.close(io);
     const end = (try file.stat(io)).size;
 

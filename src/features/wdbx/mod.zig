@@ -312,13 +312,9 @@ pub const Store = struct {
     }
 
     pub fn lastBlock(self: *const Store) ?ConversationBlock {
-        var it = self.chain.iterator();
-        defer self.chain.releaseIterator();
-        var last: ?ConversationBlock = null;
-        while (it.next()) |node| {
-            last = node.data;
-        }
-        return last;
+        // O(1) tail read instead of an O(N) head->tail iterator walk; the chain
+        // maintains the tail pointer, returning the identical last appended block.
+        return self.chain.tailData();
     }
 
     pub fn verifyBlocks(self: *const Store) bool {

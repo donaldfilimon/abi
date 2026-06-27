@@ -194,6 +194,16 @@ pub const BlockChain = struct {
         return if (self.tail) |t| t.header.hash else null;
     }
 
+    /// O(1) read of the most recently appended block (the chain maintains a tail
+    /// pointer), replacing a full head->tail iterator walk. Returns null on an
+    /// empty chain. Mirrors the read-locked `getTailHash` idiom.
+    pub fn tailData(self: *const BlockChain) ?types.ConversationBlock {
+        const self_mut = @constCast(self);
+        self_mut.read_lock.lockRead();
+        defer self_mut.read_lock.unlockRead();
+        return if (self.tail) |t| t.data else null;
+    }
+
     pub fn iterator(self: *const BlockChain) Iterator {
         const self_mut = @constCast(self);
         self_mut.read_lock.lockRead();

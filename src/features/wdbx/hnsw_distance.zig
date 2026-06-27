@@ -54,7 +54,6 @@ pub fn cosineDistanceWithOps(ops: gpu.VectorOps, a: []const f32, b: []const f32)
 }
 
 pub fn batchCosineDistancesWithOps(
-    allocator: std.mem.Allocator,
     ops: gpu.VectorOps,
     query: []const f32,
     candidates: []const []const f32,
@@ -66,10 +65,10 @@ pub fn batchCosineDistancesWithOps(
         if (candidate.len != query.len) return error.DimensionMismatch;
     }
 
-    const similarities = try allocator.alloc(f32, candidates.len);
-    defer allocator.free(similarities);
-
-    ops.batchCosineSimilarity(query, candidates, similarities) catch |err| {
+    // Write cosine *similarities* straight into the caller's `out` (no scratch
+    // buffer: batchCosineSimilarity only writes its output and never reads it),
+    // then convert to distances in place.
+    ops.batchCosineSimilarity(query, candidates, out) catch |err| {
         std.log.warn("gpu vector batch cosine distance failed: {s}; using SIMD fallback", .{@errorName(err)});
         for (candidates, out) |candidate, *slot| {
             slot.* = cosineDistanceSIMD(candidate, query);
@@ -77,8 +76,8 @@ pub fn batchCosineDistancesWithOps(
         return;
     };
 
-    for (similarities, out) |similarity, *slot| {
-        slot.* = 1.0 - similarity;
+    for (out) |*slot| {
+        slot.* = 1.0 - slot.*;
     }
 }
 
@@ -115,7 +114,7 @@ test "batchCosineDistancesWithOps matches pairwise distances" {
     const candidates = [_][]const f32{ &c0, &c1, &c2 };
 
     var out: [3]f32 = undefined;
-    try batchCosineDistancesWithOps(std.testing.allocator, ops, &query, &candidates, &out);
+    try batchCosineDistancesWithOps(ops, &query, &candidates, &out);
 
     try std.testing.expectApproxEqAbs(cosineDistanceWithOps(ops, &c0, &query), out[0], 1e-6);
     try std.testing.expectApproxEqAbs(cosineDistanceWithOps(ops, &c1, &query), out[1], 1e-6);
@@ -130,10 +129,10 @@ test "batchCosineDistancesWithOps rejects mismatched result or candidate dimensi
     const candidates = [_][]const f32{ &c0, &bad };
 
     var out: [2]f32 = undefined;
-    try std.testing.expectError(error.DimensionMismatch, batchCosineDistancesWithOps(std.testing.allocator, ops, &query, &candidates, &out));
+    try std.testing.expectError(error.DimensionMismatch, batchCosineDistancesWithOps(ops, &query, &candidates, &out));
 
     const valid_candidates = [_][]const f32{&c0};
-    try std.testing.expectError(error.DimensionMismatch, batchCosineDistancesWithOps(std.testing.allocator, ops, &query, &valid_candidates, &out));
+    try std.testing.expectError(error.DimensionMismatch, batchCosineDistancesWithOps(ops, &query, &valid_candidates, &out));
 }
 
 test {

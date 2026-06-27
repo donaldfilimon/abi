@@ -94,6 +94,11 @@ pub fn HnswIndex(comptime D: usize) type {
 
             try self.storage.insert(id, values);
 
+            // The inserted vector's slice is stable for the rest of insert (no
+            // further storage.insert), so fetch it once instead of re-probing the
+            // storage hashmap on every distance comparison in the descent below.
+            const query_vec = self.storage.get(id).?;
+
             const level = self.randomLevel();
 
             const node = HnswNode{
@@ -128,7 +133,7 @@ pub fn HnswIndex(comptime D: usize) type {
             while (curr_level > level) : (curr_level -= 1) {
                 var best_dist = self.cosineDistance(
                     self.storage.get(self.nodes.items[curr].id).?,
-                    self.storage.get(id).?,
+                    query_vec,
                 );
                 var changed = true;
                 while (changed) {
@@ -138,7 +143,7 @@ pub fn HnswIndex(comptime D: usize) type {
                         if (neighbor >= self.nodes.items.len) continue;
                         const dist = self.cosineDistance(
                             self.storage.get(self.nodes.items[neighbor].id).?,
-                            self.storage.get(id).?,
+                            query_vec,
                         );
                         if (dist < best_dist) {
                             best_dist = dist;
@@ -153,7 +158,7 @@ pub fn HnswIndex(comptime D: usize) type {
                 try self.connectNodes(curr, node_idx, curr_level);
                 var best_dist = self.cosineDistance(
                     self.storage.get(self.nodes.items[curr].id).?,
-                    self.storage.get(id).?,
+                    query_vec,
                 );
                 var changed = true;
                 while (changed) {
@@ -163,7 +168,7 @@ pub fn HnswIndex(comptime D: usize) type {
                         if (neighbor >= self.nodes.items.len) continue;
                         const dist = self.cosineDistance(
                             self.storage.get(self.nodes.items[neighbor].id).?,
-                            self.storage.get(id).?,
+                            query_vec,
                         );
                         if (dist < best_dist) {
                             best_dist = dist;
@@ -255,7 +260,6 @@ pub fn HnswIndex(comptime D: usize) type {
                         neighbor_count += 1;
                     }
                     try distance.batchCosineDistancesWithOps(
-                        scratch,
                         self.distance_ops,
                         query,
                         neighbor_vectors[0..neighbor_count],
