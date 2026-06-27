@@ -114,6 +114,30 @@ test "runLearnLoop tracks adaptive-weight persistence when a tracker is set" {
     try std.testing.expectEqual(tracker.getTotalAllocated(), tracker.getTotalFreed());
 }
 
+test "runLearnLoop persists a turn that a later related turn recalls as evidence" {
+    if (!build_options.feat_wdbx or !build_options.feat_ai) return;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    // First turn persisted (query/response vectors + completion metadata stored).
+    var first = try runLearnLoop(allocator, &store, "the capital of france is paris", "abi-local", .{
+        .persist = true,
+        .adapt_router = false,
+    });
+    first.deinit(allocator);
+
+    // A related second turn recalls the first turn as evidence (vectorCount>0 now).
+    var second = try runLearnLoop(allocator, &store, "tell me about paris in france", "abi-local", .{
+        .persist = true,
+        .adapt_router = false,
+    });
+    defer second.deinit(allocator);
+
+    try std.testing.expect(second.evidence_count > 0);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

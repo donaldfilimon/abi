@@ -177,6 +177,45 @@ test "augmentPrompt caps the preamble at MAX_PROMPT_BYTES" {
     try std.testing.expect(std.mem.endsWith(u8, prompt, "the-query"));
 }
 
+test "gatherEvidence recalls a stored completion with its resolved persona label" {
+    if (!build_options.feat_wdbx or !build_options.feat_ai) return;
+    const allocator = std.testing.allocator;
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    // A stored turn: a vector plus its completion metadata under completion:<id>.
+    const embedding = helpers.textEmbedding("aviva said hello");
+    const id = try store.putVector(&embedding);
+    const key = try std.fmt.allocPrint(allocator, "completion:{d}", .{id});
+    defer allocator.free(key);
+    try store.store(key, "{\"profile\":\"aviva\",\"text\":\"hello there\"}");
+
+    var ctx = try gatherEvidence(allocator, &store, "hello", 5);
+    defer ctx.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), ctx.items.len);
+    try std.testing.expectEqualStrings("aviva", ctx.items[0].profile_label);
+    try std.testing.expectEqualStrings("{\"profile\":\"aviva\",\"text\":\"hello there\"}", ctx.items[0].snippet);
+}
+
+test "gatherEvidence maps an unrecognized profile to the unknown label" {
+    if (!build_options.feat_wdbx or !build_options.feat_ai) return;
+    const allocator = std.testing.allocator;
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    const embedding = helpers.textEmbedding("a mystery turn");
+    const id = try store.putVector(&embedding);
+    const key = try std.fmt.allocPrint(allocator, "completion:{d}", .{id});
+    defer allocator.free(key);
+    try store.store(key, "{\"profile\":\"nobody\"}");
+
+    var ctx = try gatherEvidence(allocator, &store, "mystery", 5);
+    defer ctx.deinit();
+    try std.testing.expectEqual(@as(usize, 1), ctx.items.len);
+    try std.testing.expectEqualStrings("unknown", ctx.items[0].profile_label);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

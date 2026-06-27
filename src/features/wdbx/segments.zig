@@ -291,6 +291,28 @@ test "segments: reset removes manifest-listed checkpoints" {
     try testing.expectEqual(@as(usize, 0), loaded.blockCount());
 }
 
+test "segments: readManifest rejects corrupt manifests rather than mis-parsing" {
+    const allocator = testing.allocator;
+    const base = "zig-out/wdbx-seg-corrupt";
+    cleanup(base);
+    defer cleanup(base);
+
+    var ss = SegmentStore.init(allocator, testing.io, base);
+    const mp = base ++ ".manifest";
+
+    // A garbled manifest must surface InvalidManifest — silently mis-parsing it
+    // (e.g. dropping a live `active=` epoch) would lose committed segments.
+    const corrupt = [_][]const u8{
+        "# BOGUS HEADER\n", // wrong/missing header
+        MANIFEST_HEADER ++ "\nnext_epoch=abc\n", // non-numeric next_epoch
+        MANIFEST_HEADER ++ "\nnext_epoch=1\nactive=0,xx\n", // non-numeric active token
+    };
+    for (corrupt) |bad| {
+        try std.Io.Dir.cwd().writeFile(testing.io, .{ .sub_path = mp, .data = bad });
+        try testing.expectError(SegmentError.InvalidManifest, ss.latestEpoch());
+    }
+}
+
 test {
     testing.refAllDecls(@This());
 }
