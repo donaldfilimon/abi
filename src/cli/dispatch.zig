@@ -49,6 +49,20 @@ pub fn runCli(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8
     return 2;
 }
 
+test "runCli intercepts help, accepts no-args, rejects unknown + malformed grammar" {
+    const t = std.testing.io;
+    const a = std.testing.allocator;
+    // No args and `help` print usage and succeed (help-like, exit 0).
+    try std.testing.expectEqual(@as(u8, 0), try runCli(t, a, &.{"abi"}));
+    try std.testing.expectEqual(@as(u8, 0), try runCli(t, a, &.{ "abi", "help" }));
+    try std.testing.expectEqual(@as(u8, 0), try runCli(t, a, &.{ "abi", "help", "complete" }));
+    // Unknown command exits 2.
+    try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "boguscommand" }));
+    // A typed command missing its required positional fails parsing (before the
+    // handler runs) and maps to the frozen usage string with exit 2.
+    try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "complete" }));
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

@@ -16,6 +16,7 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
     defer scheduler.deinit();
 
     var mem_tracker = abi.memory.MemoryTracker.init(allocator);
+    defer mem_tracker.deinit();
     scheduler.setMemoryTracker(&mem_tracker);
 
     _ = try scheduler.submit("dashboard-init", .normal, struct {

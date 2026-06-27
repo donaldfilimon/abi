@@ -120,7 +120,7 @@ test "apple-fm is recognized and routes to the on-device fm provider" {
     try std.testing.expectEqualStrings("fm", Provider.fm.label());
 }
 
-test "default model stays local and is recognized" {
+test "default model is recognized and routes to anthropic" {
     try std.testing.expect(isKnown(default_model));
     try std.testing.expectEqual(Provider.anthropic, providerOf(default_model));
 }

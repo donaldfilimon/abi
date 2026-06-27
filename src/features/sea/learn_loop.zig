@@ -67,7 +67,8 @@ pub fn runLearnLoop(
         // surface it as "not adapted" rather than leaking or aborting.
         if (modulator.saveWeights(allocator, store)) |_| {
             adapted = true;
-        } else |_| {
+        } else |err| {
+            std.log.warn("sea: router weight save failed: {s}", .{@errorName(err)});
             adapted = false;
         }
     }

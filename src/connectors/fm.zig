@@ -97,7 +97,9 @@ pub const Client = struct {
     ///
     /// Returns `error.FMUnavailable` unless built on macOS with
     /// `-Dfeat-foundationmodels` AND the runtime is reachable (which, per the
-    /// file header, requires a Swift `@_cdecl` shim that does not yet exist).
+    /// file header, requires the Swift `@c` bridge in `src/connectors/fm_shim.swift`,
+    /// compiled+linked by build.zig under macOS + `-Dfeat-foundationmodels`, plus
+    /// Apple-Intelligence hardware at runtime).
     /// Never fabricates a model response.
     pub fn completeLive(self: *Client, allocator: std.mem.Allocator, prompt: []const u8) ConnectorError!Response {
         // The enabled branch's syntactic use of self/allocator/prompt satisfies
@@ -135,7 +137,7 @@ pub const Client = struct {
 
         const rc = fm_fns.abi_fm_complete(prompt_z, out.ptr, out.len);
         if (rc < 0) {
-            allocator.free(out);
+            // `out` is freed by the active `errdefer` on this error return.
             return switch (rc) {
                 -4 => ConnectorError.FMSessionFailed,
                 // -1 null args (defensive), -2 OS too old, -3 model unavailable.

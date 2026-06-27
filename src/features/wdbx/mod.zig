@@ -204,13 +204,16 @@ pub const Store = struct {
         // WAL on the next successful putVector). On error the errdefer above
         // still owns padded_values, so this also avoids a double free.
         self.acceleration = try runtime.runAccelerationKernel("wdbx.putVector", values.len);
+        // Durably log the vector BEFORE committing the id counter or freeing the
+        // padded buffer. appendVector does fallible IO; on failure the errdefer
+        // above must stay the sole owner of padded_values (no prior explicit free →
+        // no double free) and the id must stay uncommitted (no burned, non-contiguous
+        // WAL id). Recovery folds the WAL delta on top of the checkpoint, so an
+        // absolute id in a post-checkpoint delta replays cleanly.
+        if (self.wal_binding) |w| try wal.appendVector(w.io, self.allocator, w.path, id, values);
         self.next_vector_id += 1;
         self.paddedFree(padded_values);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
-        // Durably log the vector like blocks/kv/temporal mutations. Recovery now
-        // folds the WAL delta on top of the checkpoint (preserving the vector-id
-        // counter), so an absolute id in a post-checkpoint delta replays cleanly.
-        if (self.wal_binding) |w| try wal.appendVector(w.io, self.allocator, w.path, id, values);
         return id;
     }
 

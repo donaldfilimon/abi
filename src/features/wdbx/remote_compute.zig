@@ -52,15 +52,18 @@ pub fn serveOnce(io: std.Io, server: *Server, allocator: std.mem.Allocator) !voi
     var it = std.mem.splitScalar(u8, line["DOT ".len..], ' ');
     const dim_s = it.next() orelse return error.MalformedRequest;
     const dim = std.fmt.parseInt(usize, dim_s, 10) catch return error.MalformedRequest;
+    // Guard the untrusted dimension against usize overflow on `dim * 2` (the
+    // alloc size, loop bound, and second slice bound all depend on it).
+    const total = std.math.mul(usize, dim, 2) catch return error.MalformedRequest;
 
-    const scratch = try allocator.alloc(f32, dim * 2);
+    const scratch = try allocator.alloc(f32, total);
     defer allocator.free(scratch);
     var i: usize = 0;
-    while (i < dim * 2) : (i += 1) {
+    while (i < total) : (i += 1) {
         const tok = it.next() orelse return error.MalformedRequest;
         scratch[i] = std.fmt.parseFloat(f32, tok) catch return error.MalformedRequest;
     }
-    const result = try localDot(scratch[0..dim], scratch[dim .. dim * 2]);
+    const result = try localDot(scratch[0..dim], scratch[dim..total]);
 
     var out: [64]u8 = undefined;
     const resp = try std.fmt.bufPrint(&out, "{d}\n", .{result});
