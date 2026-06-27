@@ -24,13 +24,21 @@ fn runTrainingTask(ctx: ?*anyopaque) anyerror!void {
 
 pub fn train(allocator: std.mem.Allocator, config: types.TrainingConfig) !types.TrainingResult {
     try training_support.validateTrainingConfig(config);
-    const summary = try training_support.inspectDataset(allocator, config.dataset);
+    const summary = try training_support.inspectDatasetTracked(allocator, config.dataset, config.tracker);
 
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
 
     const key = try std.fmt.allocPrint(allocator, "training:{s}", .{config.profile});
     defer allocator.free(key);
+
+    // Account this metadata key as a balanced alloc/free pair when a tracker is
+    // provided. Dataset path/read/JSONL parse allocations are tracked at their
+    // actual allocation sites by `inspectDatasetTracked` above.
+    if (config.tracker) |t| {
+        t.trackAllocNoTag(key.len);
+        t.trackFreeNoTag(key.len);
+    }
 
     var metadata_recorded = true;
     store.store(key, "training_completed") catch |err| {
@@ -66,7 +74,10 @@ pub fn train(allocator: std.mem.Allocator, config: types.TrainingConfig) !types.
 }
 
 pub fn trainWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, config: types.TrainingConfig) !types.TrainingResult {
-    var result = try train(allocator, config);
+    var tracked_config = config;
+    if (tracked_config.tracker == null) tracked_config.tracker = store.getTracker();
+
+    var result = try train(allocator, tracked_config);
     errdefer result.deinit(allocator);
 
     const key = try std.fmt.allocPrint(allocator, "agent:{s}:training", .{config.profile});
@@ -216,6 +227,72 @@ test "trainWithStore tracks transient persistence memory and frees it" {
     // key/value tracking actually fired and balanced (mirrors the completion path).
     try std.testing.expect(tracker.getTotalAllocated() > 0);
     try std.testing.expect(tracker.getTotalFreed() > 0);
+}
+
+test "trainWithStore uses the store tracker for dataset inspection when config tracker is unset" {
+    if (!build_options.feat_wdbx) return;
+    const memory = @import("../../core/memory.zig");
+    const foundation_io = @import("../../foundation/io/mod.zig");
+    const allocator = std.testing.allocator;
+
+    const path = try std.fmt.allocPrint(allocator, "/tmp/abi_train_store_tracker_{d}.jsonl", .{std.c.getpid()});
+    defer allocator.free(path);
+    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.log.warn("training store-tracker test cleanup failed: {s}", .{@errorName(err)}),
+    };
+    try foundation_io.asyncWriteFile(path, "{\"input\":\"one\"}\n{\"input\":\"two\"}\n");
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+    var tracker = memory.MemoryTracker.init(allocator);
+    defer tracker.deinit();
+    store.setTracker(&tracker);
+
+    var result = try trainWithStore(allocator, &store, .{
+        .profile = "abbey",
+        .dataset = .{ .path = path, .format = .jsonl },
+        .artifact_dir = "zig-cache/agent-artifacts",
+    });
+    defer result.deinit(allocator);
+
+    try std.testing.expectEqual(@as(usize, 1), result.records_stored);
+    try std.testing.expect(result.query_vector_id != null);
+    try std.testing.expect(result.response_vector_id != null);
+    try std.testing.expect(tracker.getTotalAllocated() > 0);
+    try std.testing.expect(tracker.getTotalFreed() > 0);
+    try std.testing.expect(tracker.getPeakUsage() >= path.len);
+}
+
+test "train accounts its transient internals on config.tracker (balanced)" {
+    const memory = @import("../../core/memory.zig");
+    const foundation_io = @import("../../foundation/io/mod.zig");
+    const allocator = std.testing.allocator;
+
+    const path = try std.fmt.allocPrint(allocator, "/tmp/abi_train_config_tracker_{d}.jsonl", .{std.c.getpid()});
+    defer allocator.free(path);
+    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.log.warn("training config-tracker test cleanup failed: {s}", .{@errorName(err)}),
+    };
+    try foundation_io.asyncWriteFile(path, "{\"input\":\"one\"}\n{\"input\":\"two\"}\n");
+
+    var tracker = memory.MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    var result = try train(allocator, .{
+        .profile = "abbey",
+        .dataset = .{ .path = path, .format = .jsonl },
+        .artifact_dir = "zig-cache/agent-artifacts",
+        .tracker = &tracker,
+    });
+    defer result.deinit(allocator);
+
+    // train()'s transient internals (dataset inspection + metadata key) are
+    // accounted as a balanced alloc/free pair, so the training pipeline's memory
+    // cost is observable without recording a false leak.
+    try std.testing.expect(tracker.getTotalAllocated() > 0);
+    try std.testing.expectEqual(tracker.getTotalAllocated(), tracker.getTotalFreed());
 }
 
 test "evaluate accepts a valid config and rejects an invalid profile" {

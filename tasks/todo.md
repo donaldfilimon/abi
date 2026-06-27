@@ -35,7 +35,6 @@ These ship real local artifacts but truthfully disclose that native/external dis
 
 | Item | Status | Notes |
 | ---- | ------ | ----- |
-| MemoryTracker into deeper AI internals | 🟡 In progress | WDBX hot paths (`putVector`/`search`/HNSW scratch/completion transient), SEA adaptive-weight save, and the AI training pipeline (`ai.pipeline.run` reports peak via a `MemoryTracker` over `trainWithStore`) are tracked. Remaining: finer-grained per-transient tracking inside `training.zig`/`training_support.zig`. |
 | Broader native/batched GPU acceleration | 🟡 In progress | HNSW pairwise + neighbor-expansion batch scoring route through `gpu.vectorOps()` with SIMD fallback. AI completion/SEA paths delegate similarity to `store.search` (already GPU-routed), so the remaining expansion is native kernel dispatch — the deferred 100%-Zig-constraint item, not a completable gap. |
 | Cross-compilation CI | ✅ Matrix added | `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` (linux-gnu/windows-gnu/aarch64-macos). Remaining (out of scope from a macOS host): Windows runtime verification + Windows test-only helpers (`/tmp`, `std.c.getpid`). |
 
@@ -66,6 +65,7 @@ One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`
 - **WDBX/SEA correctness** — WAL double-free guards on `putVector`/`store`; `remote_compute` overflow guard; corrupt-manifest rejection; SEA persist→recall round-trip + evidence-recall coverage.
 - **WDBX perf** — redundant work removed from HNSW/WAL/block-chain hot paths.
 - **Build/parity** — `check-parity` now fails on a `mod.zig` leaf missing its `stub.zig`.
+- **AI training observability** — `training_support.inspectDatasetTracked` routes dataset path/read/JSONL parse allocations through `MemoryTracker`, and `trainWithStore` now falls back to the attached store tracker for the initial training phase.
 - **WDBX north-star Phase 1 + V18 cognitive runtime** — WAL+recovery, multi-segment checkpoints, temporal/causal hybrid ranker, persona-scoped retrieval, P50/P95/P99 benchmarks, loopback REST, in-process consensus/compression/FHE demos. (10/11 V18 criteria; ANE execution is the disclosed non-goal.)
 
 ---

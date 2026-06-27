@@ -62,6 +62,7 @@ pub fn run(
         .profile = profile,
         .dataset = options.dataset,
         .artifact_dir = options.artifact_dir,
+        .tracker = options.tracker,
     });
     defer result.deinit(allocator);
 

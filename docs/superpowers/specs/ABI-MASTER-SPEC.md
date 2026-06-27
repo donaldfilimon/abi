@@ -13,7 +13,7 @@ The ABI framework is built on a data-oriented composition model targeting Zig 0.
   - `core/scheduler.zig` now drives real user work (`abi agent train` submits prioritized TrainTasks; dashboard emits live ticks; MCP owns a long-lived scheduler instance exposed via `scheduler_stats` tool). `Scheduler.stats()` + `MemoryTracker` attachment provide deep visibility.
   - Metrics counters (`submitted`/`completed`/`failed`) are live on task lifecycle when `-Dfeat-metrics`.
   - The default-on `telemetry` feature exposes lightweight `record` / `increment` hooks.
-  - MemoryTracker + TrackingAllocator are wired into production CLI paths (agent train arenas + dashboard scheduler) and integration tests.
+  - MemoryTracker + TrackingAllocator are wired into production CLI paths (agent train arenas + dashboard scheduler), WDBX store hot paths, SEA adaptive-weight persistence, and AI training internals (dataset inspection plus metadata persistence) with integration tests.
   - WDBX `Store` + HNSW acceleration status is updated on vector operations and surfaced in stats/manifest/MCP/CLI without claiming native kernels when the backend falls back.
   - The `abi wdbx` namespace operates local snapshots, WAL verification, blocks, queries, benchmarks, GPU info, loopback REST, and in-process roadmap demos.
   - All of this is exercised by contract tests and the new accelerated HNSW GPU path coverage.

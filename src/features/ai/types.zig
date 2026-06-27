@@ -2,6 +2,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const constitution = @import("constitution.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
+const core_memory = @import("../../core/memory.zig");
 
 pub const AgentProfile = enum {
     abbey,
@@ -34,6 +35,10 @@ pub const TrainingConfig = struct {
     profile: []const u8,
     dataset: DatasetSpec,
     artifact_dir: []const u8,
+    /// Optional tracker. When set, the training path accounts its transient
+    /// internal buffers (dataset inspection + metadata key) as balanced
+    /// alloc/free pairs so the training pipeline's memory cost is observable.
+    tracker: ?*core_memory.MemoryTracker = null,
 };
 
 pub const TrainingResult = struct {
