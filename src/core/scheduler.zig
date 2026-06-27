@@ -214,11 +214,16 @@ pub const Scheduler = struct {
         }
     }
 
-    pub fn getTask(self: *const Scheduler, task_id: u64) ?*const Task {
+    /// Returns a snapshot copy of the task with `task_id`, or null if absent.
+    /// Returns a value (not an interior `*Task`) so the result stays valid after
+    /// the backing `tasks` list grows — matching `peek`/`getTasks`. The copied
+    /// `name`/`error_msg` slices remain borrowed from the scheduler, so the
+    /// snapshot must not outlive it.
+    pub fn getTask(self: *const Scheduler, task_id: u64) ?Task {
         const self_mut = @constCast(self);
         self_mut.lock.lock();
         defer self_mut.lock.unlock();
-        for (self.tasks.items) |*task| {
+        for (self.tasks.items) |task| {
             if (task.id == task_id) return task;
         }
         return null;
