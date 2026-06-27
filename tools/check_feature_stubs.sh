@@ -15,6 +15,7 @@ FLAGS=(
   feat-hash
   feat-metrics
   feat-telemetry
+  feat-sea
 )
 
 for flag in "${FLAGS[@]}"; do
