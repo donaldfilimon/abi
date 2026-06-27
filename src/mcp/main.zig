@@ -9,7 +9,6 @@ const abi = @import("abi");
 const McpMethod = protocol.McpMethod;
 const validateRequest = protocol.validateRequest;
 const MAX_REQUEST_SIZE = protocol.MAX_REQUEST_SIZE;
-const appendJsonString = json_helpers.appendJsonString;
 
 pub fn main(init: std.process.Init) !void {
     // Capture the process environment for portable, libc-free env lookups used

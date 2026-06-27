@@ -92,14 +92,6 @@ fn deleteTreeForTest(path: []const u8) void {
     std.Io.Dir.deleteTree(.cwd(), defaultIo(), path) catch |err| std.log.warn("test cleanup failed: {s}", .{@errorName(err)});
 }
 
-fn openFileForRead(path: []const u8) !std.Io.File {
-    return try std.Io.Dir.openFileAbsolute(defaultIo(), path, .{});
-}
-
-fn createFileForWrite(path: []const u8) !std.Io.File {
-    return try std.Io.Dir.createFileAbsolute(defaultIo(), path, .{ .truncate = true });
-}
-
 test {
     std.testing.refAllDecls(@This());
 }

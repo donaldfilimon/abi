@@ -4,7 +4,6 @@ const http = @import("http.zig");
 const json_lib = @import("json.zig");
 
 const ConnectorError = connector.ConnectorError;
-const ConnectorConfig = connector.ConnectorConfig;
 const Response = connector.Response;
 
 const TWILIO_ACCOUNT_SID_BYTES: usize = 34;
