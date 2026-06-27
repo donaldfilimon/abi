@@ -193,3 +193,15 @@ Multi-agent pass against `main` (work coordinated across disjoint slices; `./bui
 - **Docs reconciliation**: roadmap-next.md and todo.md reflect all new closures.
 - **MemoryTracker roadmap reconciliation**: `tasks/scheduler-memory-wireup.md` now matches current source: `trackFree` is pointer-aware, `trackResize` updates live records, WDBX hot paths use no-tag aggregate tracking, and dashboard/MCP/AI scheduler consumers are no longer listed as missing.
 - `./build.sh check` + parity green after WDBX pool/spatial payload expansion.
+
+## Session Summary (multi-agent audit-driven hardening)
+
+Consolidated the in-flight Zig 0.17 refactor onto `main` (abi_cli→cli rename, fable5 model catalog, fm connector, feat-sea, agent REPL, portable env layer) and ran a parallel multi-agent audit + adversarial verification, applying only verified-real, contract/parity-preserving findings. All `./build.sh check` green throughout (36/36 steps).
+
+- **WDBX WAL double-frees (2× HIGH, latent):** `putVector` and `store` could double-free / dangle a buffer when a WAL append IO error followed the in-memory commit. Fixed while preserving memory-first / WAL-after ordering (putVector reorders the append above the free; store uses commit-flag errdefers).
+- **remote_compute overflow:** `serveOnce` guards untrusted `dim*2` via `std.math.mul`.
+- **check_parity gap closed:** a feature/plugin leaf with `mod.zig` but no `stub.zig` now fails parity (was a silent pass); `src/features/mod.zig` dispatcher exempt. Negative-tested.
+- **SEA adaptive-weight observability:** `LearnLoopConfig.tracker` routes the router weight-save through a `TrackingAllocator` (balanced, non-escaping); new feat-sea test. Closes the "adaptive-weight AI internals" tracking gap.
+- **Smaller fixes:** learn_loop logs (not swallows) a weight-save failure; dashboard handler defers `mem_tracker.deinit()`; `runCli` behavioral tests added; fm.zig/CLAUDE/AGENTS/GEMINI/threat-model doc drift reconciled (incl. softening the unbacked apple-fm "runtime-verified" external claim).
+- **Verified, not done:** the rest.zig↔server.zig HTTP-framing duplication is **intentional** — the MCP module is rooted at `src/mcp/`, so it cannot import a shared `src/foundation/` leaf (confirmed by compile error). Left as documented duplication.
+- **Aggressive matrix:** `./build.sh full-check`, the 10-flag feature-off + extras-on matrix, `cross-smoke`, and ~20 CLI runtime commands all green.

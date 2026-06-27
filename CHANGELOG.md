@@ -4,7 +4,18 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ## Unreleased
 
+### Fixed
+
+- WDBX write-ahead-log double-frees: `Store.putVector` and `Store.store` could double-free / dangle a buffer when a WAL append IO error followed the in-memory commit. The `errdefer` now stays the sole owner across the fallible append — `putVector` moves the append above the padded-buffer free; `store` disarms the owned-key/value `errdefer`s with commit flags — preserving the deliberate memory-first / WAL-after ordering. (Latent on the persistent path; no default-build test reproduced them.)
+- WDBX remote-compute reference listener (`serveOnce`) now guards the untrusted `dim * 2` against `usize` overflow via `std.math.mul` before allocating, looping, and slicing.
+- `zig build check-parity` now fails when a feature/plugin leaf ships `mod.zig` with no sibling `stub.zig` (previously a silent pass); only the intentional `src/features/mod.zig` dispatcher is exempt.
+- SEA learn loop logs (rather than swallows) a router weight-save failure on the durable persistence path; the CLI dashboard handler `defer`s `MemoryTracker.deinit()` to match the train/agent handlers.
+- Reconciled stale docs against source: threat-model `src/abi_cli/` → `src/cli/` paths after the CLI rename; corrected the apple-fm `@c`-shim wording in CLAUDE/AGENTS/GEMINI (the shim exists and is linked; it is not a nonexistent `@_cdecl` shim) and softened the unbacked "runtime-verified on Apple-Intelligence hardware" claim per the external-claims policy.
+
 ### Added
+
+- SEA `runLearnLoop` gains an optional `LearnLoopConfig.tracker` that makes adaptive persona-router weight persistence observable through a `MemoryTracker` (balanced, non-escaping; default off → no call-site change).
+- `runCli` behavioral tests covering help/no-args (exit 0) and unknown-command / missing-required-positional (exit 2) dispatch paths.
 
 - Hardened the modernization contract suite around root/feature namespaces, CLI/MCP tools, generated plugin registry metadata, and feature-off stub behavior.
 - Added `ABI_MCP_HTTP_PORT` support for moving the MCP loopback HTTP/SSE transport off the default `127.0.0.1:8080` port.
