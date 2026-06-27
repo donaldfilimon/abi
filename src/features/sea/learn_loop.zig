@@ -4,6 +4,7 @@ const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @impor
 const ai = if (build_options.feat_ai) @import("../ai/mod.zig") else @import("../ai/stub.zig");
 const router = @import("../ai/router.zig");
 const evidence = @import("evidence.zig");
+const core_memory = @import("../../core/memory.zig");
 
 /// Configuration for one self-learning pass.
 pub const LearnLoopConfig = struct {
@@ -15,6 +16,11 @@ pub const LearnLoopConfig = struct {
     adapt_router: bool = true,
     /// Hard cap on the augmented prompt (mirrors `evidence.MAX_PROMPT_BYTES`).
     max_prompt_bytes: usize = evidence.MAX_PROMPT_BYTES,
+    /// Optional memory tracker. When set, the adaptive-weight save's transient
+    /// serialize buffer is routed through a `TrackingAllocator` so weight
+    /// persistence is observable. The buffer is balanced (alloc+free inside
+    /// `saveWeights`), so no caller-owned/escaping allocation is tracked.
+    tracker: ?*core_memory.MemoryTracker = null,
 };
 
 /// Result of `runLearnLoop`. Owns the underlying completion; `deinit` frees it.
@@ -63,9 +69,16 @@ pub fn runLearnLoop(
     var adapted = false;
     if (config.adapt_router) {
         modulator.update(router.analyzeSentiment(input));
+        // Observe adaptive-weight persistence when a tracker is provided:
+        // saveWeights' serialize buffer is alloc+freed internally (store.store
+        // dupes it), so a TrackingAllocator records a balanced alloc/free without
+        // touching any caller-owned buffer.
+        var save_ta: ?core_memory.TrackingAllocator =
+            if (config.tracker) |t| core_memory.TrackingAllocator.init(allocator, t) else null;
+        const save_alloc = if (save_ta) |*ta| ta.allocator() else allocator;
         // A failed weight save must not discard the completion the caller owns;
         // surface it as "not adapted" rather than leaking or aborting.
-        if (modulator.saveWeights(allocator, store)) |_| {
+        if (modulator.saveWeights(save_alloc, store)) |_| {
             adapted = true;
         } else |err| {
             std.log.warn("sea: router weight save failed: {s}", .{@errorName(err)});
@@ -74,6 +87,31 @@ pub fn runLearnLoop(
     }
 
     return .{ .completion = completion, .evidence_count = evidence_count, .adapted = adapted };
+}
+
+test "runLearnLoop tracks adaptive-weight persistence when a tracker is set" {
+    if (!build_options.feat_wdbx or !build_options.feat_ai) return;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var tracker = core_memory.MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    var result = try runLearnLoop(allocator, &store, "hello world", "abi-local", .{
+        .persist = false,
+        .adapt_router = true,
+        .tracker = &tracker,
+    });
+    defer result.deinit(allocator);
+
+    // The weight-save routed its serialize buffer through the tracker, so the
+    // adaptive-weight persistence is now observable — and it was balanced
+    // (alloc+free inside saveWeights), leaving the tracker net-zero.
+    try std.testing.expect(result.adapted);
+    try std.testing.expect(tracker.getTotalAllocated() > 0);
+    try std.testing.expectEqual(tracker.getTotalAllocated(), tracker.getTotalFreed());
 }
 
 test {
