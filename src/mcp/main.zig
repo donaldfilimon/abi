@@ -26,6 +26,11 @@ pub fn main(init: std.process.Init) !void {
     // checkpoints, and deinit is idempotent).
     state.setIo(init.io);
     defer state.deinitWdbxStore();
+    // Tear down the shared scheduler on the owning (main) thread, AFTER the HTTP
+    // thread is joined (LIFO: this runs after the join defer below). The in-band
+    // `shutdown` RPC now only signals, so it never frees the scheduler while a
+    // peer transport's tool call is in flight.
+    defer state.deinitScheduler();
 
     // Spawn HTTP/SSE server thread
     const http_thread = std.Thread.spawn(.{}, server.runHttpServer, .{ init.gpa, init.io }) catch |err| {

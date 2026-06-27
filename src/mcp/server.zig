@@ -120,9 +120,10 @@ fn processRequest(allocator: std.mem.Allocator, io: std.Io, line: []const u8) !v
         },
         .ping => try allocator.dupe(u8, "{}"),
         .shutdown => blk: {
+            // Only signal shutdown; `main` tears down the shared scheduler/store
+            // after it joins the HTTP thread, so teardown never races a peer
+            // transport's in-flight tool call (see src/mcp/main.zig).
             requestShutdown();
-            state.deinitWdbxStore();
-            state.deinitScheduler();
             break :blk try allocator.dupe(u8, "null");
         },
         .@"resources/list" => try allocator.dupe(u8, "{\"resources\":[]}"),

@@ -2,7 +2,6 @@ const std = @import("std");
 const protocol = @import("protocol.zig");
 const handlers = @import("handlers.zig");
 const json_helpers = @import("json_helpers.zig");
-const state = @import("state.zig");
 const shutdown = @import("shutdown.zig");
 
 const JsonRpcRequest = protocol.JsonRpcRequest;
@@ -24,9 +23,10 @@ pub fn processJsonRpc(allocator: std.mem.Allocator, body: []const u8) ![]u8 {
         .@"tools/call" => try handlers.handleToolsCallJson(allocator, request.value.params),
         .ping => try allocator.dupe(u8, "{}"),
         .shutdown => blk: {
+            // Only signal shutdown; `main` performs teardown after joining the
+            // HTTP thread (avoids freeing shared state under a peer transport's
+            // in-flight call). See src/mcp/main.zig.
             shutdown.request();
-            state.deinitWdbxStore();
-            state.deinitScheduler();
             break :blk try allocator.dupe(u8, "null");
         },
         .@"resources/list" => try allocator.dupe(u8, "{\"resources\":[]}"),
