@@ -12,6 +12,12 @@ var g_scheduler_initialized = std.atomic.Value(bool).init(false);
 var g_mcp_session: ?abi.features.wdbx.durable_store.Session = null;
 var g_wdbx_initialized = std.atomic.Value(bool).init(false);
 var g_wdbx_lock: abi.foundation.sync.SpinLock = .{};
+// Dedicated init locks: lazy construction is serialized here (double-checked,
+// publishing the `initialized` flag only AFTER the optional is constructed) so a
+// concurrent reader can never observe `initialized==true` while the backing
+// optional is still null. Distinct from g_wdbx_lock (the per-operation store lock).
+var g_scheduler_init_lock: abi.foundation.sync.SpinLock = .{};
+var g_wdbx_init_lock: abi.foundation.sync.SpinLock = .{};
 /// IO handle for durable-store persistence, set once by `main` before the
 /// transport loops start. When unset (e.g. contract tests that invoke handlers
 /// directly), the store opens in-memory so test behavior is unchanged.
@@ -27,9 +33,13 @@ pub fn statDelta(after: usize, before: usize) usize {
 
 fn ensureScheduler() void {
     if (g_scheduler_initialized.load(.acquire)) return;
-    if (g_scheduler_initialized.cmpxchgStrong(false, true, .acq_rel, .acquire) == null) {
-        g_mcp_scheduler = abi.scheduler.Scheduler.init(std.heap.page_allocator);
-    }
+    g_scheduler_init_lock.lock();
+    defer g_scheduler_init_lock.unlock();
+    if (g_scheduler_initialized.load(.acquire)) return; // double-check under the lock
+    g_mcp_scheduler = abi.scheduler.Scheduler.init(std.heap.page_allocator);
+    // Publish readiness only after construction: a peer that observes the flag
+    // via acquire is guaranteed a non-null g_mcp_scheduler (release/acquire pair).
+    g_scheduler_initialized.store(true, .release);
 }
 
 pub fn getScheduler() *abi.scheduler.Scheduler {
@@ -47,16 +57,19 @@ pub fn deinitScheduler() void {
 
 fn ensureWdbxStore() void {
     if (g_wdbx_initialized.load(.acquire)) return;
-    if (g_wdbx_initialized.cmpxchgStrong(false, true, .acq_rel, .acquire) == null) {
-        const durable = abi.features.wdbx.durable_store;
-        g_mcp_session = if (g_io) |io|
-            durable.Session.open(io, std.heap.page_allocator) catch |err| blk: {
-                std.log.warn("durable WDBX open failed ({s}); using in-memory store", .{@errorName(err)});
-                break :blk durable.Session.openInMemory(std.heap.page_allocator);
-            }
-        else
-            durable.Session.openInMemory(std.heap.page_allocator);
-    }
+    g_wdbx_init_lock.lock();
+    defer g_wdbx_init_lock.unlock();
+    if (g_wdbx_initialized.load(.acquire)) return; // double-check under the lock
+    const durable = abi.features.wdbx.durable_store;
+    g_mcp_session = if (g_io) |io|
+        durable.Session.open(io, std.heap.page_allocator) catch |err| blk: {
+            std.log.warn("durable WDBX open failed ({s}); using in-memory store", .{@errorName(err)});
+            break :blk durable.Session.openInMemory(std.heap.page_allocator);
+        }
+    else
+        durable.Session.openInMemory(std.heap.page_allocator);
+    // Publish readiness only after the session is constructed (see ensureScheduler).
+    g_wdbx_initialized.store(true, .release);
 }
 
 pub fn getWdbxStore() *abi.features.wdbx.Store {
