@@ -78,6 +78,7 @@ The MCP server exposes JSON-RPC 2.0 over stdio and loopback HTTP/SSE. Feature-ba
 
 - `ai_run`
 - `ai_complete`
+- `ai_learn`
 - `ai_train`
 - `wdbx_query`
 - `scheduler_stats`
@@ -90,7 +91,9 @@ The MCP server exposes JSON-RPC 2.0 over stdio and loopback HTTP/SSE. Feature-ba
 
 `connector_test` uses deterministic local connector paths only; it does not perform live network dispatch. `plugin_list` loads the bundled plugin manifests through `PluginManager` and returns their metadata, while `plugin_run` executes the bundled plugin `run()` implementations.
 
-HTTP defaults to `127.0.0.1:8080`; use `ABI_MCP_HTTP_PORT` to select another loopback port. Empty, invalid, zero, or out-of-range overrides fall back to `8080`; HTTP bind failure is non-fatal and leaves stdio running.
+HTTP defaults to `127.0.0.1:8080`; use `ABI_MCP_HTTP_PORT` to select another loopback port. Empty, invalid, zero, or out-of-range overrides fall back to `8080`; HTTP bind failure is non-fatal and leaves stdio running. Set `ABI_MCP_HTTP_TOKEN` to require `Authorization: Bearer <token>` on the loopback HTTP/SSE transport. Stdio JSON-RPC remains tokenless local IPC.
+
+The WDBX REST API (`abi wdbx api serve [port]`) binds `127.0.0.1` and exposes `POST /insert`, `POST /query`, `POST /verify`, `GET /health`, and `GET /stats`. Set `ABI_WDBX_REST_TOKEN` to require `Authorization: Bearer <token>` on the HTTP transport. This is loopback/local hardening only; non-loopback exposure still requires a reviewed fronting layer with TLS, authorization, rate limiting, and deployment controls.
 
 ## Plugin registry contract
 
@@ -117,6 +120,7 @@ Discord connector calls validate:
 - non-empty printable ASCII credentials without whitespace
 - numeric snowflake-like client/channel/author IDs
 - non-empty message content no larger than 2000 bytes
+- local send/receive logs include IDs and content byte counts, not message text
 
 Twilio connector calls validate:
 
@@ -125,8 +129,13 @@ Twilio connector calls validate:
 - non-empty base URL and non-zero timeout
 - ConversationRelay aliases (`event`, `callSid`, `from`, camelCase memory/intelligence fields) and wrong-typed payload rejection before building local responses or live TwiML/form payloads
 - XML escaping for TwiML `<Say>` and `<Redirect>` text and URL-encoded form fields
+- live response logs include HTTP status and body byte counts, not provider response bodies
 
 OpenAI and Anthropic connectors validate shared connector config and keep local streaming responses deterministic. Live HTTP dispatch remains an explicit `.live` transport path, and connector tests validate malformed live-path inputs before network dispatch.
+
+## Credential storage contract
+
+`abi auth` persists provider credentials as local plaintext JSON at `~/.abi/credentials.json`. On POSIX-capable targets, the credential directory is created or repaired as owner-only (`0700`) and the credential file is opened/truncated with owner-only permissions (`0600`) before secret bytes are written; existing permissive files are tightened before overwrite. This is local filesystem hardening, not encryption, OS keychain storage, RBAC, or a regulatory-compliance claim.
 
 ## Validation gates
 

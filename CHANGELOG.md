@@ -16,6 +16,11 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- Hardened credential-file persistence: `abi auth` now creates/repairs `~/.abi` as owner-only (`0700` on POSIX-capable targets) and opens/truncates `credentials.json` with owner-only file permissions (`0600`) before writing secret bytes, with regression coverage for existing permissive files.
+- Redacted Discord/Twilio connector logs that previously emitted local Discord message content and Twilio live response bodies; logs now report IDs/status plus byte counts, with helper regression tests.
+- Added optional bearer-token enforcement for the MCP loopback HTTP/SSE transport via `ABI_MCP_HTTP_TOKEN`, with HTTP-boundary tests for unauthorized and authorized requests. Stdio transport remains unchanged.
+- Added optional bearer-token enforcement for the WDBX loopback REST transport via `ABI_WDBX_REST_TOKEN`, with HTTP-boundary tests for unauthorized and authorized requests.
+- Added `wdbx.entropy`, an exact order-0 canonical Huffman codec for arbitrary byte payloads with no-expansion fallback, deterministic round-trip tests, and explicit claim boundaries below production/SOTA learned compression.
 - SEA `runLearnLoop` gains an optional `LearnLoopConfig.tracker` that makes adaptive persona-router weight persistence observable through a `MemoryTracker` (balanced, non-escaping; default off → no call-site change).
 - `runCli` behavioral tests covering help/no-args (exit 0) and unknown-command / missing-required-positional (exit 2) dispatch paths.
 

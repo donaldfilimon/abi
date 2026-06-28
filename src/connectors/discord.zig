@@ -53,7 +53,8 @@ pub const Bot = struct {
 
         try validateDiscordId(channel_id);
         try validateMessageContent(content);
-        std.log.info("Discord local send to channel {s}: {s}", .{ channel_id, content });
+        const summary = redactedMessageSummary(content);
+        std.log.info("Discord local send to channel {s}: content_bytes={d} content=redacted", .{ channel_id, summary.content_bytes });
 
         return try json.discordLocalAck(allocator, channel_id, content);
     }
@@ -90,7 +91,8 @@ pub const Bot = struct {
 
         try validateDiscordId(author);
         try validateMessageContent(content);
-        std.log.info("Discord local receive from {s}: {s}", .{ author, content });
+        const summary = redactedMessageSummary(content);
+        std.log.info("Discord local receive from {s}: content_bytes={d} content=redacted", .{ author, summary.content_bytes });
 
         return try std.fmt.allocPrint(
             self.allocator,
@@ -121,4 +123,18 @@ fn validateToken(token: []const u8) ConnectorError!void {
     for (token) |byte| {
         if (std.ascii.isWhitespace(byte) or byte < 0x21 or byte > 0x7e) return ConnectorError.AuthenticationError;
     }
+}
+
+const RedactedMessageSummary = struct {
+    content_bytes: usize,
+};
+
+fn redactedMessageSummary(content: []const u8) RedactedMessageSummary {
+    return .{ .content_bytes = content.len };
+}
+
+test "discord redacted log summary omits message text" {
+    const secret = "customer says reset my password";
+    const summary = redactedMessageSummary(secret);
+    try std.testing.expectEqual(secret.len, summary.content_bytes);
 }
