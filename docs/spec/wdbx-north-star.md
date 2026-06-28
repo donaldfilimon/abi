@@ -43,7 +43,7 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 | Distributed clustering | **Partial** | `cluster.zig` in-process Raft core (election, majority-quorum replication, failover; `abi wdbx cluster demo`) **plus** `cluster_rpc.zig`, a real TCP transport (RequestVote/AppendEntries) with election/replication/downed-node tests over 127.0.0.1 and a runnable `abi wdbx cluster serve <port>` node endpoint. Gap: multi-host production deployment and data sharding (a routable bind address is the only code change for multi-host; sharding is unbuilt). |
 | Cryptographic verification | **Current** | SHA-256-linked blocks + `verifyBlocks()`; snapshot integrity line rejects tampering (`error.ChecksumMismatch`); WAL CRC32 frames: `chain.zig`, `persistence.zig`, `wal.zig`. |
 | Zero-copy memory access | **Partial** | `Store.getVector` returns a borrowed slice aliasing the index's contiguous backing buffer — no allocation/copy — proven by a pointer-aliasing test (`mod.zig`); pool/arena allocators in `src/foundation/pool_allocator.zig`. Gap: an end-to-end zero-copy path across the whole query. |
-| Neural / embedding compression | **Partial** | `compression.zig` int8 quantization (~4×) **plus** `neural_compress.zig`, an in-process-trained autoencoder codec (hand-written backprop/SGD; reconstruction-error + determinism tests). Gap: a SOTA/production-scale learned codec. |
+| Neural / embedding / entropy compression | **Partial** | `compression.zig` int8 quantization (~4×), `entropy.zig` exact order-0 Huffman entropy coding for arbitrary byte payloads, **plus** `neural_compress.zig`, an in-process-trained autoencoder codec (hand-written backprop/SGD; reconstruction-error + determinism tests). Gap: a SOTA/production-scale learned codec or stronger entropy family such as ANS/arithmetic/context modeling. |
 | Homomorphic encryption | **Partial** | `crypto_he.zig` additive single-key homomorphism, **plus** `fhe.zig`, a real DGHV **somewhat-homomorphic** scheme supporting encrypted **add (XOR) and multiply (AND)** to a small depth (depth-3 chained multiply tested; `secure demo`). Reference parameters / bounded depth — **not** security-audited. Gap: production-secure parameters and bootstrapped full FHE. |
 
 ---
@@ -68,7 +68,7 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 - **Proposed:** native compute kernels for the local accelerator backends (CUDA / Metal / Vulkan Compute / ANE). ANE native execution specifically requires Apple CoreML/ObjC (not pure Zig) and on-device profiling to verify residency. Selection is already **dynamic** and always degrades to the deterministic CPU path.
 
 ### 3.4 Security Layer
-- **Current:** SHA-256 block chaining with integrity verification; snapshot checksum + WAL CRC32 frames with clean rejection of tampered/out-of-range records; `crypto_he.zig` additive homomorphic encryption (encrypted aggregation under a single key) and `fhe.zig` DGHV **somewhat-homomorphic** encryption (encrypted add + multiply on bits, small depth, reference parameters — not security-audited); connector credential validation; constitution governance on responses.
+- **Current:** SHA-256 block chaining with integrity verification; snapshot checksum + WAL CRC32 frames with clean rejection of tampered/out-of-range records; `crypto_he.zig` additive homomorphic encryption (encrypted aggregation under a single key) and `fhe.zig` DGHV **somewhat-homomorphic** encryption (encrypted add + multiply on bits, small depth, reference parameters — not security-audited); connector credential validation; POSIX credential-file permission hardening (`~/.abi` as `0700`, `credentials.json` as `0600` before secret bytes); constitution governance on responses.
 - **Proposed:** at-rest snapshot encryption, signed snapshots, and production-secure / bootstrapped full FHE (Phase 4). No encryption/RBAC claims beyond what is implemented and tested.
 
 ### 3.5 Cluster Layer
@@ -76,7 +76,7 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 - **Proposed:** multi-host deployment (a routable bind address is the only code change) and data sharding/partitioning across nodes. Until a multi-host deployment is exercised, ABI is **not** a distributed multi-host system, and sharding is unbuilt.
 
 ### 3.6 Transport Layer
-- **Current:** MCP JSON-RPC 2.0 over stdio (64 KB request cap) + optional loopback HTTP/SSE (`GET /sse`, `POST /message`) on `127.0.0.1:8080`; **WDBX REST listener** (`rest.zig`) serving `POST /insert /query /verify` and `GET /health /stats` on a loopback port (`abi wdbx api serve [port]`, default 8081), with a fully unit-tested pure routing core.
+- **Current:** MCP JSON-RPC 2.0 over stdio (64 KB request cap) + optional loopback HTTP/SSE (`GET /sse`, `POST /message`) on `127.0.0.1:8080`, with optional bearer-token enforcement via `ABI_MCP_HTTP_TOKEN`; **WDBX REST listener** (`rest.zig`) serving `POST /insert /query /verify` and `GET /health /stats` on a loopback port (`abi wdbx api serve [port]`, default 8081), with a fully unit-tested pure routing core and optional bearer-token enforcement via `ABI_WDBX_REST_TOKEN`.
 - **Current (added):** cluster consensus RPC and remote-compute dispatch over TCP (`cluster_rpc.zig`, `remote_compute.zig`), loopback-tested via a shared `net_line` framing helper.
 - **Proposed:** gRPC, WebSocket streaming; hardening the listeners for non-loopback/production use.
 
@@ -85,14 +85,14 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 ## 4. API Surface
 
 ### Current
-The contract-tested public surfaces are the CLI (`src/cli/usage.zig`) and the MCP tool list (`src/mcp/handlers.zig`): `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`, `wdbx_stats`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `plugin_run`.
+The contract-tested public surfaces are the CLI (`src/cli/usage.zig`) and the MCP tool list (`src/mcp/handlers.zig`): `ai_run`, `ai_complete`, `ai_learn`, `ai_train`, `wdbx_query`, `wdbx_stats`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `plugin_run`.
 
 ### REST (implemented, loopback — `rest.zig`)
 ```
 POST /insert     POST /query     POST /verify
 GET  /health     GET  /stats
 ```
-Served by `abi wdbx api serve [port]` (default 8081). The routing core is a pure, unit-tested `route(method, path, body)` function; `serve` wraps it on a 127.0.0.1 listener. Future: gRPC, WebSocket streaming, cluster RPC, and hardening for non-loopback exposure.
+Served by `abi wdbx api serve [port]` (default 8081). The routing core is a pure, unit-tested `route(method, path, body)` function; `serve` wraps it on a 127.0.0.1 listener. If `ABI_WDBX_REST_TOKEN` is set, the HTTP transport requires `Authorization: Bearer <token>` before routing. Future: gRPC, WebSocket streaming, cluster RPC, and further hardening for non-loopback exposure (TLS, authz, rate limiting, and reviewed deployment topology).
 
 ---
 
@@ -115,7 +115,7 @@ wdbx secure demo                                        # int8 compression + add
 wdbx gpu info                                           # GPU backend capabilities
 wdbx api serve [port]                                   # loopback REST listener (default 8081)
 ```
-`cluster status` reports the real in-process Raft state-machine status line; `cluster demo` runs the consensus core and `cluster serve` exposes its networked RequestVote/AppendEntries transport over loopback (§3.5). `api serve` starts the loopback REST listener implemented in `rest.zig` (`POST /insert /query /verify`, `GET /health /stats`; §3.6/§4). **Native local-accelerator (CUDA/Vulkan/Metal-kernel/ANE) execution, multi-host distributed deployment + sharding, a production/learned compression codec, and production-secure/bootstrapped FHE remain Proposed** (§2).
+`cluster status` reports the real in-process Raft state-machine status line; `cluster demo` runs the consensus core and `cluster serve` exposes its networked RequestVote/AppendEntries transport over loopback (§3.5). `api serve` starts the loopback REST listener implemented in `rest.zig` (`POST /insert /query /verify`, `GET /health /stats`; §3.6/§4). **Native local-accelerator (CUDA/Vulkan/Metal-kernel/ANE) execution, multi-host distributed deployment + sharding, a production/SOTA learned compression codec, and production-secure/bootstrapped FHE remain Proposed** (§2).
 
 ---
 

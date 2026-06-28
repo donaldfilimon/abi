@@ -1,5 +1,6 @@
 const std = @import("std");
 const foundation_io = @import("../../foundation/io/mod.zig");
+const core_memory = @import("../../core/memory.zig");
 const helpers = @import("helpers.zig");
 const types = @import("types.zig");
 
@@ -17,6 +18,22 @@ pub fn validateTrainingConfig(config: types.TrainingConfig) !void {
 }
 
 pub fn inspectDataset(allocator: std.mem.Allocator, dataset: types.DatasetSpec) !DatasetSummary {
+    return inspectDatasetTracked(allocator, dataset, null);
+}
+
+pub fn inspectDatasetTracked(
+    allocator: std.mem.Allocator,
+    dataset: types.DatasetSpec,
+    tracker: ?*core_memory.MemoryTracker,
+) !DatasetSummary {
+    if (tracker) |t| {
+        var tracking = core_memory.TrackingAllocator.init(allocator, t);
+        return inspectDatasetWithAllocator(tracking.allocator(), dataset);
+    }
+    return inspectDatasetWithAllocator(allocator, dataset);
+}
+
+fn inspectDatasetWithAllocator(allocator: std.mem.Allocator, dataset: types.DatasetSpec) !DatasetSummary {
     const path = foundation_io.resolvePath(allocator, dataset.path) catch |err| switch (err) {
         error.FileNotFound => return .{ .available = false, .records = 0, .bytes = dataset.path.len },
         else => return err,
@@ -95,6 +112,31 @@ test "dataset record counting handles jsonl and surfaces malformed lines" {
     // error propagates) rather than being silently skipped. Pinned so a future
     // skip-malformed change is a deliberate decision, not an accidental drift.
     try std.testing.expect(if (countDatasetRecords(allocator, .jsonl, "{\"a\":1}\nnot json\n")) |_| false else |_| true);
+}
+
+test "inspectDatasetTracked accounts read and JSON parse transients" {
+    const allocator = std.testing.allocator;
+    const path = try std.fmt.allocPrint(allocator, "/tmp/abi_training_support_tracker_{d}.jsonl", .{std.c.getpid()});
+    defer allocator.free(path);
+    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.log.warn("training_support test cleanup failed: {s}", .{@errorName(err)}),
+    };
+
+    try foundation_io.asyncWriteFile(path, "{\"input\":\"a\"}\n{\"input\":\"b\"}\n");
+
+    var tracker = core_memory.MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    const summary = try inspectDatasetTracked(allocator, .{ .path = path, .format = .jsonl }, &tracker);
+
+    try std.testing.expect(summary.available);
+    try std.testing.expectEqual(@as(usize, 2), summary.records);
+    try std.testing.expect(summary.bytes > 0);
+    try std.testing.expect(tracker.getTotalAllocated() > 0);
+    try std.testing.expectEqual(tracker.getTotalAllocated(), tracker.getTotalFreed());
+    try std.testing.expectEqual(@as(usize, 0), tracker.getCurrentUsage());
+    try std.testing.expectEqual(@as(usize, 0), tracker.getRecordCount());
 }
 
 test {

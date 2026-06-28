@@ -180,6 +180,78 @@ pub fn vectorOps() VectorOps {
     return VectorOps.init();
 }
 
+// Parent GPU compute API mirror (feature disabled): CPU-only, every accelerator
+// honestly reported unavailable. Keeps name/shape parity with the real module.
+pub const compute_api = @This();
+
+pub const Kernel = enum { mul, l2diff };
+
+pub const BackendAvailability = struct {
+    backend: Backend,
+    available: bool,
+    dispatches: bool,
+    reason: []const u8,
+};
+
+pub fn backendMatrix() [6]BackendAvailability {
+    return .{
+        .{ .backend = .metal, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
+        .{ .backend = .vulkan, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
+        .{ .backend = .cuda, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
+        .{ .backend = .opengl, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
+        .{ .backend = .webgpu, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
+        .{ .backend = .simulated, .available = true, .dispatches = true, .reason = "GPU feature disabled; vectorized CPU path" },
+    };
+}
+
+pub const GpuCompute = struct {
+    backend: Backend = .simulated,
+    accelerated: bool = false,
+
+    pub fn init() GpuCompute {
+        return .{};
+    }
+
+    pub fn backendName(self: GpuCompute) []const u8 {
+        return @import("std").mem.span(@tagName(self.backend));
+    }
+
+    pub fn isAccelerated(self: GpuCompute) bool {
+        _ = self;
+        return false;
+    }
+
+    pub fn map(self: GpuCompute, kernel: Kernel, a: []const f32, b: []const f32, out: []f32) !void {
+        _ = self;
+        if (a.len != b.len or a.len != out.len) return error.DimensionMismatch;
+        switch (kernel) {
+            .mul => for (a, b, out) |x, y, *o| {
+                o.* = x * y;
+            },
+            .l2diff => for (a, b, out) |x, y, *o| {
+                const d = x - y;
+                o.* = d * d;
+            },
+        }
+    }
+
+    pub fn reduce(self: GpuCompute, kernel: Kernel, a: []const f32, b: []const f32) !f32 {
+        _ = self;
+        if (a.len != b.len) return error.DimensionMismatch;
+        var sum: f32 = 0;
+        switch (kernel) {
+            .mul => for (a, b) |x, y| {
+                sum += x * y;
+            },
+            .l2diff => for (a, b) |x, y| {
+                const d = x - y;
+                sum += d * d;
+            },
+        }
+        return sum;
+    }
+};
+
 test {
     const std = @import("std");
     std.testing.refAllDecls(@This());

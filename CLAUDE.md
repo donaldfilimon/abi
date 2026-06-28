@@ -92,7 +92,7 @@ For full validation including integration tests, benchmarks, and TUI smoke:
 
 - `tasks/lessons.md` – Startup checklist and conventions
 - `tasks/todo.md` – Current work items and known failures
-- `tasks/` – Working-notes directory beyond the two above (e.g. `roadmap-next.md`, `audit-report.md`, `explore-report.md`, `round2-summary.md`, `scheduler-memory-wireup.md`); consult for in-flight context
+- `tasks/` – Working-notes directory beyond the two above (e.g. `roadmap-next.md`, `scheduler-memory-wireup.md`); consult for in-flight context
 - `TASKS.md` – Top-level active task board (what's currently on deck); detailed history lives under `tasks/`
 - `docs/index.md` – Architecture, public API contracts, onboarding, and development guides
 - `CHANGELOG.md` – Release-note style modernization highlights

@@ -9,7 +9,6 @@ const abi = @import("abi");
 const McpMethod = protocol.McpMethod;
 const validateRequest = protocol.validateRequest;
 const MAX_REQUEST_SIZE = protocol.MAX_REQUEST_SIZE;
-const appendJsonString = json_helpers.appendJsonString;
 
 pub fn main(init: std.process.Init) !void {
     // Capture the process environment for portable, libc-free env lookups used
@@ -18,6 +17,7 @@ pub fn main(init: std.process.Init) !void {
     // Resolve the HTTP listen port here (main can reach the captured env; the
     // transport module cannot, per the import rules) and hand it to the server.
     server.setHttpPort(abi.foundation.env.get(server.HTTP_PORT_ENV));
+    server.setHttpToken(abi.foundation.env.get(server.HTTP_TOKEN_ENV));
     server.installSignalHandlers();
 
     // Persist the WDBX store across server restarts (default-ON). The durable

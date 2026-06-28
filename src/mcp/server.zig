@@ -8,6 +8,7 @@ const shutdown = @import("shutdown.zig");
 
 const DEFAULT_HTTP_PORT: u16 = 8080;
 pub const HTTP_PORT_ENV = "ABI_MCP_HTTP_PORT";
+pub const HTTP_TOKEN_ENV = "ABI_MCP_HTTP_TOKEN";
 
 // Resolved HTTP listen port. The MCP executable's `main` reads the
 // `ABI_MCP_HTTP_PORT` value from the captured process environment (which lives
@@ -15,6 +16,7 @@ pub const HTTP_PORT_ENV = "ABI_MCP_HTTP_PORT";
 // under the repo import rules) and pushes it here via `setHttpPort`. Defaults
 // to `DEFAULT_HTTP_PORT` when unset/invalid.
 var configured_http_port: u16 = DEFAULT_HTTP_PORT;
+var configured_http_token: ?[]const u8 = null;
 
 const JsonRpcRequest = protocol.JsonRpcRequest;
 const McpMethod = protocol.McpMethod;
@@ -207,7 +209,7 @@ pub fn runHttpServer(allocator: std.mem.Allocator, io: std.Io) void {
     };
     defer tcp_server.deinit(io);
 
-    std.log.info("MCP HTTP/SSE server listening on http://127.0.0.1:{d}", .{port});
+    std.log.info("MCP HTTP/SSE server listening on http://127.0.0.1:{d}, auth={s}", .{ port, if (configuredHttpToken() == null) "off" else "bearer" });
 
     while (!isShutdownRequested()) {
         const conn = tcp_server.accept(io) catch |err| {
@@ -215,7 +217,7 @@ pub fn runHttpServer(allocator: std.mem.Allocator, io: std.Io) void {
             std.log.warn("HTTP accept error: {s}", .{@errorName(err)});
             continue;
         };
-        handleHttpConnection(allocator, io, conn) catch |err| {
+        handleHttpConnectionWithAuth(allocator, io, conn, configuredHttpToken()) catch |err| {
             std.log.warn("HTTP connection error: {s}", .{@errorName(err)});
         };
     }
@@ -239,12 +241,29 @@ pub fn configuredHttpPort() u16 {
     return configured_http_port;
 }
 
+/// Set optional bearer-token auth for HTTP/SSE from a raw env value (typically
+/// `ABI_MCP_HTTP_TOKEN`). Empty/whitespace disables HTTP auth; stdio is never
+/// affected.
+pub fn setHttpToken(raw: ?[]const u8) void {
+    configured_http_token = if (raw) |r| parseHttpToken(r) else null;
+}
+
+pub fn configuredHttpToken() ?[]const u8 {
+    return configured_http_token;
+}
+
 fn parseHttpPort(raw: []const u8) ?u16 {
     const trimmed = std.mem.trim(u8, raw, " \t\r\n");
     if (trimmed.len == 0) return null;
     const port = std.fmt.parseInt(u16, trimmed, 10) catch return null;
     if (port == 0) return null;
     return port;
+}
+
+fn parseHttpToken(raw: []const u8) ?[]const u8 {
+    const trimmed = std.mem.trim(u8, raw, " \t\r\n");
+    if (trimmed.len == 0) return null;
+    return trimmed;
 }
 
 /// Outcome of reading a full HTTP request off the connection.
@@ -323,6 +342,10 @@ fn parseContentLength(header_block: []const u8) ?usize {
 }
 
 fn handleHttpConnection(allocator: std.mem.Allocator, io: std.Io, conn: std.Io.net.Stream) !void {
+    try handleHttpConnectionWithAuth(allocator, io, conn, null);
+}
+
+fn handleHttpConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, conn: std.Io.net.Stream, bearer_token: ?[]const u8) !void {
     defer conn.close(io);
 
     var read_buf: [MAX_REQUEST_SIZE]u8 = undefined;
@@ -343,6 +366,13 @@ fn handleHttpConnection(allocator: std.mem.Allocator, io: std.Io, conn: std.Io.n
     var req_it = std.mem.splitScalar(u8, request_line, ' ');
     const http_method = req_it.next() orelse return;
     const path = req_it.next() orelse return;
+
+    if (bearer_token) |token| {
+        if (!hasBearerToken(raw_request, token)) {
+            try writeUnauthorized(io, conn);
+            return;
+        }
+    }
 
     if (std.mem.eql(u8, http_method, "GET") and std.mem.eql(u8, path, "/sse")) {
         const sse_response =
@@ -386,6 +416,38 @@ fn handleHttpConnection(allocator: std.mem.Allocator, io: std.Io, conn: std.Io.n
     try writeHttpAll(io, conn, resp);
 }
 
+fn headerValue(raw: []const u8, name: []const u8) ?[]const u8 {
+    const header_block = if (std.mem.indexOf(u8, raw, "\r\n\r\n")) |idx| raw[0..idx] else raw;
+    var lines = std.mem.splitSequence(u8, header_block, "\r\n");
+    _ = lines.next(); // request line
+    while (lines.next()) |line| {
+        if (line.len == 0) break;
+        const colon = std.mem.indexOfScalar(u8, line, ':') orelse continue;
+        const key = std.mem.trim(u8, line[0..colon], " \t");
+        if (!std.ascii.eqlIgnoreCase(key, name)) continue;
+        return std.mem.trim(u8, line[colon + 1 ..], " \t");
+    }
+    return null;
+}
+
+fn hasBearerToken(raw: []const u8, token: []const u8) bool {
+    const value = headerValue(raw, "Authorization") orelse return false;
+    const prefix = "Bearer ";
+    if (!std.mem.startsWith(u8, value, prefix)) return false;
+    return std.mem.eql(u8, value[prefix.len..], token);
+}
+
+fn writeUnauthorized(io: std.Io, conn: std.Io.net.Stream) !void {
+    const body = "{\"error\":\"unauthorized\"}";
+    var buffer: [256]u8 = undefined;
+    const resp = try std.fmt.bufPrint(
+        &buffer,
+        "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nWWW-Authenticate: Bearer\r\nConnection: close\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+    try writeHttpAll(io, conn, resp);
+}
+
 fn writeHttpAll(io: std.Io, conn: std.Io.net.Stream, bytes: []const u8) !void {
     var buffer: [4096]u8 = undefined;
     var stream_writer = conn.writer(io, &buffer);
@@ -415,6 +477,12 @@ test "MCP HTTP port parser rejects invalid overrides" {
     try std.testing.expectEqual(@as(?u16, null), parseHttpPort("not-a-port"));
 }
 
+test "MCP HTTP token parser trims and rejects empty overrides" {
+    try std.testing.expectEqualStrings("local-token", parseHttpToken(" local-token\n") orelse return error.MissingToken);
+    try std.testing.expect(parseHttpToken("") == null);
+    try std.testing.expect(parseHttpToken(" \t\r\n") == null);
+}
+
 test "MCP HTTP Content-Length header parser" {
     try std.testing.expectEqual(
         @as(?usize, 42),
@@ -435,6 +503,19 @@ test "MCP HTTP Content-Length header parser" {
         @as(?usize, null),
         parseContentLength("POST /message HTTP/1.1\r\nContent-Length: abc\r\n\r\n"),
     );
+}
+
+test "MCP HTTP Authorization bearer parser" {
+    const raw =
+        "POST /message HTTP/1.1\r\n" ++
+        "Host: 127.0.0.1\r\n" ++
+        "authorization:   Bearer local-token  \r\n" ++
+        "Content-Length: 2\r\n\r\n{}";
+
+    try std.testing.expect(hasBearerToken(raw, "local-token"));
+    try std.testing.expect(!hasBearerToken(raw, "wrong-token"));
+    try std.testing.expect(!hasBearerToken("POST /message HTTP/1.1\r\n\r\n{}", "local-token"));
+    try std.testing.expect(!hasBearerToken("POST /message HTTP/1.1\r\nAuthorization: Basic nope\r\n\r\n{}", "local-token"));
 }
 
 extern fn getsockname(sockfd: std.posix.fd_t, addr: *std.posix.sockaddr, addrlen: *std.posix.socklen_t) c_int;
@@ -548,6 +629,77 @@ test "MCP HTTP transport handles a single-write request" {
     var resp_buf: [2048]u8 = undefined;
     const resp = try readHttpResponse(io, client, &resp_buf);
 
+    const resp_body = findHttpBody(resp) orelse return error.NoResponseBody;
+    try std.testing.expect(std.mem.indexOf(u8, resp_body, "\"result\":{}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp_body, "\"id\":1") != null);
+}
+
+test "MCP HTTP transport requires bearer token when configured" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    const body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}";
+    const request = try std.fmt.allocPrint(
+        allocator,
+        "POST /message HTTP/1.1\r\nContent-Length: {d}\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+    defer allocator.free(request);
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [512]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+
+    const conn = try bound.server.accept(io);
+    try handleHttpConnectionWithAuth(allocator, io, conn, "local-token");
+
+    var resp_buf: [2048]u8 = undefined;
+    const resp = try readHttpResponse(io, client, &resp_buf);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "401 Unauthorized") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "WWW-Authenticate: Bearer") != null);
+}
+
+test "MCP HTTP transport accepts configured bearer token" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    const body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}";
+    const request = try std.fmt.allocPrint(
+        allocator,
+        "POST /message HTTP/1.1\r\nAuthorization: Bearer local-token\r\nContent-Length: {d}\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+    defer allocator.free(request);
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [512]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+
+    const conn = try bound.server.accept(io);
+    try handleHttpConnectionWithAuth(allocator, io, conn, "local-token");
+
+    var resp_buf: [2048]u8 = undefined;
+    const resp = try readHttpResponse(io, client, &resp_buf);
     const resp_body = findHttpBody(resp) orelse return error.NoResponseBody;
     try std.testing.expect(std.mem.indexOf(u8, resp_body, "\"result\":{}") != null);
     try std.testing.expect(std.mem.indexOf(u8, resp_body, "\"id\":1") != null);

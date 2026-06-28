@@ -1,6 +1,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
+const core_memory = @import("../../core/memory.zig");
 
 pub const Principle = enum {
     truthfulness,
@@ -103,6 +104,10 @@ pub const TrainingConfig = struct {
     profile: []const u8,
     dataset: DatasetSpec,
     artifact_dir: []const u8,
+    /// Optional tracker (mirrors the real `types.TrainingConfig`). The disabled
+    /// training path does no transient accounting, but the field must exist so
+    /// callers constructing a `TrainingConfig` compile identically under both.
+    tracker: ?*core_memory.MemoryTracker = null,
 };
 
 pub const TrainingResult = struct {

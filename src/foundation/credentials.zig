@@ -73,7 +73,7 @@ pub fn saveCredentials(allocator: std.mem.Allocator, creds: Credentials) !void {
     defer allocator.free(path);
 
     const dir = utils.pathDirname(path);
-    try io.ensureDir(dir);
+    try ensureCredentialsDir(dir);
 
     try saveCredentialsToPath(allocator, path, creds);
 }
@@ -113,18 +113,45 @@ fn saveCredentialsToPath(allocator: std.mem.Allocator, path: []const u8, creds: 
     }
     try writer.endObject();
 
-    try io.asyncWriteFile(path, out.written());
+    try writeCredentialsFile(path, out.written());
+}
 
-    // Set restrictive permissions (0600)
-    const os_tag = builtin.target.os.tag;
-    if (os_tag == .macos or os_tag == .linux) {
-        var threaded: std.Io.Threaded = .init(std.heap.page_allocator, .{});
-        defer threaded.deinit();
-        const io_context = threaded.io();
-        const file = try std.Io.Dir.openFileAbsolute(io_context, path, .{ .mode = .read_write });
-        defer file.close(io_context);
-        try file.setPermissions(io_context, std.Io.File.Permissions.fromMode(0o600));
+fn ensureCredentialsDir(path: []const u8) !void {
+    const io_context = std.Options.debug_io;
+    const dir_permissions = restrictedPermissions(0o700);
+    _ = try std.Io.Dir.createDirPathStatus(.cwd(), io_context, path, dir_permissions);
+    try setDirectoryPermissions(path, dir_permissions);
+}
+
+fn writeCredentialsFile(path: []const u8, data: []const u8) !void {
+    const io_context = std.Options.debug_io;
+    const file_permissions = restrictedPermissions(0o600);
+    const file = try std.Io.Dir.createFileAbsolute(io_context, path, .{
+        .read = true,
+        .truncate = true,
+        .permissions = file_permissions,
+    });
+    defer file.close(io_context);
+
+    // Existing files keep their old mode across create+truncate, so repair
+    // permissions before any secret bytes are written.
+    try file.setPermissions(io_context, file_permissions);
+    try file.writeStreamingAll(io_context, data);
+    try file.setPermissions(io_context, file_permissions);
+}
+
+fn setDirectoryPermissions(path: []const u8, permissions: std.Io.Dir.Permissions) !void {
+    const io_context = std.Options.debug_io;
+    const dir = try std.Io.Dir.openDirAbsolute(io_context, path, .{});
+    defer dir.close(io_context);
+    try dir.setPermissions(io_context, permissions);
+}
+
+fn restrictedPermissions(comptime mode: std.posix.mode_t) std.Io.File.Permissions {
+    if (comptime std.Io.File.Permissions.has_executable_bit) {
+        return std.Io.File.Permissions.fromMode(mode);
     }
+    return .default_file;
 }
 
 fn dupeStringField(allocator: std.mem.Allocator, root: std.json.ObjectMap, key: []const u8) !?[]const u8 {
@@ -135,6 +162,26 @@ fn dupeStringField(allocator: std.mem.Allocator, root: std.json.ObjectMap, key: 
 
 fn testCredentialsPath(allocator: std.mem.Allocator, name: []const u8) ![]u8 {
     return try std.fmt.allocPrint(allocator, "/tmp/{s}_{d}.json", .{ name, std.c.getpid() });
+}
+
+fn testCredentialsDir(allocator: std.mem.Allocator, name: []const u8) ![]u8 {
+    return try std.fmt.allocPrint(allocator, "/tmp/{s}_{d}", .{ name, std.c.getpid() });
+}
+
+fn fileMode(path: []const u8) !std.posix.mode_t {
+    const io_context = std.Options.debug_io;
+    const file = try std.Io.Dir.openFileAbsolute(io_context, path, .{});
+    defer file.close(io_context);
+    const stat = try file.stat(io_context);
+    return stat.permissions.toMode() & 0o777;
+}
+
+fn dirMode(path: []const u8) !std.posix.mode_t {
+    const io_context = std.Options.debug_io;
+    const dir = try std.Io.Dir.openDirAbsolute(io_context, path, .{});
+    defer dir.close(io_context);
+    const stat = try dir.stat(io_context);
+    return stat.permissions.toMode() & 0o777;
 }
 
 test {
@@ -189,6 +236,55 @@ test "Credentials save and load from explicit path" {
     try std.testing.expect(loaded.grok_api_key == null);
     try std.testing.expectEqualStrings("AC123", loaded.twilio_account_sid orelse return error.MissingTwilioSid);
     try std.testing.expectEqualStrings("twilio-secret", loaded.twilio_auth_token orelse return error.MissingTwilioToken);
+}
+
+test "Credentials save tightens existing permissive file before writing" {
+    if (!std.Io.File.Permissions.has_executable_bit) return error.SkipZigTest;
+
+    const allocator = std.testing.allocator;
+    const test_path = try testCredentialsPath(allocator, "abi_credentials_perms");
+    defer allocator.free(test_path);
+    defer {
+        var threaded: std.Io.Threaded = .init(std.heap.page_allocator, .{});
+        defer threaded.deinit();
+        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch |err| switch (err) {
+            error.FileNotFound => {},
+            else => std.log.warn("cleanup failed: {s}", .{@errorName(err)}),
+        };
+    }
+
+    const io_context = std.Options.debug_io;
+    const file = try std.Io.Dir.createFileAbsolute(io_context, test_path, .{
+        .truncate = true,
+        .permissions = std.Io.File.Permissions.fromMode(0o666),
+    });
+    defer file.close(io_context);
+    try file.setPermissions(io_context, std.Io.File.Permissions.fromMode(0o666));
+
+    const creds = Credentials{
+        .anthropic_api_key = try allocator.dupe(u8, "anthropic-secret"),
+    };
+    var mut_creds = creds;
+    defer mut_creds.deinit(allocator);
+
+    try saveCredentialsToPath(allocator, test_path, mut_creds);
+    try std.testing.expectEqual(@as(std.posix.mode_t, 0o600), try fileMode(test_path));
+}
+
+test "Credentials directory is owner-only on supported POSIX filesystems" {
+    if (!std.Io.File.Permissions.has_executable_bit) return error.SkipZigTest;
+
+    const allocator = std.testing.allocator;
+    const test_dir = try testCredentialsDir(allocator, "abi_credentials_dir_perms");
+    defer allocator.free(test_dir);
+    defer {
+        var threaded: std.Io.Threaded = .init(std.heap.page_allocator, .{});
+        defer threaded.deinit();
+        std.Io.Dir.deleteTree(.cwd(), threaded.io(), test_dir) catch |err| std.log.warn("cleanup failed: {s}", .{@errorName(err)});
+    }
+
+    try ensureCredentialsDir(test_dir);
+    try std.testing.expectEqual(@as(std.posix.mode_t, 0o700), try dirMode(test_dir));
 }
 
 test "Credentials reject non-object json" {

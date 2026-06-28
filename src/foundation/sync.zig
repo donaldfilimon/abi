@@ -26,7 +26,6 @@ pub const RwLock = struct {
     state: AtomicValue(u32) = AtomicValue(u32).init(0),
 
     const WRITER_BIT = 1 << 31;
-    const READER_MASK = ~@as(u32, WRITER_BIT);
 
     pub fn lockRead(self: *RwLock) void {
         while (true) {

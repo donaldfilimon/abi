@@ -1,7 +1,6 @@
 const std = @import("std");
 const abi = @import("../../root.zig");
 const usage_mod = @import("../usage.zig");
-const dashboard_mod = @import("dashboard.zig");
 
 pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len < 3) return usage_mod.usageError("usage: abi agent <plan|train|tui|os> ...");

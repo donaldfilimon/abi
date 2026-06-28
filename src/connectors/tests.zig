@@ -9,12 +9,8 @@ const discord = @import("discord.zig");
 const twilio = @import("twilio.zig");
 const grok = @import("grok.zig");
 
-// Flattened aliases referenced bare by the tests below.
+// Flattened alias referenced bare by the tests below.
 const ConnectorError = connector.ConnectorError;
-const TransportMode = connector.TransportMode;
-const ConnectorConfig = connector.ConnectorConfig;
-const transportModeName = connector.transportModeName;
-const Response = connector.Response;
 
 const valid_twilio_sid = "AC" ++ "0123456789abcdef0123456789abcdef";
 const valid_twilio_token = "0123456789abcdef0123456789abcdef";

@@ -21,15 +21,32 @@ pub fn writeLine(io: std.Io, conn: Stream, bytes: []const u8) !void {
     try sw.interface.flush();
 }
 
-/// Connect to a 127.0.0.1 peer on `port` and send `msg`, returning the open
-/// stream (read the reply with `readLine`). Null if the peer is unreachable
-/// (connection refused / bad address) — callers treat that as a down peer.
-pub fn dial(io: std.Io, port: u16, msg: []const u8) !?Stream {
-    var address = std.Io.net.IpAddress.parseIp4("127.0.0.1", port) catch return null;
+/// Parse a host string as IPv4, falling back to IPv6, into an addressable
+/// endpoint. Accepts "127.0.0.1", "0.0.0.0", a specific routable IPv4/IPv6, or
+/// "::"/"::1". (Numeric addresses only — DNS resolution is intentionally out of
+/// scope for this transport.)
+pub fn resolveHost(host: []const u8, port: u16) !std.Io.net.IpAddress {
+    if (std.Io.net.IpAddress.parseIp4(host, port)) |a| return a else |_| {}
+    return std.Io.net.IpAddress.parseIp6(host, port);
+}
+
+/// Connect to `host` on `port` and send `msg`, returning the open stream (read
+/// the reply with `readLine`). `host` may be loopback or any routable IPv4/IPv6
+/// address, so the same client drives a single-host or multi-host cluster. Null
+/// if the peer is unreachable (connection refused / bad address) — callers treat
+/// that as a down peer.
+pub fn dialAddr(io: std.Io, host: []const u8, port: u16, msg: []const u8) !?Stream {
+    var address = resolveHost(host, port) catch return null;
     const conn = address.connect(io, .{ .mode = .stream }) catch return null;
     errdefer conn.close(io);
     try writeLine(io, conn, msg);
     return conn;
+}
+
+/// Loopback convenience: `dialAddr(io, "127.0.0.1", port, msg)`. Preserved for
+/// single-host callers and tests.
+pub fn dial(io: std.Io, port: u16, msg: []const u8) !?Stream {
+    return dialAddr(io, "127.0.0.1", port, msg);
 }
 
 /// Read one newline-terminated frame into `buf`, reassembling across reads.

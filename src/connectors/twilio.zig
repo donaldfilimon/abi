@@ -4,7 +4,6 @@ const http = @import("http.zig");
 const json_lib = @import("json.zig");
 
 const ConnectorError = connector.ConnectorError;
-const ConnectorConfig = connector.ConnectorConfig;
 const Response = connector.Response;
 
 const TWILIO_ACCOUNT_SID_BYTES: usize = 34;
@@ -202,9 +201,8 @@ pub const Client = struct {
             result.escalation = payload;
         }
 
-        if (http_response.body.len > 0) {
-            std.log.info("Twilio live response: {s}", .{http_response.body});
-        }
+        const log_summary = redactedLiveResponseSummary(http_response);
+        std.log.info("Twilio live response status={d} body_bytes={d} body=redacted", .{ log_summary.status, log_summary.body_bytes });
         return result;
     }
 };
@@ -229,6 +227,18 @@ pub fn validateTwilioAuthToken(auth_token: []const u8) ConnectorError!void {
     for (auth_token) |byte| {
         if (!isHexDigit(byte)) return ConnectorError.AuthenticationError;
     }
+}
+
+const RedactedLiveResponseSummary = struct {
+    status: u16,
+    body_bytes: usize,
+};
+
+fn redactedLiveResponseSummary(response: Response) RedactedLiveResponseSummary {
+    return .{
+        .status = response.status,
+        .body_bytes = response.body.len,
+    };
 }
 
 pub fn parseConversationRelayEvent(allocator: std.mem.Allocator, payload: []const u8) ConnectorError!ConversationRelayEvent {
@@ -567,4 +577,15 @@ test "Twilio form helper url encodes fields" {
 
     try std.testing.expect(std.mem.indexOf(u8, form, "Twiml=%3CResponse%3Ehello+world%3C%2FResponse%3E") != null);
     try std.testing.expect(std.mem.indexOf(u8, form, "customer_id=%2B15551234567") != null);
+}
+
+test "Twilio redacted live response summary omits body text" {
+    const response = Response{
+        .status = 201,
+        .body = @constCast("provider secret body"),
+        .owned = false,
+    };
+    const summary = redactedLiveResponseSummary(response);
+    try std.testing.expectEqual(@as(u16, 201), summary.status);
+    try std.testing.expectEqual(response.body.len, summary.body_bytes);
 }

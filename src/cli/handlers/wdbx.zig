@@ -33,7 +33,7 @@ fn usage() u8 {
         \\  benchmark [count]              Measure local insert/search timing
         \\  cluster status                 Report cluster topology (single-node default)
         \\  cluster demo [nodes]           Run in-process consensus: elect, replicate, fail over
-        \\  cluster serve <port> [node]    Serve this node's networked consensus RPC endpoint (RequestVote/AppendEntries) on 127.0.0.1
+        \\  cluster serve <port> [node] [host]  Serve this node's networked consensus RPC (RequestVote/AppendEntries). host defaults to 127.0.0.1; pass 0.0.0.0 or a routable IP for multi-host
         \\  compute info                   Report CPU/GPU/NPU/TPU backends and dynamic selection
         \\  secure demo                    Demonstrate embedding compression + homomorphic aggregation
         \\  gpu info                       Report GPU backend capabilities
@@ -118,7 +118,10 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
             if (args.len < 5) return usage();
             const port: u16 = std.fmt.parseInt(u16, args[4], 10) catch return usage();
             const node_id: u32 = if (args.len >= 6) (std.fmt.parseInt(u32, args[5], 10) catch return usage()) else 0;
-            return runtime_commands.clusterServe(io, allocator, port, node_id);
+            // Optional bind host (default loopback). Use "0.0.0.0" or a specific
+            // routable IPv4/IPv6 to serve a multi-host cluster node.
+            const host: []const u8 = if (args.len >= 7) args[6] else "127.0.0.1";
+            return runtime_commands.clusterServe(io, allocator, host, port, node_id);
         }
         return usage();
     }
@@ -185,6 +188,10 @@ test "wdbx rejects malformed numeric args with usage instead of silent defaults"
     try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "cluster", "demo", "notanumber" }));
     try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "api", "serve", "99999" }));
     try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "cluster", "serve", "7000", "notanode" }));
+    // An unparseable bind host fails the routable bind (exit 1) before serveLoop,
+    // exercising the `cluster serve <port> [node] [host]` host argument without
+    // blocking on an actual listener.
+    try std.testing.expectEqual(@as(u8, 1), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "cluster", "serve", "7000", "0", "not.a.valid.host" }));
 }
 
 test "wdbx db init + block insert + verify + query round-trip" {

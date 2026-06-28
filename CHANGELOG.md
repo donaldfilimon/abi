@@ -6,6 +6,8 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Fixed
 
+- MCP shutdown use-after-free: the `shutdown` JSON-RPC method tore down shared state in-band from whichever transport thread handled it, so `deinitScheduler()` could free the `Scheduler` while the peer transport was inside a tool call holding a `*Scheduler`. The stdio (`server.zig`) and HTTP (`rpc.zig`) handlers now only *signal* shutdown; `main` runs `deinitScheduler()`/`deinitWdbxStore()` via LIFO `defer`s after the HTTP thread is joined, so teardown can't race an in-flight call (deinit is idempotent; the WAL covers crash recovery).
+- MCP shared-state lazy-init TOCTOU race: `ensureScheduler`/`ensureWdbxStore` flipped the `initialized` atomic to `true` *before* constructing the backing optional, so a concurrent reader (HTTP/SSE thread + stdio loop both call `getScheduler`/`getWdbxStore`) could observe `initialized==true` while the optional was still `null` and panic on `.?`. Switched to double-checked locking under dedicated init spinlocks that publish the flag with release ordering only after construction. No contract/API/parity change.
 - WDBX write-ahead-log double-frees: `Store.putVector` and `Store.store` could double-free / dangle a buffer when a WAL append IO error followed the in-memory commit. The `errdefer` now stays the sole owner across the fallible append — `putVector` moves the append above the padded-buffer free; `store` disarms the owned-key/value `errdefer`s with commit flags — preserving the deliberate memory-first / WAL-after ordering. (Latent on the persistent path; no default-build test reproduced them.)
 - WDBX remote-compute reference listener (`serveOnce`) now guards the untrusted `dim * 2` against `usize` overflow via `std.math.mul` before allocating, looping, and slicing.
 - `zig build check-parity` now fails when a feature/plugin leaf ships `mod.zig` with no sibling `stub.zig` (previously a silent pass); only the intentional `src/features/mod.zig` dispatcher is exempt.
@@ -14,6 +16,11 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- Hardened credential-file persistence: `abi auth` now creates/repairs `~/.abi` as owner-only (`0700` on POSIX-capable targets) and opens/truncates `credentials.json` with owner-only file permissions (`0600`) before writing secret bytes, with regression coverage for existing permissive files.
+- Redacted Discord/Twilio connector logs that previously emitted local Discord message content and Twilio live response bodies; logs now report IDs/status plus byte counts, with helper regression tests.
+- Added optional bearer-token enforcement for the MCP loopback HTTP/SSE transport via `ABI_MCP_HTTP_TOKEN`, with HTTP-boundary tests for unauthorized and authorized requests. Stdio transport remains unchanged.
+- Added optional bearer-token enforcement for the WDBX loopback REST transport via `ABI_WDBX_REST_TOKEN`, with HTTP-boundary tests for unauthorized and authorized requests.
+- Added `wdbx.entropy`, an exact order-0 canonical Huffman codec for arbitrary byte payloads with no-expansion fallback, deterministic round-trip tests, and explicit claim boundaries below production/SOTA learned compression.
 - SEA `runLearnLoop` gains an optional `LearnLoopConfig.tracker` that makes adaptive persona-router weight persistence observable through a `MemoryTracker` (balanced, non-escaping; default off → no call-site change).
 - `runCli` behavioral tests covering help/no-args (exit 0) and unknown-command / missing-required-positional (exit 2) dispatch paths.
 
@@ -30,6 +37,14 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 - Added WDBX JSONL snapshot integrity, CRC32-framed write-ahead log replay/corruption detection, temporal/causal ranking primitives, and a frozen `abi wdbx` CLI namespace.
 - Added honest in-process WDBX roadmap demonstrations for local consensus, backend selection with CPU fallback, int8 embedding quantization, additive aggregation, and loopback REST.
 - Added the default-on `telemetry` feature surface for lightweight event/counter hooks with mod/stub parity.
+
+### Performance
+
+- Removed redundant work from WDBX HNSW search, WAL append/replay, and block-chain hot paths (no behavioral change; covered by existing gates).
+
+### Tests
+
+- Added second-pass audit coverage (additive only, no production change): `segments.readManifest` rejects a corrupt manifest (bad header / non-numeric `next_epoch` / non-numeric active token) with `InvalidManifest` instead of silently dropping live segments; SEA `gatherEvidence` populated-recall + `staticProfileLabel` attribution paths; and the SEA persist→recall round-trip (a persisted turn recalled as evidence on a later related turn).
 
 ### Validation
 

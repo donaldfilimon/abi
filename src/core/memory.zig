@@ -1,7 +1,6 @@
 //! Memory Management and Tracking utilities
 const std = @import("std");
 const time = @import("../foundation/time.zig");
-const errors = @import("../foundation/errors.zig");
 
 pub const AllocationRecord = struct {
     ptr: usize,
@@ -172,70 +171,6 @@ pub const MemoryTracker = struct {
     }
 };
 
-pub const MemoryPool = struct {
-    allocator: std.mem.Allocator,
-    buffer: []u8,
-    offset: usize,
-    block_size: usize,
-    allocation_count: usize,
-
-    pub fn init(allocator: std.mem.Allocator, block_size: usize, block_count: usize) !MemoryPool {
-        const total_size = block_size * block_count;
-        const buffer = try allocator.alloc(u8, total_size);
-        errdefer allocator.free(buffer);
-
-        @memset(buffer, 0);
-
-        return .{
-            .allocator = allocator,
-            .buffer = buffer,
-            .offset = 0,
-            .block_size = block_size,
-            .allocation_count = 0,
-        };
-    }
-
-    pub fn deinit(self: *MemoryPool) void {
-        self.allocator.free(self.buffer);
-        self.buffer = &[_]u8{};
-        self.offset = 0;
-    }
-
-    pub fn alloc(self: *MemoryPool, size: usize) ![]u8 {
-        if (size > self.block_size) {
-            return errors.AbiError.InvalidConfig;
-        }
-
-        if (self.offset + size > self.buffer.len) {
-            return errors.AbiError.OutOfMemory;
-        }
-
-        const slice = self.buffer[self.offset .. self.offset + size];
-        self.offset += size;
-        self.allocation_count += 1;
-
-        return slice;
-    }
-
-    pub fn reset(self: *MemoryPool) void {
-        self.offset = 0;
-        self.allocation_count = 0;
-        @memset(self.buffer, 0);
-    }
-
-    pub fn getRemaining(self: *const MemoryPool) usize {
-        return self.buffer.len - self.offset;
-    }
-
-    pub fn getUsed(self: *const MemoryPool) usize {
-        return self.offset;
-    }
-
-    pub fn getCapacity(self: *const MemoryPool) usize {
-        return self.buffer.len;
-    }
-};
-
 pub const TrackingAllocator = struct {
     parent: std.mem.Allocator,
     tracker: *MemoryTracker,
@@ -368,40 +303,6 @@ test "MemoryTracker trackResize updates live record and usage" {
     try std.testing.expectEqual(@as(usize, 0), tracker.getRecordCount());
     try std.testing.expectEqual(@as(usize, 0), tracker.getCurrentUsage());
     try std.testing.expectEqual(@as(usize, 0), tracker.getLeakedBytes());
-}
-
-test "MemoryPool alloc and reset" {
-    var pool = try MemoryPool.init(std.testing.allocator, 64, 10);
-    defer pool.deinit();
-
-    try std.testing.expectEqual(@as(usize, 640), pool.getCapacity());
-
-    const block = try pool.alloc(32);
-    try std.testing.expectEqual(@as(usize, 32), block.len);
-    try std.testing.expectEqual(@as(usize, 608), pool.getRemaining());
-
-    pool.reset();
-    try std.testing.expectEqual(@as(usize, 640), pool.getRemaining());
-    try std.testing.expectEqual(@as(usize, 0), pool.getUsed());
-}
-
-test "MemoryPool overflow" {
-    var pool = try MemoryPool.init(std.testing.allocator, 16, 2);
-    defer pool.deinit();
-
-    _ = try pool.alloc(16);
-    _ = try pool.alloc(16);
-
-    const err = pool.alloc(1) catch |e| e;
-    try std.testing.expectEqual(errors.AbiError.OutOfMemory, err);
-}
-
-test "MemoryPool block size limit" {
-    var pool = try MemoryPool.init(std.testing.allocator, 8, 10);
-    defer pool.deinit();
-
-    const err = pool.alloc(16) catch |e| e;
-    try std.testing.expectEqual(errors.AbiError.InvalidConfig, err);
 }
 
 test "MemoryTracker trackAllocNoTag and trackFreeNoTag" {

@@ -15,6 +15,11 @@ const temporal = @import("temporal.zig");
 const foundation_time = @import("../../foundation/time.zig");
 
 pub const MAX_REQUEST_SIZE: usize = 64 * 1024;
+pub const REST_TOKEN_ENV = "ABI_WDBX_REST_TOKEN";
+
+const AuthConfig = struct {
+    bearer_token: ?[]const u8 = null,
+};
 
 /// Neutral persona weight for the REST query (no conversation persona context,
 /// matching the path-addressed CLI `wdbx query`). Keeps the API-layer ranking
@@ -322,26 +327,63 @@ fn parseContentLength(header_block: []const u8) ?usize {
     return null;
 }
 
+fn headerValue(raw: []const u8, name: []const u8) ?[]const u8 {
+    const header_block = if (std.mem.indexOf(u8, raw, "\r\n\r\n")) |idx| raw[0..idx] else raw;
+    var lines = std.mem.splitSequence(u8, header_block, "\r\n");
+    _ = lines.next(); // request line
+    while (lines.next()) |line| {
+        if (line.len == 0) break;
+        const colon = std.mem.indexOfScalar(u8, line, ':') orelse continue;
+        const key = std.mem.trim(u8, line[0..colon], " \t");
+        if (!std.ascii.eqlIgnoreCase(key, name)) continue;
+        return std.mem.trim(u8, line[colon + 1 ..], " \t");
+    }
+    return null;
+}
+
+fn hasBearerToken(raw: []const u8, token: []const u8) bool {
+    const value = headerValue(raw, "Authorization") orelse return false;
+    const prefix = "Bearer ";
+    if (!std.mem.startsWith(u8, value, prefix)) return false;
+    return std.mem.eql(u8, value[prefix.len..], token);
+}
+
+fn loadBearerToken(allocator: std.mem.Allocator) !?[]u8 {
+    const raw_z = std.c.getenv(REST_TOKEN_ENV) orelse return null;
+    const raw = std.mem.span(raw_z);
+
+    const token = std.mem.trim(u8, raw, " \t\r\n");
+    if (token.len == 0) return null;
+    return try allocator.dupe(u8, token);
+}
+
 /// Bind a loopback listener and serve REST requests against `store` until the
 /// process is stopped. One request per connection (Connection: close).
 pub fn serve(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store, port: u16) !void {
+    const bearer_token = try loadBearerToken(allocator);
+    defer if (bearer_token) |token| allocator.free(token);
+
     const address = try std.Io.net.IpAddress.parseIp4("127.0.0.1", port);
     var server = try address.listen(io, .{ .reuse_address = true });
     defer server.deinit(io);
-    std.log.info("WDBX REST listening on http://127.0.0.1:{d} (/insert /query /verify /health /stats)", .{port});
+    std.log.info("WDBX REST listening on http://127.0.0.1:{d} (/insert /query /verify /health /stats), auth={s}", .{ port, if (bearer_token == null) "off" else "bearer" });
 
     while (true) {
         const conn = server.accept(io) catch |err| {
             std.log.warn("WDBX REST accept failed: {s}", .{@errorName(err)});
             continue;
         };
-        handleConnection(allocator, io, store, conn) catch |err| {
+        handleConnectionWithAuth(allocator, io, store, conn, .{ .bearer_token = bearer_token }) catch |err| {
             std.log.warn("WDBX REST request failed: {s}", .{@errorName(err)});
         };
     }
 }
 
 fn handleConnection(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store, conn: std.Io.net.Stream) !void {
+    try handleConnectionWithAuth(allocator, io, store, conn, .{});
+}
+
+fn handleConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store, conn: std.Io.net.Stream, auth: AuthConfig) !void {
     defer conn.close(io);
     var read_buf: [MAX_REQUEST_SIZE]u8 = undefined;
     const raw = switch (readHttpRequest(io, conn, &read_buf)) {
@@ -361,6 +403,20 @@ fn handleConnection(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store
     const method = it.next() orelse return;
     const path = it.next() orelse return;
     const body = findBody(raw);
+
+    if (auth.bearer_token) |token| {
+        if (!hasBearerToken(raw, token)) {
+            const body_unauthorized = "{\"error\":\"unauthorized\"}";
+            const err_resp = try std.fmt.allocPrint(
+                allocator,
+                "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nWWW-Authenticate: Bearer\r\nConnection: close\r\n\r\n{s}",
+                .{ body_unauthorized.len, body_unauthorized },
+            );
+            defer allocator.free(err_resp);
+            try writeAll(io, conn, err_resp);
+            return;
+        }
+    }
 
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
@@ -606,6 +662,19 @@ test "rest: Content-Length header parser" {
     );
 }
 
+test "rest: Authorization bearer parser" {
+    const raw =
+        "POST /insert HTTP/1.1\r\n" ++
+        "Host: 127.0.0.1\r\n" ++
+        "authorization:   Bearer local-token  \r\n" ++
+        "Content-Length: 2\r\n\r\n{}";
+
+    try std.testing.expect(hasBearerToken(raw, "local-token"));
+    try std.testing.expect(!hasBearerToken(raw, "wrong-token"));
+    try std.testing.expect(!hasBearerToken("POST /insert HTTP/1.1\r\n\r\n{}", "local-token"));
+    try std.testing.expect(!hasBearerToken("POST /insert HTTP/1.1\r\nAuthorization: Basic nope\r\n\r\n{}", "local-token"));
+}
+
 extern fn getsockname(sockfd: std.posix.fd_t, addr: *std.posix.sockaddr, addrlen: *std.posix.socklen_t) c_int;
 
 // Bind a 127.0.0.1 listener on an ephemeral port and return both it and the
@@ -725,6 +794,89 @@ test "rest: HTTP transport handles a single-write request" {
     var resp_buf: [2048]u8 = undefined;
     const resp = try readHttpResponse(io, client, &resp_buf);
     try std.testing.expect(std.mem.indexOf(u8, resp, "200 OK") != null);
+}
+
+test "rest: HTTP transport requires bearer token when configured" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    const body = "{\"key\":\"agent:abi\",\"value\":\"blocked\"}";
+    const request = try std.fmt.allocPrint(
+        allocator,
+        "POST /insert HTTP/1.1\r\nContent-Length: {d}\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+    defer allocator.free(request);
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [512]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+
+    const conn = try bound.server.accept(io);
+    try handleConnectionWithAuth(allocator, io, &store, conn, .{ .bearer_token = "local-token" });
+
+    var resp_buf: [2048]u8 = undefined;
+    const resp = try readHttpResponse(io, client, &resp_buf);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "401 Unauthorized") != null);
+
+    var q = try route(allocator, &store, "POST", "/query", "{\"key\":\"agent:abi\"}");
+    defer q.deinit(allocator);
+    try std.testing.expectEqual(@as(u16, 404), q.status);
+}
+
+test "rest: HTTP transport accepts configured bearer token" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    const body = "{\"key\":\"agent:abi\",\"value\":\"authorized\"}";
+    const request = try std.fmt.allocPrint(
+        allocator,
+        "POST /insert HTTP/1.1\r\nAuthorization: Bearer local-token\r\nContent-Length: {d}\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+    defer allocator.free(request);
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [512]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+
+    const conn = try bound.server.accept(io);
+    try handleConnectionWithAuth(allocator, io, &store, conn, .{ .bearer_token = "local-token" });
+
+    var resp_buf: [2048]u8 = undefined;
+    const resp = try readHttpResponse(io, client, &resp_buf);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "200 OK") != null);
+
+    var q = try route(allocator, &store, "POST", "/query", "{\"key\":\"agent:abi\"}");
+    defer q.deinit(allocator);
+    try std.testing.expectEqual(@as(u16, 200), q.status);
+    try std.testing.expect(std.mem.indexOf(u8, q.body, "authorized") != null);
 }
 
 test {

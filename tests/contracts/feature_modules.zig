@@ -16,6 +16,8 @@ test "feature namespaces are stable across flags" {
         "mobile",
         "hash",
         "metrics",
+        "telemetry",
+        "sea",
     }) |decl_name| {
         try std.testing.expect(@hasDecl(features, decl_name));
     }

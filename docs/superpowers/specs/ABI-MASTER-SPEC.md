@@ -13,9 +13,11 @@ The ABI framework is built on a data-oriented composition model targeting Zig 0.
   - `core/scheduler.zig` now drives real user work (`abi agent train` submits prioritized TrainTasks; dashboard emits live ticks; MCP owns a long-lived scheduler instance exposed via `scheduler_stats` tool). `Scheduler.stats()` + `MemoryTracker` attachment provide deep visibility.
   - Metrics counters (`submitted`/`completed`/`failed`) are live on task lifecycle when `-Dfeat-metrics`.
   - The default-on `telemetry` feature exposes lightweight `record` / `increment` hooks.
-  - MemoryTracker + TrackingAllocator are wired into production CLI paths (agent train arenas + dashboard scheduler) and integration tests.
+  - MemoryTracker + TrackingAllocator are wired into production CLI paths (agent train arenas + dashboard scheduler), WDBX store hot paths, SEA adaptive-weight persistence, and AI training internals (dataset inspection plus metadata persistence) with integration tests.
   - WDBX `Store` + HNSW acceleration status is updated on vector operations and surfaced in stats/manifest/MCP/CLI without claiming native kernels when the backend falls back.
-  - The `abi wdbx` namespace operates local snapshots, WAL verification, blocks, queries, benchmarks, GPU info, loopback REST, and in-process roadmap demos.
+  - MCP HTTP/SSE and WDBX loopback REST can require bearer tokens via environment (`ABI_MCP_HTTP_TOKEN`, `ABI_WDBX_REST_TOKEN`) while stdio/local CLI paths remain local IPC.
+  - `abi auth` stores credentials as plaintext JSON but hardens local filesystem permissions on POSIX-capable targets: `~/.abi` is created/repaired as `0700`, and `credentials.json` is opened/truncated as `0600` before secret bytes are written.
+  - The `abi wdbx` namespace operates local snapshots, WAL verification, blocks, queries, benchmarks, GPU info, loopback REST with optional bearer-token enforcement, and in-process roadmap demos.
   - All of this is exercised by contract tests and the new accelerated HNSW GPU path coverage.
 
 ## 2. Directory & Module Structure
@@ -24,13 +26,20 @@ src/
 ├── root.zig           # Public API and feature exports
 ├── core/              # Registry, config, memory, scheduler
 │   ├── registry.zig
+│   ├── config.zig
 │   ├── memory.zig
 │   └── scheduler.zig
 ├── interfaces.zig     # Cross-module contract types
 ├── foundation/        # OS and primitive abstractions (io, time, sync)
-├── features/          # Domain-specific modules
-│   ├── ai/            # Abbey-Aviva-Abi Pipeline (Router, profiles, governance)
-│   └── wdbx/          # Vector Storage & Runtime (HNSW, chain, snapshots, WAL, demos)
+├── features/          # Comptime-gated domain modules (each a mod.zig + stub.zig):
+│   │                  #   ai, wdbx, sea, gpu, accelerator, shaders, mlir,
+│   │                  #   os_control, mobile, metrics, tui, hash, telemetry
+│   ├── mod.zig        # Feature dispatcher: selects real mod vs stub per build flag
+│   ├── ai/            # Abbey-Aviva-Abi pipeline (router, profiles, governance, training)
+│   └── wdbx/          # Vector storage & runtime (HNSW, chain, snapshots, WAL, demos)
+├── connectors/        # openai, anthropic, discord, twilio, grok, http (+ live transport)
+├── mcp/               # MCP server (JSON-RPC stdio + HTTP/SSE), tool dispatch, durable state
+├── cli/               # CLI command dispatch + handlers
 ├── plugins/           # Static plugin manifests and local plugin manager
 ├── integration_tests.zig
 └── benchmarks.zig
@@ -40,7 +49,7 @@ src/
 - **HNSW Index**: Hierarchical Navigable Small World index. Cosine distance uses a portable SIMD implementation (`cosineDistanceSIMD` with `@Vector` + scalar fallback) and routes query/candidate scoring through `gpu.vectorOps().cosineSimilarity` / `batchCosineSimilarity`. Those vector ops use native Metal kernels only when the backend reports initialized native kernels; otherwise they deterministically fall back to vectorized CPU. The vector and HNSW paths are exercised by contract tests in `tests/contracts/feature_modules.zig` and focused distance tests in `src/features/wdbx/hnsw_distance.zig`.
 - **Block Chain Memory**: Cryptographically chained conversation blocks (SHA-256) with MVCC-based snapshot lookup for immutable state management; contract tests cover metadata round-tripping and snapshot access.
 - **Durability**: JSONL snapshots include a SHA-256 integrity line; the WAL uses CRC32-framed append records with replay and corruption detection. `abi wdbx db verify` cross-checks local snapshot and WAL state.
-- **Roadmap Modules**: `cluster`, `compute`, `compression`, `crypto_he`, and `rest` provide in-process demonstrations and loopback APIs. They are intentionally scoped as demos unless source/tests later prove distributed transport, native accelerator dispatch, learned compression, or full FHE.
+- **Roadmap Modules**: `cluster`, `compute`, `compression`, `entropy`, `neural_compress`, `crypto_he`, and `rest` provide in-process demonstrations and loopback APIs. Compression currently covers int8 embedding quantization, an exact order-0 Huffman entropy codec for byte payloads, and a reference autoencoder; these remain scoped below production/SOTA learned-compression claims unless source/tests later prove that level. The other roadmap modules stay demos unless source/tests prove distributed transport, native accelerator dispatch, or full FHE.
 - **Observability & Lifecycle**: `Store` exposes `stats()` + `accelerationStatus()` (backend/mode/message) updated on vector/spatial ops. Acceleration reporting is also surfaced via `exportManifest()`.
 - **Claim Boundary**: The current repo does not prove distributed sharding, AES/RBAC, Swift/Python/TensorFlow runtime support, Kubernetes/H100 deployments, regulatory certifications, production QPS/latency/accuracy, energy efficiency, comparative model benchmark scores, or general native GPU acceleration. The repo proves a GPU/vector abstraction, batched cosine API, HNSW integration, backend status reporting, and deterministic CPU fallback; native Metal execution is claimed only when the runtime backend reports initialized native kernels.
 

@@ -15,6 +15,7 @@ FLAGS=(
   feat-hash
   feat-metrics
   feat-telemetry
+  feat-sea
 )
 
 for flag in "${FLAGS[@]}"; do
@@ -37,10 +38,19 @@ for flag in "${FLAGS[@]}"; do
   zig build test-contracts "-D${flag}=false"
 done
 
-# Mobile defaults to disabled; smoke the real mobile module too.
-echo "check_feature_stubs: zig build test-feature-contracts -Dfeat-mobile=true"
-zig build test-feature-contracts -Dfeat-mobile=true
-echo "check_feature_stubs: zig build test-contracts -Dfeat-mobile=true"
-zig build test-contracts -Dfeat-mobile=true
+# Default-off pure-Zig features (sea, metrics, mobile) also need an ENABLED pass:
+# their real modules — and SEA's evidence/learn_loop E2E tests, reached via the
+# main test root's refAllDecls only when feat-sea=true — are otherwise never
+# exercised by the gate (the disabled matrix above only proves the stub trees
+# build). The main `test` step is required because the feature contract suites do
+# not run the modules' own inline tests. (feat-foundationmodels is macOS + Swift
+# -shim gated, so it is intentionally omitted here.)
+ENABLED="-Dfeat-sea=true -Dfeat-metrics=true -Dfeat-mobile=true"
+echo "check_feature_stubs: zig build test ${ENABLED}"
+zig build test ${ENABLED}
+echo "check_feature_stubs: zig build test-feature-contracts ${ENABLED}"
+zig build test-feature-contracts ${ENABLED}
+echo "check_feature_stubs: zig build test-contracts ${ENABLED}"
+zig build test-contracts ${ENABLED}
 
 echo "check_feature_stubs: ok"
