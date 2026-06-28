@@ -73,7 +73,7 @@ There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 - Build with `./build.sh mcp`.
 - Binary: `zig-out/bin/abi-mcp`.
 - Primary transport: JSON-RPC 2.0 over stdio.
-- Secondary transport: loopback HTTP/SSE on `127.0.0.1:8080` when available; set `ABI_MCP_HTTP_PORT=<port>` to avoid local port conflicts. Empty, invalid, zero, or out-of-range values fall back to `8080`; bind failures leave stdio running.
+- Secondary transport: loopback HTTP/SSE on `127.0.0.1:8080` when available; set `ABI_MCP_HTTP_PORT=<port>` to avoid local port conflicts. Empty, invalid, zero, or out-of-range values fall back to `8080`; bind failures leave stdio running. Set `ABI_MCP_HTTP_TOKEN` to require `Authorization: Bearer <token>` on the HTTP/SSE transport (stdio JSON-RPC stays tokenless local IPC); the WDBX REST listener (`abi wdbx api serve`) honors `ABI_WDBX_REST_TOKEN` for the same bearer scheme. Both are loopback-only hardening, not a TLS substitute.
 - HTTP endpoints: `GET /sse`, `POST /message`.
 - Request size limit: 64KB.
 - Methods: `initialize`, `tools/list`, `tools/call`, `resources/list`, `prompts/list`, `ping`, `shutdown`.

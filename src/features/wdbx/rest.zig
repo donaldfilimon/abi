@@ -13,6 +13,7 @@ const wdbx = @import("mod.zig");
 const retrieval = @import("retrieval.zig");
 const temporal = @import("temporal.zig");
 const foundation_time = @import("../../foundation/time.zig");
+const env = @import("../../foundation/env.zig");
 
 pub const MAX_REQUEST_SIZE: usize = 64 * 1024;
 pub const REST_TOKEN_ENV = "ABI_WDBX_REST_TOKEN";
@@ -348,20 +349,22 @@ fn hasBearerToken(raw: []const u8, token: []const u8) bool {
     return std.mem.eql(u8, value[prefix.len..], token);
 }
 
-fn loadBearerToken(allocator: std.mem.Allocator) !?[]u8 {
-    const raw_z = std.c.getenv(REST_TOKEN_ENV) orelse return null;
-    const raw = std.mem.span(raw_z);
-
+/// Read the optional bearer token from the environment. Returns a borrowed,
+/// process-lifetime slice owned by the captured environ map (see
+/// `foundation/env.zig`); callers must not free it. Using `env.get` here keeps
+/// the CLI free of any libc (`std.c.getenv`) dependency so cross-compiled
+/// targets without libc still build.
+fn loadBearerToken() ?[]const u8 {
+    const raw = env.get(REST_TOKEN_ENV) orelse return null;
     const token = std.mem.trim(u8, raw, " \t\r\n");
     if (token.len == 0) return null;
-    return try allocator.dupe(u8, token);
+    return token;
 }
 
 /// Bind a loopback listener and serve REST requests against `store` until the
 /// process is stopped. One request per connection (Connection: close).
 pub fn serve(allocator: std.mem.Allocator, io: std.Io, store: *wdbx.Store, port: u16) !void {
-    const bearer_token = try loadBearerToken(allocator);
-    defer if (bearer_token) |token| allocator.free(token);
+    const bearer_token = loadBearerToken();
 
     const address = try std.Io.net.IpAddress.parseIp4("127.0.0.1", port);
     var server = try address.listen(io, .{ .reuse_address = true });

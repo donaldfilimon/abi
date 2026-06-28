@@ -101,6 +101,14 @@ pub fn clusterDemo(allocator: std.mem.Allocator, nodes: usize) anyerror!u8 {
     return 0;
 }
 
+/// Loopback hosts need no exposure warning. Treats the IPv4 loopback block
+/// (`127.0.0.0/8`), the IPv6 loopback `::1`, and the `localhost` name as local.
+fn isLoopbackHost(host: []const u8) bool {
+    return std.mem.eql(u8, host, "localhost") or
+        std.mem.eql(u8, host, "::1") or
+        std.mem.startsWith(u8, host, "127.");
+}
+
 pub fn clusterServe(io: std.Io, allocator: std.mem.Allocator, host: []const u8, port: u16, node_id: u32) anyerror!u8 {
     var node = wdbx.cluster.Node{ .id = node_id };
     defer {
@@ -115,6 +123,18 @@ pub fn clusterServe(io: std.Io, allocator: std.mem.Allocator, host: []const u8, 
         return 1;
     };
     defer server.deinit(io);
+
+    // The consensus RPC transport (RequestVote/AppendEntries) is unauthenticated:
+    // any peer that can reach the port can cast votes or append log entries. That
+    // is acceptable on loopback but a real exposure on a routable bind, so warn
+    // loudly when the operator opts into a non-loopback address. See
+    // abi-threat-model.md ("WDBX consensus listener").
+    if (!isLoopbackHost(host)) {
+        std.debug.print(
+            "WARNING: binding consensus RPC to non-loopback host {s}: this transport is UNAUTHENTICATED — any reachable peer can forge votes/log entries. Restrict to a trusted network segment.\n",
+            .{host},
+        );
+    }
 
     std.debug.print(
         "cluster node {d} serving consensus RPC on {s}:{d} (RequestVote/AppendEntries); peers connect via the cluster_rpc transport. Ctrl-C to stop.\n",
