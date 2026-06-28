@@ -15,8 +15,18 @@ pub const Error = types.Error;
 pub const TrainConfig = types.TrainConfig;
 pub const TrainReport = types.TrainReport;
 
-/// Disabled-path placeholder so consumers can still name `nn.Model`.
-pub const Model = struct {};
+/// Disabled-path placeholder so consumers can still name `nn.Model` and stay
+/// type-compatible with the enabled CLI handler. The `report`/`deinit` members
+/// are never reached while disabled (the producers above return
+/// `error.FeatureDisabled`); they exist only so a build that drags the handler
+/// in under `-Dfeat-nn=false` still compiles.
+pub const Model = struct {
+    report: TrainReport = std.mem.zeroes(TrainReport),
+
+    pub fn deinit(self: *Model) void {
+        self.* = undefined;
+    }
+};
 
 pub fn isEnabled() bool {
     return false;
