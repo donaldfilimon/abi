@@ -159,6 +159,18 @@ pub fn deinitScreenWriter(writer: anytype) !void {
     _ = writer;
 }
 
+/// Output sanitizer mirror. The disabled build still strips C0 control bytes
+/// (0x00–0x1F) and DEL (0x7F) — a pure safety utility has no feature dependency,
+/// so it degrades to identical behavior rather than refusing. Bytes >= 0x80 pass
+/// through to preserve UTF-8. Caller owns the returned slice.
+pub fn sanitizeControlBytes(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+    const out = try allocator.alloc(u8, input.len);
+    for (input, 0..) |byte, i| {
+        out[i] = if (byte < 0x20 or byte == 0x7f) '.' else byte;
+    }
+    return out;
+}
+
 pub fn renderDashboard(allocator: std.mem.Allocator, state: State) ![]u8 {
     if (state.title.len == 0) return error.InvalidTuiState;
     return try allocator.dupe(u8, "TUI feature is disabled");

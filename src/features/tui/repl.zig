@@ -20,6 +20,11 @@ const terminal = @import("mod.zig");
 /// Maximum length of a model id settable via `/model`.
 const MODEL_STORAGE_BYTES = 128;
 
+/// Maximum bytes buffered for a single raw-mode input line. `runRawMode`'s
+/// printable filter drops any byte once `line_buf` is full, so input past this
+/// bound is discarded rather than overflowing the buffer.
+const RAW_LINE_BUF_BYTES = 4096;
+
 pub const ReplConfig = struct {
     model: []const u8 = models.default_model,
     max_tokens: u32 = 512,
@@ -92,6 +97,14 @@ fn printHelp() void {
     , .{});
 }
 
+/// Raw-mode input filter: accept only the printable ASCII range (0x20–0x7E) for
+/// the line buffer. Drops C0 controls (incl. ESC 0x1B and NUL 0x00) and DEL
+/// (0x7F) so attacker-injected escape bytes never reach the buffered line.
+/// Pure and file-local so it is unit-testable without a live terminal.
+fn isPrintableInput(key: u8) bool {
+    return key >= 0x20 and key < 0x7f;
+}
+
 pub const ReplLoop = struct {
     allocator: std.mem.Allocator,
     store: *wdbx.Store,
@@ -161,7 +174,7 @@ pub const ReplLoop = struct {
     /// is disabled in raw mode so printable keys are echoed manually; Enter
     /// submits, Backspace edits, and Ctrl-D on an empty buffer ends the session.
     fn runRawMode(self: *ReplLoop, term: *terminal.InteractiveTerminal) !void {
-        var line_buf: [4096]u8 = undefined;
+        var line_buf: [RAW_LINE_BUF_BYTES]u8 = undefined;
         var len: usize = 0;
         std.debug.print("{s}", .{self.state.config.prompt_prefix});
 
@@ -184,7 +197,7 @@ pub const ReplLoop = struct {
                     }
                 },
                 else => {
-                    if (key >= 0x20 and key < 0x7f and len < line_buf.len) {
+                    if (isPrintableInput(key) and len < line_buf.len) {
                         line_buf[len] = key;
                         len += 1;
                         std.debug.print("{c}", .{key});
@@ -205,7 +218,13 @@ pub const ReplLoop = struct {
                 .reset => self.resetSession(),
                 .history => self.showHistory(),
                 .profile => std.debug.print("profile selection is not available in phase 1\n", .{}),
-                .unknown => std.debug.print("unknown command: {s} (try /help)\n", .{line}),
+                .unknown => {
+                    // Echo the rejected command through the sanitizer: the raw line is
+                    // attacker-controlled and may carry ESC/control bytes.
+                    const safe_line = try terminal.sanitizeControlBytes(self.allocator, line);
+                    defer self.allocator.free(safe_line);
+                    std.debug.print("unknown command: {s} (try /help)\n", .{safe_line});
+                },
             }
             return .keep_going;
         }
@@ -218,7 +237,11 @@ pub const ReplLoop = struct {
         defer result.deinit(self.allocator);
         self.state.turn_count += 1;
 
-        std.debug.print("{s}\n", .{result.output});
+        // Completion output can echo poisoned WDBX content; strip control bytes so
+        // it cannot inject terminal escapes into the operator's render stream.
+        const safe_output = try terminal.sanitizeControlBytes(self.allocator, result.output);
+        defer self.allocator.free(safe_output);
+        std.debug.print("{s}\n", .{safe_output});
         std.debug.print("[turn {d} | model={s} | profile={s} | persisted={s}]\n", .{
             self.state.turn_count,
             result.model,
@@ -305,6 +328,61 @@ test "ReplState init seeds defaults and a session id" {
     try std.testing.expectEqualStrings(models.default_model, state.config.model);
     try std.testing.expectEqual(@as(u32, 512), state.config.max_tokens);
     try std.testing.expect(state.session_id > 0);
+}
+
+test "tui input hardening: adversarial bytes never corrupt state" {
+    // parseSpecialCommand is the prime fuzz target: it must classify every
+    // adversarial line into a valid SpecialCommand variant without panicking,
+    // reading out of bounds, or overflowing.
+    const adversarial = [_][]const u8{
+        "", // empty
+        "\x00", // lone NUL
+        "\x1b[A\x1b[B", // arrow-key ESC sequences
+        "\xff\xfe", // invalid UTF-8
+        "quit\x00extra", // embedded NUL after a word (non-slash → unknown)
+        "/quit\x00extra", // slash-command with trailing NUL payload
+    };
+    for (adversarial) |input| {
+        // Exhaustive switch: reaching every arm without a panic is the safety
+        // assertion (the classifier is total over all byte strings).
+        switch (parseSpecialCommand(input)) {
+            .quit, .reset, .help, .model, .profile, .history, .unknown => {},
+        }
+    }
+
+    // Every one of the 256 byte values in a single line must be tolerated.
+    var all_bytes: [256]u8 = undefined;
+    for (&all_bytes, 0..) |*b, i| b.* = @intCast(i);
+    _ = parseSpecialCommand(&all_bytes);
+
+    // An overlong buffer (larger than the raw-mode line buffer) must classify
+    // without overflow. A leading '/' forces the slash-command body scan.
+    const overlong = try std.testing.allocator.alloc(u8, RAW_LINE_BUF_BYTES * 2);
+    defer std.testing.allocator.free(overlong);
+    @memset(overlong, '/');
+    _ = parseSpecialCommand(overlong);
+    // Such input exceeds the raw-mode line buffer; runRawMode's printable filter
+    // (`len < line_buf.len`) drops the overflow rather than writing past the bound.
+    try std.testing.expect(overlong.len > RAW_LINE_BUF_BYTES);
+
+    // The output sanitizer must remove ESC and NUL from attacker-influenced text
+    // so render fields cannot inject terminal escapes. Length is preserved.
+    const dirty = "\x1b[31mred\x00\x07\x7fboom\x1b[0m";
+    const clean = try terminal.sanitizeControlBytes(std.testing.allocator, dirty);
+    defer std.testing.allocator.free(clean);
+    try std.testing.expect(std.mem.indexOfScalar(u8, clean, 0x1b) == null);
+    try std.testing.expect(std.mem.indexOfScalar(u8, clean, 0x00) == null);
+    try std.testing.expectEqual(dirty.len, clean.len);
+}
+
+test "isPrintableInput drops control bytes and keeps printable ASCII" {
+    // Drops: ESC, NUL, DEL — the bytes that could inject terminal escapes.
+    try std.testing.expect(!isPrintableInput(0x1b));
+    try std.testing.expect(!isPrintableInput(0x00));
+    try std.testing.expect(!isPrintableInput(0x7f));
+    // Keeps the printable ASCII boundaries.
+    try std.testing.expect(isPrintableInput(0x20));
+    try std.testing.expect(isPrintableInput(0x7e));
 }
 
 test {

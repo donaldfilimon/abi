@@ -22,6 +22,7 @@ pub const tui = if (build_options.feat_tui) @import("tui/mod.zig") else @import(
 // ── Utilities ──
 pub const hash = if (build_options.feat_hash) @import("hash/mod.zig") else @import("hash/stub.zig");
 pub const telemetry = if (build_options.feat_telemetry) @import("telemetry/mod.zig") else @import("telemetry/stub.zig");
+pub const nn = if (build_options.feat_nn) @import("nn/mod.zig") else @import("nn/stub.zig");
 
 test {
     const std = @import("std");
@@ -43,5 +44,6 @@ test {
     // Utilities
     std.testing.refAllDecls(hash);
     std.testing.refAllDecls(telemetry);
+    std.testing.refAllDecls(nn);
     std.testing.refAllDecls(@This());
 }

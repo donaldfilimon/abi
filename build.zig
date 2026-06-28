@@ -18,6 +18,7 @@ pub fn build(b: *std.Build) void {
     const feat_hash = b.option(bool, "feat-hash", "Enable stable portable hashing utilities") orelse true;
     const feat_metrics = b.option(bool, "feat-metrics", "Enable lightweight in-process metrics for observability") orelse false;
     const feat_telemetry = b.option(bool, "feat-telemetry", "Enable lightweight telemetry event emission") orelse true;
+    const feat_nn = b.option(bool, "feat-nn", "Enable the pure-Zig nn char-LM trainer") orelse true;
     const feat_sea = b.option(bool, "feat-sea", "Enable SEA self-learning loop (evidence-augmented completion)") orelse false;
     const feat_foundationmodels = b.option(bool, "feat-foundationmodels", "Enable Apple FoundationModels on-device connector (macOS only)") orelse false;
     const test_filter = b.option([]const u8, "test-filter", "Only run tests whose names contain this text");
@@ -36,6 +37,7 @@ pub fn build(b: *std.Build) void {
     options.addOption(bool, "feat_hash", feat_hash);
     options.addOption(bool, "feat_metrics", feat_metrics);
     options.addOption(bool, "feat_telemetry", feat_telemetry);
+    options.addOption(bool, "feat_nn", feat_nn);
     options.addOption(bool, "feat_sea", feat_sea);
     options.addOption(bool, "feat_foundationmodels", feat_foundationmodels);
     const options_mod = options.createModule();

@@ -18,6 +18,7 @@ test "feature namespaces are stable across flags" {
         "metrics",
         "telemetry",
         "sea",
+        "nn",
     }) |decl_name| {
         try std.testing.expect(@hasDecl(features, decl_name));
     }
@@ -141,6 +142,15 @@ test "feature modules expose safe runtime contracts" {
     defer std.testing.allocator.free(dashboard);
     try std.testing.expect(dashboard.len > 0);
 
+    // TUI output sanitizer (escape-injection hardening): strips ESC/NUL from
+    // attacker-influenced fields before they reach ANSI render output. Available
+    // and stripping in both builds (the stub mirrors the real strip), like the
+    // unconditional renderDashboard contract above.
+    const tui_sanitized = try features.tui.sanitizeControlBytes(std.testing.allocator, "\x1b[2J\x00danger");
+    defer std.testing.allocator.free(tui_sanitized);
+    try std.testing.expect(std.mem.indexOfScalar(u8, tui_sanitized, 0x1b) == null);
+    try std.testing.expect(std.mem.indexOfScalar(u8, tui_sanitized, 0x00) == null);
+
     const command_decision = features.os_control.validateCommand(.{ .argv = &.{"ls"} }, .{ .workspace_root = "/tmp/work" });
     try std.testing.expect(command_decision.message.len > 0);
 
@@ -148,6 +158,20 @@ test "feature modules expose safe runtime contracts" {
     const h = features.hash.wyhash("contract test", 0);
     try std.testing.expect(h != 0);
     try std.testing.expect(features.hash.isEnabled() or !build_options.feat_hash);
+
+    // nn char-LM trainer: when enabled, a tiny training run must strictly reduce
+    // cross-entropy loss (the feature's hard success contract).
+    if (build_options.feat_nn) {
+        try std.testing.expect(features.nn.isEnabled());
+        const report = try features.nn.trainOnText(std.testing.allocator, "hello world ", .{
+            .seq_len = 2,
+            .epochs = 120,
+            .lr = 0.5,
+            .seed = 99,
+        });
+        try std.testing.expect(report.improved);
+        try std.testing.expect(report.final_loss < report.initial_loss);
+    }
 
     if (build_options.feat_metrics) {
         var m = features.metrics.Metrics.init(std.testing.allocator);
@@ -289,12 +313,26 @@ test "disabled feature modules expose explicit degraded behavior" {
         const diagnostics = try features.tui.renderDiagnostics(std.testing.allocator, .{});
         defer std.testing.allocator.free(diagnostics);
         try expectContains(diagnostics, "disabled");
+
+        // The disabled stub still hardens output: sanitizeControlBytes strips
+        // ESC/NUL identically (a pure safety utility degrades, it does not refuse).
+        const sanitized = try features.tui.sanitizeControlBytes(std.testing.allocator, "\x1b]0;title\x07\x00");
+        defer std.testing.allocator.free(sanitized);
+        try std.testing.expect(std.mem.indexOfScalar(u8, sanitized, 0x1b) == null);
+        try std.testing.expect(std.mem.indexOfScalar(u8, sanitized, 0x00) == null);
     }
 
     if (!build_options.feat_metrics) {
         var m = features.metrics.Metrics.init(std.testing.allocator);
         defer m.deinit();
         try std.testing.expectError(error.FeatureDisabled, m.increment("x", 1));
+    }
+
+    if (!build_options.feat_nn) {
+        try std.testing.expect(!features.nn.isEnabled());
+        try std.testing.expectError(error.FeatureDisabled, features.nn.trainOnText(std.testing.allocator, "hello world ", .{}));
+        var model = features.nn.Model{};
+        try std.testing.expectError(error.FeatureDisabled, features.nn.sample(std.testing.allocator, &model, 'h', 4));
     }
 
     if (!build_options.feat_telemetry) {

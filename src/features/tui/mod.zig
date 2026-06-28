@@ -79,18 +79,41 @@ test {
     std.testing.refAllDecls(@This());
 }
 
+/// Replace C0 control bytes (0x00–0x1F) and DEL (0x7F) in `input` with a visible
+/// '.' so attacker-influenced strings interpolated into ANSI render output cannot
+/// inject terminal escape sequences (ESC/CSI/OSC) or embed NUL. Bytes >= 0x80
+/// pass through unchanged so legitimate multi-byte UTF-8 (box-drawing glyphs,
+/// accented text) survives. The output length always equals the input length.
+/// Caller owns the returned slice.
+pub fn sanitizeControlBytes(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+    const out = try allocator.alloc(u8, input.len);
+    for (input, 0..) |byte, i| {
+        out[i] = if (byte < 0x20 or byte == 0x7f) '.' else byte;
+    }
+    return out;
+}
+
 pub fn renderDashboard(allocator: std.mem.Allocator, state: State) ![]u8 {
     if (state.title.len == 0) return error.InvalidTuiState;
 
     var out = std.ArrayListUnmanaged(u8).empty;
     errdefer out.deinit(allocator);
 
+    // Sanitize caller-supplied strings before interpolation so control bytes in
+    // the title/items cannot inject terminal escapes (see sanitizeControlBytes).
+    const title = try sanitizeControlBytes(allocator, state.title);
+    defer allocator.free(title);
+
     try out.print(allocator, "+------------------------------+\n", .{});
-    try out.print(allocator, "| {s:<28} |\n", .{state.title});
+    try out.print(allocator, "| {s:<28} |\n", .{title});
     try out.print(allocator, "+------------------------------+\n", .{});
     try out.print(allocator, "status: {s}\n", .{statusText(state.status)});
     for (state.items) |item| {
-        try out.print(allocator, "- {s}: {s}\n", .{ item.label, item.value });
+        const label = try sanitizeControlBytes(allocator, item.label);
+        defer allocator.free(label);
+        const value = try sanitizeControlBytes(allocator, item.value);
+        defer allocator.free(value);
+        try out.print(allocator, "- {s}: {s}\n", .{ label, value });
     }
     try out.print(allocator, "\nCommands: abi help | abi agent train all | abi agent os dry-run <cmd>\n", .{});
 
@@ -102,6 +125,17 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     var out = std.ArrayListUnmanaged(u8).empty;
     errdefer out.deinit(allocator);
 
+    // Externally-influenced string fields (GPU backend label, plugin names,
+    // scheduler/memory source) are sanitized before they are interpolated into
+    // the ANSI render stream so they cannot inject terminal escapes. Plugin names
+    // are sanitized per-iteration in the loop below.
+    const gpu_backend = try sanitizeControlBytes(allocator, ds.gpu_backend);
+    defer allocator.free(gpu_backend);
+    const scheduler_source = try sanitizeControlBytes(allocator, ds.scheduler_source);
+    defer allocator.free(scheduler_source);
+    const memory_source = try sanitizeControlBytes(allocator, ds.memory_source);
+    defer allocator.free(memory_source);
+
     // Header
     try out.appendSlice(allocator, "\x1b[1;36m");
     try out.appendSlice(allocator, "╔══════════════════════════════════════════════════════════════╗\n");
@@ -111,7 +145,7 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
 
     // System pane
     try out.appendSlice(allocator, "\x1b[1;33m┌─ System ────────────────────────────────────────────────────┐\x1b[0m\n");
-    try out.print(allocator, "│ GPU Backend:     \x1b[1m{s:<42}\x1b[0m│\n", .{ds.gpu_backend});
+    try out.print(allocator, "│ GPU Backend:     \x1b[1m{s:<42}\x1b[0m│\n", .{gpu_backend});
     try out.print(allocator, "│ Accelerated:     \x1b[1m{s:<42}\x1b[0m│\n", .{if (ds.gpu_accelerated) "yes" else "no"});
     try out.print(allocator, "│ Native Linked:   \x1b[1m{s:<42}\x1b[0m│\n", .{if (ds.gpu_linked) "yes" else "no"});
     try out.appendSlice(allocator, "\x1b[1;33m└─────────────────────────────────────────────────────────────┘\x1b[0m\n");
@@ -120,7 +154,9 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     try out.appendSlice(allocator, "\x1b[1;32m┌─ Plugins ───────────────────────────────────────────────────┐\x1b[0m\n");
     try out.print(allocator, "│ Registered:      \x1b[1m{d:<42}\x1b[0m│\n", .{ds.plugin_count});
     for (ds.plugin_names) |name| {
-        try out.print(allocator, "│   - \x1b[1m{s:<55}\x1b[0m│\n", .{name});
+        const safe_name = try sanitizeControlBytes(allocator, name);
+        defer allocator.free(safe_name);
+        try out.print(allocator, "│   - \x1b[1m{s:<55}\x1b[0m│\n", .{safe_name});
     }
     try out.appendSlice(allocator, "\x1b[1;32m└─────────────────────────────────────────────────────────────┘\x1b[0m\n");
 
@@ -134,7 +170,7 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
 
     // Scheduler pane
     try out.appendSlice(allocator, "\x1b[1;34m┌─ Scheduler ─────────────────────────────────────────────────┐\x1b[0m\n");
-    try out.print(allocator, "│ Source:          \x1b[1m{s:<42}\x1b[0m│\n", .{ds.scheduler_source});
+    try out.print(allocator, "│ Source:          \x1b[1m{s:<42}\x1b[0m│\n", .{scheduler_source});
     try out.print(allocator, "│ Running:         \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_running});
     try out.print(allocator, "│ Pending:         \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_pending});
     try out.print(allocator, "│ Completed:       \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_completed});
@@ -143,7 +179,7 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
 
     // Memory pane
     try out.appendSlice(allocator, "\x1b[1;31m┌─ Memory ────────────────────────────────────────────────────┐\x1b[0m\n");
-    try out.print(allocator, "│ Source:          \x1b[1m{s:<42}\x1b[0m│\n", .{ds.memory_source});
+    try out.print(allocator, "│ Source:          \x1b[1m{s:<42}\x1b[0m│\n", .{memory_source});
     try out.print(allocator, "│ Peak:            \x1b[1m{d:<42}\x1b[0m│\n", .{ds.memory_peak});
     try out.print(allocator, "│ Current:         \x1b[1m{d:<42}\x1b[0m│\n", .{ds.memory_current});
     try out.print(allocator, "│ Leaked:          \x1b[1m{d:<42}\x1b[0m│\n", .{ds.memory_leaked});
