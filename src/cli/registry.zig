@@ -135,7 +135,7 @@ fn handleSchedulerRaw(io: std.Io, alloc: std.mem.Allocator, args: []const []cons
     return handlers.handleScheduler(alloc, args);
 }
 
-/// The frozen 12-command surface, in the same order as `usage.commands`.
+/// The frozen 13-command surface, in the same order as `usage.commands`.
 /// `help` is metadata-only; `dispatch` intercepts it before the table walk.
 pub const commands = [_]Command{
     metaCmd("help"),
@@ -150,6 +150,7 @@ pub const commands = [_]Command{
     typedCmd("dashboard", &.{}, dashboardHandler),
     rawCmd("wdbx", handlers.handleWdbx),
     rawCmd("scheduler", handleSchedulerRaw),
+    rawCmd("nn", handlers.handleNn),
 };
 
 test {

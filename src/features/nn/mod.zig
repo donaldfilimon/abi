@@ -464,6 +464,59 @@ pub fn trainOnText(allocator: std.mem.Allocator, text: []const u8, config: Train
     return model.report;
 }
 
+// ── JSONL ingest ─────────────────────────────────────────────────────────────
+
+/// Build a training corpus from JSONL `bytes`: parse each non-blank line as a
+/// JSON object, pull the string `field`, and concatenate the values with '\n'
+/// separators. PURE over `bytes` (no filesystem) so it is unit-testable without
+/// a temp file. Blank lines, non-object lines, lines missing the field, and
+/// non-string/empty values are skipped; `error.NoCorpusData` is returned when
+/// nothing was extracted. Caller owns the returned slice.
+pub fn extractCorpusFromJsonl(allocator: std.mem.Allocator, bytes: []const u8, field: []const u8) ![]u8 {
+    var corpus: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer corpus.deinit(allocator);
+
+    var lines = std.mem.splitScalar(u8, bytes, '\n');
+    while (lines.next()) |raw_line| {
+        const line = std.mem.trim(u8, raw_line, " \t\r\n");
+        if (line.len == 0) continue;
+
+        var parsed = std.json.parseFromSlice(std.json.Value, allocator, line, .{}) catch continue;
+        defer parsed.deinit();
+
+        const obj = switch (parsed.value) {
+            .object => |o| o,
+            else => continue,
+        };
+        const value = obj.get(field) orelse continue;
+        const text = switch (value) {
+            .string => |s| s,
+            else => continue,
+        };
+        if (text.len == 0) continue;
+
+        if (corpus.items.len > 0) try corpus.append(allocator, '\n');
+        try corpus.appendSlice(allocator, text);
+    }
+
+    if (corpus.items.len == 0) return error.NoCorpusData;
+    return corpus.toOwnedSlice(allocator);
+}
+
+/// Read JSONL from `path`, extract the `field` corpus, and train on it. Uses the
+/// repo's io-less default reader (`std.Options.debug_io`), matching the
+/// `wdbx/persistence` + `public_docs` file-read convention; the corpus is freed
+/// before returning. Returns the training report only.
+pub fn trainOnJsonl(allocator: std.mem.Allocator, path: []const u8, field: []const u8, config: TrainConfig) !TrainReport {
+    const bytes = try std.Io.Dir.cwd().readFileAlloc(std.Options.debug_io, path, allocator, .limited(16 * 1024 * 1024));
+    defer allocator.free(bytes);
+
+    const corpus = try extractCorpusFromJsonl(allocator, bytes, field);
+    defer allocator.free(corpus);
+
+    return trainOnText(allocator, corpus, config);
+}
+
 /// Greedily (argmax) generate `n` characters from `model`, seeding the context
 /// from the first occurrence of `seed_char` in the training corpus so that
 /// generation immediately tracks a real corpus context. Caller owns the result.
@@ -530,6 +583,9 @@ test "training strictly decreases cross-entropy loss (hard gate)" {
         .seed = 42,
     });
     try std.testing.expect(report.steps > 0);
+    // Empirical gate: the strict loss decrease depends on the fixed seed/config
+    // here; a std.Random implementation change or a float-reassociation change
+    // (e.g. SIMD reduction order) could shift the exact losses and perturb it.
     try std.testing.expect(report.improved);
     try std.testing.expect(report.final_loss < report.initial_loss);
 }
@@ -613,6 +669,29 @@ test "backprop gradient matches finite difference" {
             return err;
         };
     }
+}
+
+test "extractCorpusFromJsonl concatenates the chosen field across nonblank lines" {
+    const a = std.testing.allocator;
+    const jsonl =
+        \\{"text":"hello","n":1}
+        \\
+        \\{"text":"world"}
+        \\{"other":"ignored"}
+        \\
+    ;
+    const corpus = try extractCorpusFromJsonl(a, jsonl, "text");
+    defer a.free(corpus);
+    try std.testing.expectEqualStrings("hello\nworld", corpus);
+}
+
+test "extractCorpusFromJsonl errors when the field is absent everywhere" {
+    const a = std.testing.allocator;
+    const jsonl =
+        \\{"other":"x"}
+        \\{"other":"y"}
+    ;
+    try std.testing.expectError(error.NoCorpusData, extractCorpusFromJsonl(a, jsonl, "text"));
 }
 
 test "empty and degenerate corpora are rejected" {

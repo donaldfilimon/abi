@@ -44,6 +44,21 @@ pub fn sample(allocator: std.mem.Allocator, model: *const Model, seed_char: u8, 
     return error.FeatureDisabled;
 }
 
+pub fn extractCorpusFromJsonl(allocator: std.mem.Allocator, bytes: []const u8, field: []const u8) ![]u8 {
+    _ = allocator;
+    _ = bytes;
+    _ = field;
+    return error.FeatureDisabled;
+}
+
+pub fn trainOnJsonl(allocator: std.mem.Allocator, path: []const u8, field: []const u8, config: TrainConfig) !TrainReport {
+    _ = allocator;
+    _ = path;
+    _ = field;
+    _ = config;
+    return error.FeatureDisabled;
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

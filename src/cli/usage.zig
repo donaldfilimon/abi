@@ -19,6 +19,7 @@ pub const commands = [_]Command{
     .{ .name = "dashboard", .usage = "abi dashboard", .summary = "Render the diagnostics dashboard" },
     .{ .name = "wdbx", .usage = "abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api> ...", .summary = "Operate the WDBX runtime: snapshots, WAL, blocks, stats, benchmark" },
     .{ .name = "scheduler", .usage = "abi scheduler status", .summary = "Report one-shot CLI scheduler task and memory tracker status" },
+    .{ .name = "nn", .usage = "abi nn train \"<text>\" | train --jsonl <path> [--field <name>] | sample --text \"<corpus>\" --seed <char> --n <k>", .summary = "Miniature character-level demo trainer (pure-Zig char-LM); not a production/LLM/distributed trainer" },
 };
 
 pub fn printUsage() void {

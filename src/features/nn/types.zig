@@ -12,6 +12,8 @@ pub const NnError = error{
     FeatureDisabled,
     /// Training corpus was empty or too short for the configured context.
     EmptyCorpus,
+    /// JSONL ingest extracted no usable text for the requested field.
+    NoCorpusData,
     /// A `TrainConfig` field was zero/out of range.
     InvalidConfig,
     OutOfMemory,

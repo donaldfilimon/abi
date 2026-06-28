@@ -46,4 +46,15 @@ require_substring "$scheduler_out" "scheduler status"
 require_substring "$scheduler_out" "source=cli-scheduler-status"
 require_substring "$scheduler_out" "completed=1"
 
+# `abi nn` is the miniature character-level demo trainer. Assert the honest
+# help framing and a real inline training run (stable label substrings only,
+# never float loss values).
+nn_help_out="$("$ABI" help nn 2>&1)"
+require_substring "$nn_help_out" "character-level demo trainer"
+require_substring "$nn_help_out" "not a production/LLM/distributed trainer"
+
+nn_train_out="$("$ABI" nn train "hello hello hello " 2>&1)"
+require_substring "$nn_train_out" "nn train: initial_loss="
+require_substring "$nn_train_out" "improved="
+
 echo "run_contract_cli: ok"

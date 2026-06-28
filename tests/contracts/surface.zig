@@ -321,7 +321,7 @@ test "CLI command surface is frozen" {
     const expected = [_][]const u8{
         "help",   "complete",  "train",  "agent", "backends",
         "plugin", "auth",      "twilio", "tui",   "dashboard",
-        "wdbx",   "scheduler",
+        "wdbx",   "scheduler", "nn",
     };
     try std.testing.expectEqual(expected.len, usage.commands.len);
     for (expected, usage.commands) |name, cmd| {

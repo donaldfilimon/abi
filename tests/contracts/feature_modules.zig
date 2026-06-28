@@ -151,6 +151,15 @@ test "feature modules expose safe runtime contracts" {
     try std.testing.expect(std.mem.indexOfScalar(u8, tui_sanitized, 0x1b) == null);
     try std.testing.expect(std.mem.indexOfScalar(u8, tui_sanitized, 0x00) == null);
 
+    // C1 closure (both builds): the UTF-8-aware sanitizer neutralizes a lone raw
+    // CSI (0x9B) and an encoded C1 (0xC2 0x9B) so neither byte survives. Length is
+    // preserved. The stub mirrors this behavior, so this runs feat-on and feat-off.
+    const tui_c1 = try features.tui.sanitizeControlBytes(std.testing.allocator, "x\x9b\xc2\x9by");
+    defer std.testing.allocator.free(tui_c1);
+    try std.testing.expect(std.mem.indexOfScalar(u8, tui_c1, 0x9b) == null);
+    try std.testing.expect(std.mem.indexOfScalar(u8, tui_c1, 0xc2) == null);
+    try std.testing.expectEqual(@as(usize, 5), tui_c1.len);
+
     const command_decision = features.os_control.validateCommand(.{ .argv = &.{"ls"} }, .{ .workspace_root = "/tmp/work" });
     try std.testing.expect(command_decision.message.len > 0);
 
@@ -331,6 +340,8 @@ test "disabled feature modules expose explicit degraded behavior" {
     if (!build_options.feat_nn) {
         try std.testing.expect(!features.nn.isEnabled());
         try std.testing.expectError(error.FeatureDisabled, features.nn.trainOnText(std.testing.allocator, "hello world ", .{}));
+        try std.testing.expectError(error.FeatureDisabled, features.nn.extractCorpusFromJsonl(std.testing.allocator, "{\"text\":\"x\"}", "text"));
+        try std.testing.expectError(error.FeatureDisabled, features.nn.trainOnJsonl(std.testing.allocator, "nonexistent.jsonl", "text", .{}));
         var model = features.nn.Model{};
         try std.testing.expectError(error.FeatureDisabled, features.nn.sample(std.testing.allocator, &model, 'h', 4));
     }

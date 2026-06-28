@@ -79,16 +79,49 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-/// Replace C0 control bytes (0x00–0x1F) and DEL (0x7F) in `input` with a visible
-/// '.' so attacker-influenced strings interpolated into ANSI render output cannot
-/// inject terminal escape sequences (ESC/CSI/OSC) or embed NUL. Bytes >= 0x80
-/// pass through unchanged so legitimate multi-byte UTF-8 (box-drawing glyphs,
-/// accented text) survives. The output length always equals the input length.
-/// Caller owns the returned slice.
+/// Neutralize terminal control characters in `input` while preserving legitimate
+/// UTF-8, so attacker-influenced strings interpolated into ANSI render output
+/// cannot inject terminal escape sequences (ESC/CSI/OSC), embed NUL, or smuggle a
+/// C1 control. The input is walked as UTF-8: each valid sequence is decoded and,
+/// if the codepoint is a control (U+0000–U+001F, U+007F DEL, or the U+0080–U+009F
+/// C1 range — which includes 0x9B CSI), every byte of that sequence is replaced
+/// with a visible '.'; otherwise the sequence is copied verbatim so box-drawing
+/// glyphs and accented text survive. Bytes that do not form a valid UTF-8 sequence
+/// (a lone C1 like 0x9B, a stray continuation byte, or a truncated sequence) are
+/// replaced one-for-one with '.'. The output length always equals the input
+/// length. Behavior is defined for UTF-8 input; non-UTF-8 lone bytes are replaced
+/// 1:1. Caller owns the returned slice.
 pub fn sanitizeControlBytes(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     const out = try allocator.alloc(u8, input.len);
-    for (input, 0..) |byte, i| {
-        out[i] = if (byte < 0x20 or byte == 0x7f) '.' else byte;
+    var i: usize = 0;
+    while (i < input.len) {
+        const seq_len: usize = std.unicode.utf8ByteSequenceLength(input[i]) catch {
+            // Invalid lead byte (lone continuation or lone C1 like 0x9B): drop one.
+            out[i] = '.';
+            i += 1;
+            continue;
+        };
+        if (i + seq_len > input.len) {
+            // Truncated multi-byte sequence at end of input: drop one byte.
+            out[i] = '.';
+            i += 1;
+            continue;
+        }
+        const seq = input[i .. i + seq_len];
+        const cp = std.unicode.utf8Decode(seq) catch {
+            // Overlong/invalid continuation bytes: drop one byte and advance.
+            out[i] = '.';
+            i += 1;
+            continue;
+        };
+        if (cp < 0x20 or cp == 0x7f or (cp >= 0x80 and cp <= 0x9f)) {
+            // C0, DEL, or C1 control: neutralize every byte of the sequence so an
+            // encoded C1 (e.g. 0xC2 0x9B) collapses to "..".
+            @memset(out[i .. i + seq_len], '.');
+        } else {
+            @memcpy(out[i .. i + seq_len], seq);
+        }
+        i += seq_len;
     }
     return out;
 }
@@ -346,6 +379,55 @@ pub fn deinitScreen() void {
 
 pub fn deinitScreenWriter(writer: anytype) !void {
     try writer.writeAll("\x1b[?1049l");
+}
+
+test "tui sanitizeControlBytes neutralizes C1 controls and preserves UTF-8" {
+    const allocator = std.testing.allocator;
+
+    // Lone 0x9B (raw CSI on a non-UTF-8 terminal): not a valid UTF-8 start byte,
+    // replaced 1:1 with '.'. No 0x9B survives; length preserved.
+    {
+        const clean = try sanitizeControlBytes(allocator, "x\x9by");
+        defer allocator.free(clean);
+        try std.testing.expectEqualStrings("x.y", clean);
+        try std.testing.expect(std.mem.indexOfScalar(u8, clean, 0x9b) == null);
+        try std.testing.expectEqual(@as(usize, 3), clean.len);
+    }
+
+    // Encoded C1 "\xc2\x9b" decodes to U+009B (CSI): both bytes collapse to "..".
+    // Neither the 0x9b payload nor the 0xc2 lead byte survives; length preserved.
+    {
+        const clean = try sanitizeControlBytes(allocator, "a\xc2\x9bb");
+        defer allocator.free(clean);
+        try std.testing.expectEqualStrings("a..b", clean);
+        try std.testing.expect(std.mem.indexOfScalar(u8, clean, 0x9b) == null);
+        try std.testing.expect(std.mem.indexOfScalar(u8, clean, 0xc2) == null);
+        try std.testing.expectEqual(@as(usize, 4), clean.len);
+    }
+
+    // Valid multibyte UTF-8 (accented "aéb" and a box-drawing "─") is preserved
+    // byte-for-byte.
+    {
+        const accented = "a\xc3\xa9b"; // a é b
+        const clean = try sanitizeControlBytes(allocator, accented);
+        defer allocator.free(clean);
+        try std.testing.expectEqualStrings(accented, clean);
+
+        const box = "\xe2\x94\x80"; // ─ (U+2500)
+        const clean_box = try sanitizeControlBytes(allocator, box);
+        defer allocator.free(clean_box);
+        try std.testing.expectEqualStrings(box, clean_box);
+    }
+
+    // ESC (0x1b) and NUL (0x00) are still stripped; output length == input length.
+    {
+        const dirty = "\x1b[2J\x00ok";
+        const clean = try sanitizeControlBytes(allocator, dirty);
+        defer allocator.free(clean);
+        try std.testing.expect(std.mem.indexOfScalar(u8, clean, 0x1b) == null);
+        try std.testing.expect(std.mem.indexOfScalar(u8, clean, 0x00) == null);
+        try std.testing.expectEqual(dirty.len, clean.len);
+    }
 }
 
 test "dashboard requires a title" {

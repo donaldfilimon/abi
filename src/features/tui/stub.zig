@@ -159,14 +159,42 @@ pub fn deinitScreenWriter(writer: anytype) !void {
     _ = writer;
 }
 
-/// Output sanitizer mirror. The disabled build still strips C0 control bytes
-/// (0x00–0x1F) and DEL (0x7F) — a pure safety utility has no feature dependency,
-/// so it degrades to identical behavior rather than refusing. Bytes >= 0x80 pass
-/// through to preserve UTF-8. Caller owns the returned slice.
+/// Output sanitizer mirror. The disabled build still neutralizes terminal control
+/// characters — a pure safety utility has no feature dependency, so it degrades to
+/// identical behavior rather than refusing. The input is walked as UTF-8: a valid
+/// sequence whose codepoint is a control (U+0000–U+001F, U+007F DEL, or the
+/// U+0080–U+009F C1 range, incl. 0x9B CSI) has every byte replaced with '.';
+/// otherwise the sequence is copied verbatim so multi-byte UTF-8 survives. Bytes
+/// that do not form a valid UTF-8 sequence (a lone C1 like 0x9B, a stray
+/// continuation byte, or a truncated sequence) are replaced one-for-one with '.'.
+/// The output length always equals the input length. Caller owns the returned
+/// slice.
 pub fn sanitizeControlBytes(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     const out = try allocator.alloc(u8, input.len);
-    for (input, 0..) |byte, i| {
-        out[i] = if (byte < 0x20 or byte == 0x7f) '.' else byte;
+    var i: usize = 0;
+    while (i < input.len) {
+        const seq_len: usize = std.unicode.utf8ByteSequenceLength(input[i]) catch {
+            out[i] = '.';
+            i += 1;
+            continue;
+        };
+        if (i + seq_len > input.len) {
+            out[i] = '.';
+            i += 1;
+            continue;
+        }
+        const seq = input[i .. i + seq_len];
+        const cp = std.unicode.utf8Decode(seq) catch {
+            out[i] = '.';
+            i += 1;
+            continue;
+        };
+        if (cp < 0x20 or cp == 0x7f or (cp >= 0x80 and cp <= 0x9f)) {
+            @memset(out[i .. i + seq_len], '.');
+        } else {
+            @memcpy(out[i .. i + seq_len], seq);
+        }
+        i += seq_len;
     }
     return out;
 }
