@@ -46,7 +46,7 @@ pub const Store = struct {
     };
 
     allocator: std.mem.Allocator,
-    entries: std.StringHashMap([]const u8),
+    entries: std.StringHashMapUnmanaged([]const u8),
     index: index.HnswIndex(HNSW_DIMENSIONS),
     chain: storage.BlockChain,
     spatial_index: spatial_3d.SpatialIndex3D,
@@ -65,7 +65,7 @@ pub const Store = struct {
     pub fn initWithConfig(a: std.mem.Allocator, config: StoreConfig) Store {
         return .{
             .allocator = a,
-            .entries = std.StringHashMap([]const u8).init(a),
+            .entries = .empty,
             .index = index.HnswIndex(HNSW_DIMENSIONS).init(a),
             .chain = storage.BlockChain.init(a),
             .spatial_index = spatial_3d.SpatialIndex3D.initWithPool(a, config.pool_alloc),
@@ -99,7 +99,7 @@ pub const Store = struct {
             self.allocator.free(entry.key_ptr.*);
             self.allocator.free(entry.value_ptr.*);
         }
-        self.entries.deinit();
+        self.entries.deinit(self.allocator);
 
         self.index.deinit();
         self.chain.deinit();
@@ -120,7 +120,7 @@ pub const Store = struct {
         var val_pending = true;
         errdefer if (val_pending) self.allocator.free(owned_val);
 
-        const result = try self.entries.getOrPut(owned_key);
+        const result = try self.entries.getOrPut(self.allocator, owned_key);
         if (result.found_existing) {
             self.allocator.free(owned_key);
             key_pending = false;

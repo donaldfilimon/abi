@@ -4,7 +4,7 @@ const memory = @import("../../core/memory.zig");
 pub const VectorStorage = struct {
     allocator: std.mem.Allocator,
     data: std.ArrayListUnmanaged(f32),
-    present: std.AutoHashMap(u32, void),
+    present: std.AutoHashMapUnmanaged(u32, void),
     dimensions: usize = 0,
     capacity: usize = 0,
     tracker: ?*memory.MemoryTracker = null,
@@ -14,7 +14,7 @@ pub const VectorStorage = struct {
         return .{
             .allocator = allocator,
             .data = .empty,
-            .present = std.AutoHashMap(u32, void).init(allocator),
+            .present = .empty,
             .dimensions = dimensions,
             .capacity = initial_capacity,
         };
@@ -24,7 +24,7 @@ pub const VectorStorage = struct {
         if (self.tracker) |tracker| {
             if (self.tracked_data_bytes > 0) tracker.trackFreeNoTag(self.tracked_data_bytes);
         }
-        self.present.deinit();
+        self.present.deinit(self.allocator);
         self.data.deinit(self.allocator);
     }
 
@@ -55,7 +55,7 @@ pub const VectorStorage = struct {
         }
         const offset = id * self.dimensions;
         @memcpy(self.data.items[offset .. offset + self.dimensions], values);
-        try self.present.put(id, {});
+        try self.present.put(self.allocator, id, {});
     }
 
     /// Borrowed view of a stored vector, or null when `id` was never inserted
