@@ -110,6 +110,16 @@ pub fn assertContains(haystack: []const u8, needle: []const u8) !void {
     }
 }
 
+/// Test-only helper: delete a file at `path`, treating a missing file as success
+/// and printing any other error. Shared by the WDBX persistence/segments/wal/
+/// recovery tests and the CLI `wdbx` handler's cleanup so the body lives once.
+pub fn deleteTestFileIfExists(path: []const u8) void {
+    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
+    };
+}
+
 pub const BenchResult = struct {
     elapsed_ms: f64,
 };

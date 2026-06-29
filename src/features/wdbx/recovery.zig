@@ -21,6 +21,7 @@ const wdbx_mod = @import("mod.zig");
 const persistence = @import("persistence.zig");
 const segments = @import("segments.zig");
 const wal = @import("wal.zig");
+const test_helpers = @import("../../testing/test_helpers.zig");
 
 /// Which durable source the recovered Store was reconstructed from. `.merged`
 /// means a checkpoint plus a folded-in WAL delta. `.wal` is retained for
@@ -94,12 +95,7 @@ pub fn open(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !Opened 
 
 const testing = std.testing;
 
-fn deleteTestFileIfExists(path: []const u8) void {
-    std.Io.Dir.cwd().deleteFile(testing.io, path) catch |err| switch (err) {
-        error.FileNotFound => {},
-        else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
-    };
-}
+const deleteTestFileIfExists = test_helpers.deleteTestFileIfExists;
 
 fn writeSnapshot(io: std.Io, allocator: std.mem.Allocator, path: []const u8, profiles: []const []const u8) !void {
     var store = wdbx_mod.Store.init(allocator);

@@ -15,6 +15,7 @@ const std = @import("std");
 const wdbx_mod = @import("mod.zig");
 const persistence = @import("persistence.zig");
 const persistence_parse = @import("persistence_parse.zig");
+const test_helpers = @import("../../testing/test_helpers.zig");
 
 /// Header line prefix. A WAL written after a checkpoint additionally carries a
 /// ` base_epoch=N` token naming the checkpoint epoch it is a delta from; legacy
@@ -309,12 +310,7 @@ fn frameIterator(content: []const u8) FrameIterator {
     return .{ .lines = std.mem.splitScalar(u8, content, '\n') };
 }
 
-fn deleteTestFileIfExists(path: []const u8) void {
-    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| switch (err) {
-        error.FileNotFound => {},
-        else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
-    };
-}
+const deleteTestFileIfExists = test_helpers.deleteTestFileIfExists;
 
 test "wal: append and replay reconstruct kv + block state" {
     const allocator = std.testing.allocator;

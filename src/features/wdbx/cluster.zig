@@ -131,7 +131,10 @@ pub const Cluster = struct {
 
         for (self.nodes) |*peer| {
             if (peer.id == ldr.id or !peer.alive) continue;
-            appendEntry(self, peer, term, data) catch continue;
+            appendEntry(self, peer, term, data) catch |err| {
+                std.log.warn("wdbx cluster: follower {d} replication failed: {s}", .{ peer.id, @errorName(err) });
+                continue;
+            };
             acks += 1;
         }
 

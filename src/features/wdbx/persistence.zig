@@ -1,6 +1,7 @@
 const std = @import("std");
 const wdbx_mod = @import("mod.zig");
 const parser = @import("persistence_parse.zig");
+const test_helpers = @import("../../testing/test_helpers.zig");
 
 pub const HEADER = "# ABI-WDBX v1";
 pub const CHECKSUM_PREFIX = "# checksum:";
@@ -342,9 +343,4 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-fn deleteTestFileIfExists(path: []const u8) void {
-    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| switch (err) {
-        error.FileNotFound => {},
-        else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
-    };
-}
+const deleteTestFileIfExists = test_helpers.deleteTestFileIfExists;

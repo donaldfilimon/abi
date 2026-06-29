@@ -14,6 +14,7 @@
 const std = @import("std");
 const wdbx_mod = @import("mod.zig");
 const persistence = @import("persistence.zig");
+const test_helpers = @import("../../testing/test_helpers.zig");
 
 pub const MANIFEST_HEADER = "# ABI-WDBX-SEGMENTS v1";
 
@@ -209,12 +210,7 @@ fn cleanup(base: []const u8) void {
     }
 }
 
-fn deleteTestFileIfExists(path: []const u8) void {
-    std.Io.Dir.cwd().deleteFile(testing.io, path) catch |err| switch (err) {
-        error.FileNotFound => {},
-        else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
-    };
-}
+const deleteTestFileIfExists = test_helpers.deleteTestFileIfExists;
 
 test "segments: flush assigns monotonic epochs and loadLatest reads the newest" {
     const allocator = testing.allocator;

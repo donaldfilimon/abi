@@ -3,6 +3,7 @@ const build_options = @import("build_options");
 const features = @import("../../features/mod.zig");
 const db_commands = @import("wdbx_db.zig");
 const runtime_commands = @import("wdbx_runtime.zig");
+const test_helpers = @import("../../testing/test_helpers.zig");
 
 const wdbx = features.wdbx;
 
@@ -165,12 +166,7 @@ fn cleanupTestDb(path: []const u8) void {
     }
 }
 
-fn deleteTestFileIfExists(path: []const u8) void {
-    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| switch (err) {
-        error.FileNotFound => {},
-        else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
-    };
-}
+const deleteTestFileIfExists = test_helpers.deleteTestFileIfExists;
 
 test "wdbx handler usage returns non-zero without args" {
     // db/block require args; bare invocation prints usage with exit code 2.
