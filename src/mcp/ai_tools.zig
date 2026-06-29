@@ -102,17 +102,30 @@ pub fn runLocalCompletion(allocator: std.mem.Allocator, input: []const u8, model
             stats.blocks,
         },
     );
-    if (result.query_vector_id) |qid| {
+    try appendCompletionTail(&out, allocator, &result, persisted, stats.acceleration.message);
+    return try out.toOwnedSlice(allocator);
+}
+
+/// Append the persisted-record IDs and `: {output}` suffix shared by
+/// `runLocalCompletion` and `runLearn`. Kept byte-identical to both call
+/// sites' historical output (asserted by the MCP tool contract tests).
+fn appendCompletionTail(
+    out: *std.ArrayListUnmanaged(u8),
+    allocator: std.mem.Allocator,
+    completion: *const features.ai.CompletionResult,
+    persisted: bool,
+    wdbx_status: []const u8,
+) !void {
+    if (completion.query_vector_id) |qid| {
         try out.print(allocator, " query_vector_id={d} metadata_key=completion:{d}", .{ qid, qid });
     }
-    if (result.response_vector_id) |rid| try out.print(allocator, " response_vector_id={d}", .{rid});
-    if (result.block_id) |block_id| {
+    if (completion.response_vector_id) |rid| try out.print(allocator, " response_vector_id={d}", .{rid});
+    if (completion.block_id) |block_id| {
         const block_hex = std.fmt.bytesToHex(block_id, .lower);
         try out.print(allocator, " block_id={s}", .{&block_hex});
     }
-    if (!persisted) try out.print(allocator, " wdbx_status={s}", .{stats.acceleration.message});
-    try out.print(allocator, ": {s}", .{result.output});
-    return try out.toOwnedSlice(allocator);
+    if (!persisted) try out.print(allocator, " wdbx_status={s}", .{wdbx_status});
+    try out.print(allocator, ": {s}", .{completion.output});
 }
 
 /// `ai_learn`: run one SEA self-learning pass against the ambient MCP WDBX store
@@ -155,16 +168,7 @@ pub fn runLearn(allocator: std.mem.Allocator, input: []const u8, model: []const 
             stats.blocks,
         },
     );
-    if (completion.query_vector_id) |qid| {
-        try out.print(allocator, " query_vector_id={d} metadata_key=completion:{d}", .{ qid, qid });
-    }
-    if (completion.response_vector_id) |rid| try out.print(allocator, " response_vector_id={d}", .{rid});
-    if (completion.block_id) |block_id| {
-        const block_hex = std.fmt.bytesToHex(block_id, .lower);
-        try out.print(allocator, " block_id={s}", .{&block_hex});
-    }
-    if (!persisted) try out.print(allocator, " wdbx_status={s}", .{stats.acceleration.message});
-    try out.print(allocator, ": {s}", .{completion.output});
+    try appendCompletionTail(&out, allocator, &completion, persisted, stats.acceleration.message);
     return try out.toOwnedSlice(allocator);
 }
 

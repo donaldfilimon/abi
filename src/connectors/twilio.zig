@@ -218,14 +218,14 @@ pub fn validateTwilioAccountSid(account_sid: []const u8) ConnectorError!void {
     if (account_sid.len != TWILIO_ACCOUNT_SID_BYTES) return ConnectorError.AuthenticationError;
     if (!std.mem.startsWith(u8, account_sid, "AC")) return ConnectorError.AuthenticationError;
     for (account_sid[2..]) |byte| {
-        if (!isHexDigit(byte)) return ConnectorError.AuthenticationError;
+        if (!std.ascii.isHex(byte)) return ConnectorError.AuthenticationError;
     }
 }
 
 pub fn validateTwilioAuthToken(auth_token: []const u8) ConnectorError!void {
     if (auth_token.len != TWILIO_AUTH_TOKEN_BYTES) return ConnectorError.AuthenticationError;
     for (auth_token) |byte| {
-        if (!isHexDigit(byte)) return ConnectorError.AuthenticationError;
+        if (!std.ascii.isHex(byte)) return ConnectorError.AuthenticationError;
     }
 }
 
@@ -393,11 +393,11 @@ fn classifyEscalation(event: ConversationRelayEvent) ?EscalationReason {
 }
 
 fn parseConversationRelayEventKind(value: []const u8) ConnectorError!ConversationRelayEventKind {
-    if (stringEqlIgnoreCase(value, "setup")) return .setup;
-    if (stringEqlIgnoreCase(value, "user_transcript") or stringEqlIgnoreCase(value, "transcript") or stringEqlIgnoreCase(value, "prompt")) return .user_transcript;
-    if (stringEqlIgnoreCase(value, "dtmf")) return .dtmf;
-    if (stringEqlIgnoreCase(value, "interrupt")) return .interrupt;
-    if (stringEqlIgnoreCase(value, "disconnect")) return .disconnect;
+    if (std.ascii.eqlIgnoreCase(value, "setup")) return .setup;
+    if (std.ascii.eqlIgnoreCase(value, "user_transcript") or std.ascii.eqlIgnoreCase(value, "transcript") or std.ascii.eqlIgnoreCase(value, "prompt")) return .user_transcript;
+    if (std.ascii.eqlIgnoreCase(value, "dtmf")) return .dtmf;
+    if (std.ascii.eqlIgnoreCase(value, "interrupt")) return .interrupt;
+    if (std.ascii.eqlIgnoreCase(value, "disconnect")) return .disconnect;
     return ConnectorError.InvalidResponse;
 }
 
@@ -481,30 +481,16 @@ fn containsAnyIgnoreCase(haystack: []const u8, needles: []const []const u8) bool
     return false;
 }
 
+// Thin case-insensitive substring search: a sliding window whose per-slice
+// comparison delegates to `std.ascii.eqlIgnoreCase` (ASCII-only semantics).
 fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
     if (needle.len == 0) return true;
     if (needle.len > haystack.len) return false;
     var i: usize = 0;
     while (i + needle.len <= haystack.len) : (i += 1) {
-        if (stringEqlIgnoreCase(haystack[i .. i + needle.len], needle)) return true;
+        if (std.ascii.eqlIgnoreCase(haystack[i .. i + needle.len], needle)) return true;
     }
     return false;
-}
-
-fn stringEqlIgnoreCase(a: []const u8, b: []const u8) bool {
-    if (a.len != b.len) return false;
-    for (a, b) |left, right| {
-        if (std.ascii.toLower(left) != std.ascii.toLower(right)) return false;
-    }
-    return true;
-}
-
-// NOTE: isHexDigit duplicates foundation/validation.zig intentionally.
-// The connector test module is compiled separately (build.zig: `root_source_file = b.path("src/connectors/mod.zig")`)
-// with only `build_options` as an import.  Adding `abi` as an import here would create a circular
-// dependency (abi → connectors → twilio → abi).  Keep the local copy.
-fn isHexDigit(byte: u8) bool {
-    return (byte >= '0' and byte <= '9') or (byte >= 'a' and byte <= 'f') or (byte >= 'A' and byte <= 'F');
 }
 
 // --- Twilio XML/Form helpers ---
