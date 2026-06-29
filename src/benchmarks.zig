@@ -185,7 +185,10 @@ test "bench HNSW insert" {
                     0.0,
                     0.0,
                 };
-                _ = store.putVector(&vals) catch unreachable;
+                _ = store.putVector(&vals) catch |err| {
+                    std.debug.print("bench HNSW insert putVector failed: {s}\n", .{@errorName(err)});
+                    return;
+                };
             }
         }
     };
@@ -210,7 +213,10 @@ test "bench HNSW search" {
     const SearchBench = struct {
         pub fn run(bench_store: *wdbx.Store) void {
             const query = [_]f32{ 0.5, 0.5, 0.0, 0.0 };
-            const results = bench_store.search(&query, 10) catch unreachable;
+            const results = bench_store.search(&query, 10) catch |err| {
+                std.debug.print("bench HNSW search failed: {s}\n", .{@errorName(err)});
+                return;
+            };
             std.testing.allocator.free(results);
         }
     };
@@ -227,7 +233,10 @@ test "bench block chain append" {
             while (i < 100) : (i += 1) {
                 const profile = "test_profile";
                 const metadata = "block metadata";
-                _ = store.appendBlock(profile, @intCast(i), @intCast(i + 1), metadata) catch unreachable;
+                _ = store.appendBlock(profile, @intCast(i), @intCast(i + 1), metadata) catch |err| {
+                    std.debug.print("bench block chain append failed: {s}\n", .{@errorName(err)});
+                    return;
+                };
             }
         }
     };
@@ -296,7 +305,10 @@ test "bench wdbx store operations" {
                 const key = std.fmt.bufPrint(&key_buf, "key:{d}", .{i}) catch unreachable;
                 var val_buf: [32]u8 = undefined;
                 const val = std.fmt.bufPrint(&val_buf, "val:{d}", .{i}) catch unreachable;
-                store.store(key, val) catch unreachable;
+                store.store(key, val) catch |err| {
+                    std.debug.print("bench wdbx store put failed: {s}\n", .{@errorName(err)});
+                    return;
+                };
             }
             var j: usize = 0;
             while (j < 200) : (j += 1) {
