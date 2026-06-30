@@ -21,6 +21,10 @@ TRANSCRIPT="$REPO_ROOT/zig-out/run-abi-smoke.txt"
 fail=0
 pass=0
 
+# zig-out/ may not exist before the first build; ensure the transcript dir is
+# writable up front so every log line lands instead of erroring out per-line.
+mkdir -p "$(dirname -- "$TRANSCRIPT")"
+
 log() { printf '%s\n' "$*" | tee -a "$TRANSCRIPT"; }
 
 # run <label> <expected-substring|-> -- <command...>
