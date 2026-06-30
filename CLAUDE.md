@@ -6,7 +6,7 @@ Trust executable config over prose: when this file conflicts with `build.zig`, `
 
 This file has two sibling instruction files at the repo root — `AGENTS.md` (for Codex) and `GEMINI.md` (for Gemini) — that restate the same repository conventions. When you change a durable convention here (commands, contracts, feature flags, Zig patterns), propagate it to both so the three stay consistent.
 
-Toolchain is pinned to Zig `0.17.0-dev.978+a078d55a2` (see `.zigversion`). On macOS/Darwin, prefer `./build.sh ...` (a thin wrapper over `tools/build.sh` → `zig build`) over raw `zig build` for the documented workflow. Builds are incremental against `.zig-cache/`; the first cold build/check is slow, subsequent runs are fast.
+Toolchain is pinned to Zig `0.17.0-dev.978+a078d55a2` (see `.zigversion`). On macOS/Darwin, prefer `./build.sh ...` (a thin wrapper over `tools/build.sh` → `zig build`) over raw `zig build` for the documented workflow. Builds are incremental against `.zig-cache/`; the first cold build/check is slow, subsequent runs are fast. **`build.sh`/`tools/build.sh` do not switch or enforce the pin** — they invoke whatever `zig` is on `PATH` (just echoing `Using Zig: …`). The system `zig` must already be the pinned dev build; e.g. Zig `0.16.0` fails to compile (`src/features/wdbx/{net_line,rest}.zig`, `src/mcp/server.zig` use the 0.17 `std.Io.net.Stream.read(io, …)` API). Use a version manager (zvm/zigup) to select the pin before building.
 
 ## Common Development Commands
 
@@ -19,12 +19,14 @@ Toolchain is pinned to Zig `0.17.0-dev.978+a078d55a2` (see `.zigversion`). On ma
 - `zig build lint` – Runs `zig fmt --check` on all source files for formatting compliance.
 - `zig build fix` – Automatically formats source files based on project standards.
 - `zig build check-parity` – Verifies top-level public declaration-name parity for feature/plugin `mod.zig` and `stub.zig` pairs.
+- `zig build cross-smoke` – Opt-in compile-check of the CLI for Linux/Windows/macOS cross targets (`tools/cross_smoke.sh`).
 - Run a single test: `zig build test -Dtest-filter="<pattern>"` (the `test-filter` build option feeds `.filters` on every `addTest`; on macOS use `./build.sh test -Dtest-filter="<pattern>"`). Note: the post-`--` form `zig build test -- --test-filter …` is **not** wired up and is silently ignored.
 
 ### Running Tests
 - `zig build test-integration` – Executes the integration test suite.
 - `zig build benchmarks` – Runs the benchmark suite.
 - `zig build test` – Module + connector tests.
+- `zig build test-cli` – CLI framework tests (command registry + argument parser).
 - `zig build test-feature-contracts` – Feature module contracts.
 - `zig build test-contracts` – Surface/MCP/plugin/docs contracts.
 - `zig build test-mcp-contracts` – MCP tool contract tests.

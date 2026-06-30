@@ -6,7 +6,7 @@
 - The worktree may be dirty from another agent/user. Inspect `git status --short --branch`; never revert unrelated changes.
 
 ## Commands That Matter
-- Toolchain is pinned by `.zigversion` to Zig `0.17.0-dev.978+a078d55a2`; `build.zig.zon` only sets the package minimum.
+- Toolchain is pinned by `.zigversion` to Zig `0.17.0-dev.978+a078d55a2`; `build.zig.zon` only sets the package minimum. `build.sh`/`tools/build.sh` do **not** switch or enforce the pin — they run whatever `zig` is on `PATH`. The system `zig` must already be that dev build (Zig `0.16.0` fails: the WDBX/MCP listeners use the 0.17 `std.Io.net.Stream.read(io, …)` API).
 - On macOS/Darwin prefer `./build.sh ...`; it delegates to `tools/build.sh` and keeps the documented Metal/link workflow.
 - Primary gate: `./build.sh check` builds CLI/MCP, runs module + connector + contract tests, CLI contract smoke, feature-off stub contracts, `zig fmt --check`, and parity.
 - Full local gate: `./build.sh full-check` adds integration tests, benchmarks, and TUI smoke.
@@ -17,7 +17,7 @@
 - Public API root is `src/root.zig`; CLI entry is `src/main.zig` with dispatch under `src/cli/`; MCP server code is under `src/mcp/`.
 - Repo-root `mcp/` is launcher/config glue (`.mcp.json` calls `mcp/launcher.sh`), not the Zig MCP implementation.
 - Feature selection happens in `src/features/mod.zig`; each feature uses a real `mod.zig` and disabled `stub.zig` selected by `-Dfeat-*`.
-- Feature defaults from `build.zig`: enabled `ai`, `wdbx`, `gpu`, `accelerator`, `shader`, `mlir`, `os-control`, `tui`, `hash`, `telemetry`; disabled `mobile`, `metrics`.
+- Feature defaults from `build.zig`: enabled `ai`, `wdbx`, `gpu`, `accelerator`, `shader`, `mlir`, `os-control`, `tui`, `hash`, `telemetry`, `nn`; disabled `mobile`, `metrics`.
 - Generated plugin metadata is `src/plugin_registry.zig`; do not hand-edit it. Build regeneration comes from `tools/generate_plugin_registry.zig` and `src/plugins/*/abi-plugin.json`.
 
 ## API And Contract Gotchas
