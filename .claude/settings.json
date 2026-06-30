@@ -1,0 +1,57 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./build.sh *)",
+      "Bash(zig build *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *.zig) zig fmt \"$f\";; esac; } 2>/dev/null || true",
+            "statusMessage": "zig fmt"
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *mod.zig|*stub.zig) zig build check-parity 2>&1 | tail -5;; esac; } 2>/dev/null || true",
+            "statusMessage": "check-parity"
+          }
+        ]
+      },
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx --package=@stylusnexus/skill-loop skill-loop-claude post-hook"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path' 2>/dev/null); case \"$f\" in *plugin_registry.zig) echo 'plugin_registry.zig is generated from src/plugins/*/abi-plugin.json; edit the manifest and rebuild (tools/generate_plugin_registry.zig), do not hand-edit.' >&2; exit 2;; esac",
+            "statusMessage": "guard generated files"
+          }
+        ]
+      },
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx --package=@stylusnexus/skill-loop skill-loop-claude pre-hook"
+          }
+        ]
+      }
+    ]
+  }
+}
