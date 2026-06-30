@@ -17,7 +17,7 @@
           },
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *mod.zig|*stub.zig) zig build check-parity 2>&1 | tail -5;; esac; } 2>/dev/null || true",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *mod.zig|*stub.zig) cd \"$CLAUDE_PROJECT_DIR\" && zig build check-parity 2>&1 | tail -5;; esac; } 2>/dev/null || true",
             "statusMessage": "check-parity"
           }
         ]
