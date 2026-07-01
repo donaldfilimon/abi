@@ -192,3 +192,7 @@ test "gpu detection always provides a safe backend" {
     try std.testing.expect(status.available);
     try std.testing.expect(status.message.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

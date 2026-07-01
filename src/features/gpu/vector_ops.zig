@@ -174,3 +174,7 @@ test "gpu batched cosine similarity matches the pairwise result" {
     var bad: [1]f32 = undefined;
     try std.testing.expectError(error.DimensionMismatch, ops.batchCosineSimilarity(&query, &candidates, &bad));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

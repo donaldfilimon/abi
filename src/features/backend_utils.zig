@@ -197,3 +197,7 @@ pub fn backendCapabilitiesList() [9]BackendCapabilities {
         backendCapabilities(.mlir),
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

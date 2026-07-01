@@ -2,6 +2,11 @@ const std = @import("std");
 const abi = @import("../../root.zig");
 const usage_mod = @import("../usage.zig");
 
+/// `abi agent <plan|train|tui|os> ...`: dispatch the agent subcommands.
+/// `plan` runs a dry-run agent over a single input (reporting scheduler and
+/// memory-tracker stats), `train` trains one or all AI profiles against the
+/// durable store, `tui` launches the interactive REPL, and `os` delegates to
+/// `handleAgentOs`. Returns the process exit code.
 pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len < 3) return usage_mod.usageError("usage: abi agent <plan|train|tui|os> ...");
 
@@ -157,6 +162,11 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
     }
 }
 
+/// `abi agent os <dry-run|execute --confirm> <cmd> [args...]`: run an OS-control
+/// command request through the os_control policy gate. `execute` requires an
+/// explicit `--confirm`; without it (or for `dry-run`) the command is only
+/// audited, never run. Arbitrary user argv is classified `.unknown` intent — the
+/// real gate is the allow-list plus workspace containment. Returns the exit code.
 pub fn handleAgentOs(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     _ = allocator;
     const os_cmd = args[3];

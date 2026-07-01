@@ -11,9 +11,10 @@ Quick reference for Google Gemini and compatible agents working on this Zig 0.17
 ./build.sh mcp                # build zig-out/bin/abi-mcp
 zig build test-integration    # explicit integration suite
 zig build benchmarks          # explicit benchmark suite
+pip install -r requirements-docs.txt && mkdocs build   # optional MkDocs site (strict); not in CI/check
 ```
 
-Zig is pinned by `.zigversion` to `0.17.0-dev.978+a078d55a2`; `build.zig.zon` keeps `0.17.0-dev.978+a078d55a2` as the package minimum. Plain `zig build` may work with a compatible local toolchain, but use `./build.sh ...` on macOS for the documented Darwin workflow.
+Zig is pinned by `.zigversion` to `0.17.0-dev.978+a078d55a2`; `build.zig.zon` keeps `0.17.0-dev.978+a078d55a2` as the package minimum. Plain `zig build` may work with a compatible local toolchain, but use `./build.sh ...` on macOS for the documented Darwin workflow. Note: `build.sh`/`tools/build.sh` do not switch or enforce the pin — they run whatever `zig` is on `PATH` (Zig `0.16.0` fails to compile, since the WDBX/MCP network listeners use the 0.17 `std.Io.net.Stream.read(io, …)` API).
 
 ## Current CLI Examples
 
@@ -55,9 +56,9 @@ Do not assume old command names exist: `version`, `doctor`, `features`, `platfor
 
 ## Feature Flags
 
-Default enabled: `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`, `feat-hash`, `feat-telemetry`.
+Default enabled (all `-Dfeat-*` flags): `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`, `feat-hash`, `feat-telemetry`, `feat-nn`, `feat-mobile`, `feat-metrics`, `feat-sea`, `feat-foundationmodels`.
 
-Default disabled: `feat-mobile`, `feat-metrics`, `feat-sea` (`src/features/sea/`, Sparse Evidence Attention self-learning loop), `feat-foundationmodels` (`src/connectors/fm.zig`, Apple on-device FoundationModels — macOS-only; links `FoundationModels.framework` + a `swiftc`-built `libabi_fm_shim.dylib`; on-device generation is wired through a Swift `@c` shim (SE-0495) and requires Apple-Intelligence hardware at runtime).
+Default disabled: none — turn any feature off with `-Dfeat-<name>=false`. Notes on the recently-flipped opt-ins: `feat-sea` (`src/features/sea/`, Sparse Evidence Attention self-learning loop, requires `feat-wdbx` at runtime) and `feat-foundationmodels` (`src/connectors/fm.zig`, Apple on-device FoundationModels — defaults on but the `FoundationModels.framework` + `swiftc`-built `libabi_fm_shim.dylib` link is comptime-gated on an arm64 macOS target (`os.tag == .macos and cpu.arch == .aarch64`), so non-macOS and x86_64-macOS builds compile it out and `apple-fm` reports `FMUnavailable`. CAVEAT: the default build on an arm64 macOS host still runs `xcrun swiftc -target arm64-apple-macosx26.0`, requiring the Xcode/Swift toolchain + macOS 26 SDK; lacking those, build `-Dfeat-foundationmodels=false`. On-device generation is wired through a Swift `@c` shim (SE-0495) and requires Apple-Intelligence hardware at runtime).
 
 Use `-Dfeat-<name>=false|true`, for example:
 
@@ -83,7 +84,7 @@ There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 
 - Read `tasks/lessons.md` and `tasks/todo.md` before substantial work.
 - Public feature API changes require matching `mod.zig` and `stub.zig` updates.
-- Run `zig build check-parity` after public API changes.
+- Run `zig build check-parity` after public API changes. It only matches column-0 `pub const `/`pub fn ` names (not `pub var`/`pub threadlocal`/nested decls), and builds just the std-only host checker, so it runs even when the feature graph won't compile under a mismatched Zig.
 - Do not edit generated `src/plugin_registry.zig`; change plugin source/manifests or `tools/generate_plugin_registry.zig`.
 - Plugin manifests require `name`, `version`, `description`, `target_feature`, and a safe relative `.zig` `entry_point` whose file exists under the plugin directory; `targetFeature` / `entryPoint` aliases are accepted. Generated multi-plugin registry metadata is covered by `tests/contracts/plugin_registry.zig`.
 - Discord connector IDs are validated as numeric snowflake-like IDs, and local/live paths enforce printable non-whitespace credentials, author ID validation, and message-size checks.

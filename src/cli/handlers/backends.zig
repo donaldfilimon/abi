@@ -1,6 +1,9 @@
 const std = @import("std");
 const features = @import("../../features/mod.zig");
 
+/// `abi backends`: report the detected compute backends — GPU backend and
+/// native-kernel status, the accelerator training selection, and the shader
+/// compiler status with a sample compile. Returns the process exit code.
 pub fn handleBackends() !u8 {
     const gpu_status = features.gpu.detectBackend();
     const native_gpu = features.gpu.nativeKernelStatus();

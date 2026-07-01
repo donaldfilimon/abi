@@ -102,7 +102,11 @@ pub fn gatherEvidenceWithPlan(
     }
 
     const embedding = helpers.textEmbedding(input);
-    const hits = store.search(&embedding, limit) catch {
+    const hits = store.search(&embedding, limit) catch |err| {
+        // Inference path: don't fail the whole completion, but don't swallow
+        // silently either — a broken retrieval (dim mismatch, OOM, index error)
+        // degrades SEA to zero evidence, which must leave a trace.
+        std.log.scoped(.sea).warn("evidence retrieval failed ({s}); degrading to zero evidence", .{@errorName(err)});
         return .{ .items = &.{}, .allocator = allocator };
     };
     // `hits` is owned by the store's own allocator (the index allocates the

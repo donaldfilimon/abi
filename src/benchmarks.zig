@@ -161,7 +161,10 @@ test "bench vector dot product" {
     const DotBench = struct {
         pub fn run() void {
             const ops = gpu_mod.vectorOps();
-            _ = ops.dot(&a, &b) catch unreachable;
+            _ = ops.dot(&a, &b) catch |err| {
+                std.debug.print("bench vector dot failed: {s}\n", .{@errorName(err)});
+                return;
+            };
         }
     };
 

@@ -6,22 +6,23 @@
 - The worktree may be dirty from another agent/user. Inspect `git status --short --branch`; never revert unrelated changes.
 
 ## Commands That Matter
-- Toolchain is pinned by `.zigversion` to Zig `0.17.0-dev.978+a078d55a2`; `build.zig.zon` only sets the package minimum.
+- Toolchain is pinned by `.zigversion` to Zig `0.17.0-dev.978+a078d55a2`; `build.zig.zon` only sets the package minimum. `build.sh`/`tools/build.sh` do **not** switch or enforce the pin — they run whatever `zig` is on `PATH`. The system `zig` must already be that dev build (Zig `0.16.0` fails: the WDBX/MCP listeners use the 0.17 `std.Io.net.Stream.read(io, …)` API).
 - On macOS/Darwin prefer `./build.sh ...`; it delegates to `tools/build.sh` and keeps the documented Metal/link workflow.
 - Primary gate: `./build.sh check` builds CLI/MCP, runs module + connector + contract tests, CLI contract smoke, feature-off stub contracts, `zig fmt --check`, and parity.
 - Full local gate: `./build.sh full-check` adds integration tests, benchmarks, and TUI smoke.
 - Focused commands: `zig build test -Dtest-filter="<pattern>"`, `zig build test-integration`, `zig build test-mcp-contracts`, `zig build test-mcp-server` (MCP transport: stdio + HTTP/SSE), `zig build check-parity`, `zig build lint`, `zig build fix`.
 - Build binaries with `./build.sh cli` (`zig-out/bin/abi`) and `./build.sh mcp` (`zig-out/bin/abi-mcp`).
+- Docs site (optional, not in CI/`check`): `pip install -r requirements-docs.txt && mkdocs build` (`mkdocs.yml`, `strict: true`).
 
 ## Architecture Anchors
 - Public API root is `src/root.zig`; CLI entry is `src/main.zig` with dispatch under `src/cli/`; MCP server code is under `src/mcp/`.
 - Repo-root `mcp/` is launcher/config glue (`.mcp.json` calls `mcp/launcher.sh`), not the Zig MCP implementation.
 - Feature selection happens in `src/features/mod.zig`; each feature uses a real `mod.zig` and disabled `stub.zig` selected by `-Dfeat-*`.
-- Feature defaults from `build.zig`: enabled `ai`, `wdbx`, `gpu`, `accelerator`, `shader`, `mlir`, `os-control`, `tui`, `hash`, `telemetry`; disabled `mobile`, `metrics`.
+- Feature defaults from `build.zig`: **all `-Dfeat-*` flags default on** — `ai`, `wdbx`, `gpu`, `accelerator`, `shader`, `mlir`, `os-control`, `tui`, `hash`, `telemetry`, `nn`, `mobile`, `metrics`, `sea`, `foundationmodels`. Nothing is disabled by default; turn any off with `-Dfeat-<name>=false`. `feat-foundationmodels` defaults on but its Swift-shim/framework link is comptime-gated on an arm64 macOS target (`os.tag == .macos and cpu.arch == .aarch64`, mirrored by `fm_enabled` in `src/connectors/fm.zig`), so non-macOS and x86_64-macOS builds compile the connector out and `apple-fm` reports `FMUnavailable`. CAVEAT: the default build on an arm64 macOS host still invokes `xcrun swiftc -target arm64-apple-macosx26.0`, so it needs the Xcode/Swift toolchain + macOS 26 SDK; lacking those, build `-Dfeat-foundationmodels=false`. See "API And Contract Gotchas" below for `sea`/`foundationmodels` detail.
 - Generated plugin metadata is `src/plugin_registry.zig`; do not hand-edit it. Build regeneration comes from `tools/generate_plugin_registry.zig` and `src/plugins/*/abi-plugin.json`.
 
 ## API And Contract Gotchas
-- Public feature API changes usually require matching real/stub declarations and disabled behavior returning `error.FeatureDisabled`; run `zig build check-parity`.
+- Public feature API changes usually require matching real/stub declarations and disabled behavior returning `error.FeatureDisabled`; run `zig build check-parity`. The checker only matches column-0 `pub const `/`pub fn ` names (not `pub var`/`pub threadlocal`/nested decls); it builds just the std-only host checker, so it runs even when the feature graph won't compile under a mismatched Zig.
 - Frozen CLI surface is contract-tested. Top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`; `abi --tui` is handled separately in `src/main.zig`. (`nn` is a miniature char-level demo trainer behind `feat-nn` — `nn train "<text>" | train --jsonl <path> | sample …`.)
 - Subcommand grammar (do not drift from `src/cli/`): `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (alias-resolves via the model catalog; `--live` serves anthropic models over the live transport; `--confirm` is required for on-device `apple-fm`; `--learn` routes through the SEA self-learning loop; `agent tui` is now an interactive REPL); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; `wdbx <db <init|verify> | block <insert|get> | query | benchmark | cluster <status|demo|serve> | compute info | secure demo | gpu info | api serve>`. Malformed numeric args (counts/ports/node ids) return usage (exit 2), not a silent default.
 - Do not resurrect legacy CLI names such as `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, or `serve`.

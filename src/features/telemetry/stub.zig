@@ -44,6 +44,19 @@ pub fn droppedEvents() u64 {
     return 0;
 }
 
+pub fn summary() types.Summary {
+    return .{ .total = 0, .distinct = 0, .dropped = 0 };
+}
+
+pub fn snapshot(allocator: std.mem.Allocator) ![]types.CounterSnapshot {
+    _ = allocator;
+    return &[_]types.CounterSnapshot{};
+}
+
+pub fn writeText(allocator: std.mem.Allocator) ![]u8 {
+    return allocator.dupe(u8, "# telemetry disabled\n");
+}
+
 pub fn reset() void {}
 
 test {
@@ -59,4 +72,16 @@ test "telemetry stub reports disabled and stays inert" {
     try std.testing.expectEqual(@as(u64, 0), totalEvents());
     try std.testing.expectEqual(@as(usize, 0), distinctCounters());
     try std.testing.expectEqual(@as(u64, 0), droppedEvents());
+
+    const s = summary();
+    try std.testing.expectEqual(@as(u64, 0), s.total);
+    try std.testing.expectEqual(@as(usize, 0), s.distinct);
+
+    const snap = try snapshot(std.testing.allocator);
+    defer std.testing.allocator.free(snap);
+    try std.testing.expectEqual(@as(usize, 0), snap.len);
+
+    const text = try writeText(std.testing.allocator);
+    defer std.testing.allocator.free(text);
+    try std.testing.expect(std.mem.indexOf(u8, text, "disabled") != null);
 }

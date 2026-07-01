@@ -5,24 +5,19 @@
 const std = @import("std");
 const abi = @import("abi");
 
-/// Load the bundled example plugins into `pm`, tolerating an already-loaded
-/// plugin so repeated calls are idempotent.
-pub fn loadBundledPlugins(pm: *abi.plugins.PluginManager) !void {
-    _ = pm.loadPlugin("src/plugins/example-plugin") catch |err| switch (err) {
-        error.AlreadyLoaded => {},
-        else => return err,
-    };
-    _ = pm.loadPlugin("src/plugins/example-wdbx-plugin") catch |err| switch (err) {
-        error.AlreadyLoaded => {},
-        else => return err,
-    };
+/// Load the bundled plugins into `pm`. Delegates to the shared
+/// `abi.plugins.loadBundled` so the MCP surface stays symmetric with the CLI:
+/// the same `bundled_plugin_paths` set, loaded with the same tolerant
+/// (idempotent, skip-on-bad-manifest) behavior.
+pub fn loadBundledPlugins(pm: *abi.plugins.PluginManager) void {
+    abi.plugins.loadBundled(pm);
 }
 
 /// Return a one-line summary of the bundled plugins' metadata.
 pub fn runPluginList(allocator: std.mem.Allocator) ![]u8 {
     var pm = abi.plugins.PluginManager.init(allocator);
     defer pm.deinit();
-    try loadBundledPlugins(&pm);
+    loadBundledPlugins(&pm);
 
     const list = try pm.listPlugins();
     defer allocator.free(list);

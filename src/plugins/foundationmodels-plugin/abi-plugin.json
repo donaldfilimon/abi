@@ -1,0 +1,7 @@
+{
+  "name": "foundationmodels-plugin",
+  "version": "0.1.0",
+  "description": "Example reference plugin targeting the feat-foundationmodels gate.",
+  "target_feature": "foundationmodels",
+  "entry_point": "mod.zig"
+}

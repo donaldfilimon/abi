@@ -12,15 +12,15 @@ pub fn build(b: *std.Build) void {
     const feat_accelerator = b.option(bool, "feat-accelerator", "Enable accelerator backend selection") orelse true;
     const feat_shader = b.option(bool, "feat-shader", "Enable Zig shader validation backend") orelse true;
     const feat_mlir = b.option(bool, "feat-mlir", "Enable textual MLIR lowering backend") orelse true;
-    const feat_mobile = b.option(bool, "feat-mobile", "Enable mobile platform feature flag") orelse false;
+    const feat_mobile = b.option(bool, "feat-mobile", "Enable mobile platform feature flag") orelse true;
     const feat_wdbx = b.option(bool, "feat-wdbx", "Enable WDBX vector store and block memory") orelse true;
     const feat_os_control = b.option(bool, "feat-os-control", "Enable OS command policy controls") orelse true;
     const feat_hash = b.option(bool, "feat-hash", "Enable stable portable hashing utilities") orelse true;
-    const feat_metrics = b.option(bool, "feat-metrics", "Enable lightweight in-process metrics for observability") orelse false;
+    const feat_metrics = b.option(bool, "feat-metrics", "Enable lightweight in-process metrics for observability") orelse true;
     const feat_telemetry = b.option(bool, "feat-telemetry", "Enable lightweight telemetry event emission") orelse true;
     const feat_nn = b.option(bool, "feat-nn", "Enable the pure-Zig nn char-LM trainer") orelse true;
-    const feat_sea = b.option(bool, "feat-sea", "Enable SEA self-learning loop (evidence-augmented completion)") orelse false;
-    const feat_foundationmodels = b.option(bool, "feat-foundationmodels", "Enable Apple FoundationModels on-device connector (macOS only)") orelse false;
+    const feat_sea = b.option(bool, "feat-sea", "Enable SEA self-learning loop (evidence-augmented completion)") orelse true;
+    const feat_foundationmodels = b.option(bool, "feat-foundationmodels", "Enable Apple FoundationModels on-device connector (macOS only)") orelse true;
     const test_filter = b.option([]const u8, "test-filter", "Only run tests whose names contain this text");
     const test_filters: []const []const u8 = if (test_filter) |filter| &.{filter} else &.{};
 
@@ -62,7 +62,7 @@ pub fn build(b: *std.Build) void {
         /// the link-time library search path and the runtime rpath.
         dir: std.Build.LazyPath,
     };
-    const fm_shim: ?FmShim = if (target.result.os.tag == .macos and feat_foundationmodels) blk: {
+    const fm_shim: ?FmShim = if (target.result.os.tag == .macos and target.result.cpu.arch == .aarch64 and feat_foundationmodels) blk: {
         const sdk_path = std.mem.trim(u8, b.run(&.{ "xcrun", "--sdk", "macosx", "--show-sdk-path" }), " \r\n\t");
 
         const compile = b.addSystemCommand(&.{ "xcrun", "swiftc" });

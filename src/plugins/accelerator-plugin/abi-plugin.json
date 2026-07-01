@@ -1,0 +1,7 @@
+{
+  "name": "accelerator-plugin",
+  "version": "0.1.0",
+  "description": "Example reference plugin targeting the feat-accelerator gate.",
+  "target_feature": "accelerator",
+  "entry_point": "mod.zig"
+}

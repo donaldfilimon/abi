@@ -53,4 +53,12 @@ zig build test-feature-contracts ${ENABLED}
 echo "check_feature_stubs: zig build test-contracts ${ENABLED}"
 zig build test-contracts ${ENABLED}
 
+# feat-foundationmodels now defaults ON, so the default gate above only ever
+# compiles the real connector path. Force one FM-off CLI build so the
+# feature-disabled connector path (fm_enabled=false: empty fm_fns, FMUnavailable)
+# still gets compiled by the gate. This needs no Swift toolchain (the shim is only
+# built when the flag is on), so it is safe on every host.
+echo "check_feature_stubs: zig build cli -Dfeat-foundationmodels=false"
+zig build cli -Dfeat-foundationmodels=false
+
 echo "check_feature_stubs: ok"

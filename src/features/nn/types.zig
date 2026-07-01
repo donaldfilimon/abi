@@ -56,3 +56,7 @@ pub const TrainReport = struct {
     steps: usize,
     improved: bool,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

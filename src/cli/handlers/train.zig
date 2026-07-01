@@ -7,6 +7,8 @@ const credentials = @import("../../foundation/credentials.zig");
 const anthropic = @import("../../connectors/anthropic.zig");
 const fm = @import("../../connectors/fm.zig");
 
+/// `abi train <input>`: run the local AI persona router over `input` and print
+/// the response. Returns the process exit code.
 pub fn handleTrain(allocator: std.mem.Allocator, input: []const u8) !u8 {
     const response = try features.ai.run(allocator, input);
     defer allocator.free(response);
@@ -227,12 +229,23 @@ test "complete --live apple-fm without --confirm rejects with usage before any i
     try std.testing.expectEqual(@as(u8, 2), code);
 }
 
-test "complete --live apple-fm with --confirm reports on-device unavailable in phase 1" {
+test "complete --live apple-fm with --confirm tracks on-device availability" {
     const allocator = std.testing.allocator;
-    // With --confirm the client is constructed and `completeLive` reports
-    // FMUnavailable in Phase 1, surfaced as a diagnostic with exit 1.
+    // With --confirm the FM client is constructed and the on-device path runs.
+    // The exit code must track REAL availability, not merely fall in {0,1}:
+    //   exit 0 — FoundationModels is built in AND reachable (arm64 macOS +
+    //            -Dfeat-foundationmodels + Apple-Intelligence hardware); it served
+    //            the on-device completion.
+    //   exit 1 — otherwise (flag off, off-platform, x86_64 macOS, or a
+    //            non-Apple-Intelligence host): the FMUnavailable diagnostic fires.
+    // `fm.fmAvailable()` is the exact same gate handleComplete resolves, so pinning
+    // the expected code to it keeps the suite green on every host while still
+    // catching a real regression — e.g. a fabricated success when FM is unavailable
+    // (would-be exit 0), a dropped FMUnavailable guard, or a fall-through to usage
+    // (exit 2) — that the loose `0 or 1` union would have silently accepted.
     const code = try handleComplete(std.testing.io, allocator, "hello", "apple-fm", true, true, false);
-    try std.testing.expectEqual(@as(u8, 1), code);
+    const expected: u8 = if (fm.fmAvailable()) 0 else 1;
+    try std.testing.expectEqual(expected, code);
 }
 
 test "complete --learn routes through the SEA loop against an in-memory store" {

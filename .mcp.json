@@ -2,7 +2,18 @@
   "mcpServers": {
     "abi-mcp": {
       "command": "./mcp/launcher.sh",
-      "args": ["stdio"]
+      "args": [
+        "stdio"
+      ]
+    },
+    "skill-loop": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "-p",
+        "@stylusnexus/skill-loop-cli@0.3.3",
+        "skill-loop-mcp"
+      ]
     }
   }
 }

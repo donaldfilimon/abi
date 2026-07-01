@@ -1,0 +1,7 @@
+{
+  "name": "gpu-plugin",
+  "version": "0.1.0",
+  "description": "Example reference plugin targeting the feat-gpu gate.",
+  "target_feature": "gpu",
+  "entry_point": "mod.zig"
+}

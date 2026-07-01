@@ -3,13 +3,10 @@ const Registry = @import("../../core/registry.zig").Registry;
 const usage_mod = @import("../usage.zig");
 const abi = @import("../../root.zig");
 
-fn loadBundledPlugin(pm: *abi.plugins.PluginManager, path: []const u8) void {
-    _ = pm.loadPlugin(path) catch |err| switch (err) {
-        error.AlreadyLoaded => {},
-        else => std.log.warn("failed to load bundled plugin path={s} err={s}", .{ path, @errorName(err) }),
-    };
-}
-
+/// `abi plugin list | run <name> [input]`: list the registered plugins or run a
+/// named bundled plugin against optional input. `run` loads the shared bundled
+/// plugin set (symmetric with the MCP surface) before dispatching. Returns the
+/// process exit code.
 pub fn handlePlugin(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len < 3) return usage_mod.usageError("usage: abi plugin list | run <name> [input]");
 
@@ -39,9 +36,10 @@ pub fn handlePlugin(allocator: std.mem.Allocator, args: []const []const u8) !u8 
         var pm = abi.plugins.PluginManager.init(allocator);
         defer pm.deinit();
 
-        // Load the two known bundled plugins so run can find them.
-        loadBundledPlugin(&pm, "src/plugins/example-plugin");
-        loadBundledPlugin(&pm, "src/plugins/example-wdbx-plugin");
+        // Load the known bundled plugins so run can find them. The list and the
+        // tolerant load behavior are shared with the MCP surface so a plugin
+        // runnable here is also runnable over MCP.
+        abi.plugins.loadBundled(&pm);
 
         const output = try pm.run(allocator, name, input);
         defer allocator.free(output);

@@ -206,3 +206,7 @@ const MetalContext = struct {
 };
 
 pub var g_metal_context = MetalContext{};
+
+test {
+    std.testing.refAllDecls(@This());
+}

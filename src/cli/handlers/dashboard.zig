@@ -1,6 +1,8 @@
 const std = @import("std");
 const abi = @import("../../root.zig");
 
+/// `abi dashboard`: print a one-shot status dashboard — the loaded plugin names
+/// from the registry and a snapshot of the WDBX store. Returns the exit code.
 pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
     var registry = abi.registry.Registry.init(allocator);
     defer registry.deinit();

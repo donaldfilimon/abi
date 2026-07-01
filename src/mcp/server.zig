@@ -140,33 +140,49 @@ fn processRequest(allocator: std.mem.Allocator, io: std.Io, line: []const u8) !v
     writeResult(allocator, io, request.value.id, result_json);
 }
 
+fn buildError(gpa: std.mem.Allocator, buf: *std.ArrayListUnmanaged(u8), id: ?std.json.Value, code: i32, message: []const u8) !void {
+    try buf.appendSlice(gpa, "{\"jsonrpc\":\"2.0\"");
+    try appendId(gpa, buf, id);
+    try buf.appendSlice(gpa, ",\"error\":{\"code\":");
+    try buf.print(gpa, "{d}", .{code});
+    try buf.appendSlice(gpa, ",\"message\":");
+    try appendJsonString(buf, gpa, message);
+    try buf.appendSlice(gpa, "}}\n");
+}
+
 fn writeError(io: std.Io, id: ?std.json.Value, code: i32, message: []const u8) void {
     const gpa = std.heap.page_allocator;
     var buf: std.ArrayListUnmanaged(u8) = .empty;
     defer buf.deinit(gpa);
 
-    buf.appendSlice(gpa, "{\"jsonrpc\":\"2.0\"") catch return;
-    appendId(gpa, &buf, id) catch return;
-    buf.appendSlice(gpa, ",\"error\":{\"code\":") catch return;
-    buf.print(gpa, "{d}", .{code}) catch return;
-    buf.appendSlice(gpa, ",\"message\":") catch return;
-    appendJsonString(&buf, gpa, message) catch return;
-    buf.appendSlice(gpa, "}}\n") catch return;
+    // Don't drop the error frame silently: log like the write path below so an
+    // OOM while serializing leaves a trace instead of a vanished response.
+    buildError(gpa, &buf, id, code, message) catch |err| {
+        std.log.warn("failed to build MCP error response: {s}", .{@errorName(err)});
+        return;
+    };
 
     writeStdoutAll(io, buf.items) catch |err| {
         std.log.warn("failed to write MCP error response: {s}", .{@errorName(err)});
     };
 }
 
+fn buildResult(allocator: std.mem.Allocator, buf: *std.ArrayListUnmanaged(u8), id: ?std.json.Value, result_json: []const u8) !void {
+    try buf.appendSlice(allocator, "{\"jsonrpc\":\"2.0\"");
+    try appendId(allocator, buf, id);
+    try buf.appendSlice(allocator, ",\"result\":");
+    try buf.appendSlice(allocator, result_json);
+    try buf.appendSlice(allocator, "}\n");
+}
+
 fn writeResult(allocator: std.mem.Allocator, io: std.Io, id: ?std.json.Value, result_json: []const u8) void {
     var buf: std.ArrayListUnmanaged(u8) = .empty;
     defer buf.deinit(allocator);
 
-    buf.appendSlice(allocator, "{\"jsonrpc\":\"2.0\"") catch return;
-    appendId(allocator, &buf, id) catch return;
-    buf.appendSlice(allocator, ",\"result\":") catch return;
-    buf.appendSlice(allocator, result_json) catch return;
-    buf.appendSlice(allocator, "}\n") catch return;
+    buildResult(allocator, &buf, id, result_json) catch |err| {
+        std.log.warn("failed to build MCP response: {s}", .{@errorName(err)});
+        return;
+    };
 
     writeStdoutAll(io, buf.items) catch |err| {
         std.log.warn("failed to write MCP response: {s}", .{@errorName(err)});

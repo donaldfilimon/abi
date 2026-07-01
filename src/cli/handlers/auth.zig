@@ -4,6 +4,10 @@ const io = @import("../../foundation/io/mod.zig");
 const utils = @import("../../foundation/utils.zig");
 const usage_mod = @import("../usage.zig");
 
+/// `abi auth <signin|logout|status> [args...]`: manage stored connector
+/// credentials. `status` prints which provider credentials are configured,
+/// `signin` persists a credential, and `logout` clears stored credentials.
+/// Returns the process exit code.
 pub fn handleAuth(io_mod: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len < 3) return usage_mod.usageError("usage: abi auth <signin|logout|status> [args...]");
 

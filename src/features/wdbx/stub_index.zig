@@ -109,3 +109,7 @@ pub fn HnswIndex(comptime D: usize) type {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

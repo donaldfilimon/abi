@@ -12,3 +12,20 @@ pub const TelemetryError = error{
 };
 
 pub const Error = TelemetryError;
+
+/// One retained counter, name-owned by the caller of `snapshot`.
+pub const CounterSnapshot = struct {
+    name: []const u8,
+    value: u64,
+};
+
+/// Point-in-time aggregate view of the telemetry table.
+pub const Summary = struct {
+    total: u64,
+    distinct: usize,
+    dropped: u64,
+};
+
+test {
+    std.testing.refAllDecls(@This());
+}

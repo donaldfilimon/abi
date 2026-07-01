@@ -132,6 +132,120 @@ pub fn droppedEvents() u64 {
     return g_dropped;
 }
 
+/// Point-in-time aggregate view (`total`/`distinct`/`dropped`) of the table.
+/// `dropped > 0` or `distinct == SLOT_CAPACITY` means the fixed table is
+/// undersized for the workload and some events are being lost.
+pub fn summary() types.Summary {
+    g_lock.lock();
+    defer g_lock.unlock();
+    var distinct: usize = 0;
+    for (g_slots) |slot| {
+        if (slot.used) distinct += 1;
+    }
+    return .{ .total = g_total, .distinct = distinct, .dropped = g_dropped };
+}
+
+/// Owned copy of every retained counter. The lock is held only long enough to
+/// copy the fixed table into stack scratch, so no allocation happens under the
+/// spinlock. Caller frees each `name` and the outer slice.
+pub fn snapshot(allocator: std.mem.Allocator) ![]types.CounterSnapshot {
+    var scratch: [SLOT_CAPACITY]Slot = undefined;
+    var used: usize = 0;
+    {
+        g_lock.lock();
+        defer g_lock.unlock();
+        for (g_slots) |slot| {
+            if (slot.used) {
+                scratch[used] = slot;
+                used += 1;
+            }
+        }
+    }
+
+    var list: std.ArrayListUnmanaged(types.CounterSnapshot) = .empty;
+    errdefer {
+        for (list.items) |item| allocator.free(item.name);
+        list.deinit(allocator);
+    }
+    try list.ensureTotalCapacity(allocator, used);
+    for (scratch[0..used]) |slot| {
+        const name = try allocator.dupe(u8, slot.name[0..slot.name_len]);
+        errdefer allocator.free(name);
+        list.appendAssumeCapacity(.{ .name = name, .value = slot.value });
+    }
+    return list.toOwnedSlice(allocator);
+}
+
+/// Render the table as Prometheus-style text exposition. Counter names are
+/// sanitized to the Prometheus charset (`.` and anything outside `[a-zA-Z0-9_:]`
+/// become `_`); the `abi_telemetry_*` meta lines surface table health so a full
+/// or lossy table is observable. Caller owns the returned bytes.
+pub fn writeText(allocator: std.mem.Allocator) ![]u8 {
+    const counters = try snapshot(allocator);
+    defer {
+        for (counters) |c| allocator.free(c.name);
+        allocator.free(counters);
+    }
+    const s = summary();
+
+    var buf: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer buf.deinit(allocator);
+
+    try buf.appendSlice(allocator, "# abi telemetry (prometheus text exposition)\n");
+    try appendMeta(allocator, &buf, "abi_telemetry_events_total", "counter", s.total);
+    try appendMeta(allocator, &buf, "abi_telemetry_distinct_counters", "gauge", @intCast(s.distinct));
+    try appendMeta(allocator, &buf, "abi_telemetry_dropped_events_total", "counter", s.dropped);
+
+    for (counters) |c| {
+        var name_buf: [NAME_CAPACITY + 1]u8 = undefined;
+        const name = sanitizeName(c.name, &name_buf);
+        const line = try std.fmt.allocPrint(allocator, "{s} {d}\n", .{ name, c.value });
+        defer allocator.free(line);
+        try buf.appendSlice(allocator, line);
+    }
+
+    return buf.toOwnedSlice(allocator);
+}
+
+fn appendMeta(
+    allocator: std.mem.Allocator,
+    buf: *std.ArrayListUnmanaged(u8),
+    name: []const u8,
+    kind: []const u8,
+    value: u64,
+) !void {
+    const line = try std.fmt.allocPrint(allocator, "# TYPE {s} {s}\n{s} {d}\n", .{ name, kind, name, value });
+    defer allocator.free(line);
+    try buf.appendSlice(allocator, line);
+}
+
+/// Sanitize `name` to a valid Prometheus metric name. Prometheus names must not
+/// only use the `[a-zA-Z0-9_:]` charset but also *start* with `[a-zA-Z_:]`, so a
+/// leading digit (or an empty name) is prefixed with `_`. Worst case is a
+/// full-length name with a `_` prefix, hence the `NAME_CAPACITY + 1` buffer.
+fn sanitizeName(name: []const u8, out: *[NAME_CAPACITY + 1]u8) []const u8 {
+    if (name.len == 0) {
+        out[0] = '_';
+        return out[0..1];
+    }
+    var w: usize = 0;
+    // Only a leading digit is an illegal start: every other input char maps to
+    // a letter, `_`, `:`, or `_` (via the else branch), all valid first chars.
+    if (name[0] >= '0' and name[0] <= '9') {
+        out[0] = '_';
+        w = 1;
+    }
+    const n = @min(name.len, NAME_CAPACITY);
+    for (name[0..n]) |ch| {
+        out[w] = switch (ch) {
+            'a'...'z', 'A'...'Z', '0'...'9', '_', ':' => ch,
+            else => '_',
+        };
+        w += 1;
+    }
+    return out[0..w];
+}
+
 /// Clear all counters. Primarily for test isolation and process re-init.
 pub fn reset() void {
     g_lock.lock();
@@ -162,6 +276,55 @@ test "telemetry accumulates events and counters when enabled" {
     try std.testing.expectEqual(@as(u64, 0), counterValue("never.seen"));
     try std.testing.expectEqual(@as(usize, 2), distinctCounters());
     try std.testing.expectEqual(@as(u64, 7), totalEvents());
+}
+
+test "telemetry summary and snapshot reflect recorded counters" {
+    reset();
+    defer reset();
+
+    increment("scheduler.tasks.completed", 3);
+    record("plugin.loaded");
+
+    const s = summary();
+    try std.testing.expectEqual(@as(u64, 4), s.total);
+    try std.testing.expectEqual(@as(usize, 2), s.distinct);
+    try std.testing.expectEqual(@as(u64, 0), s.dropped);
+
+    const snap = try snapshot(std.testing.allocator);
+    defer {
+        for (snap) |c| std.testing.allocator.free(c.name);
+        std.testing.allocator.free(snap);
+    }
+    try std.testing.expectEqual(@as(usize, 2), snap.len);
+}
+
+test "telemetry writeText renders sanitized prometheus exposition" {
+    reset();
+    defer reset();
+
+    increment("scheduler.tasks.completed", 2);
+
+    const text = try writeText(std.testing.allocator);
+    defer std.testing.allocator.free(text);
+
+    // Dots are sanitized to underscores for the Prometheus charset.
+    try std.testing.expect(std.mem.indexOf(u8, text, "scheduler_tasks_completed 2") != null);
+    // Self-observability meta lines are always present.
+    try std.testing.expect(std.mem.indexOf(u8, text, "abi_telemetry_events_total 2") != null);
+    try std.testing.expect(std.mem.indexOf(u8, text, "abi_telemetry_dropped_events_total 0") != null);
+}
+
+test "telemetry writeText prefixes leading-digit names for prometheus validity" {
+    reset();
+    defer reset();
+
+    increment("3d.render.count", 5);
+
+    const text = try writeText(std.testing.allocator);
+    defer std.testing.allocator.free(text);
+
+    // A leading digit is illegal as a Prometheus name start, so it is prefixed.
+    try std.testing.expect(std.mem.indexOf(u8, text, "_3d_render_count 5") != null);
 }
 
 test "telemetry drops over-long names instead of colliding" {

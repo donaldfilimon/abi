@@ -194,7 +194,9 @@ test "MCP connector_test tool contract" {
 
 test "MCP plugin_list tool contract" {
     const allocator = std.testing.allocator;
-    try expectToolJsonContains(allocator, "{\"name\":\"plugin_list\",\"arguments\":{}}", "plugins count=2");
+    // MCP loads the same `bundled_plugin_paths` set as the CLI (16 in-tree
+    // plugins), so a plugin runnable from the CLI is also runnable over MCP.
+    try expectToolJsonContains(allocator, "{\"name\":\"plugin_list\",\"arguments\":{}}", "plugins count=16");
     try expectToolJsonContains(allocator, "{\"name\":\"plugin_list\",\"arguments\":{}}", "example-plugin");
     try expectToolJsonContains(allocator, "{\"name\":\"plugin_list\",\"arguments\":{}}", "example-wdbx-plugin");
 }
