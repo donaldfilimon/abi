@@ -1,6 +1,6 @@
 # ABI — Threat Model
 
-> Repository: `/Users/donald/abi` (branch `main`). Scope: runtime behavior of the ABI Zig framework — CLI, MCP server, WDBX store + REST API, connectors, credentials/auth, OS-control, plugins. Build/CI and tests are called out separately and are largely out of scope for runtime risk.
+> Repository: `/Users/donaldfilimon/abi` (branch `main`). Scope: runtime behavior of the ABI Zig framework — CLI, MCP server, WDBX store + REST API, connectors, credentials/auth, OS-control, plugins. Build/CI and tests are called out separately and are largely out of scope for runtime risk.
 >
 > Authored as an AppSec-grade, evidence-anchored model. Every architectural claim cites a repo path + symbol. **Revised** to the operator-confirmed context below: deployment is **local single-user (listeners NOT exposed beyond loopback)**, but assets are **real production credentials** (`~/.abi/credentials.json` holds live API keys with billing/quota). This revision down-ranks remote-exposure threats and up-ranks credential-confidentiality + browser-reachability (CSRF / DNS-rebinding of loopback) threats accordingly.
 
