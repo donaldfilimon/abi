@@ -20,7 +20,7 @@ Toolchain is pinned to Zig `0.17.0-dev.978+a078d55a2` (see `.zigversion`). On ma
 - `zig build fix` – Automatically formats source files based on project standards.
 - `zig build check-parity` – Verifies top-level public declaration-name parity for feature/plugin `mod.zig` and `stub.zig` pairs (14 feature + 16 plugin pairs; `src/features/mod.zig` is exempt). The checker (`tools/check_parity.zig`) is a std-only line scanner that matches **only** column-0 `pub const `/`pub fn ` names — `pub var`, `pub threadlocal`, non-`pub`, and nested decls are not enforced. It builds just the host-target checker (not the feature graph), so it runs even when the rest of the tree won't compile under a mismatched Zig.
 - `zig build cross-smoke` – Opt-in compile-check of the CLI for Linux/Windows/macOS cross targets (`tools/cross_smoke.sh`).
-- `pip install -r requirements-docs.txt && mkdocs build` – Builds the MkDocs site (`mkdocs.yml`, `strict: true`). Not part of `./build.sh check` or CI; run it only when validating `docs/` changes.
+- `npx mint@latest dev` (local preview) / `npx mint@latest validate` (config + page check) – Serves/validates the Mintlify docs site (`docs/docs.json` + `docs/**/*.mdx`). Not part of `./build.sh check` or CI; run it only when validating `docs/` changes. Mintlify builds/hosts via its GitHub app on push.
 - Run a single test: `zig build test -Dtest-filter="<pattern>"` (the `test-filter` build option feeds `.filters` on every `addTest`; on macOS use `./build.sh test -Dtest-filter="<pattern>"`). Note: the post-`--` form `zig build test -- --test-filter …` is **not** wired up and is silently ignored.
 
 ### Running Tests

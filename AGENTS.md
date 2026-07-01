@@ -12,7 +12,7 @@
 - Full local gate: `./build.sh full-check` adds integration tests, benchmarks, and TUI smoke.
 - Focused commands: `zig build test -Dtest-filter="<pattern>"`, `zig build test-integration`, `zig build test-mcp-contracts`, `zig build test-mcp-server` (MCP transport: stdio + HTTP/SSE), `zig build check-parity`, `zig build lint`, `zig build fix`.
 - Build binaries with `./build.sh cli` (`zig-out/bin/abi`) and `./build.sh mcp` (`zig-out/bin/abi-mcp`).
-- Docs site (optional, not in CI/`check`): `pip install -r requirements-docs.txt && mkdocs build` (`mkdocs.yml`, `strict: true`).
+- Docs site (optional, not in CI/`check`): `npx mint@latest dev` / `npx mint@latest validate` (Mintlify, `docs/docs.json`).
 
 ## Architecture Anchors
 - Public API root is `src/root.zig`; CLI entry is `src/main.zig` with dispatch under `src/cli/`; MCP server code is under `src/mcp/`.

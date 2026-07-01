@@ -11,7 +11,7 @@ Quick reference for Google Gemini and compatible agents working on this Zig 0.17
 ./build.sh mcp                # build zig-out/bin/abi-mcp
 zig build test-integration    # explicit integration suite
 zig build benchmarks          # explicit benchmark suite
-pip install -r requirements-docs.txt && mkdocs build   # optional MkDocs site (strict); not in CI/check
+npx mint@latest validate   # optional Mintlify docs site (docs/docs.json); not in CI/check
 ```
 
 Zig is pinned by `.zigversion` to `0.17.0-dev.978+a078d55a2`; `build.zig.zon` keeps `0.17.0-dev.978+a078d55a2` as the package minimum. Plain `zig build` may work with a compatible local toolchain, but use `./build.sh ...` on macOS for the documented Darwin workflow. Note: `build.sh`/`tools/build.sh` do not switch or enforce the pin — they run whatever `zig` is on `PATH` (Zig `0.16.0` fails to compile, since the WDBX/MCP network listeners use the 0.17 `std.Io.net.Stream.read(io, …)` API).

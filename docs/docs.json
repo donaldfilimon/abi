@@ -1,0 +1,48 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "ABI Framework",
+  "colors": {
+    "primary": "#009688",
+    "light": "#4db6ac",
+    "dark": "#00695c"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Overview",
+        "pages": ["index"]
+      },
+      {
+        "group": "Architecture",
+        "pages": ["spec/abi-refactor-design"]
+      },
+      {
+        "group": "Specs",
+        "pages": [
+          "spec/multi-persona-technical",
+          "spec/sea-design-extract",
+          "spec/wdbx-north-star",
+          "spec/wdbx-rust-capability-extract"
+        ]
+      },
+      {
+        "group": "Contracts",
+        "pages": [
+          "contracts/public-api",
+          "contracts/external-claims-audit"
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      { "label": "GitHub", "href": "https://github.com/donaldfilimon/abi" }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/donaldfilimon/abi"
+    }
+  }
+}
