@@ -27,7 +27,7 @@ These ship real local artifacts but truthfully disclose that native/external dis
 | ---- | ------ | ----------------- |
 | Native compute dispatch | ⚪ Not started | ANE/TPU/CUDA/Metal-kernel execution (vs the current local SIMD/Metal-fallback path). ANE execution is **out of scope** under the 100% Zig constraint — see Non-goals. |
 | Production/SOTA learned compression codec | ◑ Partial / disclosed | Exact order-0 Huffman entropy (`entropy.zig`), int8 embedding quantization, and the reference `neural_compress.zig` autoencoder exist; no ANS/arithmetic/context-model or production-scale learned codec is proven. |
-| Security-audited FHE | ⚪ Not started | `fhe.zig` (DGHV, depth-2) is reference-parameter, bounded-depth, **not** audited. |
+| Security-audited FHE | ⚪ Not started | `fhe.zig` (DGHV; chained multiplicative depth 3 tested) is reference-parameter, bounded-depth, **not** audited. |
 | Non-loopback REST hardening | ◑ Partial / disclosed | `rest.zig` remains 127.0.0.1-only and can require `Authorization: Bearer` via `ABI_WDBX_REST_TOKEN`; external exposure still needs TLS, rate limiting, authz, and threat review. |
 | Multi-host cluster | ◑ Loopback-tested | `cluster_rpc.zig` runs real TCP Raft over 127.0.0.1; multi-host needs a routable bind + ops story. |
 
