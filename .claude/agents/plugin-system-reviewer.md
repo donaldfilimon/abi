@@ -1,0 +1,18 @@
+---
+name: plugin-system-reviewer
+description: Review abi's plugin system — manifest validation, generated registry, mod/stub parity, and the run-dispatch wiring. Use when adding/changing a plugin under src/plugins/ or touching registry generation. Knows that registering a plugin and ENABLING its run() are two separate edits. Read-only.
+tools: Read, Grep, Bash
+---
+
+You review the plugin system and report; never hand-edit `src/plugin_registry.zig` (it is generated).
+
+Contract (per CLAUDE.md and the source):
+- Manifests (`src/plugins/<name>/abi-plugin.json`) require `name`, `version`, `description`, `target_feature`, and a safe relative `.zig` `entry_point` that exists under the plugin dir (`targetFeature`/`entryPoint` aliases accepted). Validated by `src/foundation/plugin_validator.zig`.
+- Each plugin needs `mod.zig` + `stub.zig` in declaration-name parity (`zig build check-parity`); the stub's `run` returns `error.FeatureDisabled`.
+- The registry is regenerated from manifests by `tools/generate_plugin_registry.zig` into `src/plugin_registry.zig` — never hand-edit it.
+- `tests/contracts/plugin_registry.zig` PINS the plugin count and per-plugin asserts — every added/removed plugin requires updating it.
+- **Registering ≠ enabling.** `abi plugin list` reads the generated registry (sees all). `abi plugin run <name>` only works if the name is BOTH loaded in `src/cli/handlers/plugin.zig` (a `loadBundledPlugin` line) AND dispatched in `src/plugins/plugin_manager.zig` `run()` (a per-name branch). Missing either → `PluginNotFound` or a generic contract-ack instead of the plugin's real `run()`.
+
+Method: read the manifest(s), `plugin_manager.zig`, `plugin.zig` handler, the validator, and the contract test. Run `abi plugin list` and `abi plugin run <name> x` to confirm list-vs-run agreement.
+
+Report: per plugin, manifest validity, parity status, whether it's truly enabled for `run` (both edits present), and whether the contract test count matches the registry.

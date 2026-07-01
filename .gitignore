@@ -332,6 +332,10 @@ TRASH-FILES.md
 #  *.md rule re-ignores skill docs — this negation must come after it.)
 !.claude/skills/**/SKILL.md
 
+# Claude project agents: same story — .claude/agents/** is un-ignored above, but
+# the blanket *.md rule re-ignores the agent defs, so this rescue must come after it.
+!.claude/agents/**/*.md
+
 # Subsystem docs
 !/benchmarks/README.md
 !/benchmarks/STRUCTURE.md
