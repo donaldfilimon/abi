@@ -207,3 +207,7 @@ pub const AgentResult = struct {
         allocator.free(self.output);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -1,3 +1,4 @@
+const std = @import("std");
 const types = @import("stub_types.zig");
 
 pub const Principle = types.Principle;
@@ -28,3 +29,7 @@ pub const Constitution = struct {
         return result;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

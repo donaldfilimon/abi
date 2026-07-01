@@ -14,6 +14,9 @@ fn percentileSorted(sorted: []const u64, p: u8) u64 {
     return sorted[clamped];
 }
 
+/// `abi wdbx benchmark [count]`: run a local, in-memory insert/search benchmark
+/// over `count` vectors and report totals plus P50/P95/P99 per-op latencies. This
+/// is a local microbenchmark, not a published throughput claim. Returns the exit code.
 pub fn benchmark(allocator: std.mem.Allocator, count: usize) anyerror!u8 {
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
@@ -71,6 +74,10 @@ pub fn benchmark(allocator: std.mem.Allocator, count: usize) anyerror!u8 {
     return 0;
 }
 
+/// `abi wdbx cluster demo [nodes]`: run an in-process Raft-style consensus demo
+/// over `nodes` nodes — leader election, log replication with quorum, leader
+/// failover, and re-election. Networked RPC transport is a separate Phase-2 item.
+/// Returns the process exit code.
 pub fn clusterDemo(allocator: std.mem.Allocator, nodes: usize) anyerror!u8 {
     var c = try wdbx.cluster.Cluster.init(allocator, nodes);
     defer c.deinit();
@@ -109,6 +116,10 @@ fn isLoopbackHost(host: []const u8) bool {
         std.mem.startsWith(u8, host, "127.");
 }
 
+/// `abi wdbx cluster serve <host> <port> <node_id>`: bind the consensus RPC
+/// transport (RequestVote/AppendEntries) on `host:port` and serve as `node_id`
+/// until interrupted. The transport is unauthenticated, so a loud warning is
+/// printed for any non-loopback bind. Returns the process exit code.
 pub fn clusterServe(io: std.Io, allocator: std.mem.Allocator, host: []const u8, port: u16, node_id: u32) anyerror!u8 {
     var node = wdbx.cluster.Node{ .id = node_id };
     defer {
@@ -144,6 +155,9 @@ pub fn clusterServe(io: std.Io, allocator: std.mem.Allocator, host: []const u8, 
     return 0;
 }
 
+/// `abi wdbx compute info`: report the available compute backends and dynamic
+/// selection (best CPU backend, ANE/remote-dispatch availability). Native
+/// dispatch is not linked, so the CPU fallback is active. Returns the exit code.
 pub fn computeInfo() anyerror!u8 {
     const caps = wdbx.compute.capabilities();
     std.debug.print("compute backends (native dispatch not linked in this build; CPU fallback active):\n", .{});
@@ -159,6 +173,10 @@ pub fn computeInfo() anyerror!u8 {
     return 0;
 }
 
+/// `abi wdbx secure demo`: demonstrate the WDBX security primitives — int8
+/// vector quantization, additive homomorphic encryption summed over ciphertexts,
+/// and a small DGHV somewhat-homomorphic add+multiply circuit. These use
+/// reference parameters and are not security-audited. Returns the exit code.
 pub fn secureDemo(allocator: std.mem.Allocator) anyerror!u8 {
     var vec: [128]f32 = undefined;
     for (&vec, 0..) |*v, i| v.* = std.math.sin(@as(f32, @floatFromInt(i)) * 0.1);
@@ -199,6 +217,9 @@ pub fn secureDemo(allocator: std.mem.Allocator) anyerror!u8 {
     return 0;
 }
 
+/// `abi wdbx gpu info`: report the detected GPU backend, whether it is
+/// accelerated, the backend status report, and native-kernel link status.
+/// Returns the process exit code.
 pub fn gpuInfo(allocator: std.mem.Allocator) anyerror!u8 {
     const status = features.gpu.detectBackend();
     const native = features.gpu.nativeKernelStatus();
@@ -215,6 +236,8 @@ pub fn gpuInfo(allocator: std.mem.Allocator) anyerror!u8 {
     return 0;
 }
 
+/// `abi wdbx api serve [port]`: serve the WDBX REST API over an in-memory store
+/// on `127.0.0.1:<port>` until interrupted. Returns the process exit code.
 pub fn serveApi(io: std.Io, allocator: std.mem.Allocator, port: u16) anyerror!u8 {
     var store = wdbx.Store.init(allocator);
     defer store.deinit();

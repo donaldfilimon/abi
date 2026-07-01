@@ -374,3 +374,4 @@ parity_results.txt
 
 # Legacy orphaned root files (moved during 0.17 refactor)
 legacy/
+.skill-telemetry/

@@ -3,6 +3,9 @@ const ai = @import("../../features/ai/mod.zig");
 const twilio_conn = @import("../../connectors/twilio.zig");
 const usage_mod = @import("../usage.zig");
 
+/// `abi twilio simulate <input>`: run the AI agent over `input` and render the
+/// reply through a local (non-live) Twilio client, exercising the connector's
+/// message formatting without contacting the live API. Returns the exit code.
 pub fn handleTwilio(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len != 4 or !std.mem.eql(u8, args[2], "simulate")) return usage_mod.usageError("usage: abi twilio simulate <input>");
 

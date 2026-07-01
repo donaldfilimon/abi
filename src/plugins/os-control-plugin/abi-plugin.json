@@ -1,0 +1,7 @@
+{
+  "name": "os-control-plugin",
+  "version": "0.1.0",
+  "description": "Example reference plugin targeting the feat-os-control gate.",
+  "target_feature": "os-control",
+  "entry_point": "mod.zig"
+}

@@ -1,3 +1,4 @@
+const std = @import("std");
 const foundation_pool = @import("../../foundation/pool_allocator.zig");
 const runtime = @import("runtime.zig");
 
@@ -46,3 +47,7 @@ pub const StoreConfig = struct {
     /// The pool is borrowed; the caller owns its lifecycle.
     pool_alloc: ?*foundation_pool.PoolAllocator = null,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

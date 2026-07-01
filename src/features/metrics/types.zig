@@ -22,3 +22,7 @@ pub const GaugeSnapshot = struct {
     name: []const u8,
     value: f64,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -50,6 +50,43 @@ pub const PluginLoadError = error{
     NotLoaded,
 };
 
+/// Single source of truth for the bundled plugin directories shipped in-tree.
+/// Both the CLI (`abi plugin run`) and the MCP server (`plugin_list` /
+/// `plugin_run`) load this exact set so the two surfaces stay symmetric — a
+/// plugin runnable from the CLI is runnable over MCP and vice versa. Paths are
+/// relative to the repo root (the working directory for both binaries).
+pub const bundled_plugin_paths = [_][]const u8{
+    "src/plugins/example-plugin",
+    "src/plugins/example-wdbx-plugin",
+    "src/plugins/telemetry-exporter",
+    "src/plugins/ai-plugin",
+    "src/plugins/gpu-plugin",
+    "src/plugins/accelerator-plugin",
+    "src/plugins/shader-plugin",
+    "src/plugins/mlir-plugin",
+    "src/plugins/os-control-plugin",
+    "src/plugins/hash-plugin",
+    "src/plugins/tui-plugin",
+    "src/plugins/nn-plugin",
+    "src/plugins/metrics-plugin",
+    "src/plugins/sea-plugin",
+    "src/plugins/mobile-plugin",
+    "src/plugins/foundationmodels-plugin",
+};
+
+/// Load every `bundled_plugin_paths` entry into `pm`, tolerating both an
+/// already-loaded plugin (idempotent across repeated calls) and a single bad
+/// manifest (logged and skipped) so one broken plugin never blanks the whole
+/// list. Shared by the CLI and MCP surfaces to keep them in lockstep.
+pub fn loadBundled(pm: *PluginManager) void {
+    for (bundled_plugin_paths) |path| {
+        _ = pm.loadPlugin(path) catch |err| switch (err) {
+            error.AlreadyLoaded => {},
+            else => std.log.warn("failed to load bundled plugin path={s} err={s}", .{ path, @errorName(err) }),
+        };
+    }
+}
+
 const LoadedPlugin = struct {
     info: PluginInfo,
 };
@@ -268,6 +305,62 @@ pub const PluginManager = struct {
         }
         if (std.mem.eql(u8, name, "example-wdbx-plugin")) {
             const plugin = @import("example-wdbx-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "telemetry-exporter")) {
+            const plugin = @import("telemetry-exporter/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "ai-plugin")) {
+            const plugin = @import("ai-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "gpu-plugin")) {
+            const plugin = @import("gpu-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "accelerator-plugin")) {
+            const plugin = @import("accelerator-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "shader-plugin")) {
+            const plugin = @import("shader-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "mlir-plugin")) {
+            const plugin = @import("mlir-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "os-control-plugin")) {
+            const plugin = @import("os-control-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "hash-plugin")) {
+            const plugin = @import("hash-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "tui-plugin")) {
+            const plugin = @import("tui-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "nn-plugin")) {
+            const plugin = @import("nn-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "metrics-plugin")) {
+            const plugin = @import("metrics-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "sea-plugin")) {
+            const plugin = @import("sea-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "mobile-plugin")) {
+            const plugin = @import("mobile-plugin/mod.zig");
+            return plugin.run(allocator, input);
+        }
+        if (std.mem.eql(u8, name, "foundationmodels-plugin")) {
+            const plugin = @import("foundationmodels-plugin/mod.zig");
             return plugin.run(allocator, input);
         }
 

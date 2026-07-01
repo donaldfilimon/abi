@@ -1,0 +1,7 @@
+{
+  "name": "mlir-plugin",
+  "version": "0.1.0",
+  "description": "Example reference plugin targeting the feat-mlir gate.",
+  "target_feature": "mlir",
+  "entry_point": "mod.zig"
+}

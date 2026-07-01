@@ -46,3 +46,7 @@ test "gpu backend capability report covers all registered backends" {
     try std.testing.expect(std.mem.indexOf(u8, report, "cuda:") != null);
     try std.testing.expect(std.mem.indexOf(u8, report, "webgpu:") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

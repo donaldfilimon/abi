@@ -3,6 +3,9 @@ const memory_mod = @import("../../core/memory.zig");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const usage_mod = @import("../usage.zig");
 
+/// `abi scheduler status`: print scheduler run statistics alongside memory
+/// tracker usage. Rejects any other invocation with a usage error. Returns the
+/// process exit code.
 pub fn handleScheduler(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len != 3 or !std.mem.eql(u8, args[2], "status")) {
         return usage_mod.usageError("usage: abi scheduler status");

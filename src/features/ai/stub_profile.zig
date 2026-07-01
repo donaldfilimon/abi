@@ -116,3 +116,7 @@ pub const AdaptiveModulator = struct {
         _ = store;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

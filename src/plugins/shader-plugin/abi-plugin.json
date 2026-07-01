@@ -1,0 +1,7 @@
+{
+  "name": "shader-plugin",
+  "version": "0.1.0",
+  "description": "Example reference plugin targeting the feat-shader gate.",
+  "target_feature": "shader",
+  "entry_point": "mod.zig"
+}

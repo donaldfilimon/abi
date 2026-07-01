@@ -1,0 +1,7 @@
+{
+  "name": "nn-plugin",
+  "version": "0.1.0",
+  "description": "Example reference plugin targeting the feat-nn gate.",
+  "target_feature": "nn",
+  "entry_point": "mod.zig"
+}

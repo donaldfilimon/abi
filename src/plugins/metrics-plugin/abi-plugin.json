@@ -1,0 +1,7 @@
+{
+  "name": "metrics-plugin",
+  "version": "0.1.0",
+  "description": "Example reference plugin targeting the feat-metrics gate.",
+  "target_feature": "metrics",
+  "entry_point": "mod.zig"
+}

@@ -129,3 +129,7 @@ pub const BlockChain = struct {
         }
     };
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

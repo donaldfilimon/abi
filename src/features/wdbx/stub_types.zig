@@ -1,3 +1,4 @@
+const std = @import("std");
 const build_options = @import("build_options");
 const foundation_pool = @import("../../foundation/pool_allocator.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
@@ -47,3 +48,7 @@ pub const StoreStats = struct {
     next_vector_id: u32,
     acceleration: AccelerationStatus,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

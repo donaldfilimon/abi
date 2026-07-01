@@ -267,7 +267,7 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         var pm = abi.plugins.PluginManager.init(allocator);
         defer pm.deinit();
 
-        try plugin_tools.loadBundledPlugins(&pm);
+        plugin_tools.loadBundledPlugins(&pm);
 
         const output = try pm.run(allocator, name, input);
         defer allocator.free(output);

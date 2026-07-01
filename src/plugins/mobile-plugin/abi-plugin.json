@@ -1,0 +1,7 @@
+{
+  "name": "mobile-plugin",
+  "version": "0.1.0",
+  "description": "Example reference plugin targeting the feat-mobile gate.",
+  "target_feature": "mobile",
+  "entry_point": "mod.zig"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "telemetry-exporter",
+  "version": "0.1.0",
+  "description": "Example telemetry plugin: formats a telemetry event line for the feat-telemetry observability path.",
+  "target_feature": "telemetry",
+  "entry_point": "mod.zig"
+}

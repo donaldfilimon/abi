@@ -41,10 +41,13 @@ const connector = @import("connector.zig");
 const ConnectorError = connector.ConnectorError;
 const Response = connector.Response;
 
-/// Comptime gate: the on-device bridge is only compiled in on macOS with the
-/// feature flag enabled. Everywhere else this is `false`, so the `if (fm_enabled)`
-/// branches below are never semantically analyzed and `fm_fns` stays empty.
-const fm_enabled = builtin.target.os.tag == .macos and build_options.feat_foundationmodels;
+/// Comptime gate: the on-device bridge is only compiled in on arm64 macOS with
+/// the feature flag enabled (FoundationModels/Apple Intelligence is Apple-silicon
+/// only, and the Swift shim in build.zig targets `arm64-apple-macosx`). Everywhere
+/// else — non-macOS, x86_64 macOS, or flag-off — this is `false`, so the
+/// `if (fm_enabled)` branches below are never semantically analyzed, `fm_fns` stays
+/// empty, and no extern symbol is referenced (keeping those builds link-clean).
+const fm_enabled = builtin.target.os.tag == .macos and builtin.target.cpu.arch == .aarch64 and build_options.feat_foundationmodels;
 
 /// C entry points exported by `src/connectors/fm_shim.swift` (compiled + linked
 /// only on macOS+flag). When the feature is off (or off-platform) this collapses

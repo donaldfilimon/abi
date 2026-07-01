@@ -12,3 +12,7 @@ pub const TelemetryError = error{
 };
 
 pub const Error = TelemetryError;
+
+test {
+    std.testing.refAllDecls(@This());
+}

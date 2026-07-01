@@ -27,6 +27,9 @@ fn openRecovered(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !wd
     };
 }
 
+/// `abi wdbx db init <path>`: initialize an empty WDBX segment checkpoint at
+/// `path`, resetting the segment store and discarding any stale WAL. Returns the
+/// process exit code.
 pub fn initDb(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !u8 {
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
@@ -39,6 +42,10 @@ pub fn initDb(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !u8 {
     return 0;
 }
 
+/// `abi wdbx db verify <path>`: verify the checkpoint at `path` and, when a
+/// post-checkpoint delta WAL is present, verify per-frame CRC integrity and that
+/// the delta folds cleanly onto a fresh checkpoint copy. Returns 0 when all
+/// checks pass and 1 on any verification failure.
 pub fn verifyDb(io: std.Io, allocator: std.mem.Allocator, path: []const u8) anyerror!u8 {
     var opened = wdbx.recovery.openCheckpoint(io, allocator, path) catch |err| {
         std.debug.print("verify FAILED: checkpoint {s}: {s}\n", .{ path, @errorName(err) });
@@ -90,6 +97,9 @@ pub fn verifyDb(io: std.Io, allocator: std.mem.Allocator, path: []const u8) anye
     return if (blocks_ok and merged_ok) 0 else 1;
 }
 
+/// `abi wdbx block insert <path> <profile> <metadata>`: append a block to the
+/// recovered store at `path`, mirror it to the WAL tagged to the current
+/// checkpoint epoch, and checkpoint. Returns the process exit code.
 pub fn blockInsert(io: std.Io, allocator: std.mem.Allocator, path: []const u8, profile: []const u8, metadata: []const u8) anyerror!u8 {
     var opened = try openRecovered(io, allocator, path);
     defer opened.store.deinit();
@@ -111,6 +121,9 @@ pub fn blockInsert(io: std.Io, allocator: std.mem.Allocator, path: []const u8, p
     return 0;
 }
 
+/// `abi wdbx block get <path>`: print the most recent block in the recovered
+/// store at `path` (profile, query/response ids, timestamp, hash, and metadata),
+/// or a notice when the store is empty. Returns the process exit code.
 pub fn blockGet(io: std.Io, allocator: std.mem.Allocator, path: []const u8) anyerror!u8 {
     var opened = openRecovered(io, allocator, path) catch return 1;
     defer opened.store.deinit();

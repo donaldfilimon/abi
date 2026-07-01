@@ -20,3 +20,7 @@ pub const Hash128 = struct {
     hi: u64,
     lo: u64,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}
