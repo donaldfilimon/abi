@@ -111,6 +111,10 @@ For full validation including integration tests, benchmarks, and TUI smoke:
 ./build.sh full-check
 ```
 
+## Project Skills
+
+`.claude/skills/` ships task-specific skills that build a real binary and exercise one surface — prefer them over ad-hoc commands when they match. Each is scoped to files under `abi/`: `run-abi` (build/launch CLI + `abi-mcp`), `backend-diagnostics` (GPU/accelerator/shader/MLIR + compute matrix), `wdbx-bench` (insert/search timing), `cluster-demo-guide` (Raft consensus/failover), `secure-demo` (compression + homomorphic encryption), `sea-learn-loop` (`complete --learn` SEA path), `connector-localcheck` (Twilio/auth, no network), `os-control-dryrun` (policy dry-run, never executes), `plugin-runtime-tester` (registry + `plugin run` dispatch), `cross-compile-check` (`zig build cross-smoke`), `zig-pin` / `zig-newest-skills` (toolchain pin vs. master-nightly forward-compat).
+
 ## Important Files
 
 - `tasks/lessons.md` – Startup checklist and conventions
