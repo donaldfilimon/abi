@@ -13,9 +13,9 @@ test "public overview docs avoid unsupported external benchmark claims" {
     const public_paths = [_][]const u8{
         "README.md",
         "CHANGELOG.md",
-        "docs/index.md",
-        "docs/contracts/public-api.md",
-        "docs/spec/multi-persona-technical.md",
+        "docs/index.mdx",
+        "docs/contracts/public-api.mdx",
+        "docs/spec/multi-persona-technical.mdx",
     };
 
     for (public_paths) |path| {
@@ -44,7 +44,7 @@ test "public overview docs avoid unsupported external benchmark claims" {
 test "external claims audit records repo-backed replacement language" {
     const audit = try std.Io.Dir.cwd().readFileAlloc(
         std.Options.debug_io,
-        "docs/contracts/external-claims-audit.md",
+        "docs/contracts/external-claims-audit.mdx",
         std.testing.allocator,
         .limited(1024 * 1024),
     );
