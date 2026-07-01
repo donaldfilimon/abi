@@ -7,6 +7,12 @@
 # only that case; ordinary pushes and force-pushes of feature branches pass.
 #
 # Reads the tool-call JSON on stdin. exit 2 = block (message on stderr); exit 0 = allow.
+#
+# Known limitation: matches `git push` only at a real command boundary (start, or
+# after ; && || | ( ), so it ignores mere mentions in commit messages/greps. It
+# CANNOT distinguish a real chained push from `&& git push --force … main` text
+# inside a quoted string/heredoc body, so such meta-commands are blocked too
+# (fail-safe). Run those yourself if needed.
 set -uo pipefail
 
 c="$(jq -r '.tool_input.command // empty' 2>/dev/null)"
