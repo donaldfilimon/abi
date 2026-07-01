@@ -1,6 +1,6 @@
 ---
 name: complete-base
-description: Build the abi CLI and drive the base completion path — `abi complete "<input>"` with no flags — routing to the local model, running the constitution audit, and recording the completion in WDBX. Use to smoke-test the core local-completion path after touching src/features/ai/ or the model catalog. Fully local: no --live (remote) and no --learn (SEA).
+description: 'Build the abi CLI and drive the base completion path — `abi complete "<input>"` with no flags — routing to the local model, running the constitution audit, and recording the completion in WDBX. Use to smoke-test the core local-completion path after touching src/features/ai/ or the model catalog. Fully local: no --live (remote) and no --learn (SEA).'
 ---
 
 # complete-base — drive abi's base local completion
