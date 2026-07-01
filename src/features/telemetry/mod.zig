@@ -60,7 +60,12 @@ pub fn increment(name: []const u8, delta: u64) void {
 
 fn bump(name: []const u8, delta: u64) void {
     if (name.len == 0 or name.len > NAME_CAPACITY) {
-        @atomicStore(u64, &g_dropped, @atomicLoad(u64, &g_dropped, .monotonic) + 1, .monotonic);
+        // Count the drop under the same lock every other g_dropped access uses.
+        // (Previously a non-atomic load+store outside the lock — a lost-update
+        // race with the full-table path and readers.)
+        g_lock.lock();
+        defer g_lock.unlock();
+        g_dropped += 1;
         return;
     }
     g_lock.lock();
