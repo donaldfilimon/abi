@@ -327,6 +327,11 @@ TRASH-FILES.md
 !/docs/review/*.md
 !/docs/superpowers/**/*.md
 
+# Claude project skills: keep every skill definition tracked.
+# (.claude/skills/** is un-ignored above at line ~177, but the blanket
+#  *.md rule re-ignores skill docs — this negation must come after it.)
+!.claude/skills/**/SKILL.md
+
 # Subsystem docs
 !/benchmarks/README.md
 !/benchmarks/STRUCTURE.md
