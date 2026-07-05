@@ -66,6 +66,11 @@ pub const DashboardState = struct {
     memory_leaked: usize = 0,
 };
 
+const DIAG_WIDTH: usize = 68;
+const LABEL_WIDTH: usize = 25;
+const VALUE_WIDTH: usize = 40;
+const MAX_PLUGIN_ROWS: usize = 6;
+
 pub fn statusText(status: Status) []const u8 {
     return switch (status) {
         .ready => "ready",
@@ -73,6 +78,105 @@ pub fn statusText(status: Status) []const u8 {
         .warning => "warning",
         .disabled => "disabled",
     };
+}
+
+fn dashboardHealth(ds: DashboardState) []const u8 {
+    if (ds.scheduler_failed > 0 or ds.memory_leaked > 0) return "attention";
+    if (!ds.gpu_accelerated or !ds.gpu_linked) return "degraded";
+    return "nominal";
+}
+
+fn boolText(value: bool) []const u8 {
+    return if (value) "yes" else "no";
+}
+
+fn appendRepeated(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, byte: u8, count: usize) !void {
+    var i: usize = 0;
+    while (i < count) : (i += 1) try out.append(allocator, byte);
+}
+
+fn appendRule(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, count: usize) !void {
+    var i: usize = 0;
+    while (i < count) : (i += 1) try out.appendSlice(allocator, "─");
+}
+
+fn appendFitted(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, raw: []const u8, width: usize) !void {
+    const safe = try sanitizeControlBytes(allocator, raw);
+    defer allocator.free(safe);
+
+    if (safe.len <= width) {
+        try out.appendSlice(allocator, safe);
+        try appendRepeated(out, allocator, ' ', width - safe.len);
+        return;
+    }
+
+    if (width == 0) return;
+    if (width == 1) {
+        try out.append(allocator, '~');
+        return;
+    }
+
+    try out.appendSlice(allocator, safe[0 .. width - 1]);
+    try out.append(allocator, '~');
+}
+
+fn appendBorder(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, left: []const u8, title: []const u8, right: []const u8) !void {
+    try out.appendSlice(allocator, left);
+    if (title.len > 0) {
+        try out.appendSlice(allocator, " ");
+        try appendFitted(out, allocator, title, @min(title.len, DIAG_WIDTH - 4));
+        try out.appendSlice(allocator, " ");
+        const used = @min(title.len, DIAG_WIDTH - 4) + 2;
+        if (used < DIAG_WIDTH) try appendRule(out, allocator, DIAG_WIDTH - used);
+    } else {
+        try appendRule(out, allocator, DIAG_WIDTH);
+    }
+    try out.appendSlice(allocator, right);
+    try out.append(allocator, '\n');
+}
+
+fn appendRow(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, label: []const u8, value: []const u8) !void {
+    try out.appendSlice(allocator, "│ ");
+    try appendFitted(out, allocator, label, LABEL_WIDTH);
+    try out.appendSlice(allocator, " ");
+    try appendFitted(out, allocator, value, VALUE_WIDTH);
+    try out.appendSlice(allocator, " │\n");
+}
+
+fn appendMetricRow(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, label: []const u8, value: usize) !void {
+    var buf: [32]u8 = undefined;
+    const rendered = try std.fmt.bufPrint(&buf, "{d}", .{value});
+    try appendRow(out, allocator, label, rendered);
+}
+
+fn appendPanelHeader(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, title: []const u8) !void {
+    try appendBorder(out, allocator, "┌", title, "┐");
+}
+
+fn appendPanelFooter(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator) !void {
+    try appendBorder(out, allocator, "└", "", "┘");
+}
+
+fn appendPluginRows(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, plugin_names: []const []const u8) !void {
+    const shown = @min(plugin_names.len, MAX_PLUGIN_ROWS);
+    var i: usize = 0;
+    while (i < shown) : (i += 1) {
+        try appendRow(out, allocator, "plugin", plugin_names[i]);
+    }
+    if (plugin_names.len > shown) {
+        var buf: [48]u8 = undefined;
+        const more = try std.fmt.bufPrint(&buf, "+{d} more registered", .{plugin_names.len - shown});
+        try appendRow(out, allocator, "plugin", more);
+    }
+}
+
+fn appendDashboardHeader(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, ds: DashboardState) !void {
+    try out.appendSlice(allocator, "\x1b[1;36m");
+    try appendBorder(out, allocator, "╔", "", "╗");
+    try appendRow(out, allocator, "ABI Diagnostics Dashboard", "operational snapshot");
+    try appendRow(out, allocator, "health", dashboardHealth(ds));
+    try appendBorder(out, allocator, "╚", "", "╝");
+    try out.appendSlice(allocator, "\x1b[0m");
 }
 
 test {
@@ -158,68 +262,52 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     var out = std.ArrayListUnmanaged(u8).empty;
     errdefer out.deinit(allocator);
 
-    // Externally-influenced string fields (GPU backend label, plugin names,
-    // scheduler/memory source) are sanitized before they are interpolated into
-    // the ANSI render stream so they cannot inject terminal escapes. Plugin names
-    // are sanitized per-iteration in the loop below.
-    const gpu_backend = try sanitizeControlBytes(allocator, ds.gpu_backend);
-    defer allocator.free(gpu_backend);
-    const scheduler_source = try sanitizeControlBytes(allocator, ds.scheduler_source);
-    defer allocator.free(scheduler_source);
-    const memory_source = try sanitizeControlBytes(allocator, ds.memory_source);
-    defer allocator.free(memory_source);
+    try appendDashboardHeader(&out, allocator, ds);
 
-    // Header
-    try out.appendSlice(allocator, "\x1b[1;36m");
-    try out.appendSlice(allocator, "╔══════════════════════════════════════════════════════════════╗\n");
-    try out.appendSlice(allocator, "║              ABI Diagnostics Dashboard                      ║\n");
-    try out.appendSlice(allocator, "╚══════════════════════════════════════════════════════════════╝\n");
+    try out.appendSlice(allocator, "\x1b[1;33m");
+    try appendPanelHeader(&out, allocator, "System");
+    try appendRow(&out, allocator, "GPU backend", ds.gpu_backend);
+    try appendRow(&out, allocator, "accelerated", boolText(ds.gpu_accelerated));
+    try appendRow(&out, allocator, "native linked", boolText(ds.gpu_linked));
+    try appendPanelFooter(&out, allocator);
     try out.appendSlice(allocator, "\x1b[0m");
 
-    // System pane
-    try out.appendSlice(allocator, "\x1b[1;33m┌─ System ────────────────────────────────────────────────────┐\x1b[0m\n");
-    try out.print(allocator, "│ GPU Backend:     \x1b[1m{s:<42}\x1b[0m│\n", .{gpu_backend});
-    try out.print(allocator, "│ Accelerated:     \x1b[1m{s:<42}\x1b[0m│\n", .{if (ds.gpu_accelerated) "yes" else "no"});
-    try out.print(allocator, "│ Native Linked:   \x1b[1m{s:<42}\x1b[0m│\n", .{if (ds.gpu_linked) "yes" else "no"});
-    try out.appendSlice(allocator, "\x1b[1;33m└─────────────────────────────────────────────────────────────┘\x1b[0m\n");
+    try out.appendSlice(allocator, "\x1b[1;32m");
+    try appendPanelHeader(&out, allocator, "Plugins");
+    try appendMetricRow(&out, allocator, "Registered", ds.plugin_count);
+    try appendPluginRows(&out, allocator, ds.plugin_names);
+    try appendPanelFooter(&out, allocator);
+    try out.appendSlice(allocator, "\x1b[0m");
 
-    // Plugins pane
-    try out.appendSlice(allocator, "\x1b[1;32m┌─ Plugins ───────────────────────────────────────────────────┐\x1b[0m\n");
-    try out.print(allocator, "│ Registered:      \x1b[1m{d:<42}\x1b[0m│\n", .{ds.plugin_count});
-    for (ds.plugin_names) |name| {
-        const safe_name = try sanitizeControlBytes(allocator, name);
-        defer allocator.free(safe_name);
-        try out.print(allocator, "│   - \x1b[1m{s:<55}\x1b[0m│\n", .{safe_name});
-    }
-    try out.appendSlice(allocator, "\x1b[1;32m└─────────────────────────────────────────────────────────────┘\x1b[0m\n");
+    try out.appendSlice(allocator, "\x1b[1;35m");
+    try appendPanelHeader(&out, allocator, "WDBX Storage");
+    try appendMetricRow(&out, allocator, "Block chain", ds.wdbx_blocks);
+    try appendMetricRow(&out, allocator, "Vectors", ds.wdbx_vectors);
+    try appendMetricRow(&out, allocator, "KV Entries", ds.wdbx_entries);
+    try appendMetricRow(&out, allocator, "Spatial 3D", ds.wdbx_spatial_records);
+    try appendPanelFooter(&out, allocator);
+    try out.appendSlice(allocator, "\x1b[0m");
 
-    // Storage pane
-    try out.appendSlice(allocator, "\x1b[1;35m┌─ WDBX Storage ──────────────────────────────────────────────┐\x1b[0m\n");
-    try out.print(allocator, "│ Block chain:     \x1b[1m{d:<42}\x1b[0m│\n", .{ds.wdbx_blocks});
-    try out.print(allocator, "│ Vectors:         \x1b[1m{d:<42}\x1b[0m│\n", .{ds.wdbx_vectors});
-    try out.print(allocator, "│ KV Entries:      \x1b[1m{d:<42}\x1b[0m│\n", .{ds.wdbx_entries});
-    try out.print(allocator, "│ Spatial 3D:      \x1b[1m{d:<42}\x1b[0m│\n", .{ds.wdbx_spatial_records});
-    try out.appendSlice(allocator, "\x1b[1;35m└─────────────────────────────────────────────────────────────┘\x1b[0m\n");
+    try out.appendSlice(allocator, "\x1b[1;34m");
+    try appendPanelHeader(&out, allocator, "Scheduler");
+    try appendRow(&out, allocator, "source", ds.scheduler_source);
+    try appendMetricRow(&out, allocator, "Running", ds.scheduler_running);
+    try appendMetricRow(&out, allocator, "Pending", ds.scheduler_pending);
+    try appendMetricRow(&out, allocator, "Completed", ds.scheduler_completed);
+    try appendMetricRow(&out, allocator, "Failed", ds.scheduler_failed);
+    try appendPanelFooter(&out, allocator);
+    try out.appendSlice(allocator, "\x1b[0m");
 
-    // Scheduler pane
-    try out.appendSlice(allocator, "\x1b[1;34m┌─ Scheduler ─────────────────────────────────────────────────┐\x1b[0m\n");
-    try out.print(allocator, "│ Source:          \x1b[1m{s:<42}\x1b[0m│\n", .{scheduler_source});
-    try out.print(allocator, "│ Running:         \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_running});
-    try out.print(allocator, "│ Pending:         \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_pending});
-    try out.print(allocator, "│ Completed:       \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_completed});
-    try out.print(allocator, "│ Failed:          \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_failed});
-    try out.appendSlice(allocator, "\x1b[1;34m└─────────────────────────────────────────────────────────────┘\x1b[0m\n");
+    try out.appendSlice(allocator, "\x1b[1;31m");
+    try appendPanelHeader(&out, allocator, "Memory");
+    try appendRow(&out, allocator, "source", ds.memory_source);
+    try appendMetricRow(&out, allocator, "Peak bytes", ds.memory_peak);
+    try appendMetricRow(&out, allocator, "Current bytes", ds.memory_current);
+    try appendMetricRow(&out, allocator, "Leaked bytes", ds.memory_leaked);
+    try appendPanelFooter(&out, allocator);
+    try out.appendSlice(allocator, "\x1b[0m");
 
-    // Memory pane
-    try out.appendSlice(allocator, "\x1b[1;31m┌─ Memory ────────────────────────────────────────────────────┐\x1b[0m\n");
-    try out.print(allocator, "│ Source:          \x1b[1m{s:<42}\x1b[0m│\n", .{memory_source});
-    try out.print(allocator, "│ Peak:            \x1b[1m{d:<42}\x1b[0m│\n", .{ds.memory_peak});
-    try out.print(allocator, "│ Current:         \x1b[1m{d:<42}\x1b[0m│\n", .{ds.memory_current});
-    try out.print(allocator, "│ Leaked:          \x1b[1m{d:<42}\x1b[0m│\n", .{ds.memory_leaked});
-    try out.appendSlice(allocator, "\x1b[1;31m└─────────────────────────────────────────────────────────────┘\x1b[0m\n");
-
-    // Footer
-    try out.appendSlice(allocator, "\n\x1b[2m[q/Esc] Quit  [r] Refresh\x1b[0m\n");
+    try out.appendSlice(allocator, "\n\x1b[2m[q/Esc] Quit  [r] Refresh  live snapshot every 1s\x1b[0m\n");
 
     return try out.toOwnedSlice(allocator);
 }
@@ -241,17 +329,18 @@ pub const InteractiveTerminal = if (builtin.os.tag == .windows)
 else
     PosixInteractiveTerminal;
 
-/// POSIX (macOS/Linux) raw-mode terminal. libc-free: TTY detection comes from
-/// `tcgetattr` failing with ENOTTY on a non-terminal, so no `isatty` extern is
-/// needed (which would be an undefined symbol on a no-libc Linux link).
+/// POSIX (macOS/Linux) raw-mode terminal. libc-free: use std.posix TTY probing
+/// before termios so non-terminals fall back cleanly without noisy diagnostics.
 const PosixInteractiveTerminal = struct {
     fd: std.posix.fd_t,
     original: std.posix.termios,
     is_tty: bool,
 
     pub fn init(fd: std.posix.fd_t) !PosixInteractiveTerminal {
-        // tcgetattr fails with ENOTTY on a non-tty; treat that as the
-        // "not a terminal" signal and let callers fall back to line mode.
+        if (@hasDecl(std.posix.system, "isatty") and std.posix.system.isatty(fd) == 0) return error.NotATerminal;
+
+        // tcgetattr can still fail if stdin stops being a terminal between the
+        // probe and termios setup; treat that as a normal fallback signal.
         const original = std.posix.tcgetattr(fd) catch return error.NotATerminal;
         var raw = original;
         raw.lflag.ICANON = false;
@@ -493,6 +582,8 @@ test "diagnostics dashboard renders all panes" {
     defer std.testing.allocator.free(rendered);
 
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Diagnostics Dashboard") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "operational snapshot") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "health") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "metal") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "System") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Plugins") != null);
@@ -509,8 +600,27 @@ test "diagnostics dashboard renders all panes" {
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Refresh") != null);
 }
 
+test "diagnostics dashboard summarizes attention state and bounds plugin rows" {
+    const rendered = try renderDiagnostics(std.testing.allocator, .{
+        .gpu_backend = "cpu",
+        .gpu_accelerated = false,
+        .gpu_linked = false,
+        .plugin_count = 8,
+        .plugin_names = &.{ "p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7" },
+        .scheduler_failed = 1,
+    });
+    defer std.testing.allocator.free(rendered);
+
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "attention") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "+2 more registered") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "p7") == null);
+}
+
 test "InteractiveTerminal struct layout" {
-    const term = InteractiveTerminal{
+    const term = if (builtin.os.tag == .windows) InteractiveTerminal{
+        .fd = 0,
+        .is_tty = false,
+    } else InteractiveTerminal{
         .fd = 0,
         .original = undefined,
         .is_tty = false,

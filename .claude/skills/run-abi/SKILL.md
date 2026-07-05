@@ -8,9 +8,9 @@ description: Build, launch, and drive the abi Zig project — the `abi` CLI and 
 `abi` is a modular Zig framework that builds two binaries: a CLI (`zig-out/bin/abi`)
 and an MCP server (`zig-out/bin/abi-mcp`, JSON-RPC 2.0 over stdio + optional
 loopback HTTP/SSE). Both are **non-interactive and headless-friendly** — the
-driver builds them and drives the real binaries end-to-end. The one surface that
-is NOT headless is the diagnostics TUI (`abi tui` / `abi dashboard` / `abi --tui`),
-which needs a real terminal (see Gotchas).
+driver builds them and drives the real binaries end-to-end. The diagnostics TUI
+also has a clean non-TTY one-shot mode; use tmux only when you need to exercise
+the interactive refresh loop (see Gotchas).
 
 **Paths below are relative to the repo root** (`<unit>/`). The driver lives at
 `.claude/skills/run-abi/smoke.sh` and resolves the repo root from its own location,
@@ -19,7 +19,7 @@ so you can run it from any cwd.
 ## Run (agent path) — the driver
 
 One command builds both binaries and drives them with real input — CLI
-subcommands (help, backends, scheduler, complete), a WDBX store round-trip
+subcommands (help, backends, scheduler, complete, plugin list), a WDBX store round-trip
 (init → insert → query), and the MCP server over stdio with real JSON-RPC
 (initialize + tools/list + tools/call). It checks exit codes, greps output for
 expected markers, prints `pass=N fail=N`, and writes a full transcript.
@@ -31,7 +31,7 @@ expected markers, prints `pass=N fail=N`, and writes a full transcript.
 Expected tail on success (exit 0):
 
 ```
-=== summary: pass=13 fail=0 ===
+=== summary: pass=16 fail=0 ===
 transcript: <repo>/zig-out/run-abi-smoke.txt
 SMOKE OK
 ```
@@ -94,32 +94,29 @@ printf '%s\n' \
 ```
 
 Returns the `serverInfo` handshake then the tool result. Other no-arg tools to
-probe: `scheduler_info`, `gpu_status`, `wdbx_stats`. The server exposes 12 tools;
+probe: `scheduler_info`, `gpu_status`, `wdbx_stats`. The smoke also calls
+`plugin_list` and expects the same 16 bundled plugins as the CLI. The server exposes 12 tools;
 `tools/list` enumerates them with their input schemas.
 
 ## Run (human path) — the TUI
 
-The diagnostics dashboard is interactive and needs a real terminal:
+The diagnostics dashboard is interactive on a real terminal:
 
 ```bash
 ./zig-out/bin/abi tui        # or: abi dashboard / abi --tui
 ```
 
-Run it in your own terminal and quit with the in-app key. This is useless from a
-headless/piped context (see Gotchas) — there's no driver for it here.
+Run it in your own terminal and quit with the in-app key. For headless checks,
+use the dashboard one-shot smoke (`abi dashboard < /dev/null`) or the tmux-based
+`run-tui` skill for the interactive path.
 
 ## Gotchas
 
-- **`abi tui`/`dashboard`/`--tui` require a TTY.** With stdin piped or `/dev/null`,
-  `tcgetattr` fails with `unexpected errno: 19` and the binary dumps a stack
-  trace via `src/features/tui/mod.zig` → `dashboard.zig`. This is expected
-  headless behavior, not a build break. The smoke harness deliberately skips the
-  TUI for this reason. To drive it programmatically you'd need a pty (tmux
-  `send-keys`/`capture-pane`); none is wired up here.
-- **CLI vs MCP plugin counts differ.** `abi plugin list` reports all 16 bundled
-  manifests; the MCP `plugin_list` tool reports only the 2 plugins compiled into
-  the server's registry (`example-plugin`, `example-wdbx-plugin`). Both are
-  correct for their respective surfaces.
+- **`abi tui`/`dashboard`/`--tui` are interactive on a TTY.** With stdin piped or
+  `/dev/null`, they should render once and exit cleanly through the non-TTY
+  fallback. Use a pty (tmux `send-keys`/`capture-pane`) to drive the live loop.
+- **CLI and MCP plugin lists should match.** Both surfaces load the 16 bundled
+  plugin manifests; drift means the shared plugin manager/registry wiring changed.
 - **`accelerated=false` is normal.** `backends` reports `metal: available=true
   accelerated=false` — Metal is linked at build time but native kernels aren't,
   so it runs the deterministic vectorized CPU fallback. Not a failure.

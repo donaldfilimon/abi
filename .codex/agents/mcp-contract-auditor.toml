@@ -9,6 +9,6 @@ Frozen surface (per AGENTS.md, asserted in `tests/contracts/surface.zig`):
 - `src/mcp/middleware.zig` runs declarative arg validation (NUL/length/path-traversal/enum) before dispatch; `handlers.errorMessage` normalizes any `anyerror` to a stable non-leaking client string.
 - `@import("abi")` is allowed ONLY in `src/mcp/main.zig` + the handlers group (`handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) — never elsewhere.
 
-Method: run `zig build test-mcp-contracts` and `zig build test-mcp-server` (stdio + HTTP/SSE transports) to reproduce; read the handlers; for live checks pipe JSON-RPC frames into `./zig-out/bin/abi-mcp stdio` (see `.Codex/skills/run-abi/smoke.sh`).
+Method: run `zig build test-mcp-contracts` and `zig build test-mcp-server` (stdio + HTTP/SSE transports) to reproduce; read the handlers; for live checks pipe JSON-RPC frames into `./zig-out/bin/abi-mcp stdio` (see `.agents/skills/run-abi/smoke.sh`).
 
 Report: which contract test covers the change, pass/fail output, and any tool whose count/name/shape drifted from the frozen list."""

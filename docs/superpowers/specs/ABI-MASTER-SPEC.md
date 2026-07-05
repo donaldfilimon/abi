@@ -33,7 +33,7 @@ src/
 ├── foundation/        # OS and primitive abstractions (io, time, sync)
 ├── features/          # Comptime-gated domain modules (each a mod.zig + stub.zig):
 │   │                  #   ai, wdbx, sea, gpu, accelerator, shaders, mlir,
-│   │                  #   os_control, mobile, metrics, tui, hash, telemetry
+│   │                  #   os_control, mobile, metrics, tui, hash, telemetry, nn
 │   ├── mod.zig        # Feature dispatcher: selects real mod vs stub per build flag
 │   ├── ai/            # Abbey-Aviva-Abi pipeline (router, profiles, governance, training)
 │   └── wdbx/          # Vector storage & runtime (HNSW, chain, snapshots, WAL, demos)
@@ -80,7 +80,7 @@ Each plugin must provide a manifest. `entry_point` must be a safe relative `.zig
 
 ### CLI & Build Integration
 - **CLI**: `abi plugin list` lists the statically generated registry contents with plugin count, version, target feature, entry point, and description metadata.
-- **WDBX CLI**: `abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` is a contract-tested local runtime surface. The `cluster`, `compute`, and `secure` subcommands are in-process demonstrations, not distributed or native-accelerator claims.
+- **WDBX CLI**: `abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` is a contract-tested local runtime surface. `db compact` bounds segment-checkpoint growth by retaining the newest checkpoints. `cluster serve` exposes the real TCP consensus RPC; non-loopback binds require `ABI_WDBX_CLUSTER_TOKEN`, and `ABI_WDBX_CLUSTER_PEERS` can restrict accepted node ids. The `cluster`, `compute`, and `secure` subcommands remain reference-scoped surfaces, not production distributed or native-accelerator claims.
 - **Build System**: `build.zig` runs `tools/generate_plugin_registry.zig`, generating `src/plugin_registry.zig` before CLI/check builds.
 - **Validation**: Plugin feature surfaces with `mod.zig`/`stub.zig` pairs are checked by `zig build check-parity`; this checks top-level public declaration names, not complete signatures. Generated multi-plugin registry metadata is covered by `tests/contracts/plugin_registry.zig`.
 - **Security**: No dynamic loading (shared libraries) is allowed; static compilation integrity is maintained.
@@ -89,6 +89,6 @@ Each plugin must provide a manifest. `entry_point` must be a safe relative `.zig
 Discord connector calls validate printable non-whitespace credentials, numeric snowflake-like client/channel/author IDs, and Discord's 2000-byte message size limit before local acknowledgements or live HTTP dispatch. Twilio connector calls validate account SIDs as `AC` plus 32 hex characters, auth tokens as 32 hex characters, base URL, timeout, explicit `.live` transport selection, XML/form escaping, and ConversationRelay payload aliases/wrong-typed payloads before local responses or live TwiML/form dispatch. OpenAI and Anthropic local streaming helpers remain deterministic unless explicit live methods are used.
 
 ### Feature/GPU Completion Contract
-Every feature surface under `src/features/` has a real implementation and disabled stub selected by `src/features/mod.zig`. `tools/check_feature_stubs.sh` compiles every `-Dfeat-*` disabled path, runs focused `test-feature-contracts` coverage, runs feature-aware public `test-contracts` coverage for every disabled feature, and covers `-Dfeat-mobile=true` because mobile defaults off.
+Every feature surface under `src/features/` has a real implementation and disabled stub selected by `src/features/mod.zig`. All feature flags default on in `build.zig`. `tools/check_feature_stubs.sh` compiles every `src/features` `-Dfeat-*` disabled path, runs focused `test-feature-contracts` coverage, runs feature-aware public `test-contracts` coverage for every disabled feature, runs enabled SEA/metrics/mobile coverage, and compiles the `-Dfeat-foundationmodels=false` connector-disabled path.
 
 **GPU/Vector Acceleration (Advanced in Phase 2)**: Vector operations (`gpu.vectorOps()`) provide `dot` / `squaredL2` / `cosineSimilarity` / `batchCosineSimilarity`. They use native Metal kernels on macOS only when `feat-gpu`, backend acceleration, and initialized native kernels are all present; otherwise the same API falls back to vectorized CPU. HNSW cosine distance in `wdbx/hnsw.zig` uses that vector abstraction for query/candidate scoring while preserving the pure-SIMD fallback. Contract tests exercise the vector surface, batched cosine API, HNSW search path, and disabled-feature behavior. WDBX `Store.accelerationStatus()` and `runAccelerationKernel` report the selected mode without fabricating native acceleration.

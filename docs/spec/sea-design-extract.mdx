@@ -20,7 +20,7 @@ those designs survives independently of that repo.
 > numbers. ABI's own SEA surface (`src/features/sea/`, the `feat-sea` flag, **disabled by
 > default**) is a *different and simpler* Phase-1 design; the relationship is mapped in
 > §7. Where this design and ABI source disagree, ABI source wins (`build.zig`, `src/`,
-> `tests/contracts/`). See `docs/contracts/external-claims-audit.md` and the
+> `tests/contracts/`). See `docs/contracts/external-claims-audit.mdx` and the
 > `tests/contracts/public_docs.zig` claim-boundary test.
 
 ---
@@ -28,7 +28,7 @@ those designs survives independently of that repo.
 ## 1. Why capture this
 
 `abbey_wdbx_sea_zig` is the reference surface for the Abbey / WDBX / SEA / ABI
-architecture (`docs/spec/wdbx-north-star.md` describes the long-term ABI direction; this
+architecture (`docs/spec/wdbx-north-star.mdx` describes the long-term ABI direction; this
 file records the *retrieval-side evidence-selection* design from the reference repo). The
 reference repo packs the whole loop into two files — `src/root.zig` (types + algorithms)
 and `src/main.zig` (a small CLI) — which makes its enum and scoring designs unusually
@@ -313,7 +313,7 @@ today. Mapping them honestly:
 
 | Aspect | `abbey_wdbx_sea_zig` (this extract — Proposed) | ABI `feat-sea` (`src/features/sea/`, disabled by default — Current) |
 | --- | --- | --- |
-| Status | Reference design; repo does not compile on current toolchain | Real code behind `-Dfeat-sea` (off by default); `mod.zig`/`evidence.zig`/`learn_loop.zig`; contract-tested |
+| Status | Reference design; repo does not compile on current toolchain | Real code behind default-on `-Dfeat-sea`; `mod.zig`/`evidence.zig`/`learn_loop.zig`; contract-tested |
 | Retrieval scoring | 8 weighted signals, task-aware weight deltas, clamp+combine | Single semantic score — a WDBX vector `store.search` over a shared text embedding |
 | Selection | Budgeted greedy pick with token / record / **cluster-diversity** budgets | Top-`limit` hits; prompt preamble capped at `MAX_PROMPT_BYTES` (4096) |
 | Intent model | `QueryPlan` + `TaskType` inference re-weights scoring | No `QueryPlan`; persona routing via the existing AI router |
@@ -348,5 +348,5 @@ This is a design extract from a now-archivable reference repo, not a description
 behavior. Before reusing any line externally, reconcile against ABI source
 (`src/features/sea/`, `src/features/wdbx/`, `tests/contracts/`) and downgrade anything
 ABI source does not prove. Promote any item here into ABI's real SEA surface only when
-source + a passing test back it (`docs/spec/wdbx-north-star.md` §9 describes the same
+source + a passing test back it (`docs/spec/wdbx-north-star.mdx` §9 describes the same
 Proposed → Partial → Current discipline).

@@ -3,6 +3,7 @@
 ## First Reads
 - Trust executable config over prose: `build.zig`, `tools/build.sh`, and source win over docs when they conflict.
 - Read `tasks/lessons.md` and `tasks/todo.md` before substantial work; they track current ABI-specific conventions and known status.
+- Root instruction siblings `CLAUDE.md` and `GEMINI.md` mirror durable repo conventions; when changing commands, contracts, feature flags, or Zig patterns here, keep the three in sync.
 - The worktree may be dirty from another agent/user. Inspect `git status --short --branch`; never revert unrelated changes.
 
 ## Commands That Matter
@@ -10,7 +11,8 @@
 - On macOS/Darwin prefer `./build.sh ...`; it delegates to `tools/build.sh` and keeps the documented Metal/link workflow.
 - Primary gate: `./build.sh check` builds CLI/MCP, runs module + connector + contract tests, CLI contract smoke, feature-off stub contracts, `zig fmt --check`, and parity.
 - Full local gate: `./build.sh full-check` adds integration tests, benchmarks, and TUI smoke.
-- Focused commands: `zig build test -Dtest-filter="<pattern>"`, `zig build test-integration`, `zig build test-mcp-contracts`, `zig build test-mcp-server` (MCP transport: stdio + HTTP/SSE), `zig build check-parity`, `zig build lint`, `zig build fix`.
+- Focused commands: `zig build test -Dtest-filter="<pattern>"` (post-`-- --test-filter` is not wired and is silently ignored), `zig build test-cli`, `zig build test-feature-contracts`, `zig build test-contracts`, `zig build test-mcp-contracts`, `zig build test-mcp-server` (MCP transport: stdio + HTTP/SSE), `zig build test-integration`, `zig build benchmarks`, `zig build check-parity`, `zig build lint`, `zig build fix`.
+- Opt-in portability smoke: `zig build cross-smoke` compiles/links the CLI for Linux/Windows/macOS cross targets and is deliberately not part of `check`.
 - Build binaries with `./build.sh cli` (`zig-out/bin/abi`) and `./build.sh mcp` (`zig-out/bin/abi-mcp`).
 - Docs site (optional, not in CI/`check`): `npx mint@latest dev` / `npx mint@latest validate` (Mintlify, `docs/docs.json`).
 
@@ -24,10 +26,10 @@
 ## API And Contract Gotchas
 - Public feature API changes usually require matching real/stub declarations and disabled behavior returning `error.FeatureDisabled`; run `zig build check-parity`. The checker only matches column-0 `pub const `/`pub fn ` names (not `pub var`/`pub threadlocal`/nested decls); it builds just the std-only host checker, so it runs even when the feature graph won't compile under a mismatched Zig.
 - Frozen CLI surface is contract-tested. Top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`; `abi --tui` is handled separately in `src/main.zig`. (`nn` is a miniature char-level demo trainer behind `feat-nn` — `nn train "<text>" | train --jsonl <path> | sample …`.)
-- Subcommand grammar (do not drift from `src/cli/`): `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (alias-resolves via the model catalog; `--live` serves anthropic models over the live transport; `--confirm` is required for on-device `apple-fm`; `--learn` routes through the SEA self-learning loop; `agent tui` is now an interactive REPL); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; `wdbx <db <init|verify> | block <insert|get> | query | benchmark | cluster <status|demo|serve> | compute info | secure demo | gpu info | api serve>`. Malformed numeric args (counts/ports/node ids) return usage (exit 2), not a silent default.
+- Subcommand grammar (do not drift from `src/cli/`): `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (alias-resolves via the model catalog; `--live` serves anthropic models over the live transport; `--confirm` is required for on-device `apple-fm`; `--learn` routes through the SEA self-learning loop; `agent tui` is now an interactive REPL); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; `nn train "<text>" | train --jsonl <path> [--field <name>] | sample --text "<corpus>" --seed <char> --n <k>`; `wdbx <db <init|verify|compact> | block <insert|get> | query | benchmark | cluster <status|demo|serve <port> [node] [host]> | compute info | secure demo | gpu info | api serve [port]>`. Malformed numeric args (counts/ports/node ids) return usage (exit 2), not a silent default.
 - Do not resurrect legacy CLI names such as `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, or `serve`.
 - MCP tools are contract-tested (12, count asserted in `tests/contracts/surface.zig`): `ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. (`ai_learn` runs the SEA loop; degrades to a stored completion when `feat-sea` is off.)
-- New default-off feature flags: `feat-sea` (`src/features/sea/`, Sparse Evidence Attention self-learning) and `feat-foundationmodels` (`src/connectors/fm.zig`, Apple on-device FoundationModels — macOS-only, links `FoundationModels.framework` + a `swiftc`-built `libabi_fm_shim.dylib`; on-device generation is wired through a Swift `@c` shim (SE-0495) and requires Apple-Intelligence hardware at runtime). Model id `apple-fm` (`fm-local`/`fm`) routes to provider `fm`.
+- Default-on but specially gated flags: `feat-sea` (`src/features/sea/`, Sparse Evidence Attention self-learning) and `feat-foundationmodels` (`src/connectors/fm.zig`, Apple on-device FoundationModels — macOS-only, links `FoundationModels.framework` + a `swiftc`-built `libabi_fm_shim.dylib` on arm64 macOS; on-device generation is wired through a Swift `@c` shim (SE-0495) and requires Apple-Intelligence hardware at runtime). Model id `apple-fm` (`fm-local`/`fm`) routes to provider `fm`.
 - MCP stdio has a 64 KB request cap; optional HTTP/SSE binds loopback `127.0.0.1:8080` unless `ABI_MCP_HTTP_PORT` selects another valid port. `ABI_MCP_HTTP_TOKEN` requires `Authorization: Bearer <token>` on the HTTP/SSE transport (stdio stays tokenless); the WDBX REST listener (`abi wdbx api serve`) uses `ABI_WDBX_REST_TOKEN` for the same scheme. Both are loopback-only hardening, not a TLS substitute.
 
 ## Zig Conventions Agents Miss
@@ -43,5 +45,5 @@
 
 ## Claims And Docs
 - Do not claim distributed sharding, AES/RBAC, regulatory certifications, Kubernetes/H100 deployments, Swift/Python/TensorFlow stacks, QPS/latency/accuracy, energy, learned compression, full FHE, or non-loopback REST hardening unless source/tests/artifacts prove it.
-- For public-facing capability wording, check `docs/contracts/external-claims-audit.md` and keep unimplemented north-star items framed as targets/proposed work.
+- For public-facing capability wording, check `docs/contracts/external-claims-audit.mdx` and keep unimplemented north-star items framed as targets/proposed work.
 - `abi-threat-model.md` (repo root) is the AppSec-grade, repo-path-anchored threat model (MCP/WDBX loopback listeners, credentials at rest); consult it before changing listener, auth, credential, or OS-control surfaces.

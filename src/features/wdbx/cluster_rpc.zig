@@ -14,6 +14,8 @@
 //! Wire protocol (one request/response per connection, newline-framed text):
 //!   "VOTE <term> <candidate>\n"      -> "GRANTED <term>\n" | "DENIED <term>\n"
 //!   "APPEND <term> <data...>\n"      -> "ACK <term>\n"     | "NACK <term>\n"
+//!   "AUTH <token> VOTE <term> <candidate>\n"
+//!   "AUTH <token> APPEND <term> <leader> <data...>\n"
 //!
 //! The protocol carries no timers or randomness, so a single-threaded driver can
 //! dial every peer (connect + send buffer into the kernel), then serve each peer,
@@ -30,6 +32,98 @@ pub const RpcError = error{ MalformedRequest, MalformedResponse };
 
 pub const VoteReply = struct { granted: bool, term: u64 };
 pub const AppendReply = struct { ack: bool, term: u64 };
+
+pub const ClusterAuth = struct {
+    token: ?[]const u8 = null,
+
+    pub fn enabled(self: ClusterAuth) bool {
+        return self.token != null;
+    }
+};
+
+pub const ClusterPolicy = struct {
+    auth: ClusterAuth = .{},
+    peers: ?[]const u32 = null,
+
+    fn allowsPeer(self: ClusterPolicy, id: u32) bool {
+        const peers = self.peers orelse return true;
+        for (peers) |peer| {
+            if (peer == id) return true;
+        }
+        return false;
+    }
+};
+
+const ParsedRequest = union(enum) {
+    vote: struct { term: u64, candidate: u32 },
+    append: struct { term: u64, leader: ?u32, data: []const u8 },
+    unknown,
+};
+
+fn fixedWorkEql(a: []const u8, b: []const u8) bool {
+    const max_len = @max(a.len, b.len);
+    var diff: usize = a.len ^ b.len;
+    var i: usize = 0;
+    while (i < max_len) : (i += 1) {
+        const av: u8 = if (i < a.len) a[i] else 0;
+        const bv: u8 = if (i < b.len) b[i] else 0;
+        diff |= av ^ bv;
+    }
+    return diff == 0;
+}
+
+fn authMatches(auth: ClusterAuth, supplied: ?[]const u8) bool {
+    const expected = auth.token orelse return supplied == null;
+    const got = supplied orelse return false;
+    return fixedWorkEql(expected, got);
+}
+
+fn parseVote(rest: []const u8) !ParsedRequest {
+    const sp = std.mem.indexOfScalar(u8, rest, ' ') orelse return error.MalformedRequest;
+    const term = std.fmt.parseInt(u64, rest[0..sp], 10) catch return error.MalformedRequest;
+    const cand = std.fmt.parseInt(u32, rest[sp + 1 ..], 10) catch return error.MalformedRequest;
+    return .{ .vote = .{ .term = term, .candidate = cand } };
+}
+
+fn parseAppend(rest: []const u8, leader_required: bool) !ParsedRequest {
+    const sp = std.mem.indexOfScalar(u8, rest, ' ') orelse rest.len;
+    const term = std.fmt.parseInt(u64, rest[0..sp], 10) catch return error.MalformedRequest;
+    if (!leader_required) {
+        const data = if (sp < rest.len) rest[sp + 1 ..] else "";
+        return .{ .append = .{ .term = term, .leader = null, .data = data } };
+    }
+    if (sp >= rest.len) return .{ .append = .{ .term = term, .leader = null, .data = "" } };
+    const leader_rest = rest[sp + 1 ..];
+    const leader_sp = std.mem.indexOfScalar(u8, leader_rest, ' ') orelse leader_rest.len;
+    const leader = std.fmt.parseInt(u32, leader_rest[0..leader_sp], 10) catch
+        return .{ .append = .{ .term = term, .leader = null, .data = leader_rest } };
+    const data = if (leader_sp < leader_rest.len) leader_rest[leader_sp + 1 ..] else "";
+    return .{ .append = .{ .term = term, .leader = leader, .data = data } };
+}
+
+fn parseRequest(line: []const u8, auth_supplied: *?[]const u8) !ParsedRequest {
+    auth_supplied.* = null;
+    if (std.mem.startsWith(u8, line, "AUTH ")) {
+        const rest = line["AUTH ".len..];
+        const token_sp = std.mem.indexOfScalar(u8, rest, ' ') orelse return error.MalformedRequest;
+        auth_supplied.* = rest[0..token_sp];
+        const after_token = rest[token_sp + 1 ..];
+        if (std.mem.startsWith(u8, after_token, "VOTE ")) {
+            return parseVote(after_token["VOTE ".len..]);
+        }
+        if (std.mem.startsWith(u8, after_token, "APPEND ")) {
+            return parseAppend(after_token["APPEND ".len..], true);
+        }
+        return .unknown;
+    }
+    if (std.mem.startsWith(u8, line, "VOTE ")) {
+        return parseVote(line["VOTE ".len..]);
+    }
+    if (std.mem.startsWith(u8, line, "APPEND ")) {
+        return parseAppend(line["APPEND ".len..], false);
+    }
+    return .unknown;
+}
 
 /// Apply a RequestVote to `node` under standard Raft rules. Grants the vote when
 /// the candidate's term is not stale and the node has not already voted for a
@@ -80,6 +174,12 @@ pub fn listen(io: std.Io, port: u16) !Server {
 /// Accept one connection, apply the RPC to `node`, and respond. One request per
 /// connection (the client closes after reading the reply).
 pub fn serveOnce(io: std.Io, server: *Server, node: *cluster.Node, allocator: std.mem.Allocator) !void {
+    return serveOnceAuth(io, server, node, allocator, .{});
+}
+
+/// Policy-aware form of `serveOnce`. Auth or peer-policy failures return a
+/// normal DENIED/NACK response and intentionally leave the Raft node untouched.
+pub fn serveOnceAuth(io: std.Io, server: *Server, node: *cluster.Node, allocator: std.mem.Allocator, policy: ClusterPolicy) !void {
     const conn = try server.accept(io);
     defer conn.close(io);
 
@@ -88,22 +188,25 @@ pub fn serveOnce(io: std.Io, server: *Server, node: *cluster.Node, allocator: st
 
     var resp_buf: [64]u8 = undefined;
     const resp: []const u8 = blk: {
-        if (std.mem.startsWith(u8, line, "VOTE ")) {
-            const rest = line["VOTE ".len..];
-            const sp = std.mem.indexOfScalar(u8, rest, ' ') orelse return error.MalformedRequest;
-            const term = std.fmt.parseInt(u64, rest[0..sp], 10) catch return error.MalformedRequest;
-            const cand = std.fmt.parseInt(u32, rest[sp + 1 ..], 10) catch return error.MalformedRequest;
-            const granted = applyVote(node, term, cand);
-            break :blk try std.fmt.bufPrint(&resp_buf, "{s} {d}\n", .{ if (granted) "GRANTED" else "DENIED", node.term });
-        } else if (std.mem.startsWith(u8, line, "APPEND ")) {
-            const rest = line["APPEND ".len..];
-            const sp = std.mem.indexOfScalar(u8, rest, ' ') orelse rest.len;
-            const term = std.fmt.parseInt(u64, rest[0..sp], 10) catch return error.MalformedRequest;
-            const data = if (sp < rest.len) rest[sp + 1 ..] else "";
-            const ack = try applyAppend(node, allocator, term, data);
-            break :blk try std.fmt.bufPrint(&resp_buf, "{s} {d}\n", .{ if (ack) "ACK" else "NACK", node.term });
+        var supplied: ?[]const u8 = null;
+        const parsed = try parseRequest(line, &supplied);
+        switch (parsed) {
+            .vote => |req| {
+                if (!authMatches(policy.auth, supplied) or !policy.allowsPeer(req.candidate)) {
+                    break :blk try std.fmt.bufPrint(&resp_buf, "DENIED {d}\n", .{node.term});
+                }
+                const granted = applyVote(node, req.term, req.candidate);
+                break :blk try std.fmt.bufPrint(&resp_buf, "{s} {d}\n", .{ if (granted) "GRANTED" else "DENIED", node.term });
+            },
+            .append => |req| {
+                if (!authMatches(policy.auth, supplied) or (supplied != null and req.leader == null) or (policy.peers != null and (req.leader == null or !policy.allowsPeer(req.leader.?)))) {
+                    break :blk try std.fmt.bufPrint(&resp_buf, "NACK {d}\n", .{node.term});
+                }
+                const ack = try applyAppend(node, allocator, req.term, req.data);
+                break :blk try std.fmt.bufPrint(&resp_buf, "{s} {d}\n", .{ if (ack) "ACK" else "NACK", node.term });
+            },
+            .unknown => break :blk "ERR 0\n",
         }
-        break :blk "ERR 0\n";
     };
 
     try net_line.writeLine(io, conn, resp);
@@ -113,8 +216,13 @@ pub fn serveOnce(io: std.Io, server: *Server, node: *cluster.Node, allocator: st
 /// `node` until the process is stopped. One request per connection; a failed
 /// connection is logged and the loop continues (same posture as the REST server).
 pub fn serveLoop(io: std.Io, server: *Server, node: *cluster.Node, allocator: std.mem.Allocator) !void {
+    return serveLoopAuth(io, server, node, allocator, .{});
+}
+
+/// Policy-aware form of `serveLoop`.
+pub fn serveLoopAuth(io: std.Io, server: *Server, node: *cluster.Node, allocator: std.mem.Allocator, policy: ClusterPolicy) !void {
     while (true) {
-        serveOnce(io, server, node, allocator) catch |err| {
+        serveOnceAuth(io, server, node, allocator, policy) catch |err| {
             std.log.warn("cluster RPC serve error: {s}", .{@errorName(err)});
         };
     }
@@ -130,8 +238,17 @@ pub fn dialVote(io: std.Io, port: u16, term: u64, candidate: u32) !?Stream {
 /// Routable RequestVote: dial a peer at an explicit `host` (loopback or any
 /// reachable IPv4/IPv6) for multi-host clusters.
 pub fn dialVoteAddr(io: std.Io, host: []const u8, port: u16, term: u64, candidate: u32) !?Stream {
+    return dialVoteAddrAuth(io, host, port, term, candidate, null);
+}
+
+/// Authenticated RequestVote dialer. When `token` is null, sends the legacy
+/// unauthenticated frame for local loopback demos and existing tests.
+pub fn dialVoteAddrAuth(io: std.Io, host: []const u8, port: u16, term: u64, candidate: u32, token: ?[]const u8) !?Stream {
     var msg_buf: [64]u8 = undefined;
-    const msg = try std.fmt.bufPrint(&msg_buf, "VOTE {d} {d}\n", .{ term, candidate });
+    const msg = if (token) |t|
+        try std.fmt.bufPrint(&msg_buf, "AUTH {s} VOTE {d} {d}\n", .{ t, term, candidate })
+    else
+        try std.fmt.bufPrint(&msg_buf, "VOTE {d} {d}\n", .{ term, candidate });
     return net_line.dialAddr(io, host, port, msg);
 }
 
@@ -144,8 +261,17 @@ pub fn dialAppend(io: std.Io, port: u16, term: u64, data: []const u8) !?Stream {
 /// Routable AppendEntries: dial a peer at an explicit `host` for multi-host
 /// clusters.
 pub fn dialAppendAddr(io: std.Io, host: []const u8, port: u16, term: u64, data: []const u8) !?Stream {
+    return dialAppendAddrAuth(io, host, port, term, null, data, null);
+}
+
+/// Authenticated AppendEntries dialer. Authenticated frames include a leader id
+/// so a peer allowlist can reject forged appenders before mutating the node.
+pub fn dialAppendAddrAuth(io: std.Io, host: []const u8, port: u16, term: u64, leader: ?u32, data: []const u8, token: ?[]const u8) !?Stream {
     var msg_buf: [4096]u8 = undefined;
-    const msg = try std.fmt.bufPrint(&msg_buf, "APPEND {d} {s}\n", .{ term, data });
+    const msg = if (token) |t| blk: {
+        const l = leader orelse return error.MalformedRequest;
+        break :blk try std.fmt.bufPrint(&msg_buf, "AUTH {s} APPEND {d} {d} {s}\n", .{ t, term, l, data });
+    } else try std.fmt.bufPrint(&msg_buf, "APPEND {d} {s}\n", .{ term, data });
     return net_line.dialAddr(io, host, port, msg);
 }
 
@@ -284,6 +410,117 @@ test "cluster_rpc: routable bind on 0.0.0.0 accepts a RequestVote over the host-
     try testing.expect(r1.granted);
     try testing.expectEqual(@as(u64, 1), n1.term);
     try testing.expectEqual(@as(?u32, 0), n1.voted_for);
+}
+
+test "cluster_rpc: shared secret permits authenticated vote and append" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
+    var n1 = cluster.Node{ .id = 1 };
+    var n2 = cluster.Node{ .id = 2 };
+    defer deinitNode(&n1, allocator);
+    defer deinitNode(&n2, allocator);
+
+    var s1 = try listen(io, 39141);
+    defer s1.deinit(io);
+    var s2 = try listen(io, 39142);
+    defer s2.deinit(io);
+
+    const policy = ClusterPolicy{ .auth = .{ .token = "cluster-secret" } };
+    const vote = (try dialVoteAddrAuth(io, "127.0.0.1", 39141, 1, 0, "cluster-secret")).?;
+    try serveOnceAuth(io, &s1, &n1, allocator, policy);
+    const vote_reply = try readVoteReply(io, vote);
+    try testing.expect(vote_reply.granted);
+    try testing.expectEqual(@as(?u32, 0), n1.voted_for);
+
+    const append = (try dialAppendAddrAuth(io, "127.0.0.1", 39142, 2, 0, "set secure=true", "cluster-secret")).?;
+    try serveOnceAuth(io, &s2, &n2, allocator, policy);
+    const append_reply = try readAppendReply(io, append);
+    try testing.expect(append_reply.ack);
+    try testing.expectEqual(@as(usize, 1), n2.log.items.len);
+    try testing.expectEqualStrings("set secure=true", n2.log.items[0].data);
+}
+
+test "cluster_rpc: missing or wrong shared secret rejects without mutating state" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
+    var n1 = cluster.Node{ .id = 1, .term = 5 };
+    var n2 = cluster.Node{ .id = 2, .term = 7 };
+    defer deinitNode(&n1, allocator);
+    defer deinitNode(&n2, allocator);
+
+    var s1 = try listen(io, 39151);
+    defer s1.deinit(io);
+    var s2 = try listen(io, 39152);
+    defer s2.deinit(io);
+
+    const policy = ClusterPolicy{ .auth = .{ .token = "cluster-secret" } };
+    const missing = (try dialVote(io, 39151, 6, 0)).?;
+    try serveOnceAuth(io, &s1, &n1, allocator, policy);
+    const missing_reply = try readVoteReply(io, missing);
+    try testing.expect(!missing_reply.granted);
+    try testing.expectEqual(@as(u64, 5), n1.term);
+    try testing.expectEqual(@as(?u32, null), n1.voted_for);
+
+    const wrong = (try dialAppendAddrAuth(io, "127.0.0.1", 39152, 8, 0, "set forged=true", "wrong-secret")).?;
+    try serveOnceAuth(io, &s2, &n2, allocator, policy);
+    const wrong_reply = try readAppendReply(io, wrong);
+    try testing.expect(!wrong_reply.ack);
+    try testing.expectEqual(@as(u64, 7), n2.term);
+    try testing.expectEqual(@as(usize, 0), n2.log.items.len);
+}
+
+test "cluster_rpc: peer allowlist rejects unknown candidates and leaders" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
+    var n1 = cluster.Node{ .id = 1, .term = 3 };
+    var n2 = cluster.Node{ .id = 2, .term = 4 };
+    defer deinitNode(&n1, allocator);
+    defer deinitNode(&n2, allocator);
+
+    var s1 = try listen(io, 39161);
+    defer s1.deinit(io);
+    var s2 = try listen(io, 39162);
+    defer s2.deinit(io);
+
+    const peers = [_]u32{ 0, 1, 2 };
+    const policy = ClusterPolicy{ .auth = .{ .token = "cluster-secret" }, .peers = &peers };
+
+    const bad_vote = (try dialVoteAddrAuth(io, "127.0.0.1", 39161, 5, 99, "cluster-secret")).?;
+    try serveOnceAuth(io, &s1, &n1, allocator, policy);
+    const bad_vote_reply = try readVoteReply(io, bad_vote);
+    try testing.expect(!bad_vote_reply.granted);
+    try testing.expectEqual(@as(u64, 3), n1.term);
+    try testing.expectEqual(@as(?u32, null), n1.voted_for);
+
+    const bad_append = (try dialAppendAddrAuth(io, "127.0.0.1", 39162, 6, 99, "set forged=true", "cluster-secret")).?;
+    try serveOnceAuth(io, &s2, &n2, allocator, policy);
+    const bad_append_reply = try readAppendReply(io, bad_append);
+    try testing.expect(!bad_append_reply.ack);
+    try testing.expectEqual(@as(u64, 4), n2.term);
+    try testing.expectEqual(@as(usize, 0), n2.log.items.len);
+}
+
+test "cluster_rpc: authenticated append requires an explicit leader id" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
+    var n1 = cluster.Node{ .id = 1, .term = 9 };
+    defer deinitNode(&n1, allocator);
+
+    var s1 = try listen(io, 39171);
+    defer s1.deinit(io);
+
+    const peers = [_]u32{ 0, 1, 2 };
+    const policy = ClusterPolicy{ .auth = .{ .token = "cluster-secret" }, .peers = &peers };
+    const missing_leader = (try net_line.dial(io, 39171, "AUTH cluster-secret APPEND 10 set missing-leader=true\n")).?;
+    try serveOnceAuth(io, &s1, &n1, allocator, policy);
+    const reply = try readAppendReply(io, missing_leader);
+    try testing.expect(!reply.ack);
+    try testing.expectEqual(@as(u64, 9), n1.term);
+    try testing.expectEqual(@as(usize, 0), n1.log.items.len);
 }
 
 test {

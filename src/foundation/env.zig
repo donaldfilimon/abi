@@ -25,6 +25,10 @@ pub fn install(environ_map: *std.process.Environ.Map) void {
     g_environ = environ_map;
 }
 
+pub fn resetForTesting() void {
+    g_environ = null;
+}
+
 /// Look up an environment variable. Returns a borrowed, non-empty value (owned
 /// by the captured map, process-lifetime) or null when unset, empty, or the
 /// environment was never captured. Do NOT free the result.

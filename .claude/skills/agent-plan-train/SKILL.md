@@ -30,8 +30,8 @@ tasks and records training metadata in WDBX.
 - `agent train` does **real** work (scheduler tasks) and appends training
   metadata to the default WDBX store — not a demo no-op. `agent train all`
   trains all three profiles and is slower.
-- Skipped by design: `agent tui` (interactive REPL, needs a TTY — no headless
-  driver) and `agent os` (command-execution policy — covered by the
+- Skipped by design: `agent tui` (interactive REPL; non-TTY stdin uses line-mode
+  fallback and can be smoke-tested separately) and `agent os` (command-execution policy — covered by the
   `os-control-dryrun` skill, which never executes).
 - `agent plan` `mode=dry-run` / `review_required=false` means it plans only; it
   does not execute the described operation.

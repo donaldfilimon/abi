@@ -8,7 +8,7 @@
 //! available and whether it genuinely dispatches on this build — so callers
 //! never mistake a declared backend for a working one.
 //!
-//! Backend reality (per docs/contracts/external-claims-audit.md — no faking):
+//! Backend reality (per docs/contracts/external-claims-audit.mdx — no faking):
 //!   - **Metal** (macOS): REAL. Dispatches MSL compute kernels on the GPU via
 //!     the pure-Zig Objective-C runtime FFI in `metal_shared.zig` (runtime MSL
 //!     compile + MTLComputePipelineState + dispatchThreads). Targets Metal 3/4

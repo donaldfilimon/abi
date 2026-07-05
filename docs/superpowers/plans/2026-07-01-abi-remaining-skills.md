@@ -22,7 +22,7 @@
 
 ### Task 1: `run-tui` — drive the interactive diagnostics dashboard via tmux
 
-The one surface with no headless driver anywhere (run-abi explicitly punts). `abi tui`/`dashboard`/`--tui` require a TTY: with piped stdin, `tcgetattr` fails with `errno 19` and it stack-traces (`src/features/tui/mod.zig` → `dashboard.zig`). A pty via tmux is the only way to drive it programmatically.
+The interactive dashboard path needs a real TTY to exercise the live refresh loop. Piped stdin or `/dev/null` now uses the clean one-shot fallback; a pty via tmux is still the way to drive the interactive path programmatically.
 
 **Files:**
 - Create: `.claude/skills/run-tui/tui.sh`
@@ -48,7 +48,7 @@ The one surface with no headless driver anywhere (run-abi explicitly punts). `ab
   sleep 1
   tmux kill-session -t abi-tui 2>/dev/null
   ```
-  Expected: the captured pane shows the dashboard (NOT a stack trace / `errno 19`). Record one stable line from the pane as `DASH_MARKER`.
+  Expected: the captured pane shows the dashboard and no terminal-error trace. Record one stable line from the pane as `DASH_MARKER`.
 
 - [ ] **Step 3: Write the driver `tui.sh`.**
   House style + tmux. Skeleton (fill `DASH_MARKER` with the string observed in Step 2):
@@ -91,10 +91,10 @@ The one surface with no headless driver anywhere (run-abi explicitly punts). `ab
 
 - [ ] **Step 4: Run the driver and confirm PASS.**
   Run: `chmod +x .claude/skills/run-tui/tui.sh && .claude/skills/run-tui/tui.sh`
-  Expected: `RESULT: PASS — TUI dashboard painted under pty.` and exit 0. If it shows `errno 19`, the pty isn't being allocated — confirm you launched via `tmux new-session` (not a pipe) and that `-x/-y` give a large enough pane.
+  Expected: `RESULT: PASS — TUI dashboard painted under pty.` and exit 0. If it shows a terminal error, confirm you launched via `tmux new-session` and that `-x/-y` give a large enough pane.
 
 - [ ] **Step 5: Write `SKILL.md`.**
-  Frontmatter `name: run-tui`; description with verbs: "run/launch/screenshot the abi diagnostics TUI/dashboard under a tmux pty." Body: intro (interactive, pty-driven), Run (agent path) pointing at `tui.sh`, the verified-this-session PASS line, Gotchas (needs `tmux`; `abi tui` stack-traces without a TTY — that's expected; `dashboard`/`--tui` are the same surface), Troubleshooting (tmux missing → `brew install tmux`; blank pane → increase `sleep`/pane size). Cross-ref the `tui-navigation-guide` subagent for source-level questions.
+  Frontmatter `name: run-tui`; description with verbs: "run/launch/screenshot the abi diagnostics TUI/dashboard under a tmux pty." Body: intro (interactive, pty-driven), Run (agent path) pointing at `tui.sh`, the verified-this-session PASS line, Gotchas (needs `tmux`; piped stdin takes the one-shot fallback; `dashboard`/`--tui` are the same surface), Troubleshooting (tmux missing → `brew install tmux`; blank pane → increase `sleep`/pane size). Cross-ref the `tui-navigation-guide` subagent for source-level questions.
 
 - [ ] **Step 6: Update CLAUDE.md and commit.**
   Append `` `run-tui` (interactive dashboard via tmux pty) `` to the Project Skills list.

@@ -1,8 +1,21 @@
 const std = @import("std");
 const features = @import("../../features/mod.zig");
+const env = @import("../../foundation/env.zig");
 const foundation_time = @import("../../foundation/time.zig");
 
 const wdbx = features.wdbx;
+
+pub const CLUSTER_TOKEN_ENV = "ABI_WDBX_CLUSTER_TOKEN";
+pub const CLUSTER_PEERS_ENV = "ABI_WDBX_CLUSTER_PEERS";
+
+const ClusterConfig = struct {
+    policy: wdbx.cluster_rpc.ClusterPolicy = .{},
+    peers_owned: ?[]u32 = null,
+
+    fn deinit(self: *ClusterConfig, allocator: std.mem.Allocator) void {
+        if (self.peers_owned) |peers| allocator.free(peers);
+    }
+};
 
 /// Nearest-rank percentile (p in [0,100]) over an already-sorted ascending
 /// slice. Returns 0 for empty input.
@@ -12,6 +25,48 @@ fn percentileSorted(sorted: []const u64, p: u8) u64 {
     const raw_idx = @as(usize, @intFromFloat(idx_f));
     const clamped = if (raw_idx == 0) 0 else @min(raw_idx, sorted.len) - 1;
     return sorted[clamped];
+}
+
+fn containsWhitespace(value: []const u8) bool {
+    for (value) |byte| {
+        if (std.ascii.isWhitespace(byte)) return true;
+    }
+    return false;
+}
+
+fn parseClusterPeers(allocator: std.mem.Allocator, raw: []const u8) ![]u32 {
+    var peers: std.ArrayListUnmanaged(u32) = .empty;
+    errdefer peers.deinit(allocator);
+
+    var it = std.mem.splitScalar(u8, raw, ',');
+    while (it.next()) |part| {
+        const token = std.mem.trim(u8, part, " \t\r\n");
+        if (token.len == 0) return error.InvalidClusterPeers;
+        const id = std.fmt.parseInt(u32, token, 10) catch return error.InvalidClusterPeers;
+        try peers.append(allocator, id);
+    }
+    if (peers.items.len == 0) return error.InvalidClusterPeers;
+    return peers.toOwnedSlice(allocator);
+}
+
+pub fn clusterConfigFromValues(allocator: std.mem.Allocator, token_raw: ?[]const u8, peers_raw: ?[]const u8) !ClusterConfig {
+    var config = ClusterConfig{};
+    errdefer config.deinit(allocator);
+
+    if (token_raw) |token| {
+        if (token.len == 0 or containsWhitespace(token)) return error.InvalidClusterToken;
+        config.policy.auth = .{ .token = token };
+    }
+    if (peers_raw) |peers| {
+        const owned = try parseClusterPeers(allocator, peers);
+        config.peers_owned = owned;
+        config.policy.peers = owned;
+    }
+    return config;
+}
+
+fn clusterConfigFromEnv(allocator: std.mem.Allocator) !ClusterConfig {
+    return clusterConfigFromValues(allocator, env.get(CLUSTER_TOKEN_ENV), env.get(CLUSTER_PEERS_ENV));
 }
 
 /// `abi wdbx benchmark [count]`: run a local, in-memory insert/search benchmark
@@ -76,7 +131,8 @@ pub fn benchmark(allocator: std.mem.Allocator, count: usize) anyerror!u8 {
 
 /// `abi wdbx cluster demo [nodes]`: run an in-process Raft-style consensus demo
 /// over `nodes` nodes — leader election, log replication with quorum, leader
-/// failover, and re-election. Networked RPC transport is a separate Phase-2 item.
+/// failover, and re-election. Networked RPC serving is exposed separately by
+/// `cluster serve`.
 /// Returns the process exit code.
 pub fn clusterDemo(allocator: std.mem.Allocator, nodes: usize) anyerror!u8 {
     var c = try wdbx.cluster.Cluster.init(allocator, nodes);
@@ -104,7 +160,7 @@ pub fn clusterDemo(allocator: std.mem.Allocator, nodes: usize) anyerror!u8 {
         defer allocator.free(line);
         std.debug.print("  status: {s}\n", .{line});
     }
-    std.debug.print("(in-process Raft-style consensus; networked RPC transport is a Phase-2 item)\n", .{});
+    std.debug.print("(in-process Raft-style consensus; networked RPC serving is available via `cluster serve`)\n", .{});
     return 0;
 }
 
@@ -118,13 +174,23 @@ fn isLoopbackHost(host: []const u8) bool {
 
 /// `abi wdbx cluster serve <host> <port> <node_id>`: bind the consensus RPC
 /// transport (RequestVote/AppendEntries) on `host:port` and serve as `node_id`
-/// until interrupted. The transport is unauthenticated, so a loud warning is
-/// printed for any non-loopback bind. Returns the process exit code.
+/// until interrupted. Non-loopback binds require a shared-secret token.
 pub fn clusterServe(io: std.Io, allocator: std.mem.Allocator, host: []const u8, port: u16, node_id: u32) anyerror!u8 {
     var node = wdbx.cluster.Node{ .id = node_id };
     defer {
         for (node.log.items) |e| allocator.free(e.data);
         node.log.deinit(allocator);
+    }
+
+    var config = clusterConfigFromEnv(allocator) catch |err| {
+        std.debug.print("cluster serve: invalid cluster config ({s}); {s} must be non-empty with no whitespace and {s} must be comma-separated u32 node ids\n", .{ @errorName(err), CLUSTER_TOKEN_ENV, CLUSTER_PEERS_ENV });
+        return 1;
+    };
+    defer config.deinit(allocator);
+
+    if (!isLoopbackHost(host) and !config.policy.auth.enabled()) {
+        std.debug.print("cluster serve: refusing non-loopback bind {s}:{d} without {s}; set a shared secret or bind 127.0.0.1\n", .{ host, port, CLUSTER_TOKEN_ENV });
+        return 1;
     }
 
     // Bind the requested host: "127.0.0.1" (loopback, default), "0.0.0.0" (all
@@ -135,23 +201,11 @@ pub fn clusterServe(io: std.Io, allocator: std.mem.Allocator, host: []const u8, 
     };
     defer server.deinit(io);
 
-    // The consensus RPC transport (RequestVote/AppendEntries) is unauthenticated:
-    // any peer that can reach the port can cast votes or append log entries. That
-    // is acceptable on loopback but a real exposure on a routable bind, so warn
-    // loudly when the operator opts into a non-loopback address. See
-    // abi-threat-model.md ("WDBX consensus listener").
-    if (!isLoopbackHost(host)) {
-        std.debug.print(
-            "WARNING: binding consensus RPC to non-loopback host {s}: this transport is UNAUTHENTICATED — any reachable peer can forge votes/log entries. Restrict to a trusted network segment.\n",
-            .{host},
-        );
-    }
-
     std.debug.print(
-        "cluster node {d} serving consensus RPC on {s}:{d} (RequestVote/AppendEntries); peers connect via the cluster_rpc transport. Ctrl-C to stop.\n",
-        .{ node_id, host, port },
+        "cluster node {d} serving consensus RPC on {s}:{d} (RequestVote/AppendEntries; auth={s}; peers={s}). Ctrl-C to stop.\n",
+        .{ node_id, host, port, if (config.policy.auth.enabled()) "shared-secret" else "off", if (config.policy.peers == null) "any" else "configured" },
     );
-    try wdbx.cluster_rpc.serveLoop(io, &server, &node, allocator);
+    try wdbx.cluster_rpc.serveLoopAuth(io, &server, &node, allocator, config.policy);
     return 0;
 }
 
@@ -251,4 +305,41 @@ pub fn serveApi(io: std.Io, allocator: std.mem.Allocator, port: u16) anyerror!u8
 
 test {
     std.testing.refAllDecls(@This());
+}
+
+test "wdbx cluster config rejects invalid token and peer values" {
+    try std.testing.expectError(error.InvalidClusterToken, clusterConfigFromValues(std.testing.allocator, "", null));
+    try std.testing.expectError(error.InvalidClusterToken, clusterConfigFromValues(std.testing.allocator, "has whitespace", null));
+    try std.testing.expectError(error.InvalidClusterPeers, clusterConfigFromValues(std.testing.allocator, null, "0,,2"));
+    try std.testing.expectError(error.InvalidClusterPeers, clusterConfigFromValues(std.testing.allocator, null, "0,nope,2"));
+}
+
+test "wdbx cluster config accepts shared secret and peer allowlist" {
+    var config = try clusterConfigFromValues(std.testing.allocator, "cluster-secret", "0,1,2");
+    defer config.deinit(std.testing.allocator);
+
+    try std.testing.expect(config.policy.auth.enabled());
+    try std.testing.expect(config.policy.peers != null);
+    try std.testing.expectEqual(@as(usize, 3), config.policy.peers.?.len);
+    try std.testing.expectEqual(@as(u32, 2), config.policy.peers.?[2]);
+}
+
+test "wdbx cluster serve exits on invalid token env before binding" {
+    var environ = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ.deinit();
+    try environ.put(CLUSTER_TOKEN_ENV, "has whitespace");
+    env.install(&environ);
+    defer env.resetForTesting();
+
+    try std.testing.expectEqual(@as(u8, 1), try clusterServe(std.testing.io, std.testing.allocator, "127.0.0.1", 39991, 0));
+}
+
+test "wdbx cluster serve exits on invalid peer env before binding" {
+    var environ = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ.deinit();
+    try environ.put(CLUSTER_PEERS_ENV, "0,,2");
+    env.install(&environ);
+    defer env.resetForTesting();
+
+    try std.testing.expectEqual(@as(u8, 1), try clusterServe(std.testing.io, std.testing.allocator, "127.0.0.1", 39992, 0));
 }

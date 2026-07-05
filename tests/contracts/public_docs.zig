@@ -54,6 +54,8 @@ test "external claims audit records repo-backed replacement language" {
     try expectContains(audit, "in-process vector/key-value/block store");
     try expectContains(audit, "Not currently proven by repo source or tests");
     try expectContains(audit, "does not currently prove distributed sharding");
+    try expectContains(audit, "ABI_WDBX_CLUSTER_TOKEN");
+    try expectContains(audit, "ABI_WDBX_CLUSTER_PEERS");
 }
 
 test "README walkthrough documents current CLI and MCP surfaces" {
@@ -77,6 +79,8 @@ test "README walkthrough documents current CLI and MCP surfaces" {
     try expectContains(readme, "scheduler_info");
     try expectContains(readme, "plugin_run");
     try expectContains(readme, "does not perform live network dispatch");
+    try expectContains(readme, "ABI_WDBX_CLUSTER_TOKEN");
+    try expectContains(readme, "ABI_WDBX_CLUSTER_PEERS");
 }
 
 test "master spec keeps GPU acceleration claim boundary explicit" {

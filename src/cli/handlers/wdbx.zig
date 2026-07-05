@@ -28,13 +28,14 @@ fn usage() u8 {
         \\
         \\  db init <path>                 Create an empty WDBX snapshot
         \\  db verify <path>               Verify snapshot integrity + block chain (+ WAL if present)
+        \\  db compact <path> [keep]       Retain the newest segment checkpoints (default keep=2)
         \\  block insert <path> <profile> <metadata>   Append a conversation block (snapshot + WAL)
         \\  block get <path>               Print the most recent block
         \\  query <path> [text] [persona]  Store statistics; hybrid semantic search with text; isolated to one persona's memories when a persona is given
         \\  benchmark [count]              Measure local insert/search timing
         \\  cluster status                 Report cluster topology (single-node default)
         \\  cluster demo [nodes]           Run in-process consensus: elect, replicate, fail over
-        \\  cluster serve <port> [node] [host]  Serve this node's networked consensus RPC (RequestVote/AppendEntries). host defaults to 127.0.0.1; pass 0.0.0.0 or a routable IP for multi-host
+        \\  cluster serve <port> [node] [host]  Serve this node's networked consensus RPC (RequestVote/AppendEntries). host defaults to 127.0.0.1; non-loopback binds require ABI_WDBX_CLUSTER_TOKEN
         \\  compute info                   Report CPU/GPU/NPU/TPU backends and dynamic selection
         \\  secure demo                    Demonstrate embedding compression + homomorphic aggregation
         \\  gpu info                       Report GPU backend capabilities
@@ -57,6 +58,11 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
         } else if (std.mem.eql(u8, op, "verify")) {
             if (args.len != 5) return usage();
             return db_commands.verifyDb(io, allocator, args[4]);
+        } else if (std.mem.eql(u8, op, "compact")) {
+            if (args.len < 5 or args.len > 6) return usage();
+            const keep: usize = if (args.len == 6) (std.fmt.parseInt(usize, args[5], 10) catch return usage()) else 2;
+            if (keep == 0) return usage();
+            return db_commands.compactDb(io, allocator, args[4], keep);
         }
         return usage();
     }
@@ -181,12 +187,14 @@ test "wdbx rejects malformed numeric args with usage instead of silent defaults"
     // A typo'd count/port/node must surface usage (exit 2), not silently run
     // the default value — this guards the parseInt-catch-return-usage paths.
     try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "benchmark", "notanumber" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "compact", "zig-out/nope.jsonl", "notanumber" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "compact", "zig-out/nope.jsonl", "0" }));
     try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "cluster", "demo", "notanumber" }));
     try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "api", "serve", "99999" }));
     try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "cluster", "serve", "7000", "notanode" }));
-    // An unparseable bind host fails the routable bind (exit 1) before serveLoop,
-    // exercising the `cluster serve <port> [node] [host]` host argument without
-    // blocking on an actual listener.
+    // Non-loopback binds must fail before serving when no cluster shared secret
+    // is configured; this covers the host argument without blocking on a listener.
+    try std.testing.expectEqual(@as(u8, 1), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "cluster", "serve", "7000", "0", "0.0.0.0" }));
     try std.testing.expectEqual(@as(u8, 1), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "cluster", "serve", "7000", "0", "not.a.valid.host" }));
 }
 
@@ -330,6 +338,39 @@ test "wdbx runtime commands use segment checkpoints without snapshot mirror" {
     try std.testing.expectEqual(@as(usize, 1), opened.store.blockCount());
 
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path }));
+}
+
+test "wdbx db compact reclaims older segment checkpoints and preserves recovery" {
+    if (!build_options.feat_wdbx) return;
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-cli-compact.jsonl";
+    defer cleanupTestDb(path);
+    cleanupTestDb(path);
+
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "init", path }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "insert", path, "abbey", "{\"turn\":1}" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "insert", path, "aviva", "{\"turn\":2}" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "insert", path, "abi", "{\"turn\":3}" }));
+
+    var ss = wdbx.segments.SegmentStore.init(allocator, std.testing.io, path);
+    {
+        const before = try ss.activeEpochs(allocator);
+        defer allocator.free(before);
+        try std.testing.expect(before.len >= 4);
+    }
+
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "compact", path, "1" }));
+    {
+        const after = try ss.activeEpochs(allocator);
+        defer allocator.free(after);
+        try std.testing.expectEqual(@as(usize, 1), after.len);
+        try std.testing.expectEqual(@as(u64, 3), after[0]);
+    }
+
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
+    var opened = try wdbx.recovery.open(std.testing.io, allocator, path);
+    defer opened.store.deinit();
+    try std.testing.expectEqual(@as(usize, 3), opened.store.blockCount());
 }
 
 test {

@@ -31,7 +31,7 @@ Zig is pinned by `.zigversion` to `0.17.0-dev.978+a078d55a2`; `build.zig.zon` ke
 
 Supported top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, and `nn`. The top-level `abi --tui` shortcut also renders the dashboard. (`nn` is a miniature char-level demo trainer behind `feat-nn`: `nn train "<text>" | train --jsonl <path> | sample …` — not a production/LLM trainer.)
 
-Subcommand grammar mirrors `src/cli/`: `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (the model id alias-resolves through the catalog, `--live` serves anthropic models over the live transport, an unrecognized id prints a stderr warning before passing through, `--confirm` is required for on-device `apple-fm`, and `--learn` routes through the SEA self-learning loop; `agent tui` is now an interactive REPL); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; and `wdbx <db <init|verify> | block <insert|get> | query | benchmark | cluster <status|demo|serve> | compute info | secure demo | gpu info | api serve>`. Malformed numeric arguments return usage with exit code 2 rather than silently using a default.
+Subcommand grammar mirrors `src/cli/`: `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (the model id alias-resolves through the catalog, `--live` serves anthropic models over the live transport, an unrecognized id prints a stderr warning before passing through, `--confirm` is required for on-device `apple-fm`, and `--learn` routes through the SEA self-learning loop; `agent tui` is now an interactive REPL); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; and `wdbx <db <init|verify|compact> | block <insert|get> | query | benchmark | cluster <status|demo|serve> | compute info | secure demo | gpu info | api serve>`. Malformed numeric arguments return usage with exit code 2 rather than silently using a default.
 
 Do not assume old command names exist: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, and `serve` are not currently dispatched.
 
@@ -47,7 +47,7 @@ Do not assume old command names exist: `version`, `doctor`, `features`, `platfor
 | `src/features/ai/` | AI profiles, router, constitution, training, local streaming helpers |
 | `src/features/wdbx/` | In-memory vector store, HNSW, block chain |
 | `src/features/gpu/` | GPU status, Metal attempt on macOS, CPU fallback |
-| `src/features/tui/` | Diagnostics dashboard renderer |
+| `src/features/tui/` | Operational diagnostics dashboard renderer |
 | `src/connectors/` | OpenAI, Anthropic, Discord, Grok, Twilio connector surfaces |
 | `src/foundation/` | Time, sync, logger, utils, errors, OS, IO, credentials |
 | `src/core/registry.zig` | Generated plugin registry loading and metadata accessors |
@@ -58,7 +58,7 @@ Do not assume old command names exist: `version`, `doctor`, `features`, `platfor
 
 Default enabled (all `-Dfeat-*` flags): `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`, `feat-hash`, `feat-telemetry`, `feat-nn`, `feat-mobile`, `feat-metrics`, `feat-sea`, `feat-foundationmodels`.
 
-Default disabled: none — turn any feature off with `-Dfeat-<name>=false`. Notes on the recently-flipped opt-ins: `feat-sea` (`src/features/sea/`, Sparse Evidence Attention self-learning loop, requires `feat-wdbx` at runtime) and `feat-foundationmodels` (`src/connectors/fm.zig`, Apple on-device FoundationModels — defaults on but the `FoundationModels.framework` + `swiftc`-built `libabi_fm_shim.dylib` link is comptime-gated on an arm64 macOS target (`os.tag == .macos and cpu.arch == .aarch64`), so non-macOS and x86_64-macOS builds compile it out and `apple-fm` reports `FMUnavailable`. CAVEAT: the default build on an arm64 macOS host still runs `xcrun swiftc -target arm64-apple-macosx26.0`, requiring the Xcode/Swift toolchain + macOS 26 SDK; lacking those, build `-Dfeat-foundationmodels=false`. On-device generation is wired through a Swift `@c` shim (SE-0495) and requires Apple-Intelligence hardware at runtime).
+Default disabled: none — turn any feature off with `-Dfeat-<name>=false`. Special notes: `feat-sea` (`src/features/sea/`, Sparse Evidence Attention self-learning loop, requires `feat-wdbx` at runtime) and `feat-foundationmodels` (`src/connectors/fm.zig`, Apple on-device FoundationModels — defaults on but the `FoundationModels.framework` + `swiftc`-built `libabi_fm_shim.dylib` link is comptime-gated on an arm64 macOS target (`os.tag == .macos and cpu.arch == .aarch64`), so non-macOS and x86_64-macOS builds compile it out and `apple-fm` reports `FMUnavailable`. CAVEAT: the default build on an arm64 macOS host still runs `xcrun swiftc -target arm64-apple-macosx26.0`, requiring the Xcode/Swift toolchain + macOS 26 SDK; lacking those, build `-Dfeat-foundationmodels=false`. On-device generation is wired through a Swift `@c` shim (SE-0495) and requires Apple-Intelligence hardware at runtime).
 
 Use `-Dfeat-<name>=false|true`, for example:
 

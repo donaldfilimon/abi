@@ -23,7 +23,7 @@ Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — int8 ratio�
 - ⚠️ **Demo-grade, NOT production crypto.** The CLI says so: "DGHV somewhat-
   homomorphic scheme … reference parameters / bounded depth — not security-
   audited." Do not represent this as AES/RBAC/production encryption (see
-  `docs/contracts/external-claims-audit.md`). Use the
+  `docs/contracts/external-claims-audit.mdx`). Use the
   `compression-security-reviewer` subagent for an audit.
 - Combines what the discovery split into "compression-demo" + "fhe-demo" — both
   ride the single `abi wdbx secure demo` surface.

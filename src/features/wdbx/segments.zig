@@ -18,7 +18,16 @@ const test_helpers = @import("../../testing/test_helpers.zig");
 
 pub const MANIFEST_HEADER = "# ABI-WDBX-SEGMENTS v1";
 
-pub const SegmentError = error{InvalidManifest};
+pub const SegmentError = error{ InvalidManifest, InvalidCompactionPolicy };
+
+pub const CompactionResult = struct {
+    before: usize,
+    after: usize,
+    deleted: usize,
+    keep_latest: usize,
+    latest_epoch: ?u64,
+    watermark_epoch: ?u64,
+};
 
 const Manifest = struct {
     next_epoch: u64 = 0,
@@ -172,6 +181,53 @@ pub const SegmentStore = struct {
         return deleted;
     }
 
+    /// Larger-store compaction policy: retain the newest `keep_latest` active
+    /// checkpoint epochs and reclaim every older manifest-listed segment. The
+    /// latest checkpoint is always preserved so recovery still has a durable
+    /// baseline for any sidecar WAL delta.
+    pub fn compactRetainingLatest(self: *SegmentStore, keep_latest: usize) !CompactionResult {
+        if (keep_latest == 0) return SegmentError.InvalidCompactionPolicy;
+
+        const active = try self.activeEpochs(self.allocator);
+        defer self.allocator.free(active);
+
+        const before = active.len;
+        if (before == 0) {
+            return .{
+                .before = 0,
+                .after = 0,
+                .deleted = 0,
+                .keep_latest = keep_latest,
+                .latest_epoch = null,
+                .watermark_epoch = null,
+            };
+        }
+
+        const latest = active[before - 1];
+        if (before <= keep_latest) {
+            return .{
+                .before = before,
+                .after = before,
+                .deleted = 0,
+                .keep_latest = keep_latest,
+                .latest_epoch = latest,
+                .watermark_epoch = active[0],
+            };
+        }
+
+        const watermark = active[before - keep_latest];
+        const deleted = try self.reclaim(watermark);
+        const after = before - deleted;
+        return .{
+            .before = before,
+            .after = after,
+            .deleted = deleted,
+            .keep_latest = keep_latest,
+            .latest_epoch = latest,
+            .watermark_epoch = watermark,
+        };
+    }
+
     /// Remove all manifest-listed segments and the manifest itself. This is
     /// used by `wdbx db init` to make reinitialization deterministic without a
     /// directory scan.
@@ -265,6 +321,40 @@ test "segments: reclaim drops epochs below the watermark" {
     var loaded = try ss.loadLatest();
     defer loaded.deinit();
     try testing.expectEqual(@as(usize, 1), loaded.blockCount());
+}
+
+test "segments: compactRetainingLatest keeps the newest checkpoints" {
+    const allocator = testing.allocator;
+    const base = "zig-out/wdbx-seg-compact";
+    cleanup(base);
+    defer cleanup(base);
+
+    var ss = SegmentStore.init(allocator, testing.io, base);
+    var i: usize = 0;
+    while (i < 4) : (i += 1) {
+        var s = wdbx_mod.Store.init(allocator);
+        var block: usize = 0;
+        while (block <= i) : (block += 1) {
+            _ = try s.appendBlock("p", 0, 0, "{\"t\":1}");
+        }
+        _ = try ss.flush(&s);
+        s.deinit();
+    }
+
+    const result = try ss.compactRetainingLatest(2);
+    try testing.expectEqual(@as(usize, 4), result.before);
+    try testing.expectEqual(@as(usize, 2), result.after);
+    try testing.expectEqual(@as(usize, 2), result.deleted);
+    try testing.expectEqual(@as(?u64, 3), result.latest_epoch);
+    try testing.expectEqual(@as(?u64, 2), result.watermark_epoch);
+
+    const active = try ss.activeEpochs(allocator);
+    defer allocator.free(active);
+    try testing.expectEqualSlices(u64, &.{ 2, 3 }, active);
+
+    var loaded = try ss.loadLatest();
+    defer loaded.deinit();
+    try testing.expectEqual(@as(usize, 4), loaded.blockCount());
 }
 
 test "segments: reset removes manifest-listed checkpoints" {

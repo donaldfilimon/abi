@@ -8,7 +8,7 @@
 
 **Tech Stack:** Zig 0.17, existing `core/scheduler.zig`, `core/memory.zig`, `features/ai`, `./build.sh` gates, mod/stub discipline.
 
-**Status note (2026-06-09):** The AI scheduler/helper work, production call-site wiring, and test expansion have since landed in the broader workspace. The "advanced stateful feature" track materialized as the default-on `telemetry` feature; the active WDBX follow-through now lives in `tasks/todo.md` and `docs/spec/wdbx-north-star.md`.
+**Status note (2026-06-09):** The AI scheduler/helper work, production call-site wiring, and test expansion have since landed in the broader workspace. The "advanced stateful feature" track materialized as the default-on `telemetry` feature; the active WDBX follow-through now lives in `tasks/todo.md` and `docs/spec/wdbx-north-star.mdx`.
 
 ---
 
@@ -125,7 +125,7 @@
 - Create: `src/features/<new-feature>/` (mod.zig, stub.zig, types.zig + at least one submodule)
 - Modify: `build.zig`, `src/features/mod.zig`, `tools/check_feature_stubs.sh`
 - Modify: `tests/contracts/feature_modules.zig`
-- Docs: `docs/spec/abi-refactor-design.md`, `tasks/roadmap-next.md`
+- Docs: `docs/spec/abi-refactor-design.mdx`, `tasks/todo.md`
 
 - [ ] **Step 1: Choose and name the feature**
    (Example candidates: evaluation harness, telemetry/metrics extension, or another observability-focused stateful module. Confirm with user if needed.)

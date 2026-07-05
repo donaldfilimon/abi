@@ -55,8 +55,8 @@ pub fn build(b: *std.Build) void {
     // precisely because Zig's linker does not honor the Swift `-l`/`-framework`
     // autolink directives embedded in a Swift object file.) An `@rpath` install
     // name + a per-module rpath into the build-cache dir let the binary find the
-    // dylib at runtime. Everything is strictly gated on macOS + the (default-off)
-    // flag, so the default `./build.sh check` build compiles/links no Swift at all.
+    // dylib at runtime. The flag defaults on, but the shim is still strictly
+    // gated on an arm64 macOS target.
     const FmShim = struct {
         /// Build-cache directory that holds `libabi_fm_shim.dylib`; used as both
         /// the link-time library search path and the runtime rpath.
@@ -396,7 +396,8 @@ pub fn build(b: *std.Build) void {
     const feature_stub_check = b.addSystemCommand(&.{ "bash", "tools/check_feature_stubs.sh" });
     feature_stub_check.step.dependOn(&exe.step);
 
-    const tui_smoke = b.addSystemCommand(&.{ "zig", "build", "cli", "-Dfeat-tui=true" });
+    const tui_smoke = b.addSystemCommand(&.{ "bash", "tools/run_tui_smoke.sh" });
+    tui_smoke.step.dependOn(b.getInstallStep());
 
     // Fmt and Parity Checks
     const fmt_check = b.addSystemCommand(&.{ "zig", "fmt", "--check", "src", "tests", "tools", "build.zig" });

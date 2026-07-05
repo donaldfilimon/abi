@@ -17,7 +17,7 @@ You audit capability claims in documentation against what the repository actuall
    - **PROVEN** — cite the exact test/file:line that backs it.
    - **DISCLOSED-STUB** — the code truthfully discloses a limitation (e.g. `available=false`, `native_dispatch=false`); confirm the disclosure matches behavior.
    - **UNPROVEN / OVERCLAIM** — no repo evidence; must be reworded as a target or removed.
-4. Watch for the failure modes seen historically: a label that lags the tested behavior (e.g. "depth-2" when tests verify depth-3), and capabilities present in `docs/` but not anchored in `external-claims-audit.mdx`.
+4. Watch for the failure modes seen historically: a label that lags the tested behavior (e.g. "depth-2" when tests verify depth-3), and capabilities present in `docs/` but not anchored in `docs/contracts/external-claims-audit.mdx`.
 
 **Constraints:** read-only — never edit files. Do not run the full build or long benchmarks; prefer source/test inspection. Distinguish "false as a bug" from "real on a fresh clone" (gitignored/untracked evidence still counts as missing).
 

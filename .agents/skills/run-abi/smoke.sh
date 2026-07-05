@@ -5,7 +5,7 @@
 # drive the MCP server over stdio with real JSON-RPC. Checks exit codes and
 # greps output for expected markers. Writes a full transcript to disk.
 #
-# Usage:   .claude/skills/run-abi/smoke.sh
+# Usage:   .agents/skills/run-abi/smoke.sh
 # From any cwd; it resolves the repo root from its own location.
 set -uo pipefail
 
@@ -66,6 +66,7 @@ run "cli help"          "Usage: abi"        -- "$ABI" help
 run "cli backends"      "GPU backend report" -- "$ABI" backends
 run "cli scheduler"     "source=cli-scheduler-status" -- "$ABI" scheduler status
 run "cli complete"      "model=claude-fable-5"   -- "$ABI" complete "smoke: summarize scheduler status"
+run "cli plugin list"   "Installed Plugins (" -- "$ABI" plugin list
 
 # --- WDBX store round-trip ----------------------------------------------
 rm -f "$STORE"
@@ -81,11 +82,17 @@ MCP_OUT=$(printf '%s\n' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
   '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"scheduler_info","arguments":{}}}' \
   '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"gpu_status","arguments":{}}}' \
+  '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"plugin_list","arguments":{}}}' \
   | "$ABI_MCP" stdio 2>>"$TRANSCRIPT")
 mcp_rc=$?
 printf '%s\n' "$MCP_OUT" | tee -a "$TRANSCRIPT"
 log "[exit=$mcp_rc]"
-for marker in '"serverInfo"' '"name":"gpu_status"' 'scheduler running=' 'backend=metal'; do
+if [ "$mcp_rc" -eq 0 ]; then
+    pass=$((pass+1)); log "ok: mcp exited 0"
+else
+    fail=$((fail+1)); log "FAIL: mcp exited $mcp_rc"
+fi
+for marker in '"serverInfo"' '"name":"gpu_status"' 'scheduler running=' 'backend=metal' 'plugins count=16'; do
     if printf '%s' "$MCP_OUT" | grep -q -- "$marker"; then
         pass=$((pass+1)); log "ok: mcp has $marker"
     else

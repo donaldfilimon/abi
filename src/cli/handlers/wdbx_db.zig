@@ -97,6 +97,38 @@ pub fn verifyDb(io: std.Io, allocator: std.mem.Allocator, path: []const u8) anye
     return if (blocks_ok and merged_ok) 0 else 1;
 }
 
+/// `abi wdbx db compact <path> [keep]`: retain the newest `keep` segment
+/// checkpoints and reclaim older manifest-listed segments. This bounds disk use
+/// for larger stores without touching the latest checkpoint or sidecar WAL.
+pub fn compactDb(io: std.Io, allocator: std.mem.Allocator, path: []const u8, keep_latest: usize) anyerror!u8 {
+    var segment_store = wdbx.segments.SegmentStore.init(allocator, io, path);
+    const result = segment_store.compactRetainingLatest(keep_latest) catch |err| switch (err) {
+        wdbx.segments.SegmentError.InvalidCompactionPolicy => {
+            std.debug.print("compact FAILED: keep must be >= 1\n", .{});
+            return 1;
+        },
+        else => {
+            std.debug.print("compact FAILED: {s}: {s}\n", .{ path, @errorName(err) });
+            return 1;
+        },
+    };
+
+    std.debug.print(
+        "compacted WDBX segments: path={s} keep_latest={d} before={d} after={d} deleted={d}",
+        .{ path, result.keep_latest, result.before, result.after, result.deleted },
+    );
+    if (result.latest_epoch) |latest| {
+        std.debug.print(" latest_epoch={d}", .{latest});
+    } else {
+        std.debug.print(" latest_epoch=none", .{});
+    }
+    if (result.watermark_epoch) |watermark| {
+        std.debug.print(" watermark_epoch={d}", .{watermark});
+    }
+    std.debug.print("\n", .{});
+    return 0;
+}
+
 /// `abi wdbx block insert <path> <profile> <metadata>`: append a block to the
 /// recovered store at `path`, mirror it to the WAL tagged to the current
 /// checkpoint epoch, and checkpoint. Returns the process exit code.

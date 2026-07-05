@@ -38,7 +38,8 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
     try abi.features.tui.initScreen();
     defer abi.features.tui.deinitScreen();
 
-    while (true) {
+    var quit = false;
+    while (!quit) {
         _ = try scheduler.submit("dashboard-refresh", .low, struct {
             fn run(_: ?*anyopaque) anyerror!void {}
         }.run, null);
@@ -46,13 +47,18 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
 
         try renderAndPrint(allocator, &scheduler, &store, &registry, plugin_names);
 
-        // Wait up to 1s for a keystroke; on timeout, loop and redraw with
-        // fresh stats so the dashboard is genuinely live. A closed stdin (EOF)
-        // ends the loop.
-        if (term.pollInput(1000)) {
-            const key = term.readKey() orelse break;
-            if (abi.features.tui.isQuitKey(key)) break;
-            // 'r'/'R' and any other key simply force an immediate redraw.
+        // Wait up to 1s for input. Timeout auto-refreshes; r/R refreshes
+        // immediately; unrelated keys are ignored instead of redrawing.
+        while (term.pollInput(1000)) {
+            const key = term.readKey() orelse {
+                quit = true;
+                break;
+            };
+            if (abi.features.tui.isQuitKey(key)) {
+                quit = true;
+                break;
+            }
+            if (abi.features.tui.isRefreshKey(key)) break;
         }
     }
 

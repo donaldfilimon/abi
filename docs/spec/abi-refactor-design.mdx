@@ -100,7 +100,7 @@ src/
 │   ├── hash/          # Hash utility surface (mod/stub, enabled by default)
 │   ├── metrics/       # Optional observability counters (mod/stub, disabled by default)
 │   ├── telemetry/     # Fixed-capacity process-wide event/counter hooks (mod/stub, enabled by default)
-│   ├── tui/           # Diagnostics dashboard + live terminal redraw helpers (mod/stub, enabled by default)
+│   ├── tui/           # Operational diagnostics dashboard + live terminal redraw helpers (mod/stub, enabled by default)
 │   ├── mobile/        # Mobile runtime profile surface (mod/stub, disabled by default)
 │   └── os_control/    # Safe OS command policy controls (mod/stub)
 ├── connectors/        # External service connectors
@@ -226,7 +226,7 @@ const ConversationBlock = struct {
 
 MCP `wdbx_query` uses the same in-process WDBX substrate through `src/mcp/ai_tools.zig`: it seeds local Abbey/Aviva/Abi profile vectors, records temporal nodes/causal edges, and returns the `retrieval.zig` hybrid ranker output (`semantic`, `temporal`, `causal`, `persona`, `ranking=hybrid`) when WDBX is enabled.
 
-The namespace also exercises forward-looking WDBX modules that are deliberately scoped as honest, **in-process demonstrations — not production or distributed capabilities**. See `docs/spec/wdbx-north-star.md` for the Current/Partial/Proposed mapping and `docs/contracts/external-claims-audit.md` for the claim boundary:
+The namespace also exercises forward-looking WDBX modules that are deliberately scoped as honest, **in-process demonstrations — not production or distributed capabilities**. See `docs/spec/wdbx-north-star.mdx` for the Current/Partial/Proposed mapping and `docs/contracts/external-claims-audit.mdx` for the claim boundary:
 
 - `cluster status|demo|serve` (`cluster.zig`, `cluster_rpc.zig`) — an in-process Raft-style core (leader election, majority-quorum replication, failover). `cluster status` reports the real consensus state machine's view (a single node that elects itself leader); `cluster serve <port> [node]` serves that node's consensus RPC (RequestVote/AppendEntries) over **loopback `127.0.0.1` only**. Multi-host orchestration beyond loopback remains Phase-2.
 - `compute info` (`compute.zig`) — a CPU/GPU/NPU/TPU backend selector that always degrades to the deterministic CPU SIMD path; native accelerator dispatch is not linked.
@@ -255,22 +255,22 @@ The `src/core/` modules (`registry.zig`, `scheduler.zig`, `memory.zig`) and `src
 **Current state (as of 2026-06):** Real usage exists and is exercised on key surfaces:
 - Scheduler drives actual high-priority training work in `abi agent train` (TrainTask submission + `runAll`, with Arena-wrapped contexts).
 - Scheduler-backed completion is exposed through `completeWithScheduler()` and used by CLI/MCP completion paths while preserving direct completion APIs.
-- Live stats and cooperative refresh tasks in the CLI/TUI dashboard, with terminal input polling and flicker-free redraw helpers mirrored in the TUI stub.
+- Live operational stats and cooperative refresh tasks in the CLI/TUI dashboard, with terminal input polling, health summary, bounded plugin rows, and flicker-free redraw helpers mirrored in the TUI stub.
 - Long-lived Scheduler instance owned by the MCP server with dedicated `scheduler_stats` / `scheduler_info` tools in the static, contract-tested MCP descriptor list.
 - `MemoryTracker` + `TrackingAllocator` attached via `setMemoryTracker` in the training path and dashboard; allocations performed under scheduler tasks are recorded.
-- Cross-feature observability wiring: Scheduler conditionally records task lifecycle metrics when `-Dfeat-metrics` is enabled. The default-on `feat-telemetry` feature (`src/features/telemetry/`) provides allocation-free `record(name)` / `increment(name, delta)` hooks plus process-wide readback (`counterValue`, `totalEvents`, `distinctCounters`, `droppedEvents`, `reset`) through a fixed-capacity counter table. It complements the opt-in `metrics` registry, and mod/stub parity is preserved for disabled telemetry builds.
+- Cross-feature observability wiring: Scheduler conditionally records task lifecycle metrics when `-Dfeat-metrics` is enabled. The default-on `feat-telemetry` feature (`src/features/telemetry/`) provides allocation-free `record(name)` / `increment(name, delta)` hooks plus process-wide readback (`counterValue`, `totalEvents`, `distinctCounters`, `droppedEvents`, `reset`) through a fixed-capacity counter table. It complements the default-on `metrics` registry, and mod/stub parity is preserved for disabled telemetry/metrics builds.
 - Dedicated integration test ("scheduler drives training tasks") validates end-to-end submission, execution, stats, and memory tracking.
 
 - Registry remains focused on plugin descriptors (RwLock-protected) today; it is the coordinator for the plugin execution seam (`plugin_manager` + `abi plugin run` / MCP `plugin_run`) but is not yet the broader cross-feature lifecycle registry envisioned originally.
 - Deeper adoption opportunities remain: MemoryTracker in lower-level AI internals and HNSW storage internals; making the Registry a more general component lifecycle coordinator; potential unification or clearer boundary between `core/memory` and `foundation/pool_allocator`. AI completion/training/agent planning now have scheduler helper surfaces, and WDBX `Store.putVector`/`Store.search` expose hot-path allocation activity through optional `MemoryTracker` instrumentation.
 
-See `tasks/roadmap-next.md` (Streams 1-2), `tasks/todo.md` (Core scheduler + memory row marked Done), and `tasks/scheduler-memory-wireup.md` for the detailed surfaces and the integration sketches that were executed. All integration changes preserved mod/stub parity, used relative `.zig` imports inside `src/`, and passed the full `./build.sh check` + `check-parity` + feature-off contract matrix. The original "primary remaining gap" language has been retired because the observability + real-work scheduling vision has been substantially delivered.
+See `tasks/todo.md`, `CHANGELOG.md`, and the source paths above for the detailed surfaces and the integration sketches that were executed. All integration changes preserved mod/stub parity, used relative `.zig` imports inside `src/`, and passed the full `./build.sh check` + `check-parity` + feature-off contract matrix. The original "primary remaining gap" language has been retired because the observability + real-work scheduling vision has been substantially delivered.
 
 ---
 
 ## 6. Maintenance Strategy
 
-1. **Source truth first**: Reconcile architecture prose against `build.zig`, `src/features/mod.zig`, `src/cli/usage.zig`, `docs/contracts/public-api.md`, and contract tests before changing public surfaces.
+1. **Source truth first**: Reconcile architecture prose against `build.zig`, `src/features/mod.zig`, `src/cli/usage.zig`, `docs/contracts/public-api.mdx`, and contract tests before changing public surfaces.
 2. **Mod/stub parity**: Any public feature API change must update both `mod.zig` and `stub.zig`, including disabled-feature semantics, then pass `zig build check-parity`. The parity checker covers top-level public declaration names for feature/plugin pairs, not full signature equivalence. The check gate also runs focused feature-off behavior smoke tests and feature-aware public contracts for every `-Dfeat-*` flag.
 3. **Generated registry**: Do not edit `src/plugin_registry.zig`; update plugin manifests and regenerate through the build step. Required manifest fields are `name`, `version`, `description`, `target_feature`, and `entry_point`; `targetFeature` / `entryPoint` aliases are accepted. `entry_point` must be a safe relative `.zig` path that exists under the plugin directory. Contract coverage expects multiple bundled plugin fixtures to remain discoverable.
 4. **Import boundaries**: Library modules under `src/` use relative imports with `.zig` extensions. The MCP executable + handler module graph (`src/mcp/main.zig` plus the `handlers.zig` group: `handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) may import the public `abi` package because `build.zig` wires that package explicitly; never do so from modules re-exported by `src/root.zig`.
@@ -281,7 +281,7 @@ See `tasks/roadmap-next.md` (Streams 1-2), `tasks/todo.md` (Core scheduler + mem
    - `src/features/mod.zig` (mod/stub selection + re-exports)
    - `src/cli/usage.zig` (frozen CLI command surface)
    - `src/root.zig` (public namespace exports)
-   - `docs/contracts/public-api.md`
+   - `docs/contracts/public-api.mdx`
    - `tests/contracts/*.zig` (surface, mcp_tools, feature_modules, plugin_registry, public_docs)
    - Actual `git ls-files` layout under `src/`, `tests/`, `tools/`, and `plugins/`
    Always call out (or correct) any intentional exceptions. The design is descriptive history + guardrails, not the contract.

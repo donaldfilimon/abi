@@ -7,7 +7,7 @@ description: "Status: VISION / ROADMAP — not a statement of current capabiliti
 **Status:** **VISION / ROADMAP — not a statement of current capabilities.**
 **Scope:** Long-term direction for evolving ABI from a local multi-persona assistant into a WDBX-centered cognitive runtime spanning storage, indexing, compute, security, clustering, and transport.
 
-> **Claims discipline (read first).** This document is aspirational. Every item below is tagged **Current**, **Partial**, or **Proposed**, backed by repo source/tests for the Current/Partial rows. The genuinely **not-repo-proven** items that MUST NOT be presented as existing ABI capabilities in external collateral are: **native Apple Neural Engine / GPU / TPU execution** (only detection, CPU fallback, and a remote-dispatch transport exist — no native accelerator kernels), **multi-host distributed deployment and data sharding** (the consensus RPC is real but exercised over loopback, not across hosts), **production-secure / bootstrapped homomorphic encryption** (only a reference-parameter somewhat-homomorphic scheme exists), a **production/learned-SOTA compression codec**, and **any throughput/latency/accuracy figure**. This file is the proposal record the external-claims policy permits; see `docs/contracts/external-claims-audit.md` and the `tests/contracts/public_docs.zig` claim-boundary test. When this vision and the source disagree, the source wins (`build.zig`, `src/`, contract tests).
+> **Claims discipline (read first).** This document is aspirational. Every item below is tagged **Current**, **Partial**, or **Proposed**, backed by repo source/tests for the Current/Partial rows. The genuinely **not-repo-proven** items that MUST NOT be presented as existing ABI capabilities in external collateral are: **native Apple Neural Engine / GPU / TPU execution** (only detection, CPU fallback, and a remote-dispatch transport exist — no native accelerator kernels), **production multi-host distributed deployment and data sharding** (the consensus RPC is real, supports a shared-secret token and optional peer allowlist, and is loopback/routable-bind tested; no production deployment or sharding is proven), **production-secure / bootstrapped homomorphic encryption** (only a reference-parameter somewhat-homomorphic scheme exists), a **production/learned-SOTA compression codec**, and **any throughput/latency/accuracy figure**. This file is the proposal record the external-claims policy permits; see `docs/contracts/external-claims-audit.mdx` and the `tests/contracts/public_docs.zig` claim-boundary test. When this vision and the source disagree, the source wins (`build.zig`, `src/`, contract tests).
 
 ---
 
@@ -37,13 +37,13 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 
 | Capability | Status | Evidence / Gap |
 | --- | --- | --- |
-| Persistent long-term memory | **Current (single-node)** | JSONL snapshot codec (`persistence.zig`), CRC32-framed write-ahead log with replay + corruption detection (`wal.zig`), automatic segment/WAL recovery for runtime CLI reads/writes (`recovery.zig`, `wdbx_db.zig`), and a multi-segment checkpoint store with epoch reclamation (`segments.zig`). `abi wdbx db init/verify`, `block insert/get`, and `query` exercise the segment/WAL lifecycle; the legacy snapshot file remains a compatibility mirror. Gap: full MVCC visibility and compaction policy for larger stores. |
+| Persistent long-term memory | **Current (single-node)** | JSONL snapshot codec (`persistence.zig`), CRC32-framed write-ahead log with replay + corruption detection (`wal.zig`), automatic segment/WAL recovery for runtime CLI reads/writes (`recovery.zig`, `wdbx_db.zig`), and a multi-segment checkpoint store with epoch reclamation plus `compactRetainingLatest` retention policy (`segments.zig`). `abi wdbx db init/verify/compact`, `block insert/get`, and `query` exercise the segment/WAL lifecycle; the legacy snapshot file remains a compatibility mirror. Gap: full MVCC visibility and cross-process/concurrent checkpoint coordination for larger stores. |
 | Temporal-causal retrieval | **Current (single-node/MCP)** | `temporal.zig` implements temporal decay + causal BFS graph scoring, `retrieval.zig` composes HNSW semantic search with the `semantic × temporal × causal × persona` hybrid ranker, JSONL snapshots persist `temporal_node` / `temporal_edge` records, and MCP `wdbx_query` uses hybrid ranking by default. Gap: broader CLI semantic query UX if that becomes a product surface. |
 | Multi-persona memory routing | **Current** | `src/features/ai/router.zig` keyword-weighted Abbey/Aviva/Abi routing; conversation blocks labeled by profile in `src/features/wdbx/chain.zig`. |
 | SIMD-accelerated search | **Current** | HNSW `@Vector` cosine distance: `src/features/wdbx/hnsw.zig`. |
 | GPU-accelerated retrieval | **Partial** | HNSW distance routes through `gpu.vectorOps().cosineSimilarity()` with deterministic CPU fallback; `compute.zig` adds a CPU/GPU/NPU/TPU backend selector; host-matched SIMD width via `std.simd.suggestVectorLength`; a CPU/GPU parity test validates the active backend against a scalar reference (`gpu/vector_ops.zig`). Gap: native Metal/CUDA/Vulkan compute kernels are not linked. |
 | Apple Neural Engine / TPU integration | **Partial** | ANE: `compute.aneHardwarePresent()` truthfully reports Apple-Silicon ANE presence (`wdbx compute info`); native execution is **not** linked (CoreML/ObjC only, not pure Zig, ANE residency unverifiable in-environment). TPU: `remote_compute.zig` is a real "remote execution" dispatch transport over TCP (`ABI_REMOTE_COMPUTE_ENDPOINT`, loopback-tested, CPU fallback) — the operator points it at their own accelerator service; no accelerator is bundled. Gap: native ANE execution + a production remote-accelerator endpoint. |
-| Distributed clustering | **Partial** | `cluster.zig` in-process Raft core (election, majority-quorum replication, failover; `abi wdbx cluster demo`) **plus** `cluster_rpc.zig`, a real TCP transport (RequestVote/AppendEntries) with election/replication/downed-node tests over 127.0.0.1 and a runnable `abi wdbx cluster serve <port>` node endpoint. Gap: multi-host production deployment and data sharding (a routable bind address is the only code change for multi-host; sharding is unbuilt). |
+| Distributed clustering | **Partial** | `cluster.zig` in-process Raft core (election, majority-quorum replication, failover; `abi wdbx cluster demo`) **plus** `cluster_rpc.zig`, a real TCP transport (RequestVote/AppendEntries) with election/replication/downed-node tests over 127.0.0.1, shared-secret frames (`ABI_WDBX_CLUSTER_TOKEN`), optional peer allowlisting (`ABI_WDBX_CLUSTER_PEERS`), and a runnable `abi wdbx cluster serve <port>` node endpoint that refuses non-loopback binds without a token. Gap: multi-host production deployment, TLS/mTLS or equivalent network policy, dynamic membership, and data sharding. |
 | Cryptographic verification | **Current** | SHA-256-linked blocks + `verifyBlocks()`; snapshot integrity line rejects tampering (`error.ChecksumMismatch`); WAL CRC32 frames: `chain.zig`, `persistence.zig`, `wal.zig`. |
 | Zero-copy memory access | **Partial** | `Store.getVector` returns a borrowed slice aliasing the index's contiguous backing buffer — no allocation/copy — proven by a pointer-aliasing test (`mod.zig`); pool/arena allocators in `src/foundation/pool_allocator.zig`. Gap: an end-to-end zero-copy path across the whole query. |
 | Neural / embedding / entropy compression | **Partial** | `compression.zig` int8 quantization (~4×), `entropy.zig` exact order-0 Huffman entropy coding for arbitrary byte payloads, **plus** `neural_compress.zig`, an in-process-trained autoencoder codec (hand-written backprop/SGD; reconstruction-error + determinism tests). Gap: a SOTA/production-scale learned codec or stronger entropy family such as ANS/arithmetic/context modeling. |
@@ -54,8 +54,8 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 ## 3. Layered Architecture
 
 ### 3.1 Storage Layer
-- **Current:** in-process key/value, fixed-capacity padded vectors, SHA-256 block chain, 3D spatial records; JSONL snapshot save/load with integrity checksum; **write-ahead log** (`wal.zig`) with CRC32-framed append-only records, deterministic replay (reuses `persistence.deserialize`), and corruption detection. `abi wdbx db verify` replays the WAL and cross-checks it against the current checkpoint; runtime `block`/`query` commands recover WAL-ahead state before reading or writing; `segments.zig` provides immutable epoch checkpoints, reset, active epoch listing, and watermark reclamation. CLI runtime commands now write/open segment checkpoints by default and keep a monolithic snapshot as a compatibility mirror.
-- **Proposed:** full MVCC visibility, larger-store compaction policy, and cross-process/concurrent checkpoint coordination.
+- **Current:** in-process key/value, fixed-capacity padded vectors, SHA-256 block chain, 3D spatial records; JSONL snapshot save/load with integrity checksum; **write-ahead log** (`wal.zig`) with CRC32-framed append-only records, deterministic replay (reuses `persistence.deserialize`), and corruption detection. `abi wdbx db verify` replays the WAL and cross-checks it against the current checkpoint; runtime `block`/`query` commands recover WAL-ahead state before reading or writing; `segments.zig` provides immutable epoch checkpoints, reset, active epoch listing, watermark reclamation, and newest-N compaction (`abi wdbx db compact <path> [keep]`). CLI runtime commands now write/open segment checkpoints by default and keep a monolithic snapshot as a compatibility mirror.
+- **Proposed:** full MVCC visibility and cross-process/concurrent checkpoint coordination.
 - **Invariants:** append-only, deterministic, verifiable — enforced today by the snapshot checksum, WAL CRC frames, and segment manifest.
 
 ### 3.2 Index Layer
@@ -75,12 +75,12 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 - **Proposed:** at-rest snapshot encryption, signed snapshots, and production-secure / bootstrapped full FHE (Phase 4). No encryption/RBAC claims beyond what is implemented and tested.
 
 ### 3.5 Cluster Layer
-- **Current (single-host):** `cluster.zig` Raft-style core — leader election, majority-quorum log replication, leader failover, quorum-loss detection (deterministic step model; `abi wdbx cluster demo`) — **and** `cluster_rpc.zig`, a real TCP RequestVote/AppendEntries transport with election/replication/downed-node tests over 127.0.0.1 and a runnable `abi wdbx cluster serve <port>` node endpoint.
-- **Proposed:** multi-host deployment (a routable bind address is the only code change) and data sharding/partitioning across nodes. Until a multi-host deployment is exercised, ABI is **not** a distributed multi-host system, and sharding is unbuilt.
+- **Current (single-host / controlled routable bind):** `cluster.zig` Raft-style core — leader election, majority-quorum log replication, leader failover, quorum-loss detection (deterministic step model; `abi wdbx cluster demo`) — **and** `cluster_rpc.zig`, a real TCP RequestVote/AppendEntries transport with election/replication/downed-node tests over 127.0.0.1, shared-secret authentication, optional peer allowlisting, and a runnable `abi wdbx cluster serve <port>` node endpoint. Non-loopback binds require `ABI_WDBX_CLUSTER_TOKEN`; `ABI_WDBX_CLUSTER_PEERS` can restrict accepted node ids.
+- **Proposed:** production multi-host deployment, TLS/mTLS or equivalent fronting network policy, dynamic membership, and data sharding/partitioning across nodes. Until those are exercised, ABI is **not** a production distributed multi-host system, and sharding is unbuilt.
 
 ### 3.6 Transport Layer
 - **Current:** MCP JSON-RPC 2.0 over stdio (64 KB request cap) + optional loopback HTTP/SSE (`GET /sse`, `POST /message`) on `127.0.0.1:8080`, with optional bearer-token enforcement via `ABI_MCP_HTTP_TOKEN`; **WDBX REST listener** (`rest.zig`) serving `POST /insert /query /verify` and `GET /health /stats` on a loopback port (`abi wdbx api serve [port]`, default 8081), with a fully unit-tested pure routing core and optional bearer-token enforcement via `ABI_WDBX_REST_TOKEN`.
-- **Current (added):** cluster consensus RPC and remote-compute dispatch over TCP (`cluster_rpc.zig`, `remote_compute.zig`), loopback-tested via a shared `net_line` framing helper.
+- **Current (added):** cluster consensus RPC and remote-compute dispatch over TCP (`cluster_rpc.zig`, `remote_compute.zig`), loopback-tested via a shared `net_line` framing helper. Cluster RPC supports `AUTH <token>` RequestVote/AppendEntries frames via `ABI_WDBX_CLUSTER_TOKEN` and optional node-id allowlisting through `ABI_WDBX_CLUSTER_PEERS`.
 - **Proposed:** gRPC, WebSocket streaming; hardening the listeners for non-loopback/production use.
 
 ---
@@ -101,30 +101,31 @@ Served by `abi wdbx api serve [port]` (default 8081). The routing core is a pure
 
 ## 5. CLI Surface
 
-**Current frozen top-level commands** (contract-tested, do not break): `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx` (+ the `abi --tui` shortcut).
+**Current frozen top-level commands** (contract-tested, do not break): `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn` (+ the `abi --tui` shortcut).
 
 **`wdbx` command namespace — implemented** (`src/cli/handlers/wdbx.zig`, contract row added to `tests/contracts/surface.zig`):
 ```
 wdbx db init <path>        wdbx db verify <path>        # segment checkpoint + WAL integrity
+wdbx db compact <path> [keep]                           # retain newest segment checkpoints
 wdbx block insert <path> <profile> <metadata>           # writes segment checkpoint + WAL
 wdbx block get <path>
 wdbx query <path> [text] [persona]                      # stats manifest, or hybrid/persona-scoped semantic search
 wdbx benchmark [count]                                  # local in-memory timing with P50/P95/P99
 wdbx cluster status                                     # real Raft state-machine status line
 wdbx cluster demo [nodes]                               # in-process election/quorum/failover
-wdbx cluster serve <port> [node]                        # serve this node's networked consensus RPC (loopback)
+wdbx cluster serve <port> [node] [host]                 # serve this node's networked consensus RPC; non-loopback requires ABI_WDBX_CLUSTER_TOKEN
 wdbx compute info                                       # CPU/GPU/NPU/TPU backends + ANE detection + remote endpoint
 wdbx secure demo                                        # int8 compression + additive HE + DGHV add/multiply SHE
 wdbx gpu info                                           # GPU backend capabilities
 wdbx api serve [port]                                   # loopback REST listener (default 8081)
 ```
-`cluster status` reports the real in-process Raft state-machine status line; `cluster demo` runs the consensus core and `cluster serve` exposes its networked RequestVote/AppendEntries transport over loopback (§3.5). `api serve` starts the loopback REST listener implemented in `rest.zig` (`POST /insert /query /verify`, `GET /health /stats`; §3.6/§4). **Native local-accelerator (CUDA/Vulkan/Metal-kernel/ANE) execution, multi-host distributed deployment + sharding, a production/SOTA learned compression codec, and production-secure/bootstrapped FHE remain Proposed** (§2).
+`cluster status` reports the real in-process Raft state-machine status line; `cluster demo` runs the consensus core and `cluster serve` exposes its networked RequestVote/AppendEntries transport over loopback or a controlled routable bind (§3.5). The routable path requires `ABI_WDBX_CLUSTER_TOKEN` and can enforce `ABI_WDBX_CLUSTER_PEERS`, but it is still not a production deployment claim. `api serve` starts the loopback REST listener implemented in `rest.zig` (`POST /insert /query /verify`, `GET /health /stats`; §3.6/§4). **Native local-accelerator (CUDA/Vulkan/Metal-kernel/ANE) execution, production multi-host distributed deployment + sharding, a production/SOTA learned compression codec, and production-secure/bootstrapped FHE remain Proposed** (§2).
 
 ---
 
 ## 6. Benchmarks
 
-**Policy:** publish numbers only from a reproducible benchmark artifact checked into the repo and cited (per `docs/spec/multi-persona-technical.md` §8). The list below is *what to capture*, not measured claims.
+**Policy:** publish numbers only from a reproducible benchmark artifact checked into the repo and cited (per `docs/spec/multi-persona-technical.mdx` §8). The list below is *what to capture*, not measured claims.
 
 - Dimensions to track: insert latency, query latency, throughput, memory bandwidth, GPU utilization, ANE utilization.
 - Distribution metrics: P50 / P95 / P99.
@@ -155,7 +156,7 @@ wdbx api serve [port]                                   # loopback REST listener
 | **5** | Self-optimizing planner (adaptive backend + index selection). | Builds on dynamic backend selection + scheduler/metrics. |
 | **6** | Autonomous cognitive fabric: agents + personas operate over WDBX as shared substrate across hardware tiers. | Culmination; depends on all prior phases. |
 
-**Near-term execution order after Phase 1:** keep larger-store compaction, broader CLI semantic retrieval UX, and future transport/compute/security layers behind the existing contract discipline. Each step keeps mod/stub parity and passes `./build.sh check` before it is marked done in `tasks/todo.md` / `tasks/roadmap-next.md`.
+**Near-term execution order after Phase 1:** keep broader CLI semantic retrieval UX and future transport/compute/security layers behind the existing contract discipline. Each step keeps mod/stub parity and passes `./build.sh check` before it is marked done in `tasks/todo.md`.
 
 ---
 

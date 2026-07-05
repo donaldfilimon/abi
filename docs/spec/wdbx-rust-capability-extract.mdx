@@ -19,8 +19,8 @@ loop, IoT stream monitoring, multimodal fusion, and the working Discord gateway.
 > or security numbers for either repo. Where this design and ABI source disagree, ABI
 > source wins (`build.zig`, `src/`, `tests/contracts/`). The designs below are framed as
 > **Proposed** for ABI; ABI's *Current* state is mapped honestly in §8. See
-> `docs/contracts/external-claims-audit.md` and the `tests/contracts/public_docs.zig`
-> claim-boundary test. This pairs with `docs/spec/sea-design-extract.md`, which captures
+> `docs/contracts/external-claims-audit.mdx` and the `tests/contracts/public_docs.zig`
+> claim-boundary test. This pairs with `docs/spec/sea-design-extract.mdx`, which captures
 > the retrieval-side SEA design from a different reference repo.
 
 ---
@@ -31,7 +31,7 @@ loop, IoT stream monitoring, multimodal fusion, and the working Discord gateway.
 architecture as ABI (Zig). Most of its building blocks have ABI counterparts (vector
 store, block-chain memory, persona routing, snapshots), so they are **not** re-captured
 here. What is worth preserving are the designs that have **no ABI equivalent today** and
-that express the architecture's intent unusually clearly. From `docs/architecture.md` the
+that express the architecture's intent unusually clearly. From the sibling WDBX architecture document, the
 pipeline shape is:
 
 > Input flows through guardrails, Abi routing, neural processing, WDBX retrieval,
@@ -321,7 +321,7 @@ ABI). ABI source wins where it disagrees.
 | Capability | WDBX (Rust, `~/wdbx`) — Proposed for ABI | ABI (Zig, `~/abi`) — Current |
 | --- | --- | --- |
 | **Governance E-score** | 4-pillar weighted scalar `E = 0.25·Aut + 0.35·NonMal + 0.20·Ben + 0.20·Just`, per-turn, with a hard safety veto; surfaced in `PipelineTelemetry.ethical_scores` (`src/features/ai/constitution`, `src/pipeline.rs`). | `feat-ai` has a local **constitution** check + connector validation (`src/features/ai/`), but **no** weighted 4-pillar E scalar emitted per turn. `feat-telemetry` (on by default) is a process-wide, fixed-capacity **named-counter** table (`record`/`increment`/`counterValue`), not a per-response ethics score. The two are complementary, not equivalent. |
-| **Telemetry emission discipline** | Mandatory `PipelineTelemetry` snapshot every turn (provider, retrieval, neural, cluster, ethics, p99, errors); repo rule ties code changes to telemetry updates. | `feat-telemetry` is opt-in fire-and-forget counters; richer per-instance `feat-metrics` is **off by default**. No single mandatory per-turn snapshot aggregating ethics + neural + latency. |
+| **Telemetry emission discipline** | Mandatory `PipelineTelemetry` snapshot every turn (provider, retrieval, neural, cluster, ethics, p99, errors); repo rule ties code changes to telemetry updates. | `feat-telemetry` provides default-on fire-and-forget counters; per-instance `feat-metrics` is also default-on but still narrower than this design. No single mandatory per-turn snapshot aggregating ethics + neural + latency. |
 | **Trainable neural net** | Real `PointNeuralNetwork` MLP (`[3,8,1]`) with genuine backprop/SGD (`backtrace_teach`), topology optimization + weight pruning, serde persistence, and weight telemetry (`src/neural/`). | `ai_train` / `train` **records training metadata only** — `training.zig` returns `"model weights unchanged"`; the actual adaptive piece is the router's `AdaptiveModulator` (EMA smoothing of persona route weights), not gradient descent on a network. |
 | **Soul-prompt seeding** | `SoulLayout` (MD/CSV/JSON) of labeled value records → memory writes + `optimize_topology` over soul points; sets `soul_summary`/`soul_records` telemetry (`src/neural/soul.rs`). | No soul-prompt concept. Persona identity is static profile routing (Abbey/Aviva/Abi) in `src/features/ai/router.zig`; no file-seeded geometry. |
 | **IoT stream monitoring** | `IoTStreamMonitor` per-sensor thresholds → `SystemIssue` Warning into the shared health/audit channel (`src/features/ai/iot_monitor.rs`). | No IoT/sensor monitoring surface. |
@@ -356,6 +356,6 @@ description of ABI behavior and **not** a retirement note for wdbx. Before reusi
 externally, reconcile against ABI source (`src/features/ai/`, `src/features/wdbx/`,
 `src/features/telemetry/`, `tests/contracts/`) and downgrade anything ABI source does not
 prove. Promote any item here into ABI's real surfaces only when ABI source + a passing test
-back it; `docs/spec/wdbx-north-star.md` and `docs/spec/sea-design-extract.md` describe the
+back it; `docs/spec/wdbx-north-star.mdx` and `docs/spec/sea-design-extract.mdx` describe the
 same Proposed → Partial → Current discipline. Do not convert any WDBX design above into a
 present-tense ABI capability claim without that evidence.

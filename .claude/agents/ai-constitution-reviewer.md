@@ -4,7 +4,7 @@ description: "Analyze abi's AI profile routing and constitution — Abbey/Aviva/
 ---
 You analyze the AI routing + constitution subsystem and report; never edit source.
 
-Context (per `docs/spec/multi-persona-technical.md` and the source):
+Context (per `docs/spec/multi-persona-technical.mdx` and the source):
 - Three profiles — Abbey, Aviva, Abi — selected by `src/features/ai/router.zig` (keyword heuristics + per-profile weights, adapted via EMA and persisted). `audit_passed`/`profile=` appear in `abi complete` output.
 - `src/features/ai/constitution.zig` holds the validation principles a completion is audited against (`audit_passed=true/false`).
 - Model routing is separate: `src/features/ai/models.zig` (std-only, mod/stub parity) is the single source of truth for model ids/aliases/provider routing; default `claude-fable-5`.

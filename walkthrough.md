@@ -20,7 +20,7 @@ zig build test-integration
 zig build benchmarks
 ```
 
-Feature flags default to enabled except `feat-mobile` and `feat-metrics`; `feat-telemetry` is enabled by default. The check gate smoke-tests every feature-off stub and the real mobile module through `tools/check_feature_stubs.sh` using focused feature contracts plus feature-aware public contracts:
+All `-Dfeat-*` flags default to enabled in `build.zig`. The check gate smoke-tests every `src/features` feature-off stub, runs enabled SEA/metrics/mobile coverage, and compiles the FoundationModels connector-disabled path through `tools/check_feature_stubs.sh` using focused feature contracts plus feature-aware public contracts:
 
 ```bash
 ./build.sh check -Dfeat-tui=false
@@ -31,6 +31,7 @@ zig build test-feature-contracts -Dfeat-mobile=true
 zig build test-contracts -Dfeat-ai=false
 zig build test-contracts -Dfeat-wdbx=false
 zig build test-contracts -Dfeat-mobile=true
+zig build test-contracts -Dfeat-sea=true -Dfeat-metrics=true -Dfeat-mobile=true
 ```
 
 ## CLI Walkthrough
@@ -90,7 +91,8 @@ Operate the WDBX runtime control surface:
 ./zig-out/bin/abi wdbx api serve 8081
 ```
 
-`abi wdbx` is a local runtime/demo namespace. Snapshot, WAL, block, query, benchmark, GPU, and loopback REST paths operate local state; `cluster`, `compute`, and `secure` demonstrate in-process consensus, backend selection with CPU fallback, int8 quantization, and additive aggregation. They do not prove distributed clustering, native NPU/TPU execution, learned compression, or full homomorphic encryption.
+`abi wdbx` is a local runtime/demo namespace. Snapshot, WAL, block, query, benchmark, GPU, and loopback REST paths operate local state; `cluster`, `compute`, and `secure` demonstrate in-process consensus, backend selection with CPU fallback, int8 quantization, and additive aggregation. `abi wdbx cluster serve <port> [node] [host]` serves the TCP consensus RPC; non-loopback binds require `ABI_WDBX_CLUSTER_TOKEN`, and `ABI_WDBX_CLUSTER_PEERS=0,1,2` optionally limits accepted vote candidates / append leaders. These controls do not prove production distributed clustering, TLS/mTLS, deployment orchestration, sharding, native NPU/TPU execution, learned compression, or full homomorphic encryption.
+Use `abi wdbx db compact <path> [keep]` to bound segment-checkpoint growth by retaining the newest checkpoints while preserving the latest recovery baseline.
 
 ## GPU Backend
 

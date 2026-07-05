@@ -1,6 +1,6 @@
 # TODO — ABI Framework
 
-Forward-looking tracker for **incomplete and in-flight** work. Completed history is **not** kept here — it lives in `git log` and `CHANGELOG.md`. The lightweight active board is `TASKS.md`; long-horizon direction is `docs/spec/wdbx-north-star.md` (§2/§8 Current/Partial/Proposed mapping) and `tasks/roadmap-next.md`.
+Forward-looking tracker for **incomplete and in-flight** work. Completed history is **not** kept here — it lives in `git log` and `CHANGELOG.md`. This file is the lightweight active board; long-horizon direction is `docs/spec/wdbx-north-star.mdx` (§2/§8 Current/Partial/Proposed mapping).
 
 Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Blocked` · `◑ Partial / disclosed`
 
@@ -12,7 +12,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ### Honest stubs — keep disclosed, do NOT fake-complete
 
-These ship real local artifacts but truthfully disclose that native/external dispatch is not linked. "Completing" them with simulated capability would violate `docs/contracts/external-claims-audit.md`. Leave as-is unless wiring genuine native dispatch/toolchains.
+These ship real local artifacts but truthfully disclose that native/external dispatch is not linked. "Completing" them with simulated capability would violate `docs/contracts/external-claims-audit.mdx`. Leave as-is unless wiring genuine native dispatch/toolchains.
 
 | Item | Status | Constraint |
 | ---- | ------ | ---------- |
@@ -29,14 +29,15 @@ These ship real local artifacts but truthfully disclose that native/external dis
 | Production/SOTA learned compression codec | ◑ Partial / disclosed | Exact order-0 Huffman entropy (`entropy.zig`), int8 embedding quantization, and the reference `neural_compress.zig` autoencoder exist; no ANS/arithmetic/context-model or production-scale learned codec is proven. |
 | Security-audited FHE | ⚪ Not started | `fhe.zig` (DGHV; chained multiplicative depth 3 tested) is reference-parameter, bounded-depth, **not** audited. |
 | Non-loopback REST hardening | ◑ Partial / disclosed | `rest.zig` remains 127.0.0.1-only and can require `Authorization: Bearer` via `ABI_WDBX_REST_TOKEN`; external exposure still needs TLS, rate limiting, authz, and threat review. |
-| Multi-host cluster | ◑ Loopback-tested | `cluster_rpc.zig` runs real TCP Raft over 127.0.0.1; multi-host needs a routable bind + ops story. |
+| Multi-host cluster | ◑ Authenticated routable bind supported / ops story missing | `cluster_rpc.zig` runs real TCP Raft; `cluster serve <port> [node] [host]` can bind a routable host only when `ABI_WDBX_CLUSTER_TOKEN` is set, and `ABI_WDBX_CLUSTER_PEERS` can limit accepted node ids. Multi-host production still needs TLS/mTLS or a fronting network policy, deployment controls, dynamic membership, and sharding. |
 
 ### Candidate next slices (real remaining work)
 
 | Item | Status | Notes |
 | ---- | ------ | ----- |
 | Broader native/batched GPU acceleration | 🟡 In progress | HNSW pairwise + neighbor-expansion batch scoring route through `gpu.vectorOps()` with SIMD fallback. AI completion/SEA paths delegate similarity to `store.search` (already GPU-routed), so the remaining expansion is native kernel dispatch — the deferred 100%-Zig-constraint item, not a completable gap. |
-| Cross-compilation CI | ✅ Matrix added | `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` (linux-gnu/windows-gnu/aarch64-macos). Remaining (out of scope from a macOS host): Windows runtime verification + Windows test-only helpers (`/tmp`, `std.c.getpid`). |
+| Module declaration coverage cleanup | ⚪ Not started | Whole-tree Zig review found build-covered helper/plugin files without local `std.testing.refAllDecls(@This())` coverage. Triage intentional exemptions (`src/main.zig`, generated `src/plugin_registry.zig`, plugin entry stubs) vs add minimal local test blocks to small modules such as `src/cli/usage.zig`, connector façades, and MCP/server helpers. |
+| Windows runtime verification for cross builds | ⚪ Not started | `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` (linux-gnu/windows-gnu/aarch64-macos). Remaining (out of scope from a macOS host): actual Windows runtime verification + Windows test-only helper cleanup (`/tmp`, `std.c.getpid`). |
 
 ---
 
@@ -47,13 +48,13 @@ These are decisions, not unfinished work — do not "fix" them.
 - **ANE execution** requires CoreML/ObjC + on-device profiling; excluded by the 100% Zig constraint (user-accepted). Detection (`compute.aneHardwarePresent()`) is truthful; dispatch is not linked.
 - **`rest.zig` ↔ `src/mcp/server.zig` HTTP-framing duplication is intentional.** `src/mcp/` is its own module root and cannot import a shared `src/foundation/` leaf (confirmed by compile error). See memory `mcp-module-root-isolation`.
 - **`origin/main` shares no common ancestor** with local `main` (different roots). Never force-push to reconcile. See memory `origin-main-unrelated-history`.
-- **External-claims policy** (`docs/contracts/external-claims-audit.md`): no unbacked sharding/AES/RBAC/cert/QPS/latency/accuracy claims; frame unproven metrics as targets.
+- **External-claims policy** (`docs/contracts/external-claims-audit.mdx`): no unbacked sharding/AES/RBAC/cert/QPS/latency/accuracy claims; frame unproven metrics as targets.
 
 ---
 
 ## Known test failures
 
-- None currently reproduced. `./build.sh check` (36/36, ~1042 tests) and `./build.sh full-check` green at HEAD.
+- None currently reproduced. Latest review gates: all 196 `*.zig` files pass standalone `zig ast-check`; `zig build lint --summary all` passes; `zig-newest-skills` passes on Zig master `0.17.0-dev.1252+e4b325c19`; `./build.sh check` passes (37/37 steps). `./build.sh full-check` is the required broader release/readiness gate when needed.
 
 ---
 
@@ -67,17 +68,18 @@ One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`
 - **MCP/REST loopback auth hardening** — optional bearer-token enforcement added for MCP HTTP/SSE (`ABI_MCP_HTTP_TOKEN`) and WDBX REST (`ABI_WDBX_REST_TOKEN`); still not a production non-loopback exposure claim without TLS/authz/rate-limit review.
 - **WDBX/SEA correctness** — WAL double-free guards on `putVector`/`store`; `remote_compute` overflow guard; corrupt-manifest rejection; SEA persist→recall round-trip + evidence-recall coverage.
 - **WDBX perf** — redundant work removed from HNSW/WAL/block-chain hot paths.
+- **WDBX segment compaction** — `abi wdbx db compact <path> [keep]` now retains the newest segment checkpoints and reclaims older manifest-listed checkpoints while preserving recovery.
 - **WDBX compression** — exact order-0 Huffman entropy codec added beside int8 embedding quantization and the reference autoencoder; still no SOTA/production learned-compression claim.
 - **Build/parity** — `check-parity` now fails on a `mod.zig` leaf missing its `stub.zig`.
 - **AI training observability** — `training_support.inspectDatasetTracked` routes dataset path/read/JSONL parse allocations through `MemoryTracker`, and `trainWithStore` now falls back to the attached store tracker for the initial training phase.
 - **WDBX north-star Phase 1 + V18 cognitive runtime** — WAL+recovery, multi-segment checkpoints, temporal/causal hybrid ranker, persona-scoped retrieval, P50/P95/P99 benchmarks, loopback REST, in-process consensus/compression/FHE demos. (10/11 V18 criteria; ANE execution is the disclosed non-goal.)
+- **Whole-tree Zig hygiene review** — all 196 `.zig` files pass standalone `zig ast-check`; fixed the standalone `example-plugin` stub unused-parameter failure and corrected the linked `.agents` `zig-newest-skills` driver path.
+- **Cross-compilation CI** — `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` across linux-gnu/windows-gnu/aarch64-macos compile/link targets; Windows runtime execution remains an open verification item above.
 
 ---
 
 ## References
 
-- `docs/spec/wdbx-north-star.md` — Current/Partial/Proposed capability mapping
-- `tasks/roadmap-next.md` — full refreshed roadmap view
-- `tasks/scheduler-memory-wireup.md` — scheduler/memory integration detail
-- `docs/contracts/external-claims-audit.md` — what public docs may and may not claim
+- `docs/spec/wdbx-north-star.mdx` — Current/Partial/Proposed capability mapping
+- `docs/contracts/external-claims-audit.mdx` — what public docs may and may not claim
 - `CHANGELOG.md` — release-note record of landed changes

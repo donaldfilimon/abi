@@ -133,8 +133,10 @@ The frozen top-level CLI commands are:
 - `tui`
 - `dashboard`
 - `wdbx`
+- `scheduler`
+- `nn`
 
-The `abi --tui` shortcut is handled separately by `src/main.zig`. `abi wdbx` is a WDBX runtime control surface (snapshot/WAL `db`/`block`/`query`, local `benchmark`, `gpu` info, and honest in-process `cluster`/`compute`/`secure` demonstrations); it does not introduce distributed, native-accelerator, or production-database claims (see `docs/spec/wdbx-north-star.md`).
+The `abi --tui` shortcut is handled separately by `src/main.zig`. `abi scheduler status` is a one-shot scheduler probe, and `abi nn` is a miniature char-level demo trainer, not a production LLM or distributed training surface. `abi wdbx` is a WDBX runtime control surface (snapshot/WAL `db`/`block`/`query`, local `benchmark`, `gpu` info, and honest in-process `cluster`/`compute`/`secure` demonstrations); it does not introduce distributed, native-accelerator, or production-database claims (see `docs/spec/wdbx-north-star.mdx`).
 
 ### MCP
 
@@ -142,6 +144,7 @@ The MCP server exposes JSON-RPC 2.0 over stdio with optional loopback HTTP/SSE. 
 
 - `ai_run`
 - `ai_complete`
+- `ai_learn`
 - `ai_train`
 - `wdbx_query`
 - `scheduler_stats`
@@ -192,4 +195,4 @@ Before publishing technical collateral based on ABI, verify that it does not ass
 - production QPS, latency, availability, accuracy, cache-hit, utilization, or energy metrics;
 - comparative model benchmark scores.
 
-Use `docs/contracts/external-claims-audit.md` and `docs/contracts/public-api.md` as the public claim boundary.
+Use `docs/contracts/external-claims-audit.mdx` and `docs/contracts/public-api.mdx` as the public claim boundary.
