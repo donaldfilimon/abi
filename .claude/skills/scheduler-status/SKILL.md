@@ -41,5 +41,5 @@ Prints `RESULT: PASS` (exit 0) or `RESULT: FAIL` with the missing assertion (exi
 | `usage: abi scheduler status` | You used `stats`/`info`/bare `scheduler`; the CLI word is `status`. |
 | `completed=0` / `total_tasks=0` | The probe task didn't run — inspect `src/core/scheduler.zig`; use the `scheduler-memory-auditor` subagent to audit submission/completion accounting. |
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — one probe task
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — one probe task
 submitted and completed, telemetry block emitted, `stats`/`info` correctly rejected.

@@ -151,6 +151,10 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
         var repl = abi.features.tui.ReplLoop.init(allocator, store, &sched, .{});
         defer repl.deinit();
         repl.run(io) catch |err| {
+            if (err == error.FeatureDisabled) {
+                std.debug.print("error: TUI feature is disabled in this build; rebuild without -Dfeat-tui=false to use `abi agent tui`\n", .{});
+                return 1;
+            }
             std.debug.print("error: interactive REPL failed: {s}\n", .{@errorName(err)});
             return 1;
         };

@@ -22,7 +22,7 @@ is the `RESULT:` line. Fully local, no network.
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count.
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — plan selects a
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — plan selects a
 profile and returns a dry-run response; `agent train abbey` runs real scheduler
 tasks and records training metadata in WDBX.
 

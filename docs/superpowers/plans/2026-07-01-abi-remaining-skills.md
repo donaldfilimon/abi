@@ -2,6 +2,12 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Current status (2026-07-05):** This historical plan has been implemented and
+> superseded by repo-local skills mirrored under `.agents/skills/` and
+> `.claude/skills/`: `run-tui`, `dashboard-smoke`, `wdbx-api-serve`,
+> `wdbx-cluster-serve`, and related validation skills. Treat the checklist below
+> as implementation history, not open work; the active board is `tasks/todo.md`.
+
 **Goal:** Add the remaining meaningful `.claude/skills/` for abi — the interactive TUI/dashboard and the long-running WDBX servers — the surfaces the existing 17 skills do not yet cover.
 
 **Architecture:** Each skill is a directory under `.claude/skills/<name>/` with a `SKILL.md` (man page) and an executable driver script in the established house style. The two new surfaces need driver shapes the existing skills don't use: a **tmux pty wrapper** for the interactive dashboard, and a **background-launch + `curl` poll** for the REST/cluster servers. Every driver must be *run to green this session* before its SKILL.md is written.
@@ -10,13 +16,13 @@
 
 ## Global Constraints
 
-- Toolchain: builds with the `zig` on PATH; project pins `0.17.0-dev.978+a078d55a2`, also compiles on master `0.17.0-dev.1099`. Do not switch the pin.
+- Toolchain: builds with the `zig` on PATH; project pins `0.17.0-dev.978+a078d55a2` and is periodically checked against newer Zig master builds. Do not switch the pin without an explicit toolchain task.
 - House driver style (copy verbatim from `.claude/skills/wdbx-bench/bench.sh`): `set -uo pipefail`; resolve `REPO_ROOT` from `${BASH_SOURCE[0]}` via `../../..`; `cd "$REPO_ROOT"`; `ABI="$REPO_ROOT/zig-out/bin/abi"`; `say()` + a marker-check helper; `fail` counter; final `RESULT: PASS`/`RESULT: FAIL — N check(s).`; `exit "$fail"`.
 - Build step in every driver: `./build.sh cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }`.
 - Skill dir name == frontmatter `name:` == slash command. Descriptions must contain the verbs an agent types (run/start/build/smoke-test/screenshot).
 - Non-destructive: never store/delete real credentials, never bind non-loopback, always kill launched servers/sessions on exit, use scratch paths under `zig-out/`.
-- After adding a skill, append it to the CLAUDE.md "Project Skills" list (keep it accurate).
-- Commit locally per skill with the standard `Co-Authored-By: Claude Opus 4.8 (1M context)` + `Claude-Session:` trailers. Do not push unless asked.
+- After adding a skill, keep `.agents/skills/`, `.claude/skills/`, and the root guidance files synchronized where applicable.
+- Do not commit or push unless the user explicitly asks in the current task context.
 
 ---
 
@@ -33,10 +39,10 @@ The interactive dashboard path needs a real TTY to exercise the live refresh loo
 - Consumes: `zig-out/bin/abi` (built by the driver).
 - Produces: nothing importable — a driver + man page.
 
-- [ ] **Step 1: Discover the real render markers and quit key.**
+- [x] **Step 1: Discover the real render markers and quit key.**
   Read `src/features/tui/dashboard.zig` and `src/features/tui/mod.zig` to find (a) the stable header/label strings the dashboard prints on first paint, and (b) the key that quits (look for the input-handling switch — e.g. `'q'`). You will assert on a header string you can *see*, not one you guessed.
 
-- [ ] **Step 2: Prove the pty launch by hand first.**
+- [x] **Step 2: Prove the pty launch by hand first.**
   Run:
   ```bash
   ./build.sh cli >/dev/null 2>&1
@@ -50,7 +56,7 @@ The interactive dashboard path needs a real TTY to exercise the live refresh loo
   ```
   Expected: the captured pane shows the dashboard and no terminal-error trace. Record one stable line from the pane as `DASH_MARKER`.
 
-- [ ] **Step 3: Write the driver `tui.sh`.**
+- [x] **Step 3: Write the driver `tui.sh`.**
   House style + tmux. Skeleton (fill `DASH_MARKER` with the string observed in Step 2):
   ```bash
   #!/usr/bin/env bash
@@ -89,14 +95,14 @@ The interactive dashboard path needs a real TTY to exercise the live refresh loo
   exit "$fail"
   ```
 
-- [ ] **Step 4: Run the driver and confirm PASS.**
+- [x] **Step 4: Run the driver and confirm PASS.**
   Run: `chmod +x .claude/skills/run-tui/tui.sh && .claude/skills/run-tui/tui.sh`
   Expected: `RESULT: PASS — TUI dashboard painted under pty.` and exit 0. If it shows a terminal error, confirm you launched via `tmux new-session` and that `-x/-y` give a large enough pane.
 
-- [ ] **Step 5: Write `SKILL.md`.**
+- [x] **Step 5: Write `SKILL.md`.**
   Frontmatter `name: run-tui`; description with verbs: "run/launch/screenshot the abi diagnostics TUI/dashboard under a tmux pty." Body: intro (interactive, pty-driven), Run (agent path) pointing at `tui.sh`, the verified-this-session PASS line, Gotchas (needs `tmux`; piped stdin takes the one-shot fallback; `dashboard`/`--tui` are the same surface), Troubleshooting (tmux missing → `brew install tmux`; blank pane → increase `sleep`/pane size). Cross-ref the `tui-navigation-guide` subagent for source-level questions.
 
-- [ ] **Step 6: Update CLAUDE.md and commit.**
+- [x] **Step 6: Update CLAUDE.md.** Historical commit instructions below are superseded by the current user/session commit policy.
   Append `` `run-tui` (interactive dashboard via tmux pty) `` to the Project Skills list.
   ```bash
   git add .claude/skills/run-tui CLAUDE.md
@@ -118,10 +124,10 @@ The interactive dashboard path needs a real TTY to exercise the live refresh loo
 - Consumes: `zig-out/bin/abi`.
 - Produces: a driver + man page.
 
-- [ ] **Step 1: Discover the REST surface.**
+- [x] **Step 1: Discover the REST surface.**
   Read `src/features/wdbx/rest.zig` (and `net_line.zig`) to find the exact route path(s) and a response marker (e.g. a JSON field), the default port, and how `ABI_WDBX_REST_TOKEN` gates requests (expected 401/unauthorized without the bearer). Record the endpoint path as `ROUTE` and an expected body marker as `BODY_MARKER`.
 
-- [ ] **Step 2: Prove the launch by hand.**
+- [x] **Step 2: Prove the launch by hand.**
   ```bash
   ./build.sh cli >/dev/null 2>&1
   PORT=8091
@@ -132,30 +138,30 @@ The interactive dashboard path needs a real TTY to exercise the live refresh loo
   ```
   Expected: the endpoint returns the `BODY_MARKER`. Note the no-token HTTP code (to decide token-enforcement assertion in Step 3).
 
-- [ ] **Step 3: Write the driver `serve.sh`** in house style: build; pick a scratch port (default `8091`, overridable `$1`); launch `abi wdbx api serve "$PORT" &` capturing the PID; poll `curl -sf` up to ~6s; assert the `ROUTE` returns `BODY_MARKER`; then export `ABI_WDBX_REST_TOKEN=probe-token`, restart the server, and assert an unauthenticated request is rejected while a `-H "Authorization: Bearer probe-token"` request succeeds; always `kill "$PID"` in an `EXIT` trap; print the `RESULT:` line. (Bind loopback only; never expose externally.)
+- [x] **Step 3: Write the driver `serve.sh`** in house style: build; pick a scratch port (default `8091`, overridable `$1`); launch `abi wdbx api serve "$PORT" &` capturing the PID; poll `curl -sf` up to ~6s; assert the `ROUTE` returns `BODY_MARKER`; then export `ABI_WDBX_REST_TOKEN=probe-token`, restart the server, and assert an unauthenticated request is rejected while a `-H "Authorization: Bearer probe-token"` request succeeds; always `kill "$PID"` in an `EXIT` trap; print the `RESULT:` line. (Bind loopback only; never expose externally.)
 
-- [ ] **Step 4: Run the driver and confirm PASS.**
+- [x] **Step 4: Run the driver and confirm PASS.**
   Run: `chmod +x .claude/skills/wdbx-api-serve/serve.sh && .claude/skills/wdbx-api-serve/serve.sh`
   Expected: `RESULT: PASS` and exit 0, with the server killed (no lingering process: `pgrep -f 'abi wdbx api serve'` returns nothing).
 
-- [ ] **Step 5: Write `SKILL.md`** — verbs: "run/start/serve/smoke-test the WDBX REST API." Gotchas: loopback-only, `ABI_WDBX_REST_TOKEN` bearer scheme (not a TLS substitute), the driver kills the server on exit, choose a free port. Cross-ref `wdbx-explorer` subagent.
+- [x] **Step 5: Write `SKILL.md`** — verbs: "run/start/serve/smoke-test the WDBX REST API." Gotchas: loopback-only, `ABI_WDBX_REST_TOKEN` bearer scheme (not a TLS substitute), the driver kills the server on exit, choose a free port. Cross-ref `wdbx-explorer` subagent.
 
-- [ ] **Step 6: Update CLAUDE.md and commit** (`feat(skills): add wdbx-api-serve (REST server smoke)`).
+- [x] **Step 6: Update CLAUDE.md.** Historical commit instructions are superseded by the current user/session commit policy.
 
 ---
 
-### Task 3 (optional): `wdbx-cluster-serve` — networked cluster node
+### Task 3: `wdbx-cluster-serve` — networked cluster node
 
-`abi wdbx cluster serve <port> [node] [host]` starts a networked cluster node (distinct from the in-process `cluster demo` that `cluster-demo-guide` covers). Only build this if Task 2's server pattern generalizes cleanly.
+`abi wdbx cluster serve <port> [node] [host]` starts a networked cluster node (distinct from the in-process `cluster demo` that `cluster-demo-guide` covers). This skill now exists in both `.agents/skills/` and `.claude/skills/`.
 
 **Files:** `.claude/skills/wdbx-cluster-serve/cluster-serve.sh`, `.claude/skills/wdbx-cluster-serve/SKILL.md`, `CLAUDE.md`.
 
-- [ ] **Step 1:** Read `src/features/wdbx/` cluster serve path for the listen marker + readiness signal.
-- [ ] **Step 2:** Prove: launch `abi wdbx cluster serve 8092 &`, poll for the listen marker on stdout/stderr or a port probe (`nc -z 127.0.0.1 8092`), then kill.
-- [ ] **Step 3:** Driver in house style, background-launch + readiness poll + assert listen marker + `EXIT`-trap kill.
-- [ ] **Step 4:** Run → `RESULT: PASS`, no lingering process.
-- [ ] **Step 5:** SKILL.md (verbs: run/start/serve the WDBX cluster node; loopback-only; killed on exit).
-- [ ] **Step 6:** Update CLAUDE.md, commit.
+- [x] **Step 1:** Read `src/features/wdbx/` cluster serve path for the listen marker + readiness signal.
+- [x] **Step 2:** Prove: launch `abi wdbx cluster serve 8092 &`, poll for the listen marker on stdout/stderr or a port probe (`nc -z 127.0.0.1 8092`), then kill.
+- [x] **Step 3:** Driver in house style, background-launch + readiness poll + assert listen marker + `EXIT`-trap kill.
+- [x] **Step 4:** Run → `RESULT: PASS`, no lingering process.
+- [x] **Step 5:** SKILL.md (verbs: run/start/serve the WDBX cluster node; loopback-only; killed on exit).
+- [x] **Step 6:** Update CLAUDE.md. Historical commit instructions are superseded by the current user/session commit policy.
 
 ---
 

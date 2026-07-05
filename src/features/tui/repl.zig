@@ -27,7 +27,6 @@ const RAW_LINE_BUF_BYTES = 4096;
 
 pub const ReplConfig = struct {
     model: []const u8 = models.default_model,
-    max_tokens: u32 = 512,
     store_turns: bool = true,
     prompt_prefix: []const u8 = "> ",
 };
@@ -229,7 +228,7 @@ pub const ReplLoop = struct {
             return .keep_going;
         }
 
-        var result = try ai.completeWithStore(self.allocator, self.store, .{
+        var result = try ai.completeWithScheduler(self.allocator, self.store, self.scheduler, "complete:agent-tui", .{
             .input = line,
             .model = self.state.config.model,
             .store_result = self.state.config.store_turns,
@@ -326,7 +325,6 @@ test "ReplState init seeds defaults and a session id" {
     const state = ReplState.init(.{});
     try std.testing.expectEqual(@as(usize, 0), state.turn_count);
     try std.testing.expectEqualStrings(models.default_model, state.config.model);
-    try std.testing.expectEqual(@as(u32, 512), state.config.max_tokens);
     try std.testing.expect(state.session_id > 0);
 }
 

@@ -6,7 +6,7 @@ ABI is a **Zig 0.17.0-dev** framework for local AI service orchestration, semant
 ```bash
 zig version             # Confirm the pinned Zig 0.17.0-dev.978+a078d55a2 toolchain (see .zigversion)
 ./build.sh check        # Primary validation gate on macOS/Darwin
-./build.sh full-check   # Check + integration tests + benchmarks + TUI smoke
+./build.sh full-check   # Check + integration tests + benchmarks + dashboard/agent TUI smoke
 ./build.sh cli          # Build zig-out/bin/abi
 ./build.sh mcp          # Build zig-out/bin/abi-mcp
 ```
@@ -45,7 +45,7 @@ For MCP smoke testing, build the server and call the same contract tools through
 ./zig-out/bin/abi-mcp stdio
 ```
 
-Contract-covered MCP tool names include `ai_complete`, `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `gpu_status`, `connector_test`, `plugin_list`, `plugin_run`, and `wdbx_stats`. `wdbx_query` returns a local hybrid-ranked match when WDBX is enabled; `connector_test` uses deterministic local connector paths and does not perform live network dispatch.
+Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, and `plugin_run`. `wdbx_query` returns a local hybrid-ranked match when WDBX is enabled; `connector_test` uses deterministic local connector paths and does not perform live network dispatch.
 
 ## Current Status
 
@@ -53,7 +53,7 @@ Contract-covered MCP tool names include `ai_complete`, `ai_train`, `wdbx_query`,
 - Core feature modules and MCP transport have contract coverage; MCP HTTP can use `ABI_MCP_HTTP_PORT` when `127.0.0.1:8080` is occupied.
 - Documentation: `CLAUDE.md`, `GEMINI.md`, and `AGENTS.md` describe the 0.17+ development lifecycle.
 - Build: `./build.sh check` builds CLI/MCP, runs module tests, connector tests, contract tests, focused feature-off contracts, feature-aware public contracts for every `-Dfeat-*` stub, linting, and validates mod/stub parity.
-- Full validation: `./build.sh full-check` executes all integration tests, benchmarks, and TUI smoke.
+- Full validation: `./build.sh full-check` executes all integration tests, benchmarks, dashboard smoke, and `agent tui` line-mode smoke.
 - GPU/modules: all feature modules keep real/stub parity; GPU status and vector operations fall back deterministically to CPU when native kernels are unavailable.
 - Plugins: `tools/generate_plugin_registry.zig` automatically maintains `src/plugin_registry.zig` from bundled `abi-plugin.json` manifests, with multi-plugin metadata coverage for `name`, `version`, `description`, `target_feature`, and safe relative `.zig` `entry_point` paths. The generator and plugin manager accept `targetFeature` / `entryPoint` aliases and require entry files to exist under the plugin directory.
 - AI/WDBX: API callers opt into persistence with `CompletionRequest.store_result=true`; CLI/MCP completion uses WDBX stores for query/response vectors, metadata, and block-chain entries when WDBX is enabled. Scheduler-backed completion, training, and agent helpers expose live task/memory observability.

@@ -8,7 +8,6 @@ const scheduler_mod = @import("../../core/scheduler.zig");
 /// `error.FeatureDisabled`.
 pub const ReplConfig = struct {
     model: []const u8 = "abi-local",
-    max_tokens: u32 = 512,
     store_turns: bool = true,
     prompt_prefix: []const u8 = "> ",
 };

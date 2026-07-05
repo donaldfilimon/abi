@@ -52,6 +52,6 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./zig-out/bin/a
 | got 13 tools | You counted bare `"name":`; count `"name":"…"` values or use `jq` (see Gotchas). |
 | tool set mismatch | A tool was added/removed/renamed — reconcile `src/mcp/handlers.zig` with the frozen list in CLAUDE.md and `tests/contracts/surface.zig`, then run `zig build test-mcp-contracts`. |
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — `tools/list` over
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — `tools/list` over
 stdio returns exactly the 12 frozen tools. For source-level MCP contract review use
 the `mcp-contract-auditor` subagent; for transport tests run `zig build test-mcp-server`.

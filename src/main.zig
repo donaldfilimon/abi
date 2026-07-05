@@ -3,6 +3,7 @@
 const std = @import("std");
 const dispatch_mod = @import("cli/dispatch.zig");
 const handlers = @import("cli/handlers/mod.zig");
+const usage_mod = @import("cli/usage.zig");
 const env = @import("foundation/env.zig");
 
 pub fn main(init: std.process.Init) !void {
@@ -13,6 +14,7 @@ pub fn main(init: std.process.Init) !void {
 
     if (args.len >= 2) {
         if (std.mem.eql(u8, args[1], "--tui")) {
+            if (args.len != 2) std.process.exit(usage_mod.usageError("usage: abi --tui"));
             _ = try handlers.renderTui(allocator);
             return;
         }

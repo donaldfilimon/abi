@@ -23,7 +23,7 @@ Steps and asserted markers:
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count.
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — insert appends a
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — insert appends a
 hashed block, query reports `blocks:1`, verify confirms `chain_valid=true` and
 `WAL OK`.
 

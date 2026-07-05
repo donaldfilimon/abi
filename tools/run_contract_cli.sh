@@ -46,6 +46,17 @@ require_substring "$scheduler_out" "scheduler status"
 require_substring "$scheduler_out" "source=cli-scheduler-status"
 require_substring "$scheduler_out" "completed=1"
 
+set +e
+tui_extra_out="$("$ABI" --tui extra 2>&1)"
+tui_extra_rc=$?
+set -e
+if [[ "$tui_extra_rc" -ne 2 ]]; then
+  echo "expected 'abi --tui extra' to exit 2, got $tui_extra_rc" >&2
+  echo "$tui_extra_out" >&2
+  exit 1
+fi
+require_substring "$tui_extra_out" "usage: abi --tui"
+
 # `abi nn` is the miniature character-level demo trainer. Assert the honest
 # help framing and a real inline training run (stable label substrings only,
 # never float loss values).

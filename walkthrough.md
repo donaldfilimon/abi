@@ -176,7 +176,7 @@ Run these before considering the branch complete:
 zig build test --summary all
 zig build check-parity
 ./build.sh check
-./build.sh full-check   # check + integration tests + benchmarks + TUI smoke
+./build.sh full-check   # check + integration tests + benchmarks + dashboard/agent TUI smoke
 zig build test-integration
 ```
 

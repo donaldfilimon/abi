@@ -27,7 +27,7 @@ It builds the CLI, runs `abi complete --learn "<input>"`, and asserts the
 markers `learn=true`, `model=`, `evidence_count=` (plus a soft `persisted=true`
 check). Prints `RESULT: PASS — SEA learn loop ran.` (exit 0) or a FAIL count.
 
-Verified this session (feat-sea off): **PASS** — `model=claude-fable-5 …
+Historical verification (feat-sea off): **PASS** — `model=claude-fable-5 …
 learn=true evidence_count=0 adapted=false`, store reported `kv_entries=2
 vectors=4 blocks=2`, on Zig master `0.17.0-dev.1099`.
 

@@ -23,7 +23,7 @@ Fully local, loopback only.
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count. Both servers are killed on exit.
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — REST endpoints
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — REST endpoints
 `/insert /query /verify /health /stats` listen on loopback; auth off by default;
 bearer enforcement is exactly 401/401/200.
 

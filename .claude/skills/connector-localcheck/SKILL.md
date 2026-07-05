@@ -18,7 +18,7 @@ Builds the CLI, runs `abi twilio simulate "<utterance>"` (asserts
 `abi auth status` (asserts `Authentication Status:`). Prints `RESULT: PASS`
 (exit 0) or a FAIL count.
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — local Twilio
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — local Twilio
 sim responds + reports `escalation: false`; auth status lists all providers.
 
 ## Gotchas

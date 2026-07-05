@@ -16,7 +16,7 @@ Builds the CLI, runs `abi wdbx secure demo`, and asserts `compression:`,
 `additive HE:`, `homomorphic eval:`, and `match=true`. Prints `RESULT: PASS`
 (exit 0) or a FAIL count.
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — int8 ratio≈3.76x
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — int8 ratio≈3.76x
 (max_error≈0.0039), additive HE sum decrypts correctly, DGHV `(1 AND 1) XOR 0`→1.
 
 ## Gotchas

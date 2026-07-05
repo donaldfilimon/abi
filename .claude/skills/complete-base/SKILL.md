@@ -21,7 +21,7 @@ Evidence is the `RESULT:` line. Fully local, no network.
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count.
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — base completion
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — base completion
 routes to `model=claude-fable-5`, passes the constitution audit, and persists the
 completion (query/response vectors + block) to WDBX.
 

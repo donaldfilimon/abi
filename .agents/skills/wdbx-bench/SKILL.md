@@ -23,7 +23,7 @@ It builds the CLI, runs `abi wdbx benchmark <count>`, and asserts the markers
 `benchmark (local, in-memory`, `inserts:`, `searches:`. Prints
 `RESULT: PASS — WDBX benchmark ran.` (exit 0) or `RESULT: FAIL — N check(s) failed.`
 
-Verified this session: **PASS** — e.g. `inserts: 50 …` / `searches: 50 …` with
+Historical verification: **PASS** — e.g. `inserts: 50 …` / `searches: 50 …` with
 p50/p95/p99 lines, on Zig master `0.17.0-dev.1099`.
 
 ## Gotchas

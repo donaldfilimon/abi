@@ -23,7 +23,7 @@ Welcome to the ABI framework documentation. This hub provides central access to 
 - [README.md](../README.md) for quick-start commands and current validation status.
 - [walkthrough.md](../walkthrough.md) for CLI, MCP, GPU, TUI, and verification examples.
 
-On macOS/Darwin, prefer `./build.sh ...` for project validation even when plain `zig build` works locally. Use `./build.sh full-check` for the complete local gate: `check`, integration tests, benchmarks, and TUI smoke.
+On macOS/Darwin, prefer `./build.sh ...` for project validation even when plain `zig build` works locally. Use `./build.sh full-check` for the complete local gate: `check`, integration tests, benchmarks, dashboard smoke, and `agent tui` line-mode smoke.
 
 Key executable contracts live in `tests/contracts/` and cover root/feature namespaces, CLI/MCP surfaces, MCP tool result shapes, generated multi-plugin registry metadata, public-doc claim boundaries, and WDBX search/block snapshot behavior. `tools/check_feature_stubs.sh` covers every feature-off stub with focused feature contracts, feature-aware public contracts, and real-mobile smoke coverage.
 

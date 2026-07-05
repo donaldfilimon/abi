@@ -19,7 +19,7 @@ Builds the CLI and exercises only the safe auth surfaces. Evidence is the
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count.
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — status lists all
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — status lists all
 five providers as `not configured`; bare `signin` prints its usage banner.
 
 ## Gotchas

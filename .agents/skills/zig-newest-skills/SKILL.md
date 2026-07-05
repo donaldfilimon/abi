@@ -33,7 +33,7 @@ What it does, cheapest gate first: `zvm use master` → `zig build check-parity`
 `RESULT: PASS — abi builds + runs on the newest Zig master.` (exit 0) or
 `RESULT: FAIL — master drift broke N gate(s).` (exit N).
 
-Verified this session on master `0.17.0-dev.1099+7db2ef610` (pin is `978`):
+Historical verification on master `0.17.0-dev.1099+7db2ef610` (pin is `978`):
 **PASS, 0 failed gates.**
 
 Flags:
@@ -46,7 +46,7 @@ Flags:
 
 `--smoke` chains the sibling `run-abi/smoke.sh` harness (13 checks: CLI
 subcommands, a WDBX round-trip, and JSON-RPC over the MCP stdio transport).
-Verified this session: `pass=13 fail=0 / SMOKE OK`.
+Historical verification: `pass=13 fail=0 / SMOKE OK`.
 
 ## Run (human path)
 

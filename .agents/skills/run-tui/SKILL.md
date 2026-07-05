@@ -27,7 +27,7 @@ and there's **no** `errno 19`/`tcgetattr`/panic. Sends `q` (the quit key —
 To eyeball it yourself: `tmux capture-pane -pt <session>` shows the System pane
 (GPU backend, accelerated, native-linked) and the Plugins pane (16 registered).
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — dashboard box +
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — dashboard box +
 System + Plugins panes render under the pty; `q` quits; session cleaned up.
 
 ## Gotchas (battle scars)

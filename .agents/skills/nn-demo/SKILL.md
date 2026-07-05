@@ -20,7 +20,7 @@ Builds the CLI and drives `abi nn train` + `abi nn sample`. Evidence is the
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count.
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — training reports
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — training reports
 `initial_loss`/`final_loss`/`steps` and `nn sample` emits a generated string.
 
 ## Gotchas

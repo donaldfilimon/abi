@@ -28,3 +28,23 @@ case "$plain" in
     exit 1
     ;;
 esac
+
+agent_out=$(ABI_WDBX_PATH=:memory: "$bin" agent tui 2>&1 <<'EOF'
+/help
+/quit
+EOF
+)
+
+case "$agent_out" in
+  *"Commands:"*"/help"*"/quit"*) ;;
+  *) echo "tui smoke: missing agent REPL help output" >&2; exit 1 ;;
+esac
+
+case "$agent_out" in
+  *"interactive REPL failed"*|*"FeatureDisabled"*|*"panic"*)
+    echo "tui smoke: agent REPL reported an unexpected failure" >&2
+    exit 1
+    ;;
+esac
+
+echo "tui smoke: ok"

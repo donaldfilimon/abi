@@ -17,13 +17,13 @@ Builds the CLI, runs `abi wdbx cluster status` and `abi wdbx cluster demo <n>`,
 and asserts `leader_elected=true`, `replicate(`, and `re-election`. Prints
 `RESULT: PASS` (exit 0) or a FAIL count.
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — elect → replicate
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — elect → replicate
 (acks=3 quorum=2) → down leader → re-elect (term=2) on a 3-node in-process cluster.
 
 ## Gotchas
-- This is **in-process** consensus. The CLI itself notes networked RPC transport
-  is a Phase-2 item; `cluster serve <port>` exposes the RequestVote/AppendEntries
-  RPC but the demo is single-process.
+- This is **in-process** consensus. `cluster serve <port> [node] [host]` is the
+  separate networked RequestVote/AppendEntries RPC surface; use the
+  `wdbx-cluster-serve` skill for that server path. The demo remains single-process.
 - `cluster status` (no demo) reports the single-node default (`nodes=1`).
 - Malformed node count → usage (exit 2).
 

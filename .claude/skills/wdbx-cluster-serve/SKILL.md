@@ -27,7 +27,7 @@ loop blocks), an open port, and no bind/panic error — then kills the node via 
 Prints `RESULT: PASS — WDBX cluster node served consensus RPC on loopback.` (exit 0) or
 `RESULT: FAIL — N check(s).`
 
-Verified this session: **PASS** — marker printed, port `8092` accepting, node torn down with no
+Historical verification: **PASS** — marker printed, port `8092` accepting, node torn down with no
 lingering process, on Zig master `0.17.0-dev.1099`.
 
 ## Gotchas

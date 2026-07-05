@@ -6,7 +6,7 @@ Quick reference for Google Gemini and compatible agents working on this Zig 0.17
 
 ```bash
 ./build.sh check              # primary gate on macOS/Darwin
-./build.sh full-check         # check + integration tests + benchmarks + TUI smoke
+./build.sh full-check         # check + integration tests + benchmarks + dashboard/agent TUI smoke
 ./build.sh cli                # build zig-out/bin/abi
 ./build.sh mcp                # build zig-out/bin/abi-mcp
 zig build test-integration    # explicit integration suite
@@ -15,6 +15,8 @@ npx mint@latest validate   # optional Mintlify docs site (docs/docs.json); not i
 ```
 
 Zig is pinned by `.zigversion` to `0.17.0-dev.978+a078d55a2`; `build.zig.zon` keeps `0.17.0-dev.978+a078d55a2` as the package minimum. Plain `zig build` may work with a compatible local toolchain, but use `./build.sh ...` on macOS for the documented Darwin workflow. Note: `build.sh`/`tools/build.sh` do not switch or enforce the pin — they run whatever `zig` is on `PATH` (Zig `0.16.0` fails to compile, since the WDBX/MCP network listeners use the 0.17 `std.Io.net.Stream.read(io, …)` API).
+
+Local Codex mega-plugin handoff: `ABI-MEGA-PLUGIN.md` points to the personal `abi-mega` plugin that consolidates TODO/roadmap/spec/skill inventory and focused validation workflows.
 
 ## Current CLI Examples
 
@@ -31,7 +33,7 @@ Zig is pinned by `.zigversion` to `0.17.0-dev.978+a078d55a2`; `build.zig.zon` ke
 
 Supported top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, and `nn`. The top-level `abi --tui` shortcut also renders the dashboard. (`nn` is a miniature char-level demo trainer behind `feat-nn`: `nn train "<text>" | train --jsonl <path> | sample …` — not a production/LLM trainer.)
 
-Subcommand grammar mirrors `src/cli/`: `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (the model id alias-resolves through the catalog, `--live` serves anthropic models over the live transport, an unrecognized id prints a stderr warning before passing through, `--confirm` is required for on-device `apple-fm`, and `--learn` routes through the SEA self-learning loop; `agent tui` is now an interactive REPL); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; and `wdbx <db <init|verify|compact> | block <insert|get> | query | benchmark | cluster <status|demo|serve> | compute info | secure demo | gpu info | api serve>`. Malformed numeric arguments return usage with exit code 2 rather than silently using a default.
+Subcommand grammar mirrors `src/cli/`: `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (the model id alias-resolves through the catalog, `--live` serves anthropic models over the live transport, an unrecognized id prints a stderr warning before passing through, `--confirm` is required for on-device `apple-fm`, and `--learn` routes through the SEA self-learning loop; `agent tui` is now an interactive REPL); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; and `wdbx <db <init|verify|compact> | block <insert|get> | query | benchmark | cluster <status|demo|serve <port> [node] [host]> | compute info | secure demo | gpu info | api serve [port]>`. Malformed numeric arguments return usage with exit code 2 rather than silently using a default.
 
 Do not assume old command names exist: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, and `serve` are not currently dispatched.
 
@@ -111,7 +113,7 @@ Before finishing code changes, run:
 
 `./build.sh check` includes feature-off compile smoke tests, focused `test-feature-contracts` behavior coverage, feature-aware `test-contracts` coverage for every `-Dfeat-*` flag, and `-Dfeat-mobile=true` coverage through `tools/check_feature_stubs.sh`.
 
-Use `./build.sh full-check` when you need the full local gate, including integration tests, benchmarks, and TUI smoke.
+Use `./build.sh full-check` when you need the full local gate, including integration tests, benchmarks, dashboard smoke, and `agent tui` line-mode smoke.
 
 Run these explicitly when touched:
 

@@ -16,7 +16,7 @@ Builds the CLI, then captures `abi backends`, `abi wdbx compute info`, and
 `abi wdbx gpu info`; asserts the markers `GPU backend report` and
 `compute backends`. Prints `RESULT: PASS` (exit 0) or a FAIL count.
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — Metal linked,
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — Metal linked,
 `accelerated=false` (vectorized CPU fallback active; native dispatch not linked).
 
 ## Gotchas

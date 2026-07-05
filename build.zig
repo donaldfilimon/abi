@@ -426,7 +426,7 @@ pub fn build(b: *std.Build) void {
     check_step.dependOn(&fmt_check.step);
     check_step.dependOn(&parity_check.step);
 
-    const full_check_step = b.step("full-check", "Run check, integration tests, benchmarks, and TUI smoke");
+    const full_check_step = b.step("full-check", "Run check, integration tests, benchmarks, dashboard smoke, and agent TUI smoke");
     full_check_step.dependOn(check_step);
     full_check_step.dependOn(test_integration_step);
     full_check_step.dependOn(bench_step);

@@ -10,10 +10,11 @@
 - Toolchain is pinned by `.zigversion` to Zig `0.17.0-dev.978+a078d55a2`; `build.zig.zon` only sets the package minimum. `build.sh`/`tools/build.sh` do **not** switch or enforce the pin — they run whatever `zig` is on `PATH`. The system `zig` must already be that dev build (Zig `0.16.0` fails: the WDBX/MCP listeners use the 0.17 `std.Io.net.Stream.read(io, …)` API).
 - On macOS/Darwin prefer `./build.sh ...`; it delegates to `tools/build.sh` and keeps the documented Metal/link workflow.
 - Primary gate: `./build.sh check` builds CLI/MCP, runs module + connector + contract tests, CLI contract smoke, feature-off stub contracts, `zig fmt --check`, and parity.
-- Full local gate: `./build.sh full-check` adds integration tests, benchmarks, and TUI smoke.
+- Full local gate: `./build.sh full-check` adds integration tests, benchmarks, dashboard smoke, and `agent tui` line-mode smoke.
 - Focused commands: `zig build test -Dtest-filter="<pattern>"` (post-`-- --test-filter` is not wired and is silently ignored), `zig build test-cli`, `zig build test-feature-contracts`, `zig build test-contracts`, `zig build test-mcp-contracts`, `zig build test-mcp-server` (MCP transport: stdio + HTTP/SSE), `zig build test-integration`, `zig build benchmarks`, `zig build check-parity`, `zig build lint`, `zig build fix`.
 - Opt-in portability smoke: `zig build cross-smoke` compiles/links the CLI for Linux/Windows/macOS cross targets and is deliberately not part of `check`.
 - Build binaries with `./build.sh cli` (`zig-out/bin/abi`) and `./build.sh mcp` (`zig-out/bin/abi-mcp`).
+- Local Codex mega-plugin handoff: `ABI-MEGA-PLUGIN.md` points to the personal `abi-mega` plugin that consolidates TODO/roadmap/spec/skill inventory and focused validation workflows.
 - Docs site (optional, not in CI/`check`): `npx mint@latest dev` / `npx mint@latest validate` (Mintlify, `docs/docs.json`).
 
 ## Architecture Anchors

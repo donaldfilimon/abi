@@ -48,5 +48,5 @@ One-liner by hand:
 | looks like a crash (errno/tcgetattr) | Regression in the non-TTY fallback; inspect `src/features/tui/mod.zig`. |
 | a panel missing | Inspect `src/cli/handlers/dashboard.zig`; use the `tui-navigation-guide` subagent for the render loop. |
 
-Verified this session: **PASS** on Zig master `0.17.0-dev.1099` — one-shot render
+Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — one-shot render
 of all 5 panels, exit 0.

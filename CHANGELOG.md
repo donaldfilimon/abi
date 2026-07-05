@@ -50,5 +50,5 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 - Use `./build.sh check` as the baseline gate for source changes.
 - Use `zig build check-parity` after public feature API changes.
-- Use `./build.sh full-check` for release/readiness checks (`check` + integration tests + benchmarks + TUI smoke).
+- Use `./build.sh full-check` for release/readiness checks (`check` + integration tests + benchmarks + dashboard smoke + `agent tui` line-mode smoke).
 - Public docs intentionally avoid unproven external claims for distributed sharding, AES/RBAC, Swift/Python/TensorFlow implementations, Kubernetes/H100 deployments, regulatory certifications, QPS/latency/accuracy, energy use, and comparative model benchmarks.

@@ -17,7 +17,7 @@ Builds the CLI, runs `abi plugin list`, executes a sample of plugins via
 line), and checks an unknown name errors with `PluginNotFound`. Prints
 `RESULT: PASS` (exit 0) or a FAIL count.
 
-Verified this session: **PASS** — `Installed Plugins (16):`; `ai-plugin event
+Historical verification: **PASS** — `Installed Plugins (16):`; `ai-plugin event
 (bytes=5)`, `hash-plugin …`, etc., on Zig master `0.17.0-dev.1099`.
 
 ## Gotchas
