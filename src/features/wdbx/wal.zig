@@ -31,7 +31,11 @@ pub const WalError = error{
 };
 
 fn crc32Hex(bytes: []const u8) [8]u8 {
-    const sum = std.hash.crc.Crc32.hash(bytes);
+    const Crc32 = if (@hasDecl(std.hash.crc, "Crc32"))
+        std.hash.crc.Crc32
+    else
+        @field(std.hash.crc, "CRC-32/ISO-HDLC");
+    const sum = Crc32.hash(bytes);
     return std.fmt.bytesToHex(std.mem.toBytes(std.mem.nativeToBig(u32, sum)), .lower);
 }
 
