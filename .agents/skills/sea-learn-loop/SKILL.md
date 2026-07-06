@@ -33,7 +33,7 @@ vectors=4 blocks=2`, on Zig master `0.17.0-dev.1099`.
 ## Gotchas
 - **`evidence_count=0` is not necessarily a failure** — with SEA on, the scratch
   store may simply have no matching evidence yet.
-- The model line shows the catalog default (`Codex-fable-5`); `--learn` is local
+- The model line shows the catalog default (`claude-fable-5`); `--learn` is local
   (WDBX metadata), not a live API call — no credentials needed.
 - First build can be a fresh feature-graph compile; later `./build.sh cli` runs
   are incremental.
