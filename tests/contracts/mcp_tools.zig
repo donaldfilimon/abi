@@ -96,7 +96,7 @@ test "MCP ai_complete tool contract" {
     try expectToolJsonContains(allocator, call, "model=abi-local");
     if (build_options.feat_ai and build_options.feat_wdbx) {
         try expectToolJsonContains(allocator, call, "persisted=true");
-        try expectToolJsonContains(allocator, call, "kv_entries=1");
+        try expectToolJsonContains(allocator, call, "kv_entries=2");
         try expectToolJsonContains(allocator, call, "vectors=2");
         try expectToolJsonContains(allocator, call, "blocks=1");
         try expectToolJsonContains(allocator, call, "metadata_key=completion:");

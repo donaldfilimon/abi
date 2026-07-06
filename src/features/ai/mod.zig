@@ -61,9 +61,8 @@ pub fn runAgent(allocator: std.mem.Allocator, config: AgentConfig, input: []cons
     if (config.name.len == 0 or config.instructions.len == 0 or input.len == 0) return error.InvalidAgentConfig;
 
     const mode: []const u8 = if (config.dry_run) "dry-run" else "review-required";
-    const weights = profile.analyzeSentiment(input);
-    const selected = profile.selectBestProfile(weights);
-    const response = try profile.routeInput(allocator, input);
+    const selected = config.profile_override orelse profile.selectBestProfile(profile.analyzeSentiment(input));
+    const response = try profile.routeToProfile(allocator, selected, input);
     defer allocator.free(response);
     const audit = constitution.Constitution.validate(response);
     const requires_review = !config.dry_run or !audit.passed;
@@ -100,11 +99,90 @@ pub fn runAgentWithScheduler(
     return result;
 }
 
+/// Multi-agent result holding outputs from all personas (Abbey, Aviva, Abi).
+/// Enables true multi-agent workflows for TUI parity with Claude Code / OpenCode / Codex.
+pub const MultiAgentResult = struct {
+    abbey: AgentResult,
+    aviva: AgentResult,
+    abi: AgentResult,
+    aggregated: []u8,
+
+    pub fn deinit(self: *MultiAgentResult, allocator: std.mem.Allocator) void {
+        self.abbey.deinit(allocator);
+        self.aviva.deinit(allocator);
+        self.abi.deinit(allocator);
+        allocator.free(self.aggregated);
+    }
+};
+
+/// Run all three agents (Abbey, Aviva, Abi) in parallel via scheduler for a given input.
+/// Supports multi-agent orchestration, delegation, review handoff.
+/// Each uses a persona-specific config for instructions.
+pub fn runMultiAgentWithScheduler(
+    allocator: std.mem.Allocator,
+    sched: *scheduler_mod.Scheduler,
+    base_name: []const u8,
+    input: []const u8,
+) !MultiAgentResult {
+    var abbey_ctx = AgentTaskContext{
+        .allocator = allocator,
+        .config = .{ .name = "abbey", .instructions = "Analytical review and structured safety analysis.", .dry_run = true, .profile_override = .abbey },
+        .input = input,
+    };
+    var aviva_ctx = AgentTaskContext{
+        .allocator = allocator,
+        .config = .{ .name = "aviva", .instructions = "Creative exploration and alternative perspectives.", .dry_run = true, .profile_override = .aviva },
+        .input = input,
+    };
+    var abi_ctx = AgentTaskContext{
+        .allocator = allocator,
+        .config = .{ .name = "abi", .instructions = "Concise action-oriented execution plan.", .dry_run = true, .profile_override = .abi },
+        .input = input,
+    };
+    defer abbey_ctx.deinitResult();
+    defer aviva_ctx.deinitResult();
+    defer abi_ctx.deinitResult();
+
+    const abbey_name = try std.fmt.allocPrint(allocator, "{s}:abbey", .{base_name});
+    defer allocator.free(abbey_name);
+    const aviva_name = try std.fmt.allocPrint(allocator, "{s}:aviva", .{base_name});
+    defer allocator.free(aviva_name);
+    const abi_name = try std.fmt.allocPrint(allocator, "{s}:abi", .{base_name});
+    defer allocator.free(abi_name);
+
+    _ = try submitAgentTask(sched, abbey_name, &abbey_ctx);
+    _ = try submitAgentTask(sched, aviva_name, &aviva_ctx);
+    _ = try submitAgentTask(sched, abi_name, &abi_ctx);
+
+    try sched.runAll();
+
+    const abbey_res = abbey_ctx.result orelse return error.MissingAgentResult;
+    const aviva_res = aviva_ctx.result orelse return error.MissingAgentResult;
+    const abi_res = abi_ctx.result orelse return error.MissingAgentResult;
+
+    // Aggregate for TUI display / further processing
+    const aggregated = try std.fmt.allocPrint(allocator, "=== MULTI-AGENT RESULTS ===\n\n[ABBEY]\n{s}\n\n[AVIVA]\n{s}\n\n[ABI]\n{s}\n\n=== END ===", .{ abbey_res.output, aviva_res.output, abi_res.output });
+    abbey_ctx.result = null;
+    aviva_ctx.result = null;
+    abi_ctx.result = null;
+
+    return MultiAgentResult{
+        .abbey = abbey_res,
+        .aviva = aviva_res,
+        .abi = abi_res,
+        .aggregated = aggregated,
+    };
+}
+
 fn runAgentTask(ctx: ?*anyopaque) anyerror!void {
     const c = @as(*AgentTaskContext, @ptrCast(@alignCast(ctx orelse return error.MissingTaskContext)));
     if (c.result) |old| old.deinit(c.allocator);
     c.result = try runAgent(c.allocator, c.config, c.input);
 }
+
+pub const plan = @import("plan.zig");
+pub const PlanStep = plan.PlanStep;
+pub const parsePlan = plan.parsePlan;
 
 pub const isFeatureDisabled = training.isFeatureDisabled;
 
@@ -274,6 +352,18 @@ test "scheduled agent task records result and scheduler stats" {
     try std.testing.expect(tracker.getPeakUsage() > 0);
 }
 
+test "multi-agent scheduler routes each named persona explicitly" {
+    var scheduler = scheduler_mod.Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    var result = try runMultiAgentWithScheduler(std.testing.allocator, &scheduler, "agent:multi", "neutral request");
+    defer result.deinit(std.testing.allocator);
+
+    try std.testing.expect(std.mem.indexOf(u8, result.abbey.output, "selected_profile=abbey") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result.aviva.output, "selected_profile=aviva") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result.abi.output, "selected_profile=abi") != null);
+}
+
 test "completion with store records vectors metadata and block" {
     var store = wdbx.Store.init(std.testing.allocator);
     defer store.deinit();
@@ -291,6 +381,9 @@ test "completion with store records vectors metadata and block" {
         const key = try std.fmt.allocPrint(std.testing.allocator, "completion:{d}", .{result.query_vector_id.?});
         defer std.testing.allocator.free(key);
         const metadata = store.get(key) orelse return error.MissingCompletionMetadata;
+        const record_key = try std.fmt.allocPrint(std.testing.allocator, "memory_record:{d}", .{result.query_vector_id.?});
+        defer std.testing.allocator.free(record_key);
+        const memory_record = store.get(record_key) orelse return error.MissingCompletionMemoryRecord;
         const parsed_metadata = try std.json.parseFromSlice(std.json.Value, std.testing.allocator, metadata, .{});
         defer parsed_metadata.deinit();
         const metadata_obj = switch (parsed_metadata.value) {
@@ -305,6 +398,19 @@ test "completion with store records vectors metadata and block" {
         try std.testing.expectEqual(@as(i64, @intCast(result.output.len)), metadata_obj.get("output_bytes").?.integer);
         try std.testing.expectEqual(result.query_vector_id.?, @as(u32, @intCast(metadata_obj.get("query_vector_id").?.integer)));
         try std.testing.expectEqual(result.response_vector_id.?, @as(u32, @intCast(metadata_obj.get("response_vector_id").?.integer)));
+        const parsed_record = try std.json.parseFromSlice(std.json.Value, std.testing.allocator, memory_record, .{});
+        defer parsed_record.deinit();
+        const record_obj = switch (parsed_record.value) {
+            .object => |obj| obj,
+            else => return error.InvalidCompletionMemoryRecord,
+        };
+        try std.testing.expectEqualStrings("memory_record", record_obj.get("kind").?.string);
+        try std.testing.expectEqualStrings("tool_output", record_obj.get("memory_kind").?.string);
+        try std.testing.expectEqualStrings("completion", record_obj.get("source").?.string);
+        try std.testing.expectEqualStrings(result.output, record_obj.get("text").?.string);
+        try std.testing.expect(record_obj.get("created_ns") != null);
+        try std.testing.expect(record_obj.get("updated_ns") != null);
+        try std.testing.expect(record_obj.get("trust") != null);
         const block = store.lastBlock() orelse return error.MissingCompletionBlock;
         try std.testing.expect(std.mem.eql(u8, &result.block_id.?, &block.id));
         try std.testing.expect(std.mem.eql(u8, &wdbx.storage.GENESIS_HASH, &block.prev_id));
@@ -337,7 +443,7 @@ test "completion with store appends linked blocks" {
     const second_block_id = second.block_id orelse return error.MissingCompletionBlock;
 
     try std.testing.expect(!std.mem.eql(u8, &first_block_id, &second_block_id));
-    try std.testing.expectEqual(@as(usize, 2), store.count());
+    try std.testing.expectEqual(@as(usize, 4), store.count());
     try std.testing.expectEqual(@as(usize, 4), store.vectorCount());
     try std.testing.expectEqual(@as(usize, 2), store.blockCount());
     const second_block = store.lastBlock() orelse return error.MissingCompletionBlock;
