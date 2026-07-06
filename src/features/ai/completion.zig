@@ -88,7 +88,7 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
     const metadata = try completionMetadataJson(allocator, request, result, query_id, response_id);
     defer allocator.free(metadata);
 
-    const key = try std.fmt.allocPrint(allocator, "completion:{d}", .{query_id});
+    const key = try completionMetadataKey(allocator, query_id);
     defer allocator.free(key);
 
     // The metadata JSON and key string are transient owned buffers (freed by the
@@ -155,6 +155,23 @@ fn appendMetadataJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem
         }
     }
     try out.append(allocator, 0x22);
+}
+
+/// completionMetadataKey returns the key for the completion metadata entry
+/// per the *committed* contract (git show HEAD:docs/contracts/public-api.mdx):
+/// "stores JSON completion metadata under `completion:<query_vector_id>`".
+/// This is the single source of truth for what keys completeWithStore populates
+/// for the basic (non-SEA) persistence path. kv_delta = 1 per store_result=true call.
+pub fn completionMetadataKey(allocator: std.mem.Allocator, query_id: u32) ![]const u8 {
+    return std.fmt.allocPrint(allocator, "completion:{d}", .{query_id});
+}
+
+test "completionMetadataKey matches committed public-api contract" {
+    const key = try completionMetadataKey(std.testing.allocator, 42);
+    defer std.testing.allocator.free(key);
+    try std.testing.expect(std.mem.startsWith(u8, key, "completion:"));
+    try std.testing.expect(std.mem.indexOf(u8, key, "42") != null);
+    // exact phrasing in committed docs: under `completion:<query_vector_id>`
 }
 
 fn isFeatureDisabled(err: anyerror) bool {
