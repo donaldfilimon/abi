@@ -88,7 +88,8 @@ pub const constitution = @import("stub_constitution.zig");
 // boundary (`zig build check-parity`).
 pub const models = @import("models.zig");
 
-// Parity shims for documented AI surfaces added in mod (plan/agent multi). Names only for check-parity; bodies disabled.
+// Stub shims for AI plan/agent multi surfaces (names only; bodies disabled for feat-ai=false).
+// Required for mod/stub parity check (top-level pub const/fn names).
 pub const PlanStep = struct { text: []const u8 = "" };
 pub fn parsePlan(allocator: std.mem.Allocator, output: []const u8) ![]PlanStep {
     _ = allocator; _ = output; return &.{};
