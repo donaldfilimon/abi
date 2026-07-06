@@ -4,7 +4,7 @@ const abi = @import("abi");
 // Structural guard for the documented completion persistence contract.
 // See docs/contracts/public-api.mdx (committed this turn to SCRATCH): only `completion:<query_vector_id>`
 // metadata + vectors + block; exactly +1 kv entry per store_result=true call.
-// No memory_record in the basic (non-SEA) path.
+// No memory_record in the basic (non-SEA) path. (final continue step)
 
 test "completion_kv_delta matches committed contract" {
     try std.testing.expectEqual(@as(usize, 1), abi.features.ai.completion_kv_delta);
