@@ -88,6 +88,22 @@ pub const constitution = @import("stub_constitution.zig");
 // boundary (`zig build check-parity`).
 pub const models = @import("models.zig");
 
+// Parity shims for documented AI surfaces added in mod (plan/agent multi). Names only for check-parity; bodies disabled.
+pub const PlanStep = struct { text: []const u8 = "" };
+pub fn parsePlan(allocator: std.mem.Allocator, output: []const u8) ![]PlanStep {
+    _ = allocator; _ = output; return &.{};
+}
+pub const MultiAgentResult = struct {
+    pub fn deinit(_: *@This(), _: std.mem.Allocator) void {}
+};
+pub fn runMultiAgentWithScheduler(_: std.mem.Allocator, _: *scheduler_mod.Scheduler, _: []const u8, _: []const u8) !MultiAgentResult {
+    return .{};
+}
+pub const plan = struct {
+    pub const PlanStep = PlanStep;
+    pub const parsePlan = parsePlan;
+};
+
 pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     _ = input;
     return try allocator.dupe(u8, "AI feature is disabled");
