@@ -450,6 +450,9 @@ test "WDBX store contract preserves search ordering and block metadata" {
         try std.testing.expect(results[idx - 1].score >= results[idx].score);
     }
 
+    // Documented Current: acceleration status via stats()
+    try std.testing.expect(store.stats().acceleration.message.len > 0);
+
     const metadata = "model=contract;profile=abbey;kind=completion";
     const block_id = try store.appendBlock("abbey", query_id, near_id, metadata);
     const block = store.lastBlock() orelse return error.MissingWdbxBlock;
