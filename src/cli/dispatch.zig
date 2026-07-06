@@ -10,11 +10,12 @@ const std = @import("std");
 const usage_mod = @import("usage.zig");
 const registry = @import("registry.zig");
 const arg = @import("arg.zig");
+const handlers_mod = @import("handlers/mod.zig");
 
 pub fn runCli(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len < 2) {
-        usage_mod.printUsage();
-        return 0;
+        // Redesigned default: launch interactive TUI dashboard (no subcommand = interactive mode)
+        return handlers_mod.renderTui(allocator);
     }
 
     const cmd = args[1];

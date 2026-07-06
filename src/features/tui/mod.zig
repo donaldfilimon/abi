@@ -64,7 +64,10 @@ pub const DashboardState = struct {
     memory_peak: usize = 0,
     memory_current: usize = 0,
     memory_leaked: usize = 0,
+    /// 0-based index of focused pane for interactive navigation (System=0, Plugins=1, etc.)
+    selected_pane: usize = 0,
 };
+// goal-turn-79df3a4a516d this-turn-edit
 
 const DIAG_WIDTH: usize = 68;
 const LABEL_WIDTH: usize = 25;
@@ -264,6 +267,11 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
 
     try appendDashboardHeader(&out, allocator, ds);
 
+    const highlight = "\x1b[7m";
+    const no_highlight = "\x1b[27m";
+
+    // System pane (0)
+    if (ds.selected_pane == 0) try out.appendSlice(allocator, highlight);
     try out.appendSlice(allocator, "\x1b[1;33m");
     try appendPanelHeader(&out, allocator, "System");
     try appendRow(&out, allocator, "GPU backend", ds.gpu_backend);
@@ -271,14 +279,20 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     try appendRow(&out, allocator, "native linked", boolText(ds.gpu_linked));
     try appendPanelFooter(&out, allocator);
     try out.appendSlice(allocator, "\x1b[0m");
+    if (ds.selected_pane == 0) try out.appendSlice(allocator, no_highlight);
 
+    // Plugins pane (1)
+    if (ds.selected_pane == 1) try out.appendSlice(allocator, highlight);
     try out.appendSlice(allocator, "\x1b[1;32m");
     try appendPanelHeader(&out, allocator, "Plugins");
     try appendMetricRow(&out, allocator, "Registered", ds.plugin_count);
     try appendPluginRows(&out, allocator, ds.plugin_names);
     try appendPanelFooter(&out, allocator);
     try out.appendSlice(allocator, "\x1b[0m");
+    if (ds.selected_pane == 1) try out.appendSlice(allocator, no_highlight);
 
+    // WDBX Storage pane (2)
+    if (ds.selected_pane == 2) try out.appendSlice(allocator, highlight);
     try out.appendSlice(allocator, "\x1b[1;35m");
     try appendPanelHeader(&out, allocator, "WDBX Storage");
     try appendMetricRow(&out, allocator, "Block chain", ds.wdbx_blocks);
@@ -287,7 +301,10 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     try appendMetricRow(&out, allocator, "Spatial 3D", ds.wdbx_spatial_records);
     try appendPanelFooter(&out, allocator);
     try out.appendSlice(allocator, "\x1b[0m");
+    if (ds.selected_pane == 2) try out.appendSlice(allocator, no_highlight);
 
+    // Scheduler pane (3)
+    if (ds.selected_pane == 3) try out.appendSlice(allocator, highlight);
     try out.appendSlice(allocator, "\x1b[1;34m");
     try appendPanelHeader(&out, allocator, "Scheduler");
     try appendRow(&out, allocator, "source", ds.scheduler_source);
@@ -297,7 +314,10 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     try appendMetricRow(&out, allocator, "Failed", ds.scheduler_failed);
     try appendPanelFooter(&out, allocator);
     try out.appendSlice(allocator, "\x1b[0m");
+    if (ds.selected_pane == 3) try out.appendSlice(allocator, no_highlight);
 
+    // Memory pane (4)
+    if (ds.selected_pane == 4) try out.appendSlice(allocator, highlight);
     try out.appendSlice(allocator, "\x1b[1;31m");
     try appendPanelHeader(&out, allocator, "Memory");
     try appendRow(&out, allocator, "source", ds.memory_source);
@@ -306,8 +326,9 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     try appendMetricRow(&out, allocator, "Leaked bytes", ds.memory_leaked);
     try appendPanelFooter(&out, allocator);
     try out.appendSlice(allocator, "\x1b[0m");
+    if (ds.selected_pane == 4) try out.appendSlice(allocator, no_highlight);
 
-    try out.appendSlice(allocator, "\n\x1b[2m[q/Esc] Quit  [r] Refresh  live snapshot every 1s\x1b[0m\n");
+    try out.appendSlice(allocator, "\n\x1b[2m[q/Esc] Quit  [r] Refresh  [1-5/h/l] Select pane  live snapshot every 1s\x1b[0m\n");
 
     return try out.toOwnedSlice(allocator);
 }

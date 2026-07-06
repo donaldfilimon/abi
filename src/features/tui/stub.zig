@@ -99,7 +99,10 @@ pub const DashboardState = struct {
     memory_peak: usize = 0,
     memory_current: usize = 0,
     memory_leaked: usize = 0,
+    /// 0-based index of focused pane for interactive navigation (System=0, Plugins=1, etc.)
+    selected_pane: usize = 0,
 };
+// goal-turn-79df3a4a516d this-turn-edit
 
 pub fn stdinFd() std.posix.fd_t {
     return std.Io.File.stdin().handle;

@@ -48,7 +48,7 @@ pub const ReplState = struct {
     }
 };
 
-pub const SpecialCommand = enum { quit, reset, help, model, profile, history, unknown };
+pub const SpecialCommand = enum { quit, reset, help, model, profile, history, syncclis, unknown };
 
 /// Classify a line as a slash-command. Non-slash lines (ordinary prompts) and
 /// unrecognized slash-commands both map to `.unknown`; callers distinguish the
@@ -64,6 +64,7 @@ pub fn parseSpecialCommand(line: []const u8) SpecialCommand {
     if (std.mem.eql(u8, cmd, "reset")) return .reset;
     if (std.mem.eql(u8, cmd, "history") or std.mem.eql(u8, cmd, "hist")) return .history;
     if (std.mem.eql(u8, cmd, "profile")) return .profile;
+    if (std.mem.eql(u8, cmd, "sync-clis") or std.mem.eql(u8, cmd, "syncclis")) return .syncclis;
     return .unknown;
 }
 
@@ -91,6 +92,7 @@ fn printHelp() void {
         \\  /history         Show recent session turns and persisted blocks
         \\  /reset           Reset the turn counter and start a fresh session
         \\  /quit            Exit the REPL
+        \\  /sync-clis       Sync skills/plugins/commands/experiences across CLIs (grok, claude, codex, opencode, abi tui, ...)
         \\  <text>           Run a completion and persist the turn
         \\
     , .{});
@@ -143,7 +145,7 @@ pub const ReplLoop = struct {
             return self.runLineMode(io);
         };
         defer term.deinit();
-        return self.runRawMode(&term);
+        return self.runRawMode(&term, io);
     }
 
     /// Phase-1 path: read one line at a time from stdin via the standard reader.
@@ -162,7 +164,7 @@ pub const ReplLoop = struct {
             const line = std.mem.trim(u8, raw, " \t\r\n");
             if (line.len == 0) continue;
 
-            switch (try self.dispatchLine(line)) {
+            switch (try self.dispatchLine(line, io)) {
                 .quit => break,
                 .keep_going => {},
             }
@@ -172,7 +174,7 @@ pub const ReplLoop = struct {
     /// Phase-2 path: assemble input character-by-character under raw mode. Echo
     /// is disabled in raw mode so printable keys are echoed manually; Enter
     /// submits, Backspace edits, and Ctrl-D on an empty buffer ends the session.
-    fn runRawMode(self: *ReplLoop, term: *terminal.InteractiveTerminal) !void {
+    fn runRawMode(self: *ReplLoop, term: *terminal.InteractiveTerminal, io: std.Io) !void {
         var line_buf: [RAW_LINE_BUF_BYTES]u8 = undefined;
         var len: usize = 0;
         std.debug.print("{s}", .{self.state.config.prompt_prefix});
@@ -183,7 +185,7 @@ pub const ReplLoop = struct {
                 '\r', '\n' => {
                     std.debug.print("\n", .{});
                     const line = std.mem.trim(u8, line_buf[0..len], " \t\r\n");
-                    const outcome = if (line.len > 0) try self.dispatchLine(line) else .keep_going;
+                    const outcome = if (line.len > 0) try self.dispatchLine(line, io) else .keep_going;
                     len = 0;
                     if (outcome == .quit) return;
                     std.debug.print("{s}", .{self.state.config.prompt_prefix});
@@ -208,7 +210,7 @@ pub const ReplLoop = struct {
 
     /// Dispatch one already-trimmed, non-empty input line: slash-commands route
     /// to their handlers, ordinary text runs a completion and persists the turn.
-    fn dispatchLine(self: *ReplLoop, line: []const u8) !LineOutcome {
+    fn dispatchLine(self: *ReplLoop, line: []const u8, io: std.Io) !LineOutcome {
         if (line[0] == '/') {
             switch (parseSpecialCommand(line)) {
                 .quit => return .quit,
@@ -217,6 +219,20 @@ pub const ReplLoop = struct {
                 .reset => self.resetSession(),
                 .history => self.showHistory(),
                 .profile => std.debug.print("profile selection is not available in phase 1\n", .{}),
+                .syncclis => {
+                    std.debug.print("sync-clis: executing central sync (full targets via driver)...\n", .{});
+                    const sh = "/Users/donaldfilimon/abi/.agents/skills/sync-clis/sync-clis.sh"; // goal-turn-79df3a4a516d registered
+                    var child = try std.process.spawn(io, .{
+                        .argv = &[_][]const u8{sh},
+                        .cwd = .inherit,
+                        .stdin = .ignore,
+                        .stdout = .inherit,
+                        .stderr = .inherit,
+                    });
+                    defer child.kill(io);
+                    const term = try child.wait(io);
+                    std.debug.print("sync-clis done (exit {any})\n", .{term});
+                },
                 .unknown => {
                     // Echo the rejected command through the sanitizer: the raw line is
                     // attacker-controlled and may carry ESC/control bytes.
@@ -309,6 +325,8 @@ test "parseSpecialCommand recognizes slash commands and treats prompts as unknow
     try std.testing.expectEqual(SpecialCommand.history, parseSpecialCommand("/history"));
     try std.testing.expectEqual(SpecialCommand.history, parseSpecialCommand("/hist"));
     try std.testing.expectEqual(SpecialCommand.profile, parseSpecialCommand("/profile abbey"));
+    try std.testing.expectEqual(SpecialCommand.syncclis, parseSpecialCommand("/sync-clis"));
+    try std.testing.expectEqual(SpecialCommand.syncclis, parseSpecialCommand("/syncclis"));
     try std.testing.expectEqual(SpecialCommand.unknown, parseSpecialCommand("/bogus"));
     try std.testing.expectEqual(SpecialCommand.unknown, parseSpecialCommand("hello there"));
     try std.testing.expectEqual(SpecialCommand.unknown, parseSpecialCommand(""));
@@ -344,7 +362,7 @@ test "tui input hardening: adversarial bytes never corrupt state" {
         // Exhaustive switch: reaching every arm without a panic is the safety
         // assertion (the classifier is total over all byte strings).
         switch (parseSpecialCommand(input)) {
-            .quit, .reset, .help, .model, .profile, .history, .unknown => {},
+            .quit, .reset, .help, .model, .profile, .history, .syncclis, .unknown => {},
         }
     }
 

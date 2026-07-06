@@ -253,12 +253,19 @@ test "AI completion WDBX persistence is opt-in and append-only" { // uses delta 
     const first_block_id = first.block_id orelse return error.MissingCompletionBlock;
 
     try std.testing.expectEqual(abi.features.ai.completion_kv_delta, store.count());
+    try std.testing.expectEqual(abi.features.ai.completion_kv_delta, store.stats().kv_entries);
     try std.testing.expectEqual(@as(usize, 2), store.vectorCount());
     try std.testing.expectEqual(@as(usize, 1), store.blockCount());
     try std.testing.expect(store.verifyBlocks());
+    // goal-turn-79df3a4a516d this-turn-edit
 
-    const first_key = try abi.features.ai.completionMetadataKey(allocator, first_qid);
-    defer allocator.free(first_key);
+    // Derive keys from planner (no hand-tuned literals that can drift from contract).
+    const first_keys = try abi.features.ai.completionPersistenceKeys(allocator, first_qid);
+    defer {
+        for (first_keys) |k| allocator.free(k);
+        allocator.free(first_keys);
+    }
+    const first_key = first_keys[0];
     const first_metadata = store.get(first_key) orelse return error.MissingCompletionMetadata;
     try expectCompletionMetadataJson(allocator, first_metadata, "abi-contract", first_qid, first_rid);
 
@@ -286,8 +293,13 @@ test "AI completion WDBX persistence is opt-in and append-only" { // uses delta 
     try std.testing.expectEqual(@as(usize, 2), store.blockCount());
     try std.testing.expect(store.verifyBlocks());
 
-    const second_key = try abi.features.ai.completionMetadataKey(allocator, second_qid);
-    defer allocator.free(second_key);
+    // Derive keys from planner (no hand-tuned literals that can drift from contract).
+    const second_keys = try abi.features.ai.completionPersistenceKeys(allocator, second_qid);
+    defer {
+        for (second_keys) |k| allocator.free(k);
+        allocator.free(second_keys);
+    }
+    const second_key = second_keys[0];
     const second_metadata = store.get(second_key) orelse return error.MissingCompletionMetadata;
     try expectCompletionMetadataJson(allocator, second_metadata, "abi-contract-2", second_qid, second_rid);
 

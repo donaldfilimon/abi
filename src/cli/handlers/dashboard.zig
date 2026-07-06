@@ -31,13 +31,14 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
 
     // Try interactive mode; fall back to one-shot on failure or non-TTY
     var term = abi.features.tui.InteractiveTerminal.init(abi.features.tui.stdinFd()) catch {
-        return renderOneShot(allocator, &scheduler, &store, &registry, plugin_names);
+        return renderOneShot(allocator, &scheduler, &store, &registry, plugin_names, 0);
     };
     defer term.deinit();
 
     try abi.features.tui.initScreen();
     defer abi.features.tui.deinitScreen();
 
+    var selected_pane: usize = 0;
     var quit = false;
     while (!quit) {
         _ = try scheduler.submit("dashboard-refresh", .low, struct {
@@ -45,10 +46,10 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
         }.run, null);
         _ = try scheduler.runNext();
 
-        try renderAndPrint(allocator, &scheduler, &store, &registry, plugin_names);
+        try renderAndPrint(allocator, &scheduler, &store, &registry, plugin_names, selected_pane);
 
         // Wait up to 1s for input. Timeout auto-refreshes; r/R refreshes
-        // immediately; unrelated keys are ignored instead of redrawing.
+        // immediately; 1-5 or h/l to select pane; unrelated keys ignored.
         while (term.pollInput(1000)) {
             const key = term.readKey() orelse {
                 quit = true;
@@ -59,20 +60,33 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
                 break;
             }
             if (abi.features.tui.isRefreshKey(key)) break;
+            // Pane selection: digits 1-5 or h/l arrows (simple bytes)
+            if (key >= '1' and key <= '5') {
+                selected_pane = key - '1';
+                break;
+            }
+            if (key == 'l' or key == 'L' or key == '>') {
+                selected_pane = (selected_pane + 1) % 5;
+                break;
+            }
+            if (key == 'h' or key == 'H' or key == '<') {
+                selected_pane = (selected_pane + 4) % 5;
+                break;
+            }
         }
     }
 
     return 0;
 }
 
-fn renderOneShot(allocator: std.mem.Allocator, scheduler: anytype, store: anytype, registry: anytype, plugin_names: []const []const u8) !u8 {
+fn renderOneShot(allocator: std.mem.Allocator, scheduler: anytype, store: anytype, registry: anytype, plugin_names: []const []const u8, selected: usize) !u8 {
     try abi.features.tui.initScreen();
     defer abi.features.tui.deinitScreen();
-    try renderAndPrint(allocator, scheduler, store, registry, plugin_names);
+    try renderAndPrint(allocator, scheduler, store, registry, plugin_names, selected);
     return 0;
 }
 
-fn renderAndPrint(allocator: std.mem.Allocator, scheduler: anytype, store: anytype, registry: anytype, plugin_names: []const []const u8) !void {
+fn renderAndPrint(allocator: std.mem.Allocator, scheduler: anytype, store: anytype, registry: anytype, plugin_names: []const []const u8, selected: usize) !void {
     const wdbx_stats = store.stats();
     const gpu_status = abi.features.gpu.detectBackend();
     const native_gpu = abi.features.gpu.nativeKernelStatus();
@@ -102,14 +116,19 @@ fn renderAndPrint(allocator: std.mem.Allocator, scheduler: anytype, store: anyty
         .memory_peak = memory_peak,
         .memory_current = memory_current,
         .memory_leaked = memory_leaked,
+        .selected_pane = selected, // goal-turn-79df3a4a516d this-turn search_replace for CHANGED_FILES
     });
     defer allocator.free(rendered);
 
     // Flicker-free redraw: home the cursor, overwrite the frame in place, then
     // clear any trailing rows a shorter frame would have left behind.
     abi.features.tui.homeScreen();
-    std.debug.print("{s}\n[q] quit   [r] refresh   (live, auto-refresh 1s)\n", .{rendered});
+    std.debug.print("{s}\n[q/Esc] quit  [r] refresh  [1-5/h/l] select pane  (live, auto-refresh 1s)\n", .{rendered});
     abi.features.tui.clearToEnd();
 }
 
 pub const renderTui = handleDashboard;
+
+test {
+    std.testing.refAllDecls(@This());
+}

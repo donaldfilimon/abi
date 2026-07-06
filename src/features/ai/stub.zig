@@ -172,6 +172,12 @@ pub fn completionMetadataKey(allocator: std.mem.Allocator, query_id: u32) ![]con
     return try allocator.dupe(u8, "");
 }
 
+pub fn completionPersistenceKeys(allocator: std.mem.Allocator, query_id: u32) ![]const []const u8 {
+    _ = query_id;
+    return try allocator.dupe([]const u8, &[_][]const u8{});
+}
+// goal-turn-79df3a4a516d this-turn-edit
+
 pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingResult {
     try validateTrainingConfig(config);
     return .{
