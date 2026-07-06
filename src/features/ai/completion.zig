@@ -103,6 +103,24 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
 
     try store.store(key, metadata);
 
+    // Documented Current behavior (public-api.mdx): also store normalized SEA memory_record under memory_record:<id>
+    // for every completionWithStore(..., store_result=true). Minimal shape to satisfy contracts and north-star retrieval.
+    const now = @import("../../foundation/time.zig").unixMs();
+    const rec_prefix = try std.fmt.allocPrint(allocator, "{{\"kind\":\"memory_record\",\"memory_kind\":\"tool_output\",\"authority\":\"inferred\",\"source\":\"completion\",\"model\":", .{});
+    defer allocator.free(rec_prefix);
+    var rec_out: std.ArrayListUnmanaged(u8) = .empty;
+    defer rec_out.deinit(allocator);
+    try rec_out.appendSlice(allocator, rec_prefix);
+    try appendMetadataJsonString(&rec_out, allocator, request.model);
+    try rec_out.print(allocator, ",\"profile\":\"{s}\",\"text\":", .{result.selected_profile.label()});
+    try appendMetadataJsonString(&rec_out, allocator, result.output);
+    try rec_out.print(allocator, ",\"created_ns\":{d},\"updated_ns\":{d},\"trust\":0.5,\"importance\":0.5,\"query_vector_id\":{d},\"response_vector_id\":{d}}}", .{ now, now, query_id, response_id });
+    const rec_json = try rec_out.toOwnedSlice(allocator);
+    defer allocator.free(rec_json);
+    const rec_key = try std.fmt.allocPrint(allocator, "memory_record:{d}", .{query_id});
+    defer allocator.free(rec_key);
+    try store.store(rec_key, rec_json);  // store copies bytes like metadata path; temp freed here
+
     const block_id = try store.appendBlock(result.selected_profile.label(), query_id, response_id, metadata);
     result.query_vector_id = query_id;
     result.response_vector_id = response_id;
