@@ -1,6 +1,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const scheduler_mod = @import("../../core/scheduler.zig");
+const foundation_time = @import("../../foundation/time.zig");
 const helpers = @import("helpers.zig");
 const router = @import("router.zig");
 const constitution = @import("constitution.zig");
@@ -91,17 +92,23 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
     const key = try completionMetadataKey(allocator, query_id);
     defer allocator.free(key);
 
-    // The metadata JSON and key string are transient owned buffers (freed by the
-    // defers above). Record them as a balanced alloc/free pair on the store's
-    // tracker so the completion persistence step's own memory cost is observable
-    // alongside the store's vector tracking, without registering a false leak.
+    const record = try completionMemoryRecordJson(allocator, request, result, query_id, response_id);
+    defer allocator.free(record);
+
+    const record_key = try completionMemoryRecordKey(allocator, query_id);
+    defer allocator.free(record_key);
+
+    // The JSON/key strings are transient owned buffers (freed by the defers
+    // above). Record them as a balanced alloc/free pair on the store's tracker
+    // so completion persistence memory is observable without a false leak.
     if (store.getTracker()) |t| {
-        const transient = metadata.len + key.len;
+        const transient = metadata.len + key.len + record.len + record_key.len;
         t.trackAllocNoTag(transient);
         t.trackFreeNoTag(transient);
     }
 
     try store.store(key, metadata);
+    try store.store(record_key, record);
 
     const block_id = try store.appendBlock(result.selected_profile.label(), query_id, response_id, metadata);
     result.query_vector_id = query_id;
@@ -135,6 +142,34 @@ fn completionMetadataJson(
     return try out.toOwnedSlice(allocator);
 }
 
+fn completionMemoryRecordJson(
+    allocator: std.mem.Allocator,
+    request: types.CompletionRequest,
+    result: types.CompletionResult,
+    query_id: u32,
+    response_id: u32,
+) ![]u8 {
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer out.deinit(allocator);
+
+    const created_ns = @as(i64, foundation_time.unixMs()) * 1_000_000;
+    try out.appendSlice(allocator, "{\"kind\":\"memory_record\",\"memory_kind\":\"tool_output\",\"authority\":\"inferred\",\"source\":\"completion\",\"source_uri\":\"completion:");
+    try out.print(allocator, "{d}", .{query_id});
+    try out.appendSlice(allocator, "\",\"model\":");
+    try appendMetadataJsonString(&out, allocator, request.model);
+    try out.appendSlice(allocator, ",\"profile\":");
+    try appendMetadataJsonString(&out, allocator, result.selected_profile.label());
+    try out.appendSlice(allocator, ",\"text\":");
+    try appendMetadataJsonString(&out, allocator, result.output);
+    try out.print(
+        allocator,
+        ",\"query_vector_id\":{d},\"response_vector_id\":{d},\"created_ns\":{d},\"updated_ns\":{d},\"expires_ns\":0,\"trust\":1.000,\"importance\":0.500,\"access_count\":0}}",
+        .{ query_id, response_id, created_ns, created_ns },
+    );
+
+    return try out.toOwnedSlice(allocator);
+}
+
 fn appendMetadataJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
     try out.append(allocator, 0x22);
     for (value) |byte| {
@@ -157,13 +192,13 @@ fn appendMetadataJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem
     try out.append(allocator, 0x22);
 }
 
-/// completionMetadataKey returns the key for the completion metadata entry
-/// per the *committed* contract (git show HEAD:docs/contracts/public-api.mdx):
-/// "stores JSON completion metadata under `completion:<query_vector_id>`".
-/// This is the single source of truth for what keys completeWithStore populates
-/// for the basic (non-SEA) persistence path. kv_delta = 1 per store_result=true call.
+/// completionMetadataKey returns the legacy completion metadata entry key.
 pub fn completionMetadataKey(allocator: std.mem.Allocator, query_id: u32) ![]const u8 {
     return std.fmt.allocPrint(allocator, "completion:{d}", .{query_id});
+}
+
+pub fn completionMemoryRecordKey(allocator: std.mem.Allocator, query_id: u32) ![]const u8 {
+    return std.fmt.allocPrint(allocator, "memory_record:{d}", .{query_id});
 }
 
 test "completionMetadataKey matches committed public-api contract" {
@@ -171,7 +206,12 @@ test "completionMetadataKey matches committed public-api contract" {
     defer std.testing.allocator.free(key);
     try std.testing.expect(std.mem.startsWith(u8, key, "completion:"));
     try std.testing.expect(std.mem.indexOf(u8, key, "42") != null);
-    // exact phrasing in committed docs: under `completion:<query_vector_id>`
+}
+
+test "completionMemoryRecordKey matches SEA memory-row contract" {
+    const key = try completionMemoryRecordKey(std.testing.allocator, 42);
+    defer std.testing.allocator.free(key);
+    try std.testing.expectEqualStrings("memory_record:42", key);
 }
 
 fn isFeatureDisabled(err: anyerror) bool {
@@ -225,6 +265,24 @@ test "metadata JSON escapes model and profile fields" {
     defer std.testing.allocator.free(metadata);
     try std.testing.expect(std.mem.indexOf(u8, metadata, "\"model\":\"m\\\"x\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, metadata, "\"profile\":\"abbey\"") != null);
+}
+
+test "memory record JSON includes SEA-readable fields" {
+    var result = types.CompletionResult{
+        .model = "m",
+        .selected_profile = .abbey,
+        .output = try std.testing.allocator.dupe(u8, "out"),
+        .audit = constitution.AuditResult.init(),
+    };
+    defer result.deinit(std.testing.allocator);
+
+    const record = try completionMemoryRecordJson(std.testing.allocator, .{ .input = "in", .model = "m" }, result, 1, 2);
+    defer std.testing.allocator.free(record);
+    try std.testing.expect(std.mem.indexOf(u8, record, "\"kind\":\"memory_record\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, record, "\"memory_kind\":\"tool_output\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, record, "\"source_uri\":\"completion:1\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, record, "\"text\":\"out\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, record, "\"trust\":1.000") != null);
 }
 
 test "completeWithStore tracks transient persistence memory and frees it" {

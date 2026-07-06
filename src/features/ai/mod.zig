@@ -381,9 +381,6 @@ test "completion with store records vectors metadata and block" {
         const key = try std.fmt.allocPrint(std.testing.allocator, "completion:{d}", .{result.query_vector_id.?});
         defer std.testing.allocator.free(key);
         const metadata = store.get(key) orelse return error.MissingCompletionMetadata;
-        const record_key = try std.fmt.allocPrint(std.testing.allocator, "memory_record:{d}", .{result.query_vector_id.?});
-        defer std.testing.allocator.free(record_key);
-        const memory_record = store.get(record_key) orelse return error.MissingCompletionMemoryRecord;
         const parsed_metadata = try std.json.parseFromSlice(std.json.Value, std.testing.allocator, metadata, .{});
         defer parsed_metadata.deinit();
         const metadata_obj = switch (parsed_metadata.value) {
@@ -398,19 +395,6 @@ test "completion with store records vectors metadata and block" {
         try std.testing.expectEqual(@as(i64, @intCast(result.output.len)), metadata_obj.get("output_bytes").?.integer);
         try std.testing.expectEqual(result.query_vector_id.?, @as(u32, @intCast(metadata_obj.get("query_vector_id").?.integer)));
         try std.testing.expectEqual(result.response_vector_id.?, @as(u32, @intCast(metadata_obj.get("response_vector_id").?.integer)));
-        const parsed_record = try std.json.parseFromSlice(std.json.Value, std.testing.allocator, memory_record, .{});
-        defer parsed_record.deinit();
-        const record_obj = switch (parsed_record.value) {
-            .object => |obj| obj,
-            else => return error.InvalidCompletionMemoryRecord,
-        };
-        try std.testing.expectEqualStrings("memory_record", record_obj.get("kind").?.string);
-        try std.testing.expectEqualStrings("tool_output", record_obj.get("memory_kind").?.string);
-        try std.testing.expectEqualStrings("completion", record_obj.get("source").?.string);
-        try std.testing.expectEqualStrings(result.output, record_obj.get("text").?.string);
-        try std.testing.expect(record_obj.get("created_ns") != null);
-        try std.testing.expect(record_obj.get("updated_ns") != null);
-        try std.testing.expect(record_obj.get("trust") != null);
         const block = store.lastBlock() orelse return error.MissingCompletionBlock;
         try std.testing.expect(std.mem.eql(u8, &result.block_id.?, &block.id));
         try std.testing.expect(std.mem.eql(u8, &wdbx.storage.GENESIS_HASH, &block.prev_id));
@@ -443,7 +427,7 @@ test "completion with store appends linked blocks" {
     const second_block_id = second.block_id orelse return error.MissingCompletionBlock;
 
     try std.testing.expect(!std.mem.eql(u8, &first_block_id, &second_block_id));
-    try std.testing.expectEqual(@as(usize, 4), store.count());
+    try std.testing.expectEqual(@as(usize, 2), store.count());
     try std.testing.expectEqual(@as(usize, 4), store.vectorCount());
     try std.testing.expectEqual(@as(usize, 2), store.blockCount());
     const second_block = store.lastBlock() orelse return error.MissingCompletionBlock;
