@@ -128,6 +128,7 @@ pub const AgentConfig = struct {
     name: []const u8,
     instructions: []const u8,
     dry_run: bool = true,
+    profile_override: ?AgentProfile = null,
 };
 
 pub const AgentResult = struct {

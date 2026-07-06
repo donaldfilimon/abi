@@ -491,12 +491,12 @@ test {
 }
 
 pub fn tempPath(allocator: std.mem.Allocator, name: []const u8, ext: []const u8) ![]const u8 {
-    const p = try std.fmt.allocPrint(allocator, "{s}/{s}{s}", .{TEST_TMP_DIR, name, ext});
+    const p = try std.fmt.allocPrint(allocator, "{s}/{s}{s}", .{ TEST_TMP_DIR, name, ext });
     return p;
 }
 
 pub fn tempDirPath(allocator: std.mem.Allocator, name: []const u8) ![]const u8 {
-    const p = try std.fmt.allocPrint(allocator, "{s}/{s}", .{TEST_TMP_DIR, name});
+    const p = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ TEST_TMP_DIR, name });
     std.fs.cwd().makeDir(p) catch |e| if (e != error.PathAlreadyExists) return e;
     return p;
 }

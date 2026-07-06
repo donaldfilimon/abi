@@ -92,7 +92,9 @@ pub const models = @import("models.zig");
 // Required for mod/stub parity check (top-level pub const/fn names).
 pub const PlanStep = struct { text: []const u8 = "" };
 pub fn parsePlan(allocator: std.mem.Allocator, output: []const u8) ![]PlanStep {
-    _ = allocator; _ = output; return &.{};
+    _ = allocator;
+    _ = output;
+    return &.{};
 }
 pub const MultiAgentResult = struct {
     pub fn deinit(_: *@This(), _: std.mem.Allocator) void {}
@@ -101,8 +103,13 @@ pub fn runMultiAgentWithScheduler(_: std.mem.Allocator, _: *scheduler_mod.Schedu
     return .{};
 }
 pub const plan = struct {
-    pub const PlanStep = PlanStep;
-    pub const parsePlan = parsePlan;
+    pub const PlanStep = struct { text: []const u8 = "" };
+    const PS = struct { text: []const u8 = "" };
+    pub fn parsePlan(allocator: std.mem.Allocator, output: []const u8) ![]PS {
+        _ = allocator;
+        _ = output;
+        return &.{};
+    }
 };
 
 pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
