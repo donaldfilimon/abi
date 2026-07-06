@@ -89,14 +89,9 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
     const metadata = try completionMetadataJson(allocator, request, result, query_id, response_id);
     defer allocator.free(metadata);
 
-    // Use pure planner to derive documented persistence keys (per plan: completionPersistenceKeys).
-    // This ensures keys come from the contract planner; only the metadata kv (+1) for basic path.
-    const keys = try completionPersistenceKeys(allocator, query_id);
-    defer {
-        for (keys) |k| allocator.free(k);
-        allocator.free(keys);
-    }
-    const key = keys[0];
+    // Derive key directly via the documented metadata helper (matches contract shape `completion:<id>`).
+    const key = try completionMetadataKey(allocator, query_id);
+    defer allocator.free(key);
 
     // The metadata JSON and key string are transient owned buffers (freed by the
     // defers above). Record them as a balanced alloc/free pair on the store's
@@ -166,7 +161,6 @@ fn appendMetadataJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem
 
 /// completion_kv_delta is the documented number of KV entries written by
 /// completeWithStore when store_result=true (per public-api.mdx Current: stores under `completion:<query_vector_id>` only + vectors + block; exactly +1 kv).
-// goal-turn-79df3a4a516d
 pub const completion_kv_delta: usize = 1;
 
 /// completionMetadataKey returns the key for the completion metadata entry
@@ -181,27 +175,6 @@ test "completionMetadataKey matches committed public-api contract" {
     defer std.testing.allocator.free(key);
     try std.testing.expect(std.mem.startsWith(u8, key, "completion:"));
     try std.testing.expect(std.mem.indexOf(u8, key, "42") != null);
-}
-
-/// completionPersistenceKeys is the pure planner returning the documented KV keys
-/// written by completeWithStore (from committed contract: only `completion:<id>` for the +1 kv delta).
-/// Used by impl + tests to avoid drifting literals. Returns owned slice + owned key strings.
-pub fn completionPersistenceKeys(allocator: std.mem.Allocator, query_id: u32) ![]const []const u8 {
-    const key = try completionMetadataKey(allocator, query_id);
-    const keys = try allocator.alloc([]const u8, 1);
-    keys[0] = key;
-    return keys;
-}
-
-test "completionPersistenceKeys matches committed contract shape (planner)" {
-    const keys = try completionPersistenceKeys(std.testing.allocator, 99);
-    defer {
-        for (keys) |k| std.testing.allocator.free(k);
-        std.testing.allocator.free(keys);
-    }
-    try std.testing.expectEqual(@as(usize, 1), keys.len);
-    try std.testing.expect(std.mem.startsWith(u8, keys[0], "completion:"));
-    try std.testing.expect(std.mem.indexOf(u8, keys[0], "99") != null);
 }
 
 fn isFeatureDisabled(err: anyerror) bool {

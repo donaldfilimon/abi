@@ -28,6 +28,4 @@ test "basic completeWithStore does not expose memory_record symbols" {
     // Also assert via the module that the only documented kv writer is the metadata one.
     _ = ai.completion_kv_delta;
     _ = ai.completionMetadataKey;
-    _ = ai.completionPersistenceKeys;
-    // goal-turn-79df3a4a516d this-turn-edit
 }
