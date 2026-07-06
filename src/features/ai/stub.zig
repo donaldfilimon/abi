@@ -165,6 +165,13 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: anytype, request: 
     return complete(allocator, request);
 }
 
+pub const completion_kv_delta = 0;
+
+pub fn completionMetadataKey(allocator: std.mem.Allocator, query_id: u32) ![]const u8 {
+    _ = query_id;
+    return try allocator.dupe(u8, "");
+}
+
 pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingResult {
     try validateTrainingConfig(config);
     return .{
