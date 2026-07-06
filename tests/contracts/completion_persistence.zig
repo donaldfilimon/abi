@@ -2,7 +2,7 @@ const std = @import("std");
 const abi = @import("abi");
 
 // Structural guard for the documented completion persistence contract.
-// See docs/contracts/public-api.mdx (committed): only `completion:<query_vector_id>`
+// See docs/contracts/public-api.mdx (committed this turn to SCRATCH): only `completion:<query_vector_id>`
 // metadata + vectors + block; exactly +1 kv entry per store_result=true call.
 // No memory_record in the basic (non-SEA) path.
 

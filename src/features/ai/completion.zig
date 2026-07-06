@@ -159,7 +159,7 @@ fn appendMetadataJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem
 }
 
 /// completion_kv_delta is the documented number of KV entries written by
-/// completeWithStore when store_result=true (per public-api contract).
+/// completeWithStore when store_result=true (per public-api contract captured to SCRATCH this turn).
 pub const completion_kv_delta: usize = 1;
 
 /// completionMetadataKey returns the key for the completion metadata entry

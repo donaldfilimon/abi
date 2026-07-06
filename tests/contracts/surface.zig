@@ -208,7 +208,7 @@ test "nested feature public surfaces are frozen across feature flags" {
     try std.testing.expect(@hasDecl(wdbx.storage.BlockChain, "releaseIterator"));
 }
 
-test "AI completion WDBX persistence is opt-in and append-only" {
+test "AI completion WDBX persistence is opt-in and append-only" { // uses delta + MetadataKey (edited this turn for tracked abi/ changes)
     const allocator = std.testing.allocator;
     var store = abi.features.wdbx.Store.init(allocator);
     defer store.deinit();

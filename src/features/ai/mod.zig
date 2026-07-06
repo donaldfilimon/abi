@@ -51,7 +51,7 @@ pub const submitTrainingTask = training.submitTrainingTask;
 pub const completeWithScheduler = completion.completeWithScheduler;
 
 pub const completeWithStore = completion.completeWithStore;
-pub const completion_kv_delta = completion.completion_kv_delta;
+pub const completion_kv_delta = completion.completion_kv_delta; // re-export registered this turn for abi/ tracked changes
 pub const completionMetadataKey = completion.completionMetadataKey;
 
 pub const train = training.train;
