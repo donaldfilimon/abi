@@ -130,3 +130,7 @@ pub fn basicAuthHeader(allocator: std.mem.Allocator, username: []const u8, passw
     const encoded_slice = encoder.encode(encoded, combined);
     return try std.fmt.allocPrint(allocator, "Basic {s}", .{encoded_slice});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

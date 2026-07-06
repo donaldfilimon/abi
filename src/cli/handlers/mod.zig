@@ -24,6 +24,7 @@ pub const handleDashboard = dashboard_mod.handleDashboard;
 pub const renderTui = dashboard_mod.renderTui;
 pub const handleWdbx = wdbx_mod.handleWdbx;
 pub const handleScheduler = scheduler_mod.handleScheduler;
+pub const handleSchedulerStatus = scheduler_mod.handleSchedulerStatus;
 pub const handleNn = nn_mod.handleNn;
 
 test {

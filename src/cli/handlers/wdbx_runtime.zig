@@ -161,6 +161,7 @@ pub fn clusterDemo(allocator: std.mem.Allocator, nodes: usize) anyerror!u8 {
         std.debug.print("  status: {s}\n", .{line});
     }
     std.debug.print("(in-process Raft-style consensus; networked RPC serving is available via `cluster serve`)\n", .{});
+    std.debug.print("north-star status: in-process (Phase 1 landed); multi-host production cluster Proposed (Phase 2) (docs/spec/wdbx-north-star.mdx §2/§3.5)\n", .{});
     return 0;
 }
 
@@ -268,6 +269,7 @@ pub fn secureDemo(allocator: std.mem.Allocator) anyerror!u8 {
     const eval_bit = wdbx.fhe.decrypt(kp, e_eval);
     std.debug.print("homomorphic eval: enc((1 AND 1) XOR 0) decrypts to {d} (expected 1, match={any})\n", .{ eval_bit, eval_bit == 1 });
     std.debug.print("(DGHV somewhat-homomorphic scheme: real encrypted add+multiply on ciphertexts, reference parameters / bounded depth — not security-audited)\n", .{});
+    std.debug.print("north-star status: Partial — int8 + additive HE + reference DGHV SHE (not security-audited); production FHE Proposed (docs/spec/wdbx-north-star.mdx §2/§3.4)\n", .{});
     return 0;
 }
 

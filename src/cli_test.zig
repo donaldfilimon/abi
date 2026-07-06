@@ -63,6 +63,17 @@ test "argument-free commands reject stray tokens" {
     try std.testing.expectError(error.Usage, arg.parse(std.testing.allocator, spec, &.{ "abi", "backends", "extra" }));
 }
 
+test "registry `scheduler` spec requires status subcommand" {
+    const spec = specFor("scheduler");
+
+    var ok = try arg.parse(std.testing.allocator, spec, &.{ "abi", "scheduler", "status" });
+    defer ok.deinit();
+    try std.testing.expectEqualStrings("status", ok.value("status").?);
+
+    try std.testing.expectError(error.Usage, arg.parse(std.testing.allocator, spec, &.{ "abi", "scheduler" }));
+    try std.testing.expectError(error.Usage, arg.parse(std.testing.allocator, spec, &.{ "abi", "scheduler", "status", "extra" }));
+}
+
 test {
     std.testing.refAllDecls(@This());
     std.testing.refAllDecls(dispatch);

@@ -1,50 +1,68 @@
 # Repository Guidelines
 
-## First Reads
-- Trust executable config over prose: `build.zig`, `tools/build.sh`, and source win over docs when they conflict.
-- Read `tasks/lessons.md` and `tasks/todo.md` before substantial work; they track current ABI-specific conventions and known status.
-- Root instruction siblings `CLAUDE.md` and `GEMINI.md` mirror durable repo conventions; when changing commands, contracts, feature flags, or Zig patterns here, keep the three in sync.
-- The worktree may be dirty from another agent/user. Inspect `git status --short --branch`; never revert unrelated changes.
+## Session Start (do this first)
+- Trust executable sources (`build.zig`, `tools/*.sh`, `src/`, `tests/`) over prose when they disagree.
+- Read `tasks/lessons.md` and `tasks/todo.md`.
+- `git status --short --branch`; never revert unrelated dirty work.
+- Run `./build.sh check` before and after changes.
 
 ## Commands That Matter
-- Toolchain is pinned by `.zigversion` to Zig `0.17.0-dev.978+a078d55a2`; `build.zig.zon` only sets the package minimum. `build.sh`/`tools/build.sh` do **not** switch or enforce the pin — they run whatever `zig` is on `PATH`. The system `zig` must already be that dev build (Zig `0.16.0` fails: the WDBX/MCP listeners use the 0.17 `std.Io.net.Stream.read(io, …)` API).
-- On macOS/Darwin prefer `./build.sh ...`; it delegates to `tools/build.sh` and keeps the documented Metal/link workflow.
-- Primary gate: `./build.sh check` builds CLI/MCP, runs module + connector + contract tests, CLI contract smoke, feature-off stub contracts, `zig fmt --check`, and parity.
-- Full local gate: `./build.sh full-check` adds integration tests, benchmarks, dashboard smoke, and `agent tui` line-mode smoke.
-- Focused commands: `zig build test -Dtest-filter="<pattern>"` (post-`-- --test-filter` is not wired and is silently ignored), `zig build test-cli`, `zig build test-feature-contracts`, `zig build test-contracts`, `zig build test-mcp-contracts`, `zig build test-mcp-server` (MCP transport: stdio + HTTP/SSE), `zig build test-integration`, `zig build benchmarks`, `zig build check-parity`, `zig build lint`, `zig build fix`.
-- Opt-in portability smoke: `zig build cross-smoke` compiles/links the CLI for Linux/Windows/macOS cross targets and is deliberately not part of `check`.
-- Build binaries with `./build.sh cli` (`zig-out/bin/abi`) and `./build.sh mcp` (`zig-out/bin/abi-mcp`).
-- Local Codex mega-plugin handoff: `ABI-MEGA-PLUGIN.md` points to the personal `abi-mega` plugin that consolidates TODO/roadmap/spec/skill inventory and focused validation workflows.
-- Docs site (optional, not in CI/`check`): `npx mint@latest dev` / `npx mint@latest validate` (Mintlify, `docs/docs.json`).
+- Toolchain **pinned** by `.zigversion` to `0.17.0-dev.978+a078d55a2`. `build.zig.zon` only declares minimum. `build.sh`/`tools/build.sh` invoke whatever `zig` is on PATH (they do **not** switch). Zig 0.16 fails on WDBX/MCP listeners (use 0.17 `std.Io.net.Stream.read`).
+- On macOS/Darwin: prefer `./build.sh ...` (keeps documented Metal + workflow).
+- Primary gate: `./build.sh check` (CLI+MCP build, module+connector+contract tests, CLI contract smoke, feature-off stubs, `zig fmt --check`, parity).
+- Full local gate: `./build.sh full-check` (adds integration, benchmarks, dashboard smoke, `agent tui` line-mode smoke).
+- Single test: `zig build test -Dtest-filter="<pattern>"` (or `./build.sh test ...`). The form `zig build test -- --test-filter` is **not wired** and is silently ignored.
+- Focused: `zig build test-cli`, `test-plugins`, `test-feature-contracts`, `test-contracts`, `test-mcp-contracts`, `test-mcp-server`, `test-integration`, `benchmarks`, `check-parity`, `lint`, `fix`.
+- Opt-in locally: `zig build cross-smoke` (Linux/Windows/macOS cross; deliberately **not** in `check`; slow). CI runs both `zig build check` and `zig build cross-smoke` on `macos-latest` with the pinned Zig.
+- Binaries: `./build.sh cli` (`zig-out/bin/abi`), `./build.sh mcp` (`zig-out/bin/abi-mcp`).
+- Docs site (optional, outside `check`): `npx mint@latest validate` (`docs/docs.json`).
 
-## Architecture Anchors
-- Public API root is `src/root.zig`; CLI entry is `src/main.zig` with dispatch under `src/cli/`; MCP server code is under `src/mcp/`.
-- Repo-root `mcp/` is launcher/config glue (`.mcp.json` calls `mcp/launcher.sh`), not the Zig MCP implementation.
-- Feature selection happens in `src/features/mod.zig`; each feature uses a real `mod.zig` and disabled `stub.zig` selected by `-Dfeat-*`.
-- Feature defaults from `build.zig`: **all `-Dfeat-*` flags default on** — `ai`, `wdbx`, `gpu`, `accelerator`, `shader`, `mlir`, `os-control`, `tui`, `hash`, `telemetry`, `nn`, `mobile`, `metrics`, `sea`, `foundationmodels`. Nothing is disabled by default; turn any off with `-Dfeat-<name>=false`. `feat-foundationmodels` defaults on but its Swift-shim/framework link is comptime-gated on an arm64 macOS target (`os.tag == .macos and cpu.arch == .aarch64`, mirrored by `fm_enabled` in `src/connectors/fm.zig`), so non-macOS and x86_64-macOS builds compile the connector out and `apple-fm` reports `FMUnavailable`. CAVEAT: the default build on an arm64 macOS host still invokes `xcrun swiftc -target arm64-apple-macosx26.0`, so it needs the Xcode/Swift toolchain + macOS 26 SDK; lacking those, build `-Dfeat-foundationmodels=false`. See "API And Contract Gotchas" below for `sea`/`foundationmodels` detail.
-- Generated plugin metadata is `src/plugin_registry.zig`; do not hand-edit it. Build regeneration comes from `tools/generate_plugin_registry.zig` and `src/plugins/*/abi-plugin.json`.
+## Architecture & Boundaries (what filenames do not make obvious)
+- Public API root: `src/root.zig`.
+- CLI entry: `src/main.zig` → dispatch/usage/registry/handlers under `src/cli/`.
+- MCP server (Zig impl): `src/mcp/` (main + handlers group). Repo-root `mcp/` + `.mcp.json` + `mcp/launcher.sh` is **only** host glue/launcher, not the implementation.
+- Feature selection: `src/features/mod.zig` picks real `mod.zig` or disabled `stub.zig` via `-Dfeat-*`.
+- **All** `-Dfeat-*` default **on** (`ai`, `wdbx`, `gpu`, `accelerator`, `shader`, `mlir`, `os-control`, `tui`, `hash`, `telemetry`, `nn`, `mobile`, `metrics`, `sea`, `foundationmodels`). Turn off with `-Dfeat-<name>=false`.
+- `feat-foundationmodels`: comptime-gated to arm64 macOS (`os.tag == .macos and cpu.arch == .aarch64`). Default build still runs `xcrun swiftc` for the `@c` shim + links `FoundationModels.framework`; without Xcode/macOS 26 SDK use `-Dfeat-foundationmodels=false`. On-device needs Apple Intelligence hardware at runtime; `apple-fm` reports `FMUnavailable` elsewhere.
+- Generated: `src/plugin_registry.zig` (from `src/plugins/*/abi-plugin.json` + `tools/generate_plugin_registry.zig`). Build step injects it; **never hand-edit**.
+- Inside `src/`: use **relative** `.zig` imports. Only the MCP executable + handler module graph (`src/mcp/main.zig` + `handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) may do `@import("abi")`. Never from modules re-exported by `src/root.zig`.
 
-## API And Contract Gotchas
-- Public feature API changes usually require matching real/stub declarations and disabled behavior returning `error.FeatureDisabled`; run `zig build check-parity`. The checker only matches column-0 `pub const `/`pub fn ` names (not `pub var`/`pub threadlocal`/nested decls); it builds just the std-only host checker, so it runs even when the feature graph won't compile under a mismatched Zig.
-- Frozen CLI surface is contract-tested. Top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`; `abi --tui` is handled separately in `src/main.zig`. (`nn` is a miniature char-level demo trainer behind `feat-nn` — `nn train "<text>" | train --jsonl <path> | sample …`.)
-- Subcommand grammar (do not drift from `src/cli/`): `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (alias-resolves via the model catalog; `--live` serves anthropic models over the live transport; `--confirm` is required for on-device `apple-fm`; `--learn` routes through the SEA self-learning loop; `agent tui` is now an interactive REPL); `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>`; `nn train "<text>" | train --jsonl <path> [--field <name>] | sample --text "<corpus>" --seed <char> --n <k>`; `wdbx <db <init|verify|compact> | block <insert|get> | query | benchmark | cluster <status|demo|serve <port> [node] [host]> | compute info | secure demo | gpu info | api serve [port]>`. Malformed numeric args (counts/ports/node ids) return usage (exit 2), not a silent default.
-- Do not resurrect legacy CLI names such as `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, or `serve`.
-- MCP tools are contract-tested (12, count asserted in `tests/contracts/surface.zig`): `ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. (`ai_learn` runs the SEA loop; degrades to a stored completion when `feat-sea` is off.)
-- Default-on but specially gated flags: `feat-sea` (`src/features/sea/`, Sparse Evidence Attention self-learning) and `feat-foundationmodels` (`src/connectors/fm.zig`, Apple on-device FoundationModels — macOS-only, links `FoundationModels.framework` + a `swiftc`-built `libabi_fm_shim.dylib` on arm64 macOS; on-device generation is wired through a Swift `@c` shim (SE-0495) and requires Apple-Intelligence hardware at runtime). Model id `apple-fm` (`fm-local`/`fm`) routes to provider `fm`.
-- MCP stdio has a 64 KB request cap; optional HTTP/SSE binds loopback `127.0.0.1:8080` unless `ABI_MCP_HTTP_PORT` selects another valid port. `ABI_MCP_HTTP_TOKEN` requires `Authorization: Bearer <token>` on the HTTP/SSE transport (stdio stays tokenless); the WDBX REST listener (`abi wdbx api serve`) uses `ABI_WDBX_REST_TOKEN` for the same scheme. Both are loopback-only hardening, not a TLS substitute.
+## CLI Surface (frozen + contract-tested)
+Top-level commands (13, order from `src/cli/usage.zig` + `registry.zig`): `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`.
+- `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (`--live` = anthropic over explicit live transport; `--confirm` required for `apple-fm`; `--learn` = SEA loop; aliases resolved via model catalog).
+- `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>` (`agent tui` is interactive REPL).
+- `wdbx <db <init|verify|compact> | block <insert|get> | query | benchmark | cluster <status|demo|serve <port> [node] [host]> | compute info | secure demo | gpu info | api serve [port]>`.
+- `nn train "<text>" | train --jsonl <path> [--field <name>] | sample --text "<corpus>" --seed <char> --n <k>` (miniature pure-Zig char-LM demo; not production).
+- Malformed numeric args (ports, counts, node ids) → usage + exit 2.
+- **Do not** resurrect legacy names: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, `serve`.
 
-## Zig Conventions Agents Miss
-- Inside `src/`, use relative `.zig` imports. Only the MCP executable + handler module graph (`src/mcp/main.zig` plus the `handlers.zig` group: `handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) should import `@import("abi")`; never modules re-exported by `src/root.zig`.
-- Use Zig 0.17 idioms already present here: `pub fn main(init: std.process.Init) !void`, `ArrayListUnmanaged(T).empty`, `std.mem.trimEnd`, `splitScalar`/`splitAny`/`splitSequence`, and `foundation.time.unixMs()`.
-- Inline tests are the norm; modules should end with `std.testing.refAllDecls(@This())` coverage unless there is a clear reason not to.
-- Avoid silent empty `catch {}` in persistence, inference, connector, or data-access paths; propagate or log errors.
+## MCP Surface (12 tools, asserted in `tests/contracts/surface.zig`)
+`ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`.
+- Primary: JSON-RPC 2.0 over stdio (64 KB request cap).
+- Optional: HTTP/SSE on loopback `127.0.0.1:8080` (`ABI_MCP_HTTP_PORT` to override; `ABI_MCP_HTTP_TOKEN` for `Authorization: Bearer`). Same bearer scheme for WDBX REST (`abi wdbx api serve`) via `ABI_WDBX_REST_TOKEN`. Both are loopback hardening only.
 
-## WDBX, GPU, Connectors
-- WDBX runtime uses WAL/segment checkpoint paths and hybrid temporal/causal retrieval, but in-process demos are not production distributed storage.
-- GPU/vector code reports runtime capability and falls back deterministically to CPU; there is no `-Dgpu-backend` build option and no native accelerator dispatch claim unless source proves it.
-- Live connectors must require explicit credentials and live transport selection. Deterministic local helpers and `connector_test` should not hit the network.
+## API & Contract Rules
+- Public feature API change → keep `mod.zig` + `stub.zig` in declaration parity and return `error.FeatureDisabled` when off. Run `zig build check-parity`.
+- Parity tool only scans column-0 `pub const`/`pub fn` names (ignores `pub var`, threadlocal, nested); builds host-only std checker so it runs even under mismatched Zig.
+- `zig build check` runs feature-off contract smoke + feature-aware public contracts for every `-Dfeat-*`.
 
-## Claims And Docs
-- Do not claim distributed sharding, AES/RBAC, regulatory certifications, Kubernetes/H100 deployments, Swift/Python/TensorFlow stacks, QPS/latency/accuracy, energy, learned compression, full FHE, or non-loopback REST hardening unless source/tests/artifacts prove it.
-- For public-facing capability wording, check `docs/contracts/external-claims-audit.mdx` and keep unimplemented north-star items framed as targets/proposed work.
-- `abi-threat-model.md` (repo root) is the AppSec-grade, repo-path-anchored threat model (MCP/WDBX loopback listeners, credentials at rest); consult it before changing listener, auth, credential, or OS-control surfaces.
+## Zig 0.17 Conventions Agents Miss
+- Entry: `pub fn main(init: std.process.Init) !void`.
+- `ArrayListUnmanaged(T).empty` (not `.init(allocator)`).
+- `std.mem.trimEnd` (not `trimRight`); `splitScalar`/`splitAny`/`splitSequence`.
+- `foundation.time.unixMs()` for ms timestamps.
+- Tests: inline `test {}`; end modules with `std.testing.refAllDecls(@This())`.
+- No silent empty `catch {}` in persistence, inference, connector, or data-access paths — propagate or log.
+
+## WDBX / GPU / Connectors
+- WDBX: in-process store + segment/WAL persistence + hybrid retrieval. Cluster RPC is real TCP RequestVote/AppendEntries (`ABI_WDBX_CLUSTER_TOKEN` required for non-loopback binds; `ABI_WDBX_CLUSTER_PEERS` allowlist), but still **not** production multi-host deployment or sharding.
+- GPU/vector: reports capability and falls back deterministically to CPU. No `-Dgpu-backend` option.
+- Live connectors: require explicit credentials + live transport selection. Local helpers and `connector_test` must stay offline.
+
+## Claims & Docs
+- Do not claim unproven capabilities (distributed sharding, full production FHE, AES/RBAC, K8s/H100, Swift/Python/TF stacks, QPS/latency/accuracy, energy, non-loopback hardening, regulatory certs) unless source/tests prove it.
+- Public wording: consult `docs/contracts/external-claims-audit.mdx`.
+- Security surface: `abi-threat-model.md` (MCP/WDBX listeners, creds at rest).
+
+## Keep in Sync
+- Root siblings `CLAUDE.md` and `GEMINI.md` restate the same durable conventions. When commands, contracts, feature flags, or Zig patterns change, update all three.

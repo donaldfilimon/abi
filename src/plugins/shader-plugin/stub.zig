@@ -12,3 +12,7 @@ pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     _ = input;
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -84,6 +84,10 @@ const train_args = [_]Arg{
     .{ .name = "input", .kind = .positional, .required = true, .help = "training input" },
 };
 
+const scheduler_args = [_]Arg{
+    .{ .name = "status", .kind = .positional, .required = true, .help = "only supported subcommand: status" },
+};
+
 // --- Typed handlers ----------------------------------------------------------
 // Thin adapters that forward parsed arguments to the existing handler functions.
 // Handler output text is preserved verbatim (never re-authored).
@@ -92,11 +96,13 @@ fn completeHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
     return handlers.handleComplete(
         ctx.io,
         ctx.allocator,
-        parsed.value("input").?,
-        parsed.value("model"),
-        parsed.flag("live"),
-        parsed.flag("confirm"),
-        parsed.flag("learn"),
+        .{
+            .input = parsed.value("input").?,
+            .model = parsed.value("model"),
+            .live = parsed.flag("live"),
+            .confirmed = parsed.flag("confirm"),
+            .learn = parsed.flag("learn"),
+        },
     );
 }
 
@@ -115,6 +121,12 @@ fn dashboardHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
     return handlers.handleDashboard(ctx.allocator);
 }
 
+fn schedulerHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
+    const subcommand = parsed.value("status").?;
+    if (!std.mem.eql(u8, subcommand, "status")) return usage_mod.usageError("usage: abi scheduler status");
+    return handlers.handleSchedulerStatus(ctx.allocator);
+}
+
 // --- Raw handler shims -------------------------------------------------------
 // Commands still on the legacy `(io, allocator, argv)` contract. Thin adapters
 // drop unused parameters and forward to the existing handler functions,
@@ -128,11 +140,6 @@ fn handlePluginRaw(io: std.Io, alloc: std.mem.Allocator, args: []const []const u
 fn handleTwilioRaw(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
     _ = io;
     return handlers.handleTwilio(alloc, args);
-}
-
-fn handleSchedulerRaw(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
-    _ = io;
-    return handlers.handleScheduler(alloc, args);
 }
 
 /// The frozen 13-command surface, in the same order as `usage.commands`.
@@ -149,7 +156,7 @@ pub const commands = [_]Command{
     typedCmd("tui", &.{}, dashboardHandler),
     typedCmd("dashboard", &.{}, dashboardHandler),
     rawCmd("wdbx", handlers.handleWdbx),
-    rawCmd("scheduler", handleSchedulerRaw),
+    typedCmd("scheduler", &scheduler_args, schedulerHandler),
     rawCmd("nn", handlers.handleNn),
 };
 

@@ -55,3 +55,7 @@ pub fn validateConnectorConfig(config: ConnectorConfig) ConnectorError!void {
     if (config.base_url.len == 0) return ConnectorError.ConnectionFailed;
     if (config.timeout_ms == 0) return ConnectorError.Timeout;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -83,6 +83,11 @@ pub fn canonical(id: []const u8) []const u8 {
 /// Classify a model id to its serving provider. Catalog ids are authoritative;
 /// unknown ids fall back to prefix heuristics so freeform ids still route
 /// sensibly, and anything unrecognized stays `.local`.
+///
+/// Local/offline providers (ollama, lmstudio, llama.cpp, vLLM, MLX) are
+/// recognized by prefix so they route explicitly to `.local` — the local persona
+/// router serves them deterministically without cloud credentials. This makes
+/// the intent testable and honest rather than relying on silent fallthrough.
 pub fn providerOf(id: []const u8) Provider {
     if (resolve(id)) |cid| {
         for (catalog) |entry| {
@@ -93,6 +98,11 @@ pub fn providerOf(id: []const u8) Provider {
     if (std.mem.startsWith(u8, id, "gpt-")) return .openai;
     if (std.mem.startsWith(u8, id, "grok")) return .grok;
     if (std.mem.startsWith(u8, id, "apple-")) return .fm;
+    if (std.mem.startsWith(u8, id, "ollama-") or std.mem.startsWith(u8, id, "ollama/")) return .local;
+    if (std.mem.startsWith(u8, id, "lmstudio/")) return .local;
+    if (std.mem.startsWith(u8, id, "llama-cpp/") or std.mem.startsWith(u8, id, "llama/")) return .local;
+    if (std.mem.startsWith(u8, id, "vllm/")) return .local;
+    if (std.mem.startsWith(u8, id, "mlx-") or std.mem.startsWith(u8, id, "mlx/")) return .local;
     return .local;
 }
 
@@ -132,6 +142,20 @@ test "unknown ids are not known but prefixes still classify" {
     try std.testing.expectEqual(Provider.anthropic, providerOf("claude-future-9"));
     try std.testing.expectEqual(Provider.openai, providerOf("gpt-5"));
     try std.testing.expectEqual(Provider.grok, providerOf("grok-3"));
+}
+
+test "local offline provider aliases route to local deterministically" {
+    try std.testing.expectEqual(Provider.local, providerOf("ollama-llama3"));
+    try std.testing.expectEqual(Provider.local, providerOf("ollama/qwen2"));
+    try std.testing.expectEqual(Provider.local, providerOf("lmstudio/qwen2"));
+    try std.testing.expectEqual(Provider.local, providerOf("llama-cpp/mistral"));
+    try std.testing.expectEqual(Provider.local, providerOf("llama/phi3"));
+    try std.testing.expectEqual(Provider.local, providerOf("vllm/mixtral"));
+    try std.testing.expectEqual(Provider.local, providerOf("mlx-qwen"));
+    try std.testing.expectEqual(Provider.local, providerOf("mlx/llama3"));
+    try std.testing.expect(!isKnown("ollama-llama3"));
+    try std.testing.expect(resolve("ollama-llama3") == null);
+    try std.testing.expectEqualStrings("ollama-llama3", canonical("ollama-llama3"));
 }
 
 test {

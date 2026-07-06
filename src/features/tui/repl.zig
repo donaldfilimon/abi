@@ -6,16 +6,16 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const builtin = @import("builtin");
+const env = @import("../../foundation/env.zig");
+const utils = @import("../../foundation/utils.zig");
 const models = @import("../ai/models.zig");
 const ai = if (build_options.feat_ai) @import("../ai/mod.zig") else @import("../ai/stub.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const time = @import("../../foundation/time.zig");
-// Raw-mode terminal helpers live in the sibling `mod.zig`. This is only compiled
-// when `feat-tui` is on (the disabled build uses `stub.zig`, not this file), so
-// the import always resolves to the real TUI module — no cycle hazard for the
-// stub.
-const terminal = @import("mod.zig");
+const sanitize = @import("sanitize.zig");
+const terminal = @import("terminal.zig");
 
 /// Maximum length of a model id settable via `/model`.
 const MODEL_STORAGE_BYTES = 128;
@@ -211,39 +211,61 @@ pub const ReplLoop = struct {
     /// Dispatch one already-trimmed, non-empty input line: slash-commands route
     /// to their handlers, ordinary text runs a completion and persists the turn.
     fn dispatchLine(self: *ReplLoop, line: []const u8, io: std.Io) !LineOutcome {
-        if (line[0] == '/') {
-            switch (parseSpecialCommand(line)) {
-                .quit => return .quit,
-                .help => printHelp(),
-                .model => self.applyModel(specialArg(line)),
-                .reset => self.resetSession(),
-                .history => self.showHistory(),
-                .profile => std.debug.print("profile selection is not available in phase 1\n", .{}),
-                .syncclis => {
-                    std.debug.print("sync-clis: executing central sync (full targets via driver)...\n", .{});
-                    const sh = "/Users/donaldfilimon/abi/.agents/skills/sync-clis/sync-clis.sh"; // goal-turn-79df3a4a516d registered
-                    var child = try std.process.spawn(io, .{
-                        .argv = &[_][]const u8{sh},
-                        .cwd = .inherit,
-                        .stdin = .ignore,
-                        .stdout = .inherit,
-                        .stderr = .inherit,
-                    });
-                    defer child.kill(io);
-                    const term = try child.wait(io);
-                    std.debug.print("sync-clis done (exit {any})\n", .{term});
-                },
-                .unknown => {
-                    // Echo the rejected command through the sanitizer: the raw line is
-                    // attacker-controlled and may carry ESC/control bytes.
-                    const safe_line = try terminal.sanitizeControlBytes(self.allocator, line);
-                    defer self.allocator.free(safe_line);
-                    std.debug.print("unknown command: {s} (try /help)\n", .{safe_line});
-                },
-            }
-            return .keep_going;
-        }
+        if (line[0] == '/') return self.dispatchSlashCommand(line, io);
+        return self.completePrompt(line);
+    }
 
+    fn dispatchSlashCommand(self: *ReplLoop, line: []const u8, io: std.Io) !LineOutcome {
+        switch (parseSpecialCommand(line)) {
+            .quit => return .quit,
+            .help => printHelp(),
+            .model => self.applyModel(specialArg(line)),
+            .reset => self.resetSession(),
+            .history => self.showHistory(),
+            .profile => std.debug.print("profile selection is not available in phase 1\n", .{}),
+            .syncclis => try self.runSyncClis(io),
+            .unknown => try self.printUnknownCommand(line),
+        }
+        return .keep_going;
+    }
+
+    fn runSyncClis(self: *ReplLoop, io: std.Io) !void {
+        // The sync-clis launcher lives in the operator's Grok skill dir (outside
+        // this repo), not at a hardcoded in-repo path. Resolve the central
+        // launcher and never execute a missing script.
+        const home_var = if (builtin.target.os.tag == .windows) "USERPROFILE" else "HOME";
+        const home = env.get(home_var) orelse {
+            std.debug.print("sync-clis: HOME not set; cannot locate launcher\n", .{});
+            return;
+        };
+        const launch_path = try utils.pathJoin(home, ".grok/skills/sync-clis/launch.sh", self.allocator);
+        defer self.allocator.free(launch_path);
+        std.Io.Dir.cwd().access(io, launch_path, .{}) catch {
+            std.debug.print("sync-clis: launcher not found at {s}\n", .{launch_path});
+            return;
+        };
+        std.debug.print("sync-clis: executing central sync (full targets via driver)...\n", .{});
+        var child = try std.process.spawn(io, .{
+            .argv = &[_][]const u8{launch_path},
+            .cwd = .inherit,
+            .stdin = .ignore,
+            .stdout = .inherit,
+            .stderr = .inherit,
+        });
+        defer child.kill(io);
+        const term = try child.wait(io);
+        std.debug.print("sync-clis done (exit {any})\n", .{term});
+    }
+
+    fn printUnknownCommand(self: *ReplLoop, line: []const u8) !void {
+        // Echo the rejected command through the sanitizer: the raw line is
+        // attacker-controlled and may carry ESC/control bytes.
+        const safe_line = try sanitize.sanitizeControlBytes(self.allocator, line);
+        defer self.allocator.free(safe_line);
+        std.debug.print("unknown command: {s} (try /help)\n", .{safe_line});
+    }
+
+    fn completePrompt(self: *ReplLoop, line: []const u8) !LineOutcome {
         var result = try ai.completeWithScheduler(self.allocator, self.store, self.scheduler, "complete:agent-tui", .{
             .input = line,
             .model = self.state.config.model,
@@ -254,7 +276,7 @@ pub const ReplLoop = struct {
 
         // Completion output can echo poisoned WDBX content; strip control bytes so
         // it cannot inject terminal escapes into the operator's render stream.
-        const safe_output = try terminal.sanitizeControlBytes(self.allocator, result.output);
+        const safe_output = try sanitize.sanitizeControlBytes(self.allocator, result.output);
         defer self.allocator.free(safe_output);
         std.debug.print("{s}\n", .{safe_output});
         std.debug.print("[turn {d} | model={s} | profile={s} | persisted={s}]\n", .{
@@ -384,7 +406,7 @@ test "tui input hardening: adversarial bytes never corrupt state" {
     // The output sanitizer must remove ESC and NUL from attacker-influenced text
     // so render fields cannot inject terminal escapes. Length is preserved.
     const dirty = "\x1b[31mred\x00\x07\x7fboom\x1b[0m";
-    const clean = try terminal.sanitizeControlBytes(std.testing.allocator, dirty);
+    const clean = try sanitize.sanitizeControlBytes(std.testing.allocator, dirty);
     defer std.testing.allocator.free(clean);
     try std.testing.expect(std.mem.indexOfScalar(u8, clean, 0x1b) == null);
     try std.testing.expect(std.mem.indexOfScalar(u8, clean, 0x00) == null);

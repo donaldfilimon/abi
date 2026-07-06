@@ -4,6 +4,33 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ## Unreleased
 
+### Removed
+
+- Deleted dead `src/features/ai/plan.zig` (16-line noop: `parsePlan` returned `&.{}`, `formatPlanResponse` returned `"plan"`, neither called anywhere). Parity-synced `src/features/ai/mod.zig` (removed `pub const plan`/`PlanStep`/`parsePlan` re-exports) and `src/features/ai/stub.zig` (removed parity-matched `PlanStep`/`parsePlan`/`plan` block). `zig build check-parity` passes; no contract test referenced the removed names.
+- Deleted stray `mutex_check.o` (3 MB object file in repo root, not in `build.zig.zon` `paths`, not referenced by `build.zig`); added `/mutex_check.o` to `.gitignore`.
+
+- Deleted orphaned `tests/contracts/completion_persistence.zig` (referenced in earlier guard text but no longer imported by any test; removing it eliminates the `completion_persistence` symbol-set the prior `memory_record` guard asserted on, which the `kv=1, completion:<id> only` contract now makes unreachable).
+
+### Changed (file splits + param bundling)
+
+- Split four large source files into focused siblings, preserving all public APIs:
+  - `src/mcp/server.zig` → `stdio_transport.zig` + `http_transport.zig` (server.zig is now a thin re-export shim).
+  - `src/features/wdbx/rest.zig` → `rest_parse.zig` (response / vector-field / header / bearer-token / read helpers) + `rest_handlers.zig` (`route` core) — `rest.zig` re-exports both for the existing public surface.
+  - `src/features/nn/mod.zig` → `model.zig` (types, `Model`/`Scratch`/`Grads`, `forwardLoss`/`backward`/`evalLoss`/`forwardLossNoTarget`) + `train.zig` (`initModel`/`trainModel`/`trainOnText`/`trainOnJsonl`/`extractCorpusFromJsonl`) — `nn/mod.zig` now imports both and keeps the existing public API.
+  - `src/features/tui/` adds `types.zig` (shared status / state / dashboard types), `sanitize.zig` (control-byte sanitizer), `terminal.zig` (raw-mode terminal); `mod.zig` and `stub.zig` re-export through them. `writeDashboard`/`writeDiagnostics` writers added to `mod.zig`.
+- Param bundling: `src/features/wdbx/wal.zig` `appendBlock` now takes a `BlockRecord` struct (5-field bundle) instead of 5 trailing args; `src/cli/handlers/train.zig` `handleComplete` now takes a `CompleteOptions` struct (5-field bundle) instead of 5 trailing args. `cli/registry.zig` adapts.
+- `src/cli/handlers/agent.zig` `handleAgent` split into `handleAgentPlan` / `handleAgentTrain` / `handleAgentTui` / `handleAgentOs` per-subcommand functions; dispatch reduced to a short `sub_cmd` switch.
+- `src/cli/registry.zig` `scheduler` migrated from raw `(io, alloc, argv)` shim to the typed argument parser (`typedCmd("scheduler", &scheduler_args, schedulerHandler)`); `scheduler status` is the only valid subcommand, enforced both at parse time and in the handler.
+- `src/features/tui/repl.zig` `syncclis` slash command no longer hardcodes an in-repo path; it resolves `~/.grok/skills/sync-clis/launch.sh` via `$HOME` and refuses cleanly if the launcher is missing.
+- WDBX `cluster status`, `cluster demo`, and `secure demo` now print an explicit north-star status line (Partial / Phase 1-2 vs Proposed / Phase 2 per `docs/spec/wdbx-north-star.mdx` §2/§3.4-3.5).
+- Instruction files: `AGENTS.md` rewritten (110 lines, every section kept in sync with the refactor), `CLAUDE.md` adds `test-plugins` and CI cross-smoke note, `GEMINI.md` adds the CI cross-smoke note. `docs/spec/abi-refactor-design.mdx` and `docs/superpowers/specs/ABI-MASTER-SPEC.md` reconciled to the current tree.
+
+### Re-pointed (skill telemetry)
+
+- Re-anchored 8 abi-reviewer agent files (`.claude/agents/{ai-constitution-reviewer,compression-security-reviewer,instruction-sync,plugin-system-reviewer,sea-evidence-analyst,tui-navigation-guide,wdbx-explorer,zig-build-doctor}.md`) so bare `mod.zig`/`stub.zig`/`router.zig`/`constitution.zig`/`entropy.zig`/`neural_compress.zig`/`fhe.zig`/`evidence.zig`/`dashboard.zig`/`plugin.zig`/`plugin_manager.zig`/`std.mem.trimEnd` references are now qualified to their real paths. `npx skill-loop init` + `inspect` now report zero broken refs for these agents; previously 18 broken refs across `local` skills (16 of them ours).
+- Model catalog local-offline provider alias routing: `models.zig` `providerOf()` now classifies `ollama-`/`ollama/`, `lmstudio/`, `llama-cpp/`/`llama/`, `vllm/`, `mlx-`/`mlx/` prefix ids as `.local` explicitly (instead of silent fallthrough), with inline regression tests asserting all 8 prefix forms route to `.local`, stay `!isKnown`, and pass through `canonical` unchanged. Deterministic offline, no cloud credentials. No `Provider` enum / `catalog` / `resolve` / `canonical` surface change; parity unaffected (`models.zig` is std-only, shared by `mod.zig` + `stub.zig`). Maps issue #647's stale `mcp/src/inference/engine/backends.zig` alias-consistency item to the real current path.
+- `std.testing.refAllDecls(@This())` coverage added to all 32 plugin mod/stub files under `src/plugins/*/` and the 9 non-exempt build-covered modules previously lacking it (connector façades `connector`/`http`/`anthropic`/`discord`/`twilio`/`tests`, `src/foundation/pool_allocator.zig` + `validation.zig`, `src/mcp/server.zig`).
+
 ### Fixed
 
 - MCP shutdown use-after-free: the `shutdown` JSON-RPC method tore down shared state in-band from whichever transport thread handled it, so `deinitScheduler()` could free the `Scheduler` while the peer transport was inside a tool call holding a `*Scheduler`. The stdio (`server.zig`) and HTTP (`rpc.zig`) handlers now only *signal* shutdown; `main` runs `deinitScheduler()`/`deinitWdbxStore()` via LIFO `defer`s after the HTTP thread is joined, so teardown can't race an in-flight call (deinit is idempotent; the WAL covers crash recovery).

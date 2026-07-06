@@ -10,7 +10,7 @@ Frozen surface (per CLAUDE.md, asserted in `tests/contracts/surface.zig`):
 - Exactly 12 tools: `ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`.
 - JSON-RPC 2.0 over stdio, 64 KB request cap; optional loopback HTTP on `127.0.0.1:8080` (`ABI_MCP_HTTP_PORT` override; empty/invalid/zero/out-of-range → 8080; bind failure leaves stdio running). `ABI_MCP_HTTP_TOKEN` gates HTTP/SSE with `Authorization: Bearer`. Endpoints: `GET /sse`, `POST /message`.
 - `src/mcp/middleware.zig` runs declarative arg validation (NUL/length/path-traversal/enum) before dispatch; `handlers.errorMessage` normalizes any `anyerror` to a stable non-leaking client string.
-- `@import("abi")` is allowed ONLY in `src/mcp/main.zig` + the handlers group (`handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) — never elsewhere.
+- `@import("abi")` is allowed ONLY in `src/mcp/main.zig` + the handlers group (`src/mcp/handlers.zig`, `src/mcp/ai_tools.zig`, `src/mcp/connector_tools.zig`, `src/mcp/plugin_tools.zig`, `src/mcp/state.zig`) — never elsewhere.
 
 Method: run `zig build test-mcp-contracts` and `zig build test-mcp-server` (stdio + HTTP/SSE transports) to reproduce; read the handlers; for live checks pipe JSON-RPC frames into `./zig-out/bin/abi-mcp stdio` (see `.claude/skills/run-abi/smoke.sh`).
 

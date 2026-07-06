@@ -623,3 +623,7 @@ test "grok local completion empty input" {
     try std.testing.expectEqual(@as(u16, 200), response.status);
     try std.testing.expect(response.body.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

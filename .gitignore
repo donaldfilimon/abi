@@ -17,6 +17,7 @@ docs_html/
 /test.db
 /target_contract.o
 /libcontext_init.a
+/mutex_check.o
 # ── Documentation build artifacts ─────────────────────────────────────
 docs-src/build/
 docs/api-app/data/docs_engine.component.wasm
@@ -385,3 +386,7 @@ parity_results.txt
 # Legacy orphaned root files (moved during 0.17 refactor)
 legacy/
 .skill-telemetry/
+
+# Sync marker files (tooling artifacts, not source)
+/.agents/skills/.plugins-synced-from-central
+/src/plugins/.central-synced

@@ -138,3 +138,7 @@ test "discord redacted log summary omits message text" {
     const summary = redactedMessageSummary(secret);
     try std.testing.expectEqual(secret.len, summary.content_bytes);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

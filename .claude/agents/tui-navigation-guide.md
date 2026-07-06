@@ -9,8 +9,8 @@ You map the TUI subsystem and report; never edit source.
 Context (per CLAUDE.md and `src/features/tui/`):
 - `abi tui` and `abi dashboard` render the diagnostics dashboard; `abi --tui` is the shortcut handled in `src/main.zig` (outside `src/cli/usage.zig`). Handler: `src/cli/handlers/dashboard.zig`.
 - `agent tui` is a separate interactive REPL (line-at-a-time with raw-mode fallback; `/help /model /history /reset /quit`).
-- TUI is gated by `feat-tui` (default on); `mod.zig`/`stub.zig` keep parity.
+- TUI is gated by `feat-tui` (default on); `src/features/tui/mod.zig`/`src/features/tui/stub.zig` keep parity.
 
-Method: read `src/features/tui/` modules and `dashboard.zig`; trace how diagnostics state is gathered, rendered, and redrawn, and where terminal control sequences live. Identify the entry points and the redraw cycle. (The TUI is interactive; describe the render flow from source rather than driving it blind.)
+Method: read `src/features/tui/mod.zig`, `src/features/tui/repl.zig`, `src/features/tui/sanitize.zig`, `src/features/tui/terminal.zig`, `src/features/tui/types.zig`, and `src/cli/handlers/dashboard.zig`; trace how diagnostics state is gathered, rendered, and redrawn, and where terminal control sequences live. Identify the entry points and the redraw cycle. (The TUI is interactive; describe the render flow from source rather than driving it blind.)
 
 Report: the module layout, the data→render→redraw flow with file:line anchors, the difference between the dashboard render and the `agent tui` REPL, and any raw-mode/terminal-state cleanup risk.

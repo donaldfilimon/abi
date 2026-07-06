@@ -3,9 +3,8 @@
 # completion path (`abi complete --learn`). Asserts the loop runs, persists, and
 # reports evidence/adaptation counters. Resolves the repo root from its location.
 #
-# feat-sea is OFF by default, so the default run exercises the DEGRADED path
-# (evidence_count=0, adapted=false) — it proves the --learn plumbing works end
-# to end. Pass --sea to rebuild with -Dfeat-sea=true and exercise real recall.
+# feat-sea defaults ON with the other -Dfeat-* flags. Pass --sea only to force
+# -Dfeat-sea=true explicitly while debugging feature-flag behavior.
 #
 # Usage:
 #   .claude/skills/sea-learn-loop/learn.sh ["input text"]
@@ -33,7 +32,7 @@ if [ "$SEA" -eq 1 ]; then
     say "build cli with -Dfeat-sea=true"
     build_ok() { zig build cli -Dfeat-sea=true; }
 else
-    say "build cli (feat-sea off — degraded path)"
+    say "build cli (default feat-sea=true)"
     build_ok() { ./build.sh cli; }
 fi
 if build_ok; then echo "[ok] build"; else echo "[FAIL] build"; exit 1; fi
@@ -46,7 +45,7 @@ printf '%s\n' "$out"
 [ "$rc" -eq 0 ] || { echo "[FAIL] complete --learn exit $rc"; fail=$((fail+1)); }
 
 # The loop must report it ran (learn=true), name a model, and emit an
-# evidence counter (0 when feat-sea is off, >0 only once the store has hits).
+# evidence counter (0 is acceptable when the scratch store has no hits).
 for marker in "learn=true" "model=" "evidence_count="; do
     printf '%s' "$out" | grep -qF -- "$marker" && echo "[ok] marker: $marker" \
         || { echo "[FAIL] missing marker: $marker"; fail=$((fail+1)); }
@@ -55,7 +54,7 @@ printf '%s' "$out" | grep -qF -- "persisted=true" && echo "[ok] persisted=true" 
     || echo "[note] not persisted (acceptable depending on store state)"
 
 say "summary"
-echo "feat-sea: $([ "$SEA" -eq 1 ] && echo on || echo off)"
+echo "feat-sea: $([ "$SEA" -eq 1 ] && echo explicit-on || echo default-on)"
 echo "failed checks: $fail"
 [ "$fail" -eq 0 ] && echo "RESULT: PASS — SEA learn loop ran." || echo "RESULT: FAIL — $fail check(s) failed."
 exit "$fail"

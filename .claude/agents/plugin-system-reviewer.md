@@ -8,11 +8,11 @@ You review the plugin system and report; never hand-edit `src/plugin_registry.zi
 
 Contract (per CLAUDE.md and the source):
 - Manifests (`src/plugins/<name>/abi-plugin.json`) require `name`, `version`, `description`, `target_feature`, and a safe relative `.zig` `entry_point` that exists under the plugin dir (`targetFeature`/`entryPoint` aliases accepted). Validated by `src/foundation/plugin_validator.zig`.
-- Each plugin needs `mod.zig` + `stub.zig` in declaration-name parity (`zig build check-parity`); the stub's `run` returns `error.FeatureDisabled`.
+- Each plugin needs `src/plugins/<p>/mod.zig` + `src/plugins/<p>/stub.zig` in declaration-name parity (`zig build check-parity`); the stub's `run` returns `error.FeatureDisabled`.
 - The registry is regenerated from manifests by `tools/generate_plugin_registry.zig` into `src/plugin_registry.zig` — never hand-edit it.
 - `tests/contracts/plugin_registry.zig` PINS the plugin count and per-plugin asserts — every added/removed plugin requires updating it.
 - **Registering ≠ enabling.** `abi plugin list` reads the generated registry (sees all). `abi plugin run <name>` only works if the name is BOTH loaded in `src/cli/handlers/plugin.zig` (a `loadBundledPlugin` line) AND dispatched in `src/plugins/plugin_manager.zig` `run()` (a per-name branch). Missing either → `PluginNotFound` or a generic contract-ack instead of the plugin's real `run()`.
 
-Method: read the manifest(s), `plugin_manager.zig`, `plugin.zig` handler, the validator, and the contract test. Run `abi plugin list` and `abi plugin run <name> x` to confirm list-vs-run agreement.
+Method: read the manifest(s), `src/plugins/plugin_manager.zig`, `src/cli/handlers/plugin.zig` handler, the validator, and the contract test. Run `abi plugin list` and `abi plugin run <name> x` to confirm list-vs-run agreement.
 
 Report: per plugin, manifest validity, parity status, whether it's truly enabled for `run` (both edits present), and whether the contract test count matches the registry.

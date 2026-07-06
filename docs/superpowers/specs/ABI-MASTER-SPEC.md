@@ -55,7 +55,7 @@ src/
 
 ## 4. AI Pipeline: Abbey-Aviva-Abi
 - **Routing**: Sentiment-based, multi-weight routing across Abbey, Aviva, and Abi profiles.
-- **Governance**: Constitution-driven validation of response integrity against 6 core principles (Safety, Honesty, Privacy, Fairness, Autonomy, Transparency).
+- **Governance**: Constitution-driven validation of response integrity against 6 core principles (truthfulness, safety, helpfulness, fairness, privacy, transparency).
 
 ### Plugin System Implementation
 The plugin system is implemented via build-time registry generation:

@@ -46,3 +46,20 @@ pub fn usageError(message: []const u8) u8 {
     std.debug.print("error: {s}\n", .{message});
     return 2;
 }
+
+test "usage: known command returns exit 0" {
+    try std.testing.expectEqual(@as(u8, 0), printCommandHelp("help"));
+    try std.testing.expectEqual(@as(u8, 0), printCommandHelp("wdbx"));
+}
+
+test "usage: unknown command returns exit 2" {
+    try std.testing.expectEqual(@as(u8, 2), printCommandHelp("nope"));
+}
+
+test "usage: usageError returns exit 2" {
+    try std.testing.expectEqual(@as(u8, 2), usageError("bad arg"));
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

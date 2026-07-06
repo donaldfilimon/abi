@@ -16,6 +16,10 @@ pub fn handleScheduler(allocator: std.mem.Allocator, args: []const []const u8) !
         return usage_mod.usageError("usage: abi scheduler status");
     }
 
+    return handleSchedulerStatus(allocator);
+}
+
+pub fn handleSchedulerStatus(allocator: std.mem.Allocator) !u8 {
     var tracker = memory_mod.MemoryTracker.init(allocator);
     defer tracker.deinit();
 

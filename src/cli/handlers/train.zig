@@ -25,21 +25,70 @@ pub fn handleTrain(allocator: std.mem.Allocator, input: []const u8) !u8 {
 /// an `apple-fm` (on-device FoundationModels) model requires `--confirm` and is
 /// routed to `handleFmComplete`; otherwise the local persona router runs and the
 /// completion is persisted.
-pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: ?[]const u8, live: bool, confirmed: bool, learn: bool) !u8 {
-    const selected_model = if (model) |m| features.ai.models.canonical(m) else features.ai.models.default_model;
+pub const CompleteOptions = struct {
+    input: []const u8,
+    model: ?[]const u8 = null,
+    live: bool = false,
+    confirmed: bool = false,
+    learn: bool = false,
+};
+
+const LearnMetadata = struct {
+    evidence_count: usize,
+    adapted: bool,
+};
+
+fn printCompletionMetadata(completion: *const features.ai.CompletionResult, stats: anytype, learn: ?LearnMetadata) void {
+    const persisted = completion.query_vector_id != null and completion.response_vector_id != null and completion.block_id != null;
+
+    if (learn) |meta| {
+        std.debug.print("model={s} profile={s} audit_passed={s} persisted={s} learn=true evidence_count={d} adapted={s}\n", .{
+            completion.model,
+            completion.selected_profile.label(),
+            if (completion.audit.passed) "true" else "false",
+            if (persisted) "true" else "false",
+            meta.evidence_count,
+            if (meta.adapted) "true" else "false",
+        });
+    } else {
+        std.debug.print("model={s} profile={s} audit_passed={s} persisted={s}\n", .{
+            completion.model,
+            completion.selected_profile.label(),
+            if (completion.audit.passed) "true" else "false",
+            if (persisted) "true" else "false",
+        });
+    }
+
+    std.debug.print("wdbx kv_entries={d} vectors={d} blocks={d}\n", .{ stats.kv_entries, stats.vectors, stats.blocks });
+    if (completion.query_vector_id) |qid| {
+        std.debug.print("query_vector_id={d}\n", .{qid});
+        std.debug.print("metadata_key=completion:{d}\n", .{qid});
+    }
+    if (completion.response_vector_id) |rid| std.debug.print("response_vector_id={d}\n", .{rid});
+    if (completion.block_id) |block_id| {
+        const block_hex = std.fmt.bytesToHex(block_id, .lower);
+        std.debug.print("block_id={s}\n", .{&block_hex});
+    }
+    if (!persisted) std.debug.print("wdbx_status={s}\n", .{stats.acceleration.message});
+    std.debug.print("{s}\n", .{completion.output});
+}
+
+pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOptions) !u8 {
+    const input = opts.input;
+    const selected_model = if (opts.model) |m| features.ai.models.canonical(m) else features.ai.models.default_model;
 
     // Pass-through of unknown ids is the documented contract, but a silent
     // pass-through hides typos (e.g. `claud-fable-5`). Surface a one-line note
     // on stderr without changing what gets recorded.
-    if (model) |m| {
+    if (opts.model) |m| {
         if (!features.ai.models.isKnown(m)) {
             std.debug.print("warning: '{s}' is not a recognized model id; passing it through unchanged\n", .{m});
         }
     }
 
-    if (live) {
+    if (opts.live) {
         if (features.ai.models.providerOf(selected_model) == .fm) {
-            return handleFmComplete(allocator, input, selected_model, confirmed);
+            return handleFmComplete(allocator, input, selected_model, opts.confirmed);
         }
         return handleLiveComplete(io, allocator, input, selected_model);
     }
@@ -53,7 +102,7 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u
     // the flag is always accepted: with `-Dfeat-sea=false` the stub degrades to
     // a plain persisted completion (evidence_count=0, adapted=false); with the
     // feature on it recalls evidence and adapts the persona-router weights.
-    if (learn) return handleLearnComplete(allocator, store, input, selected_model);
+    if (opts.learn) return handleLearnComplete(allocator, store, input, selected_model);
 
     var scheduler = scheduler_mod.Scheduler.init(allocator);
     defer scheduler.deinit();
@@ -71,21 +120,7 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u
     defer result.deinit(allocator);
 
     const stats = store.stats();
-    const persisted = result.query_vector_id != null and result.response_vector_id != null and result.block_id != null;
-
-    std.debug.print("model={s} profile={s} audit_passed={s} persisted={s}\n", .{ result.model, result.selected_profile.label(), if (result.audit.passed) "true" else "false", if (persisted) "true" else "false" });
-    std.debug.print("wdbx kv_entries={d} vectors={d} blocks={d}\n", .{ stats.kv_entries, stats.vectors, stats.blocks });
-    if (result.query_vector_id) |qid| {
-        std.debug.print("query_vector_id={d}\n", .{qid});
-        std.debug.print("metadata_key=completion:{d}\n", .{qid});
-    }
-    if (result.response_vector_id) |rid| std.debug.print("response_vector_id={d}\n", .{rid});
-    if (result.block_id) |block_id| {
-        const block_hex = std.fmt.bytesToHex(block_id, .lower);
-        std.debug.print("block_id={s}\n", .{&block_hex});
-    }
-    if (!persisted) std.debug.print("wdbx_status={s}\n", .{stats.acceleration.message});
-    std.debug.print("{s}\n", .{result.output});
+    printCompletionMetadata(&result, stats, null);
     return 0;
 }
 
@@ -104,28 +139,7 @@ fn handleLearnComplete(
 
     const completion = result.completion;
     const stats = store.stats();
-    const persisted = completion.query_vector_id != null and completion.response_vector_id != null and completion.block_id != null;
-
-    std.debug.print("model={s} profile={s} audit_passed={s} persisted={s} learn=true evidence_count={d} adapted={s}\n", .{
-        completion.model,
-        completion.selected_profile.label(),
-        if (completion.audit.passed) "true" else "false",
-        if (persisted) "true" else "false",
-        result.evidence_count,
-        if (result.adapted) "true" else "false",
-    });
-    std.debug.print("wdbx kv_entries={d} vectors={d} blocks={d}\n", .{ stats.kv_entries, stats.vectors, stats.blocks });
-    if (completion.query_vector_id) |qid| {
-        std.debug.print("query_vector_id={d}\n", .{qid});
-        std.debug.print("metadata_key=completion:{d}\n", .{qid});
-    }
-    if (completion.response_vector_id) |rid| std.debug.print("response_vector_id={d}\n", .{rid});
-    if (completion.block_id) |block_id| {
-        const block_hex = std.fmt.bytesToHex(block_id, .lower);
-        std.debug.print("block_id={s}\n", .{&block_hex});
-    }
-    if (!persisted) std.debug.print("wdbx_status={s}\n", .{stats.acceleration.message});
-    std.debug.print("{s}\n", .{completion.output});
+    printCompletionMetadata(&completion, stats, .{ .evidence_count = result.evidence_count, .adapted = result.adapted });
     return 0;
 }
 
@@ -217,7 +231,7 @@ test "complete --live rejects non-anthropic models before any network or credent
     // `abi-local` is a known catalog model whose provider is `.local`, so the
     // live path must reject it with usage (exit 2) before touching the
     // credential store or the network transport.
-    const code = try handleComplete(std.testing.io, allocator, "hello", "abi-local", true, false, false);
+    const code = try handleComplete(std.testing.io, allocator, .{ .input = "hello", .model = "abi-local", .live = true });
     try std.testing.expectEqual(@as(u8, 2), code);
 }
 
@@ -225,7 +239,7 @@ test "complete --live apple-fm without --confirm rejects with usage before any i
     const allocator = std.testing.allocator;
     // apple-fm routes to the on-device path, which must refuse with usage
     // (exit 2) until `--confirm` is supplied — no client is constructed.
-    const code = try handleComplete(std.testing.io, allocator, "hello", "apple-fm", true, false, false);
+    const code = try handleComplete(std.testing.io, allocator, .{ .input = "hello", .model = "apple-fm", .live = true });
     try std.testing.expectEqual(@as(u8, 2), code);
 }
 
@@ -243,7 +257,7 @@ test "complete --live apple-fm with --confirm tracks on-device availability" {
     // catching a real regression — e.g. a fabricated success when FM is unavailable
     // (would-be exit 0), a dropped FMUnavailable guard, or a fall-through to usage
     // (exit 2) — that the loose `0 or 1` union would have silently accepted.
-    const code = try handleComplete(std.testing.io, allocator, "hello", "apple-fm", true, true, false);
+    const code = try handleComplete(std.testing.io, allocator, .{ .input = "hello", .model = "apple-fm", .live = true, .confirmed = true });
     const expected: u8 = if (fm.fmAvailable()) 0 else 1;
     try std.testing.expectEqual(expected, code);
 }

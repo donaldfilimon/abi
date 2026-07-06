@@ -116,6 +116,7 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
                 "cluster: {s}\n(single-node default; in-process multi-node consensus is available — run `abi wdbx cluster demo`)\n",
                 .{line},
             );
+            std.debug.print("north-star status: single-node/in-process (Phase 1 landed); multi-host production cluster Proposed (Phase 2) (docs/spec/wdbx-north-star.mdx §2/§3.5)\n", .{});
             return 0;
         } else if (std.mem.eql(u8, args[3], "demo")) {
             const nodes: usize = if (args.len >= 5) (std.fmt.parseInt(usize, args[4], 10) catch return usage()) else 3;
@@ -227,7 +228,7 @@ test "wdbx db verify detects a corrupted WAL frame" {
 
     // A valid post-checkpoint delta (one logged block) is NOT divergence — it
     // folds onto the checkpoint and verifies clean.
-    try wdbx.wal.appendBlock(std.testing.io, allocator, wp, "aviva", 0, 0, "{\"turn\":2}", 4242);
+    try wdbx.wal.appendBlock(std.testing.io, allocator, wp, .{ .profile = "aviva", .query_id = 0, .response_id = 0, .metadata = "{\"turn\":2}", .timestamp_ms = 4242 });
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
 
     // Flip a byte inside the WAL's framed JSON: verify must surface the
@@ -302,7 +303,7 @@ test "wdbx runtime commands recover WAL-ahead state before reading or writing" {
     // Simulate a crash after the WAL append but before checkpointing: the WAL
     // holds a valid post-checkpoint delta. verify reports it clean (it folds
     // onto the checkpoint), and runtime commands recover the merged block.
-    try wdbx.wal.appendBlock(std.testing.io, allocator, wp, "aviva", 0, 0, "{\"turn\":2}", 4242);
+    try wdbx.wal.appendBlock(std.testing.io, allocator, wp, .{ .profile = "aviva", .query_id = 0, .response_id = 0, .metadata = "{\"turn\":2}", .timestamp_ms = 4242 });
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "db", "verify", path }));
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "block", "get", path }));
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path }));

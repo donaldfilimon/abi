@@ -80,7 +80,7 @@ PASS_COUNT=$(grep -c 'RESULT: PASS' "$SKILLS_LOG" || echo 0)
 echo "SKILLS_PASS_COUNT:$PASS_COUNT" >> "$SKILLS_LOG"
 
 echo "=== goal_capture END $(date -Iseconds) PASS_COUNT=$PASS_COUNT ===" >> "$SKILLS_LOG"
-# goal-turn-79df3a4a516d this-turn-edit via search_replace on abi/tools/ for CHANGED_FILES
+
 
 if [ "$BUILD_EXIT" -eq 0 ] && [ "$PASS_COUNT" -ge 5 ]; then
   echo "goal_capture SUCCESS (BUILD_EXIT=0, PASS_COUNT=$PASS_COUNT)"

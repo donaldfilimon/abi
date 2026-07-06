@@ -146,7 +146,7 @@ pub fn blockInsert(io: std.Io, allocator: std.mem.Allocator, path: []const u8, p
     // legacy (base_epoch=0) header; a crash before the next checkpoint would
     // then make recovery discard this block as superseded. Mirrors Session.openAt.
     try wdbx.wal.createWithEpoch(io, allocator, wp, opened.checkpoint_epoch);
-    try wdbx.wal.appendBlock(io, allocator, wp, profile, 0, 0, metadata, last.timestamp_ms);
+    try wdbx.wal.appendBlock(io, allocator, wp, .{ .profile = profile, .query_id = 0, .response_id = 0, .metadata = metadata, .timestamp_ms = last.timestamp_ms });
     try checkpointStore(io, allocator, path, &opened.store);
 
     std.debug.print("appended block: profile={s} blocks={d} hash={s}\n", .{ profile, opened.store.blockCount(), std.fmt.bytesToHex(last.id, .lower) });

@@ -12,3 +12,7 @@ pub fn register() void {}
 pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     return try std.fmt.allocPrint(allocator, "telemetry-exporter event (bytes={d})", .{input.len});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

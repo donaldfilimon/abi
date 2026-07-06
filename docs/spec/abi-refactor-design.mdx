@@ -53,7 +53,6 @@ src/
 │   └── validation.zig # General validation helpers
 ├── features/          # Domain-specific modules (mod/stub pattern)
 │   ├── mod.zig        # Feature selection via build_options
-│   ├── backend_utils.zig # Shared backend utilities
 │   ├── ai/            # Abbey-Aviva-Abi Pipeline (flat layout)
 │   │   ├── mod.zig    # Public API: run, complete, train, profiles, router
 │   │   ├── stub.zig   # No-op stubs when feat-ai disabled
@@ -139,7 +138,6 @@ src/
 │   ├── state.zig      # Long-lived MCP feature state
 │   └── server.zig     # Stdio and HTTP/SSE transport layer
 ├── plugins/           # Plugin manifests and local plugin manager
-│   ├── abi-plugin.json         # Top-level plugin manifest (core ABI surface)
 │   ├── plugin_manager.zig      # Load/unload/list from required JSON manifests
 │   ├── example-plugin/         # Baseline example plugin fixture (abi-plugin.json + mod.zig + stub.zig)
 │   └── example-wdbx-plugin/    # WDBX-targeted registry fixture (abi-plugin.json + mod.zig + stub.zig)

@@ -67,7 +67,6 @@ pub const DashboardState = struct {
     /// 0-based index of focused pane for interactive navigation (System=0, Plugins=1, etc.)
     selected_pane: usize = 0,
 };
-// goal-turn-79df3a4a516d this-turn-edit
 
 const DIAG_WIDTH: usize = 68;
 const LABEL_WIDTH: usize = 25;
@@ -331,6 +330,18 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     try out.appendSlice(allocator, "\n\x1b[2m[q/Esc] Quit  [r] Refresh  [1-5/h/l] Select pane  live snapshot every 1s\x1b[0m\n");
 
     return try out.toOwnedSlice(allocator);
+}
+
+pub fn writeDashboard(writer: anytype, allocator: std.mem.Allocator, state: State) !void {
+    const rendered = try renderDashboard(allocator, state);
+    defer allocator.free(rendered);
+    try writer.writeAll(rendered);
+}
+
+pub fn writeDiagnostics(writer: anytype, allocator: std.mem.Allocator, ds: DashboardState) !void {
+    const rendered = try renderDiagnostics(allocator, ds);
+    defer allocator.free(rendered);
+    try writer.writeAll(rendered);
 }
 
 // --- Interactive Terminal Helpers ---

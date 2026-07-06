@@ -1,6 +1,6 @@
 ---
 name: sea-learn-loop
-description: Build the abi CLI and exercise the SEA (Sparse Evidence Attention) self-learning completion path via `abi complete --learn`. Use when working on ai_learn / complete --learn / evidence recall, or to verify the SEA loop runs and persists. Has a --sea flag to build with -Dfeat-sea=true for real recall.
+description: Build the abi CLI and exercise the SEA (Sparse Evidence Attention) self-learning completion path via `abi complete --learn`. Use when working on ai_learn / complete --learn / evidence recall, or to verify the SEA loop runs and persists. SEA defaults on; --sea only forces -Dfeat-sea=true explicitly.
 ---
 
 # sea-learn-loop — exercise the SEA self-learning completion
@@ -8,41 +8,39 @@ description: Build the abi CLI and exercise the SEA (Sparse Evidence Attention) 
 Driver: **`.agents/skills/sea-learn-loop/learn.sh`** (paths relative to repo root).
 CLI check — evidence is the `RESULT:` line + the `learn=…` status line.
 
-`feat-sea` is **OFF by default**, so the default run exercises the *degraded*
-path: the `--learn` plumbing runs end-to-end but recall returns nothing
-(`evidence_count=0 adapted=false`). That still proves the loop, persistence, and
-WDBX wiring work. Use `--sea` to rebuild with `-Dfeat-sea=true` for real
-evidence recall + router adaptation.
+`feat-sea` defaults **ON** with the rest of the `-Dfeat-*` flags. The default
+run exercises the real SEA path; `evidence_count=0 adapted=false` can still be
+valid when the scratch store has no matching evidence. Use `--sea` only when you
+want to force `-Dfeat-sea=true` explicitly while debugging feature flags.
 
 ## Prerequisites
 - Pinned/master Zig on PATH (see `/zig-newest-skills`). macOS builds via `./build.sh`.
 
 ## Run (agent path)
 ```bash
-.agents/skills/sea-learn-loop/learn.sh                       # degraded path (feat-sea off)
+.agents/skills/sea-learn-loop/learn.sh                       # default SEA-on path
 .agents/skills/sea-learn-loop/learn.sh "my custom prompt"    # custom input
-.agents/skills/sea-learn-loop/learn.sh --sea                 # build -Dfeat-sea=true, real recall
+.agents/skills/sea-learn-loop/learn.sh --sea                 # explicitly pass -Dfeat-sea=true
 ```
 It builds the CLI, runs `abi complete --learn "<input>"`, and asserts the
 markers `learn=true`, `model=`, `evidence_count=` (plus a soft `persisted=true`
 check). Prints `RESULT: PASS — SEA learn loop ran.` (exit 0) or a FAIL count.
 
-Historical verification (feat-sea off): **PASS** — `model=claude-fable-5 …
+Historical verification (old feat-sea-off run): **PASS** — `model=claude-fable-5 …
 learn=true evidence_count=0 adapted=false`, store reported `kv_entries=2
 vectors=4 blocks=2`, on Zig master `0.17.0-dev.1099`.
 
 ## Gotchas
-- **`evidence_count=0` is expected with feat-sea off** — the degraded path stores
-  the completion but does no recall. Don't read 0 as a failure; it's the
-  documented off-state. Use `--sea` to see non-zero recall once the store has hits.
+- **`evidence_count=0` is not necessarily a failure** — with SEA on, the scratch
+  store may simply have no matching evidence yet.
 - The model line shows the catalog default (`Codex-fable-5`); `--learn` is local
   (WDBX metadata), not a live API call — no credentials needed.
-- First `--sea` build is a fresh feature-graph compile (slower); the default
-  `./build.sh cli` is incremental.
+- First build can be a fresh feature-graph compile; later `./build.sh cli` runs
+  are incremental.
 
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
 | `build` FAIL (default) | `/zig-build-doctor` or `./build.sh check`. |
-| `build` FAIL (`--sea`) | feat-sea graph issue — check `src/features/sea/{mod,stub}.zig` parity. |
+| `build` FAIL (`--sea`) | explicit feat-sea graph issue — check `src/features/sea/{mod,stub}.zig` parity. |
 | missing `learn=true` | `complete` grammar drifted — check `src/cli/` `complete` handler + `--learn`. |

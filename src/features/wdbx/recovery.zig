@@ -116,7 +116,7 @@ test "recovery: WAL delta merges onto snapshot (un-checkpointed block recovered)
     // Snapshot checkpointed 1 block (epoch 0); the WAL is a delta with the one
     // un-checkpointed block beyond it. Merge folds the delta onto the checkpoint.
     try writeSnapshot(testing.io, allocator, path, &.{"abbey"});
-    try wal.appendBlock(testing.io, allocator, wp, "aviva", 0, 0, "{\"t\":2}", 2000);
+    try wal.appendBlock(testing.io, allocator, wp, .{ .profile = "aviva", .query_id = 0, .response_id = 0, .metadata = "{\"t\":2}", .timestamp_ms = 2000 });
 
     var opened = try open(testing.io, allocator, path);
     defer opened.store.deinit();
@@ -188,7 +188,7 @@ test "recovery: WAL delta merges onto segment checkpoint" {
 
     // Delta WAL at epoch 0: only the one un-checkpointed block.
     try wal.createWithEpoch(testing.io, allocator, wp, 0);
-    try wal.appendBlock(testing.io, allocator, wp, "abi", 0, 0, "{\"t\":2}", 2000);
+    try wal.appendBlock(testing.io, allocator, wp, .{ .profile = "abi", .query_id = 0, .response_id = 0, .metadata = "{\"t\":2}", .timestamp_ms = 2000 });
 
     var opened = try open(testing.io, allocator, path);
     defer opened.store.deinit();
@@ -222,7 +222,7 @@ test "recovery: superseded WAL (older epoch) is discarded after a newer checkpoi
     _ = try segment_store.flush(&s0); // epoch 0
     s0.deinit();
     try wal.createWithEpoch(testing.io, allocator, wp, 0);
-    try wal.appendBlock(testing.io, allocator, wp, "ghost", 0, 0, "{\"t\":9}", 9000);
+    try wal.appendBlock(testing.io, allocator, wp, .{ .profile = "ghost", .query_id = 0, .response_id = 0, .metadata = "{\"t\":9}", .timestamp_ms = 9000 });
 
     // A newer checkpoint commits at epoch 1 (manifest advanced) — the crash-at-C2
     // state where the old WAL was not yet cleared. The epoch-1 checkpoint already
@@ -285,7 +285,7 @@ test "recovery: corrupt WAL frame propagates rather than silently dropping" {
 
     try writeSnapshot(testing.io, allocator, path, &.{"abbey"});
     try wal.createWithEpoch(testing.io, allocator, wp, 0);
-    try wal.appendBlock(testing.io, allocator, wp, "aviva", 0, 0, "{\"turn\":2}", 2000);
+    try wal.appendBlock(testing.io, allocator, wp, .{ .profile = "aviva", .query_id = 0, .response_id = 0, .metadata = "{\"turn\":2}", .timestamp_ms = 2000 });
 
     // Flip a byte inside the framed JSON payload; recovery must surface it.
     const content = try std.Io.Dir.cwd().readFileAlloc(testing.io, wp, allocator, .limited(64 * 1024));

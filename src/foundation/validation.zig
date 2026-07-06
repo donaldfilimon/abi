@@ -132,3 +132,7 @@ test "validateExactLength" {
     try std.testing.expectError(error.InvalidLength, validateExactLength("hello world", 5));
     try validateExactLength("hello", 5);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

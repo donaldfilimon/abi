@@ -20,7 +20,7 @@ Compare the three files on every **durable convention**, not prose style. Concre
 2. **MCP tool surface** — the tool count and the exact tool names (currently 12: `ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`), the 64 KB request cap, HTTP/SSE details, and the `ABI_MCP_HTTP_*` / `ABI_WDBX_REST_TOKEN` env vars.
 3. **Feature flags** — the `-Dfeat-*` set, which default on/off, and any comptime gating (e.g. `feat-foundationmodels` arm64-macOS gating).
 4. **Build & validation commands** — `./build.sh check`, `full-check`, `cli`, `mcp`, `check-parity`, `cross-smoke`, the Zig pin (`0.17.0-dev.978+a078d55a2`), and the note that `build.sh` does not enforce the pin.
-5. **Zig 0.17 patterns** — the entry signature, `ArrayListUnmanaged(T).empty`, `std.mem.trimEnd`, `foundation.time.unixMs()`, naming conventions, etc.
+5. **Zig 0.17 patterns** — the entry signature, `ArrayListUnmanaged(T).empty`, the `std.mem.trimEnd` (vs deprecated `trimRight`) and `splitScalar`/`splitAny`/`splitSequence` (vs deprecated `split`) std.mem utilities, `foundation.time.unixMs()` (vs the deprecated `std.time.milliTimestamp`), naming conventions, etc.
 6. **Generated / do-not-edit files** — `src/plugin_registry.zig`, mod/stub parity rules, import rules.
 
 ## Method

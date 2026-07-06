@@ -182,10 +182,6 @@ fn runAgentTask(ctx: ?*anyopaque) anyerror!void {
     c.result = try runAgent(c.allocator, c.config, c.input);
 }
 
-pub const plan = @import("plan.zig");
-pub const PlanStep = plan.PlanStep;
-pub const parsePlan = plan.parsePlan;
-
 pub const isFeatureDisabled = training.isFeatureDisabled;
 
 pub const countNonEmptyLines = helpers.countNonEmptyLines;

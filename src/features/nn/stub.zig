@@ -28,6 +28,9 @@ pub const Model = struct {
     }
 };
 
+pub const Scratch = struct {};
+pub const Grads = struct {};
+
 pub fn isEnabled() bool {
     return false;
 }

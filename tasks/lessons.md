@@ -61,6 +61,9 @@ Session-start checklist and conventions for agents working on this repo.
 # Run all module and connector tests
 zig build test --summary all
 
+# Run bundled plugin coverage
+zig build test-plugins --summary all
+
 # Run single test (the post-`--` form is silently ignored; use the build option)
 zig build test -Dtest-filter="pattern"
 

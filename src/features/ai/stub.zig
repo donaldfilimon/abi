@@ -88,29 +88,14 @@ pub const constitution = @import("stub_constitution.zig");
 // boundary (`zig build check-parity`).
 pub const models = @import("models.zig");
 
-// Stub shims for AI plan/agent multi surfaces (names only; bodies disabled for feat-ai=false).
+// Stub shims for AI agent multi surfaces (names only; bodies disabled for feat-ai=false).
 // Required for mod/stub parity check (top-level pub const/fn names).
-pub const PlanStep = struct { text: []const u8 = "" };
-pub fn parsePlan(allocator: std.mem.Allocator, output: []const u8) ![]PlanStep {
-    _ = allocator;
-    _ = output;
-    return &.{};
-}
 pub const MultiAgentResult = struct {
     pub fn deinit(_: *@This(), _: std.mem.Allocator) void {}
 };
 pub fn runMultiAgentWithScheduler(_: std.mem.Allocator, _: *scheduler_mod.Scheduler, _: []const u8, _: []const u8) !MultiAgentResult {
     return .{};
 }
-pub const plan = struct {
-    pub const PlanStep = struct { text: []const u8 = "" };
-    const PS = struct { text: []const u8 = "" };
-    pub fn parsePlan(allocator: std.mem.Allocator, output: []const u8) ![]PS {
-        _ = allocator;
-        _ = output;
-        return &.{};
-    }
-};
 
 pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     _ = input;
@@ -222,22 +207,9 @@ pub fn isFeatureDisabled(err: anyerror) bool {
     return err == error.FeatureDisabled;
 }
 
-pub fn countNonEmptyLines(data: []const u8) usize {
-    var count: usize = 0;
-    var lines = std.mem.splitScalar(u8, data, '\n');
-    while (lines.next()) |line| {
-        if (std.mem.trim(u8, line, " \t\r").len > 0) count += 1;
-    }
-    return count;
-}
-
-pub fn textEmbedding(input: []const u8) [helpers.EMBED_DIM]f32 {
-    return helpers.textEmbedding(input);
-}
-
-pub fn responseEmbedding(query: [helpers.EMBED_DIM]f32) [helpers.EMBED_DIM]f32 {
-    return helpers.responseEmbedding(query);
-}
+pub const countNonEmptyLines = helpers.countNonEmptyLines;
+pub const textEmbedding = helpers.textEmbedding;
+pub const responseEmbedding = helpers.responseEmbedding;
 
 fn validateTrainingConfig(config: TrainingConfig) !void {
     if (config.profile.len == 0) return error.InvalidTrainingProfile;

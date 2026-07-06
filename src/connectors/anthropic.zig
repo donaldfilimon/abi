@@ -99,3 +99,7 @@ pub const Client = struct {
         });
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

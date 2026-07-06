@@ -89,3 +89,7 @@ test "PoolAllocator: multiple allocations and reuse" {
     try testing.expect(b1.ptr == blocks[1].ptr or b1.ptr == blocks[0].ptr);
     try testing.expect(b2.ptr == blocks[1].ptr or b2.ptr == blocks[0].ptr);
 }
+
+test {
+    testing.refAllDecls(@This());
+}

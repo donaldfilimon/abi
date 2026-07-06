@@ -2,6 +2,8 @@ const std = @import("std");
 const build_options = @import("build_options");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const scheduler_mod = @import("../../core/scheduler.zig");
+const types = @import("types.zig");
+const sanitize = @import("sanitize.zig");
 
 /// Disabled-TUI REPL surface. Mirrors `repl.zig`'s public names so
 /// `zig build check-parity` holds; `ReplLoop.run` refuses with
@@ -55,7 +57,7 @@ pub const ReplLoop = struct {
 
 /// Namespace mirror of `repl.zig` so `tui.repl.*` resolves under the stub too.
 pub const repl = struct {
-    pub const SpecialCommand = enum { quit, reset, help, model, profile, history, unknown };
+    pub const SpecialCommand = enum { quit, reset, help, model, profile, history, syncclis, unknown };
 
     pub fn parseSpecialCommand(line: []const u8) SpecialCommand {
         _ = line;
@@ -63,46 +65,13 @@ pub const repl = struct {
     }
 };
 
-pub const Status = enum { ready, busy, warning, disabled };
-pub const Item = struct { label: []const u8, value: []const u8 };
-pub const State = struct { title: []const u8, status: Status = .disabled, items: []const Item = &.{} };
-
-pub const PaneKind = enum {
-    system,
-    plugins,
-    storage,
-    scheduler,
-};
-
-pub const DiagPane = struct {
-    kind: PaneKind,
-    title: []const u8,
-    items: []const Item,
-};
-
-pub const DashboardState = struct {
-    gpu_backend: []const u8 = "disabled",
-    gpu_accelerated: bool = false,
-    gpu_linked: bool = false,
-    plugin_count: usize = 0,
-    plugin_names: []const []const u8 = &.{},
-    wdbx_blocks: usize = 0,
-    wdbx_vectors: usize = 0,
-    wdbx_entries: usize = 0,
-    wdbx_spatial_records: usize = 0,
-    scheduler_source: []const u8 = "not attached",
-    scheduler_running: usize = 0,
-    scheduler_pending: usize = 0,
-    scheduler_completed: usize = 0,
-    scheduler_failed: usize = 0,
-    memory_source: []const u8 = "not attached",
-    memory_peak: usize = 0,
-    memory_current: usize = 0,
-    memory_leaked: usize = 0,
-    /// 0-based index of focused pane for interactive navigation (System=0, Plugins=1, etc.)
-    selected_pane: usize = 0,
-};
-// goal-turn-79df3a4a516d this-turn-edit
+pub const Status = types.Status;
+pub const Item = types.Item;
+pub const State = types.State;
+pub const ScreenState = types.ScreenState;
+pub const PaneKind = types.PaneKind;
+pub const DiagPane = types.DiagPane;
+pub const DashboardState = types.DashboardState;
 
 pub fn stdinFd() std.posix.fd_t {
     return std.Io.File.stdin().handle;
@@ -132,11 +101,6 @@ pub const InteractiveTerminal = struct {
         _ = timeout_ms;
         return false;
     }
-};
-
-pub const ScreenState = struct {
-    width: u16,
-    height: u16,
 };
 
 pub fn initScreen() !void {}
@@ -172,33 +136,7 @@ pub fn deinitScreenWriter(writer: anytype) !void {
 /// The output length always equals the input length. Caller owns the returned
 /// slice.
 pub fn sanitizeControlBytes(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    const out = try allocator.alloc(u8, input.len);
-    var i: usize = 0;
-    while (i < input.len) {
-        const seq_len: usize = std.unicode.utf8ByteSequenceLength(input[i]) catch {
-            out[i] = '.';
-            i += 1;
-            continue;
-        };
-        if (i + seq_len > input.len) {
-            out[i] = '.';
-            i += 1;
-            continue;
-        }
-        const seq = input[i .. i + seq_len];
-        const cp = std.unicode.utf8Decode(seq) catch {
-            out[i] = '.';
-            i += 1;
-            continue;
-        };
-        if (cp < 0x20 or cp == 0x7f or (cp >= 0x80 and cp <= 0x9f)) {
-            @memset(out[i .. i + seq_len], '.');
-        } else {
-            @memcpy(out[i .. i + seq_len], seq);
-        }
-        i += seq_len;
-    }
-    return out;
+    return sanitize.sanitizeControlBytes(allocator, input);
 }
 
 pub fn renderDashboard(allocator: std.mem.Allocator, state: State) ![]u8 {
@@ -209,6 +147,18 @@ pub fn renderDashboard(allocator: std.mem.Allocator, state: State) ![]u8 {
 pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8 {
     _ = ds;
     return try allocator.dupe(u8, "TUI diagnostics are disabled in this build");
+}
+
+pub fn writeDashboard(writer: anytype, allocator: std.mem.Allocator, state: State) !void {
+    const rendered = try renderDashboard(allocator, state);
+    defer allocator.free(rendered);
+    try writer.writeAll(rendered);
+}
+
+pub fn writeDiagnostics(writer: anytype, allocator: std.mem.Allocator, ds: DashboardState) !void {
+    const rendered = try renderDiagnostics(allocator, ds);
+    defer allocator.free(rendered);
+    try writer.writeAll(rendered);
 }
 
 pub fn isQuitKey(byte: u8) bool {

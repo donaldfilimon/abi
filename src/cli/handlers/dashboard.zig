@@ -116,7 +116,7 @@ fn renderAndPrint(allocator: std.mem.Allocator, scheduler: anytype, store: anyty
         .memory_peak = memory_peak,
         .memory_current = memory_current,
         .memory_leaked = memory_leaked,
-        .selected_pane = selected, // goal-turn-79df3a4a516d this-turn search_replace for CHANGED_FILES
+        .selected_pane = selected,
     });
     defer allocator.free(rendered);
 

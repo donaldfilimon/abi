@@ -16,6 +16,8 @@ npx mint@latest validate   # optional Mintlify docs site (docs/docs.json); not i
 
 Zig is pinned by `.zigversion` to `0.17.0-dev.978+a078d55a2`; `build.zig.zon` keeps `0.17.0-dev.978+a078d55a2` as the package minimum. Plain `zig build` may work with a compatible local toolchain, but use `./build.sh ...` on macOS for the documented Darwin workflow. Note: `build.sh`/`tools/build.sh` do not switch or enforce the pin — they run whatever `zig` is on `PATH` (Zig `0.16.0` fails to compile, since the WDBX/MCP network listeners use the 0.17 `std.Io.net.Stream.read(io, …)` API).
 
+`zig build cross-smoke` is opt-in locally (Linux/Windows/macOS CLI compile/link smoke; deliberately outside `check`), but CI runs both `zig build check` and `zig build cross-smoke` on `macos-latest` with the pinned Zig.
+
 Local Codex mega-plugin handoff: `ABI-MEGA-PLUGIN.md` points to the personal `abi-mega` plugin that consolidates TODO/roadmap/spec/skill inventory and focused validation workflows.
 
 ## Current CLI Examples
@@ -47,7 +49,7 @@ Do not assume old command names exist: `version`, `doctor`, `features`, `platfor
 | `src/mcp/main.zig` | MCP entry point (spawns HTTP, runs stdio loop) |
 | `src/features/mod.zig` | Feature flag mod/stub selection |
 | `src/features/ai/` | AI profiles, router, constitution, training, local streaming helpers |
-| `src/features/wdbx/` | In-memory vector store, HNSW, block chain |
+| `src/features/wdbx/` | In-process store, segment/WAL persistence, hybrid retrieval, real TCP cluster RPC |
 | `src/features/gpu/` | GPU status, Metal attempt on macOS, CPU fallback |
 | `src/features/tui/` | Operational diagnostics dashboard renderer |
 | `src/connectors/` | OpenAI, Anthropic, Discord, Grok, Twilio connector surfaces |
@@ -92,6 +94,8 @@ There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 - Discord connector IDs are validated as numeric snowflake-like IDs, and local/live paths enforce printable non-whitespace credentials, author ID validation, and message-size checks.
 - Twilio validates account SIDs as `AC` + 32 hex characters, auth tokens as 32 hex characters, non-empty base URL, non-zero timeout, explicit `.live` transport selection, XML/form escaping, and ConversationRelay aliases before local/live dispatch.
 - Only the MCP executable + handler module graph (`src/mcp/main.zig` plus the `handlers.zig` group: `handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) may import `@import("abi")` from inside `src/` — never modules re-exported by `src/root.zig`; other `src` imports should be relative `.zig` imports.
+- WDBX `cluster serve` is real TCP RequestVote/AppendEntries; `ABI_WDBX_CLUSTER_TOKEN` is required for non-loopback binds and `ABI_WDBX_CLUSTER_PEERS` can allowlist node ids, but this is not production multi-host deployment or sharding.
+- Do not claim unproven capabilities (distributed sharding, full production FHE, AES/RBAC, non-loopback hardening, K8s/H100, Swift/Python/TF stacks, certifications, QPS/latency/accuracy/energy numbers) unless source/tests prove them; use `docs/contracts/external-claims-audit.mdx` for public wording.
 - Do not use plain `rm`; use safe alternatives.
 
 ## Zig 0.17 Notes
@@ -121,6 +125,7 @@ Run these explicitly when touched:
 zig build test-integration
 zig build benchmarks
 zig build test-mcp-server     # MCP server transport tests (stdio + HTTP/SSE)
+zig build test-plugins        # Bundled plugin refAllDecls coverage
 ```
 
 `tasks/todo.md` is the current source of truth for known failures. At the current modernization point, no known test failures are reproduced locally.

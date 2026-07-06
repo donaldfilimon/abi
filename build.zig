@@ -218,6 +218,27 @@ pub fn build(b: *std.Build) void {
     const cli_test_step = b.step("test-cli", "Run CLI framework (registry + argument parser) tests");
     cli_test_step.dependOn(&run_cli_tests.step);
 
+    // Plugin test aggregator — exercises the bundled plugin mod/stub refAllDecls
+    // blocks (they are loaded at runtime by path, so their inline tests would
+    // never run without an explicit aggregator).
+    const plugin_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/plugins_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = abi_mod },
+                .{ .name = "build_options", .module = options_mod },
+            },
+        }),
+        .filters = test_filters,
+    });
+    plugin_tests.step.dependOn(&run_gen_plugin_registry.step);
+    const run_plugin_tests = b.addRunArtifact(plugin_tests);
+
+    const plugin_test_step = b.step("test-plugins", "Run bundled plugin refAllDecls coverage");
+    plugin_test_step.dependOn(&run_plugin_tests.step);
+
     const feature_contract_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("tests/contracts/feature_modules.zig"),
@@ -240,6 +261,8 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_connector_tests.step);
     test_step.dependOn(&run_cli_tests.step);
+    test_step.dependOn(&run_plugin_tests.step);
+    test_step.dependOn(&run_feature_contract_tests.step);
 
     // Integration Tests
     const integration_tests = b.addTest(.{

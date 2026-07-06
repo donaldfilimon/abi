@@ -575,3 +575,7 @@ test "Twilio redacted live response summary omits body text" {
     try std.testing.expectEqual(@as(u16, 201), summary.status);
     try std.testing.expectEqual(response.body.len, summary.body_bytes);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

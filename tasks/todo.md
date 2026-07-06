@@ -36,7 +36,7 @@ These ship real local artifacts but truthfully disclose that native/external dis
 | Item | Status | Notes |
 | ---- | ------ | ----- |
 | Broader native/batched GPU acceleration | 🟡 In progress | HNSW pairwise + neighbor-expansion batch scoring route through `gpu.vectorOps()` with SIMD fallback. AI completion/SEA paths delegate similarity to `store.search` (already GPU-routed), so the remaining expansion is native kernel dispatch — the deferred 100%-Zig-constraint item, not a completable gap. |
-| Module declaration coverage cleanup | ⚪ Not started | Whole-tree Zig review found build-covered helper/plugin files without local `std.testing.refAllDecls(@This())` coverage. Triage intentional exemptions (`src/main.zig`, generated `src/plugin_registry.zig`, plugin entry stubs) vs add minimal local test blocks to small modules such as `src/cli/usage.zig`, connector façades, and MCP/server helpers. |
+| Module declaration coverage cleanup | ✅ Done | `std.testing.refAllDecls(@This())` added to 9 non-exempt build-covered modules + all 32 plugin mod/stub files under `src/plugins/*`; dead `src/features/ai/plan.zig` removed with parity sync in `mod.zig`/`stub.zig`. Intentional exemptions preserved: `src/main.zig`, generated `src/plugin_registry.zig`. |
 | Windows runtime verification for cross builds | ⚪ Not started | `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` (linux-gnu/windows-gnu/aarch64-macos). Remaining (out of scope from a macOS host): actual Windows runtime verification + Windows test-only helper cleanup (`/tmp`, `std.c.getpid`). |
 
 ---
@@ -54,7 +54,7 @@ These are decisions, not unfinished work — do not "fix" them.
 
 ## Known test failures
 
-- None currently reproduced. Latest review gates: all 196 `*.zig` files pass standalone `zig ast-check`; `zig build lint --summary all` passes; `zig-newest-skills` passes on Zig master `0.17.0-dev.1252+e4b325c19`; `./build.sh check` passes (37/37 steps). `./build.sh full-check` is the required broader release/readiness gate when needed.
+- None currently reproduced. Latest review gates: all 196 `*.zig` files pass standalone `zig ast-check`; `zig build lint --summary all` passes (2/2 steps, errors=0); `zig build check-parity` passes (exit 0); `zig-newest-skills` passes on Zig master `0.17.0-dev.1252+e4b325c19`; `./build.sh check` passes (39/39 steps); `./build.sh full-check` passes (47/47 steps).
 
 ---
 
@@ -75,6 +75,10 @@ One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`
 - **WDBX north-star Phase 1 + V18 cognitive runtime** — WAL+recovery, multi-segment checkpoints, temporal/causal hybrid ranker, persona-scoped retrieval, P50/P95/P99 benchmarks, loopback REST, in-process consensus/compression/FHE demos. (10/11 V18 criteria; ANE execution is the disclosed non-goal.)
 - **Whole-tree Zig hygiene review** — all 196 `.zig` files pass standalone `zig ast-check`; fixed the standalone `example-plugin` stub unused-parameter failure and corrected the linked `.agents` `zig-newest-skills` driver path.
 - **Cross-compilation CI** — `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` across linux-gnu/windows-gnu/aarch64-macos compile/link targets; Windows runtime execution remains an open verification item above.
+- Dead-code cleanup (plan.zig deletion + parity sync, mutex_check.o removal)
+- Local-provider model alias routing in models.zig (ollama/lmstudio/llama-cpp/vllm/mlx prefixes → .local, deterministic offline)
+- Module declaration coverage cleanup (9 modules + 32 plugin files)
+- Whole-tree refactoring wave — param bundling (CompleteOptions, BlockRecord), 4 large file splits (tui, wdbx rest, mcp server, nn), refAllDecls coverage, instruction-file sync.
 
 ---
 

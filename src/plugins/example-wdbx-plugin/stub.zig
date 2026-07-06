@@ -7,6 +7,12 @@ pub const target_feature = "wdbx";
 
 pub fn register() void {}
 
-pub fn run(_: std.mem.Allocator, _: []const u8) ![]u8 {
-    return "stub";
+pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+    _ = allocator;
+    _ = input;
+    return error.FeatureDisabled;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

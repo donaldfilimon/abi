@@ -297,7 +297,13 @@ pub const Store = struct {
         if (self.wal_binding) |w| {
             // Log with the timestamp the chain assigned so a replayed block
             // reproduces the same SHA-256 hash.
-            try wal.appendBlock(w.io, self.allocator, w.path, profile, query_id, response_id, metadata, timestamp_ms);
+            try wal.appendBlock(w.io, self.allocator, w.path, .{
+                .profile = profile,
+                .query_id = query_id,
+                .response_id = response_id,
+                .metadata = metadata,
+                .timestamp_ms = timestamp_ms,
+            });
         }
         return hash;
     }

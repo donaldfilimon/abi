@@ -103,7 +103,15 @@ pub fn appendKv(io: std.Io, allocator: std.mem.Allocator, path: []const u8, key:
 
 /// Append a conversation-block mutation record (with explicit timestamp so the
 /// replayed SHA-256 chain hash reproduces the original exactly).
-pub fn appendBlock(io: std.Io, allocator: std.mem.Allocator, path: []const u8, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8, timestamp_ms: i64) !void {
+pub const BlockRecord = struct {
+    profile: []const u8,
+    query_id: u32,
+    response_id: u32,
+    metadata: []const u8,
+    timestamp_ms: i64,
+};
+
+pub fn appendBlock(io: std.Io, allocator: std.mem.Allocator, path: []const u8, record: BlockRecord) !void {
     var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
     var w = std.json.Stringify{ .writer = &buf.writer, .options = .{ .whitespace = .minified } };
@@ -111,15 +119,15 @@ pub fn appendBlock(io: std.Io, allocator: std.mem.Allocator, path: []const u8, p
     try w.objectField("type");
     try w.write("block");
     try w.objectField("profile");
-    try w.write(profile);
+    try w.write(record.profile);
     try w.objectField("query_id");
-    try w.write(query_id);
+    try w.write(record.query_id);
     try w.objectField("response_id");
-    try w.write(response_id);
+    try w.write(record.response_id);
     try w.objectField("metadata");
-    try w.write(metadata);
+    try w.write(record.metadata);
     try w.objectField("timestamp_ms");
-    try w.write(timestamp_ms);
+    try w.write(record.timestamp_ms);
     try w.endObject();
     try appendRecord(io, allocator, path, buf.written());
 }
@@ -324,8 +332,8 @@ test "wal: append and replay reconstruct kv + block state" {
 
     try appendKv(std.testing.io, allocator, path, "agent:abbey", "trained");
     try appendKv(std.testing.io, allocator, path, "agent:aviva", "creative");
-    try appendBlock(std.testing.io, allocator, path, "abbey", 1, 2, "{\"turn\":1}", 1000);
-    try appendBlock(std.testing.io, allocator, path, "aviva", 3, 4, "{\"turn\":2}", 2000);
+    try appendBlock(std.testing.io, allocator, path, .{ .profile = "abbey", .query_id = 1, .response_id = 2, .metadata = "{\"turn\":1}", .timestamp_ms = 1000 });
+    try appendBlock(std.testing.io, allocator, path, .{ .profile = "aviva", .query_id = 3, .response_id = 4, .metadata = "{\"turn\":2}", .timestamp_ms = 2000 });
     try appendTemporalNode(std.testing.io, allocator, path, 1, 1000);
     try appendTemporalNode(std.testing.io, allocator, path, 2, 2000);
     try appendTemporalEdge(std.testing.io, allocator, path, 1, 2);
@@ -449,7 +457,7 @@ test "wal: replayOnto folds a delta onto an existing store" {
     // Delta WAL: a new block and the next vector (absolute id 3) — exactly what
     // putVector/appendBlock would log against this baseline.
     try createWithEpoch(std.testing.io, allocator, path, 7);
-    try appendBlock(std.testing.io, allocator, path, "aviva", 0, 0, "{\"t\":2}", 2000);
+    try appendBlock(std.testing.io, allocator, path, .{ .profile = "aviva", .query_id = 0, .response_id = 0, .metadata = "{\"t\":2}", .timestamp_ms = 2000 });
     try appendVector(std.testing.io, allocator, path, 3, &.{ 0.0, 0.0, 1.0, 0.0 });
 
     const applied = try replayOnto(std.testing.io, allocator, path, &store);
