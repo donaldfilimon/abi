@@ -1,5 +1,9 @@
 const std = @import("std");
 
+pub const TEST_TMP_DIR = ".zig-cache/tmp";
+
+var temp_path_counter = std.atomic.Value(u64).init(0);
+
 pub const TestAllocator = struct {
     backing: std.mem.Allocator,
     alloc_count: usize = 0,
@@ -49,7 +53,7 @@ pub const TempDir = struct {
     counter: usize = 0,
 
     pub fn create(allocator: std.mem.Allocator) !TempDir {
-        const path = try std.fmt.allocPrint(allocator, "/tmp/zig-test-0", .{});
+        const path = try tempDirPath(allocator, "zig-test");
         return .{
             .allocator = allocator,
             .path = path,
@@ -117,6 +121,39 @@ pub fn deleteTestFileIfExists(path: []const u8) void {
     std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| switch (err) {
         error.FileNotFound => {},
         else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
+    };
+}
+
+pub fn ensureTestTempDir() !void {
+    try std.Io.Dir.createDirPath(.cwd(), std.testing.io, TEST_TMP_DIR);
+}
+
+pub fn tempRootPath(allocator: std.mem.Allocator) ![]u8 {
+    try ensureTestTempDir();
+    var buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const len = try std.Io.Dir.realPathFile(.cwd(), std.testing.io, TEST_TMP_DIR, &buf);
+    return try allocator.dupe(u8, buf[0..len]);
+}
+
+pub fn tempPath(allocator: std.mem.Allocator, name: []const u8, extension: []const u8) ![]u8 {
+    const root = try tempRootPath(allocator);
+    defer allocator.free(root);
+
+    const id = temp_path_counter.fetchAdd(1, .monotonic);
+    const basename = try std.fmt.allocPrint(allocator, "{s}_{d}{s}", .{ name, id, extension });
+    defer allocator.free(basename);
+
+    return try std.fs.path.join(allocator, &.{ root, basename });
+}
+
+pub fn tempDirPath(allocator: std.mem.Allocator, name: []const u8) ![]u8 {
+    return try tempPath(allocator, name, "");
+}
+
+pub fn deleteTestTreeIfExists(path: []const u8) void {
+    std.Io.Dir.deleteTree(.cwd(), std.testing.io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.debug.print("failed to delete test tree '{s}': {s}\n", .{ path, @errorName(err) }),
     };
 }
 
@@ -451,4 +488,19 @@ test "MockStorage operations" {
 
 test {
     std.testing.refAllDecls(@This());
+}
+
+pub fn tempPath(allocator: std.mem.Allocator, name: []const u8, ext: []const u8) ![]const u8 {
+    const p = try std.fmt.allocPrint(allocator, "{s}/{s}{s}", .{TEST_TMP_DIR, name, ext});
+    return p;
+}
+
+pub fn tempDirPath(allocator: std.mem.Allocator, name: []const u8) ![]const u8 {
+    const p = try std.fmt.allocPrint(allocator, "{s}/{s}", .{TEST_TMP_DIR, name});
+    std.fs.cwd().makeDir(p) catch |e| if (e != error.PathAlreadyExists) return e;
+    return p;
+}
+
+pub fn tempRootPath(allocator: std.mem.Allocator) ![]const u8 {
+    return allocator.dupe(u8, TEST_TMP_DIR);
 }
