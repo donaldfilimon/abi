@@ -267,6 +267,9 @@ test "AI completion WDBX persistence is opt-in and append-only" {
     const first_record = store.get(first_record_key) orelse return error.MissingCompletionMemoryRecord;
     try expectCompletionMemoryRecordJson(allocator, first_record, "abi-contract", first_qid, first_rid);
 
+    // Documented Current observable: Store.stats().acceleration (backend/mode/message) for WDBX Current.
+    try std.testing.expect(store.stats().acceleration.message.len > 0);
+
     const first_block = store.lastBlock() orelse return error.MissingCompletionBlock;
     const zero_id = std.mem.zeroes([32]u8);
     try std.testing.expect(std.mem.eql(u8, &first_block.id, &first_block_id));
