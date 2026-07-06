@@ -118,6 +118,7 @@ pub fn assertContains(haystack: []const u8, needle: []const u8) !void {
 /// and printing any other error. Shared by the WDBX persistence/segments/wal/
 /// recovery tests and the CLI `wdbx` handler's cleanup so the body lives once.
 pub fn deleteTestFileIfExists(path: []const u8) void {
+    std.Io.Dir.cwd().access(std.testing.io, path, .{}) catch return;
     std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| {
         std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) });
     };
@@ -150,6 +151,7 @@ pub fn tempDirPath(allocator: std.mem.Allocator, name: []const u8) ![]u8 {
 }
 
 pub fn deleteTestTreeIfExists(path: []const u8) void {
+    std.Io.Dir.cwd().access(std.testing.io, path, .{}) catch return;
     std.Io.Dir.deleteTree(.cwd(), std.testing.io, path) catch |err| {
         std.debug.print("failed to delete test tree '{s}': {s}\n", .{ path, @errorName(err) });
     };
