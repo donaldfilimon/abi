@@ -252,12 +252,12 @@ test "AI completion WDBX persistence is opt-in and append-only" {
     const first_rid = first.response_vector_id orelse return error.MissingResponseVector;
     const first_block_id = first.block_id orelse return error.MissingCompletionBlock;
 
-    try std.testing.expectEqual(@as(usize, 1), store.count());
+    try std.testing.expectEqual(abi.features.ai.completion_kv_delta, store.count());
     try std.testing.expectEqual(@as(usize, 2), store.vectorCount());
     try std.testing.expectEqual(@as(usize, 1), store.blockCount());
     try std.testing.expect(store.verifyBlocks());
 
-    const first_key = try std.fmt.allocPrint(allocator, "completion:{d}", .{first_qid});
+    const first_key = try abi.features.ai.completionMetadataKey(allocator, first_qid);
     defer allocator.free(first_key);
     const first_metadata = store.get(first_key) orelse return error.MissingCompletionMetadata;
     try expectCompletionMetadataJson(allocator, first_metadata, "abi-contract", first_qid, first_rid);
@@ -281,12 +281,12 @@ test "AI completion WDBX persistence is opt-in and append-only" {
     const second_block_id = second.block_id orelse return error.MissingCompletionBlock;
 
     try std.testing.expect(second_qid != first_qid);
-    try std.testing.expectEqual(@as(usize, 2), store.count());
+    try std.testing.expectEqual(2 * abi.features.ai.completion_kv_delta, store.count());
     try std.testing.expectEqual(@as(usize, 4), store.vectorCount());
     try std.testing.expectEqual(@as(usize, 2), store.blockCount());
     try std.testing.expect(store.verifyBlocks());
 
-    const second_key = try std.fmt.allocPrint(allocator, "completion:{d}", .{second_qid});
+    const second_key = try abi.features.ai.completionMetadataKey(allocator, second_qid);
     defer allocator.free(second_key);
     const second_metadata = store.get(second_key) orelse return error.MissingCompletionMetadata;
     try expectCompletionMetadataJson(allocator, second_metadata, "abi-contract-2", second_qid, second_rid);
