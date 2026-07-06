@@ -6,6 +6,8 @@ const memory_mod = @import("../../core/memory.zig");
 const helpers = @import("helpers.zig");
 const types = @import("types.zig");
 const completion = @import("completion.zig");
+pub const completion_kv_delta = completion.completion_kv_delta;
+pub const completionMetadataKey = completion.completionMetadataKey;
 const training = @import("training.zig");
 
 const router = @import("router.zig");
