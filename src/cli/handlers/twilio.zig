@@ -7,9 +7,14 @@ const usage_mod = @import("../usage.zig");
 /// reply through a local (non-live) Twilio client, exercising the connector's
 /// message formatting without contacting the live API. Returns the exit code.
 pub fn handleTwilio(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
+    if (args.len >= 3 and usage_mod.isHelpToken(args[2])) return usage_mod.printCommandHelp("twilio");
+    if (args.len == 4 and std.mem.eql(u8, args[2], "simulate") and usage_mod.isHelpToken(args[3])) return twilioSimulateHelp();
     if (args.len != 4 or !std.mem.eql(u8, args[2], "simulate")) return usage_mod.usageError("usage: abi twilio simulate <input>");
 
-    const input = args[3];
+    return handleTwilioSimulate(allocator, args[3]);
+}
+
+pub fn handleTwilioSimulate(allocator: std.mem.Allocator, input: []const u8) !u8 {
     const agent_reply = try ai.run(allocator, input);
     defer allocator.free(agent_reply);
 
@@ -37,6 +42,16 @@ pub fn handleTwilio(allocator: std.mem.Allocator, args: []const []const u8) !u8 
     return 0;
 }
 
+fn twilioSimulateHelp() u8 {
+    std.debug.print(
+        \\usage: abi twilio simulate <input>
+        \\
+        \\Run a local ConversationRelay simulation without contacting Twilio.
+        \\
+    , .{});
+    return 0;
+}
+
 test "twilio dispatch rejects malformed grammar with exit code 2" {
     const allocator = std.testing.allocator;
     // Wrong arity and a non-`simulate` subcommand both reject with usage (exit 2)
@@ -44,6 +59,12 @@ test "twilio dispatch rejects malformed grammar with exit code 2" {
     try std.testing.expectEqual(@as(u8, 2), try handleTwilio(allocator, &.{ "abi", "twilio" }));
     try std.testing.expectEqual(@as(u8, 2), try handleTwilio(allocator, &.{ "abi", "twilio", "notsimulate", "hi" }));
     try std.testing.expectEqual(@as(u8, 2), try handleTwilio(allocator, &.{ "abi", "twilio", "simulate", "a", "b" }));
+}
+
+test "twilio handler help returns success before AI run" {
+    const allocator = std.testing.allocator;
+    try std.testing.expectEqual(@as(u8, 0), try handleTwilio(allocator, &.{ "abi", "twilio", "--help" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleTwilio(allocator, &.{ "abi", "twilio", "simulate", "--help" }));
 }
 
 test {

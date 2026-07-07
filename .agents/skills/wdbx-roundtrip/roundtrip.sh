@@ -4,7 +4,7 @@
 # Proves the on-disk checkpoint + WAL chain stays valid across the cycle.
 # Asserts exit codes + output markers. Resolves repo root from own path.
 #
-# Usage: .claude/skills/wdbx-roundtrip/roundtrip.sh [profile] [metadata-json]
+# Usage: .agents/skills/wdbx-roundtrip/roundtrip.sh [profile] [metadata-json]
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

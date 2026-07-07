@@ -4,8 +4,42 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ## Unreleased
 
+### Added
+
+- SEA typed memory taxonomy: `src/features/sea/types.zig` with `MemoryKind` (9 variants: note, user_preference, project_decision, code_fact, tool_output, benchmark, constraint, contradiction, summary) + `Authority` (5 rungs: inferred, user_stated, tool_verified, file_verified, system_pinned) enums with parse/text/score round-trip tests.
+- SEA multi-signal scorer: `src/features/sea/scorer.zig` with `SeaSignals` (8 orthogonal signals), `DEFAULT_SEA_WEIGHTS` (sums to 1.0), `seaScore()` weighted combiner (clamped to [0,1]), `adjustWeightsForTask()` for code_repair/project_recall/benchmark_review tuning, `selectSeaCandidates()` budgeted greedy selector with token/record-count/per-cluster budgets plus ≥0.92 high-score escape hatch, and `contextPack()` evidence renderer. 11 tests total.
+- AI IoT stream monitoring: `src/features/ai/iot_monitor.zig` with z-score anomaly detector using Welford's online mean/variance algorithm, configurable threshold, history clear/reset, and 4 tests.
+- AI multimodal fusion: `src/features/ai/multimodal_fusion.zig` with deterministic `VisionProcessor` (64-d), `AudioProcessor` (32-d), `IotProcessor` (16-d) text/telemetry embedders (character-bucket hashing + L2 normalization) and concatenative `fuse()` combinator. 5 tests.
+- All four modules wired through `mod.zig` + `stub.zig` for both SEA (`src/features/sea/`) and AI (`src/features/ai/`) with full declaration-name parity; `zig build check-parity` passes.
+
+### Changed
+
+- `docs/spec/sea-design-extract.mdx` status from DESIGN REFERENCE / PROPOSED → PARTIAL — MemoryKind, Authority, 8-signal scorer with task-aware weight deltas, cluster-diversity selection, and context-pack now promoted to Current ABI Zig source. Mapping table updated.
+- `docs/spec/wdbx-rust-capability-extract.mdx` status from DESIGN REFERENCE / PROPOSED → PARTIAL — IoT stream monitoring and multimodal fusion now promoted to Current ABI Zig source. Mapping table rows and "What ABI would gain" section updated.
+
+- OpenCode project config: `opencode.json` at repo root, `.opencode/` directory with `config.json` pinned instructions + MCP servers, and `.opencode/skills/` symlinked to `.agents/skills/` for canonical skill discovery.
+- Module-level `//!` doc comments to 7 source files: `src/root.zig`, `src/features/mod.zig`, `src/features/ai/mod.zig`, `src/features/ai/stub.zig`, `src/features/ai/models.zig`, `src/cli/usage.zig`, `src/mcp/handlers.zig`.
+- Executable `pin.sh` drivers for `zig-pin` skill in both `.agents/skills/zig-pin/` and `.claude/skills/zig-pin/` — both were missing standalone shell drivers.
+- `sync-clis/launch.sh` — canonical `.agents/skills/` to target CLI directories syncing.
+- GPU honesty throughout: `vector_ops.zig` `executeKernel()` now returns `.cpu_fallback` always (removed `native_gpu`/`simulated_gpu` conditional); `runtime.zig` `defaultAcceleration()` also returns `.cpu_fallback`; `tests/contracts/feature_modules.zig` accepts `.cpu_fallback` alongside `.native_gpu`/`.simulated_gpu`. No false claims of native GPU dispatch.
+- SEA adaptive completion: `completion.zig` gains `completeAdaptive()` and `completeWithStoreAdaptive()` routing through persisted `AdaptiveModulator` weights; `sea/learn_loop.zig` switches to the adaptive path; `ai/mod.zig`+`ai/stub.zig` export `completeWithStoreAdaptive` in parity.
+- WDBX cluster RPC: `cluster_rpc.zig` adds `runAuthenticatedLoopbackRound()` — deterministic multi-node vote + append helper that verifies quorum and peer logs; test validates 4-node round.
+- Connector validation sections to AGENTS.md (Discord/Twilio credential and payload validation rules, matching CLAUDE.md/GEMINI.md).
+- GEMINI.md now has Zig 0.17 patterns (inline test/refAllDecls, naming conventions, @panic/unreachable), a Project Skills section listing all 24 skills, and an OpenCode Setup section.
+
+### Changed
+
+- Fixed 18 agent shell scripts in `.agents/skills/` that referenced stale `.claude/skills/` paths — all paths point to `.agents/skills/` now.
+- Fixed `complete-base/SKILL.md` model alias: `Codex-fable-5` → `claude-fable-5` (verified against `src/features/ai/models.zig`).
+- Bumped `skill-loop-cli` from `0.2.3` → `0.3.3` in `.mcp.json`.
+- Dashboard GPU status: `dashboard.zig` extracts `GpuSnapshot` struct, caches GPU detection once per render instead of re-calling inside the render loop; passes snapshot through call chain.
+- `docs/superpowers/archive/plans/2026-07-01-mkdocs-to-mintlify.md` status updated from "PLAN ONLY" to "COMPLETED".
+- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` synced — AGENTS.md now has Connector Validation, GEMINI.md now has Zig patterns + Skills + OpenCode sections.
+
 ### Removed
 
+- Deleted stale `mcp/servers.json` (redundant duplicate of `.mcp.json`; no code references it).
+- Deleted `.agents/skills/.plugins-synced-from-central` stale marker.
 - Deleted dead `src/features/ai/plan.zig` (16-line noop: `parsePlan` returned `&.{}`, `formatPlanResponse` returned `"plan"`, neither called anywhere). Parity-synced `src/features/ai/mod.zig` (removed `pub const plan`/`PlanStep`/`parsePlan` re-exports) and `src/features/ai/stub.zig` (removed parity-matched `PlanStep`/`parsePlan`/`plan` block). `zig build check-parity` passes; no contract test referenced the removed names.
 - Deleted stray `mutex_check.o` (3 MB object file in repo root, not in `build.zig.zon` `paths`, not referenced by `build.zig`); added `/mutex_check.o` to `.gitignore`.
 
@@ -23,7 +57,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 - `src/cli/registry.zig` `scheduler` migrated from raw `(io, alloc, argv)` shim to the typed argument parser (`typedCmd("scheduler", &scheduler_args, schedulerHandler)`); `scheduler status` is the only valid subcommand, enforced both at parse time and in the handler.
 - `src/features/tui/repl.zig` `syncclis` slash command no longer hardcodes an in-repo path; it resolves `~/.grok/skills/sync-clis/launch.sh` via `$HOME` and refuses cleanly if the launcher is missing.
 - WDBX `cluster status`, `cluster demo`, and `secure demo` now print an explicit north-star status line (Partial / Phase 1-2 vs Proposed / Phase 2 per `docs/spec/wdbx-north-star.mdx` §2/§3.4-3.5).
-- Instruction files: `AGENTS.md` rewritten (110 lines, every section kept in sync with the refactor), `CLAUDE.md` adds `test-plugins` and CI cross-smoke note, `GEMINI.md` adds the CI cross-smoke note. `docs/spec/abi-refactor-design.mdx` and `docs/superpowers/specs/ABI-MASTER-SPEC.md` reconciled to the current tree.
+- Instruction files: `AGENTS.md` rewritten (110 lines, every section kept in sync with the refactor), `CLAUDE.md` adds `test-plugins` and CI cross-smoke note, `GEMINI.md` adds the CI cross-smoke note. `docs/spec/abi-refactor-design.mdx` and archived `docs/superpowers/archive/specs/ABI-MASTER-SPEC.md` reconciled to the current tree.
 
 ### Re-pointed (skill telemetry)
 

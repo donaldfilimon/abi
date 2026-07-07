@@ -4,8 +4,8 @@
 # expected output markers. Resolves the repo root from its own location.
 #
 # Usage:
-#   .claude/skills/wdbx-bench/bench.sh [count]     # default count=50
-#   .claude/skills/wdbx-bench/bench.sh --suite     # also run `zig build benchmarks`
+#   .agents/skills/wdbx-bench/bench.sh [count]     # default count=50
+#   .agents/skills/wdbx-bench/bench.sh --suite     # also run `zig build benchmarks`
 set -uo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)

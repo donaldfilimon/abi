@@ -86,7 +86,7 @@ test "README walkthrough documents current CLI and MCP surfaces" {
 test "master spec keeps GPU acceleration claim boundary explicit" {
     const spec = try std.Io.Dir.cwd().readFileAlloc(
         std.Options.debug_io,
-        "docs/superpowers/specs/ABI-MASTER-SPEC.md",
+        "docs/superpowers/archive/specs/ABI-MASTER-SPEC.md",
         std.testing.allocator,
         .limited(1024 * 1024),
     );

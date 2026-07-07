@@ -1,3 +1,8 @@
+//! MCP tool definitions, dispatch, and error normalization. Declares 12 tools
+//! (count asserted by `tests/contracts/surface.zig`) as a compile-time
+//! `ToolDescriptor` array with pre-serialized JSON schemas and declarative
+//! middleware validation rules. The `errorMessage()` function maps any internal
+//! error to a stable, non-leaking client string across both transports.
 const std = @import("std");
 const features = @import("abi").features;
 const json_helpers = @import("json_helpers.zig");

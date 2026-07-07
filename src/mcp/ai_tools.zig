@@ -88,11 +88,13 @@ pub fn runLocalCompletion(allocator: std.mem.Allocator, input: []const u8, model
     errdefer out.deinit(allocator);
     try out.print(
         allocator,
-        "model={s} profile={s} audit_passed={s} persisted={s} kv_entries={d} vectors={d} blocks={d} total_kv_entries={d} total_vectors={d} total_blocks={d}",
+        "model={s} profile={s} audit_passed={s} audit_escore={d:.3} audit_vetoed={s} persisted={s} kv_entries={d} vectors={d} blocks={d} total_kv_entries={d} total_vectors={d} total_blocks={d}",
         .{
             result.model,
             result.selected_profile.label(),
             if (result.audit.passed) "true" else "false",
+            result.audit.escore,
+            if (result.audit.vetoed) "true" else "false",
             if (persisted) "true" else "false",
             state.statDelta(stats.kv_entries, before.kv_entries),
             state.statDelta(stats.vectors, before.vectors),
@@ -152,11 +154,13 @@ pub fn runLearn(allocator: std.mem.Allocator, input: []const u8, model: []const 
     errdefer out.deinit(allocator);
     try out.print(
         allocator,
-        "model={s} profile={s} audit_passed={s} persisted={s} evidence_count={d} adapted={s} kv_entries={d} vectors={d} blocks={d} total_kv_entries={d} total_vectors={d} total_blocks={d}",
+        "model={s} profile={s} audit_passed={s} audit_escore={d:.3} audit_vetoed={s} persisted={s} evidence_count={d} adapted={s} kv_entries={d} vectors={d} blocks={d} total_kv_entries={d} total_vectors={d} total_blocks={d}",
         .{
             completion.model,
             completion.selected_profile.label(),
             if (completion.audit.passed) "true" else "false",
+            completion.audit.escore,
+            if (completion.audit.vetoed) "true" else "false",
             if (persisted) "true" else "false",
             result.evidence_count,
             if (result.adapted) "true" else "false",

@@ -57,7 +57,7 @@ pub const ReplLoop = struct {
 
 /// Namespace mirror of `repl.zig` so `tui.repl.*` resolves under the stub too.
 pub const repl = struct {
-    pub const SpecialCommand = enum { quit, reset, help, model, profile, history, syncclis, unknown };
+    pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, syncclis, unknown };
 
     pub fn parseSpecialCommand(line: []const u8) SpecialCommand {
         _ = line;
@@ -71,7 +71,51 @@ pub const State = types.State;
 pub const ScreenState = types.ScreenState;
 pub const PaneKind = types.PaneKind;
 pub const DiagPane = types.DiagPane;
+pub const DashboardPaneMeta = types.DashboardPaneMeta;
 pub const DashboardState = types.DashboardState;
+pub const DASHBOARD_PANES = types.DASHBOARD_PANES;
+pub const DASHBOARD_PANE_COUNT = types.DASHBOARD_PANE_COUNT;
+
+pub const DiagnosticRenderOptions = struct {
+    color: bool = true,
+    refresh_interval_ms: u64 = 1000,
+    compact: bool = false,
+};
+
+pub fn dashboardPaneIndexForKey(key: u8) ?usize {
+    for (DASHBOARD_PANES, 0..) |pane, idx| {
+        if (pane.hotkey == key) return idx;
+    }
+    return null;
+}
+
+pub fn dashboardPaneName(kind: PaneKind) []const u8 {
+    return switch (kind) {
+        .system => "system",
+        .plugins => "plugins",
+        .storage => "storage",
+        .scheduler => "scheduler",
+        .memory => "memory",
+    };
+}
+
+pub fn dashboardPaneIndexForToken(token: []const u8) ?usize {
+    if (token.len == 1) {
+        if (dashboardPaneIndexForKey(token[0])) |idx| return idx;
+    }
+    for (DASHBOARD_PANES, 0..) |pane, idx| {
+        if (std.ascii.eqlIgnoreCase(token, dashboardPaneName(pane.kind))) return idx;
+        if (pane.kind == .storage and std.ascii.eqlIgnoreCase(token, "wdbx")) return idx;
+    }
+    return null;
+}
+
+pub fn nextDashboardPane(current: usize, key: u8) ?usize {
+    if (dashboardPaneIndexForKey(key)) |idx| return idx;
+    if (key == 'l' or key == 'L' or key == '>') return (current + 1) % DASHBOARD_PANE_COUNT;
+    if (key == 'h' or key == 'H' or key == '<') return (current + DASHBOARD_PANE_COUNT - 1) % DASHBOARD_PANE_COUNT;
+    return null;
+}
 
 pub fn stdinFd() std.posix.fd_t {
     return std.Io.File.stdin().handle;
@@ -103,13 +147,32 @@ pub const InteractiveTerminal = struct {
     }
 };
 
+pub const ScreenSession = struct {
+    term: InteractiveTerminal,
+    screen_active: bool = false,
+
+    pub fn init(fd: std.posix.fd_t) !ScreenSession {
+        return .{ .term = try InteractiveTerminal.init(fd) };
+    }
+
+    pub fn deinit(self: *ScreenSession) void {
+        _ = self;
+    }
+};
+
 pub fn initScreen() !void {}
 pub fn initScreenWriter(writer: anytype) !void {
     _ = writer;
 }
 pub fn clearScreen() !void {}
 pub fn homeScreen() void {}
+pub fn homeScreenWriter(writer: anytype) !void {
+    _ = writer;
+}
 pub fn clearToEnd() void {}
+pub fn clearToEndWriter(writer: anytype) !void {
+    _ = writer;
+}
 pub fn clearScreenWriter(writer: anytype) !void {
     _ = writer;
 }
@@ -145,7 +208,12 @@ pub fn renderDashboard(allocator: std.mem.Allocator, state: State) ![]u8 {
 }
 
 pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8 {
+    return renderDiagnosticsWithOptions(allocator, ds, .{});
+}
+
+pub fn renderDiagnosticsWithOptions(allocator: std.mem.Allocator, ds: DashboardState, options: DiagnosticRenderOptions) ![]u8 {
     _ = ds;
+    _ = options;
     return try allocator.dupe(u8, "TUI diagnostics are disabled in this build");
 }
 
@@ -162,7 +230,7 @@ pub fn writeDiagnostics(writer: anytype, allocator: std.mem.Allocator, ds: Dashb
 }
 
 pub fn isQuitKey(byte: u8) bool {
-    return byte == 'q' or byte == 'Q' or byte == 0x1b;
+    return byte == 'q' or byte == 'Q' or byte == 0x1b or byte == 0x03;
 }
 
 pub fn isRefreshKey(byte: u8) bool {

@@ -1,77 +1,55 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const sanitize = @import("sanitize.zig");
+const terminal = @import("terminal.zig");
+const types = @import("types.zig");
 
 pub const repl = @import("repl.zig");
 pub const ReplLoop = repl.ReplLoop;
 pub const ReplState = repl.ReplState;
 pub const ReplConfig = repl.ReplConfig;
 
-pub const Status = enum {
-    ready,
-    busy,
-    warning,
-    disabled,
-};
+pub const Status = types.Status;
+pub const Item = types.Item;
+pub const State = types.State;
+pub const ScreenState = types.ScreenState;
+pub const PaneKind = types.PaneKind;
+pub const DiagPane = types.DiagPane;
+pub const DashboardPaneMeta = types.DashboardPaneMeta;
+pub const DashboardState = types.DashboardState;
+pub const DASHBOARD_PANES = types.DASHBOARD_PANES;
+pub const DASHBOARD_PANE_COUNT = types.DASHBOARD_PANE_COUNT;
 
-pub const Item = struct {
-    label: []const u8,
-    value: []const u8,
-};
+pub const sanitizeControlBytes = sanitize.sanitizeControlBytes;
 
-pub const State = struct {
-    title: []const u8,
-    status: Status = .ready,
-    items: []const Item = &.{},
-};
-
-pub const ScreenState = struct {
-    width: u16,
-    height: u16,
-};
-
-/// Pane categories for the multi-pane diagnostic dashboard.
-pub const PaneKind = enum {
-    system,
-    plugins,
-    storage,
-    scheduler,
-};
-
-/// A single diagnostic pane with a title and key-value rows.
-pub const DiagPane = struct {
-    kind: PaneKind,
-    title: []const u8,
-    items: []const Item,
-};
-
-/// Full dashboard state for the interactive TUI.
-pub const DashboardState = struct {
-    gpu_backend: []const u8 = "unknown",
-    gpu_accelerated: bool = false,
-    gpu_linked: bool = false,
-    plugin_count: usize = 0,
-    plugin_names: []const []const u8 = &.{},
-    wdbx_blocks: usize = 0,
-    wdbx_vectors: usize = 0,
-    wdbx_entries: usize = 0,
-    wdbx_spatial_records: usize = 0,
-    scheduler_source: []const u8 = "not attached",
-    scheduler_running: usize = 0,
-    scheduler_pending: usize = 0,
-    scheduler_completed: usize = 0,
-    scheduler_failed: usize = 0,
-    memory_source: []const u8 = "not attached",
-    memory_peak: usize = 0,
-    memory_current: usize = 0,
-    memory_leaked: usize = 0,
-    /// 0-based index of focused pane for interactive navigation (System=0, Plugins=1, etc.)
-    selected_pane: usize = 0,
-};
+pub const InteractiveTerminal = terminal.InteractiveTerminal;
+pub const ScreenSession = terminal.ScreenSession;
+pub const stdinFd = terminal.stdinFd;
+pub const isQuitKey = terminal.isQuitKey;
+pub const isRefreshKey = terminal.isRefreshKey;
+pub const initScreen = terminal.initScreen;
+pub const initScreenWriter = terminal.initScreenWriter;
+pub const clearScreen = terminal.clearScreen;
+pub const homeScreen = terminal.homeScreen;
+pub const homeScreenWriter = terminal.homeScreenWriter;
+pub const clearToEnd = terminal.clearToEnd;
+pub const clearToEndWriter = terminal.clearToEndWriter;
+pub const clearScreenWriter = terminal.clearScreenWriter;
+pub const render = terminal.render;
+pub const renderWriter = terminal.renderWriter;
+pub const deinitScreen = terminal.deinitScreen;
+pub const deinitScreenWriter = terminal.deinitScreenWriter;
 
 const DIAG_WIDTH: usize = 68;
 const LABEL_WIDTH: usize = 25;
 const VALUE_WIDTH: usize = 40;
 const MAX_PLUGIN_ROWS: usize = 6;
+
+pub const DiagnosticRenderOptions = struct {
+    color: bool = true,
+    refresh_interval_ms: u64 = 1000,
+    compact: bool = false,
+};
 
 pub fn statusText(status: Status) []const u8 {
     return switch (status) {
@@ -86,6 +64,41 @@ fn dashboardHealth(ds: DashboardState) []const u8 {
     if (ds.scheduler_failed > 0 or ds.memory_leaked > 0) return "attention";
     if (!ds.gpu_accelerated or !ds.gpu_linked) return "degraded";
     return "nominal";
+}
+
+pub fn dashboardPaneIndexForKey(key: u8) ?usize {
+    for (DASHBOARD_PANES, 0..) |pane, idx| {
+        if (pane.hotkey == key) return idx;
+    }
+    return null;
+}
+
+pub fn dashboardPaneName(kind: PaneKind) []const u8 {
+    return switch (kind) {
+        .system => "system",
+        .plugins => "plugins",
+        .storage => "storage",
+        .scheduler => "scheduler",
+        .memory => "memory",
+    };
+}
+
+pub fn dashboardPaneIndexForToken(token: []const u8) ?usize {
+    if (token.len == 1) {
+        if (dashboardPaneIndexForKey(token[0])) |idx| return idx;
+    }
+    for (DASHBOARD_PANES, 0..) |pane, idx| {
+        if (std.ascii.eqlIgnoreCase(token, dashboardPaneName(pane.kind))) return idx;
+        if (pane.kind == .storage and std.ascii.eqlIgnoreCase(token, "wdbx")) return idx;
+    }
+    return null;
+}
+
+pub fn nextDashboardPane(current: usize, key: u8) ?usize {
+    if (dashboardPaneIndexForKey(key)) |idx| return idx;
+    if (key == 'l' or key == 'L' or key == '>') return (current + 1) % DASHBOARD_PANE_COUNT;
+    if (key == 'h' or key == 'H' or key == '<') return (current + DASHBOARD_PANE_COUNT - 1) % DASHBOARD_PANE_COUNT;
+    return null;
 }
 
 fn boolText(value: bool) []const u8 {
@@ -118,8 +131,16 @@ fn appendFitted(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, 
         return;
     }
 
-    try out.appendSlice(allocator, safe[0 .. width - 1]);
+    const end = utf8PrefixLen(safe, width - 1);
+    try out.appendSlice(allocator, safe[0..end]);
+    try appendRepeated(out, allocator, ' ', (width - 1) - end);
     try out.append(allocator, '~');
+}
+
+fn utf8PrefixLen(input: []const u8, max_len: usize) usize {
+    var end = @min(input.len, max_len);
+    while (end > 0 and !std.unicode.utf8ValidateSlice(input[0..end])) : (end -= 1) {}
+    return end;
 }
 
 fn appendBorder(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, left: []const u8, title: []const u8, right: []const u8) !void {
@@ -172,64 +193,109 @@ fn appendPluginRows(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocat
     }
 }
 
-fn appendDashboardHeader(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, ds: DashboardState) !void {
-    try out.appendSlice(allocator, "\x1b[1;36m");
+fn paneColor(kind: PaneKind) []const u8 {
+    return switch (kind) {
+        .system => "\x1b[1;33m",
+        .plugins => "\x1b[1;32m",
+        .storage => "\x1b[1;35m",
+        .scheduler => "\x1b[1;34m",
+        .memory => "\x1b[1;31m",
+    };
+}
+
+fn selectedPaneIndex(selected: usize) usize {
+    if (selected < DASHBOARD_PANE_COUNT) return selected;
+    return 0;
+}
+
+fn appendPaneBody(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, ds: DashboardState, kind: PaneKind) !void {
+    switch (kind) {
+        .system => {
+            try appendRow(out, allocator, "GPU backend", ds.gpu_backend);
+            try appendRow(out, allocator, "accelerated", boolText(ds.gpu_accelerated));
+            try appendRow(out, allocator, "native linked", boolText(ds.gpu_linked));
+        },
+        .plugins => {
+            try appendMetricRow(out, allocator, "Registered", ds.plugin_count);
+            try appendPluginRows(out, allocator, ds.plugin_names);
+        },
+        .storage => {
+            try appendMetricRow(out, allocator, "Block chain", ds.wdbx_blocks);
+            try appendMetricRow(out, allocator, "Vectors", ds.wdbx_vectors);
+            try appendMetricRow(out, allocator, "KV Entries", ds.wdbx_entries);
+            try appendMetricRow(out, allocator, "Spatial 3D", ds.wdbx_spatial_records);
+        },
+        .scheduler => {
+            try appendRow(out, allocator, "source", ds.scheduler_source);
+            try appendMetricRow(out, allocator, "Running", ds.scheduler_running);
+            try appendMetricRow(out, allocator, "Pending", ds.scheduler_pending);
+            try appendMetricRow(out, allocator, "Completed", ds.scheduler_completed);
+            try appendMetricRow(out, allocator, "Failed", ds.scheduler_failed);
+        },
+        .memory => {
+            try appendRow(out, allocator, "source", ds.memory_source);
+            try appendMetricRow(out, allocator, "Peak bytes", ds.memory_peak);
+            try appendMetricRow(out, allocator, "Current bytes", ds.memory_current);
+            try appendMetricRow(out, allocator, "Leaked bytes", ds.memory_leaked);
+        },
+    }
+}
+
+fn appendStyle(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, enabled: bool, code: []const u8) !void {
+    if (enabled) try out.appendSlice(allocator, code);
+}
+
+fn appendDiagnosticsPane(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, ds: DashboardState, pane: DashboardPaneMeta, idx: usize, selected: usize, options: DiagnosticRenderOptions) !void {
+    const highlight = "\x1b[7m";
+    const no_highlight = "\x1b[27m";
+
+    if (idx == selected) try appendStyle(out, allocator, options.color, highlight);
+    try appendStyle(out, allocator, options.color, paneColor(pane.kind));
+    try appendPanelHeader(out, allocator, pane.title);
+    try appendPaneBody(out, allocator, ds, pane.kind);
+    try appendPanelFooter(out, allocator);
+    try appendStyle(out, allocator, options.color, "\x1b[0m");
+    if (idx == selected) try appendStyle(out, allocator, options.color, no_highlight);
+}
+
+fn appendRefreshInterval(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, refresh_interval_ms: u64) !void {
+    if (refresh_interval_ms > 0 and refresh_interval_ms % 1000 == 0) {
+        try out.print(allocator, "{d}s", .{refresh_interval_ms / 1000});
+    } else {
+        try out.print(allocator, "{d}ms", .{refresh_interval_ms});
+    }
+}
+
+fn appendDashboardFooter(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, options: DiagnosticRenderOptions) !void {
+    try out.append(allocator, '\n');
+    try appendStyle(out, allocator, options.color, "\x1b[2m");
+    try out.appendSlice(allocator, "[q/Esc] Quit  [r] Refresh  [h/l] Select");
+    if (DASHBOARD_PANES.len > 0) {
+        const first = DASHBOARD_PANES[0].hotkey;
+        const last = DASHBOARD_PANES[DASHBOARD_PANES.len - 1].hotkey;
+        if (first == last) {
+            try out.print(allocator, "  [{c}] Pane", .{first});
+        } else {
+            try out.print(allocator, "  [{c}-{c}] Panes", .{ first, last });
+        }
+    }
+    try out.appendSlice(allocator, "  live snapshot every ");
+    try appendRefreshInterval(out, allocator, options.refresh_interval_ms);
+    try appendStyle(out, allocator, options.color, "\x1b[0m");
+    try out.append(allocator, '\n');
+}
+
+fn appendDashboardHeader(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, ds: DashboardState, options: DiagnosticRenderOptions) !void {
+    try appendStyle(out, allocator, options.color, "\x1b[1;36m");
     try appendBorder(out, allocator, "╔", "", "╗");
     try appendRow(out, allocator, "ABI Diagnostics Dashboard", "operational snapshot");
     try appendRow(out, allocator, "health", dashboardHealth(ds));
     try appendBorder(out, allocator, "╚", "", "╝");
-    try out.appendSlice(allocator, "\x1b[0m");
+    try appendStyle(out, allocator, options.color, "\x1b[0m");
 }
 
 test {
     std.testing.refAllDecls(@This());
-}
-
-/// Neutralize terminal control characters in `input` while preserving legitimate
-/// UTF-8, so attacker-influenced strings interpolated into ANSI render output
-/// cannot inject terminal escape sequences (ESC/CSI/OSC), embed NUL, or smuggle a
-/// C1 control. The input is walked as UTF-8: each valid sequence is decoded and,
-/// if the codepoint is a control (U+0000–U+001F, U+007F DEL, or the U+0080–U+009F
-/// C1 range — which includes 0x9B CSI), every byte of that sequence is replaced
-/// with a visible '.'; otherwise the sequence is copied verbatim so box-drawing
-/// glyphs and accented text survive. Bytes that do not form a valid UTF-8 sequence
-/// (a lone C1 like 0x9B, a stray continuation byte, or a truncated sequence) are
-/// replaced one-for-one with '.'. The output length always equals the input
-/// length. Behavior is defined for UTF-8 input; non-UTF-8 lone bytes are replaced
-/// 1:1. Caller owns the returned slice.
-pub fn sanitizeControlBytes(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    const out = try allocator.alloc(u8, input.len);
-    var i: usize = 0;
-    while (i < input.len) {
-        const seq_len: usize = std.unicode.utf8ByteSequenceLength(input[i]) catch {
-            // Invalid lead byte (lone continuation or lone C1 like 0x9B): drop one.
-            out[i] = '.';
-            i += 1;
-            continue;
-        };
-        if (i + seq_len > input.len) {
-            // Truncated multi-byte sequence at end of input: drop one byte.
-            out[i] = '.';
-            i += 1;
-            continue;
-        }
-        const seq = input[i .. i + seq_len];
-        const cp = std.unicode.utf8Decode(seq) catch {
-            // Overlong/invalid continuation bytes: drop one byte and advance.
-            out[i] = '.';
-            i += 1;
-            continue;
-        };
-        if (cp < 0x20 or cp == 0x7f or (cp >= 0x80 and cp <= 0x9f)) {
-            // C0, DEL, or C1 control: neutralize every byte of the sequence so an
-            // encoded C1 (e.g. 0xC2 0x9B) collapses to "..".
-            @memset(out[i .. i + seq_len], '.');
-        } else {
-            @memcpy(out[i .. i + seq_len], seq);
-        }
-        i += seq_len;
-    }
-    return out;
 }
 
 pub fn renderDashboard(allocator: std.mem.Allocator, state: State) ![]u8 {
@@ -261,73 +327,25 @@ pub fn renderDashboard(allocator: std.mem.Allocator, state: State) ![]u8 {
 
 /// Render the full interactive diagnostics dashboard.
 pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8 {
+    return renderDiagnosticsWithOptions(allocator, ds, .{});
+}
+
+pub fn renderDiagnosticsWithOptions(allocator: std.mem.Allocator, ds: DashboardState, options: DiagnosticRenderOptions) ![]u8 {
     var out = std.ArrayListUnmanaged(u8).empty;
     errdefer out.deinit(allocator);
 
-    try appendDashboardHeader(&out, allocator, ds);
+    try appendDashboardHeader(&out, allocator, ds, options);
 
-    const highlight = "\x1b[7m";
-    const no_highlight = "\x1b[27m";
+    const selected = selectedPaneIndex(ds.selected_pane);
+    if (options.compact) {
+        try appendDiagnosticsPane(&out, allocator, ds, DASHBOARD_PANES[selected], selected, selected, options);
+    } else {
+        for (DASHBOARD_PANES, 0..) |pane, idx| {
+            try appendDiagnosticsPane(&out, allocator, ds, pane, idx, selected, options);
+        }
+    }
 
-    // System pane (0)
-    if (ds.selected_pane == 0) try out.appendSlice(allocator, highlight);
-    try out.appendSlice(allocator, "\x1b[1;33m");
-    try appendPanelHeader(&out, allocator, "System");
-    try appendRow(&out, allocator, "GPU backend", ds.gpu_backend);
-    try appendRow(&out, allocator, "accelerated", boolText(ds.gpu_accelerated));
-    try appendRow(&out, allocator, "native linked", boolText(ds.gpu_linked));
-    try appendPanelFooter(&out, allocator);
-    try out.appendSlice(allocator, "\x1b[0m");
-    if (ds.selected_pane == 0) try out.appendSlice(allocator, no_highlight);
-
-    // Plugins pane (1)
-    if (ds.selected_pane == 1) try out.appendSlice(allocator, highlight);
-    try out.appendSlice(allocator, "\x1b[1;32m");
-    try appendPanelHeader(&out, allocator, "Plugins");
-    try appendMetricRow(&out, allocator, "Registered", ds.plugin_count);
-    try appendPluginRows(&out, allocator, ds.plugin_names);
-    try appendPanelFooter(&out, allocator);
-    try out.appendSlice(allocator, "\x1b[0m");
-    if (ds.selected_pane == 1) try out.appendSlice(allocator, no_highlight);
-
-    // WDBX Storage pane (2)
-    if (ds.selected_pane == 2) try out.appendSlice(allocator, highlight);
-    try out.appendSlice(allocator, "\x1b[1;35m");
-    try appendPanelHeader(&out, allocator, "WDBX Storage");
-    try appendMetricRow(&out, allocator, "Block chain", ds.wdbx_blocks);
-    try appendMetricRow(&out, allocator, "Vectors", ds.wdbx_vectors);
-    try appendMetricRow(&out, allocator, "KV Entries", ds.wdbx_entries);
-    try appendMetricRow(&out, allocator, "Spatial 3D", ds.wdbx_spatial_records);
-    try appendPanelFooter(&out, allocator);
-    try out.appendSlice(allocator, "\x1b[0m");
-    if (ds.selected_pane == 2) try out.appendSlice(allocator, no_highlight);
-
-    // Scheduler pane (3)
-    if (ds.selected_pane == 3) try out.appendSlice(allocator, highlight);
-    try out.appendSlice(allocator, "\x1b[1;34m");
-    try appendPanelHeader(&out, allocator, "Scheduler");
-    try appendRow(&out, allocator, "source", ds.scheduler_source);
-    try appendMetricRow(&out, allocator, "Running", ds.scheduler_running);
-    try appendMetricRow(&out, allocator, "Pending", ds.scheduler_pending);
-    try appendMetricRow(&out, allocator, "Completed", ds.scheduler_completed);
-    try appendMetricRow(&out, allocator, "Failed", ds.scheduler_failed);
-    try appendPanelFooter(&out, allocator);
-    try out.appendSlice(allocator, "\x1b[0m");
-    if (ds.selected_pane == 3) try out.appendSlice(allocator, no_highlight);
-
-    // Memory pane (4)
-    if (ds.selected_pane == 4) try out.appendSlice(allocator, highlight);
-    try out.appendSlice(allocator, "\x1b[1;31m");
-    try appendPanelHeader(&out, allocator, "Memory");
-    try appendRow(&out, allocator, "source", ds.memory_source);
-    try appendMetricRow(&out, allocator, "Peak bytes", ds.memory_peak);
-    try appendMetricRow(&out, allocator, "Current bytes", ds.memory_current);
-    try appendMetricRow(&out, allocator, "Leaked bytes", ds.memory_leaked);
-    try appendPanelFooter(&out, allocator);
-    try out.appendSlice(allocator, "\x1b[0m");
-    if (ds.selected_pane == 4) try out.appendSlice(allocator, no_highlight);
-
-    try out.appendSlice(allocator, "\n\x1b[2m[q/Esc] Quit  [r] Refresh  [1-5/h/l] Select pane  live snapshot every 1s\x1b[0m\n");
+    try appendDashboardFooter(&out, allocator, options);
 
     return try out.toOwnedSlice(allocator);
 }
@@ -342,164 +360,6 @@ pub fn writeDiagnostics(writer: anytype, allocator: std.mem.Allocator, ds: Dashb
     const rendered = try renderDiagnostics(allocator, ds);
     defer allocator.free(rendered);
     try writer.writeAll(rendered);
-}
-
-// --- Interactive Terminal Helpers ---
-
-/// Portable stdin file descriptor/handle. `std.Io.File.stdin().handle` is a
-/// `std.posix.fd_t` on every target (fd 0 on POSIX, the console HANDLE on
-/// Windows), avoiding the `STDIN_FILENO` comptime-int vs HANDLE mismatch.
-pub fn stdinFd() std.posix.fd_t {
-    return std.Io.File.stdin().handle;
-}
-
-/// Raw-mode interactive terminal. Comptime-selected per platform so non-POSIX
-/// targets never instantiate the termios/poll path. The public API (init/deinit/
-/// readKey/pollInput) is identical across platforms and mirrors `stub.zig`.
-pub const InteractiveTerminal = if (builtin.os.tag == .windows)
-    WindowsInteractiveTerminal
-else
-    PosixInteractiveTerminal;
-
-/// POSIX (macOS/Linux) raw-mode terminal. libc-free: use std.posix TTY probing
-/// before termios so non-terminals fall back cleanly without noisy diagnostics.
-const PosixInteractiveTerminal = struct {
-    fd: std.posix.fd_t,
-    original: std.posix.termios,
-    is_tty: bool,
-
-    pub fn init(fd: std.posix.fd_t) !PosixInteractiveTerminal {
-        if (@hasDecl(std.posix.system, "isatty") and std.posix.system.isatty(fd) == 0) return error.NotATerminal;
-
-        // tcgetattr can still fail if stdin stops being a terminal between the
-        // probe and termios setup; treat that as a normal fallback signal.
-        const original = std.posix.tcgetattr(fd) catch return error.NotATerminal;
-        var raw = original;
-        raw.lflag.ICANON = false;
-        raw.lflag.ECHO = false;
-
-        const vmin = if (@hasDecl(std.posix, "VMIN")) std.posix.VMIN else std.posix.system.V.MIN;
-        const vtime = if (@hasDecl(std.posix, "VTIME")) std.posix.VTIME else std.posix.system.V.TIME;
-
-        raw.cc[@intFromEnum(vmin)] = 1;
-        raw.cc[@intFromEnum(vtime)] = 0;
-
-        try std.posix.tcsetattr(fd, .FLUSH, raw);
-        return .{ .fd = fd, .original = original, .is_tty = true };
-    }
-
-    pub fn deinit(self: *PosixInteractiveTerminal) void {
-        std.posix.tcsetattr(self.fd, .FLUSH, self.original) catch |err| {
-            std.log.warn("failed to restore terminal: {s}", .{@errorName(err)});
-        };
-    }
-
-    pub fn readKey(self: *PosixInteractiveTerminal) ?u8 {
-        var buf: [1]u8 = undefined;
-        const n = std.posix.read(self.fd, &buf) catch |err| {
-            std.log.warn("read stdin failed: {s}", .{@errorName(err)});
-            return null;
-        };
-        if (n == 0) return null;
-        return buf[0];
-    }
-
-    /// Block up to `timeout_ms` for input to become readable (a negative
-    /// timeout blocks indefinitely). Returns true if a key is ready to read,
-    /// false on timeout or error. This lets the dashboard loop refresh on a
-    /// timer while staying responsive to keystrokes.
-    pub fn pollInput(self: *PosixInteractiveTerminal, timeout_ms: i32) bool {
-        var fds = [_]std.posix.pollfd{.{ .fd = self.fd, .events = std.posix.POLL.IN, .revents = 0 }};
-        const n = std.posix.poll(&fds, timeout_ms) catch return false;
-        return n > 0 and (fds[0].revents & std.posix.POLL.IN) != 0;
-    }
-};
-
-/// Windows terminal: minimal first cut (option b). There is no POSIX termios/
-/// poll on Windows, so `init` reports `error.NotATerminal` and the REPL/dashboard
-/// engage their existing line-mode fallbacks, preserving the `agent tui` clean-
-/// exit contract. A real Console-API raw mode (GetConsoleMode/SetConsoleMode +
-/// ReadConsoleInput) can replace this later; the ANSI render helpers below are
-/// already portable.
-const WindowsInteractiveTerminal = struct {
-    fd: std.posix.fd_t,
-    is_tty: bool = false,
-
-    pub fn init(fd: std.posix.fd_t) !WindowsInteractiveTerminal {
-        _ = fd;
-        return error.NotATerminal;
-    }
-
-    pub fn deinit(self: *WindowsInteractiveTerminal) void {
-        _ = self;
-    }
-
-    pub fn readKey(self: *WindowsInteractiveTerminal) ?u8 {
-        _ = self;
-        return null;
-    }
-
-    pub fn pollInput(self: *WindowsInteractiveTerminal, timeout_ms: i32) bool {
-        _ = self;
-        _ = timeout_ms;
-        return false;
-    }
-};
-
-/// Check if a key press is a quit command (q or Escape).
-pub fn isQuitKey(byte: u8) bool {
-    return byte == 'q' or byte == 'Q' or byte == 0x1b;
-}
-
-/// Check if a key press is a refresh command.
-pub fn isRefreshKey(byte: u8) bool {
-    return byte == 'r' or byte == 'R';
-}
-
-pub fn initScreen() !void {
-    std.debug.print("\x1b[?1049h\x1b[H", .{});
-}
-
-pub fn initScreenWriter(writer: anytype) !void {
-    try writer.writeAll("\x1b[?1049h\x1b[H");
-}
-
-pub fn clearScreen() !void {
-    std.debug.print("\x1b[2J\x1b[H", .{});
-}
-
-/// Move the cursor to the top-left without clearing for flicker-free redraws.
-/// Pair with `clearToEnd` after writing a frame to wipe any stale trailing rows.
-pub fn homeScreen() void {
-    std.debug.print("\x1b[H", .{});
-}
-
-/// Clear from the cursor to the end of the screen (removes stale trailing rows
-/// left by a shorter frame).
-pub fn clearToEnd() void {
-    std.debug.print("\x1b[0J", .{});
-}
-
-pub fn clearScreenWriter(writer: anytype) !void {
-    try writer.writeAll("\x1b[2J\x1b[H");
-}
-
-pub fn render(state: ScreenState) !void {
-    std.debug.print("TUI Rendering at {d}x{d}\n", .{ state.width, state.height });
-    std.debug.print("Agents: abbey, aviva, abi | WDBX: in-memory training records\n", .{});
-}
-
-pub fn renderWriter(writer: anytype, state: ScreenState) !void {
-    try writer.print("TUI Rendering at {d}x{d}\n", .{ state.width, state.height });
-    try writer.writeAll("Agents: abbey, aviva, abi | WDBX: in-memory training records\n");
-}
-
-pub fn deinitScreen() void {
-    std.debug.print("\x1b[?1049l", .{});
-}
-
-pub fn deinitScreenWriter(writer: anytype) !void {
-    try writer.writeAll("\x1b[?1049l");
 }
 
 test "tui sanitizeControlBytes neutralizes C1 controls and preserves UTF-8" {
@@ -617,12 +477,10 @@ test "diagnostics dashboard renders all panes" {
     try std.testing.expect(std.mem.indexOf(u8, rendered, "operational snapshot") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "health") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "metal") != null);
-    try std.testing.expect(std.mem.indexOf(u8, rendered, "System") != null);
-    try std.testing.expect(std.mem.indexOf(u8, rendered, "Plugins") != null);
-    try std.testing.expect(std.mem.indexOf(u8, rendered, "WDBX Storage") != null);
+    for (DASHBOARD_PANES) |pane| {
+        try std.testing.expect(std.mem.indexOf(u8, rendered, pane.title) != null);
+    }
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Spatial 3D") != null);
-    try std.testing.expect(std.mem.indexOf(u8, rendered, "Scheduler") != null);
-    try std.testing.expect(std.mem.indexOf(u8, rendered, "Memory") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Failed") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "test snapshot") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "MemoryTracker") != null);
@@ -630,6 +488,22 @@ test "diagnostics dashboard renders all panes" {
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Leaked") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Quit") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Refresh") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "[1-5] Panes") != null);
+}
+
+test "diagnostics pane metadata drives navigation" {
+    try std.testing.expectEqual(@as(usize, 5), DASHBOARD_PANE_COUNT);
+    for (DASHBOARD_PANES, 0..) |pane, idx| {
+        try std.testing.expectEqual(idx, dashboardPaneIndexForKey(pane.hotkey).?);
+        try std.testing.expectEqual(idx, dashboardPaneIndexForToken(dashboardPaneName(pane.kind)).?);
+    }
+    try std.testing.expectEqual(@as(usize, 2), dashboardPaneIndexForToken("wdbx").?);
+    try std.testing.expectEqual(@as(usize, 4), dashboardPaneIndexForToken("5").?);
+    try std.testing.expect(dashboardPaneIndexForToken("missing") == null);
+    try std.testing.expectEqual(@as(?usize, 1), nextDashboardPane(0, 'l'));
+    try std.testing.expectEqual(@as(?usize, 0), nextDashboardPane(DASHBOARD_PANE_COUNT - 1, 'L'));
+    try std.testing.expectEqual(@as(?usize, DASHBOARD_PANE_COUNT - 1), nextDashboardPane(0, 'h'));
+    try std.testing.expect(nextDashboardPane(0, '9') == null);
 }
 
 test "diagnostics dashboard summarizes attention state and bounds plugin rows" {
@@ -646,6 +520,96 @@ test "diagnostics dashboard summarizes attention state and bounds plugin rows" {
     try std.testing.expect(std.mem.indexOf(u8, rendered, "attention") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "+2 more registered") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "p7") == null);
+}
+
+test "diagnostics dashboard health distinguishes nominal degraded and attention" {
+    const nominal = try renderDiagnostics(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .gpu_accelerated = true,
+        .gpu_linked = true,
+    });
+    defer std.testing.allocator.free(nominal);
+    try std.testing.expect(std.mem.indexOf(u8, nominal, "nominal") != null);
+
+    const degraded = try renderDiagnostics(std.testing.allocator, .{
+        .gpu_backend = "cpu",
+        .gpu_accelerated = false,
+        .gpu_linked = false,
+    });
+    defer std.testing.allocator.free(degraded);
+    try std.testing.expect(std.mem.indexOf(u8, degraded, "degraded") != null);
+
+    const attention = try renderDiagnostics(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .gpu_accelerated = true,
+        .gpu_linked = true,
+        .scheduler_failed = 1,
+    });
+    defer std.testing.allocator.free(attention);
+    try std.testing.expect(std.mem.indexOf(u8, attention, "attention") != null);
+}
+
+test "diagnostics dashboard keeps truncated UTF-8 valid" {
+    const rendered = try renderDiagnostics(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .gpu_accelerated = true,
+        .gpu_linked = true,
+        .plugin_count = 1,
+        .plugin_names = &.{"éééééééééééééééééééééééé────────────────"},
+        .memory_source = "éééééééééééééééééééééééé────────────────",
+    });
+    defer std.testing.allocator.free(rendered);
+
+    try std.testing.expect(std.unicode.utf8ValidateSlice(rendered));
+}
+
+test "diagnostics dashboard can highlight memory pane" {
+    const rendered = try renderDiagnostics(std.testing.allocator, .{
+        .memory_source = "MemoryTracker",
+        .selected_pane = DASHBOARD_PANE_COUNT - 1,
+    });
+    defer std.testing.allocator.free(rendered);
+
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "\x1b[7m\x1b[1;31m") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Memory") != null);
+}
+
+test "diagnostics dashboard defaults invalid selected pane to first pane" {
+    const rendered = try renderDiagnostics(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .selected_pane = DASHBOARD_PANE_COUNT + 20,
+    });
+    defer std.testing.allocator.free(rendered);
+
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "\x1b[7m\x1b[1;33m") != null);
+}
+
+test "diagnostics dashboard can render without ANSI style escapes" {
+    const rendered = try renderDiagnosticsWithOptions(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .selected_pane = DASHBOARD_PANE_COUNT - 1,
+    }, .{ .color = false });
+    defer std.testing.allocator.free(rendered);
+
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "ABI Diagnostics Dashboard") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Memory") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "\x1b[") == null);
+}
+
+test "diagnostics dashboard compact mode renders only selected pane" {
+    const rendered = try renderDiagnosticsWithOptions(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .scheduler_source = "test-scheduler",
+        .selected_pane = 3,
+    }, .{ .color = false, .compact = true });
+    defer std.testing.allocator.free(rendered);
+
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "ABI Diagnostics Dashboard") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Scheduler") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "test-scheduler") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "System") == null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "WDBX Storage") == null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Memory") == null);
 }
 
 test "InteractiveTerminal struct layout" {

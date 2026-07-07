@@ -3,7 +3,7 @@
 # int8 embedding compression, additive homomorphic sum, and DGHV somewhat-
 # homomorphic eval. Asserts each section's match/ratio marker.
 #
-# Usage: .claude/skills/secure-demo/secure.sh
+# Usage: .agents/skills/secure-demo/secure.sh
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

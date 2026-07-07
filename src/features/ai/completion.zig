@@ -12,14 +12,26 @@ const telemetry = if (build_options.feat_telemetry) @import("../telemetry/mod.zi
 
 pub fn complete(allocator: std.mem.Allocator, request: types.CompletionRequest) !types.CompletionResult {
     if (request.input.len == 0) return error.InvalidCompletionInput;
+    const weights = router.analyzeSentiment(request.input);
+    const selected = router.selectBestProfile(weights);
+    return completeWithSelectedProfile(allocator, request, selected);
+}
+
+pub fn completeAdaptive(allocator: std.mem.Allocator, store: *wdbx.Store, request: types.CompletionRequest) !types.CompletionResult {
+    if (request.input.len == 0) return error.InvalidCompletionInput;
+    var modulator = router.AdaptiveModulator.loadWeights(store);
+    modulator.update(router.analyzeSentiment(request.input));
+    const selected = router.selectBestProfile(modulator.weights());
+    return completeWithSelectedProfile(allocator, request, selected);
+}
+
+fn completeWithSelectedProfile(allocator: std.mem.Allocator, request: types.CompletionRequest, selected: types.AgentProfile) !types.CompletionResult {
     // Resolve catalog aliases (e.g. "fable-5" -> "claude-fable-5") to their
     // canonical id; unknown/freeform ids pass through unchanged. Both branches
     // yield a non-owned slice (static catalog literal or the caller's slice),
     // matching the existing borrowed-`model` lifetime — `deinit` never frees it.
     const resolved_model = models.resolve(request.model) orelse request.model;
-    const weights = router.analyzeSentiment(request.input);
-    const selected = router.selectBestProfile(weights);
-    const response = try router.routeInput(allocator, request.input);
+    const response = try router.routeToProfile(allocator, selected, request.input);
     errdefer allocator.free(response);
     const audit = constitution.Constitution.validate(response);
     // Per-turn governance telemetry: every evaluated turn is counted, and a
@@ -70,23 +82,33 @@ fn runCompletionTask(ctx: ?*anyopaque) anyerror!void {
 }
 
 pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, request: types.CompletionRequest) !types.CompletionResult {
-    var result = try complete(allocator, request);
-    errdefer result.deinit(allocator);
+    const result = try complete(allocator, request);
+    return persistCompletionResult(allocator, store, request, result);
+}
 
-    if (!request.store_result) return result;
+pub fn completeWithStoreAdaptive(allocator: std.mem.Allocator, store: *wdbx.Store, request: types.CompletionRequest) !types.CompletionResult {
+    const result = try completeAdaptive(allocator, store, request);
+    return persistCompletionResult(allocator, store, request, result);
+}
+
+fn persistCompletionResult(allocator: std.mem.Allocator, store: *wdbx.Store, request: types.CompletionRequest, result: types.CompletionResult) !types.CompletionResult {
+    var persisted = result;
+    errdefer persisted.deinit(allocator);
+
+    if (!request.store_result) return persisted;
 
     const query_vec = helpers.textEmbedding(request.input);
-    const response_vec = helpers.textEmbedding(result.output);
+    const response_vec = helpers.textEmbedding(persisted.output);
     const query_id = store.putVector(&query_vec) catch |err| {
-        if (isFeatureDisabled(err)) return result;
+        if (isFeatureDisabled(err)) return persisted;
         return err;
     };
     const response_id = store.putVector(&response_vec) catch |err| {
-        if (isFeatureDisabled(err)) return result;
+        if (isFeatureDisabled(err)) return persisted;
         return err;
     };
 
-    const metadata = try completionMetadataJson(allocator, request, result, query_id, response_id);
+    const metadata = try completionMetadataJson(allocator, request, persisted, query_id, response_id);
     defer allocator.free(metadata);
 
     // Derive key directly via the documented metadata helper (matches contract shape `completion:<id>`).
@@ -105,11 +127,11 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
 
     try store.store(key, metadata);
 
-    const block_id = try store.appendBlock(result.selected_profile.label(), query_id, response_id, metadata);
-    result.query_vector_id = query_id;
-    result.response_vector_id = response_id;
-    result.block_id = block_id;
-    return result;
+    const block_id = try store.appendBlock(persisted.selected_profile.label(), query_id, response_id, metadata);
+    persisted.query_vector_id = query_id;
+    persisted.response_vector_id = response_id;
+    persisted.block_id = block_id;
+    return persisted;
 }
 
 fn completionMetadataJson(

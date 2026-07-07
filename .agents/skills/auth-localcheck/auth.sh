@@ -6,7 +6,7 @@
 # stored credentials) or a real `auth signin <svc>` (would store creds).
 # Asserts exit codes + output markers. Resolves repo root from own path.
 #
-# Usage: .claude/skills/auth-localcheck/auth.sh
+# Usage: .agents/skills/auth-localcheck/auth.sh
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

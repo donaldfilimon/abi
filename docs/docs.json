@@ -15,7 +15,10 @@
       },
       {
         "group": "Architecture",
-        "pages": ["spec/abi-refactor-design"]
+        "pages": [
+          "spec/abi-refactor-design",
+          "spec/agent-wdbx-architecture"
+        ]
       },
       {
         "group": "Specs",

@@ -6,7 +6,7 @@
 # provider) and no `--learn` (that SEA path is covered by sea-learn-loop).
 # Asserts exit codes + output markers. Resolves repo root from own path.
 #
-# Usage: .claude/skills/complete-base/complete.sh ["prompt"] [model-id]
+# Usage: .agents/skills/complete-base/complete.sh ["prompt"] [model-id]
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

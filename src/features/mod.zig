@@ -1,3 +1,12 @@
+//! Feature selection module. Every `-Dfeat-*` build flag selects between a real
+//! `mod.zig` implementation and a disabled `stub.zig`. All flags default **on**.
+//! When a feature is off, its stub retains declaration parity for `pub const`/
+//! `pub fn` names (enforced by `zig build check-parity`) and returns
+//! `error.FeatureDisabled` or minimal no-op values at runtime.
+//!
+//! Categories: AI & Data (ai, wdbx, sea), GPU & Compute (gpu, accelerator,
+//! shaders, mlir), OS & Platform (os_control, mobile, metrics), UI (tui),
+//! Utilities (hash, telemetry, nn).
 const build_options = @import("build_options");
 
 // ── AI & Data ──

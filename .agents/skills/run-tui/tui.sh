@@ -4,7 +4,7 @@
 # the command a real terminal so we can exercise the interactive path, capture the
 # rendered pane, send the quit key, and tear the session down.
 #
-# Usage: .claude/skills/run-tui/tui.sh [command]   # command: dashboard (default) | tui
+# Usage: .agents/skills/run-tui/tui.sh [command]   # command: dashboard (default) | tui
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

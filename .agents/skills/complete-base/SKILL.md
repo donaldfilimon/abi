@@ -16,13 +16,13 @@ Evidence is the `RESULT:` line. Fully local, no network.
 ```
 - `complete "<prompt>"` (or `complete --model <id> "<prompt>"`) → asserts
   `model=`, `audit_passed=true`, `persisted=true`, `wdbx kv_entries=`.
-- Model aliases are canonicalized (`fable-5` → `Codex-fable-5`); an unrecognized
+- Model aliases are canonicalized (`fable-5` → `claude-fable-5`); an unrecognized
   id passes through with a one-line stderr warning.
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count.
 
 Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — base completion
-routes to `model=Codex-fable-5`, passes the constitution audit, and persists the
+routes to `model=claude-fable-5`, passes the constitution audit, and persists the
 completion (query/response vectors + block) to WDBX.
 
 ## Gotchas

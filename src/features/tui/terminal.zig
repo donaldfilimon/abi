@@ -18,6 +18,26 @@ pub const InteractiveTerminal = if (builtin.os.tag == .windows)
 else
     PosixInteractiveTerminal;
 
+pub const ScreenSession = struct {
+    term: InteractiveTerminal,
+    screen_active: bool = false,
+
+    pub fn init(fd: std.posix.fd_t) !ScreenSession {
+        var term = try InteractiveTerminal.init(fd);
+        errdefer term.deinit();
+        try initScreen();
+        return .{ .term = term, .screen_active = true };
+    }
+
+    pub fn deinit(self: *ScreenSession) void {
+        if (self.screen_active) {
+            deinitScreen();
+            self.screen_active = false;
+        }
+        self.term.deinit();
+    }
+};
+
 const PosixInteractiveTerminal = struct {
     fd: std.posix.fd_t,
     original: std.posix.termios,
@@ -30,6 +50,7 @@ const PosixInteractiveTerminal = struct {
         var raw = original;
         raw.lflag.ICANON = false;
         raw.lflag.ECHO = false;
+        if (@hasField(@TypeOf(raw.lflag), "ISIG")) raw.lflag.ISIG = false;
 
         const vmin = if (@hasDecl(std.posix, "VMIN")) std.posix.VMIN else std.posix.system.V.MIN;
         const vtime = if (@hasDecl(std.posix, "VTIME")) std.posix.VTIME else std.posix.system.V.TIME;
@@ -90,7 +111,7 @@ const WindowsInteractiveTerminal = struct {
 };
 
 pub fn isQuitKey(byte: u8) bool {
-    return byte == 'q' or byte == 'Q' or byte == 0x1b;
+    return byte == 'q' or byte == 'Q' or byte == 0x1b or byte == 0x03;
 }
 
 pub fn isRefreshKey(byte: u8) bool {
@@ -113,8 +134,16 @@ pub fn homeScreen() void {
     std.debug.print("\x1b[H", .{});
 }
 
+pub fn homeScreenWriter(writer: anytype) !void {
+    try writer.writeAll("\x1b[H");
+}
+
 pub fn clearToEnd() void {
     std.debug.print("\x1b[0J", .{});
+}
+
+pub fn clearToEndWriter(writer: anytype) !void {
+    try writer.writeAll("\x1b[0J");
 }
 
 pub fn clearScreenWriter(writer: anytype) !void {
@@ -175,10 +204,63 @@ test "InteractiveTerminal struct layout" {
     try std.testing.expectEqual(@as(std.posix.fd_t, 0), term.fd);
 }
 
+test "ScreenSession struct layout" {
+    const term = if (builtin.os.tag == .windows) InteractiveTerminal{
+        .fd = 0,
+        .is_tty = false,
+    } else InteractiveTerminal{
+        .fd = 0,
+        .original = undefined,
+        .is_tty = false,
+    };
+    const session = ScreenSession{ .term = term };
+    try std.testing.expect(!session.screen_active);
+    try std.testing.expectEqual(@as(std.posix.fd_t, 0), session.term.fd);
+}
+
+test "alternate screen writer helpers are paired" {
+    var buf = std.ArrayListUnmanaged(u8).empty;
+    defer buf.deinit(std.testing.allocator);
+
+    const TestWriter = struct {
+        allocator: std.mem.Allocator,
+        buffer: *std.ArrayListUnmanaged(u8),
+
+        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
+            try self.buffer.appendSlice(self.allocator, bytes);
+        }
+    };
+
+    var writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
+    try initScreenWriter(&writer);
+    try deinitScreenWriter(&writer);
+    try std.testing.expectEqualStrings("\x1b[?1049h\x1b[H\x1b[?1049l", buf.items);
+}
+
+test "redraw writer helpers emit home and clear-to-end controls" {
+    var buf = std.ArrayListUnmanaged(u8).empty;
+    defer buf.deinit(std.testing.allocator);
+
+    const TestWriter = struct {
+        allocator: std.mem.Allocator,
+        buffer: *std.ArrayListUnmanaged(u8),
+
+        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
+            try self.buffer.appendSlice(self.allocator, bytes);
+        }
+    };
+
+    var writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
+    try homeScreenWriter(&writer);
+    try clearToEndWriter(&writer);
+    try std.testing.expectEqualStrings("\x1b[H\x1b[0J", buf.items);
+}
+
 test "quit and refresh key detection" {
     try std.testing.expect(isQuitKey('q'));
     try std.testing.expect(isQuitKey('Q'));
     try std.testing.expect(isQuitKey(0x1b));
+    try std.testing.expect(isQuitKey(0x03));
     try std.testing.expect(!isQuitKey('r'));
     try std.testing.expect(isRefreshKey('r'));
     try std.testing.expect(isRefreshKey('R'));

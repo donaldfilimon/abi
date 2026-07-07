@@ -1,5 +1,7 @@
 # ABI Master Specification
 
+> **Archived:** This superpowers-era master spec is retained for historical context. Current public architecture and claim boundaries live in `docs/spec/*.mdx` and `docs/contracts/*.mdx`; executable source/tests remain authoritative.
+
 This document serves as the master reference for the ABI Framework, encompassing both the architectural design of the core system and the plugin ecosystem.
 
 ## 1. Architectural Vision (Refactor 2026-05-14)

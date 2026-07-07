@@ -121,7 +121,7 @@ const PRINCIPLE_CHECKS = [_]PrincipleCheck{
 
 /// Per-principle weights for the weighted constitutional E-score, adapting the
 /// WDBX 4-pillar governance formula (`E = α·Autonomy + β·Non-Maleficence +
-/// γ·Beneficence + δ·Justice`, see `docs/spec/wdbx-rust-capability-extract.md`
+/// γ·Beneficence + δ·Justice`, see `docs/spec/wdbx-rust-capability-extract.mdx`
 /// §3) onto ABI's 6 principles. Each pillar's weight is split across the
 /// principles that realize it; Non-Maleficence (the safety class) is
 /// deliberately over-weighted (0.35) so a safety regression dominates the score.

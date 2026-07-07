@@ -1,5 +1,7 @@
 # AI Scheduler/Memory Integration + Advanced Stateful Feature Implementation Plan
 
+> **Archived:** This completed historical plan was moved under `docs/superpowers/archive/` after the source-backed scheduler, memory, and telemetry work landed. Use `tasks/todo.md` and `docs/spec/wdbx-north-star.mdx` for active work.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Deeply integrate the core Scheduler and MemoryTracker inside `features/ai` for real training and completion workloads, add comprehensive tests for the new paths, and scaffold one additional advanced stateful feature with submodules using the modern validated process.

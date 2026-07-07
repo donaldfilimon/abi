@@ -6,7 +6,7 @@ tools: Read, Grep, Bash
 
 You analyze the scheduler + memory-tracking subsystem and report; never edit source.
 
-Context (per `docs/superpowers/plans/2026-05-27-ai-scheduler-integration-and-advanced-feature.md` and CLAUDE.md):
+Context (per archived `docs/superpowers/archive/plans/2026-05-27-ai-scheduler-integration-and-advanced-feature.md` and CLAUDE.md):
 - `abi scheduler status` reports one-shot CLI scheduler task + memory-tracker state (`running=/pending=/completed=/failed=/cancelled=/total_tasks=`).
 - `src/core/scheduler.zig` owns task submission/lifecycle; `src/core/memory.zig` is the MemoryTracker. The integration plan wires the tracker into AI (`src/features/ai/mod.zig` training_support) and WDBX paths.
 - Malformed numeric args (counts/ports/node ids) return usage (exit 2), not a silent default.

@@ -66,7 +66,7 @@ pub fn runLearnLoop(
 
     var modulator = router.AdaptiveModulator.loadWeights(store);
 
-    var completion = try ai.completeWithStore(allocator, store, .{
+    var completion = try ai.completeWithStoreAdaptive(allocator, store, .{
         .input = augmented,
         .model = model,
         .store_result = config.persist,
@@ -164,6 +164,26 @@ test "runLearnLoop surfaces the inferred task intent on the result" {
     defer result.deinit(allocator);
 
     try std.testing.expectEqual(query_plan.TaskType.project_recall, result.query_task);
+}
+
+test "runLearnLoop uses saved adaptive weights for later learned completions" {
+    if (!build_options.feat_wdbx or !build_options.feat_ai) return;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var modulator = router.AdaptiveModulator.deserialize("0.010000,0.980000,0.010000,8,0.050000");
+    try modulator.saveWeights(allocator, &store);
+
+    var result = try runLearnLoop(allocator, &store, "analyze the logical structure", "abi-local", .{
+        .persist = false,
+        .adapt_router = false,
+    });
+    defer result.deinit(allocator);
+
+    try std.testing.expectEqual(ai.AgentProfile.aviva, result.completion.selected_profile);
+    try std.testing.expect(std.mem.indexOf(u8, result.completion.output, "Aviva creative exploration") != null);
 }
 
 test {

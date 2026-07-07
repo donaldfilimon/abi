@@ -1,3 +1,9 @@
+//! AI feature stub — used when `-Dfeat-ai=false`. Maintains declaration-name
+//! parity with `mod.zig` for all `pub const`/`pub fn` names (enforced by
+//! `zig build check-parity`). Reuses the real `models.zig` (std-only),
+//! `helpers.zig` (std-only), and `stub_types.zig`/`stub_profile.zig`/
+//! `stub_constitution.zig` to keep dimensionality and type shapes identical.
+//! Returns `"AI feature is disabled"` or `error.FeatureDisabled` at runtime.
 const std = @import("std");
 const build_options = @import("build_options");
 const scheduler_mod = @import("../../core/scheduler.zig");
@@ -150,6 +156,10 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: anytype, request: 
     return complete(allocator, request);
 }
 
+pub fn completeWithStoreAdaptive(allocator: std.mem.Allocator, store: anytype, request: CompletionRequest) !CompletionResult {
+    return completeWithStore(allocator, store, request);
+}
+
 pub const completion_kv_delta = 0;
 
 pub fn completionMetadataKey(allocator: std.mem.Allocator, query_id: u32) ![]const u8 {
@@ -202,6 +212,73 @@ pub fn runAgent(allocator: std.mem.Allocator, config: AgentConfig, input: []cons
     if (config.name.len == 0 or config.instructions.len == 0 or input.len == 0) return error.InvalidAgentConfig;
     return .{ .output = try allocator.dupe(u8, "AI feature is disabled"), .requires_review = true };
 }
+
+pub const iot_monitor = struct {
+    pub const IotMonitor = struct {
+        allocator: std.mem.Allocator,
+        history: std.ArrayListUnmanaged(f64) = .empty,
+        z_threshold: f64,
+
+        pub fn init(allocator: std.mem.Allocator) IotMonitor {
+            return .{
+                .allocator = allocator,
+                .history = .empty,
+                .z_threshold = 2.5,
+            };
+        }
+
+        pub fn deinit(self: *IotMonitor) void {
+            self.history.deinit(self.allocator);
+        }
+
+        pub fn feed(_: *IotMonitor, _: f64) !bool {
+            return false;
+        }
+
+        pub fn count(self: IotMonitor) usize {
+            return self.history.items.len;
+        }
+
+        pub fn reset(self: *IotMonitor) void {
+            self.history.clearAndFree(self.allocator);
+            self.z_threshold = 2.5;
+        }
+    };
+};
+
+pub const multimodal_fusion = struct {
+    pub const VisionProcessor = struct {
+        pub const EMBEDDING_LEN: usize = 64;
+
+        pub fn encode(allocator: std.mem.Allocator, description: []const u8) ![]f32 {
+            _ = description;
+            return try allocator.alloc(f32, EMBEDDING_LEN);
+        }
+    };
+
+    pub const AudioProcessor = struct {
+        pub const EMBEDDING_LEN: usize = 32;
+
+        pub fn encode(allocator: std.mem.Allocator, description: []const u8) ![]f32 {
+            _ = description;
+            return try allocator.alloc(f32, EMBEDDING_LEN);
+        }
+    };
+
+    pub const IotProcessor = struct {
+        pub const EMBEDDING_LEN: usize = 16;
+
+        pub fn encode(allocator: std.mem.Allocator, mean_reading: f64) ![]f32 {
+            _ = mean_reading;
+            return try allocator.alloc(f32, EMBEDDING_LEN);
+        }
+    };
+
+    pub fn fuse(allocator: std.mem.Allocator, vision: []const f32, audio: []const f32, iot: []const f32) ![]f32 {
+        const total = vision.len + audio.len + iot.len;
+        return try allocator.alloc(f32, total);
+    }
+};
 
 pub fn isFeatureDisabled(err: anyerror) bool {
     return err == error.FeatureDisabled;

@@ -4,7 +4,7 @@
 # (train-then-generate). This is a DEMO trainer, not a production/LLM/distributed
 # trainer. Asserts exit codes + output markers. Resolves repo root from own path.
 #
-# Usage: .claude/skills/nn-demo/nn.sh ["training corpus"] [seed-char] [n]
+# Usage: .agents/skills/nn-demo/nn.sh ["training corpus"] [seed-char] [n]
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

@@ -3,7 +3,7 @@
 # / shader / MLIR backend report plus the compute-backend matrix. Asserts the
 # stable section markers. Resolves the repo root from its own location.
 #
-# Usage: .claude/skills/backend-diagnostics/diag.sh
+# Usage: .agents/skills/backend-diagnostics/diag.sh
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

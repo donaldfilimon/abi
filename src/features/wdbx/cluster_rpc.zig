@@ -299,6 +299,111 @@ pub fn readAppendReply(io: std.Io, conn: Stream) !AppendReply {
     return .{ .ack = std.mem.eql(u8, verb, "ACK"), .term = term };
 }
 
+pub const MultiNodeLoopResult = struct {
+    node_count: usize,
+    vote_quorum: bool,
+    append_quorum: bool,
+    votes: usize,
+    append_acks: usize,
+    logs_verified: usize,
+};
+
+/// Drive one deterministic local multi-node round: leader/candidate 0 asks every
+/// loopback peer for a vote, then appends one entry to every peer with auth and
+/// allowlist policy enforced. This is a test/runtime helper, not a production
+/// membership or sharding loop.
+pub fn runAuthenticatedLoopbackRound(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    ports: []const u16,
+    token: []const u8,
+    data: []const u8,
+) !MultiNodeLoopResult {
+    const peer_count = ports.len;
+    const total_nodes = peer_count + 1; // candidate/leader 0 plus served peers.
+    const quorum = total_nodes / 2 + 1;
+
+    var peer_ids = try allocator.alloc(u32, total_nodes);
+    defer allocator.free(peer_ids);
+    peer_ids[0] = 0;
+    for (peer_ids[1..], 0..) |*id, i| id.* = @intCast(i + 1);
+    const policy = ClusterPolicy{ .auth = .{ .token = token }, .peers = peer_ids };
+
+    var nodes = try allocator.alloc(cluster.Node, peer_count);
+    defer allocator.free(nodes);
+    var nodes_initialized: usize = 0;
+    defer {
+        var i: usize = 0;
+        while (i < nodes_initialized) : (i += 1) deinitNode(&nodes[i], allocator);
+    }
+    for (nodes, 0..) |*node, i| {
+        node.* = .{ .id = @intCast(i + 1) };
+        nodes_initialized += 1;
+    }
+
+    var servers = try allocator.alloc(Server, peer_count);
+    defer allocator.free(servers);
+    var servers_initialized: usize = 0;
+    defer {
+        var i: usize = 0;
+        while (i < servers_initialized) : (i += 1) servers[i].deinit(io);
+    }
+    for (ports, 0..) |port, i| {
+        servers[i] = try listen(io, port);
+        servers_initialized += 1;
+    }
+
+    var vote_conns = try allocator.alloc(?Stream, peer_count);
+    defer allocator.free(vote_conns);
+    for (ports, 0..) |port, i| {
+        vote_conns[i] = try dialVoteAddrAuth(io, "127.0.0.1", port, 1, 0, token);
+    }
+
+    var votes: usize = 1;
+    for (vote_conns, 0..) |conn, i| {
+        if (conn == null) continue;
+        try serveOnceAuth(io, &servers[i], &nodes[i], allocator, policy);
+    }
+    for (vote_conns) |conn| {
+        if (conn) |stream| {
+            const reply = try readVoteReply(io, stream);
+            if (reply.granted) votes += 1;
+        }
+    }
+
+    var append_conns = try allocator.alloc(?Stream, peer_count);
+    defer allocator.free(append_conns);
+    for (ports, 0..) |port, i| {
+        append_conns[i] = try dialAppendAddrAuth(io, "127.0.0.1", port, 2, 0, data, token);
+    }
+
+    var append_acks: usize = 1;
+    for (append_conns, 0..) |conn, i| {
+        if (conn == null) continue;
+        try serveOnceAuth(io, &servers[i], &nodes[i], allocator, policy);
+    }
+    for (append_conns) |conn| {
+        if (conn) |stream| {
+            const reply = try readAppendReply(io, stream);
+            if (reply.ack) append_acks += 1;
+        }
+    }
+
+    var logs_verified: usize = 0;
+    for (nodes) |node| {
+        if (node.log.items.len == 1 and std.mem.eql(u8, node.log.items[0].data, data)) logs_verified += 1;
+    }
+
+    return .{
+        .node_count = total_nodes,
+        .vote_quorum = votes >= quorum,
+        .append_quorum = append_acks >= quorum,
+        .votes = votes,
+        .append_acks = append_acks,
+        .logs_verified = logs_verified,
+    };
+}
+
 const testing = std.testing;
 
 fn deinitNode(node: *cluster.Node, allocator: std.mem.Allocator) void {
@@ -521,6 +626,18 @@ test "cluster_rpc: authenticated append requires an explicit leader id" {
     try testing.expect(!reply.ack);
     try testing.expectEqual(@as(u64, 9), n1.term);
     try testing.expectEqual(@as(usize, 0), n1.log.items.len);
+}
+
+test "cluster_rpc: authenticated multi-node loop reaches quorum and verifies peer logs" {
+    const ports = [_]u16{ 39181, 39182, 39183 };
+    const result = try runAuthenticatedLoopbackRound(testing.allocator, testing.io, &ports, "cluster-secret", "set loop=true");
+
+    try testing.expectEqual(@as(usize, 4), result.node_count);
+    try testing.expect(result.vote_quorum);
+    try testing.expect(result.append_quorum);
+    try testing.expectEqual(@as(usize, 4), result.votes);
+    try testing.expectEqual(@as(usize, 4), result.append_acks);
+    try testing.expectEqual(@as(usize, ports.len), result.logs_verified);
 }
 
 test {

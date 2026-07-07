@@ -333,6 +333,7 @@ TRASH-FILES.md
 # (.claude/skills/** is un-ignored above at line ~177, but the blanket
 #  *.md rule re-ignores skill docs — this negation must come after it.)
 !.claude/skills/**/SKILL.md
+!.agents/skills/abi-doc-claims-sync/references/claim-boundaries.md
 
 # Claude project agents: same story — .claude/agents/** is un-ignored above, but
 # the blanket *.md rule re-ignores the agent defs, so this rescue must come after it.

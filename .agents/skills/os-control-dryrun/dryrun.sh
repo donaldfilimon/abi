@@ -4,7 +4,7 @@
 # it only prints the plan. The execute path (`agent os execute --confirm`) is
 # deliberately out of scope for this skill (destructive / requires confirmation).
 #
-# Usage: .claude/skills/os-control-dryrun/dryrun.sh ["command description"]
+# Usage: .agents/skills/os-control-dryrun/dryrun.sh ["command description"]
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

@@ -6,7 +6,7 @@
 # tear the node down. The node blocks in the accept loop, so readiness is the
 # marker in its log, not process exit. Loopback only; always killed on exit.
 #
-# Usage: .claude/skills/wdbx-cluster-serve/cluster-serve.sh [port]   # default 8092
+# Usage: .agents/skills/wdbx-cluster-serve/cluster-serve.sh [port]   # default 8092
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

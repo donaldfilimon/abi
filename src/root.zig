@@ -1,3 +1,9 @@
+//! Public API root for the ABI framework. Re-exports all public modules at the
+//! top level. Consumers and the MCP handler graph import via `@import("abi")`.
+//! This file defines the library's module topology but does not re-export every
+//! leaf function — use the modules directly for fine-grained access.
+//! Version is declared per build.zig; no runtime version constant is exposed
+//! (consumers may read `abi.MCP.serverInfo.version` at connect time).
 pub const interfaces = @import("interfaces.zig");
 pub const foundation = @import("foundation/mod.zig");
 pub const features = @import("features/mod.zig");

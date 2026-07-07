@@ -3,7 +3,7 @@
 # surfaces that run fully LOCALLY — the Twilio ConversationRelay simulation and
 # the auth-status report. No credentials, no network, no `.live` transport.
 #
-# Usage: .claude/skills/connector-localcheck/connectors.sh ["caller utterance"]
+# Usage: .agents/skills/connector-localcheck/connectors.sh ["caller utterance"]
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

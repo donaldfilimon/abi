@@ -29,14 +29,13 @@ These ship real local artifacts but truthfully disclose that native/external dis
 | Production/SOTA learned compression codec | ◑ Partial / disclosed | Exact order-0 Huffman entropy (`entropy.zig`), int8 embedding quantization, and the reference `neural_compress.zig` autoencoder exist; no ANS/arithmetic/context-model or production-scale learned codec is proven. |
 | Security-audited FHE | ⚪ Not started | `fhe.zig` (DGHV; chained multiplicative depth 3 tested) is reference-parameter, bounded-depth, **not** audited. |
 | Non-loopback REST hardening | ◑ Partial / disclosed | `rest.zig` remains 127.0.0.1-only and can require `Authorization: Bearer` via `ABI_WDBX_REST_TOKEN`; external exposure still needs TLS, rate limiting, authz, and threat review. |
-| Multi-host cluster | ◑ Authenticated routable bind supported / ops story missing | `cluster_rpc.zig` runs real TCP Raft; `cluster serve <port> [node] [host]` can bind a routable host only when `ABI_WDBX_CLUSTER_TOKEN` is set, and `ABI_WDBX_CLUSTER_PEERS` can limit accepted node ids. Multi-host production still needs TLS/mTLS or a fronting network policy, deployment controls, dynamic membership, and sharding. |
+| Multi-host cluster | ◑ Authenticated routable bind + local multi-node RPC loop / ops story missing | `cluster_rpc.zig` runs real TCP RequestVote/AppendEntries, includes an authenticated loopback multi-node vote+append round that verifies quorum and peer logs, and `cluster serve <port> [node] [host]` can bind a routable host only when `ABI_WDBX_CLUSTER_TOKEN` is set. `ABI_WDBX_CLUSTER_PEERS` can limit accepted node ids. Multi-host production still needs TLS/mTLS or a fronting network policy, deployment controls, dynamic membership, and sharding. |
 
 ### Candidate next slices (real remaining work)
 
 | Item | Status | Notes |
 | ---- | ------ | ----- |
 | Broader native/batched GPU acceleration | 🟡 In progress | HNSW pairwise + neighbor-expansion batch scoring route through `gpu.vectorOps()` with SIMD fallback. AI completion/SEA paths delegate similarity to `store.search` (already GPU-routed), so the remaining expansion is native kernel dispatch — the deferred 100%-Zig-constraint item, not a completable gap. |
-| Module declaration coverage cleanup | ✅ Done | `std.testing.refAllDecls(@This())` added to 9 non-exempt build-covered modules + all 32 plugin mod/stub files under `src/plugins/*`; dead `src/features/ai/plan.zig` removed with parity sync in `mod.zig`/`stub.zig`. Intentional exemptions preserved: `src/main.zig`, generated `src/plugin_registry.zig`. |
 | Windows runtime verification for cross builds | ⚪ Not started | `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` (linux-gnu/windows-gnu/aarch64-macos). Remaining (out of scope from a macOS host): actual Windows runtime verification + Windows test-only helper cleanup (`/tmp`, `std.c.getpid`). |
 
 ---
@@ -67,6 +66,7 @@ One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`
 - **Connector log redaction** — Discord local send/receive logs and Twilio live response logs now emit metadata/byte counts instead of message or provider-response bodies.
 - **MCP/REST loopback auth hardening** — optional bearer-token enforcement added for MCP HTTP/SSE (`ABI_MCP_HTTP_TOKEN`) and WDBX REST (`ABI_WDBX_REST_TOKEN`); still not a production non-loopback exposure claim without TLS/authz/rate-limit review.
 - **WDBX/SEA correctness** — WAL double-free guards on `putVector`/`store`; `remote_compute` overflow guard; corrupt-manifest rejection; SEA persist→recall round-trip + evidence-recall coverage.
+- **SEA adaptive learning loop + WDBX RPC loop** — learned completions now route through persisted `AdaptiveModulator` weights, and `cluster_rpc.zig` has a deterministic authenticated loopback multi-node vote+append round that verifies quorum and peer logs; this is still not production multi-host orchestration or sharding.
 - **WDBX perf** — redundant work removed from HNSW/WAL/block-chain hot paths.
 - **WDBX segment compaction** — `abi wdbx db compact <path> [keep]` now retains the newest segment checkpoints and reclaims older manifest-listed checkpoints while preserving recovery.
 - **WDBX compression** — exact order-0 Huffman entropy codec added beside int8 embedding quantization and the reference autoencoder; still no SOTA/production learned-compression claim.
@@ -75,6 +75,7 @@ One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`
 - **WDBX north-star Phase 1 + V18 cognitive runtime** — WAL+recovery, multi-segment checkpoints, temporal/causal hybrid ranker, persona-scoped retrieval, P50/P95/P99 benchmarks, loopback REST, in-process consensus/compression/FHE demos. (10/11 V18 criteria; ANE execution is the disclosed non-goal.)
 - **Whole-tree Zig hygiene review** — all 196 `.zig` files pass standalone `zig ast-check`; fixed the standalone `example-plugin` stub unused-parameter failure and corrected the linked `.agents` `zig-newest-skills` driver path.
 - **Cross-compilation CI** — `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` across linux-gnu/windows-gnu/aarch64-macos compile/link targets; Windows runtime execution remains an open verification item above.
+- **CLI/TUI command-surface redesign** — typed CLI specs now drive help/validation for migrated commands, typo hints, `help --json` command/subcommand/shortcut/completion-shell metadata, metadata-driven `help --completion <bash|zsh|fish>` scripts, dashboard/TUI pane selection, pane metadata listing, compact selected-pane rendering, plain/no-color, forced one-shot, refresh-interval rendering, JSON snapshots with layout metadata, `abi --tui` shortcut flags, and `agent tui` slash-command status/model validation are contract-smoked; OpenCode MCP config connects both local servers.
 - Dead-code cleanup (plan.zig deletion + parity sync, mutex_check.o removal)
 - Local-provider model alias routing in models.zig (ollama/lmstudio/llama-cpp/vllm/mlx prefixes → .local, deterministic offline)
 - Module declaration coverage cleanup (9 modules + 32 plugin files)

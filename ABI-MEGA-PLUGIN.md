@@ -34,8 +34,8 @@ Primary inputs compiled into the plugin:
 - `docs/contracts/external-claims-audit.mdx`
 - `docs/contracts/public-api.mdx`
 - `docs/spec/*.mdx`
-- `docs/superpowers/plans/*.md`
-- `docs/superpowers/specs/ABI-MASTER-SPEC.md`
+- `docs/superpowers/archive/plans/*.md`
+- `docs/superpowers/archive/specs/ABI-MASTER-SPEC.md`
 - `.agents/skills/*/SKILL.md`
 - `.claude/skills/*/SKILL.md`
 - `.claude/agents/*.md`

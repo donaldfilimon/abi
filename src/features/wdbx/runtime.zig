@@ -24,7 +24,7 @@ pub fn defaultAcceleration() AccelerationStatus {
     const status = gpu.detectBackend();
     return .{
         .backend = status.backend,
-        .mode = if (status.accelerated) .native_gpu else .simulated_gpu,
+        .mode = .cpu_fallback,
         .message = status.message,
     };
 }
@@ -38,6 +38,11 @@ test "runtime acceleration status exports stable mode names" {
     try std.testing.expectEqualStrings("cpu_fallback", executionModeName(.cpu_fallback));
     try std.testing.expectEqualStrings("simulated_gpu", executionModeName(.simulated_gpu));
     try std.testing.expectEqualStrings("native_gpu", executionModeName(.native_gpu));
+}
+
+test "default acceleration does not claim GPU execution without acceleration" {
+    const status = defaultAcceleration();
+    try std.testing.expectEqual(gpu.ExecutionMode.cpu_fallback, status.mode);
 }
 
 test {

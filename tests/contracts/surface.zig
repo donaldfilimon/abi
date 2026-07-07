@@ -61,6 +61,8 @@ fn expectCompletionMetadataJson(allocator: std.mem.Allocator, metadata: []const 
     };
     try std.testing.expect(profile.len > 0);
     _ = obj.get("audit_passed") orelse return error.MissingAuditPassed;
+    _ = obj.get("audit_vetoed") orelse return error.MissingAuditVetoed;
+    _ = obj.get("escore") orelse return error.MissingEscore;
     _ = obj.get("input_bytes") orelse return error.MissingInputBytes;
     _ = obj.get("output_bytes") orelse return error.MissingOutputBytes;
     try expectInteger(obj.get("query_vector_id") orelse return error.MissingQueryVector, query_id);

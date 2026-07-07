@@ -1,3 +1,10 @@
+//! Model catalog — the single source of truth for recognized model ids, short
+//! aliases, and provider routing. Dependency-free (std only) so both the real
+//! `ai/mod.zig` and the disabled `ai/stub.zig` can export it with full parity.
+//!
+//! Default model is `claude-fable-5` (`fable5`). Aliases like `fable-5` resolve
+//! to the canonical id. Unknown ids pass through unchanged with a warning.
+//! Provider classification uses catalog lookups first, then prefix heuristics.
 const std = @import("std");
 
 /// Provider that ultimately serves a given model id. The local persona router

@@ -6,7 +6,7 @@
 # smoke-testable separately) and `agent os` (covered by os-control-dryrun).
 # Asserts exit codes + markers.
 #
-# Usage: .claude/skills/agent-plan-train/agent.sh ["plan text"] [profile]
+# Usage: .agents/skills/agent-plan-train/agent.sh ["plan text"] [profile]
 #   profile: abbey | aviva | abi | all   (default: abbey)
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)

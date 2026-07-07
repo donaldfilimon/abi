@@ -11,7 +11,7 @@
       "args": [
         "-y",
         "-p",
-        "@stylusnexus/skill-loop-cli@0.2.3",
+        "@stylusnexus/skill-loop-cli@0.3.3",
         "skill-loop-mcp"
       ]
     }

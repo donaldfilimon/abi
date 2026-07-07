@@ -8,6 +8,123 @@ const build_options = @import("build_options");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const ai = if (build_options.feat_ai) @import("../ai/mod.zig") else @import("../ai/stub.zig");
 
+/// Types mirror — declaration-name parity with `mod.zig` for `MemoryKind`
+/// and `Authority`. The arrays are empty and `score()` always returns 0.
+pub const MemoryKind = enum(u8) {
+    note,
+    user_preference,
+    project_decision,
+    code_fact,
+    tool_output,
+    benchmark,
+    constraint,
+    contradiction,
+    summary,
+
+    pub fn parse(s: []const u8) ?MemoryKind {
+        return std.meta.stringToEnum(MemoryKind, s);
+    }
+
+    pub fn text(self: MemoryKind) []const u8 {
+        return @tagName(self);
+    }
+};
+
+pub const Authority = enum(u8) {
+    inferred,
+    user_stated,
+    tool_verified,
+    file_verified,
+    system_pinned,
+
+    pub fn parse(s: []const u8) ?Authority {
+        return std.meta.stringToEnum(Authority, s);
+    }
+
+    pub fn text(self: Authority) []const u8 {
+        return @tagName(self);
+    }
+
+    pub fn score(_: Authority) f32 {
+        return 0;
+    }
+};
+
+pub const SeaSignals = struct {
+    semantic: f32 = 0,
+    keyword: f32 = 0,
+    metadata: f32 = 0,
+    recency: f32 = 0,
+    authority: f32 = 0,
+    graph: f32 = 0,
+    contradiction: f32 = 0,
+    task_fit: f32 = 0,
+};
+
+pub const SeaWeights = struct {
+    semantic: f32 = 0.30,
+    keyword: f32 = 0.15,
+    metadata: f32 = 0.15,
+    recency: f32 = 0.10,
+    authority: f32 = 0.10,
+    graph: f32 = 0.10,
+    contradiction: f32 = 0.05,
+    task_fit: f32 = 0.05,
+};
+
+pub const DEFAULT_SEA_WEIGHTS = SeaWeights{};
+
+pub const SeaCandidate = struct {
+    record_id: u32,
+    cluster_id: u8,
+    estimated_tokens: usize,
+    signals: SeaSignals,
+    final_score: f32,
+};
+
+pub const SeaOptions = struct {
+    max_tokens: usize = 4096,
+    max_records: usize = 16,
+    per_cluster_limit: usize = 4,
+    weights: SeaWeights = .{},
+};
+
+pub const SeaSelection = struct {
+    selected_ids: []u32,
+    rejected_ids: []u32,
+    total_estimated_tokens: usize,
+    reason: []const u8,
+};
+
+/// With the feature off the scorer always returns 0.
+pub fn seaScore(_: SeaSignals, _: SeaWeights) f32 {
+    return 0;
+}
+
+pub fn adjustWeightsForTask(base: SeaWeights, task: u8) SeaWeights {
+    _ = task;
+    return base;
+}
+
+pub fn selectSeaCandidates(allocator: std.mem.Allocator, candidates: []SeaCandidate, options: SeaOptions) !SeaSelection {
+    _ = candidates;
+    _ = options;
+    return .{
+        .selected_ids = try allocator.alloc(u32, 0),
+        .rejected_ids = try allocator.alloc(u32, 0),
+        .total_estimated_tokens = 0,
+        .reason = "sea feature is disabled",
+    };
+}
+
+pub fn contextPack(allocator: std.mem.Allocator, selected: *const SeaSelection, candidates: []const SeaCandidate, kind_texts: []const []const u8, snippets: []const []const u8) ![]u8 {
+    _ = selected;
+    _ = candidates;
+    _ = kind_texts;
+    _ = snippets;
+    return allocator.dupe(u8, "[SEA evidence]\n(disabled)");
+}
+
 pub const EvidenceItem = struct {
     vector_id: u32 = 0,
     profile_label: []const u8 = "unknown",

@@ -42,19 +42,23 @@ fn printCompletionMetadata(completion: *const features.ai.CompletionResult, stat
     const persisted = completion.query_vector_id != null and completion.response_vector_id != null and completion.block_id != null;
 
     if (learn) |meta| {
-        std.debug.print("model={s} profile={s} audit_passed={s} persisted={s} learn=true evidence_count={d} adapted={s}\n", .{
+        std.debug.print("model={s} profile={s} audit_passed={s} audit_escore={d:.3} audit_vetoed={s} persisted={s} learn=true evidence_count={d} adapted={s}\n", .{
             completion.model,
             completion.selected_profile.label(),
             if (completion.audit.passed) "true" else "false",
+            completion.audit.escore,
+            if (completion.audit.vetoed) "true" else "false",
             if (persisted) "true" else "false",
             meta.evidence_count,
             if (meta.adapted) "true" else "false",
         });
     } else {
-        std.debug.print("model={s} profile={s} audit_passed={s} persisted={s}\n", .{
+        std.debug.print("model={s} profile={s} audit_passed={s} audit_escore={d:.3} audit_vetoed={s} persisted={s}\n", .{
             completion.model,
             completion.selected_profile.label(),
             if (completion.audit.passed) "true" else "false",
+            completion.audit.escore,
+            if (completion.audit.vetoed) "true" else "false",
             if (persisted) "true" else "false",
         });
     }

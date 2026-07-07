@@ -9,10 +9,10 @@
 //!   * flags/values are order-independent and may appear before or after the
 //!     positional(s);
 //!   * a `value` flag consumes the next token; a missing value is a usage error;
-//!   * any token that does not match a declared flag/value is assigned to the
-//!     next unfilled positional (so an unknown `--foo` becomes the positional,
-//!     exactly as the legacy parser treated it) — overflowing the positionals
-//!     is a usage error;
+//!   * unknown dashed tokens are usage errors; use `--` before a literal
+//!     positional that begins with `-`;
+//!   * non-option tokens are assigned to the next unfilled positional —
+//!     overflowing the positionals is a usage error;
 //!   * a missing `required` argument is a usage error.
 
 const std = @import("std");
@@ -28,6 +28,11 @@ pub const Arg = struct {
     kind: Kind,
     required: bool = false,
     value_kind: ValueKind = .string,
+    choices: []const []const u8 = &.{},
+    /// When true on a positional, consume the remaining argv tokens joined by
+    /// spaces. This is for legacy command tails such as `plugin run <name>
+    /// [input...]` where unquoted multi-word input has always been accepted.
+    greedy: bool = false,
     help: []const u8 = "",
 };
 
@@ -36,6 +41,7 @@ const Slot = struct {
     present: bool = false,
     str: ?[]const u8 = null,
     num: u64 = 0,
+    owned: bool = false,
 };
 
 pub const Parsed = struct {
@@ -43,6 +49,11 @@ pub const Parsed = struct {
     slots: []Slot,
 
     pub fn deinit(self: *Parsed) void {
+        for (self.slots) |slot| {
+            if (slot.owned) {
+                if (slot.str) |owned_value| self.allocator.free(owned_value);
+            }
+        }
         self.allocator.free(self.slots);
         self.slots = &.{};
     }
@@ -103,13 +114,33 @@ pub fn parse(
     spec: []const Arg,
     argv: []const []const u8,
 ) error{ Usage, OutOfMemory }!Parsed {
+    return parseFrom(allocator, spec, argv, 2);
+}
+
+/// Parse `argv` against `spec`, starting at an explicit token index. This is
+/// used by registry-owned subcommands where argv[1] is the top-level command
+/// and argv[2] is the subcommand name.
+pub fn parseFrom(
+    allocator: std.mem.Allocator,
+    spec: []const Arg,
+    argv: []const []const u8,
+    start_index: usize,
+) error{ Usage, OutOfMemory }!Parsed {
     const slots = try allocator.alloc(Slot, spec.len);
     errdefer allocator.free(slots);
     for (spec, 0..) |a, idx| slots[idx] = .{ .spec = a };
 
-    var i: usize = 2;
+    var i: usize = start_index;
     while (i < argv.len) : (i += 1) {
         const token = argv[i];
+        if (std.mem.eql(u8, token, "--")) {
+            i += 1;
+            while (i < argv.len) {
+                const consumed = try assignPositional(allocator, slots, argv[i..]);
+                i += consumed;
+            }
+            break;
+        }
         if (matchFlag(spec, token)) |idx| {
             var slot = &slots[idx];
             slot.present = true;
@@ -120,16 +151,13 @@ pub fn parse(
                 if (slot.spec.value_kind != .string) {
                     slot.num = try parseNumber(argv[i], slot.spec.value_kind);
                 }
+                try validateChoices(slot.spec, argv[i]);
             }
         } else {
-            // Not a declared flag/value: assign to the next unfilled positional.
-            const idx = nextPositional(slots) orelse return error.Usage;
-            var slot = &slots[idx];
-            slot.present = true;
-            slot.str = token;
-            if (slot.spec.value_kind != .string) {
-                slot.num = try parseNumber(token, slot.spec.value_kind);
-            }
+            const pos_idx = nextPositional(slots) orelse return error.Usage;
+            if (std.mem.startsWith(u8, token, "-") and !slots[pos_idx].spec.greedy) return error.Usage;
+            const consumed = try assignPositional(allocator, slots, argv[i..]);
+            i += consumed - 1;
         }
     }
 
@@ -144,6 +172,41 @@ fn nextPositional(slots: []const Slot) ?usize {
         if (slot.spec.kind == .positional and !slot.present) return idx;
     }
     return null;
+}
+
+fn assignPositional(allocator: std.mem.Allocator, slots: []Slot, tokens: []const []const u8) error{ Usage, OutOfMemory }!usize {
+    if (tokens.len == 0) return error.Usage;
+    const idx = nextPositional(slots) orelse return error.Usage;
+    var slot = &slots[idx];
+    slot.present = true;
+    const token = tokens[0];
+    if (slot.spec.greedy) {
+        if (tokens.len == 1) {
+            slot.str = token;
+        } else {
+            slot.str = try std.mem.join(allocator, " ", tokens);
+            slot.owned = true;
+        }
+        if (slot.spec.value_kind != .string) {
+            slot.num = try parseNumber(token, slot.spec.value_kind);
+        }
+        try validateChoices(slot.spec, slot.str.?);
+        return tokens.len;
+    }
+    slot.str = token;
+    if (slot.spec.value_kind != .string) {
+        slot.num = try parseNumber(token, slot.spec.value_kind);
+    }
+    try validateChoices(slot.spec, token);
+    return 1;
+}
+
+fn validateChoices(spec: Arg, token: []const u8) error{Usage}!void {
+    if (spec.choices.len == 0) return;
+    for (spec.choices) |choice| {
+        if (std.mem.eql(u8, token, choice)) return;
+    }
+    return error.Usage;
 }
 
 test "parse reproduces complete semantics: order-independent flags + positional" {
@@ -177,13 +240,15 @@ test "parse rejects missing value, missing positional, and overflow" {
     try std.testing.expectError(error.Usage, parse(std.testing.allocator, &spec, &.{ "abi", "complete", "a", "b" }));
 }
 
-test "parse treats an unknown dashed token as the positional (legacy parity)" {
+test "parse rejects unknown dashed tokens unless escaped with end-of-options" {
     const spec = [_]Arg{
         .{ .name = "input", .kind = .positional, .required = true },
     };
-    var p = try parse(std.testing.allocator, &spec, &.{ "abi", "complete", "--bogus" });
+    try std.testing.expectError(error.Usage, parse(std.testing.allocator, &spec, &.{ "abi", "complete", "--bogus" }));
+
+    var p = try parse(std.testing.allocator, &spec, &.{ "abi", "complete", "--", "--literal" });
     defer p.deinit();
-    try std.testing.expectEqualStrings("--bogus", p.value("input").?);
+    try std.testing.expectEqualStrings("--literal", p.value("input").?);
 }
 
 test "parse validates uint and port value kinds" {
@@ -199,6 +264,56 @@ test "parse validates uint and port value kinds" {
     try std.testing.expectError(error.Usage, parse(std.testing.allocator, &spec, &.{ "abi", "x", "--count", "nope" }));
     try std.testing.expectError(error.Usage, parse(std.testing.allocator, &spec, &.{ "abi", "x", "--port", "0" }));
     try std.testing.expectError(error.Usage, parse(std.testing.allocator, &spec, &.{ "abi", "x", "--port", "70000" }));
+}
+
+test "parse validates allowed string choices for value and positional args" {
+    const spec = [_]Arg{
+        .{ .name = "mode", .kind = .value, .choices = &.{ "fast", "safe" } },
+        .{ .name = "command", .kind = .positional, .required = true, .choices = &.{"status"} },
+    };
+
+    var p = try parse(std.testing.allocator, &spec, &.{ "abi", "scheduler", "--mode", "safe", "status" });
+    defer p.deinit();
+    try std.testing.expectEqualStrings("safe", p.value("mode").?);
+    try std.testing.expectEqualStrings("status", p.value("command").?);
+
+    try std.testing.expectError(error.Usage, parse(std.testing.allocator, &spec, &.{ "abi", "scheduler", "--mode", "unsafe", "status" }));
+    try std.testing.expectError(error.Usage, parse(std.testing.allocator, &spec, &.{ "abi", "scheduler", "--mode", "safe", "bogus" }));
+}
+
+test "parse supports optional greedy trailing positional" {
+    const spec = [_]Arg{
+        .{ .name = "command", .kind = .positional, .required = true, .choices = &.{"run"} },
+        .{ .name = "name", .kind = .positional, .required = true },
+        .{ .name = "input", .kind = .positional, .greedy = true },
+    };
+
+    var p = try parse(std.testing.allocator, &spec, &.{ "abi", "plugin", "run", "example-plugin", "hello", "world" });
+    defer p.deinit();
+    try std.testing.expectEqualStrings("run", p.value("command").?);
+    try std.testing.expectEqualStrings("example-plugin", p.value("name").?);
+    try std.testing.expectEqualStrings("hello world", p.value("input").?);
+
+    var dashed = try parse(std.testing.allocator, &spec, &.{ "abi", "plugin", "run", "example-plugin", "--flag-like-input" });
+    defer dashed.deinit();
+    try std.testing.expectEqualStrings("--flag-like-input", dashed.value("input").?);
+
+    var no_input = try parse(std.testing.allocator, &spec, &.{ "abi", "plugin", "run", "example-plugin" });
+    defer no_input.deinit();
+    try std.testing.expect(no_input.value("input") == null);
+}
+
+test "parseFrom starts after a registry subcommand token" {
+    const spec = [_]Arg{
+        .{ .name = "input", .kind = .positional, .required = true },
+    };
+
+    var p = try parseFrom(std.testing.allocator, &spec, &.{ "abi", "agent", "plan", "inspect" }, 3);
+    defer p.deinit();
+    try std.testing.expectEqualStrings("inspect", p.value("input").?);
+
+    try std.testing.expectError(error.Usage, parseFrom(std.testing.allocator, &spec, &.{ "abi", "agent", "plan" }, 3));
+    try std.testing.expectError(error.Usage, parseFrom(std.testing.allocator, &spec, &.{ "abi", "agent", "plan", "a", "b" }, 3));
 }
 
 test {

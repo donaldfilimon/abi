@@ -29,8 +29,10 @@
 
 ## CLI Surface (frozen + contract-tested)
 Top-level commands (13, order from `src/cli/usage.zig` + `registry.zig`): `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`.
-- `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (`--live` = anthropic over explicit live transport; `--confirm` required for `apple-fm`; `--learn` = SEA loop; aliases resolved via model catalog).
-- `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>` (`agent tui` is interactive REPL).
+- `help [--json|--completion <bash|zsh|fish>] [command] [subcommand]` (`--json` emits typed command/subcommand metadata plus shortcut and completion-shell metadata for automation/docs tooling; `--completion` emits metadata-driven shell completions).
+- `complete [--live] [--model <id>] [--confirm] [--learn] <input>` (`--live` = anthropic over explicit live transport; `--confirm` required for `apple-fm`; `--learn` = SEA loop; aliases resolved via model catalog). Completion output includes `audit_escore=` (weighted constitutional E-score 0-1) and `audit_vetoed=` (hard veto flag) from the six-principle constitution audit.
+- `agent <plan | train <profile|all> | tui | os <dry-run|execute --confirm>>` (`agent tui` is interactive REPL with `/help`, `/model`, `/status`, `/history`, `/reset`, `/quit`; `/model` accepts printable non-whitespace ids only).
+- `tui` / `dashboard` render the diagnostics dashboard; flags: `--pane <pane>`, `--plain`/`--no-color`, `--compact`, `--once`, `--interval <ms>` (100-60000), `--json`, `--list-panes`. JSON snapshots include layout metadata (`compact`, color, visible panes, pane titles/hotkeys). The legacy top-level `--tui` shortcut routes through the same parser and accepts the same dashboard flags.
 - `wdbx <db <init|verify|compact> | block <insert|get> | query | benchmark | cluster <status|demo|serve <port> [node] [host]> | compute info | secure demo | gpu info | api serve [port]>`.
 - `nn train "<text>" | train --jsonl <path> [--field <name>] | sample --text "<corpus>" --seed <char> --n <k>` (miniature pure-Zig char-LM demo; not production).
 - Malformed numeric args (ports, counts, node ids) → usage + exit 2.
@@ -55,14 +57,32 @@ Top-level commands (13, order from `src/cli/usage.zig` + `registry.zig`): `help`
 - No silent empty `catch {}` in persistence, inference, connector, or data-access paths — propagate or log.
 
 ## WDBX / GPU / Connectors
-- WDBX: in-process store + segment/WAL persistence + hybrid retrieval. Cluster RPC is real TCP RequestVote/AppendEntries (`ABI_WDBX_CLUSTER_TOKEN` required for non-loopback binds; `ABI_WDBX_CLUSTER_PEERS` allowlist), but still **not** production multi-host deployment or sharding.
+- WDBX: in-process store + segment/WAL persistence + hybrid retrieval. Cluster RPC is real TCP RequestVote/AppendEntries (`ABI_WDBX_CLUSTER_TOKEN` required for non-loopback binds; `ABI_WDBX_CLUSTER_PEERS` allowlist), but still **not** production multi-host deployment or sharding. `runAuthenticatedLoopbackRound()` provides a deterministic multi-node vote+append helper with quorum verification (tested with 4-node round).
 - GPU/vector: reports capability and falls back deterministically to CPU. No `-Dgpu-backend` option.
+
+## AI Subsystem Details
+- **SEA scorer** (`src/features/sea/scorer.zig`): 8-signal weighted scorer (`SeaSignals`: semantic, keyword, metadata, recency, authority, graph, contradiction, task_fit), `DEFAULT_SEA_WEIGHTS` (sum to 1.0), `seaScore()` weighted sum clamped to [0,1], `adjustWeightsForTask()` for per-task tuning (code_repair, project_recall, benchmark_review), `selectSeaCandidates()` budgeted greedy selection (token/record/cluster budgets with ≥0.92 high-score escape hatch), `contextPack()` evidence renderer.
+- **SEA types** (`src/features/sea/types.zig`): `MemoryKind` (9 variants: note, user_preference, project_decision, code_fact, tool_output, benchmark, constraint, contradiction, summary), `Authority` (5 rungs: inferred, user_stated, tool_verified, file_verified, system_pinned) with parse/text/score round-trips.
+- **IoT monitor** (`src/features/ai/iot_monitor.zig`): `IotMonitor` with z-score anomaly detection (Welford's online mean/variance, configurable threshold default 2.5), history tracking, `feed()` → bool, `reset()`.
+- **Multimodal fusion** (`src/features/ai/multimodal_fusion.zig`): `VisionProcessor` (64-d), `AudioProcessor` (32-d), `IotProcessor` (16-d) with deterministic character-bucket embedding + L2 normalization; `fuse()` concatenative combinator.
+- **Adaptive routing** (`src/features/ai/completion.zig`): `completeAdaptive()` loads persisted `AdaptiveModulator` weights from WDBX, updates via EMA based on sentiment, selects best profile; `completeWithStoreAdaptive()` wraps with persistence. SEA learn loop uses this path.
 - Live connectors: require explicit credentials + live transport selection. Local helpers and `connector_test` must stay offline.
+- Connector validation:
+  - Discord: validates printable non-whitespace credentials, numeric snowflake-like IDs, author IDs, message size.
+  - Twilio: validates `AC` + 32-hex account SIDs, 32-hex auth tokens, base URL, timeout, explicit `.live` transport, XML/form escaping, ConversationRelay aliases.
 
 ## Claims & Docs
 - Do not claim unproven capabilities (distributed sharding, full production FHE, AES/RBAC, K8s/H100, Swift/Python/TF stacks, QPS/latency/accuracy, energy, non-loopback hardening, regulatory certs) unless source/tests prove it.
 - Public wording: consult `docs/contracts/external-claims-audit.mdx`.
 - Security surface: `abi-threat-model.md` (MCP/WDBX listeners, creds at rest).
+
+## OpenCode Setup
+- Project config: `opencode.json` (root, loaded automatically; schema `https://opencode.ai/config.json`).
+- Instruction files: `AGENTS.md`, `tasks/lessons.md`, `tasks/todo.md`.
+- `.opencode/skills/` is a symlink to `.agents/skills/` — the canonical skill set.
+- MCP servers: `abi-mcp` (`mcp/launcher.sh`), `skill-loop` (`@stylusnexus/skill-loop-cli@0.3.3`).
+- OpenCode MCP entries use `type: "local"`, `enabled: true`, and a single `command` array; do not copy `.mcp.json`'s `command` + `args` shape into `opencode.json`.
+- Sync canonical skills to other CLI targets: `.agents/skills/sync-clis/launch.sh`.
 
 ## Keep in Sync
 - Root siblings `CLAUDE.md` and `GEMINI.md` restate the same durable conventions. When commands, contracts, feature flags, or Zig patterns change, update all three.

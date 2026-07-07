@@ -4,7 +4,7 @@
 # then verify ABI_WDBX_REST_TOKEN bearer auth (401 without / with a wrong token,
 # 200 with the right one). Servers are always killed on exit. Loopback only.
 #
-# Usage: .claude/skills/wdbx-api-serve/serve.sh [port]   # default port 8091
+# Usage: .agents/skills/wdbx-api-serve/serve.sh [port]   # default port 8091
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

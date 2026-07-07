@@ -6,7 +6,7 @@
 # Slow: each target is a fresh cross compile. Pass extra args through to select
 # targets, e.g. `cross.sh aarch64-linux-gnu`.
 #
-# Usage: .claude/skills/cross-compile-check/cross.sh [targets...]
+# Usage: .agents/skills/cross-compile-check/cross.sh [targets...]
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

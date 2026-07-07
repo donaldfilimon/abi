@@ -1,5 +1,7 @@
 # abi Remaining Skills Implementation Plan
 
+> **Archived:** This completed historical plan was moved under `docs/superpowers/archive/` after the skills were mirrored under `.agents/skills/` and `.claude/skills/`. Use `tasks/todo.md` for active work.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **Current status (2026-07-05):** This historical plan has been implemented and

@@ -4,6 +4,7 @@ const features = @import("../../features/mod.zig");
 const db_commands = @import("wdbx_db.zig");
 const runtime_commands = @import("wdbx_runtime.zig");
 const test_helpers = @import("../../testing/test_helpers.zig");
+const usage_mod = @import("../usage.zig");
 
 const wdbx = features.wdbx;
 
@@ -22,7 +23,7 @@ pub fn handleWdbx(io: std.Io, allocator: std.mem.Allocator, args: []const []cons
     }
 }
 
-fn usage() u8 {
+fn usageCode(code: u8) u8 {
     std.debug.print(
         \\abi wdbx <command> ...
         \\
@@ -42,14 +43,24 @@ fn usage() u8 {
         \\  api serve [port]               Serve the REST API (POST /insert /query /verify, GET /health /stats)
         \\
     , .{});
-    return 2;
+    return code;
+}
+
+fn usage() u8 {
+    return usageCode(2);
+}
+
+fn help() u8 {
+    return usageCode(0);
 }
 
 fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
     if (args.len < 3) return usage();
     const sub = args[2];
+    if (usage_mod.isHelpToken(sub)) return help();
 
     if (std.mem.eql(u8, sub, "db")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return wdbxDbHelp();
         if (args.len < 4) return usage();
         const op = args[3];
         if (std.mem.eql(u8, op, "init")) {
@@ -68,6 +79,7 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     }
 
     if (std.mem.eql(u8, sub, "block")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return wdbxBlockHelp();
         if (args.len < 4) return usage();
         const op = args[3];
         if (std.mem.eql(u8, op, "insert")) {
@@ -81,6 +93,7 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     }
 
     if (std.mem.eql(u8, sub, "query")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return wdbxQueryHelp();
         if (args.len == 4) return db_commands.query(io, allocator, args[3], null, null);
         if (args.len == 5) return db_commands.query(io, allocator, args[3], args[4], null);
         if (args.len == 6) return db_commands.query(io, allocator, args[3], args[4], args[5]);
@@ -88,6 +101,8 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     }
 
     if (std.mem.eql(u8, sub, "benchmark")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return wdbxBenchmarkHelp();
+        if (args.len > 4) return usage();
         // A malformed count is a user typo, not a request for the default —
         // surface usage rather than silently running 256 inserts.
         const count: usize = if (args.len >= 4) (std.fmt.parseInt(usize, args[3], 10) catch return usage()) else 256;
@@ -95,8 +110,10 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     }
 
     if (std.mem.eql(u8, sub, "cluster")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return wdbxClusterHelp();
         if (args.len < 4) return usage();
         if (std.mem.eql(u8, args[3], "status")) {
+            if (args.len != 4) return usage();
             // Report the real consensus state machine's view rather than a fixed
             // string: a single-node cluster that elects itself leader. Honest
             // single-process state — networked multi-host RPC is still Phase-2.
@@ -119,11 +136,12 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
             std.debug.print("north-star status: single-node/in-process (Phase 1 landed); multi-host production cluster Proposed (Phase 2) (docs/spec/wdbx-north-star.mdx §2/§3.5)\n", .{});
             return 0;
         } else if (std.mem.eql(u8, args[3], "demo")) {
+            if (args.len > 5) return usage();
             const nodes: usize = if (args.len >= 5) (std.fmt.parseInt(usize, args[4], 10) catch return usage()) else 3;
             if (nodes < 1) return usage();
             return runtime_commands.clusterDemo(allocator, nodes);
         } else if (std.mem.eql(u8, args[3], "serve")) {
-            if (args.len < 5) return usage();
+            if (args.len < 5 or args.len > 7) return usage();
             const port: u16 = std.fmt.parseInt(u16, args[4], 10) catch return usage();
             const node_id: u32 = if (args.len >= 6) (std.fmt.parseInt(u32, args[5], 10) catch return usage()) else 0;
             // Optional bind host (default loopback). Use "0.0.0.0" or a specific
@@ -135,28 +153,77 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     }
 
     if (std.mem.eql(u8, sub, "compute")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return wdbxComputeHelp();
         if (args.len != 4 or !std.mem.eql(u8, args[3], "info")) return usage();
         return runtime_commands.computeInfo();
     }
 
     if (std.mem.eql(u8, sub, "secure")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return wdbxSecureHelp();
         if (args.len != 4 or !std.mem.eql(u8, args[3], "demo")) return usage();
         return runtime_commands.secureDemo(allocator);
     }
 
     if (std.mem.eql(u8, sub, "gpu")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return wdbxGpuHelp();
         if (args.len != 4 or !std.mem.eql(u8, args[3], "info")) return usage();
         return runtime_commands.gpuInfo(allocator);
     }
 
     if (std.mem.eql(u8, sub, "api")) {
-        if (args.len < 4 or !std.mem.eql(u8, args[3], "serve")) return usage();
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return wdbxApiHelp();
+        if (args.len < 4 or args.len > 5 or !std.mem.eql(u8, args[3], "serve")) return usage();
         // A bad port is a typo, not the default — fail loudly with usage.
         const port: u16 = if (args.len >= 5) (std.fmt.parseInt(u16, args[4], 10) catch return usage()) else 8081;
         return runtime_commands.serveApi(io, allocator, port);
     }
 
     return usage();
+}
+
+fn wdbxDbHelp() u8 {
+    std.debug.print("usage: abi wdbx db <init|verify|compact> <path> [keep]\n\nManage segment checkpoints, WAL recovery, and snapshot integrity.\n", .{});
+    return 0;
+}
+
+fn wdbxBlockHelp() u8 {
+    std.debug.print("usage: abi wdbx block <insert|get> <path> ...\n\nAppend or inspect SHA-linked conversation blocks in a WDBX checkpoint.\n", .{});
+    return 0;
+}
+
+fn wdbxQueryHelp() u8 {
+    std.debug.print("usage: abi wdbx query <path> [text] [persona]\n\nPrint store stats or run semantic/persona-scoped retrieval over a recovered store.\n", .{});
+    return 0;
+}
+
+fn wdbxBenchmarkHelp() u8 {
+    std.debug.print("usage: abi wdbx benchmark [count]\n\nMeasure local insert/search timing for the in-process vector store.\n", .{});
+    return 0;
+}
+
+fn wdbxClusterHelp() u8 {
+    std.debug.print("usage: abi wdbx cluster <status|demo|serve> ...\n\nRun single-node status, in-process consensus demo, or authenticated cluster RPC serving.\n", .{});
+    return 0;
+}
+
+fn wdbxComputeHelp() u8 {
+    std.debug.print("usage: abi wdbx compute info\n\nReport CPU/GPU/NPU/TPU backend selection and fallback state.\n", .{});
+    return 0;
+}
+
+fn wdbxSecureHelp() u8 {
+    std.debug.print("usage: abi wdbx secure demo\n\nDemonstrate local compression plus reference homomorphic aggregation; not security-audited FHE.\n", .{});
+    return 0;
+}
+
+fn wdbxGpuHelp() u8 {
+    std.debug.print("usage: abi wdbx gpu info\n\nReport GPU backend capability and native-kernel status.\n", .{});
+    return 0;
+}
+
+fn wdbxApiHelp() u8 {
+    std.debug.print("usage: abi wdbx api serve [port]\n\nServe the loopback WDBX REST API; optional bearer token via ABI_WDBX_REST_TOKEN.\n", .{});
+    return 0;
 }
 
 fn cleanupTestDb(path: []const u8) void {
@@ -180,6 +247,15 @@ test "wdbx handler usage returns non-zero without args" {
     const args = [_][]const u8{ "abi", "wdbx" };
     const code = try handleWdbx(std.testing.io, std.testing.allocator, &args);
     try std.testing.expectEqual(@as(u8, 2), code);
+}
+
+test "wdbx handler help returns success" {
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, std.testing.allocator, &.{ "abi", "wdbx", "--help" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, std.testing.allocator, &.{ "abi", "wdbx", "-h" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, std.testing.allocator, &.{ "abi", "wdbx", "help" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, std.testing.allocator, &.{ "abi", "wdbx", "db", "--help" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, std.testing.allocator, &.{ "abi", "wdbx", "cluster", "-h" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, std.testing.allocator, &.{ "abi", "wdbx", "api", "help" }));
 }
 
 test "wdbx rejects malformed numeric args with usage instead of silent defaults" {

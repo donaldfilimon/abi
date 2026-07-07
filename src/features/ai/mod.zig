@@ -1,3 +1,8 @@
+//! AI feature module — profiles (Abbey, Aviva, Abi), routing, constitution,
+//! completion, training, and multi-agent orchestration. Enabled by `-Dfeat-ai`.
+//! The router selects a persona based on sentiment/keyword analysis; completion
+//! records query/response vectors + blocks to WDBX; training persists metadata
+//! through the scheduler. All paths are fully local unless `--live` is passed.
 const std = @import("std");
 const build_options = @import("build_options");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
@@ -28,6 +33,8 @@ pub const DatasetSpec = types.DatasetSpec;
 pub const TrainingConfig = types.TrainingConfig;
 pub const TrainingResult = types.TrainingResult;
 pub const models = @import("models.zig");
+pub const iot_monitor = @import("iot_monitor.zig");
+pub const multimodal_fusion = @import("multimodal_fusion.zig");
 pub const CompletionRequest = types.CompletionRequest;
 pub const CompletionResult = types.CompletionResult;
 pub const CompletionTaskContext = types.CompletionTaskContext;
@@ -51,6 +58,7 @@ pub const submitTrainingTask = training.submitTrainingTask;
 pub const completeWithScheduler = completion.completeWithScheduler;
 
 pub const completeWithStore = completion.completeWithStore;
+pub const completeWithStoreAdaptive = completion.completeWithStoreAdaptive;
 pub const completion_kv_delta = completion.completion_kv_delta;
 pub const completionMetadataKey = completion.completionMetadataKey;
 
@@ -483,5 +491,7 @@ test {
     _ = @import("types.zig");
     _ = @import("training_support.zig");
     _ = @import("models.zig");
+    _ = @import("iot_monitor.zig");
+    _ = @import("multimodal_fusion.zig");
     std.testing.refAllDecls(@This());
 }

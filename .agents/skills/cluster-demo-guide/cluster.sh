@@ -3,7 +3,7 @@
 # Raft-style consensus demo (elect -> replicate -> fail over -> re-elect) plus
 # the single-node status report. Asserts the consensus markers.
 #
-# Usage: .claude/skills/cluster-demo-guide/cluster.sh [nodes]   # default 3
+# Usage: .agents/skills/cluster-demo-guide/cluster.sh [nodes]   # default 3
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

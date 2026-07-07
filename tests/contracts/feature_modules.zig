@@ -210,7 +210,9 @@ test "feature modules expose safe runtime contracts" {
 
         // Exercise HNSW index path (via Store.putVector + search), which now routes
         // distance calculations through gpu.vectorOps and drives acceleration status
-        // updates through gpu.executeKernel (reflecting native_gpu / simulated_gpu mode).
+        // updates through gpu.executeKernel. Generic WDBX kernels are metadata
+        // validation unless a native WDBX kernel path is actually dispatched, so
+        // CPU fallback remains a valid honest mode even when feat-gpu is enabled.
         // Asserts that acceleration status reflects the mode selected by the GPU path
         // without fabricating success when disabled/fallback.
         const vid1 = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
@@ -226,7 +228,9 @@ test "feature modules expose safe runtime contracts" {
         const accel = store.accelerationStatus();
         try std.testing.expect(accel.message.len > 0);
         if (build_options.feat_gpu) {
-            try std.testing.expect(accel.mode == features.gpu.ExecutionMode.native_gpu or accel.mode == features.gpu.ExecutionMode.simulated_gpu);
+            try std.testing.expect(accel.mode == features.gpu.ExecutionMode.native_gpu or
+                accel.mode == features.gpu.ExecutionMode.simulated_gpu or
+                accel.mode == features.gpu.ExecutionMode.cpu_fallback);
         } else {
             try std.testing.expect(accel.mode == features.gpu.ExecutionMode.cpu_fallback);
         }

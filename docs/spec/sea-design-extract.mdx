@@ -1,10 +1,10 @@
 ---
 title: "SEA Design Extract: Memory, QueryPlan, Authority, and Sparse Evidence Attention"
-description: "Status: DESIGN REFERENCE / PROPOSED — not a statement of current ABI capabilities."
+description: "Status: PARTIAL / DESIGN REFERENCE — core types, scorer, and selection ported to ABI Zig source."
 ---
 
-**Date:** 2026-06-27
-**Status:** **DESIGN REFERENCE / PROPOSED — not a statement of current ABI capabilities.**
+**Date:** 2026-06-27 (updated 2026-07-06)
+**Status:** **PARTIAL / DESIGN REFERENCE — MemoryKind, Authority, 8-signal scorer, cluster-diversity selection, and context-pack now ported to ABI Zig source (`src/features/sea/`). The remaining Proposed items (production performance tuning, learned codec integration) remain design reference.**
 **Scope:** A distilled, source-grounded record of the SEA (Sparse Evidence Attention),
 `QueryPlan`, `Authority`, and `MemoryKind` designs as expressed in the
 `abbey_wdbx_sea_zig` reference repository, captured so the clearest articulation of
@@ -17,8 +17,8 @@ those designs survives independently of that repo.
 > toolchain — its source predates `std.Io` and uses removed `std.posix` symbols. Its
 > value is the clarity of the type and algorithm designs, not runnable behavior. Nothing
 > here asserts performance, accuracy, retrieval-quality, or production-readiness
-> numbers. ABI's own SEA surface (`src/features/sea/`, the `feat-sea` flag, **disabled by
-> default**) is a *different and simpler* Phase-1 design; the relationship is mapped in
+> numbers. ABI's own SEA surface (`src/features/sea/`, the default-on `feat-sea` flag) is a
+> *different and simpler* current design; the relationship is mapped in
 > §7. Where this design and ABI source disagree, ABI source wins (`build.zig`, `src/`,
 > `tests/contracts/`). See `docs/contracts/external-claims-audit.mdx` and the
 > `tests/contracts/public_docs.zig` claim-boundary test.
@@ -45,7 +45,7 @@ The four designs worth keeping:
 
 ---
 
-## 2. `MemoryKind` — typed memory taxonomy (Proposed design)
+## 2. `MemoryKind` — typed memory taxonomy (Current — ported to ABI Zig)
 
 A record's *kind* classifies what sort of durable knowledge it carries. The reference
 design enumerates nine kinds as a `u8`-backed enum:
@@ -76,7 +76,7 @@ Design intent:
   `text()` (= `@tagName`), so the same names round-trip through the CLI and JSONL
   persistence.
 
-## 3. `Authority` — provenance ladder with trust mapping (Proposed design)
+## 3. `Authority` — provenance ladder with trust mapping (Current — ported to ABI Zig)
 
 `Authority` records *where a fact came from* and maps that provenance to a scalar trust
 weight. Five rungs, ascending in trust:
@@ -307,38 +307,37 @@ with task-adjusted weights) → `selectSeaCandidates` (budgeted greedy sparse pi
 
 ## 7. Cross-reference: ABI's `feat-sea` today
 
-ABI already has a SEA surface, but it is a **different, simpler Phase-1 design** — the
-multi-signal scorer and budgeted selection above are *not* what `feat-sea` implements
-today. Mapping them honestly:
+ABI already has a SEA surface, but it is a **different, simpler current design** — the
+full eight-signal scorer and cluster-diversity selection above are *not* what `feat-sea`
+implements today. Mapping them honestly:
 
-| Aspect | `abbey_wdbx_sea_zig` (this extract — Proposed) | ABI `feat-sea` (`src/features/sea/`, disabled by default — Current) |
+| Aspect | `abbey_wdbx_sea_zig` (this extract — Proposed/Reference) | ABI `feat-sea` (`src/features/sea/`, default-on — Current) |
 | --- | --- | --- |
-| Status | Reference design; repo does not compile on current toolchain | Real code behind default-on `-Dfeat-sea`; `mod.zig`/`evidence.zig`/`learn_loop.zig`; contract-tested |
-| Retrieval scoring | 8 weighted signals, task-aware weight deltas, clamp+combine | Single semantic score — a WDBX vector `store.search` over a shared text embedding |
-| Selection | Budgeted greedy pick with token / record / **cluster-diversity** budgets | Top-`limit` hits; prompt preamble capped at `MAX_PROMPT_BYTES` (4096) |
-| Intent model | `QueryPlan` + `TaskType` inference re-weights scoring | No `QueryPlan`; persona routing via the existing AI router |
-| Typed memory | `MemoryKind` (9) + `Authority` (5) drive scoring | Records are WDBX vectors + `completion:<id>` metadata; persona label parsed to a static `abbey`/`aviva`/`unknown` |
-| Loop | Score → select → context-pack → answer | `gatherEvidence` → `augmentPrompt` → reuse `ai.completeWithStore` → adapt persona-router weights (`router.AdaptiveModulator`); "introduces no new ML" |
+| Status | Reference design; core types/scorer/selection now ported to Zig | `src/features/sea/` includes `types.zig` (MemoryKind, Authority), `scorer.zig` (8-signal combiner, task-aware weight deltas, cluster-diversity selection, context-pack), evidence/learn_loop/query_plan; contract-tested |
+| Retrieval scoring | 8 weighted signals, task-aware weight deltas, clamp+combine | 8-signal `seaScore()` weighted combiner + `adjustWeightsForTask` for code_repair/project_recall/benchmark_review |
+| Selection | Budgeted greedy pick with token / record / **cluster-diversity** budgets | `selectSeaCandidates` with token, record-count, and per-cluster budgets plus ≥0.92 high-score escape hatch |
+| Intent model | `QueryPlan` + `TaskType` inference re-weights scoring | Real deterministic `QueryPlan` / `TaskType` inference drives evidence retrieval; persona routing uses the existing AI router plus persisted `AdaptiveModulator` weights for learned completions |
+| Typed memory | `MemoryKind` (9) + `Authority` (5) drive scoring | `MemoryKind` (9 variants) + `Authority` (5 rungs with `score()` trust mapping) drive scoring — both exported from `types.zig` |
+| Loop | Score → select → context-pack → answer | `gatherEvidenceWithPlan` → `augmentPrompt` → `ai.completeWithStoreAdaptive` → adapt persona-router weights (`router.AdaptiveModulator`); `contextPack` renders selected evidence for model context |
 
 What ABI's `feat-sea` shares with the reference design is the *shape of the loop* —
 recall durable evidence, prepend it as bounded prompt context, then complete — and a
 bounded-preamble discipline (ABI's `MAX_PROMPT_BYTES = 4096` mirrors the reference's
 `max_tokens` default).
 
-What the reference design offers that ABI's `feat-sea` does **not** yet have, and could
-inform a future `feat-sea` phase:
+The three key designs above — typed memory taxonomy, multi-signal scorer, and
+cluster-diversity-aware sparse selection — were **promoted to Current** as of
+2026-07-06 (`src/features/sea/types.zig`, `src/features/sea/scorer.zig`), landed as real
+ABI source + tests under the mod/stub parity rules, and pass `./build.sh check`.
 
-- A **typed memory taxonomy** (`MemoryKind`) and a **provenance/trust ladder**
-  (`Authority`) with an explicit numeric trust mapping.
-- A **multi-signal scorer** (semantic + keyword + metadata + recency + authority + graph
-  + contradiction + task-fit) instead of a single semantic similarity.
-- A **task-aware** re-weighting driven by an inferred `QueryPlan` / `TaskType`.
-- **Cluster-diversity-aware sparse selection** (per-kind caps with a high-score override)
-  rather than a flat top-`limit` cut.
+What remains **Proposed** (from this extract) that could inform a future `feat-sea` phase:
 
-Any such promotion would have to land as real ABI source + tests under the mod/stub
-parity rules and pass `./build.sh check`, and would be tracked the usual way in
-`tasks/`. Until then, the above stays **Proposed**.
+- **Production-grade learned compression codec** — ABI has int8 quantization, order-0
+  Huffman, and a reference autoencoder (`neural_compress.zig`); no SOTA/production-scale
+  learned codec is proven.
+- **Non-modal integration** — the scorer is deterministic and model-free; the reference
+  design's weight adjustments are advisory, and no real-time learned weight adaptation
+  from feedback is wired.
 
 ---
 

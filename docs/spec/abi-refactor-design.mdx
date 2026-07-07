@@ -58,7 +58,7 @@ src/
 │   │   ├── stub.zig   # No-op stubs when feat-ai disabled
 │   │   ├── types.zig  # Public request/result/profile types re-exported by mod.zig
 │   │   ├── stub_types.zig / stub_profile.zig / stub_constitution.zig
-│   │   ├── completion.zig # Completion routing, scheduler task, and optional WDBX persistence
+│   │   ├── completion.zig # Completion routing, adaptive routing, scheduler task, and optional WDBX persistence
 │   │   ├── training.zig # Training/evaluation workflow, scheduler task, and WDBX training records
 │   │   ├── training_support.zig # Dataset/profile validation and profile embeddings used by training paths
 │   │   ├── helpers.zig # countNonEmptyLines, textEmbedding, responseEmbedding
@@ -66,6 +66,11 @@ src/
 │   │   ├── constitution.zig # 6-principle governance validation
 │   │   ├── pipeline.zig # Training pipeline
 │   │   └── streaming.zig # Local OpenAI-compatible SSE server
+│   ├── sea/           # Sparse Evidence Attention self-learning pass (mod/stub)
+│   │   ├── mod.zig / stub.zig
+│   │   ├── learn_loop.zig # Evidence recall + adaptive-router persistence
+│   │   ├── evidence.zig   # Task-aware evidence retrieval and prompt augmentation
+│   │   └── query_plan.zig # Local task intent inference for retrieval weighting
 │   ├── gpu/           # GPU status & vector operations (mod/stub)
 │   │   ├── mod.zig         # Entry point, re-exports, Metal init
 │   │   ├── stub.zig        # No-op stubs when feat-gpu disabled
@@ -87,20 +92,23 @@ src/
 │   │   ├── retrieval.zig # HNSW semantic search composed with hybrid ranking
 │   │   ├── recovery.zig # Snapshot/WAL startup recovery helper
 │   │   ├── segments.zig # Manifest-backed segment checkpoints + epoch reclamation
-│   │   ├── cluster.zig # In-process Raft-style consensus demo: election/quorum/failover (no networked transport)
-│   │   ├── compression.zig # int8 embedding quantization round-trip demo (not a learned codec)
-│   │   ├── crypto_he.zig # Additive single-key homomorphic aggregation demo (not full FHE)
+│   │   ├── durable_store.zig / runtime.zig # CLI durable session + acceleration/status helpers
+│   │   ├── cluster.zig # In-process Raft-style consensus demo: election/quorum/failover
+│   │   ├── cluster_rpc.zig # TCP RequestVote/AppendEntries RPC + authenticated local multi-node loop helper
+│   │   ├── compression.zig / entropy.zig / neural_compress.zig # demo compression codecs, not production/SOTA
+│   │   ├── crypto_he.zig / fhe.zig # Additive HE + bounded DGHV-style demo, not audited full FHE
 │   │   ├── compute.zig # CPU/GPU/NPU/TPU backend selector w/ deterministic CPU fallback (native dispatch not linked)
-│   │   ├── rest.zig   # Loopback REST listener: POST /insert /query /verify, GET /health /stats
+│   │   ├── remote_compute.zig # bounded local remote-compute protocol helpers
+│   │   ├── rest.zig / rest_handlers.zig / rest_parse.zig # Loopback REST listener + pure route/parser helpers
 │   │   └── spatial_3d.zig # In-memory 3D spatial index
 │   ├── accelerator/   # Backend selection metadata (mod/stub)
 │   ├── shaders/       # Local shader validation (mod/stub)
 │   ├── mlir/          # Textual MLIR lowering (mod/stub)
 │   ├── hash/          # Hash utility surface (mod/stub, enabled by default)
-│   ├── metrics/       # Optional observability counters (mod/stub, disabled by default)
+│   ├── metrics/       # Optional observability counters (mod/stub, enabled by default)
 │   ├── telemetry/     # Fixed-capacity process-wide event/counter hooks (mod/stub, enabled by default)
 │   ├── tui/           # Operational diagnostics dashboard + live terminal redraw helpers (mod/stub, enabled by default)
-│   ├── mobile/        # Mobile runtime profile surface (mod/stub, disabled by default)
+│   ├── mobile/        # Mobile runtime profile surface (mod/stub, enabled by default)
 │   └── os_control/    # Safe OS command policy controls (mod/stub)
 ├── connectors/        # External service connectors
 │   ├── mod.zig        # Re-exports and connector registration
@@ -226,7 +234,7 @@ MCP `wdbx_query` uses the same in-process WDBX substrate through `src/mcp/ai_too
 
 The namespace also exercises forward-looking WDBX modules that are deliberately scoped as honest, **in-process demonstrations — not production or distributed capabilities**. See `docs/spec/wdbx-north-star.mdx` for the Current/Partial/Proposed mapping and `docs/contracts/external-claims-audit.mdx` for the claim boundary:
 
-- `cluster status|demo|serve` (`cluster.zig`, `cluster_rpc.zig`) — an in-process Raft-style core (leader election, majority-quorum replication, failover) plus a networked RequestVote/AppendEntries RPC server. `cluster status` reports the real consensus state machine's view (a single node that elects itself leader); `cluster serve <port> [node] [host]` serves that node's consensus RPC on loopback by default and refuses non-loopback binds unless `ABI_WDBX_CLUSTER_TOKEN` is set. Production multi-host orchestration, TLS/mTLS or equivalent network policy, deployment controls, dynamic membership, and sharding remain Proposed.
+- `cluster status|demo|serve` (`cluster.zig`, `cluster_rpc.zig`) — an in-process Raft-style core (leader election, majority-quorum replication, failover) plus a networked RequestVote/AppendEntries RPC server. `cluster status` reports the real consensus state machine's view (a single node that elects itself leader); `cluster serve <port> [node] [host]` serves that node's consensus RPC on loopback by default and refuses non-loopback binds unless `ABI_WDBX_CLUSTER_TOKEN` is set. `cluster_rpc.zig` also has a deterministic authenticated loopback multi-node round that requests votes, appends one entry, verifies quorum, and checks peer logs. Production multi-host orchestration, TLS/mTLS or equivalent network policy, deployment controls, dynamic membership, and sharding remain Proposed.
 - `compute info` (`compute.zig`) — a CPU/GPU/NPU/TPU backend selector that always degrades to the deterministic CPU SIMD path; native accelerator dispatch is not linked.
 - `secure demo` (`compression.zig`, `entropy.zig`, `neural_compress.zig`, `crypto_he.zig`, `fhe.zig`) — int8 embedding quantization, exact order-0 Huffman entropy coding, a reference autoencoder codec, additive single-key homomorphic aggregation, and DGHV-style somewhat-homomorphic add/multiply at reference parameters. This is not a production/SOTA learned codec and not production-secure or bootstrapped full FHE.
 - `api serve [port]` (`rest.zig`) — a loopback-only REST listener (`POST /insert /query /verify`, `GET /health /stats`, default port 8081) built on a pure, unit-tested routing core.
@@ -241,11 +249,23 @@ The three-way weighted routing and blending pipeline.
 
 ### 5.1 Routing (Abi)
 - **Sentiment Analysis**: Fast-path intent detection.
-- **Weighting**: Calculate `w_abbey`, `w_aviva`, `w_abi` from keyword-weighted local routing heuristics plus optional adaptive EMA persistence.
+- **Weighting**: Calculate `w_abbey`, `w_aviva`, `w_abi` from keyword-weighted local routing heuristics plus optional adaptive EMA persistence. Plain completion uses deterministic local routing; the SEA learning path uses persisted `AdaptiveModulator` weights via `completeWithStoreAdaptive()` so prior learning can influence later learned completions.
 
-### 5.2 Constitution (Governance)
+### 5.2 SEA Self-Learning Loop
+
+`src/features/sea/learn_loop.zig` implements the local self-learning pass used by `abi complete --learn` and MCP `ai_learn`:
+
+- Infer a small task-aware query plan from the user input.
+- Gather WDBX evidence through semantic/hybrid retrieval and augment the prompt within a bounded size.
+- Load persisted `router.AdaptiveModulator` weights, complete through adaptive AI routing, and optionally persist the completion vectors/block.
+- Update and save the adaptive weights for the next learned turn when `adapt_router` is enabled.
+
+This is a per-request local loop, not an autonomous daemon or production training system. The feature-off SEA stub degrades to a plain completion with `evidence_count=0` and `adapted=false` while preserving the public surface.
+
+### 5.3 Constitution (Governance)
 - Six principles: truthfulness, safety, helpfulness, fairness, privacy, transparency.
-- Post-generation validation via `evaluateResponse()`.
+- Post-generation validation via `validate()` / `evaluateResponse()` produces `AuditResult` with per-principle scores, weighted constitutional `escore`, and a hard safety/privacy veto bit.
+- CLI and MCP completion surfaces expose `audit_passed`, `audit_escore`, and `audit_vetoed`; persisted completion metadata stores `audit_passed`, `audit_vetoed`, and `escore` alongside model/profile/vector IDs.
 
 ### 5.5 Core Lifecycle Integration (Registry + Scheduler + Memory)
 The `src/core/` modules (`registry.zig`, `scheduler.zig`, `memory.zig`) and `src/foundation/pool_allocator.zig` realize the "Registry-Based Lifecycle" and "Explicit Memory Management" principles. `abi.scheduler`, `abi.memory`, and `abi.registry` are unconditionally exported from `src/root.zig`.

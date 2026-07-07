@@ -115,12 +115,11 @@ pub const VectorOps = struct {
 pub fn executeKernel(spec: backends.KernelSpec) !backends.KernelResult {
     if (spec.name.len == 0) return error.InvalidKernelName;
     const status = backends.detectBackend();
-    const native = backends.nativeKernelStatus();
     return .{
         .backend = status.backend,
-        .mode = if (native.linked and status.accelerated) .native_gpu else .simulated_gpu,
+        .mode = .cpu_fallback,
         .work_items = spec.work_items,
-        .message = if (native.linked and status.accelerated) "native GPU kernel executed" else "kernel metadata validated; vectorized CPU fallback selected",
+        .message = "kernel metadata validated; vectorized CPU fallback selected",
     };
 }
 
@@ -173,6 +172,13 @@ test "gpu batched cosine similarity matches the pairwise result" {
 
     var bad: [1]f32 = undefined;
     try std.testing.expectError(error.DimensionMismatch, ops.batchCosineSimilarity(&query, &candidates, &bad));
+}
+
+test "generic kernel status does not claim native dispatch" {
+    _ = vectorOps();
+    const result = try executeKernel(.{ .name = "test.metadata_only", .work_items = 4 });
+    try std.testing.expectEqual(backends.ExecutionMode.cpu_fallback, result.mode);
+    try std.testing.expectEqualStrings("kernel metadata validated; vectorized CPU fallback selected", result.message);
 }
 
 test {

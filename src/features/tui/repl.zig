@@ -48,7 +48,40 @@ pub const ReplState = struct {
     }
 };
 
-pub const SpecialCommand = enum { quit, reset, help, model, profile, history, syncclis, unknown };
+pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, syncclis, unknown };
+
+const SlashCommand = struct {
+    kind: SpecialCommand,
+    name: []const u8,
+    aliases: []const []const u8 = &.{},
+    summary: []const u8,
+};
+
+const slash_commands = [_]SlashCommand{
+    .{ .kind = .help, .name = "help", .aliases = &.{"h"}, .summary = "Show this help" },
+    .{ .kind = .model, .name = "model", .summary = "Switch the completion model (alias-resolved)" },
+    .{ .kind = .profile, .name = "profile", .summary = "Show profile routing status" },
+    .{ .kind = .status, .name = "status", .aliases = &.{"stat"}, .summary = "Show session, model, and persistence status" },
+    .{ .kind = .history, .name = "history", .aliases = &.{"hist"}, .summary = "Show recent session turns and persisted blocks" },
+    .{ .kind = .reset, .name = "reset", .summary = "Reset the turn counter and start a fresh session" },
+    .{ .kind = .syncclis, .name = "sync-clis", .aliases = &.{"syncclis"}, .summary = "Sync skills/plugins/commands/experiences across CLIs" },
+    .{ .kind = .quit, .name = "quit", .aliases = &.{ "q", "exit" }, .summary = "Exit the REPL" },
+};
+
+fn firstWhitespace(input: []const u8) ?usize {
+    for (input, 0..) |byte, idx| {
+        if (std.ascii.isWhitespace(byte)) return idx;
+    }
+    return null;
+}
+
+fn matchesSlashCommand(def: SlashCommand, token: []const u8) bool {
+    if (std.mem.eql(u8, token, def.name)) return true;
+    for (def.aliases) |alias| {
+        if (std.mem.eql(u8, token, alias)) return true;
+    }
+    return false;
+}
 
 /// Classify a line as a slash-command. Non-slash lines (ordinary prompts) and
 /// unrecognized slash-commands both map to `.unknown`; callers distinguish the
@@ -56,15 +89,11 @@ pub const SpecialCommand = enum { quit, reset, help, model, profile, history, sy
 pub fn parseSpecialCommand(line: []const u8) SpecialCommand {
     if (line.len == 0 or line[0] != '/') return .unknown;
     const body = line[1..];
-    const end = std.mem.indexOfScalar(u8, body, ' ') orelse body.len;
+    const end = firstWhitespace(body) orelse body.len;
     const cmd = body[0..end];
-    if (std.mem.eql(u8, cmd, "quit") or std.mem.eql(u8, cmd, "q") or std.mem.eql(u8, cmd, "exit")) return .quit;
-    if (std.mem.eql(u8, cmd, "help") or std.mem.eql(u8, cmd, "h")) return .help;
-    if (std.mem.eql(u8, cmd, "model")) return .model;
-    if (std.mem.eql(u8, cmd, "reset")) return .reset;
-    if (std.mem.eql(u8, cmd, "history") or std.mem.eql(u8, cmd, "hist")) return .history;
-    if (std.mem.eql(u8, cmd, "profile")) return .profile;
-    if (std.mem.eql(u8, cmd, "sync-clis") or std.mem.eql(u8, cmd, "syncclis")) return .syncclis;
+    for (slash_commands) |def| {
+        if (matchesSlashCommand(def, cmd)) return def.kind;
+    }
     return .unknown;
 }
 
@@ -78,24 +107,54 @@ fn formatHistoryHeader(buf: []u8, turn_count: usize, block_count: usize) []const
     ) catch "history: summary unavailable";
 }
 
+fn boolText(value: bool) []const u8 {
+    return if (value) "true" else "false";
+}
+
+fn validModelId(id: []const u8) bool {
+    if (id.len == 0 or id.len > MODEL_STORAGE_BYTES) return false;
+    for (id) |byte| {
+        if (byte < 0x21 or byte >= 0x7f or std.ascii.isWhitespace(byte)) return false;
+    }
+    return true;
+}
+
+/// Format a one-line `/status` summary into `buf`. Pure so contracts can verify
+/// the operator-facing status fields without constructing a live store.
+fn formatStatusLine(
+    buf: []u8,
+    session_id: i64,
+    turn_count: usize,
+    model: []const u8,
+    store_turns: bool,
+    block_count: usize,
+) []const u8 {
+    return std.fmt.bufPrint(
+        buf,
+        "status: session_id={d} turns={d} model={s} provider={s} store_turns={s} persisted_blocks={d}",
+        .{
+            session_id,
+            turn_count,
+            model,
+            models.providerOf(model).label(),
+            boolText(store_turns),
+            block_count,
+        },
+    ) catch "status: summary unavailable";
+}
+
 /// Return the trimmed argument following a slash-command token, or "" if none.
 fn specialArg(line: []const u8) []const u8 {
-    const sp = std.mem.indexOfScalar(u8, line, ' ') orelse return "";
+    const sp = firstWhitespace(line) orelse return "";
     return std.mem.trim(u8, line[sp + 1 ..], " \t\r");
 }
 
 fn printHelp() void {
-    std.debug.print(
-        \\Commands:
-        \\  /help            Show this help
-        \\  /model <id>      Switch the completion model (alias-resolved)
-        \\  /history         Show recent session turns and persisted blocks
-        \\  /reset           Reset the turn counter and start a fresh session
-        \\  /quit            Exit the REPL
-        \\  /sync-clis       Sync skills/plugins/commands/experiences across CLIs (grok, claude, codex, opencode, abi tui, ...)
-        \\  <text>           Run a completion and persist the turn
-        \\
-    , .{});
+    std.debug.print("Commands:\n", .{});
+    for (slash_commands) |def| {
+        std.debug.print("  /{s:<14} {s}\n", .{ def.name, def.summary });
+    }
+    std.debug.print("  <text>           Run a completion and persist the turn\n\n", .{});
 }
 
 /// Raw-mode input filter: accept only the printable ASCII range (0x20–0x7E) for
@@ -221,12 +280,30 @@ pub const ReplLoop = struct {
             .help => printHelp(),
             .model => self.applyModel(specialArg(line)),
             .reset => self.resetSession(),
+            .status => self.showStatus(),
             .history => self.showHistory(),
-            .profile => std.debug.print("profile selection is not available in phase 1\n", .{}),
+            .profile => self.showProfileStatus(),
             .syncclis => try self.runSyncClis(io),
             .unknown => try self.printUnknownCommand(line),
         }
         return .keep_going;
+    }
+
+    fn persistedBlockCount(self: *ReplLoop) usize {
+        if (comptime build_options.feat_wdbx) return self.store.blockCount();
+        return 0;
+    }
+
+    fn showStatus(self: *ReplLoop) void {
+        var buf: [256]u8 = undefined;
+        std.debug.print("{s}\n", .{formatStatusLine(
+            &buf,
+            self.state.session_id,
+            self.state.turn_count,
+            self.state.config.model,
+            self.state.config.store_turns,
+            self.persistedBlockCount(),
+        )});
     }
 
     fn runSyncClis(self: *ReplLoop, io: std.Io) !void {
@@ -320,6 +397,13 @@ pub const ReplLoop = struct {
         }
     }
 
+    fn showProfileStatus(self: *ReplLoop) void {
+        std.debug.print("profile: adaptive router active; model={s}; turns={d}\n", .{
+            self.state.config.model,
+            self.state.turn_count,
+        });
+    }
+
     /// Set the active model from a `/model <id>` argument, copying the
     /// alias-resolved id into stable session storage.
     fn applyModel(self: *ReplLoop, arg: []const u8) void {
@@ -328,8 +412,8 @@ pub const ReplLoop = struct {
             return;
         }
         const canon = models.canonical(arg);
-        if (canon.len > self.state.model_storage.len) {
-            std.debug.print("model id too long\n", .{});
+        if (!validModelId(canon)) {
+            std.debug.print("model id must be printable non-whitespace ASCII and at most {d} bytes\n", .{MODEL_STORAGE_BYTES});
             return;
         }
         @memcpy(self.state.model_storage[0..canon.len], canon);
@@ -342,8 +426,12 @@ test "parseSpecialCommand recognizes slash commands and treats prompts as unknow
     try std.testing.expectEqual(SpecialCommand.quit, parseSpecialCommand("/quit"));
     try std.testing.expectEqual(SpecialCommand.quit, parseSpecialCommand("/q"));
     try std.testing.expectEqual(SpecialCommand.help, parseSpecialCommand("/help"));
+    try std.testing.expectEqual(SpecialCommand.help, parseSpecialCommand("/h\t"));
     try std.testing.expectEqual(SpecialCommand.model, parseSpecialCommand("/model apple-fm"));
+    try std.testing.expectEqual(SpecialCommand.model, parseSpecialCommand("/model\tapple-fm"));
     try std.testing.expectEqual(SpecialCommand.reset, parseSpecialCommand("/reset"));
+    try std.testing.expectEqual(SpecialCommand.status, parseSpecialCommand("/status"));
+    try std.testing.expectEqual(SpecialCommand.status, parseSpecialCommand("/stat"));
     try std.testing.expectEqual(SpecialCommand.history, parseSpecialCommand("/history"));
     try std.testing.expectEqual(SpecialCommand.history, parseSpecialCommand("/hist"));
     try std.testing.expectEqual(SpecialCommand.profile, parseSpecialCommand("/profile abbey"));
@@ -354,11 +442,41 @@ test "parseSpecialCommand recognizes slash commands and treats prompts as unknow
     try std.testing.expectEqual(SpecialCommand.unknown, parseSpecialCommand(""));
 }
 
+test "specialArg trims spaces and tabs after slash commands" {
+    try std.testing.expectEqualStrings("apple-fm", specialArg("/model\t apple-fm \r"));
+    try std.testing.expectEqualStrings("abi-local", specialArg("/model   abi-local"));
+    try std.testing.expectEqualStrings("", specialArg("/history"));
+}
+
 test "formatHistoryHeader summarizes session turns and persisted blocks" {
     var buf: [128]u8 = undefined;
     const line = formatHistoryHeader(&buf, 3, 5);
     try std.testing.expect(std.mem.indexOf(u8, line, "3 turn") != null);
     try std.testing.expect(std.mem.indexOf(u8, line, "5 persisted block") != null);
+}
+
+test "formatStatusLine reports model provider and persistence state" {
+    var buf: [256]u8 = undefined;
+    const line = formatStatusLine(&buf, 1234, 3, "fable-5", true, 5);
+    try std.testing.expect(std.mem.indexOf(u8, line, "session_id=1234") != null);
+    try std.testing.expect(std.mem.indexOf(u8, line, "turns=3") != null);
+    try std.testing.expect(std.mem.indexOf(u8, line, "model=fable-5") != null);
+    try std.testing.expect(std.mem.indexOf(u8, line, "provider=anthropic") != null);
+    try std.testing.expect(std.mem.indexOf(u8, line, "store_turns=true") != null);
+    try std.testing.expect(std.mem.indexOf(u8, line, "persisted_blocks=5") != null);
+}
+
+test "validModelId rejects controls whitespace and overlong ids" {
+    try std.testing.expect(validModelId("abi-local"));
+    try std.testing.expect(validModelId("ollama/qwen2"));
+    try std.testing.expect(!validModelId(""));
+    try std.testing.expect(!validModelId("two words"));
+    try std.testing.expect(!validModelId("bad\tid"));
+    try std.testing.expect(!validModelId("bad\x1bid"));
+
+    var overlong: [MODEL_STORAGE_BYTES + 1]u8 = undefined;
+    @memset(&overlong, 'a');
+    try std.testing.expect(!validModelId(&overlong));
 }
 
 test "ReplState init seeds defaults and a session id" {
@@ -384,7 +502,7 @@ test "tui input hardening: adversarial bytes never corrupt state" {
         // Exhaustive switch: reaching every arm without a panic is the safety
         // assertion (the classifier is total over all byte strings).
         switch (parseSpecialCommand(input)) {
-            .quit, .reset, .help, .model, .profile, .history, .syncclis, .unknown => {},
+            .quit, .reset, .help, .model, .profile, .status, .history, .syncclis, .unknown => {},
         }
     }
 

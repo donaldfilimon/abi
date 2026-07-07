@@ -126,10 +126,7 @@ fn readHttpRequest(io: std.Io, conn: std.Io.net.Stream, buf: []u8) HttpReadResul
                 const end = idx + 4;
                 header_end = end;
                 const declared = parseContentLength(buf[0..end]) orelse 0;
-                // Cap the body target at the buffer; an over-cap declaration is
-                // caught as `.too_large` once the buffer fills.
-                const target = end + declared;
-                want_total = if (target > buf.len) buf.len + 1 else target;
+                want_total = requestTargetWithinBuffer(end, declared, buf.len) orelse return .too_large;
             }
         }
 
@@ -151,6 +148,13 @@ fn readHttpRequest(io: std.Io, conn: std.Io.net.Stream, buf: []u8) HttpReadResul
 
     if (total == 0) return .empty;
     return .{ .request = buf[0..total] };
+}
+
+fn requestTargetWithinBuffer(header_end: usize, declared_body_len: usize, capacity: usize) ?usize {
+    if (header_end > capacity) return null;
+    const remaining = capacity - header_end;
+    if (declared_body_len > remaining) return null;
+    return header_end + declared_body_len;
 }
 
 /// Parse the `Content-Length` request header (case-insensitive) from the raw
@@ -331,6 +335,13 @@ test "MCP HTTP Content-Length header parser" {
         @as(?usize, null),
         parseContentLength("POST /message HTTP/1.1\r\nContent-Length: abc\r\n\r\n"),
     );
+}
+
+test "MCP HTTP request target rejects oversized Content-Length without overflow" {
+    try std.testing.expectEqual(@as(?usize, 48), requestTargetWithinBuffer(40, 8, 64));
+    try std.testing.expectEqual(@as(?usize, null), requestTargetWithinBuffer(40, 25, 64));
+    try std.testing.expectEqual(@as(?usize, null), requestTargetWithinBuffer(40, std.math.maxInt(usize), 64));
+    try std.testing.expectEqual(@as(?usize, null), requestTargetWithinBuffer(65, 0, 64));
 }
 
 test "MCP HTTP Authorization bearer parser" {

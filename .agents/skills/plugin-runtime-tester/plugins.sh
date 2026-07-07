@@ -4,7 +4,7 @@
 # asserting each returns its real run() output (not PluginNotFound / a generic
 # ack). Also checks list and run agree.
 #
-# Usage: .claude/skills/plugin-runtime-tester/plugins.sh
+# Usage: .agents/skills/plugin-runtime-tester/plugins.sh
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)

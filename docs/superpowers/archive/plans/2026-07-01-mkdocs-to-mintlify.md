@@ -1,7 +1,8 @@
 # MkDocs → Mintlify Migration Plan
 
-> **Status: PLAN ONLY — awaiting approval. No files migrated yet.**
-> Research + plan per the user's "migrate docs to Mintlify" request. This is a small, cohesive task (not a 5–30-unit batch), so it runs as one reviewed change, not a fleet of worker agents.
+> **Archived:** The Mintlify migration is complete. This plan remains as historical implementation context only.
+
+> **Status: COMPLETED** — all tasks (docs.json, .mdx conversion, mkdocs.yml removal, instruction-file sync) have been executed. This file is kept as a historical record of the migration plan.
 
 ## Context / why
 

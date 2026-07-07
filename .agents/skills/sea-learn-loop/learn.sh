@@ -7,8 +7,8 @@
 # -Dfeat-sea=true explicitly while debugging feature-flag behavior.
 #
 # Usage:
-#   .claude/skills/sea-learn-loop/learn.sh ["input text"]
-#   .claude/skills/sea-learn-loop/learn.sh --sea ["input text"]
+#   .agents/skills/sea-learn-loop/learn.sh ["input text"]
+#   .agents/skills/sea-learn-loop/learn.sh --sea ["input text"]
 set -uo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)

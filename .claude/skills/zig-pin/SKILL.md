@@ -17,7 +17,12 @@ drifted to `master`, which is newer than the pin.
 This skill compares the pin to the active toolchain and tells you how to fix a
 mismatch. It does not change your toolchain for you.
 
-## Steps
+## Driver
+
+Run `.claude/skills/zig-pin/pin.sh` for a one-shot check of active vs. pinned
+toolchain. Exit 0 = match, exit 2 = mismatch with fix instructions.
+
+## Steps (manual)
 
 1. **Read the pin.** Read `.zigversion` at the repo root (a single line, e.g.
    `0.17.0-dev.978+a078d55a2`). Call this `PIN`.

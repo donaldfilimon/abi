@@ -11,21 +11,70 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
     if (args.len < 3) return usage_mod.usageError("usage: abi agent <plan|train|tui|os> ...");
 
     const sub_cmd = args[2];
+    if (usage_mod.isHelpToken(sub_cmd)) return usage_mod.printCommandHelp("agent");
     if (std.mem.eql(u8, sub_cmd, "plan")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return agentPlanHelp();
         return handleAgentPlan(allocator, args);
     } else if (std.mem.eql(u8, sub_cmd, "train")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return agentTrainHelp();
         return handleAgentTrain(io, allocator, args);
     } else if (std.mem.eql(u8, sub_cmd, "tui")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return agentTuiHelp();
         return handleAgentTui(io, allocator, args);
-    } else if (std.mem.eql(u8, sub_cmd, "os") and args.len >= 5) {
+    } else if (std.mem.eql(u8, sub_cmd, "os")) {
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return agentOsHelp();
         return handleAgentOs(io, allocator, args);
     } else {
         return usage_mod.usageError("usage: abi agent <plan|train|tui|os dry-run|os execute> ...");
     }
 }
 
+fn agentPlanHelp() u8 {
+    std.debug.print(
+        \\usage: abi agent plan <input>
+        \\
+        \\Run a dry-run agent planning task through the scheduler and print memory tracker statistics.
+        \\
+    , .{});
+    return 0;
+}
+
+fn agentTrainHelp() u8 {
+    std.debug.print(
+        \\usage: abi agent train <abbey|aviva|abi|all>
+        \\
+        \\Train one known local profile or all known profiles against the durable WDBX store.
+        \\
+    , .{});
+    return 0;
+}
+
+fn agentTuiHelp() u8 {
+    std.debug.print(
+        \\usage: abi agent tui
+        \\
+        \\Launch the interactive ABI agent REPL. Non-tty input falls back to line mode.
+        \\
+    , .{});
+    return 0;
+}
+
+fn agentOsHelp() u8 {
+    std.debug.print(
+        \\usage: abi agent os <dry-run|execute --confirm> <cmd> [args...]
+        \\
+        \\Audit an OS-control command request. execute requires --confirm and the policy allow-list.
+        \\
+    , .{});
+    return 0;
+}
+
 fn handleAgentPlan(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len != 4) return usage_mod.usageError("usage: abi agent plan <input>");
+    return handleAgentPlanInput(allocator, args[3]);
+}
+
+pub fn handleAgentPlanInput(allocator: std.mem.Allocator, input: []const u8) !u8 {
     var sched = abi.scheduler.Scheduler.init(allocator);
     defer sched.deinit();
 
@@ -35,7 +84,7 @@ fn handleAgentPlan(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     sched.setMemoryTracker(&mem_tracker);
 
     const plan_allocator = tracking_alloc.allocator();
-    const result = try abi.features.ai.runAgentWithScheduler(plan_allocator, &sched, "agent:plan", .{ .name = "cli-agent", .instructions = "Plan only; do not execute.", .dry_run = true }, args[3]);
+    const result = try abi.features.ai.runAgentWithScheduler(plan_allocator, &sched, "agent:plan", .{ .name = "cli-agent", .instructions = "Plan only; do not execute.", .dry_run = true }, input);
     defer result.deinit(plan_allocator);
     std.debug.print("{s}\n", .{result.output});
     const s = sched.stats();
@@ -46,13 +95,16 @@ fn handleAgentPlan(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
 
 fn handleAgentTrain(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len != 4) return usage_mod.usageError("usage: abi agent train <abbey|aviva|abi|all>");
+    return handleAgentTrainProfile(io, allocator, args[3]);
+}
+
+pub fn handleAgentTrainProfile(io: std.Io, allocator: std.mem.Allocator, profile_arg: []const u8) !u8 {
     var session = try abi.features.wdbx.durable_store.Session.open(io, allocator);
     defer session.deinit();
     const store = session.storePtr();
 
     const dataset = abi.features.ai.DatasetSpec{ .path = "datasets/local-training.jsonl" };
     const artifact_dir = "zig-cache/agent-artifacts";
-    const profile_arg = args[3];
     const is_all = std.mem.eql(u8, profile_arg, "all");
 
     var sched = abi.scheduler.Scheduler.init(allocator);
@@ -157,7 +209,10 @@ fn handleAgentTrain(io: std.Io, allocator: std.mem.Allocator, args: []const []co
 
 fn handleAgentTui(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len != 3) return usage_mod.usageError("usage: abi agent tui");
+    return handleAgentTuiNoArgs(io, allocator);
+}
 
+pub fn handleAgentTuiNoArgs(io: std.Io, allocator: std.mem.Allocator) !u8 {
     var session = try abi.features.wdbx.durable_store.Session.open(io, allocator);
     defer session.deinit();
     const store = session.storePtr();
@@ -185,6 +240,7 @@ fn handleAgentTui(io: std.Io, allocator: std.mem.Allocator, args: []const []cons
 /// real gate is the allow-list plus workspace containment. Returns the exit code.
 pub fn handleAgentOs(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     _ = allocator;
+    if (args.len < 4) return usage_mod.usageError("usage: abi agent os <dry-run|execute --confirm> <cmd> [args...]");
     const os_cmd = args[3];
     const start: usize = if (std.mem.eql(u8, os_cmd, "execute") and args.len >= 6 and std.mem.eql(u8, args[4], "--confirm")) 5 else 4;
     if (start >= args.len) return usage_mod.usageError("usage: abi agent os <dry-run|execute --confirm> <cmd> [args...]");
@@ -247,6 +303,16 @@ test "agent dispatch rejects malformed grammar with exit code 2" {
     try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "os" }));
     // `execute` without the mandatory `--confirm` token must refuse.
     try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "os", "execute", "ls" }));
+}
+
+test "agent handler help returns success before side effects" {
+    const allocator = std.testing.allocator;
+    const t = std.testing.io;
+    try std.testing.expectEqual(@as(u8, 0), try handleAgent(t, allocator, &.{ "abi", "agent", "--help" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleAgent(t, allocator, &.{ "abi", "agent", "plan", "--help" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleAgent(t, allocator, &.{ "abi", "agent", "train", "-h" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleAgent(t, allocator, &.{ "abi", "agent", "tui", "help" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleAgent(t, allocator, &.{ "abi", "agent", "os", "--help" }));
 }
 
 test {

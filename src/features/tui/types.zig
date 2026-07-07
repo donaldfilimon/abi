@@ -28,7 +28,24 @@ pub const PaneKind = enum {
     plugins,
     storage,
     scheduler,
+    memory,
 };
+
+pub const DashboardPaneMeta = struct {
+    kind: PaneKind,
+    title: []const u8,
+    hotkey: u8,
+};
+
+pub const DASHBOARD_PANES = [_]DashboardPaneMeta{
+    .{ .kind = .system, .title = "System", .hotkey = '1' },
+    .{ .kind = .plugins, .title = "Plugins", .hotkey = '2' },
+    .{ .kind = .storage, .title = "WDBX Storage", .hotkey = '3' },
+    .{ .kind = .scheduler, .title = "Scheduler", .hotkey = '4' },
+    .{ .kind = .memory, .title = "Memory", .hotkey = '5' },
+};
+
+pub const DASHBOARD_PANE_COUNT: usize = DASHBOARD_PANES.len;
 
 pub const DiagPane = struct {
     kind: PaneKind,

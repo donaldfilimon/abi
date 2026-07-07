@@ -94,6 +94,8 @@ test "MCP ai_complete tool contract" {
         \\{"name":"ai_complete","arguments":{"input":"hello","model":"abi-local"}}
     ;
     try expectToolJsonContains(allocator, call, "model=abi-local");
+    try expectToolJsonContains(allocator, call, "audit_escore=");
+    try expectToolJsonContains(allocator, call, "audit_vetoed=");
     if (build_options.feat_ai and build_options.feat_wdbx) {
         try expectToolJsonContains(allocator, call, "persisted=true");
         try expectToolJsonContains(allocator, call, "kv_entries=1");
@@ -117,6 +119,8 @@ test "MCP ai_learn tool contract" {
     // reports an evidence_count. The value depends on store/feature state (sea
     // off => 0; sea on => recalled count), so only the field is asserted.
     try expectToolJsonContains(allocator, call, "model=abi-local");
+    try expectToolJsonContains(allocator, call, "audit_escore=");
+    try expectToolJsonContains(allocator, call, "audit_vetoed=");
     try expectToolJsonContains(allocator, call, "evidence_count=");
     try expectToolJsonContains(allocator, call, "adapted=");
 }

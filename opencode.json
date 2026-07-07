@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md", "tasks/lessons.md", "tasks/todo.md"],
+  "mcp": {
+    "abi-mcp": {
+      "type": "local",
+      "enabled": true,
+      "command": ["./mcp/launcher.sh", "stdio"]
+    },
+    "skill-loop": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "-y", "-p", "@stylusnexus/skill-loop-cli@0.3.3", "skill-loop-mcp"]
+    }
+  }
+}
