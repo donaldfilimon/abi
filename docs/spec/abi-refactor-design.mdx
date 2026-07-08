@@ -122,29 +122,43 @@ src/
 │   ├── grok.zig       # Grok/xAI connector (local deterministic + .live opt-in)
 │   └── tests.zig      # Connector contract and live-boundary tests imported by mod.zig
 ├── cli/           # CLI dispatch, handlers, usage
+│   ├── arg.zig        # Declarative typed argument parser
+│   ├── completion.zig # Shell completion script generation (bash/zsh/fish)
 │   ├── dispatch.zig   # Top-level command routing
+│   ├── handlers/      # Per-command handler implementations
+│   │   ├── mod.zig    # Handler module re-export hub
+│   │   ├── agent.zig
+│   │   ├── auth.zig
+│   │   ├── backends.zig
+│   │   ├── dashboard.zig
+│   │   ├── dashboard_json.zig # `tui`/`dashboard` JSON output
+│   │   ├── nn.zig
+│   │   ├── plugin.zig
+│   │   ├── scheduler.zig
+│   │   ├── train.zig
+│   │   ├── twilio.zig
+│   │   ├── wdbx.zig    # WDBX command dispatch facade
+│   │   ├── wdbx_db.zig # Snapshot/WAL db/block/query operations
+│   │   └── wdbx_runtime.zig # benchmark/cluster/compute/secure/gpu/api demos
+│   ├── help_json.zig  # `help --json` typed command metadata emitter
+│   ├── registry.zig   # Command definitions and handler wiring
+│   ├── suggest.zig    # Edit-distance "did you mean?" suggestion engine
 │   ├── usage.zig      # Source of truth for CLI help text
-│   └── handlers/      # Per-command handler implementations
-│       ├── mod.zig
-│       ├── agent.zig
-│       ├── auth.zig
-│       ├── backends.zig
-│       ├── dashboard.zig
-│       ├── plugin.zig
-│       ├── train.zig
-│       ├── twilio.zig
-│       ├── wdbx.zig   # WDBX command dispatch facade
-│       ├── wdbx_db.zig # Snapshot/WAL db/block/query operations
-│       └── wdbx_runtime.zig # benchmark/cluster/compute/secure/gpu/api demos
 ├── mcp/               # MCP JSON-RPC 2.0 server
 │   ├── main.zig       # stdio loop + loopback HTTP/SSE
 │   ├── handlers.zig   # Tool call implementations
+│   ├── ai_tools.zig   # AI tool dispatch (complete/run/learn/train)
+│   ├── connector_tools.zig # Connector test dispatch
+│   ├── plugin_tools.zig    # Plugin list/run dispatch
 │   ├── json_helpers.zig # JSON parsing utilities
 │   ├── protocol.zig   # JSON-RPC protocol types
 │   ├── rpc.zig        # Shared JSON-RPC request processing
 │   ├── shutdown.zig   # Signal/shutdown coordination
 │   ├── state.zig      # Long-lived MCP feature state
-│   └── server.zig     # Stdio and HTTP/SSE transport layer
+│   ├── middleware.zig # Per-request middleware chain
+│   ├── stdio_transport.zig # Stdio transport (reads stdin, writes stdout)
+│   ├── http_transport.zig  # Loopback HTTP/SSE transport
+│   └── server.zig     # Thin re-export facade over stdio_transport + http_transport
 ├── plugins/           # Plugin manifests and local plugin manager
 │   ├── plugin_manager.zig      # Load/unload/list from required JSON manifests
 │   ├── example-plugin/         # Baseline example plugin fixture (abi-plugin.json + mod.zig + stub.zig)

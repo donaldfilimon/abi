@@ -5,12 +5,12 @@ description: Build the abi CLI and report GPU / accelerator / shader / MLIR back
 
 # backend-diagnostics — capture abi's backend capability report
 
-Driver: **`.claude/skills/backend-diagnostics/diag.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/backend-diagnostics/diag.sh`** (paths relative to repo root).
 Read-only CLI capture — evidence is the `RESULT:` line + the backend tables.
 
 ## Run (agent path)
 ```bash
-.claude/skills/backend-diagnostics/diag.sh
+.agents/skills/backend-diagnostics/diag.sh
 ```
 Builds the CLI, then captures `abi backends`, `abi wdbx compute info`, and
 `abi wdbx gpu info`; asserts the markers `GPU backend report` and

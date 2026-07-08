@@ -5,13 +5,13 @@ description: Build the abi CLI and check the credential/auth surface without sto
 
 # auth-localcheck — drive abi's auth surface (non-destructive)
 
-Driver: **`.claude/skills/auth-localcheck/auth.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/auth-localcheck/auth.sh`** (paths relative to repo root).
 Builds the CLI and exercises only the safe auth surfaces. Evidence is the
 `RESULT:` line. **No creds written/deleted, no network.**
 
 ## Run (agent path)
 ```bash
-.claude/skills/auth-localcheck/auth.sh
+.agents/skills/auth-localcheck/auth.sh
 ```
 - `auth status` → asserts `Authentication Status:`, `OpenAI:`, `Anthropic:`, `Twilio:`.
 - `auth signin` (no service) → asserts the `usage: abi auth signin` banner

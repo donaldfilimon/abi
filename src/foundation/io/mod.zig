@@ -1,4 +1,5 @@
 const std = @import("std");
+const temp_path = @import("../temp_path.zig");
 
 pub const stats = @import("stats.zig");
 pub const reader = @import("reader.zig");
@@ -97,7 +98,7 @@ test {
 }
 
 test "asyncWriteFile and asyncReadFile roundtrip" {
-    const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_io_async_test_{d}.txt", .{std.c.getpid()});
+    const test_path = try temp_path.tempFilePath(std.testing.allocator, "abi_io_async_test", "txt");
     defer std.testing.allocator.free(test_path);
     defer deleteFileForTest(test_path);
 
@@ -111,7 +112,7 @@ test "asyncWriteFile and asyncReadFile roundtrip" {
 }
 
 test "asyncAppendFile" {
-    const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_io_append_test_{d}.txt", .{std.c.getpid()});
+    const test_path = try temp_path.tempFilePath(std.testing.allocator, "abi_io_append_test", "txt");
     defer std.testing.allocator.free(test_path);
     defer deleteFileForTest(test_path);
 
@@ -125,7 +126,7 @@ test "asyncAppendFile" {
 }
 
 test "asyncAppendFile creates missing file" {
-    const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_io_append_create_test_{d}.txt", .{std.c.getpid()});
+    const test_path = try temp_path.tempFilePath(std.testing.allocator, "abi_io_append_create_test", "txt");
     defer std.testing.allocator.free(test_path);
     defer deleteFileForTest(test_path);
 
@@ -138,28 +139,42 @@ test "asyncAppendFile creates missing file" {
 }
 
 test "fileExists and dirExists" {
-    try std.testing.expect(fileExists("/tmp"));
-    try std.testing.expect(dirExists("/tmp"));
-    try std.testing.expect(!fileExists("/tmp/nonexistent_file_12345"));
-    try std.testing.expect(!dirExists("/tmp/nonexistent_dir_12345"));
+    const alloc = std.testing.allocator;
+    const tmp = try temp_path.getTempDir(alloc);
+    defer alloc.free(tmp);
+    try std.testing.expect(fileExists(tmp));
+    try std.testing.expect(dirExists(tmp));
+    const missing_file = try std.fmt.allocPrint(alloc, "{s}/abi_io_nonexistent_file_{d}", .{ tmp, std.c.getpid() });
+    defer alloc.free(missing_file);
+    const missing_dir = try std.fmt.allocPrint(alloc, "{s}/abi_io_nonexistent_dir_{d}", .{ tmp, std.c.getpid() });
+    defer alloc.free(missing_dir);
+    try std.testing.expect(!fileExists(missing_file));
+    try std.testing.expect(!dirExists(missing_dir));
 }
 
 test "ensureDir creates nested directories" {
-    const test_root = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_io_test_nested_{d}", .{std.c.getpid()});
-    defer std.testing.allocator.free(test_root);
+    const alloc = std.testing.allocator;
+    const tmp = try temp_path.getTempDir(alloc);
+    defer alloc.free(tmp);
+    const test_root = try std.fmt.allocPrint(alloc, "{s}/abi_io_test_nested_{d}", .{ tmp, std.c.getpid() });
+    defer alloc.free(test_root);
     defer deleteTreeForTest(test_root);
 
-    const test_dir = try std.fs.path.join(std.testing.allocator, &.{ test_root, "a/b/c" });
-    defer std.testing.allocator.free(test_dir);
+    const test_dir = try std.fs.path.join(alloc, &.{ test_root, "a/b/c" });
+    defer alloc.free(test_dir);
 
     try ensureDir(test_dir);
     try std.testing.expect(dirExists(test_dir));
 }
 
 test "resolvePath absolute path" {
-    const abs = "/tmp/test";
-    const resolved = try resolvePath(std.testing.allocator, abs);
-    defer std.testing.allocator.free(resolved);
+    const alloc = std.testing.allocator;
+    const tmp = try temp_path.getTempDir(alloc);
+    defer alloc.free(tmp);
+    const abs = try std.fmt.allocPrint(alloc, "{s}/test", .{tmp});
+    defer alloc.free(abs);
+    const resolved = try resolvePath(alloc, abs);
+    defer alloc.free(resolved);
 
     try std.testing.expectEqualStrings(abs, resolved);
 }

@@ -5,13 +5,13 @@ description: Build the abi CLI and exercise the connector surfaces that run full
 
 # connector-localcheck — drive abi's local connector surfaces
 
-Driver: **`.claude/skills/connector-localcheck/connectors.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/connector-localcheck/connectors.sh`** (paths relative to repo root).
 Read-only-effect CLI check — evidence is the `RESULT:` line. **No creds, no network.**
 
 ## Run (agent path)
 ```bash
-.claude/skills/connector-localcheck/connectors.sh                      # default utterance
-.claude/skills/connector-localcheck/connectors.sh "cancel my account"  # custom caller text
+.agents/skills/connector-localcheck/connectors.sh                      # default utterance
+.agents/skills/connector-localcheck/connectors.sh "cancel my account"  # custom caller text
 ```
 Builds the CLI, runs `abi twilio simulate "<utterance>"` (asserts
 `Twilio ConversationRelay simulation`, `response:`, `escalation:`) and

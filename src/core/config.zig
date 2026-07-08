@@ -1,19 +1,10 @@
 //! Framework Configuration Management
 const std = @import("std");
-
 pub const LogLevel = enum(u8) {
     debug,
     info,
     warn,
     err,
-};
-
-pub const PathConfig = struct {
-    data_dir: []const u8 = "/tmp/abi/data",
-    cache_dir: []const u8 = "/tmp/abi/cache",
-    log_dir: []const u8 = "/tmp/abi/logs",
-    config_dir: []const u8 = "/tmp/abi/config",
-    plugin_dir: []const u8 = "/tmp/abi/plugins",
 };
 
 pub const LimitConfig = struct {
@@ -46,7 +37,6 @@ pub const ServerConfig = struct {
 
 pub const Config = struct {
     allocator: std.mem.Allocator,
-    paths: PathConfig,
     limits: LimitConfig,
     ai: AiConfig,
     server: ServerConfig,
@@ -56,7 +46,6 @@ pub const Config = struct {
     pub fn init(allocator: std.mem.Allocator) Config {
         return .{
             .allocator = allocator,
-            .paths = PathConfig{},
             .limits = LimitConfig{},
             .ai = AiConfig{},
             .server = ServerConfig{},

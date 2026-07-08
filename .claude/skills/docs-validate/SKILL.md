@@ -6,14 +6,14 @@ disable-model-invocation: true
 
 # docs-validate — pre-push gate for the Mintlify docs site
 
-Driver: **`.claude/skills/docs-validate/validate.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/docs-validate/validate.sh`** (paths relative to repo root).
 Runs `npx mint@latest validate` against `docs/docs.json` + `docs/**/*.mdx`, then
 scans for stale `.md` references (the `.md`→`.mdx` link rot fixed in #651). Evidence
 is the `RESULT:` line.
 
 ## Run (user path)
 ```bash
-.claude/skills/docs-validate/validate.sh
+.agents/skills/docs-validate/validate.sh
 ```
 Prints `RESULT: PASS` (exit 0) or `RESULT: FAIL` (exit 1) with the validator output.
 

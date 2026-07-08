@@ -1,6 +1,7 @@
 const std = @import("std");
+const temp_path = @import("../foundation/temp_path.zig");
 
-pub const TEST_TMP_DIR = ".zig-cache/tmp";
+pub const TEST_TMP_DIR = "abi-test";
 
 var temp_path_counter = std.atomic.Value(u64).init(0);
 
@@ -125,14 +126,18 @@ pub fn deleteTestFileIfExists(path: []const u8) void {
 }
 
 pub fn ensureTestTempDir() !void {
-    try std.Io.Dir.createDirPath(.cwd(), std.testing.io, TEST_TMP_DIR);
+    const tmp = try temp_path.getTempDir(std.testing.allocator);
+    defer std.testing.allocator.free(tmp);
+    const full = try std.fs.path.join(std.testing.allocator, &.{ tmp, TEST_TMP_DIR });
+    defer std.testing.allocator.free(full);
+    try std.Io.Dir.createDirPath(.cwd(), std.testing.io, full);
 }
 
 pub fn tempRootPath(allocator: std.mem.Allocator) ![]u8 {
     try ensureTestTempDir();
-    var buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const len = try std.Io.Dir.realPathFile(.cwd(), std.testing.io, TEST_TMP_DIR, &buf);
-    return try allocator.dupe(u8, buf[0..len]);
+    const tmp = try temp_path.getTempDir(allocator);
+    defer allocator.free(tmp);
+    return try std.fs.path.join(allocator, &.{ tmp, TEST_TMP_DIR });
 }
 
 pub fn tempPath(allocator: std.mem.Allocator, name: []const u8, extension: []const u8) ![]u8 {

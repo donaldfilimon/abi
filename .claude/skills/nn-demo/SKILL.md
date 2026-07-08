@@ -5,14 +5,14 @@ description: Build the abi CLI and run the miniature character-level neural-net 
 
 # nn-demo — drive abi's character-level demo trainer
 
-Driver: **`.claude/skills/nn-demo/nn.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/nn-demo/nn.sh`** (paths relative to repo root).
 Builds the CLI and drives `abi nn train` + `abi nn sample`. Evidence is the
 `RESULT:` line. Fully local, no network.
 
 ## Run (agent path)
 ```bash
-.claude/skills/nn-demo/nn.sh                                   # default corpus, seed 't', n=20
-.claude/skills/nn-demo/nn.sh "hello world hello there" h 24    # custom corpus / seed / n
+.agents/skills/nn-demo/nn.sh                                   # default corpus, seed 't', n=20
+.agents/skills/nn-demo/nn.sh "hello world hello there" h 24    # custom corpus / seed / n
 ```
 - `nn train "<corpus>"` — asserts `nn train:`, `final_loss=`, `steps=`.
 - `nn sample --text "<corpus>" --seed <char> --n <k>` — trains, then generates;

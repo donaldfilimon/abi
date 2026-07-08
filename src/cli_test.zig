@@ -11,6 +11,7 @@ const std = @import("std");
 const registry = @import("cli/registry.zig");
 const arg = @import("cli/arg.zig");
 const dispatch = @import("cli/dispatch.zig");
+const suggest = @import("cli/suggest.zig");
 
 fn specFor(comptime name: []const u8) []const arg.Arg {
     return comptime blk: {
@@ -271,4 +272,5 @@ test "registry `twilio` spec requires simulate input" {
 test {
     std.testing.refAllDecls(@This());
     std.testing.refAllDecls(dispatch);
+    std.testing.refAllDecls(suggest);
 }

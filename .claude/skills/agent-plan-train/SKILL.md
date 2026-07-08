@@ -5,14 +5,14 @@ description: Build the abi CLI and drive the non-interactive agent surfaces — 
 
 # agent-plan-train — drive abi's agent plan + train surfaces
 
-Driver: **`.claude/skills/agent-plan-train/agent.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/agent-plan-train/agent.sh`** (paths relative to repo root).
 Builds the CLI and drives the two non-interactive `agent` subcommands. Evidence
 is the `RESULT:` line. Fully local, no network.
 
 ## Run (agent path)
 ```bash
-.claude/skills/agent-plan-train/agent.sh                                  # default plan, profile=abbey
-.claude/skills/agent-plan-train/agent.sh "draft a release note" all       # custom plan, train all profiles
+.agents/skills/agent-plan-train/agent.sh                                  # default plan, profile=abbey
+.agents/skills/agent-plan-train/agent.sh "draft a release note" all       # custom plan, train all profiles
 ```
 - `agent plan "<text>"` → asserts `agent=cli-agent`, `mode=dry-run`,
   `selected_profile=`, `response=` (routes through the persona router; dry-run

@@ -82,9 +82,9 @@ Render diagnostics:
 Operate the WDBX runtime control surface:
 
 ```bash
-./zig-out/bin/abi wdbx db init /tmp/abi-demo.wdbx.jsonl
-./zig-out/bin/abi wdbx block insert /tmp/abi-demo.wdbx.jsonl Abbey "demo metadata"
-./zig-out/bin/abi wdbx db verify /tmp/abi-demo.wdbx.jsonl
+./zig-out/bin/abi wdbx db init ./abi-demo.wdbx.jsonl
+./zig-out/bin/abi wdbx block insert ./abi-demo.wdbx.jsonl Abbey "demo metadata"
+./zig-out/bin/abi wdbx db verify ./abi-demo.wdbx.jsonl
 ./zig-out/bin/abi wdbx cluster status
 ./zig-out/bin/abi wdbx compute info
 ./zig-out/bin/abi wdbx secure demo

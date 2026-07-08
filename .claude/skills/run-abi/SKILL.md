@@ -13,7 +13,7 @@ also has a clean non-TTY one-shot mode; use tmux only when you need to exercise
 the interactive refresh loop (see Gotchas).
 
 **Paths below are relative to the repo root** (`<unit>/`). The driver lives at
-`.claude/skills/run-abi/smoke.sh` and resolves the repo root from its own location,
+`.agents/skills/run-abi/smoke.sh` and resolves the repo root from its own location,
 so you can run it from any cwd.
 
 ## Run (agent path) — the driver
@@ -25,7 +25,7 @@ subcommands (help, backends, scheduler, complete, plugin list), a WDBX store rou
 expected markers, prints `pass=N fail=N`, and writes a full transcript.
 
 ```bash
-./.claude/skills/run-abi/smoke.sh
+./.agents/skills/run-abi/smoke.sh
 ```
 
 Expected tail on success (exit 0):

@@ -211,7 +211,7 @@ test "validateArguments rejects path traversal but allows plain and absolute pat
     try validateArguments(&fields, plain.value.object);
 
     var absolute = try argsObject(std.testing.allocator,
-        \\{"arguments":{"dataset":"/tmp/train.jsonl"}}
+        \\{"arguments":{"dataset":"/home/test/train.jsonl"}}
     );
     defer absolute.deinit();
     try validateArguments(&fields, absolute.value.object);

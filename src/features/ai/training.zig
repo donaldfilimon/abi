@@ -7,6 +7,7 @@ const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @impor
 const scheduler_mod = @import("../../core/scheduler.zig");
 const helpers = @import("helpers.zig");
 const training_support = @import("training_support.zig");
+const temp_path = @import("../../foundation/temp_path.zig");
 const types = @import("types.zig");
 
 pub fn submitTrainingTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx: *types.TrainingTaskContext) !u64 {
@@ -235,7 +236,7 @@ test "trainWithStore uses the store tracker for dataset inspection when config t
     const foundation_io = @import("../../foundation/io/mod.zig");
     const allocator = std.testing.allocator;
 
-    const path = try std.fmt.allocPrint(allocator, "/tmp/abi_train_store_tracker_{d}.jsonl", .{std.c.getpid()});
+    const path = try temp_path.tempFilePath(allocator, "abi_train_store_tracker", "jsonl");
     defer allocator.free(path);
     defer std.Io.Dir.deleteFileAbsolute(std.testing.io, path) catch |err| switch (err) {
         error.FileNotFound => {},
@@ -269,7 +270,7 @@ test "train accounts its transient internals on config.tracker (balanced)" {
     const foundation_io = @import("../../foundation/io/mod.zig");
     const allocator = std.testing.allocator;
 
-    const path = try std.fmt.allocPrint(allocator, "/tmp/abi_train_config_tracker_{d}.jsonl", .{std.c.getpid()});
+    const path = try temp_path.tempFilePath(allocator, "abi_train_config_tracker", "jsonl");
     defer allocator.free(path);
     defer std.Io.Dir.deleteFileAbsolute(std.testing.io, path) catch |err| switch (err) {
         error.FileNotFound => {},

@@ -5,7 +5,7 @@ description: Build the abi CLI and benchmark the WDBX vector store (in-process i
 
 # wdbx-bench — benchmark the WDBX vector store
 
-Driver: **`.claude/skills/wdbx-bench/bench.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/wdbx-bench/bench.sh`** (paths relative to repo root).
 CLI/timing check — no GUI; evidence is the `RESULT:` line + the latency table.
 
 These are **local, in-memory** measurements — not a published throughput claim
@@ -16,8 +16,8 @@ These are **local, in-memory** measurements — not a published throughput claim
 
 ## Run (agent path)
 ```bash
-.claude/skills/wdbx-bench/bench.sh 50        # build CLI, run `abi wdbx benchmark 50`
-.claude/skills/wdbx-bench/bench.sh 50 --suite  # also run `zig build benchmarks`
+.agents/skills/wdbx-bench/bench.sh 50        # build CLI, run `abi wdbx benchmark 50`
+.agents/skills/wdbx-bench/bench.sh 50 --suite  # also run `zig build benchmarks`
 ```
 It builds the CLI, runs `abi wdbx benchmark <count>`, and asserts the markers
 `benchmark (local, in-memory`, `inserts:`, `searches:`. Prints

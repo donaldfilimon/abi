@@ -5,14 +5,14 @@ description: Build the abi CLI and smoke-test the one-shot scheduler surface —
 
 # scheduler-status — smoke the one-shot scheduler surface
 
-Driver: **`.claude/skills/scheduler-status/status.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/scheduler-status/status.sh`** (paths relative to repo root).
 Builds the CLI, runs `abi scheduler status`, and asserts the internal probe task
 ran to completion plus the Prometheus telemetry block. Evidence is the `RESULT:`
 line. Fully local — no state, no network.
 
 ## Run (agent path)
 ```bash
-.claude/skills/scheduler-status/status.sh
+.agents/skills/scheduler-status/status.sh
 ```
 Prints `RESULT: PASS` (exit 0) or `RESULT: FAIL` with the missing assertion (exit 1).
 

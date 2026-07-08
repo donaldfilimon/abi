@@ -1,5 +1,6 @@
 const std = @import("std");
 const io_stats = @import("stats.zig");
+const temp_path = @import("../temp_path.zig");
 
 pub const IOStats = io_stats.IOStats;
 
@@ -100,7 +101,7 @@ fn defaultIo() std.Io {
 }
 
 fn testPath(allocator: std.mem.Allocator, name: []const u8) ![]u8 {
-    return try std.fmt.allocPrint(allocator, "/tmp/{s}_{d}.txt", .{ name, std.c.getpid() });
+    return try temp_path.tempFilePath(allocator, name, "txt");
 }
 
 fn deleteFileForTest(path: []const u8) void {

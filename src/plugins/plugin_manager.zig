@@ -2,6 +2,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const sync = @import("../foundation/sync.zig");
 const plugin_validator = @import("../foundation/plugin_validator.zig");
+const temp_path = @import("../foundation/temp_path.zig");
 const telemetry = if (build_options.feat_telemetry) @import("../features/telemetry/mod.zig") else @import("../features/telemetry/stub.zig");
 const isSafeEntryPoint = plugin_validator.isSafeEntryPoint;
 
@@ -459,7 +460,11 @@ test "plugin manager rejects unsafe entry points" {
     try std.testing.expect(isSafeEntryPoint("mod.zig"));
     try std.testing.expect(isSafeEntryPoint("nested/mod.zig"));
     try std.testing.expect(!isSafeEntryPoint("../mod.zig"));
-    try std.testing.expect(!isSafeEntryPoint("/tmp/mod.zig"));
+    {
+        const abs_path = try temp_path.tempFilePath(std.testing.allocator, "test", "zig");
+        defer std.testing.allocator.free(abs_path);
+        try std.testing.expect(!isSafeEntryPoint(abs_path));
+    }
     try std.testing.expect(!isSafeEntryPoint("mod.so"));
 
     const manifest_json =

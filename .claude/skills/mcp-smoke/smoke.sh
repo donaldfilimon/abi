@@ -25,9 +25,11 @@ plugin_list
 wdbx_stats
 plugin_run'
 
+LOG=$(mktemp /tmp/abi-mcp-smoke.XXXXXX 2>/dev/null || mktemp -t abi-mcp-smoke)
+trap 'rm -f "$LOG"' EXIT
 echo "[1/3] building abi-mcp ..."
-if ! ./build.sh mcp >/tmp/mcp-smoke-build.log 2>&1; then
-  echo "RESULT: FAIL (build) — see /tmp/mcp-smoke-build.log"; exit 1
+if ! ./build.sh mcp >"$LOG" 2>&1; then
+  echo "RESULT: FAIL (build) — see $LOG"; exit 1
 fi
 BIN=zig-out/bin/abi-mcp
 [ -x "$BIN" ] || { echo "RESULT: FAIL (no binary at $BIN — build succeeds silently, verify with ls)"; exit 1; }

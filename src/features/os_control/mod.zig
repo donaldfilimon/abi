@@ -1,4 +1,5 @@
 const std = @import("std");
+const temp_path = @import("../../foundation/temp_path.zig");
 
 pub const CommandIntent = enum {
     read_only,
@@ -49,7 +50,7 @@ pub fn validateCommand(request: CommandRequest, policy: Policy) CommandResult {
     if (!pathsContained(request, policy.workspace_root)) return deny("command path is outside workspace");
 
     if (policy.dry_run_only or !policy.allow_execution) return .{ .decision = .allow_dry_run, .message = "dry-run allowed; execution disabled by policy" };
-    if (policy.allowed_commands.len == 0 or !contains(request.argv[0], policy.allowed_commands)) return deny("command is not in the execution allow-list");
+    if (policy.allowed_commands.len == 0 or !containsBareCommand(request.argv[0], policy.allowed_commands)) return deny("command is not in the execution allow-list");
     if (policy.require_confirmation and !request.confirm_execution) return deny("execution requires explicit confirmation");
 
     return .{ .decision = .allow_execute, .message = "execution allowed by explicit policy and confirmation" };
@@ -89,7 +90,7 @@ pub fn executeConfirmed(allocator: std.mem.Allocator, io: std.Io, request: Comma
     const term = try child.wait(io);
     return switch (term) {
         .exited => |code| .{ .decision = .allow_execute, .exit_code = code, .message = "command exited" },
-        else => .{ .decision = .allow_execute, .exit_code = null, .message = "command terminated without exit code" },
+        else => .{ .decision = .allow_execute, .exit_code = 1, .message = "command terminated without exit code" },
     };
 }
 
@@ -101,6 +102,14 @@ fn contains(command: []const u8, list: []const []const u8) bool {
     const base = std.fs.path.basename(command);
     for (list) |item| {
         if (std.mem.eql(u8, command, item) or std.mem.eql(u8, base, item)) return true;
+    }
+    return false;
+}
+
+fn containsBareCommand(command: []const u8, list: []const []const u8) bool {
+    if (!std.mem.eql(u8, command, std.fs.path.basename(command))) return false;
+    for (list) |item| {
+        if (std.mem.eql(u8, command, item)) return true;
     }
     return false;
 }
@@ -117,35 +126,93 @@ fn pathsContained(request: CommandRequest, workspace_root: []const u8) bool {
     for (request.argv[1..]) |arg| {
         if (arg.len == 0) continue;
         if (std.mem.indexOfScalar(u8, arg, 0) != null) return false;
-        if (std.fs.path.isAbsolute(arg) and !pathContained(arg, workspace_root)) return false;
+        if (!pathContained(arg, workspace_root)) return false;
     }
     return true;
 }
 
 fn pathContained(path: []const u8, workspace_root: []const u8) bool {
-    if (!std.fs.path.isAbsolute(path)) return true;
+    if (!std.fs.path.isAbsolute(path)) return !hasParentPathSegment(path);
     if (std.mem.eql(u8, path, workspace_root)) return true;
     if (!std.mem.startsWith(u8, path, workspace_root)) return false;
     return path.len > workspace_root.len and path[workspace_root.len] == std.fs.path.sep;
 }
 
+fn hasParentPathSegment(path: []const u8) bool {
+    var parts = std.mem.splitScalar(u8, path, std.fs.path.sep);
+    while (parts.next()) |part| {
+        if (std.mem.eql(u8, part, "..")) return true;
+    }
+    return false;
+}
+
 test "policy denies dangerous commands by default" {
-    const result = validateCommand(.{ .argv = &.{ "rm", "file" } }, .{ .workspace_root = "/tmp/work" });
+    const alloc = std.testing.allocator;
+    const tmp = try temp_path.getTempDir(alloc);
+    defer alloc.free(tmp);
+    const workspace_root = try std.fmt.allocPrint(alloc, "{s}/work", .{tmp});
+    defer alloc.free(workspace_root);
+    const result = validateCommand(.{ .argv = &.{ "rm", "file" } }, .{ .workspace_root = workspace_root });
     try std.testing.expectEqual(Decision.deny, result.decision);
 }
 
 test "policy allows dry-run by default" {
-    const result = validateCommand(.{ .argv = &.{ "ls", "src" } }, .{ .workspace_root = "/tmp/work" });
+    const alloc = std.testing.allocator;
+    const tmp = try temp_path.getTempDir(alloc);
+    defer alloc.free(tmp);
+    const workspace_root = try std.fmt.allocPrint(alloc, "{s}/work", .{tmp});
+    defer alloc.free(workspace_root);
+    const result = validateCommand(.{ .argv = &.{ "ls", "src" } }, .{ .workspace_root = workspace_root });
     try std.testing.expectEqual(Decision.allow_dry_run, result.decision);
 }
 
 test "execution requires allow-list and confirmation" {
+    const alloc = std.testing.allocator;
+    const tmp = try temp_path.getTempDir(alloc);
+    defer alloc.free(tmp);
+    const workspace_root = try std.fmt.allocPrint(alloc, "{s}/work", .{tmp});
+    defer alloc.free(workspace_root);
     const policy = Policy{
-        .workspace_root = "/tmp/work",
+        .workspace_root = workspace_root,
         .dry_run_only = false,
         .allow_execution = true,
         .allowed_commands = &.{"true"},
     };
     try std.testing.expectEqual(Decision.deny, validateCommand(.{ .argv = &.{"true"} }, policy).decision);
     try std.testing.expectEqual(Decision.allow_execute, validateCommand(.{ .argv = &.{"true"}, .confirm_execution = true }, policy).decision);
+}
+
+test "execution allow-list rejects path-qualified binaries" {
+    const alloc = std.testing.allocator;
+    const tmp = try temp_path.getTempDir(alloc);
+    defer alloc.free(tmp);
+    const workspace_root = try std.fmt.allocPrint(alloc, "{s}/work", .{tmp});
+    defer alloc.free(workspace_root);
+    const path_qualified = try std.fmt.allocPrint(alloc, "{s}/ls", .{tmp});
+    defer alloc.free(path_qualified);
+    const policy = Policy{
+        .workspace_root = workspace_root,
+        .dry_run_only = false,
+        .allow_execution = true,
+        .allowed_commands = &.{"ls"},
+    };
+    try std.testing.expectEqual(Decision.deny, validateCommand(.{ .argv = &.{path_qualified}, .confirm_execution = true }, policy).decision);
+    try std.testing.expectEqual(Decision.allow_execute, validateCommand(.{ .argv = &.{"ls"}, .confirm_execution = true }, policy).decision);
+}
+
+test "workspace containment rejects relative parent traversal" {
+    const alloc = std.testing.allocator;
+    const tmp = try temp_path.getTempDir(alloc);
+    defer alloc.free(tmp);
+    const workspace_root = try std.fmt.allocPrint(alloc, "{s}/work", .{tmp});
+    defer alloc.free(workspace_root);
+    const policy = Policy{
+        .workspace_root = workspace_root,
+        .dry_run_only = false,
+        .allow_execution = true,
+        .allowed_commands = &.{"ls"},
+    };
+    try std.testing.expectEqual(Decision.deny, validateCommand(.{ .argv = &.{ "ls", "../outside" }, .confirm_execution = true }, policy).decision);
+    try std.testing.expectEqual(Decision.deny, validateCommand(.{ .argv = &.{ "ls", "safe/../../outside" }, .confirm_execution = true }, policy).decision);
+    try std.testing.expectEqual(Decision.allow_execute, validateCommand(.{ .argv = &.{ "ls", "safe/path" }, .confirm_execution = true }, policy).decision);
 }

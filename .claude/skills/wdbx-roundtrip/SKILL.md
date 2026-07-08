@@ -5,15 +5,15 @@ description: Build the abi CLI and drive a full WDBX persistence round-trip on a
 
 # wdbx-roundtrip — drive abi's WDBX persistence lifecycle
 
-Driver: **`.claude/skills/wdbx-roundtrip/roundtrip.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/wdbx-roundtrip/roundtrip.sh`** (paths relative to repo root).
 Builds the CLI and runs the four-step store lifecycle against a scratch segment
 under `zig-out/` (created and removed by the driver). Evidence is the `RESULT:`
 line. Fully local, no network.
 
 ## Run (agent path)
 ```bash
-.claude/skills/wdbx-roundtrip/roundtrip.sh                          # profile=abi, default metadata
-.claude/skills/wdbx-roundtrip/roundtrip.sh aviva '{"note":"hi"}'    # custom profile / metadata JSON
+.agents/skills/wdbx-roundtrip/roundtrip.sh                          # profile=abi, default metadata
+.agents/skills/wdbx-roundtrip/roundtrip.sh aviva '{"note":"hi"}'    # custom profile / metadata JSON
 ```
 Steps and asserted markers:
 1. `wdbx db init <store>` → `initialized empty WDBX`

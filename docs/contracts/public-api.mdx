@@ -143,7 +143,7 @@ OpenAI and Anthropic connectors validate shared connector config and keep local 
 
 ## Credential storage contract
 
-`abi auth` persists provider credentials as local plaintext JSON at `~/.abi/credentials.json`. On POSIX-capable targets, the credential directory is created or repaired as owner-only (`0700`) and the credential file is opened/truncated with owner-only permissions (`0600`) before secret bytes are written; existing permissive files are tightened before overwrite. This is local filesystem hardening, not encryption, OS keychain storage, RBAC, or a regulatory-compliance claim.
+`abi auth` persists provider credentials as local plaintext JSON (resolved from `ABI_CREDENTIALS_PATH`, `XDG_CONFIG_HOME/abi/`, or `~/.abi/` as fallback). On POSIX-capable targets, the credential directory is created or repaired as owner-only (`0700`) and the credential file is opened/truncated with owner-only permissions (`0600`) before secret bytes are written; existing permissive files are tightened before overwrite. This is local filesystem hardening, not encryption, OS keychain storage, RBAC, or a regulatory-compliance claim.
 
 ## Validation gates
 

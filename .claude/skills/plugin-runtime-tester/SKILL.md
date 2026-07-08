@@ -5,12 +5,12 @@ description: Build the abi CLI, list the generated plugin registry, and execute 
 
 # plugin-runtime-tester — verify the plugin registry + run dispatch
 
-Driver: **`.claude/skills/plugin-runtime-tester/plugins.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/plugin-runtime-tester/plugins.sh`** (paths relative to repo root).
 Read-only CLI capture — evidence is the `RESULT:` line + per-plugin run output.
 
 ## Run (agent path)
 ```bash
-.claude/skills/plugin-runtime-tester/plugins.sh
+.agents/skills/plugin-runtime-tester/plugins.sh
 ```
 Builds the CLI, runs `abi plugin list`, executes a sample of plugins via
 `abi plugin run <name> probe` (asserting each returns its `event (bytes=…)`

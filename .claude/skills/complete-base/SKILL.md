@@ -5,14 +5,14 @@ description: 'Build the abi CLI and drive the base completion path — `abi comp
 
 # complete-base — drive abi's base local completion
 
-Driver: **`.claude/skills/complete-base/complete.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/complete-base/complete.sh`** (paths relative to repo root).
 Builds the CLI and drives `abi complete` on the base (local, non-learning) path.
 Evidence is the `RESULT:` line. Fully local, no network.
 
 ## Run (agent path)
 ```bash
-.claude/skills/complete-base/complete.sh                                  # default prompt, default model
-.claude/skills/complete-base/complete.sh "summarize backends" fable-5     # custom prompt + model alias
+.agents/skills/complete-base/complete.sh                                  # default prompt, default model
+.agents/skills/complete-base/complete.sh "summarize backends" fable-5     # custom prompt + model alias
 ```
 - `complete "<prompt>"` (or `complete --model <id> "<prompt>"`) → asserts
   `model=`, `audit_passed=true`, `persisted=true`, `wdbx kv_entries=`.

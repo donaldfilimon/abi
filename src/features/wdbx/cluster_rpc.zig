@@ -25,13 +25,13 @@ const std = @import("std");
 const cluster = @import("cluster.zig");
 const net_line = @import("net_line.zig");
 
+pub const VoteReply = cluster.VoteReply;
+pub const AppendReply = cluster.AppendReply;
+
 const Stream = std.Io.net.Stream;
 const Server = std.Io.net.Server;
 
 pub const RpcError = error{ MalformedRequest, MalformedResponse };
-
-pub const VoteReply = struct { granted: bool, term: u64 };
-pub const AppendReply = struct { ack: bool, term: u64 };
 
 pub const ClusterAuth = struct {
     token: ?[]const u8 = null,
@@ -125,36 +125,6 @@ fn parseRequest(line: []const u8, auth_supplied: *?[]const u8) !ParsedRequest {
     return .unknown;
 }
 
-/// Apply a RequestVote to `node` under standard Raft rules. Grants the vote when
-/// the candidate's term is not stale and the node has not already voted for a
-/// different candidate this term.
-pub fn applyVote(node: *cluster.Node, term: u64, candidate: u32) bool {
-    if (term < node.term) return false;
-    if (term > node.term) {
-        node.term = term;
-        node.voted_for = null;
-        node.role = .follower;
-    }
-    if (node.voted_for == null or node.voted_for == candidate) {
-        node.voted_for = candidate;
-        node.role = .follower;
-        return true;
-    }
-    return false;
-}
-
-/// Apply an AppendEntries to `node`: a non-stale term makes the node a follower
-/// and appends the (owned) entry to its log. Rejects a stale term.
-pub fn applyAppend(node: *cluster.Node, allocator: std.mem.Allocator, term: u64, data: []const u8) !bool {
-    if (term < node.term) return false;
-    node.term = term;
-    node.role = .follower;
-    const owned = try allocator.dupe(u8, data);
-    errdefer allocator.free(owned);
-    try node.log.append(allocator, .{ .term = term, .data = owned });
-    return true;
-}
-
 /// Bind a node endpoint on an explicit host address — the routable-cluster entry
 /// point. `host` accepts loopback ("127.0.0.1"), all-interfaces ("0.0.0.0" /
 /// "::"), or a specific routable IPv4/IPv6 address, so a node can be reached by
@@ -195,14 +165,14 @@ pub fn serveOnceAuth(io: std.Io, server: *Server, node: *cluster.Node, allocator
                 if (!authMatches(policy.auth, supplied) or !policy.allowsPeer(req.candidate)) {
                     break :blk try std.fmt.bufPrint(&resp_buf, "DENIED {d}\n", .{node.term});
                 }
-                const granted = applyVote(node, req.term, req.candidate);
+                const granted = cluster.applyVote(node, req.term, req.candidate);
                 break :blk try std.fmt.bufPrint(&resp_buf, "{s} {d}\n", .{ if (granted) "GRANTED" else "DENIED", node.term });
             },
             .append => |req| {
                 if (!authMatches(policy.auth, supplied) or (supplied != null and req.leader == null) or (policy.peers != null and (req.leader == null or !policy.allowsPeer(req.leader.?)))) {
                     break :blk try std.fmt.bufPrint(&resp_buf, "NACK {d}\n", .{node.term});
                 }
-                const ack = try applyAppend(node, allocator, req.term, req.data);
+                const ack = try cluster.applyAppend(node, allocator, req.term, req.data);
                 break :blk try std.fmt.bufPrint(&resp_buf, "{s} {d}\n", .{ if (ack) "ACK" else "NACK", node.term });
             },
             .unknown => break :blk "ERR 0\n",

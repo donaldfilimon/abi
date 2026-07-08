@@ -5,15 +5,15 @@ description: Build the abi CLI and drive the WDBX REST server end-to-end — sta
 
 # wdbx-api-serve — drive the WDBX REST server
 
-Driver: **`.claude/skills/wdbx-api-serve/serve.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/wdbx-api-serve/serve.sh`** (paths relative to repo root).
 Builds the CLI, launches the REST listener on `127.0.0.1`, exercises it with
 `curl`, and tears the server down (EXIT trap). Evidence is the `RESULT:` line.
 Fully local, loopback only.
 
 ## Run (agent path)
 ```bash
-.claude/skills/wdbx-api-serve/serve.sh        # default ports 8091 (no-auth) + 8092 (auth)
-.claude/skills/wdbx-api-serve/serve.sh 9100   # custom base port (uses 9100 + 9101)
+.agents/skills/wdbx-api-serve/serve.sh        # default ports 8091 (no-auth) + 8092 (auth)
+.agents/skills/wdbx-api-serve/serve.sh 9100   # custom base port (uses 9100 + 9101)
 ```
 - Launches `abi wdbx api serve <port>`, polls `GET /health` until up → asserts
   `{"status":"ok"}`.

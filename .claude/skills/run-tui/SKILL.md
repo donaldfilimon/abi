@@ -5,7 +5,7 @@ description: Build the abi CLI and drive the interactive diagnostics dashboard (
 
 # run-tui — drive abi's interactive diagnostics dashboard
 
-Driver: **`.claude/skills/run-tui/tui.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/run-tui/tui.sh`** (paths relative to repo root).
 `abi dashboard`/`tui`/`--tui` are interactive on a real TTY; this driver gives
 them a **tmux pty**, captures the rendered pane, asserts the dashboard painted,
 sends `q`, and kills the session. Evidence is the `RESULT:` line. Fully local.
@@ -15,8 +15,8 @@ sends `q`, and kills the session. Evidence is the `RESULT:` line. Fully local.
 
 ## Run (agent path)
 ```bash
-.claude/skills/run-tui/tui.sh              # drives `abi dashboard` (default)
-.claude/skills/run-tui/tui.sh tui          # drive `abi tui` instead
+.agents/skills/run-tui/tui.sh              # drives `abi dashboard` (default)
+.agents/skills/run-tui/tui.sh tui          # drive `abi tui` instead
 ```
 Launches the command under `tmux new-session` (200x50 pane), waits for paint,
 captures the pane, and asserts the `ABI Diagnostics Dashboard` marker is present

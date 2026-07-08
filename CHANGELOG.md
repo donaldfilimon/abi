@@ -6,6 +6,8 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- `src/foundation/temp_path.zig` — cross-platform `getTempDir()`/`tempFilePath()` helper; 30 hardcoded `/tmp/` references replaced across 13 foundation/feature/plugin/MCP files.
+
 - SEA typed memory taxonomy: `src/features/sea/types.zig` with `MemoryKind` (9 variants: note, user_preference, project_decision, code_fact, tool_output, benchmark, constraint, contradiction, summary) + `Authority` (5 rungs: inferred, user_stated, tool_verified, file_verified, system_pinned) enums with parse/text/score round-trip tests.
 - SEA multi-signal scorer: `src/features/sea/scorer.zig` with `SeaSignals` (8 orthogonal signals), `DEFAULT_SEA_WEIGHTS` (sums to 1.0), `seaScore()` weighted combiner (clamped to [0,1]), `adjustWeightsForTask()` for code_repair/project_recall/benchmark_review tuning, `selectSeaCandidates()` budgeted greedy selector with token/record-count/per-cluster budgets plus ≥0.92 high-score escape hatch, and `contextPack()` evidence renderer. 11 tests total.
 - AI IoT stream monitoring: `src/features/ai/iot_monitor.zig` with z-score anomaly detector using Welford's online mean/variance algorithm, configurable threshold, history clear/reset, and 4 tests.
@@ -29,6 +31,14 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Changed
 
+- XDG compliance: `credentials.zig` `getCredentialsPath()` now resolves via `ABI_CREDENTIALS_PATH` → `XDG_CONFIG_HOME/abi/` → `~/.abi/`; `durable_store.zig` `resolveConfig()` resolves via `ABI_WDBX_PATH` → `XDG_DATA_HOME/abi/wdbx` → `~/.abi/wdbx`.
+- `AGENTS.md` compacted 88→75 lines; stale doc references updated in `abi-threat-model.md`, `docs/contracts/public-api.mdx`, `docs/spec/abi-refactor-design.mdx`.
+- `CLAUDE.md` compacted 138→78 lines, `GEMINI.md` compacted 148→76 lines — removed per-command flag docs, AI subsystem internals, and full skill lists; matching AGENTS.md compact format. All three instruction files now share identical conventions sections.
+- `walkthrough.md` fixed 3 stale `/tmp/abi-demo.wdbx.jsonl` paths → `./abi-demo.wdbx.jsonl`.
+- Skill scripts: 6 stale `/tmp/<...>-build.log` hardcoded paths replaced with `mktemp` + `trap` cleanup in `scheduler-status/status.sh`, `dashboard-smoke/dashboard.sh`, `mcp-smoke/smoke.sh` (both `.agents/skills/` and `.claude/skills/`).
+- `src/core/scheduler.zig` fixed `catch null` → `catch "unknown"` on error-message OOM fallback.
+- `sync-clis/launch.sh` `REPO_ROOT` path corrected from `$SCRIPT_DIR/../..` → `$SCRIPT_DIR/../../..`.
+
 - Fixed 18 agent shell scripts in `.agents/skills/` that referenced stale `.claude/skills/` paths — all paths point to `.agents/skills/` now.
 - Fixed `complete-base/SKILL.md` model alias: `Codex-fable-5` → `claude-fable-5` (verified against `src/features/ai/models.zig`).
 - Bumped `skill-loop-cli` from `0.2.3` → `0.3.3` in `.mcp.json`.
@@ -38,6 +48,9 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Removed
 
+- Dead `PathConfig` struct removed from `src/core/config.zig` — 5 unused `/tmp/abi/*` default paths (`data_dir`/`cache_dir`/`log_dir`/`config_dir`/`plugin_dir`) and `paths` field on `Config` deleted; nothing read them.
+- `applyVote`/`applyAppend`/`VoteReply`/`AppendReply` moved from `cluster_rpc.zig` → `cluster.zig` (Raft state application rejoined with state machine; `cluster_rpc.zig` re-exports through `cluster.`).
+
 - Deleted stale `mcp/servers.json` (redundant duplicate of `.mcp.json`; no code references it).
 - Deleted `.agents/skills/.plugins-synced-from-central` stale marker.
 - Deleted dead `src/features/ai/plan.zig` (16-line noop: `parsePlan` returned `&.{}`, `formatPlanResponse` returned `"plan"`, neither called anywhere). Parity-synced `src/features/ai/mod.zig` (removed `pub const plan`/`PlanStep`/`parsePlan` re-exports) and `src/features/ai/stub.zig` (removed parity-matched `PlanStep`/`parsePlan`/`plan` block). `zig build check-parity` passes; no contract test referenced the removed names.
@@ -46,6 +59,12 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 - Deleted orphaned `tests/contracts/completion_persistence.zig` (referenced in earlier guard text but no longer imported by any test; removing it eliminates the `completion_persistence` symbol-set the prior `memory_record` guard asserted on, which the `kv=1, completion:<id> only` contract now makes unreachable).
 
 ### Changed (file splits + param bundling)
+
+- Wave-2 file extractions (5 splits + 1 relocation):
+  - `src/cli/dispatch.zig` → `suggest.zig`: edit-distance suggestion engine extracted (dispatch 473→341).
+  - `src/cli/registry.zig` → `completion.zig` + `help_json.zig`: shell completion scripts and JSON help metadata extracted (registry 1,033→646).
+  - `src/features/tui/mod.zig` → `dashboard.zig`: dashboard rendering and all pane-layout helpers extracted (mod 636→153); `mod.zig` is now a pure re-export hub for 5 submodules (repl/types/sanitize/terminal/dashboard).
+  - `src/cli/handlers/dashboard.zig` → `dashboard_json.zig`: JSON serialization and pane-list writer extracted (dashboard 824→485).
 
 - Split four large source files into focused siblings, preserving all public APIs:
   - `src/mcp/server.zig` → `stdio_transport.zig` + `http_transport.zig` (server.zig is now a thin re-export shim).

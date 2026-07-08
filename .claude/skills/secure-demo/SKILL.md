@@ -5,12 +5,12 @@ description: Build the abi CLI and run the WDBX security demo — int8 embedding
 
 # secure-demo — drive WDBX compression + homomorphic-encryption demo
 
-Driver: **`.claude/skills/secure-demo/secure.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/secure-demo/secure.sh`** (paths relative to repo root).
 Read-only CLI capture — evidence is the `RESULT:` line + the per-section output.
 
 ## Run (agent path)
 ```bash
-.claude/skills/secure-demo/secure.sh
+.agents/skills/secure-demo/secure.sh
 ```
 Builds the CLI, runs `abi wdbx secure demo`, and asserts `compression:`,
 `additive HE:`, `homomorphic eval:`, and `match=true`. Prints `RESULT: PASS`

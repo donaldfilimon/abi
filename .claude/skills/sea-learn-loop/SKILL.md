@@ -5,7 +5,7 @@ description: Build the abi CLI and exercise the SEA (Sparse Evidence Attention) 
 
 # sea-learn-loop — exercise the SEA self-learning completion
 
-Driver: **`.claude/skills/sea-learn-loop/learn.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/sea-learn-loop/learn.sh`** (paths relative to repo root).
 CLI check — evidence is the `RESULT:` line + the `learn=…` status line.
 
 `feat-sea` defaults **ON** with the rest of the `-Dfeat-*` flags. The default
@@ -18,9 +18,9 @@ want to force `-Dfeat-sea=true` explicitly while debugging feature flags.
 
 ## Run (agent path)
 ```bash
-.claude/skills/sea-learn-loop/learn.sh                       # default SEA-on path
-.claude/skills/sea-learn-loop/learn.sh "my custom prompt"    # custom input
-.claude/skills/sea-learn-loop/learn.sh --sea                 # explicitly pass -Dfeat-sea=true
+.agents/skills/sea-learn-loop/learn.sh                       # default SEA-on path
+.agents/skills/sea-learn-loop/learn.sh "my custom prompt"    # custom input
+.agents/skills/sea-learn-loop/learn.sh --sea                 # explicitly pass -Dfeat-sea=true
 ```
 It builds the CLI, runs `abi complete --learn "<input>"`, and asserts the
 markers `learn=true`, `model=`, `evidence_count=` (plus a soft `persisted=true`

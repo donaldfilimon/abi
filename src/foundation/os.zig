@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const env = @import("env.zig");
+const temp_path = @import("temp_path.zig");
 
 pub const Limits = struct {
     max_memory_mb: u32 = 1024,
@@ -249,7 +250,7 @@ test "OSController getCwd" {
 test "OSController writeFile and readPath" {
     var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
-    const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_os_test_{d}.txt", .{controller.getPid()});
+    const test_path = try temp_path.tempFilePath(std.testing.allocator, "abi_os_test", "txt");
     defer std.testing.allocator.free(test_path);
     const test_content = "hello from abi os controller";
 
@@ -265,7 +266,7 @@ test "OSController writeFile and readPath" {
 test "OSController statFile" {
     var controller = OSController.init(std.testing.allocator, std.Options.debug_io);
 
-    const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_os_stat_test_{d}.txt", .{controller.getPid()});
+    const test_path = try temp_path.tempFilePath(std.testing.allocator, "abi_os_stat_test", "txt");
     defer std.testing.allocator.free(test_path);
     const test_content = "stat test content";
 

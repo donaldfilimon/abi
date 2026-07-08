@@ -1,4 +1,5 @@
 const std = @import("std");
+const temp_path = @import("temp_path.zig");
 
 pub fn validatePluginStructure(allocator: std.mem.Allocator, plugin_path: []const u8) !bool {
     const io = std.Options.debug_io;
@@ -37,7 +38,12 @@ test {
 }
 
 test "validatePluginStructure rejects missing directory" {
-    try std.testing.expectError(error.FileNotFound, validatePluginStructure(std.testing.allocator, "/tmp/nonexistent_plugin_dir_abc123"));
+    const alloc = std.testing.allocator;
+    const tmp = try temp_path.getTempDir(alloc);
+    defer alloc.free(tmp);
+    const missing = try std.fmt.allocPrint(alloc, "{s}/abi_nonexistent_plugin_abc123", .{tmp});
+    defer alloc.free(missing);
+    try std.testing.expectError(error.FileNotFound, validatePluginStructure(alloc, missing));
 }
 
 test "validatePluginStructure accepts bundled plugin fixtures" {
@@ -50,8 +56,11 @@ test "validatePluginStructure accepts bundled plugin fixtures" {
 }
 
 test "validatePluginStructure rejects unsafe manifests" {
-    const fixture_dir = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_plugin_validator_unsafe_{d}", .{std.c.getpid()});
-    defer std.testing.allocator.free(fixture_dir);
+    const alloc = std.testing.allocator;
+    const tmp = try temp_path.getTempDir(alloc);
+    defer alloc.free(tmp);
+    const fixture_dir = try std.fmt.allocPrint(alloc, "{s}/abi_plugin_validator_unsafe_{d}", .{ tmp, std.c.getpid() });
+    defer alloc.free(fixture_dir);
     try resetPluginFixture(fixture_dir);
     defer cleanupPluginFixture(fixture_dir);
 
@@ -75,8 +84,11 @@ test "validatePluginStructure rejects unsafe manifests" {
 }
 
 test "validatePluginStructure accepts camelCase aliases and nested entry" {
-    const fixture_dir = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_plugin_validator_nested_{d}", .{std.c.getpid()});
-    defer std.testing.allocator.free(fixture_dir);
+    const alloc = std.testing.allocator;
+    const tmp = try temp_path.getTempDir(alloc);
+    defer alloc.free(tmp);
+    const fixture_dir = try std.fmt.allocPrint(alloc, "{s}/abi_plugin_validator_nested_{d}", .{ tmp, std.c.getpid() });
+    defer alloc.free(fixture_dir);
     try resetPluginFixture(fixture_dir);
     defer cleanupPluginFixture(fixture_dir);
 

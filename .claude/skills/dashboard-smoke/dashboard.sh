@@ -12,9 +12,11 @@ set -uo pipefail
 cd "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || {
   echo "RESULT: FAIL (run from inside the abi repo)"; exit 1; }
 
+LOG=$(mktemp /tmp/abi-dashboard-smoke.XXXXXX 2>/dev/null || mktemp -t abi-dashboard-smoke)
+trap 'rm -f "$LOG"' EXIT
 echo "[1/3] building abi CLI ..."
-if ! ./build.sh cli >/tmp/dashboard-smoke-build.log 2>&1; then
-  echo "RESULT: FAIL (build) — see /tmp/dashboard-smoke-build.log"; exit 1
+if ! ./build.sh cli >"$LOG" 2>&1; then
+  echo "RESULT: FAIL (build) — see $LOG"; exit 1
 fi
 BIN=zig-out/bin/abi
 [ -x "$BIN" ] || { echo "RESULT: FAIL (no binary at $BIN — build is near-silent, verify with ls)"; exit 1; }

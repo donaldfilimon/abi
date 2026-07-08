@@ -19,7 +19,7 @@ mismatch. It does not change your toolchain for you.
 
 ## Driver
 
-Run `.claude/skills/zig-pin/pin.sh` for a one-shot check of active vs. pinned
+Run `.agents/skills/zig-pin/pin.sh` for a one-shot check of active vs. pinned
 toolchain. Exit 0 = match, exit 2 = mismatch with fix instructions.
 
 ## Steps (manual)
@@ -53,5 +53,5 @@ toolchain. Exit 0 = match, exit 2 = mismatch with fix instructions.
 - The pin string is the **full** dev-build identifier including the
   `+<hash>` suffix; compare it exactly, since two `0.17.0-dev.*` builds with
   different revision numbers are not interchangeable.
-- Reference: the toolchain section at the top of `CLAUDE.md` / `AGENTS.md` /
+- Reference: the toolchain section at the top of `AGENTS.md` / `AGENTS.md` /
   `GEMINI.md`.

@@ -5,14 +5,14 @@ description: Run the opt-in cross-target compile smoke for the abi CLI — compi
 
 # cross-compile-check — verify abi cross-compiles
 
-Driver: **`.claude/skills/cross-compile-check/cross.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/cross-compile-check/cross.sh`** (paths relative to repo root).
 Compile-check — evidence is the `RESULT:` line + per-target output. Opt-in and
 **slow** (each target is a fresh cross compile); not part of `./build.sh check`.
 
 ## Run (agent path)
 ```bash
-.claude/skills/cross-compile-check/cross.sh                      # default target set
-.claude/skills/cross-compile-check/cross.sh aarch64-linux-gnu    # specific target(s)
+.agents/skills/cross-compile-check/cross.sh                      # default target set
+.agents/skills/cross-compile-check/cross.sh aarch64-linux-gnu    # specific target(s)
 ```
 Runs `zig build cross-smoke` (default set: `x86_64-linux-gnu`,
 `x86_64-windows-gnu`, `aarch64-macos`) and asserts `all targets compiled +

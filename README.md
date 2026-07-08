@@ -32,7 +32,7 @@ Build the CLI, then exercise the local surfaces without live network credentials
 ./zig-out/bin/abi wdbx db compact zig-out/local-memory.jsonl 2
 ./zig-out/bin/abi wdbx benchmark 256          # local insert/query timing with P50/P95/P99
 ./zig-out/bin/abi wdbx compute info           # CPU/GPU/NPU/TPU backends, ANE detection, remote-dispatch endpoint
-./zig-out/bin/abi wdbx secure demo            # int8 + autoencoder compression; additive + DGHV (add/multiply) homomorphic encryption
+./zig-out/bin/abi wdbx secure demo            # int8 + autoencoder compression; additive HE + DGHV add/multiply SHE demos
 ./zig-out/bin/abi wdbx cluster serve 8090     # networked consensus RPC node endpoint (loopback; set ABI_WDBX_CLUSTER_TOKEN for non-loopback)
 ```
 

@@ -1,6 +1,7 @@
 const std = @import("std");
 const foundation_io = @import("../../foundation/io/mod.zig");
 const core_memory = @import("../../core/memory.zig");
+const temp_path = @import("../../foundation/temp_path.zig");
 const helpers = @import("helpers.zig");
 const types = @import("types.zig");
 
@@ -116,7 +117,7 @@ test "dataset record counting handles jsonl and surfaces malformed lines" {
 
 test "inspectDatasetTracked accounts read and JSON parse transients" {
     const allocator = std.testing.allocator;
-    const path = try std.fmt.allocPrint(allocator, "/tmp/abi_training_support_tracker_{d}.jsonl", .{std.c.getpid()});
+    const path = try temp_path.tempFilePath(allocator, "abi_training_support_tracker", "jsonl");
     defer allocator.free(path);
     defer std.Io.Dir.deleteFileAbsolute(std.testing.io, path) catch |err| switch (err) {
         error.FileNotFound => {},

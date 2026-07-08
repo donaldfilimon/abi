@@ -5,14 +5,14 @@ description: Build the abi MCP server and smoke-test its JSON-RPC tool surface �
 
 # mcp-smoke — assert the MCP server's 12-tool contract
 
-Driver: **`.claude/skills/mcp-smoke/smoke.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/mcp-smoke/smoke.sh`** (paths relative to repo root).
 Builds `abi-mcp`, sends one JSON-RPC `tools/list` over the **stdio** transport,
 extracts the tool names, and asserts they exactly match the frozen 12-tool set.
 Evidence is the `RESULT:` line. Fully local — no network dispatch.
 
 ## Run (agent path)
 ```bash
-.claude/skills/mcp-smoke/smoke.sh
+.agents/skills/mcp-smoke/smoke.sh
 ```
 Prints `RESULT: PASS — 12/12 frozen MCP tools present` (exit 0) or `RESULT: FAIL`
 with a `diff` of expected-vs-got tool names (exit 1).
@@ -42,7 +42,7 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./zig-out/bin/a
   http://127.0.0.1:8080` — the loopback HTTP listener always starts; the
   JSON-RPC reply you want is on **stdout**. The driver drops stderr with `2>/dev/null`.
 - Request cap is 64 KB; `ABI_MCP_HTTP_TOKEN` gates the HTTP/SSE transport only —
-  stdio JSON-RPC stays tokenless local IPC (see CLAUDE.md).
+  stdio JSON-RPC stays tokenless local IPC (see AGENTS.md).
 
 ## Troubleshooting
 | Symptom | Fix |
@@ -50,7 +50,7 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./zig-out/bin/a
 | `build` FAIL | Check `zig version` (see `/zig-pin`), then `./build.sh check`. |
 | empty response | You piped to the HTTP framing or forgot the trailing `\n`; use the one-liner above. |
 | got 13 tools | You counted bare `"name":`; count `"name":"…"` values or use `jq` (see Gotchas). |
-| tool set mismatch | A tool was added/removed/renamed — reconcile `src/mcp/handlers.zig` with the frozen list in CLAUDE.md and `tests/contracts/surface.zig`, then run `zig build test-mcp-contracts`. |
+| tool set mismatch | A tool was added/removed/renamed — reconcile `src/mcp/handlers.zig` with the frozen list in AGENTS.md and `tests/contracts/surface.zig`, then run `zig build test-mcp-contracts`. |
 
 Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — `tools/list` over
 stdio returns exactly the 12 frozen tools. For source-level MCP contract review use

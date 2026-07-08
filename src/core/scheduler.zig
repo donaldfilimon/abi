@@ -180,7 +180,7 @@ pub const Scheduler = struct {
                 if (t.id == task_id) {
                     t.status = .failed;
                     t.completed_at = time.unixMs();
-                    t.error_msg = self.allocator.dupe(u8, @errorName(err)) catch null;
+                    t.error_msg = self.allocator.dupe(u8, @errorName(err)) catch "unknown";
                 }
             }
             _ = self.running_count.fetchSub(1, .monotonic);

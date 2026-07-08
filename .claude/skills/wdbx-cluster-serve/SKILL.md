@@ -5,7 +5,7 @@ description: Build the abi CLI and run a networked WDBX consensus node (`abi wdb
 
 # wdbx-cluster-serve — run the networked WDBX consensus node
 
-Driver: **`.claude/skills/wdbx-cluster-serve/cluster-serve.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/wdbx-cluster-serve/cluster-serve.sh`** (paths relative to repo root).
 Server-type check — background-launch, poll for readiness, assert, kill. Evidence is the `RESULT:` line.
 
 This is the **networked** consensus node (`cluster_rpc` TCP transport: RequestVote/AppendEntries),
@@ -18,8 +18,8 @@ single-node `cluster status`. Loopback-only by design.
 
 ## Run (agent path)
 ```bash
-.claude/skills/wdbx-cluster-serve/cluster-serve.sh          # serve on 127.0.0.1:8092
-.claude/skills/wdbx-cluster-serve/cluster-serve.sh 8095     # override the port
+.agents/skills/wdbx-cluster-serve/cluster-serve.sh          # serve on 127.0.0.1:8092
+.agents/skills/wdbx-cluster-serve/cluster-serve.sh 8095     # override the port
 ```
 It builds the CLI, launches `abi wdbx cluster serve <port>` in the background, and asserts the
 readiness marker `serving consensus RPC on 127.0.0.1:<port>` (printed to stderr before the accept

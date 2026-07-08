@@ -11,7 +11,7 @@ it switches the active toolchain to the **current Zig master** via `zvm`,
 rebuilds the real binaries, and proves abi still compiles and runs against
 bleeding-edge `std` — surfacing forward API drift the pin would otherwise hide.
 
-Driver: **`.claude/skills/zig-newest-skills/zig-master-check.sh`** (paths below
+Driver: **`.agents/skills/zig-newest-skills/zig-master-check.sh`** (paths below
 are relative to the repo root). It's a CLI/toolchain check — no GUI, no
 screenshots; evidence is exit codes + the `RESULT:` line.
 
@@ -24,7 +24,7 @@ screenshots; evidence is exit codes + the `RESULT:` line.
 
 ```bash
 # From the repo root. Selects master (installs it if absent), then runs all gates.
-.claude/skills/zig-newest-skills/zig-master-check.sh
+.agents/skills/zig-newest-skills/zig-master-check.sh
 ```
 
 What it does, cheapest gate first: `zvm use master` → `zig build check-parity`
@@ -39,9 +39,9 @@ Historical verification on master `0.17.0-dev.1099+7db2ef610` (pin is `978`):
 Flags:
 
 ```bash
-.claude/skills/zig-newest-skills/zig-master-check.sh --update   # re-fetch latest master nightly first
-.claude/skills/zig-newest-skills/zig-master-check.sh --smoke    # also run the full run-abi smoke (CLI + WDBX + MCP stdio)
-.claude/skills/zig-newest-skills/zig-master-check.sh --revert   # switch back to the .zigversion pin, then exit
+.agents/skills/zig-newest-skills/zig-master-check.sh --update   # re-fetch latest master nightly first
+.agents/skills/zig-newest-skills/zig-master-check.sh --smoke    # also run the full run-abi smoke (CLI + WDBX + MCP stdio)
+.agents/skills/zig-newest-skills/zig-master-check.sh --revert   # switch back to the .zigversion pin, then exit
 ```
 
 `--smoke` chains the sibling `run-abi/smoke.sh` harness (13 checks: CLI

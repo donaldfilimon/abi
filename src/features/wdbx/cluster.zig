@@ -16,6 +16,16 @@ pub const LogEntry = struct {
     data: []const u8,
 };
 
+pub const VoteReply = struct {
+    granted: bool,
+    term: u64,
+};
+
+pub const AppendReply = struct {
+    ack: bool,
+    term: u64,
+};
+
 pub const Node = struct {
     id: u32,
     term: u64 = 0,
@@ -183,6 +193,36 @@ pub const Cluster = struct {
         );
     }
 };
+
+/// Apply a RequestVote to `node` under standard Raft rules. Grants the vote when
+/// the candidate's term is not stale and the node has not already voted for a
+/// different candidate this term.
+pub fn applyVote(node: *Node, term: u64, candidate: u32) bool {
+    if (term < node.term) return false;
+    if (term > node.term) {
+        node.term = term;
+        node.voted_for = null;
+        node.role = .follower;
+    }
+    if (node.voted_for == null or node.voted_for == candidate) {
+        node.voted_for = candidate;
+        node.role = .follower;
+        return true;
+    }
+    return false;
+}
+
+/// Apply an AppendEntries to `node`: a non-stale term makes the node a follower
+/// and appends the (owned) entry to its log. Rejects a stale term.
+pub fn applyAppend(node: *Node, allocator: std.mem.Allocator, term: u64, data: []const u8) !bool {
+    if (term < node.term) return false;
+    node.term = term;
+    node.role = .follower;
+    const owned = try allocator.dupe(u8, data);
+    errdefer allocator.free(owned);
+    try node.log.append(allocator, .{ .term = term, .data = owned });
+    return true;
+}
 
 test "cluster: single leader elected with quorum" {
     var c = try Cluster.init(std.testing.allocator, 3);

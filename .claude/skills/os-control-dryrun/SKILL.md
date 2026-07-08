@@ -5,13 +5,13 @@ description: Build the abi CLI and exercise the OS-control policy in dry-run (pl
 
 # os-control-dryrun — safely drive abi's OS-control planning
 
-Driver: **`.claude/skills/os-control-dryrun/dryrun.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/os-control-dryrun/dryrun.sh`** (paths relative to repo root).
 Read-only-effect CLI check — evidence is the `RESULT:` line. **Nothing is executed.**
 
 ## Run (agent path)
 ```bash
-.claude/skills/os-control-dryrun/dryrun.sh                       # default plan
-.claude/skills/os-control-dryrun/dryrun.sh "restart the cache"   # custom plan text
+.agents/skills/os-control-dryrun/dryrun.sh                       # default plan
+.agents/skills/os-control-dryrun/dryrun.sh "restart the cache"   # custom plan text
 ```
 Builds the CLI, runs `abi agent os dry-run "<plan>"` (asserts the `dry-run:`
 marker), then asserts `abi agent os execute` **without** `--confirm` is refused

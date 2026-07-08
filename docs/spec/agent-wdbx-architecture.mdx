@@ -195,7 +195,7 @@ Plugins are generated from `src/plugins/*/abi-plugin.json` by `tools/generate_pl
 | `src/root.zig` | Public `abi` module re-export boundary. |
 | `src/main.zig` | CLI entrypoint and `--tui` shortcut handling. |
 | `src/cli/usage.zig`, `src/cli/registry.zig` | Frozen CLI command metadata and dispatch wiring. |
-| `src/mcp/main.zig`, `src/mcp/handlers.zig`, `src/mcp/server.zig` | MCP runtime, tool catalog, stdio/loopback HTTP handling. |
+| `src/mcp/main.zig`, `src/mcp/handlers.zig`, `src/mcp/stdio_transport.zig`, `src/mcp/http_transport.zig`, `src/mcp/server.zig` | MCP runtime, tool catalog, stdio transport, loopback HTTP/SSE transport, and server re-export facade. |
 | `src/features/mod.zig` | Comptime feature selector for real `mod.zig` vs disabled `stub.zig`. |
 | `src/features/ai/completion.zig` | Completion, audit telemetry, scheduler/store integration, and metadata keys. |
 | `src/features/ai/router.zig` | Abbey/Aviva/Abi routing and adaptive modulator state. |

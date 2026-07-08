@@ -5,7 +5,7 @@ description: Build the abi CLI and non-interactively smoke the diagnostics dashb
 
 # dashboard-smoke — non-interactive one-shot dashboard render
 
-Driver: **`.claude/skills/dashboard-smoke/dashboard.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/dashboard-smoke/dashboard.sh`** (paths relative to repo root).
 Builds the CLI, renders the operational diagnostics dashboard once with a non-TTY stdin, and
 asserts exit 0 + all five panels. Evidence is the `RESULT:` line. This is the
 headless/CI counterpart to **run-tui**, which drives the *interactive* dashboard
@@ -13,7 +13,7 @@ through a tmux pty.
 
 ## Run (agent path)
 ```bash
-.claude/skills/dashboard-smoke/dashboard.sh
+.agents/skills/dashboard-smoke/dashboard.sh
 ```
 Prints `RESULT: PASS` (exit 0) or `RESULT: FAIL` with the missing panel/assertion.
 

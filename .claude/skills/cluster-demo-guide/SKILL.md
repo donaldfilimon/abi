@@ -5,13 +5,13 @@ description: Build the abi CLI and run the in-process WDBX Raft-style consensus 
 
 # cluster-demo-guide — drive the WDBX consensus demo
 
-Driver: **`.claude/skills/cluster-demo-guide/cluster.sh`** (paths relative to repo root).
+Driver: **`.agents/skills/cluster-demo-guide/cluster.sh`** (paths relative to repo root).
 Read-only CLI capture — evidence is the `RESULT:` line + the election/replication trace.
 
 ## Run (agent path)
 ```bash
-.claude/skills/cluster-demo-guide/cluster.sh        # 3 nodes (default)
-.claude/skills/cluster-demo-guide/cluster.sh 5      # N nodes
+.agents/skills/cluster-demo-guide/cluster.sh        # 3 nodes (default)
+.agents/skills/cluster-demo-guide/cluster.sh 5      # N nodes
 ```
 Builds the CLI, runs `abi wdbx cluster status` and `abi wdbx cluster demo <n>`,
 and asserts `leader_elected=true`, `replicate(`, and `re-election`. Prints

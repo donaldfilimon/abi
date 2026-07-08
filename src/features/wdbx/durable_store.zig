@@ -62,6 +62,11 @@ pub fn resolveConfig(allocator: std.mem.Allocator) !Config {
         if (std.mem.eql(u8, p, MEMORY_SENTINEL)) return .{ .base_path = null };
         return .{ .base_path = try allocator.dupe(u8, p) };
     }
+    if (builtin.target.os.tag != .windows) {
+        if (env.get("XDG_DATA_HOME")) |xdg| {
+            return .{ .base_path = try std.fmt.allocPrint(allocator, "{s}/abi/wdbx", .{xdg}) };
+        }
+    }
     const home = env.get(HOME_VAR) orelse return .{ .base_path = null };
     return .{ .base_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ home, DEFAULT_SUBPATH }) };
 }
