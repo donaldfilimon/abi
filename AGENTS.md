@@ -7,7 +7,7 @@
 - Run `./build.sh check` before and after changes.
 
 ## Commands That Matter
-- Toolchain **pinned** by `.zigversion` to `0.17.0-dev.978+a078d55a2`. `build.sh`/`tools/build.sh` invoke whatever `zig` is on PATH — they do **not** switch. Zig 0.16 fails on WDBX/MCP listeners.
+- Toolchain **pinned** by `.zigversion` to `0.17.0-dev.1252+e4b325c19`. `build.sh`/`tools/build.sh` invoke whatever `zig` is on PATH — they do **not** switch. Zig 0.16 fails on WDBX/MCP listeners.
 - On macOS: `./build.sh` — Metal linking + documented workflow; plain `zig build` works but bypasses the wrapper.
 - Primary gate: `./build.sh check` (build both exes, all tests, lint, parity, feature-off stubs, CLI contract smoke).
 - Full gate: `./build.sh full-check` (adds integration, benchmarks, dashboard smoke).

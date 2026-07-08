@@ -6,7 +6,7 @@ Three sibling instruction files share repo conventions — `AGENTS.md`, `CLAUDE.
 
 ## Toolchain
 
-Pinned by `.zigversion` to `0.17.0-dev.978+a078d55a2`. `build.sh`/`tools/build.sh` invoke whatever `zig` is on PATH — they do **not** switch. Zig 0.16 fails on WDBX/MCP listeners. On macOS: `./build.sh ...` for the documented Metal-linking workflow.
+Pinned by `.zigversion` to `0.17.0-dev.1252+e4b325c19`. `build.sh`/`tools/build.sh` invoke whatever `zig` is on PATH — they do **not** switch. Zig 0.16 fails on WDBX/MCP listeners. On macOS: `./build.sh ...` for the documented Metal-linking workflow.
 
 ## Commands
 
