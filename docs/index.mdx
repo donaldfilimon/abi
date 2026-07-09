@@ -3,39 +3,75 @@ title: "ABI Framework Documentation Hub"
 description: "Welcome to the ABI framework documentation. This hub provides central access to architecture, onboarding, and development guides for the ABI multi-AI…"
 ---
 
-Welcome to the ABI framework documentation. This hub provides central access to architecture, onboarding, and development guides for the ABI multi-AI orchestration system.
+Welcome to the ABI multi-AI orchestration framework documentation. ABI is implemented in Zig 0.17; this hub points at contracts, architecture specs, and build guides without re-stating frozen CLI or MCP surfaces.
 
-> **Source wins.** When docs disagree with `build.zig`, `src/cli/usage.zig`, `src/mcp/handlers.zig`, or `tests/contracts/`, trust the executable sources and `./build.sh check`. Public claim boundaries: [External Claims Audit](contracts/external-claims-audit.mdx).
+<Note type="warning">
+  **Source wins.** When docs disagree with `build.zig`, `src/cli/usage.zig`,
+  `src/mcp/handlers.zig`, or `tests/contracts/`, trust the executable sources
+  and `./build.sh check`. Claim boundaries:
+  [External Claims Audit](contracts/external-claims-audit).
+</Note>
 
-## Architecture
-- [ABI Refactor Design](spec/abi-refactor-design.mdx)
-- [ABI Agent and WDBX Architecture](spec/agent-wdbx-architecture.mdx)
-- [Multi-Persona Technical Overview](spec/multi-persona-technical.mdx)
-- [WDBX North-Star (vision/roadmap — Current vs. Proposed)](spec/wdbx-north-star.mdx)
-- [Public API Contract](contracts/public-api.mdx)
-- [External Claims Audit](contracts/external-claims-audit.mdx)
-- [SEA Design Extract (PARTIAL / DESIGN REFERENCE)](spec/sea-design-extract.mdx)
-- [WDBX (Rust) Capability Extract (PARTIAL / DESIGN REFERENCE)](spec/wdbx-rust-capability-extract.mdx)
+## Contracts
 
-## Project Metadata
-- [AGENTS.md](../AGENTS.md)
-- [CLAUDE.md](../CLAUDE.md)
-- [GEMINI.md](../GEMINI.md)
-- [CHANGELOG.md](../CHANGELOG.md)
+Frozen public surfaces and honest external wording. Prefer these over re-listing CLI commands or MCP tools here.
 
-## Current Build And Runtime Guides
-- [README.md](../README.md) for quick-start commands and current validation status.
-- [walkthrough.md](../walkthrough.md) for CLI, MCP, GPU, TUI, and verification examples.
+<CardGroup cols={2}>
+  <Card title="Public API Contract" href="contracts/public-api">
+    Frozen CLI + MCP surfaces and honest wording.
+  </Card>
+  <Card title="External Claims Audit" href="contracts/external-claims-audit">
+    What public collateral may and may not claim.
+  </Card>
+</CardGroup>
 
-On macOS/Darwin, prefer `./build.sh ...` for project validation even when plain `zig build` works locally. Use `./build.sh full-check` for the complete local gate: `check`, integration tests, benchmarks, dashboard smoke, and `agent tui` line-mode smoke.
+## Architecture / roadmap
 
-Key executable contracts live in `tests/contracts/` and cover root/feature namespaces, CLI/MCP surfaces, MCP tool result shapes, generated multi-plugin registry metadata, public-doc claim boundaries, and WDBX search/block snapshot behavior. `tools/check_feature_stubs.sh` covers every feature-off stub with focused feature contracts, feature-aware public contracts, and real-mobile smoke coverage.
+Design and north-star docs for agents, WDBX, and multi-persona routing.
 
-## Historical / archived (not active contracts)
+<CardGroup cols={2}>
+  <Card title="WDBX North-Star" href="spec/wdbx-north-star">
+    Vision and roadmap — Current vs. Proposed.
+  </Card>
+  <Card title="Agent and WDBX Architecture" href="spec/agent-wdbx-architecture">
+    Agent runtime and WDBX integration architecture.
+  </Card>
+  <Card title="ABI Refactor Design" href="spec/abi-refactor-design">
+    Refactor design and module boundaries.
+  </Card>
+  <Card title="Multi-Persona Technical Overview" href="spec/multi-persona-technical">
+    Multi-persona routing and technical overview.
+  </Card>
+</CardGroup>
+
+## Partial design extracts
+
+Labeled **PARTIAL** — design reference only, not active contracts.
+
+<CardGroup cols={2}>
+  <Card title="SEA Design Extract (PARTIAL)" href="spec/sea-design-extract">
+    Design reference for evidence-augmented self-learning (SEA).
+  </Card>
+  <Card title="WDBX (Rust) Capability Extract (PARTIAL)" href="spec/wdbx-rust-capability-extract">
+    Design reference extract; not a claim of a Rust implementation in-tree.
+  </Card>
+</CardGroup>
+
+## Build
+
+For quick-start commands and current validation status, see [README.md](../README.md). For CLI, MCP, GPU, TUI, and verification examples, see [walkthrough.md](../walkthrough.md).
+
+On macOS/Darwin, prefer `./build.sh ...` for project validation even when plain `zig build` works locally. Primary gate: `./build.sh check`. Full local gate: `./build.sh full-check` (check plus integration tests, benchmarks, and dashboard smoke).
+
+## Instruction files
+
+- [AGENTS.md](../AGENTS.md) — canonical agent instructions
+- [CLAUDE.md](../CLAUDE.md) — Claude-oriented conventions
+- [GEMINI.md](../GEMINI.md) — Gemini-oriented conventions
+- [CHANGELOG.md](../CHANGELOG.md) — release notes
+
+## Historical / archived
 
 Superpowers-era plans and the master spec live under `superpowers/archive/` for context only. They are **not** listed in Mintlify `docs.json` navigation and are not sources of truth. Prefer `docs/spec/*.mdx`, `docs/contracts/*.mdx`, and executable sources.
 
-- [ABI Master Specification (archived)](superpowers/archive/specs/ABI-MASTER-SPEC.md)
-- [Archive index](superpowers/archive/README.md)
-
-*For any issues or questions, please refer to the project's issue tracker or consult the primary maintainers.*
+See the [archive index](superpowers/archive/README.md).
