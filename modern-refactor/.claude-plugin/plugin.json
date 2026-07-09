@@ -1,0 +1,19 @@
+{
+  "name": "modern-refactor",
+  "version": "0.1.0",
+  "description": "Toolkit for high-quality codebase refactors using clean-slate 'from scratch' modernization thinking and modern best practices",
+  "author": {
+    "name": "Donald Filimon",
+    "url": "https://github.com/donaldfilimon"
+  },
+  "license": "MIT",
+  "keywords": [
+    "refactor",
+    "modernization",
+    "code-quality",
+    "clean-slate",
+    "best-practices",
+    "architecture"
+  ],
+  "homepage": "https://github.com/donaldfilimon/abi/tree/main/modern-refactor"
+}

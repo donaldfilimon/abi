@@ -10,6 +10,8 @@ description: "Status: PARTIAL / DESIGN REFERENCE — core types, scorer, and sel
 `abbey_wdbx_sea_zig` reference repository, captured so the clearest articulation of
 those designs survives independently of that repo.
 
+> **Disclaimer (standard).** Design-reference extract only. Where this document and ABI source disagree, ABI source wins (`build.zig`, `src/`, `tests/contracts/`). Public claim boundaries: `docs/contracts/external-claims-audit.mdx`.
+>
 > **Claims discipline (read first).** This document describes *design intent* extracted
 > from a separate reference implementation; it is **not** a description of what ABI's
 > shipped code does today. The reference repo (`~/abbey_wdbx_sea_zig`) is a compact
@@ -19,9 +21,7 @@ those designs survives independently of that repo.
 > here asserts performance, accuracy, retrieval-quality, or production-readiness
 > numbers. ABI's own SEA surface (`src/features/sea/`, the default-on `feat-sea` flag) is a
 > *different and simpler* current design; the relationship is mapped in
-> §7. Where this design and ABI source disagree, ABI source wins (`build.zig`, `src/`,
-> `tests/contracts/`). See `docs/contracts/external-claims-audit.mdx` and the
-> `tests/contracts/public_docs.zig` claim-boundary test.
+> §7. See also `tests/contracts/public_docs.zig` claim-boundary test.
 
 ---
 

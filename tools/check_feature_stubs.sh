@@ -2,6 +2,10 @@
 set -euo pipefail
 
 # Compile CLI with each feature disabled to ensure mod/stub trees build.
+# Flag names must stay aligned with build.zig -Dfeat-* options (and
+# tools/check_feature_stubs foundationmodels special case below). Prefer
+# editing this list only when a feature is added/removed — do not invent
+# partial matrices for ad-hoc runs in CI.
 FLAGS=(
   feat-ai
   feat-gpu

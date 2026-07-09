@@ -6,7 +6,7 @@ description: Switch the abi repo to the newest Zig master nightly (via zvm), bui
 # zig-newest-skills — validate abi against the newest Zig master
 
 The abi repo pins a specific Zig nightly in `.zigversion`
-(`0.17.0-dev.978+a078d55a2`). This skill does the opposite of pin-safety:
+(`0.17.0-dev.1252+e4b325c19`). This skill does the opposite of pin-safety:
 it switches the active toolchain to the **current Zig master** via `zvm`,
 rebuilds the real binaries, and proves abi still compiles and runs against
 bleeding-edge `std` — surfacing forward API drift the pin would otherwise hide.
@@ -33,7 +33,7 @@ What it does, cheapest gate first: `zvm use master` → `zig build check-parity`
 `RESULT: PASS — abi builds + runs on the newest Zig master.` (exit 0) or
 `RESULT: FAIL — master drift broke N gate(s).` (exit N).
 
-Historical verification on master `0.17.0-dev.1099+7db2ef610` (pin is `978`):
+Historical verification on master `0.17.0-dev.1275` (pin is `1252`):
 **PASS, 0 failed gates.**
 
 Flags:
@@ -56,7 +56,7 @@ it's a build+exercise gate you read the tail of.
 ## Gotchas (battle scars from this session)
 
 - **Old nightlies are NOT re-downloadable.** zvm only serves the *current*
-  master from ziglang.org. `zvm install 0.17.0-dev.978+a078d55a2` fails with
+  master from ziglang.org. `zvm install 0.17.0-dev.1252+e4b325c19` fails with
   `unsupported Zig version`. So once master replaces the pin's local
   `~/.zvm/<version>` dir, the exact pin is **gone for good** unless you kept
   the tarball. Installing master can therefore permanently retire the
@@ -75,7 +75,7 @@ it's a build+exercise gate you read the tail of.
   "toolchain works" from "feature graph compiles under this std."
 - **`timeout(1)` is absent on macOS.** Don't wrap gates in it; the driver
   relies on the caller's timeout instead.
-- **As of this session, abi has zero forward drift 978→1099** — no source
+- **As of this session, abi has zero forward drift 1252→1275** — no source
   changes were needed to build on master. If a future master breaks a gate,
   the failing `./build.sh cli|mcp` output names the exact `std` API that moved.
 

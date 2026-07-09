@@ -1,0 +1,17 @@
+---
+strictness: high
+focus_areas: ["error-handling", "types", "modularity", "claims-discipline"]
+use_clean_slate: true
+repo_gates:
+  - "./build.sh check"
+  - "zig build check-parity"
+notes: >
+  Copy to the host project as .claude/modern-refactor.local.md (or equivalent).
+  Not loaded from inside modern-refactor/ automatically — host-side optional settings.
+---
+
+# modern-refactor local settings (example)
+
+- Prefer parallel extracts before cutover on contract-heavy code.
+- Never invent CLI/MCP surfaces; defer to `src/cli/usage.zig` and MCP handlers.
+- After docs edits, keep claims aligned with `docs/contracts/external-claims-audit.mdx`.

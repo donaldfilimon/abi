@@ -5,14 +5,17 @@ description: "Welcome to the ABI framework documentation. This hub provides cent
 
 Welcome to the ABI framework documentation. This hub provides central access to architecture, onboarding, and development guides for the ABI multi-AI orchestration system.
 
+> **Source wins.** When docs disagree with `build.zig`, `src/cli/usage.zig`, `src/mcp/handlers.zig`, or `tests/contracts/`, trust the executable sources and `./build.sh check`. Public claim boundaries: [External Claims Audit](contracts/external-claims-audit.mdx).
+
 ## Architecture
 - [ABI Refactor Design](spec/abi-refactor-design.mdx)
 - [ABI Agent and WDBX Architecture](spec/agent-wdbx-architecture.mdx)
-- [ABI Master Specification](superpowers/archive/specs/ABI-MASTER-SPEC.md)
 - [Multi-Persona Technical Overview](spec/multi-persona-technical.mdx)
 - [WDBX North-Star (vision/roadmap — Current vs. Proposed)](spec/wdbx-north-star.mdx)
 - [Public API Contract](contracts/public-api.mdx)
 - [External Claims Audit](contracts/external-claims-audit.mdx)
+- [SEA Design Extract (PARTIAL / DESIGN REFERENCE)](spec/sea-design-extract.mdx)
+- [WDBX (Rust) Capability Extract (PARTIAL / DESIGN REFERENCE)](spec/wdbx-rust-capability-extract.mdx)
 
 ## Project Metadata
 - [AGENTS.md](../AGENTS.md)
@@ -27,5 +30,12 @@ Welcome to the ABI framework documentation. This hub provides central access to 
 On macOS/Darwin, prefer `./build.sh ...` for project validation even when plain `zig build` works locally. Use `./build.sh full-check` for the complete local gate: `check`, integration tests, benchmarks, dashboard smoke, and `agent tui` line-mode smoke.
 
 Key executable contracts live in `tests/contracts/` and cover root/feature namespaces, CLI/MCP surfaces, MCP tool result shapes, generated multi-plugin registry metadata, public-doc claim boundaries, and WDBX search/block snapshot behavior. `tools/check_feature_stubs.sh` covers every feature-off stub with focused feature contracts, feature-aware public contracts, and real-mobile smoke coverage.
+
+## Historical / archived (not active contracts)
+
+Superpowers-era plans and the master spec live under `superpowers/archive/` for context only. They are **not** listed in Mintlify `docs.json` navigation and are not sources of truth. Prefer `docs/spec/*.mdx`, `docs/contracts/*.mdx`, and executable sources.
+
+- [ABI Master Specification (archived)](superpowers/archive/specs/ABI-MASTER-SPEC.md)
+- [Archive index](superpowers/archive/README.md)
 
 *For any issues or questions, please refer to the project's issue tracker or consult the primary maintainers.*

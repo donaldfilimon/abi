@@ -7,8 +7,14 @@ set -euo pipefail
 #   $SCRATCH/full-check.log (with FULLCHECK_EXIT:0)
 #   $SCRATCH/skills.log (single file; each driver block ends with RESULT: PASS)
 
-SCRATCH="/var/folders/42/07tmt0n56jq4261xb9gz5jwm0000gn/T/grok-goal-79df3a4a516d/implementer"
+# Override with SCRATCH=/path for a fixed evidence dir; otherwise use a private temp tree.
+if [ -z "${SCRATCH:-}" ]; then
+  _base="${TMPDIR:-/tmp}"
+  _base="${_base%/}"
+  SCRATCH="${_base}/abi-goal-capture-$$"
+fi
 mkdir -p "$SCRATCH"
+echo "goal_capture SCRATCH=$SCRATCH"
 
 echo "=== goal_capture START $(date -Iseconds) ===" | tee -a "$SCRATCH/build-check.log"
 

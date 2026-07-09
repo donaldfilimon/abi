@@ -37,6 +37,7 @@ These ship real local artifacts but truthfully disclose that native/external dis
 | ---- | ------ | ----- |
 | Broader native/batched GPU acceleration | 🟡 In progress | HNSW pairwise + neighbor-expansion batch scoring route through `gpu.vectorOps()` with SIMD fallback. AI completion/SEA paths delegate similarity to `store.search` (already GPU-routed), so the remaining expansion is native kernel dispatch — the deferred 100%-Zig-constraint item, not a completable gap. |
 | Windows runtime verification for cross builds | ⚪ Not started | `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` (linux-gnu/windows-gnu/aarch64-macos). Remaining (out of scope from a macOS host): actual Windows runtime verification. `/tmp`/`std.c.getpid()` test-helper cleanup complete. |
+| modern-refactor Phase 2–4 (docs hub / tools split / polish) | ⚪ Deferred | Phase 1 quick-win landed (skill refs, archive isolation, goal_capture SCRATCH). Remaining: Mintlify index redesign, `run_contract_cli.sh` factoring, data-driven feature-flag matrix. |
 
 ---
 
@@ -61,6 +62,7 @@ These are decisions, not unfinished work — do not "fix" them.
 
 One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`.
 
+- **modern-refactor Phase 1** — filled advertised skill `references/` (`analysis-checklist.md`, `implementation-playbook.md` + example); layout verifier; `.gitignore` allowlist + honest README; docs archive isolation + standard extract disclaimers; `tools/goal_capture.sh` SCRATCH via env/`TMPDIR`. Phases 2–4 deferred.
 - **File extractions (wave 2)** — `dispatch.zig`→`suggest.zig` (473→341), `registry.zig`→`completion.zig`+`help_json.zig` (1033→646), `tui/mod.zig`→`dashboard.zig` (636→153), `handlers/dashboard.zig`→`dashboard_json.zig` (824→485), `cluster_rpc.zig`→`cluster.zig` (cluster_rpc 645→615, cluster 252→292).
 - **`src/foundation/temp_path.zig`** — `getTempDir()`/`tempFilePath()` created; 30 hardcoded `/tmp/` refs replaced across 13 files.
 - **XDG compliance** — `credentials.zig` now checks `ABI_CREDENTIALS_PATH`→`XDG_CONFIG_HOME`→`~/.abi/`; `durable_store.zig` checks `XDG_DATA_HOME`→`~/.abi/wdbx`.

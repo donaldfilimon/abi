@@ -185,9 +185,11 @@ perf.data*
 !.codex/skills/
 !.codex/skills/**
 .claude-plugin/
-# But allow plugin manifests inside zig-abi-plugin/
+# But allow plugin manifests inside zig-abi-plugin/ and modern-refactor/
 !/zig-abi-plugin/.claude-plugin/
 !/zig-abi-plugin/.claude-plugin/**
+!/modern-refactor/.claude-plugin/
+!/modern-refactor/.claude-plugin/**
 
 # ── Local task tracking (agent notes) ────────────────────────────────
 # Ignore the CONTENTS of tasks/ (not the directory itself): a `!/tasks/x`
@@ -328,6 +330,7 @@ TRASH-FILES.md
 !/docs/contracts/*.md
 !/docs/review/*.md
 !/docs/superpowers/**/*.md
+!/docs/CONTRIBUTING.md
 
 # Claude project skills: keep every skill definition tracked.
 # (.claude/skills/** is un-ignored above at line ~177, but the blanket
@@ -338,6 +341,13 @@ TRASH-FILES.md
 # Claude project agents: same story — .claude/agents/** is un-ignored above, but
 # the blanket *.md rule re-ignores the agent defs, so this rescue must come after it.
 !.claude/agents/**/*.md
+
+# modern-refactor plugin tree (skills/agents/plans) — rescue after *.md blanket
+!/modern-refactor/
+!/modern-refactor/**
+!/modern-refactor/**/*.md
+!/modern-refactor/.claude/
+!/modern-refactor/.claude/**
 
 # Subsystem docs
 !/benchmarks/README.md

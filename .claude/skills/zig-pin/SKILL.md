@@ -25,7 +25,7 @@ toolchain. Exit 0 = match, exit 2 = mismatch with fix instructions.
 ## Steps (manual)
 
 1. **Read the pin.** Read `.zigversion` at the repo root (a single line, e.g.
-   `0.17.0-dev.978+a078d55a2`). Call this `PIN`.
+   `0.17.0-dev.1252+e4b325c19`). Call this `PIN`.
 
 2. **Read the active version.** Run `zig version`. Call this `ACTIVE`.
    - If `zig` is not on `PATH`, stop and report that no Zig is installed; point
