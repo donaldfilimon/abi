@@ -17,15 +17,15 @@
         "group": "Architecture",
         "pages": [
           "spec/abi-refactor-design",
-          "spec/agent-wdbx-architecture"
+          "spec/agent-wdbx-architecture",
+          "spec/multi-persona-technical",
+          "spec/wdbx-north-star"
         ]
       },
       {
-        "group": "Specs",
+        "group": "Specs (partial extracts)",
         "pages": [
-          "spec/multi-persona-technical",
           "spec/sea-design-extract",
-          "spec/wdbx-north-star",
           "spec/wdbx-rust-capability-extract"
         ]
       },
