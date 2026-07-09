@@ -54,7 +54,7 @@ These are decisions, not unfinished work — do not "fix" them.
 
 ## Known test failures
 
-- None currently reproduced. Latest review gates: all 196 `*.zig` files pass standalone `zig ast-check`; `zig build lint --summary all` passes (2/2 steps, errors=0); `zig build check-parity` passes (exit 0); `zig-newest-skills` passes on Zig master `0.17.0-dev.1252+e4b325c19`; `./build.sh check` passes (39/39 steps); `./build.sh full-check` passes (47/47 steps).
+- None currently reproduced. Latest review gates: all 196 `*.zig` files pass standalone `zig ast-check`; `zig build lint --summary all` passes (2/2 steps, errors=0); `zig build check-parity` passes (exit 0); pin gate green on `0.17.0-dev.1252+e4b325c19` (`.agents/skills/zig-pin/pin.sh` exit 0); `zig-newest-skills` PASS on Zig master `0.17.0-dev.1275+59a628c6d`; `./build.sh check` passes (39/39 steps, unchanged); `./build.sh full-check` passes (47/47 steps).
 
 ---
 
