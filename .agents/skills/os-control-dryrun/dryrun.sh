@@ -22,7 +22,7 @@ say "abi agent os dry-run (planning only — no execution)"
 out=$("$ABI" agent os dry-run "$PLAN" 2>&1); rc=$?
 printf '%s\n' "$out"
 [ "$rc" -eq 0 ] || { echo "[FAIL] dry-run exit $rc"; fail=$((fail+1)); }
-printf '%s' "$out" | grep -qF "dry-run:" && echo "[ok] plan emitted (no execution)" \
+grep -qF "dry-run:" <<<"$out" && echo "[ok] plan emitted (no execution)" \
     || { echo "[FAIL] missing 'dry-run:' marker"; fail=$((fail+1)); }
 
 # Safety assertion: execute WITHOUT --confirm must be refused with usage (exit 2),

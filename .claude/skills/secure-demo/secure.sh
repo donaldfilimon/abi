@@ -21,7 +21,7 @@ out=$("$ABI" wdbx secure demo 2>&1); rc=$?
 printf '%s\n' "$out"
 [ "$rc" -eq 0 ] || { echo "[FAIL] secure demo exit $rc"; fail=$((fail+1)); }
 for marker in "compression:" "additive HE:" "homomorphic eval:" "match=true"; do
-    printf '%s' "$out" | grep -qF -- "$marker" && echo "[ok] marker: $marker" \
+    grep -qF -- "$marker" <<<"$out" && echo "[ok] marker: $marker" \
         || { echo "[FAIL] missing marker: $marker"; fail=$((fail+1)); }
 done
 

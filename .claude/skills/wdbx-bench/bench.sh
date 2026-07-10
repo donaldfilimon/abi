@@ -35,7 +35,7 @@ out=$("$ABI" wdbx benchmark "$COUNT" 2>&1); rc=$?
 printf '%s\n' "$out"
 if [ "$rc" -ne 0 ]; then echo "[FAIL] benchmark exit $rc"; fail=$((fail+1)); fi
 for marker in "benchmark (local, in-memory" "inserts:" "searches:"; do
-    printf '%s' "$out" | grep -qF -- "$marker" && echo "[ok] marker: $marker" \
+    grep -qF -- "$marker" <<<"$out" && echo "[ok] marker: $marker" \
         || { echo "[FAIL] missing marker: $marker"; fail=$((fail+1)); }
 done
 

@@ -17,7 +17,7 @@ PIDS=()
 cleanup() { for p in "${PIDS[@]:-}"; do kill "$p" 2>/dev/null || true; done; }
 trap cleanup EXIT
 say() { printf '\n=== %s ===\n' "$*"; }
-mark() { printf '%s' "$1" | grep -qF -- "$2" && echo "[ok] $3" || { echo "[FAIL] $3 (missing: $2)"; fail=$((fail+1)); }; }
+mark() { grep -qF -- "$2" <<<"$1" && echo "[ok] $3" || { echo "[FAIL] $3 (missing: $2)"; fail=$((fail+1)); }; }
 wait_up() { local port="$1"; for _ in $(seq 1 25); do curl -s -o /dev/null "http://127.0.0.1:$port/health" && return 0; sleep 0.3; done; return 1; }
 code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 

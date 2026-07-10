@@ -14,7 +14,7 @@ fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 check() { local label="$1" expect="$2"; shift 2; local out; out=$("$@" 2>&1)
     printf '%s\n' "$out"
-    printf '%s' "$out" | grep -qF -- "$expect" && echo "[ok] $label" || { echo "[FAIL] $label (missing: $expect)"; fail=$((fail+1)); }; }
+    grep -qF -- "$expect" <<<"$out" && echo "[ok] $label" || { echo "[FAIL] $label (missing: $expect)"; fail=$((fail+1)); }; }
 
 say "build cli"
 ./build.sh cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }

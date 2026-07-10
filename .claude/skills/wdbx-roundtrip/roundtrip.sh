@@ -21,7 +21,7 @@ step() { local label="$1"; shift; local -a markers=(); local a
     printf '%s\n' "$out"
     [ "$rc" -eq 0 ] || { echo "[FAIL] $label exit $rc"; fail=$((fail+1)); }
     for a in "${markers[@]}"; do
-        printf '%s' "$out" | grep -qF -- "$a" && echo "[ok] $label :: $a" \
+        grep -qF -- "$a" <<<"$out" && echo "[ok] $label :: $a" \
             || { echo "[FAIL] $label missing: $a"; fail=$((fail+1)); }; done; }
 
 say "build cli"

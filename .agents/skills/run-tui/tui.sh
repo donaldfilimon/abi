@@ -32,9 +32,9 @@ sleep 2.5
 pane=$(tmux capture-pane -pt "$SESSION" 2>/dev/null || true)
 printf '%s\n' "$pane" | sed -n '1,12p'
 
-printf '%s' "$pane" | grep -qF -- "$MARKER" && echo "[ok] dashboard painted" \
+grep -qF -- "$MARKER" <<<"$pane" && echo "[ok] dashboard painted" \
     || { echo "[FAIL] dashboard did not paint (missing: $MARKER)"; fail=$((fail+1)); }
-printf '%s' "$pane" | grep -qiE "errno 19|tcgetattr|panic|unreachable" \
+grep -qiE "errno 19|tcgetattr|panic|unreachable" <<<"$pane" \
     && { echo "[FAIL] tty error / panic in pane"; fail=$((fail+1)); } || echo "[ok] no tty error"
 
 say "send quit key (q) + teardown"

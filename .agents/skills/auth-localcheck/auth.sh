@@ -15,7 +15,7 @@ ABI="$REPO_ROOT/zig-out/bin/abi"
 fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 markers() { local out="$1"; shift; for m in "$@"; do
-    printf '%s' "$out" | grep -qF -- "$m" && echo "[ok] marker: $m" \
+    grep -qF -- "$m" <<<"$out" && echo "[ok] marker: $m" \
         || { echo "[FAIL] missing marker: $m"; fail=$((fail+1)); }; done; }
 
 say "build cli"

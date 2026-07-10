@@ -47,10 +47,10 @@ printf '%s\n' "$out"
 # The loop must report it ran (learn=true), name a model, and emit an
 # evidence counter (0 is acceptable when the scratch store has no hits).
 for marker in "learn=true" "model=" "evidence_count="; do
-    printf '%s' "$out" | grep -qF -- "$marker" && echo "[ok] marker: $marker" \
+    grep -qF -- "$marker" <<<"$out" && echo "[ok] marker: $marker" \
         || { echo "[FAIL] missing marker: $marker"; fail=$((fail+1)); }
 done
-printf '%s' "$out" | grep -qF -- "persisted=true" && echo "[ok] persisted=true" \
+grep -qF -- "persisted=true" <<<"$out" && echo "[ok] persisted=true" \
     || echo "[note] not persisted (acceptable depending on store state)"
 
 say "summary"

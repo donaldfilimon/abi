@@ -41,7 +41,7 @@ run() {
     if [ "$rc" -ne 0 ]; then
         log "FAIL: $label exited $rc"; fail=$((fail+1)); return
     fi
-    if [ "$expect" != "-" ] && ! printf '%s' "$out" | grep -q -- "$expect"; then
+    if [ "$expect" != "-" ] && ! grep -Fq -- "$expect" <<<"$out"; then
         log "FAIL: $label missing expected output: $expect"; fail=$((fail+1)); return
     fi
     pass=$((pass+1))
@@ -93,7 +93,7 @@ else
     fail=$((fail+1)); log "FAIL: mcp exited $mcp_rc"
 fi
 for marker in '"serverInfo"' '"name":"gpu_status"' 'scheduler running=' 'backend=metal' 'plugins count=16'; do
-    if printf '%s' "$MCP_OUT" | grep -q -- "$marker"; then
+    if grep -Fq -- "$marker" <<<"$MCP_OUT"; then
         pass=$((pass+1)); log "ok: mcp has $marker"
     else
         fail=$((fail+1)); log "FAIL: mcp missing $marker"

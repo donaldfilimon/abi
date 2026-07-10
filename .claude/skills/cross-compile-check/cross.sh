@@ -22,7 +22,7 @@ else
 fi
 printf '%s\n' "$out"
 [ "$rc" -eq 0 ] || { echo "[FAIL] cross-smoke exit $rc"; fail=$((fail+1)); }
-printf '%s' "$out" | grep -qF "all targets compiled + linked" && echo "[ok] all cross targets linked" \
+grep -qF "all targets compiled + linked" <<<"$out" && echo "[ok] all cross targets linked" \
     || { echo "[FAIL] missing success marker"; fail=$((fail+1)); }
 
 say "summary"; echo "failed: $fail"
