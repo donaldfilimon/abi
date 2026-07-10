@@ -473,6 +473,39 @@ test "MCP HTTP transport handles a single-write request" {
     try std.testing.expect(std.mem.indexOf(u8, resp_body, "\"id\":1") != null);
 }
 
+test "MCP HTTP transport returns 413 for oversized POST body" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    const request = try std.fmt.allocPrint(
+        allocator,
+        "POST /message HTTP/1.1\r\nContent-Length: {d}\r\n\r\n",
+        .{MAX_REQUEST_SIZE + 1},
+    );
+    defer allocator.free(request);
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [256]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+
+    const conn = try bound.server.accept(io);
+    try handleHttpConnection(allocator, io, conn);
+
+    var resp_buf: [512]u8 = undefined;
+    const resp = try readHttpResponse(io, client, &resp_buf);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "413 Payload Too Large") != null);
+}
+
 test "MCP HTTP transport requires bearer token when configured" {
     const io = std.testing.io;
     const allocator = std.testing.allocator;
@@ -484,6 +517,41 @@ test "MCP HTTP transport requires bearer token when configured" {
     const request = try std.fmt.allocPrint(
         allocator,
         "POST /message HTTP/1.1\r\nContent-Length: {d}\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+    defer allocator.free(request);
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [512]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+
+    const conn = try bound.server.accept(io);
+    try handleHttpConnectionWithAuth(allocator, io, conn, "local-token");
+
+    var resp_buf: [2048]u8 = undefined;
+    const resp = try readHttpResponse(io, client, &resp_buf);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "401 Unauthorized") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "WWW-Authenticate: Bearer") != null);
+}
+
+test "MCP HTTP transport rejects the wrong bearer token" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    const body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}";
+    const request = try std.fmt.allocPrint(
+        allocator,
+        "POST /message HTTP/1.1\r\nAuthorization: Bearer wrong-token\r\nContent-Length: {d}\r\n\r\n{s}",
         .{ body.len, body },
     );
     defer allocator.free(request);
