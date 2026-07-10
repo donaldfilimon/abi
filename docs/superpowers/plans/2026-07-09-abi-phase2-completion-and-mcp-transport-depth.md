@@ -1,5 +1,11 @@
 # ABI Phase 2 Completion + MCP Transport Depth Implementation Plan
 
+**Status:** Completed on 2026-07-09. The tracked implementation also includes
+the follow-on local `agent multi|spawn|browser` orchestration slice. The local
+`analysis/abi/AI_NATIVE_SPEC.md` copy records the default P0 decision but remains
+excluded by the repository's Markdown allowlist; this plan and `tasks/todo.md`
+are the tracked records.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Close modern-refactor Phase 2 remaining gates: land the tools refactor on `docs/mintlify-hub`, deepen MCP HTTP transport regression tests (wrong bearer, oversized POST body), document loopback auth in contracts, and commit the `abi` coordinator agent—without adding CLI commands or MCP tools.
@@ -48,7 +54,7 @@
 - Consumes: `build.zig` feat-* option lines
 - Produces: unchanged CLI contract smoke behavior (`run_contract_cli: ok`)
 
-- [ ] **Step 1: Verify contract smoke**
+- [x] **Step 1: Verify contract smoke**
 
 ```bash
 cd /Users/donaldfilimon/abi
@@ -57,7 +63,7 @@ bash tools/run_contract_cli.sh
 
 Expected: `run_contract_cli: ok`
 
-- [ ] **Step 2: Verify feature stub matrix starts**
+- [x] **Step 2: Verify feature stub matrix starts**
 
 ```bash
 bash tools/check_feature_stubs.sh 2>&1 | head -3
@@ -65,7 +71,7 @@ bash tools/check_feature_stubs.sh 2>&1 | head -3
 
 Expected: lines like `check_feature_stubs: zig build cli -Dfeat-ai=false` (no `mapfile` error on macOS bash 3.2)
 
-- [ ] **Step 3: Run primary gate**
+- [x] **Step 3: Run primary gate**
 
 ```bash
 ./build.sh check
@@ -73,7 +79,7 @@ Expected: lines like `check_feature_stubs: zig build cli -Dfeat-ai=false` (no `m
 
 Expected: exit 0
 
-- [ ] **Step 4: Commit (tools only)**
+- [x] **Step 4: Commit (tools only)**
 
 ```bash
 git add tools/run_contract_cli.sh tools/check_feature_stubs.sh tools/feature_flags.sh tools/contract_cli/
@@ -99,7 +105,7 @@ EOF
 - Consumes: `handleHttpConnectionWithAuth`, `bindLoopback`, `readHttpResponse`
 - Produces: regression test `MCP HTTP transport rejects wrong bearer token`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add at end of `src/mcp/http_transport.zig` test section (before `test { refAllDecls }`):
 
@@ -139,7 +145,7 @@ test "MCP HTTP transport rejects wrong bearer token" {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it passes (or fails if auth bug)**
+- [x] **Step 2: Run test to verify it passes (or fails if auth bug)**
 
 ```bash
 zig build test-mcp-server -Dtest-filter="MCP HTTP transport rejects wrong bearer token"
@@ -147,7 +153,7 @@ zig build test-mcp-server -Dtest-filter="MCP HTTP transport rejects wrong bearer
 
 Expected: PASS (if fail, fix `hasBearerToken` in `http_transport.zig` only—no behavior change beyond correct 401)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/mcp/http_transport.zig
@@ -165,7 +171,7 @@ git commit -m "test(mcp): reject wrong HTTP bearer token on loopback transport"
 - Consumes: `MAX_REQUEST_SIZE` from `protocol.zig` (`64 * 1024`)
 - Produces: test `MCP HTTP transport returns 413 for oversized POST body`
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 ```zig
 test "MCP HTTP transport returns 413 for oversized POST body" {
@@ -216,7 +222,7 @@ test "MCP HTTP transport returns 413 for oversized POST body" {
 
 **Note:** If `client.write` API differs on Zig 0.17, use the same write pattern as neighboring tests in `http_transport.zig` (match existing `client.writer` usage). Adjust only the test—do not weaken the 413 path in production code.
 
-- [ ] **Step 2: Run filtered test**
+- [x] **Step 2: Run filtered test**
 
 ```bash
 zig build test-mcp-server -Dtest-filter="413 for oversized"
@@ -224,7 +230,7 @@ zig build test-mcp-server -Dtest-filter="413 for oversized"
 
 Expected: PASS
 
-- [ ] **Step 3: Full MCP server tests**
+- [x] **Step 3: Full MCP server tests**
 
 ```bash
 zig build test-mcp-server
@@ -232,7 +238,7 @@ zig build test-mcp-server
 
 Expected: exit 0
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/mcp/http_transport.zig
@@ -251,13 +257,13 @@ git commit -m "test(mcp): assert HTTP 413 for POST body over 64KB cap"
 - Consumes: `ABI_MCP_HTTP_TOKEN`, `ABI_WDBX_REST_TOKEN`, BR-P03/P07 from `analysis/abi/BUSINESS_RULES.md`
 - Produces: prose only; no new env vars
 
-- [ ] **Step 1: Grep contract tests for forbidden/new strings**
+- [x] **Step 1: Grep contract tests for forbidden/new strings**
 
 ```bash
 rg -n 'MCP_HTTP|REST_TOKEN|bearer' tests/contracts/public_docs.zig docs/contracts/public-api.mdx
 ```
 
-- [ ] **Step 2: Add honest subsection** (example text to insert):
+- [x] **Step 2: Add honest subsection** (example text to insert):
 
 ```markdown
 ### Loopback HTTP authentication (optional)
@@ -265,7 +271,7 @@ rg -n 'MCP_HTTP|REST_TOKEN|bearer' tests/contracts/public_docs.zig docs/contract
 MCP HTTP/SSE (`127.0.0.1`, default port 8080) and WDBX REST (`abi wdbx api serve`) accept an optional bearer token via `ABI_MCP_HTTP_TOKEN` and `ABI_WDBX_REST_TOKEN`. When set, missing or wrong `Authorization: Bearer` receives HTTP 401. Stdio MCP is not tokenized. This is loopback hardening only—not a production multi-tenant or non-loopback exposure claim.
 ```
 
-- [ ] **Step 3: Validate contracts**
+- [x] **Step 3: Validate contracts**
 
 ```bash
 zig build test-contracts
@@ -274,7 +280,7 @@ zig build test-contracts
 
 Expected: exit 0
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/contracts/public-api.mdx
@@ -292,7 +298,7 @@ git commit -m "docs(contracts): document optional MCP/REST loopback bearer token
 - Consumes: `AGENTS.md`, `tasks/todo.md`, `analysis/abi/AI_NATIVE_SPEC.md`
 - Produces: committed agent definition for Claude Code
 
-- [ ] **Step 1: Review agent for claim violations**
+- [x] **Step 1: Review agent for claim violations**
 
 ```bash
 rg -n 'production multi-host|sharding|QPS|native.*kernel' .claude/agents/abi.md || echo CLEAN
@@ -300,7 +306,7 @@ rg -n 'production multi-host|sharding|QPS|native.*kernel' .claude/agents/abi.md 
 
 Expected: CLEAN or only "do not claim" negations
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add .claude/agents/abi.md
@@ -315,9 +321,9 @@ git commit -m "chore(claude): add abi coordinator agent for slice discipline"
 - Modify: `tasks/todo.md`
 - Modify: `analysis/abi/AI_NATIVE_SPEC.md` §6 (record default P0 if user HITL still open)
 
-- [ ] **Step 1: Update todo row** — mark MCP transport depth + tools factoring done; remaining: cluster ops smoke, full reimagine architecture (blocked on HITL).
+- [x] **Step 1: Update todo row** — mark MCP transport depth + tools factoring done; remaining: cluster ops smoke, full reimagine architecture (blocked on HITL).
 
-- [ ] **Step 2: Record default P0 in spec** (if no user answer yet):
+- [x] **Step 2: Record default P0 in spec** (if no user answer yet):
 
 ```markdown
 P0 (default until HITL): C1–C7
@@ -325,7 +331,7 @@ Drop: C15, C16
 Defer: C10 multi-node ops polish, C14 demos
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tasks/todo.md analysis/abi/AI_NATIVE_SPEC.md
@@ -338,7 +344,7 @@ git commit -m "docs(tasks): close Phase 2 tools+MCP transport depth slice"
 
 **Files:** none
 
-- [ ] **Step 1: Run full smoke skills**
+- [x] **Step 1: Run full smoke skills**
 
 ```bash
 ./.agents/skills/run-abi/smoke.sh
@@ -347,7 +353,7 @@ git commit -m "docs(tasks): close Phase 2 tools+MCP transport depth slice"
 
 Expected: `SMOKE OK` / MCP PASS
 
-- [ ] **Step 2: Run primary gate**
+- [x] **Step 2: Run primary gate**
 
 ```bash
 ./build.sh check
