@@ -27,7 +27,6 @@ docs/api-app/data/features.json
 .vscode/
 .cursor/
 .idea/
-.serena/
 *.swp
 *.swo
 *~
