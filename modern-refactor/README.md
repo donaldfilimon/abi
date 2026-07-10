@@ -56,8 +56,41 @@ See `.claude/modern-refactor.local.md.example`. Copy to the host project path yo
 | Skills         | 5     | refactor-strategy, modern-patterns, codebase-analysis, refactor-implementation, refactor-validation |
 | Agents         | 2     | refactor-planner, modern-refactorer |
 | Hooks          | 0 in-tree | Use host hooks if desired; not advertised as packaged here |
-| MCP            | 0     | Not required for core workflow |
+| MCP            | 0 in-tree | Optional host wiring only — not required for core workflow; do not invent tools |
 | Settings       | Host-side optional | Template in Quick Start above |
+
+## MCP (optional)
+
+This package ships **no** MCP server and no plugin-local `.mcp.json`. When working **inside the ABI monorepo**, hosts may wire the existing frozen `abi-mcp` binary (12 tools defined in `src/mcp/handlers.zig`) via `./mcp/launcher.sh`. Build first: `./build.sh mcp` (or set `ABI_MCP_AUTO_BUILD=1` on the launcher for an optional one-shot build).
+
+### `.mcp.json` shape (`command` + `args`)
+
+```json
+{
+  "mcpServers": {
+    "abi-mcp": {
+      "command": "./mcp/launcher.sh",
+      "args": ["stdio"]
+    }
+  }
+}
+```
+
+### OpenCode shape (`type: "local"`, single `command` array)
+
+```json
+{
+  "mcp": {
+    "abi-mcp": {
+      "type": "local",
+      "enabled": true,
+      "command": ["./mcp/launcher.sh", "stdio"]
+    }
+  }
+}
+```
+
+Do **not** copy the `.mcp.json` `command`+`args` shape into OpenCode, or invent tool names beyond the contract freeze. Full audit: `analysis/abi/MCP_INTEGRATION.md`.
 
 ## Skills Details
 

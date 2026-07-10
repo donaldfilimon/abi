@@ -1,27 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Compile CLI with each feature disabled to ensure mod/stub trees build.
-# Flag names must stay aligned with build.zig -Dfeat-* options (and
-# tools/check_feature_stubs foundationmodels special case below). Prefer
-# editing this list only when a feature is added/removed — do not invent
-# partial matrices for ad-hoc runs in CI.
-FLAGS=(
-  feat-ai
-  feat-gpu
-  feat-tui
-  feat-accelerator
-  feat-shader
-  feat-mlir
-  feat-mobile
-  feat-wdbx
-  feat-os-control
-  feat-hash
-  feat-metrics
-  feat-telemetry
-  feat-nn
-  feat-sea
-)
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=feature_flags.sh
+source "$ROOT/feature_flags.sh"
+
+# Disabled-matrix flags are read from build.zig (feat-foundationmodels excluded; see below).
+FLAGS=()
+while IFS= read -r flag; do
+  [[ -n "$flag" ]] && FLAGS+=("$flag")
+done < <(abi_read_disabled_feature_flags "$ROOT/../build.zig")
+
+if [[ ${#FLAGS[@]} -eq 0 ]]; then
+  echo "error: no feat-* flags read from build.zig" >&2
+  exit 1
+fi
 
 for flag in "${FLAGS[@]}"; do
   echo "check_feature_stubs: zig build cli -D${flag}=false"

@@ -19,10 +19,10 @@ Prints `RESULT: PASS` (exit 0) or `RESULT: FAIL` (exit 1) with the validator out
 
 ## Why this exists
 `./build.sh check` and `.github/workflows/ci.yml` do **not** validate the docs site —
-Mintlify builds/hosts via its GitHub app on push, so a broken `docs.json` or `.mdx`
-page is only caught *after* it lands. This skill closes that gap as a local pre-push
-check. It is `disable-model-invocation: true` (user-only) because it's a validation
-action that shells out to `npx` (network + package fetch).
+Mintlify builds/hosts via its GitHub app on push, so a broken `docs/docs.json` or
+`.mdx` page is only caught *after* it lands. This skill closes that gap as a local
+pre-push check. It is `disable-model-invocation: true` (user-only) because it's a
+validation action that shells out to `npx` (network + package fetch).
 
 ## Gotchas
 - ⚠️ **mintlify needs an LTS node — it hard-fails on node 25+.** On a too-new node
@@ -31,8 +31,8 @@ action that shells out to `npx` (network + package fetch).
   via `nvm`/`fnm` — that's an environment issue, not a docs error.
 - **Needs network** — `npx mint@latest validate` fetches the `mint` package on first
   run. Offline → it fails at fetch (a tooling/env failure, not a docs failure).
-- **`docs.json` lives under `docs/`** — the driver `cd`s there; run it from anywhere
-  in the repo.
+- **Mintlify config is `docs/docs.json`** — the driver `cd`s into `docs/`; run it
+  from anywhere in the repo.
 - **Not wired into `./build.sh` or CI on purpose** — this is a manual gate. Run it
   after any change under `docs/` and before pushing docs edits.
 - The stale-`.md` scan is a heuristic (nav/link entries ending in `.md`); treat hits
@@ -43,5 +43,5 @@ action that shells out to `npx` (network + package fetch).
 |---|---|
 | `npx not on PATH` | Install Node/npm; `mint` runs via `npx`. |
 | fails at fetch / offline | Environment has no network — retry where npx can reach the registry. |
-| `no docs.json found` | You're not in the abi repo, or the docs site moved. |
-| validation errors | Fix the reported `docs.json`/`.mdx` issue; re-run. Preview locally with `npx mint@latest dev`. |
+| `no docs/docs.json found` | You're not in the abi repo, or the docs site moved. |
+| validation errors | Fix the reported `docs/docs.json`/`.mdx` issue; re-run. Preview locally with `npx mint@latest dev`. |

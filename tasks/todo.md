@@ -37,7 +37,7 @@ These ship real local artifacts but truthfully disclose that native/external dis
 | ---- | ------ | ----- |
 | Broader native/batched GPU acceleration | 🟡 In progress | HNSW pairwise + neighbor-expansion batch scoring route through `gpu.vectorOps()` with SIMD fallback. AI completion/SEA paths delegate similarity to `store.search` (already GPU-routed), so the remaining expansion is native kernel dispatch — the deferred 100%-Zig-constraint item, not a completable gap. |
 | Windows runtime verification for cross builds | ⚪ Not started | `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` (linux-gnu/windows-gnu/aarch64-macos). Remaining (out of scope from a macOS host): actual Windows runtime verification. `/tmp`/`std.c.getpid()` test-helper cleanup complete. |
-| modern-refactor Phase 2–4 (docs hub / tools split / polish) | ◑ Partial | Phase 1 quick-win landed; **docs hub Card redesign landed** (Mintlify index + `docs.json` nav groups). Remaining: `run_contract_cli.sh` factoring, data-driven feature-flag matrix. |
+| modern-refactor Phase 2–4 (docs hub / tools split / polish) | ◑ Partial | Phase 1 quick-win landed; **docs hub Card redesign landed** (Mintlify index + `docs.json` nav groups); `wdbx-rust-capability-extract` restored for hub/nav links; **`run_contract_cli.sh` factored** (`tools/contract_cli/*`); **feature-flag matrix** reads `build.zig` via `tools/feature_flags.sh`. Remaining: MCP contract depth polish, broader tools/doc dedup. |
 
 ---
 

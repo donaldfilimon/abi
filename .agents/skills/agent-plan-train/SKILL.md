@@ -18,7 +18,7 @@ is the `RESULT:` line. Fully local, no network.
   `selected_profile=`, `response=` (routes through the persona router; dry-run
   never executes).
 - `agent train <abbey|aviva|abi|all>` → asserts `training executed via
-  scheduler`, `metadata recorded in wdbx`.
+  scheduler`, `recorded in wdbx` (the printed message varies: "training metadata recorded in wdbx..." for a single profile, "known agent profiles recorded in wdbx" for `all`).
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count.
 

@@ -35,7 +35,7 @@ say "abi agent train $PROFILE"
 out=$("$ABI" agent train "$PROFILE" 2>&1); rc=$?
 printf '%s\n' "$out"
 [ "$rc" -eq 0 ] || { echo "[FAIL] agent train exit $rc"; fail=$((fail+1)); }
-markers "$out" "training executed via scheduler" "metadata recorded in wdbx"
+markers "$out" "training executed via scheduler" "recorded in wdbx"
 
 say "summary"; echo "failed checks: $fail"
 [ "$fail" -eq 0 ] && echo "RESULT: PASS — agent plan + train verified." || echo "RESULT: FAIL — $fail check(s)."
