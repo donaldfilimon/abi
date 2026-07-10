@@ -29,6 +29,92 @@ pub const AgentTaskContext = types.AgentTaskContext;
 pub const AgentConfig = types.AgentConfig;
 pub const AgentResult = types.AgentResult;
 
+pub const AgentToolHint = types.AgentToolHint;
+pub const AgentWorkerSpec = struct {
+    name: []const u8,
+    instructions: []const u8,
+    dry_run: bool = true,
+    profile_override: ?AgentProfile = null,
+    tool_hints: []const AgentToolHint = &.{},
+};
+
+const NamedAgentResult = struct {
+    name: []const u8,
+    result: AgentResult,
+};
+
+pub const CustomMultiAgentResult = struct {
+    results: []NamedAgentResult,
+    aggregated: []u8,
+    task_ids: []u64,
+
+    pub fn deinit(self: *CustomMultiAgentResult, allocator: std.mem.Allocator) void {
+        for (self.results) |entry| {
+            entry.result.deinit(allocator);
+            allocator.free(entry.name);
+        }
+        allocator.free(self.results);
+        allocator.free(self.aggregated);
+        allocator.free(self.task_ids);
+    }
+};
+
+pub const BackgroundAgentBatch = struct {
+    allocator: std.mem.Allocator,
+    contexts: []*AgentTaskContext,
+    task_ids: []u64,
+
+    pub fn deinit(self: *BackgroundAgentBatch) void {
+        for (self.contexts) |ctx| {
+            ctx.deinitResult();
+            self.allocator.destroy(ctx);
+        }
+        self.allocator.free(self.contexts);
+        self.allocator.free(self.task_ids);
+    }
+};
+
+pub const BrowserOrchestrationPlan = struct {
+    output: []u8,
+    requires_review: bool,
+    execute_requested: bool,
+
+    pub fn deinit(self: BrowserOrchestrationPlan, allocator: std.mem.Allocator) void {
+        allocator.free(self.output);
+    }
+};
+
+const WorkerSpecError = error{ FeatureDisabled, InvalidWorkerSpec, InvalidAgentToolHint } || std.mem.Allocator.Error;
+
+pub fn parseWorkerSpecs(_: std.mem.Allocator, _: []const u8) WorkerSpecError![]AgentWorkerSpec {
+    return error.FeatureDisabled;
+}
+
+pub fn freeWorkerSpecs(allocator: std.mem.Allocator, specs: []AgentWorkerSpec) void {
+    for (specs) |spec| {
+        allocator.free(spec.name);
+        allocator.free(spec.instructions);
+        allocator.free(spec.tool_hints);
+    }
+    allocator.free(specs);
+}
+
+pub fn planBrowserOrchestration(_: std.mem.Allocator, _: []const u8, _: ?[]const u8, _: bool) !BrowserOrchestrationPlan {
+    return error.FeatureDisabled;
+}
+
+pub fn runCustomMultiAgentWithScheduler(_: std.mem.Allocator, _: *scheduler_mod.Scheduler, _: []const u8, _: []const AgentWorkerSpec, _: []const u8) !CustomMultiAgentResult {
+    return error.FeatureDisabled;
+}
+
+pub fn collectBackgroundBatch(_: std.mem.Allocator, _: *BackgroundAgentBatch, _: []const AgentWorkerSpec) !CustomMultiAgentResult {
+    return error.FeatureDisabled;
+}
+
+pub fn submitAgentsBackground(_: std.mem.Allocator, _: *scheduler_mod.Scheduler, _: []const u8, _: []const AgentWorkerSpec, _: []const u8) !BackgroundAgentBatch {
+    return error.FeatureDisabled;
+}
+
 pub const profile = @import("stub_profile.zig");
 pub const abbey = profile.abbey;
 pub const aviva = profile.aviva;
@@ -97,10 +183,32 @@ pub const models = @import("models.zig");
 // Stub shims for AI agent multi surfaces (names only; bodies disabled for feat-ai=false).
 // Required for mod/stub parity check (top-level pub const/fn names).
 pub const MultiAgentResult = struct {
-    pub fn deinit(_: *@This(), _: std.mem.Allocator) void {}
+    abbey: AgentResult,
+    aviva: AgentResult,
+    abi: AgentResult,
+    aggregated: []u8,
+
+    pub fn deinit(self: *MultiAgentResult, allocator: std.mem.Allocator) void {
+        self.abbey.deinit(allocator);
+        self.aviva.deinit(allocator);
+        self.abi.deinit(allocator);
+        allocator.free(self.aggregated);
+    }
 };
-pub fn runMultiAgentWithScheduler(_: std.mem.Allocator, _: *scheduler_mod.Scheduler, _: []const u8, _: []const u8) !MultiAgentResult {
-    return .{};
+pub fn runMultiAgentWithScheduler(allocator: std.mem.Allocator, _: *scheduler_mod.Scheduler, _: []const u8, _: []const u8) !MultiAgentResult {
+    const abbey_output = try allocator.dupe(u8, "AI feature is disabled");
+    errdefer allocator.free(abbey_output);
+    const aviva_output = try allocator.dupe(u8, "AI feature is disabled");
+    errdefer allocator.free(aviva_output);
+    const abi_output = try allocator.dupe(u8, "AI feature is disabled");
+    errdefer allocator.free(abi_output);
+    const aggregated = try allocator.dupe(u8, "AI feature is disabled");
+    return .{
+        .abbey = .{ .output = abbey_output, .requires_review = true },
+        .aviva = .{ .output = aviva_output, .requires_review = true },
+        .abi = .{ .output = abi_output, .requires_review = true },
+        .aggregated = aggregated,
+    };
 }
 
 pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {

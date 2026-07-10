@@ -110,6 +110,27 @@ pub const TrainingTaskContext = struct {
     }
 };
 
+pub const AgentToolHint = enum {
+    plan,
+    explore,
+    browser,
+
+    pub fn label(self: AgentToolHint) []const u8 {
+        return switch (self) {
+            .plan => "plan",
+            .explore => "explore",
+            .browser => "browser",
+        };
+    }
+
+    pub fn parse(name: []const u8) ?AgentToolHint {
+        if (std.mem.eql(u8, name, "plan")) return .plan;
+        if (std.mem.eql(u8, name, "explore")) return .explore;
+        if (std.mem.eql(u8, name, "browser")) return .browser;
+        return null;
+    }
+};
+
 pub const AgentTaskContext = struct {
     allocator: std.mem.Allocator,
     config: AgentConfig,
@@ -129,6 +150,7 @@ pub const AgentConfig = struct {
     instructions: []const u8,
     dry_run: bool = true,
     profile_override: ?AgentProfile = null,
+    tool_hints: []const AgentToolHint = &.{},
 };
 
 pub const AgentResult = struct {

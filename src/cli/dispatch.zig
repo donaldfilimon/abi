@@ -266,6 +266,13 @@ test "runCli intercepts help, accepts no-args, rejects unknown + malformed gramm
     try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "agent", "tui", "extra" }));
     try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "agent", "os" }));
     try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "agent", "os", "execute", "ls" }));
+    try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "agent", "multi" }));
+    try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "agent", "spawn" }));
+    try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "agent", "browser", "--execute", "task" }));
+    try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "agent", "browser" }));
+    try std.testing.expectEqual(@as(u8, 0), try runCli(t, a, &.{ "abi", "agent", "multi", "--help" }));
+    try std.testing.expectEqual(@as(u8, 0), try runCli(t, a, &.{ "abi", "agent", "spawn", "-h" }));
+    try std.testing.expectEqual(@as(u8, 0), try runCli(t, a, &.{ "abi", "agent", "browser", "help" }));
     try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "nn", "bogus" }));
     try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "nn", "train" }));
     try std.testing.expectEqual(@as(u8, 2), try runCli(t, a, &.{ "abi", "nn", "sample" }));

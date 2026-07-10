@@ -77,6 +77,7 @@ CI (`.github/workflows/ci.yml`) runs `zig build check` + `cross-smoke` on macOS;
 `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`. Specs: `src/cli/usage.zig`.
 - `help --json` → typed metadata; `help --completion <bash|zsh|fish>` → shell scripts.
 - `complete`: `--live`, `--model`, `--confirm` (apple-fm), `--learn` (SEA).
+- `agent`: `plan`, `train`, `tui`, `multi`, `spawn`, `browser`, `os`. `multi`/`spawn` are local scheduler orchestration; `browser` emits a reviewed local plan and never embeds or launches a browser.
 - `abi --tui` → `abi tui`. Malformed numeric args → usage + exit **2**.
 - **Do not resurrect** legacy names: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, `serve`.
 

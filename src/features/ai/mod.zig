@@ -44,6 +44,37 @@ pub const AgentTaskContext = types.AgentTaskContext;
 pub const AgentConfig = types.AgentConfig;
 pub const AgentResult = types.AgentResult;
 
+pub const AgentToolHint = types.AgentToolHint;
+const orchestration = @import("orchestration.zig");
+pub const AgentWorkerSpec = orchestration.AgentWorkerSpec;
+pub const CustomMultiAgentResult = orchestration.CustomMultiAgentResult;
+pub const BackgroundAgentBatch = orchestration.BackgroundAgentBatch;
+pub const BrowserOrchestrationPlan = orchestration.BrowserOrchestrationPlan;
+pub const parseWorkerSpecs = orchestration.parseWorkerSpecs;
+pub const freeWorkerSpecs = orchestration.freeWorkerSpecs;
+pub const planBrowserOrchestration = orchestration.planBrowserOrchestration;
+pub const collectBackgroundBatch = orchestration.collectBackgroundBatch;
+
+pub fn runCustomMultiAgentWithScheduler(
+    allocator: std.mem.Allocator,
+    sched: *scheduler_mod.Scheduler,
+    base_name: []const u8,
+    specs: []const AgentWorkerSpec,
+    input: []const u8,
+) !CustomMultiAgentResult {
+    return orchestration.runCustomMultiAgentWithScheduler(allocator, sched, base_name, specs, input, submitAgentTask);
+}
+
+pub fn submitAgentsBackground(
+    allocator: std.mem.Allocator,
+    sched: *scheduler_mod.Scheduler,
+    base_name: []const u8,
+    specs: []const AgentWorkerSpec,
+    input: []const u8,
+) !BackgroundAgentBatch {
+    return orchestration.submitAgentsBackground(allocator, sched, base_name, specs, input, submitAgentTask);
+}
+
 pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     const response = try profile.routeInput(allocator, input);
     const audit = constitution.Constitution.validate(response);
@@ -76,10 +107,12 @@ pub fn runAgent(allocator: std.mem.Allocator, config: AgentConfig, input: []cons
     defer allocator.free(response);
     const audit = constitution.Constitution.validate(response);
     const requires_review = !config.dry_run or !audit.passed;
+    const hints_text = try orchestration.formatToolHints(allocator, config.tool_hints);
+    defer allocator.free(hints_text);
     const output = try std.fmt.allocPrint(
         allocator,
-        "agent={s}\nmode={s}\nselected_profile={s}\nreview_required={s}\ninstructions={s}\nresponse={s}",
-        .{ config.name, mode, selected.label(), if (requires_review) "true" else "false", config.instructions, response },
+        "agent={s}\nmode={s}\nselected_profile={s}\nreview_required={s}\ntool_hints={s}\ninstructions={s}\nresponse={s}",
+        .{ config.name, mode, selected.label(), if (requires_review) "true" else "false", hints_text, config.instructions, response },
     );
     return .{ .output = output, .requires_review = requires_review };
 }
@@ -358,6 +391,21 @@ test "scheduled agent task records result and scheduler stats" {
     try std.testing.expect(tracker.getPeakUsage() > 0);
 }
 
+test "custom multi-agent workers via orchestration" {
+    var scheduler = scheduler_mod.Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    const specs = [_]AgentWorkerSpec{
+        .{ .name = "alpha", .instructions = "First worker", .profile_override = .abbey, .tool_hints = &.{.plan} },
+        .{ .name = "beta", .instructions = "Second worker", .profile_override = .aviva, .tool_hints = &.{.explore} },
+    };
+
+    var result = try runCustomMultiAgentWithScheduler(std.testing.allocator, &scheduler, "agent:workers", &specs, "coordinate release");
+    defer result.deinit(std.testing.allocator);
+    try std.testing.expectEqual(@as(usize, 2), result.results.len);
+    try std.testing.expect(std.mem.indexOf(u8, result.results[0].result.output, "tool_hints=plan") != null);
+}
+
 test "multi-agent scheduler routes each named persona explicitly" {
     var scheduler = scheduler_mod.Scheduler.init(std.testing.allocator);
     defer scheduler.deinit();
@@ -493,5 +541,6 @@ test {
     _ = @import("models.zig");
     _ = @import("iot_monitor.zig");
     _ = @import("multimodal_fusion.zig");
+    _ = @import("orchestration.zig");
     std.testing.refAllDecls(@This());
 }

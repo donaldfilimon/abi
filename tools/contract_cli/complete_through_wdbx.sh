@@ -152,6 +152,34 @@ require_substring "$agent_plan_help_out" "usage: abi agent plan <input>"
 agent_plan_help_alias_out="$("$ABI" help agent plan 2>&1)"
 require_substring "$agent_plan_help_alias_out" "usage: abi agent plan <input>"
 
+agent_multi_help_out="$("$ABI" agent multi --help 2>&1)"
+require_substring "$agent_multi_help_out" "usage: abi agent multi <input>"
+agent_spawn_help_out="$("$ABI" help agent spawn 2>&1)"
+require_substring "$agent_spawn_help_out" "usage: abi agent spawn [--background] [--workers <spec>] <input>"
+agent_browser_help_out="$("$ABI" agent browser --help 2>&1)"
+require_substring "$agent_browser_help_out" "external MCP for real navigation"
+
+agent_multi_out="$("$ABI" agent multi "coordinate release" 2>&1)"
+require_substring "$agent_multi_out" "=== MULTI-AGENT RESULTS ==="
+require_substring "$agent_multi_out" "scheduler: running=0 pending=0 completed=3 failed=0"
+
+agent_spawn_out="$("$ABI" agent spawn --workers "scout|Explore safely|explore" "inspect docs" 2>&1)"
+require_substring "$agent_spawn_out" "=== CUSTOM MULTI-AGENT RESULTS ==="
+require_substring "$agent_spawn_out" "[scout]"
+require_substring "$agent_spawn_out" "tool_hints=explore"
+require_substring "$agent_spawn_out" "scheduler: running=0 pending=0 completed=1 failed=0"
+
+agent_spawn_background_out="$("$ABI" agent spawn --background "inspect scheduler" 2>&1)"
+require_substring "$agent_spawn_background_out" "submitted background agent tasks:"
+require_substring "$agent_spawn_background_out" "worker=smart-agent"
+require_substring "$agent_spawn_background_out" "scheduler: running=0 pending=0 completed=1 failed=0"
+
+agent_browser_out="$("$ABI" agent browser --url https://example.com "open docs" 2>&1)"
+require_substring "$agent_browser_out" "orchestration=browser-local"
+require_substring "$agent_browser_out" "embedded_browser=false"
+require_substring "$agent_browser_out" "dry-run only"
+require_substring "$agent_browser_out" "scheduler: running=0 pending=0 completed=1 failed=0"
+
 twilio_help_out="$("$ABI" twilio simulate --help 2>&1)"
 require_substring "$twilio_help_out" "usage: abi twilio simulate <input>"
 

@@ -143,10 +143,17 @@ const agent_train_args = [_]Arg{
     .{ .name = "profile", .kind = .positional, .required = true, .choices = &.{ "abbey", "aviva", "abi", "all" }, .help = "agent profile" },
 };
 
+const agent_multi_args = [_]Arg{
+    .{ .name = "input", .kind = .positional, .required = true, .help = "multi-agent task input" },
+};
+
 const agent_subcommands = [_]Command{
     .{ .name = "plan", .summary = "Run a dry-run agent planning task through the scheduler and print memory tracker statistics.", .usage = "abi agent plan <input>", .args = &agent_plan_args, .handler = agentPlanHandler },
     .{ .name = "train", .summary = "Train one known local profile or all known profiles against the durable WDBX store.", .usage = "abi agent train <abbey|aviva|abi|all>", .args = &agent_train_args, .handler = agentTrainHandler },
     .{ .name = "tui", .summary = "Launch the interactive ABI agent REPL. Non-tty input falls back to line mode.", .usage = "abi agent tui", .handler = agentTuiHandler },
+    .{ .name = "multi", .summary = "Run Abbey, Aviva, and Abi concurrently via the scheduler.", .usage = "abi agent multi <input>", .args = &agent_multi_args, .handler = agentMultiHandler },
+    .{ .name = "spawn", .summary = "Create custom smart-agent workers with optional background scheduler submission.", .usage = "abi agent spawn [--background] [--workers <spec>] <input>", .raw_handler = handlers.agent_mod.handleAgentSpawnArgv },
+    .{ .name = "browser", .summary = "Plan browser automation locally (dry-run default; external MCP for real navigation).", .usage = "abi agent browser [--url <url>] [--execute --confirm] <task>", .raw_handler = handlers.agent_mod.handleAgentBrowserArgv },
     .{ .name = "os", .summary = "Audit an OS-control command request. execute requires --confirm and the policy allow-list.", .usage = "abi agent os <dry-run|execute --confirm> <cmd> [args...]", .raw_handler = handlers.agent_mod.handleAgentOs },
 };
 
@@ -249,6 +256,10 @@ fn agentPlanHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
 
 fn agentTrainHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
     return handlers.agent_mod.handleAgentTrainProfile(ctx.io, ctx.allocator, parsed.value("profile").?);
+}
+
+fn agentMultiHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
+    return handlers.agent_mod.handleAgentMultiInput(ctx.allocator, parsed.value("input").?);
 }
 
 fn agentTuiHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {

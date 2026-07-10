@@ -42,6 +42,7 @@ Inside `src/`: relative `.zig` imports only. **Only** the MCP handler group (`sr
 13 commands: `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`. Full specs in `src/cli/usage.zig`.
 - `help --json` / `--completion <bash|zsh|fish>`
 - `complete` supports `--live`, `--model`, `--confirm` (apple-fm), `--learn` (SEA)
+- `agent` supports `plan`, `train`, `tui`, `multi`, `spawn`, `browser`, `os`; `browser` is reviewed local planning only and never embeds or launches a browser
 - `tui`/`dashboard` flags: `--help` documents them. `abi --tui` is a shortcut.
 - Malformed numeric args → usage + exit 2
 - **Do not** resurrect legacy names: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, `serve`
