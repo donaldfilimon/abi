@@ -6,6 +6,10 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- Local multi-agent orchestration: `src/features/ai/orchestration.zig` plus CLI `abi agent multi|spawn|browser` (scheduler workers, claim-honest browser plan with `embedded_browser=false`, no new top-level CLI or MCP tools). Contract smoke via `tools/contract_cli/agent_orchestration.sh`; `agent-plan-train` / `run-abi` skills exercise the paths.
+- Docs contributing guide (`docs/contributing.mdx`) linked from the Mintlify hub; `abi-refactor-design.mdx` and multi-persona overview refreshed for orchestration.
+- Codex coordinator agent (`.codex/agents/abi.toml`) and modern-refactor plan archival under `modern-refactor/examples/`.
+
 - `src/foundation/temp_path.zig` — cross-platform `getTempDir()`/`tempFilePath()` helper; 30 hardcoded `/tmp/` references replaced across 13 foundation/feature/plugin/MCP files.
 
 - SEA typed memory taxonomy: `src/features/sea/types.zig` with `MemoryKind` (9 variants: note, user_preference, project_decision, code_fact, tool_output, benchmark, constraint, contradiction, summary) + `Authority` (5 rungs: inferred, user_stated, tool_verified, file_verified, system_pinned) enums with parse/text/score round-trip tests.

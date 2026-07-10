@@ -266,6 +266,11 @@ test "feature modules expose safe runtime contracts" {
     try std.testing.expect(@hasDecl(features.ai, "submitCompletionTask"));
     try std.testing.expect(@hasDecl(features.ai, "submitTrainingTask"));
     try std.testing.expect(@hasDecl(features.ai, "completeWithScheduler"));
+    try std.testing.expect(@hasDecl(features.ai, "AgentWorkerSpec"));
+    try std.testing.expect(@hasDecl(features.ai, "parseWorkerSpecs"));
+    try std.testing.expect(@hasDecl(features.ai, "planBrowserOrchestration"));
+    try std.testing.expect(@hasDecl(features.ai, "runCustomMultiAgentWithScheduler"));
+    try std.testing.expect(@hasDecl(features.ai, "submitAgentsBackground"));
 
     var completion = try features.ai.complete(std.testing.allocator, .{ .input = "contract surface", .model = "abi-contract" });
     defer completion.deinit(std.testing.allocator);

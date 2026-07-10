@@ -158,56 +158,41 @@ pub const MultiAgentResult = struct {
     }
 };
 
-/// Run all three agents (Abbey, Aviva, Abi) in parallel via scheduler for a given input.
-/// Supports multi-agent orchestration, delegation, review handoff.
-/// Each uses a persona-specific config for instructions.
+/// Run Abbey, Aviva, and Abi concurrently via the scheduler (dry-run by default).
 pub fn runMultiAgentWithScheduler(
     allocator: std.mem.Allocator,
     sched: *scheduler_mod.Scheduler,
     base_name: []const u8,
     input: []const u8,
 ) !MultiAgentResult {
-    var abbey_ctx = AgentTaskContext{
-        .allocator = allocator,
-        .config = .{ .name = "abbey", .instructions = "Analytical review and structured safety analysis.", .dry_run = true, .profile_override = .abbey },
-        .input = input,
-    };
-    var aviva_ctx = AgentTaskContext{
-        .allocator = allocator,
-        .config = .{ .name = "aviva", .instructions = "Creative exploration and alternative perspectives.", .dry_run = true, .profile_override = .aviva },
-        .input = input,
-    };
-    var abi_ctx = AgentTaskContext{
-        .allocator = allocator,
-        .config = .{ .name = "abi", .instructions = "Concise action-oriented execution plan.", .dry_run = true, .profile_override = .abi },
-        .input = input,
-    };
-    defer abbey_ctx.deinitResult();
-    defer aviva_ctx.deinitResult();
-    defer abi_ctx.deinitResult();
+    const trio = orchestration.defaultTrioSpecs();
+    var ctxs: [3]AgentTaskContext = undefined;
+    for (trio, 0..) |spec, i| {
+        ctxs[i] = .{
+            .allocator = allocator,
+            .config = orchestration.workerSpecToConfig(spec),
+            .input = input,
+        };
+    }
+    defer for (&ctxs) |*c| c.deinitResult();
 
-    const abbey_name = try std.fmt.allocPrint(allocator, "{s}:abbey", .{base_name});
-    defer allocator.free(abbey_name);
-    const aviva_name = try std.fmt.allocPrint(allocator, "{s}:aviva", .{base_name});
-    defer allocator.free(aviva_name);
-    const abi_name = try std.fmt.allocPrint(allocator, "{s}:abi", .{base_name});
-    defer allocator.free(abi_name);
-
-    _ = try submitAgentTask(sched, abbey_name, &abbey_ctx);
-    _ = try submitAgentTask(sched, aviva_name, &aviva_ctx);
-    _ = try submitAgentTask(sched, abi_name, &abi_ctx);
+    for (trio, &ctxs) |spec, *ctx| {
+        const task_name = try std.fmt.allocPrint(allocator, "{s}:{s}", .{ base_name, spec.name });
+        defer allocator.free(task_name);
+        _ = try submitAgentTask(sched, task_name, ctx);
+    }
 
     try sched.runAll();
 
-    const abbey_res = abbey_ctx.result orelse return error.MissingAgentResult;
-    const aviva_res = aviva_ctx.result orelse return error.MissingAgentResult;
-    const abi_res = abi_ctx.result orelse return error.MissingAgentResult;
+    const abbey_res = ctxs[0].result orelse return error.MissingAgentResult;
+    const aviva_res = ctxs[1].result orelse return error.MissingAgentResult;
+    const abi_res = ctxs[2].result orelse return error.MissingAgentResult;
 
     // Aggregate for TUI display / further processing
     const aggregated = try std.fmt.allocPrint(allocator, "=== MULTI-AGENT RESULTS ===\n\n[ABBEY]\n{s}\n\n[AVIVA]\n{s}\n\n[ABI]\n{s}\n\n=== END ===", .{ abbey_res.output, aviva_res.output, abi_res.output });
-    abbey_ctx.result = null;
-    aviva_ctx.result = null;
-    abi_ctx.result = null;
+    ctxs[0].result = null;
+    ctxs[1].result = null;
+    ctxs[2].result = null;
 
     return MultiAgentResult{
         .abbey = abbey_res,

@@ -146,24 +146,17 @@ fn isSafeEntryPoint(entry_point: []const u8) bool {
 }
 
 fn appendZigString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
-    // Mirrors src/connectors/json.zig appendJsonString — full RFC 8259 JSON string
-    // escaping with \uXXXX for control characters. This is intentionally identical
-    // to avoid duplicate maintenance of two JSON string escaper implementations.
-    try out.append(allocator, '"');
-    for (value) |byte| {
-        switch (byte) {
-            '"' => try out.appendSlice(allocator, "\\\""),
-            '\\' => try out.appendSlice(allocator, "\\\\"),
-            '\n' => try out.appendSlice(allocator, "\\n"),
-            '\r' => try out.appendSlice(allocator, "\\r"),
-            '\t' => try out.appendSlice(allocator, "\\t"),
-            0x00...0x07 => try out.print(allocator, "\\u{X:0>4}", .{byte}),
-            0x08 => try out.appendSlice(allocator, "\\b"),
-            0x0c => try out.appendSlice(allocator, "\\f"),
-            0x0b => try out.print(allocator, "\\u{X:0>4}", .{byte}),
-            0x0e...0x1f => try out.print(allocator, "\\u{X:0>4}", .{byte}),
-            else => try out.append(allocator, byte),
-        }
-    }
-    try out.append(allocator, '"');
+    try out.print(allocator, "\"{f}\"", .{std.zig.fmtString(value)});
+}
+
+test "plugin registry string literals use Zig escaping" {
+    var out = std.ArrayListUnmanaged(u8).empty;
+    defer out.deinit(std.testing.allocator);
+
+    try appendZigString(&out, std.testing.allocator, "quote=\" slash=\\ newline=\n control=\x0f");
+    try std.testing.expectEqualStrings("\"quote=\\\" slash=\\\\ newline=\\n control=\\x0f\"", out.items);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

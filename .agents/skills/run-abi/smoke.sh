@@ -67,6 +67,8 @@ run "cli backends"      "GPU backend report" -- "$ABI" backends
 run "cli scheduler"     "source=cli-scheduler-status" -- "$ABI" scheduler status
 run "cli complete"      "model=claude-fable-5"   -- "$ABI" complete "smoke: summarize scheduler status"
 run "cli plugin list"   "Installed Plugins (" -- "$ABI" plugin list
+run "cli agent multi"   "MULTI-AGENT RESULTS" -- "$ABI" agent multi "smoke multi"
+run "cli agent browser" "embedded_browser=false" -- "$ABI" agent browser "smoke browser"
 
 # --- WDBX store round-trip ----------------------------------------------
 rm -f "$STORE"

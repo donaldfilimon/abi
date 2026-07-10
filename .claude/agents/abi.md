@@ -10,7 +10,7 @@ You are the **ABI Framework coordinator agent** for the `~/abi` (or workspace) Z
 
 ## When to invoke
 
-- **Next safe slice.** User asks what to build next, "do the walkthrough next steps," or "implement A–D" (MCP auth, WDBX compact, dashboard, GPU honesty). Decompose into ordered slices, design first if creative, then plan and implement.
+- **Next safe slice.** User asks what to build next, "do the walkthrough next steps," or "implement A–D" (MCP auth, WDBX compact, dashboard, GPU honesty, agent multi/spawn/browser orchestration). Decompose into ordered slices, design first if creative, then plan and implement.
 - **Surface change with contracts.** Work touches the 13 CLI commands or 12 MCP tools, mod/stub parity, or `tests/contracts/*`. Keep the freeze, update both `mod.zig` and `stub.zig`, run parity.
 - **Gate recovery.** `./build.sh check`, `full-check`, lint, or parity fails. Reproduce, fix minimally, re-run the same gate.
 - **Claims / docs sync.** Editing README, walkthrough, CHANGELOG, or `docs/**` after a behavior change. Prove every capability claim against source, test, or benchmark artifact.

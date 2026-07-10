@@ -14,6 +14,7 @@ Traditional refactors often patch on top of legacy decisions. This toolkit helps
 - **2 autonomous agents** for deep planning and execution
 - **Repo-native gates** — prefer `./build.sh check`, contract tests, and claims discipline over ad-hoc checklists alone
 - Follows progressive-disclosure skill layout (`SKILL.md` + optional references/examples)
+- **Completed examples** — archived plans and before/after artifacts under `examples/`
 
 **Packaging notes:**
 

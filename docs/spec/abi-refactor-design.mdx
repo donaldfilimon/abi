@@ -3,8 +3,8 @@ title: "ABI Framework Refactor Design (Zig 0.17.0)"
 description: "Status: Implemented baseline; refreshed against current source layout"
 ---
 
-**Date:** 2026-05-14
-**Status:** Implemented baseline; refreshed against current source layout
+**Date:** 2026-07-10
+**Status:** Implemented baseline; refreshed against current source layout (includes local `agent multi|spawn|browser` orchestration)
 **Scope:** Full codebase refactor based on current ABI source, executable contracts, and WDBX/Abbey design inputs. Performance and deployment-scale claims require separate benchmark evidence.
 
 ---
@@ -65,6 +65,7 @@ src/
 │   │   ├── router.zig # AdaptiveModulator, analyzeSentiment, profile routing
 │   │   ├── constitution.zig # 6-principle governance validation
 │   │   ├── pipeline.zig # Training pipeline
+│   │   ├── orchestration.zig # Custom worker specs, background scheduler batch, browser plan (local dry-run)
 │   │   └── streaming.zig # Local OpenAI-compatible SSE server
 │   ├── sea/           # Sparse Evidence Attention self-learning pass (mod/stub)
 │   │   ├── mod.zig / stub.zig
@@ -281,6 +282,16 @@ This is a per-request local loop, not an autonomous daemon or production trainin
 - Post-generation validation via `validate()` / `evaluateResponse()` produces `AuditResult` with per-principle scores, weighted constitutional `escore`, and a hard safety/privacy veto bit.
 - CLI and MCP completion surfaces expose `audit_passed`, `audit_escore`, and `audit_vetoed`; persisted completion metadata stores `audit_passed`, `audit_vetoed`, and `escore` alongside model/profile/vector IDs.
 
+### 5.4 Local multi-agent orchestration (CLI)
+
+`src/features/ai/orchestration.zig` extends the scheduler-backed agent path without new top-level CLI commands or MCP tools:
+
+- **`abi agent multi <input>`** — runs the fixed Abbey/Aviva/Abi trio via `runMultiAgentWithScheduler`.
+- **`abi agent spawn [--background] [--workers <spec>] <input>`** — parses `name|instructions|hints` workers (`;`-separated), submits through `runCustomMultiAgentWithScheduler` / `submitAgentsBackground`. `--background` prints task IDs before `runAll()` (synchronous completion; not a detached daemon).
+- **`abi agent browser [--url <url>] [--execute --confirm] <task>`** — `planBrowserOrchestration` emits a claim-honest local plan (`embedded_browser=false`, `delegation_hint=external-mcp-playwright`); optional execute wording requires adjacent `--confirm`. A local planner worker runs dry-run only; real navigation is an external MCP step.
+
+Worker fan-out is capped (`max_worker_count = 32`). This is local orchestration over the existing AI router and constitution paths—not distributed agents, not an embedded browser, and not additional MCP surface.
+
 ### 5.5 Core Lifecycle Integration (Registry + Scheduler + Memory)
 The `src/core/` modules (`registry.zig`, `scheduler.zig`, `memory.zig`) and `src/foundation/pool_allocator.zig` realize the "Registry-Based Lifecycle" and "Explicit Memory Management" principles. `abi.scheduler`, `abi.memory`, and `abi.registry` are unconditionally exported from `src/root.zig`.
 
@@ -294,7 +305,8 @@ The `src/core/` modules (`registry.zig`, `scheduler.zig`, `memory.zig`) and `src
 - Dedicated integration test ("scheduler drives training tasks") validates end-to-end submission, execution, stats, and memory tracking.
 
 - Registry remains focused on plugin descriptors (RwLock-protected) today; it is the coordinator for the plugin execution seam (`plugin_manager` + `abi plugin run` / MCP `plugin_run`) but is not yet the broader cross-feature lifecycle registry envisioned originally.
-- Deeper adoption opportunities remain: MemoryTracker in lower-level AI internals and HNSW storage internals; making the Registry a more general component lifecycle coordinator; potential unification or clearer boundary between `core/memory` and `foundation/pool_allocator`. AI completion/training/agent planning now have scheduler helper surfaces, and WDBX `Store.putVector`/`Store.search` expose hot-path allocation activity through optional `MemoryTracker` instrumentation.
+- Deeper adoption opportunities remain: MemoryTracker in lower-level AI internals and HNSW storage internals; making the Registry a more general component lifecycle coordinator; potential unification or clearer boundary between `core/memory` and `foundation/pool_allocator`. AI completion/training/agent planning/multi-worker orchestration now have scheduler helper surfaces, and WDBX `Store.putVector`/`Store.search` expose hot-path allocation activity through optional `MemoryTracker` instrumentation.
+- `src/interfaces.zig` remains a **small** shared contract surface (`AiCompleteRequest`, `WdbxSearchResult`, etc.) exported from `src/root.zig`; it is not a full greenfield rewrite layer.
 
 See `tasks/todo.md`, `CHANGELOG.md`, and the source paths above for the detailed surfaces and the integration sketches that were executed. All integration changes preserved mod/stub parity, used relative `.zig` imports inside `src/`, and passed the full `./build.sh check` + `check-parity` + feature-off contract matrix. The original "primary remaining gap" language has been retired because the observability + real-work scheduling vision has been substantially delivered.
 

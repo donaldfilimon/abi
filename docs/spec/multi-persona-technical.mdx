@@ -20,6 +20,7 @@ The current implementation provides:
 - constitution-style response validation against repository-defined principles;
 - opt-in completion persistence into WDBX when `CompletionRequest.store_result=true`;
 - scheduler-backed completion helper wiring for CLI/MCP completion paths;
+- local multi-worker orchestration (`orchestration.zig`): `abi agent multi` (fixed trio), `spawn` (custom workers), and `browser` (dry-run plan; no embedded browser);
 - CLI and MCP surfaces guarded by contract tests;
 - feature-gated real/stub modules where disabled features preserve public symbols and return explicit degraded behavior.
 

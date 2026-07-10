@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# agent-plan-train driver: build the abi CLI and exercise the non-interactive
-# agent surfaces — `agent plan` (dry-run planning through the profile router)
-# and `agent train <profile>` (real scheduler-backed training that records
-# metadata in WDBX). Skips `agent tui` (interactive REPL; non-TTY line mode is
-# smoke-testable separately) and `agent os` (covered by os-control-dryrun).
-# Asserts exit codes + markers.
+# agent-plan-train driver: non-interactive agent surfaces — plan, train, multi,
+# spawn, browser (claim-honest). Skips tui (interactive) and os (os-control-dryrun).
 #
 # Usage: .agents/skills/agent-plan-train/agent.sh ["plan text"] [profile]
 #   profile: abbey | aviva | abi | all   (default: abbey)
@@ -37,6 +33,29 @@ printf '%s\n' "$out"
 [ "$rc" -eq 0 ] || { echo "[FAIL] agent train exit $rc"; fail=$((fail+1)); }
 markers "$out" "training executed via scheduler" "recorded in wdbx"
 
+say "abi agent multi"
+out=$("$ABI" agent multi "skill multi smoke" 2>&1); rc=$?
+printf '%s\n' "$out"
+[ "$rc" -eq 0 ] || { echo "[FAIL] agent multi exit $rc"; fail=$((fail+1)); }
+markers "$out" "MULTI-AGENT RESULTS"
+
+say "abi agent spawn"
+out=$("$ABI" agent spawn "skill spawn smoke" 2>&1); rc=$?
+printf '%s\n' "$out"
+[ "$rc" -eq 0 ] || { echo "[FAIL] agent spawn exit $rc"; fail=$((fail+1)); }
+markers "$out" "CUSTOM MULTI-AGENT RESULTS"
+
+say "abi agent browser (dry-run)"
+out=$("$ABI" agent browser "skill browser smoke" 2>&1); rc=$?
+printf '%s\n' "$out"
+[ "$rc" -eq 0 ] || { echo "[FAIL] agent browser exit $rc"; fail=$((fail+1)); }
+markers "$out" "embedded_browser=false" "delegation_hint=external-mcp-playwright"
+
+say "abi agent browser --execute without --confirm (expect exit 2)"
+out=$("$ABI" agent browser --execute "skill" 2>&1); rc=$?
+printf '%s\n' "$out"
+[ "$rc" -eq 2 ] || { echo "[FAIL] browser execute gate expected exit 2 got $rc"; fail=$((fail+1)); }
+
 say "summary"; echo "failed checks: $fail"
-[ "$fail" -eq 0 ] && echo "RESULT: PASS — agent plan + train verified." || echo "RESULT: FAIL — $fail check(s)."
+[ "$fail" -eq 0 ] && echo "RESULT: PASS — agent plan/train/multi/spawn/browser verified." || echo "RESULT: FAIL — $fail check(s)."
 exit "$fail"

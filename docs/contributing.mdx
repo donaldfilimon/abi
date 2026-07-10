@@ -1,0 +1,55 @@
+---
+title: "Contributing to ABI Documentation"
+description: "Source-of-truth, claim-safety, navigation, and validation rules for ABI docs."
+---
+
+ABI documentation is maintained as a companion to executable contracts. A
+documentation change is complete only when its source claim and rendered page
+are both verified.
+
+## Source of truth
+
+Use the narrowest executable source for each claim:
+
+- CLI commands and arguments: `src/cli/usage.zig`, `src/cli/registry.zig`, and
+  `tests/contracts/surface.zig`
+- MCP tools and schemas: `src/mcp/handlers.zig` and
+  `tests/contracts/mcp_tools.zig`
+- Feature flags and defaults: `build.zig`
+- Public feature APIs: paired `mod.zig` / `stub.zig` modules and
+  `zig build check-parity`
+- Current, Partial, and Proposed capability wording:
+  `contracts/external-claims-audit.mdx` and `spec/wdbx-north-star.mdx`
+
+When prose disagrees with these sources, update the prose to match the
+executable behavior. Do not change code merely to preserve stale documentation.
+
+## Claim-safe writing
+
+Use **Current**, **Partial**, and **Proposed** deliberately. ABI does not claim
+production multi-host sharding, native ANE/CUDA/TPU execution, audited FHE,
+production-scale learned compression, or unpublished performance figures.
+Design extracts must remain labeled as references rather than shipped runtime
+capabilities.
+
+Prefer links to canonical contracts over repeating the frozen 13-command CLI or
+12-tool MCP lists across multiple pages.
+
+## Adding or moving pages
+
+1. Add the `.mdx` page under `docs/`.
+2. Add its extensionless path to `docs/docs.json` when it belongs in navigation.
+3. Update inbound links found with `rg` if a page moves.
+4. Keep archived plans outside active navigation and label historical material.
+5. Run the docs validator before pushing.
+
+## Required validation
+
+```bash
+./build.sh check
+.agents/skills/docs-validate/validate.sh
+```
+
+If public APIs changed, also run `zig build check-parity`. For runtime-facing
+documentation, exercise the real binaries with
+`.agents/skills/run-abi/smoke.sh`; a compile-only result is not runtime proof.

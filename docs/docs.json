@@ -11,7 +11,7 @@
     "groups": [
       {
         "group": "Overview",
-        "pages": ["index"]
+        "pages": ["index", "contributing"]
       },
       {
         "group": "Architecture",
