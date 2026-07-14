@@ -39,6 +39,16 @@ These ship real local artifacts but truthfully disclose that native/external dis
 | Windows runtime verification for cross builds | ⚪ Not started | `.github/workflows/ci.yml` runs `zig build check` + `zig build cross-smoke` (linux-gnu/windows-gnu/aarch64-macos). Remaining (out of scope from a macOS host): actual Windows runtime verification. `/tmp`/`std.c.getpid()` test-helper cleanup complete. |
 | modern-refactor Phase 2–4 (docs hub / tools split / polish) | ✅ Done | Docs hub + contributing page; contract CLI factoring + agent orchestration smoke; plugin registry Zig-string generator; plan archived under `modern-refactor/examples/`; design specs refreshed for multi-agent orchestration. |
 
+### Priority A security + REPL (G1–G5)
+
+| Item | Status | Notes |
+| ---- | ------ | ----- |
+| G1 REPL line editor | ✅ Done | Pure `line_editor.zig` (CSI decode, cursor, history) wired into raw-mode REPL; unit tests + TUI/dashboard smoke. |
+| G2 MCP/REST JSON depth | ✅ Done | `MAX_JSON_DEPTH=32` in `protocol.validateRequest`; shared by stdio + HTTP `processJsonRpc`; oversize/bearer tests retained. |
+| G3 credential/HTTPS hygiene | ✅ Done | Live `joinUrl` requires `https://`; POSIX no-echo signin; Windows ACL/keychain remain disclosed gaps. |
+| G4 `ai_train` path sandbox | ✅ Done | Dataset/artifact confined to cwd or `ABI_TRAIN_DATA_ROOT`; rejects `..`, abs outside root, symlink escape. |
+| G5 store dir `0700` | ✅ Done | Durable store parent dirs created/repaired owner-only on POSIX; not a multi-host production claim. |
+
 ---
 
 ## Constraints & intentional non-goals
@@ -62,6 +72,7 @@ These are decisions, not unfinished work — do not "fix" them.
 
 One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`.
 
+- **Priority A G1–G5** — REPL line editor; MCP JSON depth bound; HTTPS-only live connectors + POSIX no-echo signin; `ai_train` path sandbox (`ABI_TRAIN_DATA_ROOT`); durable store parent dirs `0700` on POSIX.
 - **Local agent orchestration + MCP depth** — `agent multi|spawn|browser` now expose scheduler-backed local workers and claim-honest browser planning; background submission is failure-transactional, feature-off stubs preserve type ownership, CLI runtime smoke covers the new surface, and MCP HTTP has transport-level wrong-bearer + oversized-body regression tests.
 - **modern-refactor Phase 1** — filled advertised skill `references/` (`analysis-checklist.md`, `implementation-playbook.md` + example); layout verifier; `.gitignore` allowlist + honest README; docs archive isolation + standard extract disclaimers; `tools/goal_capture.sh` SCRATCH via env/`TMPDIR`. Phases 2–4 deferred.
 - **File extractions (wave 2)** — `dispatch.zig`→`suggest.zig` (473→341), `registry.zig`→`completion.zig`+`help_json.zig` (1033→646), `tui/mod.zig`→`dashboard.zig` (636→153), `handlers/dashboard.zig`→`dashboard_json.zig` (824→485), `cluster_rpc.zig`→`cluster.zig` (cluster_rpc 645→615, cluster 252→292).

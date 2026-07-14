@@ -71,11 +71,40 @@ pub fn resolveConfig(allocator: std.mem.Allocator) !Config {
     return .{ .base_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ home, DEFAULT_SUBPATH }) };
 }
 
+/// Create (or repair) a directory tree as owner-only (`0700`) on POSIX so a
+/// newly opened durable store is not world-readable by default (TM-006 step).
+/// Windows/no-mode targets keep the platform default file permissions.
+fn ownerOnlyDirPermissions() std.Io.Dir.Permissions {
+    if (comptime std.Io.File.Permissions.has_executable_bit) {
+        return std.Io.File.Permissions.fromMode(0o700);
+    }
+    return .default_file;
+}
+
+fn ensureOwnerOnlyDir(io: std.Io, path: []const u8) !void {
+    if (path.len == 0) return;
+    const perms = ownerOnlyDirPermissions();
+    _ = try std.Io.Dir.createDirPathStatus(.cwd(), io, path, perms);
+    // Existing dirs keep prior mode across createDirPath; repair to 0700.
+    // `path` may be relative (CLI/test) or absolute (HOME-resolved ambient path).
+    if (comptime std.Io.File.Permissions.has_executable_bit) {
+        const dir = if (std.fs.path.isAbsolute(path))
+            try std.Io.Dir.openDirAbsolute(io, path, .{})
+        else
+            try std.Io.Dir.cwd().openDir(io, path, .{});
+        defer dir.close(io);
+        try dir.setPermissions(io, perms);
+    }
+}
+
 fn ensureParentDir(io: std.Io, base: []const u8) !void {
     const dir = std.fs.path.dirname(base) orelse return;
     if (dir.len == 0) return;
     // createDirPath is idempotent (succeeds when the path already exists).
-    try std.Io.Dir.cwd().createDirPath(io, dir);
+    try ensureOwnerOnlyDir(io, dir);
+    // Also ensure the store base directory itself when it is a directory path
+    // component used as the segment root (parent of leaf file names).
+    // When `base` is a file path (e.g. .../wdbx), only the parent is created.
 }
 
 pub const Session = struct {
@@ -270,6 +299,33 @@ test "durable_store: vector mutations survive a crash via the WAL delta" {
     var reopened = try Session.openAt(testing.io, testing.allocator, base);
     defer reopened.deinit();
     try testing.expectEqual(@as(usize, 2), reopened.storePtr().vectorCount());
+}
+
+test "durable_store: store parent directory defaults to owner-only mode on POSIX" {
+    if (builtin.target.os.tag == .windows) return;
+    if (!comptime std.Io.File.Permissions.has_executable_bit) return;
+
+    const base = "zig-out/g5-owner-only/store.jsonl";
+    const parent = "zig-out/g5-owner-only";
+    defer {
+        deleteIfExists(base);
+        deleteIfExists("zig-out/g5-owner-only/store.jsonl.wal");
+        deleteIfExists("zig-out/g5-owner-only/store.jsonl.manifest");
+        std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch {};
+    }
+    std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch {};
+
+    {
+        var session = try Session.openAt(testing.io, testing.allocator, base);
+        defer session.deinit();
+        try testing.expect(session.isPersistent());
+    }
+
+    const dir = try std.Io.Dir.cwd().openDir(testing.io, parent, .{});
+    defer dir.close(testing.io);
+    const stat = try dir.stat(testing.io);
+    const mode = stat.permissions.toMode() & 0o777;
+    try testing.expectEqual(@as(std.posix.mode_t, 0o700), mode);
 }
 
 test "durable_store: :memory: sentinel and falsey persist flag map to in-memory" {
