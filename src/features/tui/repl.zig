@@ -16,14 +16,10 @@ const scheduler_mod = @import("../../core/scheduler.zig");
 const time = @import("../../foundation/time.zig");
 const sanitize = @import("sanitize.zig");
 const terminal = @import("terminal.zig");
+const line_editor = @import("line_editor.zig");
 
 /// Maximum length of a model id settable via `/model`.
 const MODEL_STORAGE_BYTES = 128;
-
-/// Maximum bytes buffered for a single raw-mode input line. `runRawMode`'s
-/// printable filter drops any byte once `line_buf` is full, so input past this
-/// bound is discarded rather than overflowing the buffer.
-const RAW_LINE_BUF_BYTES = 4096;
 
 pub const ReplConfig = struct {
     model: []const u8 = models.default_model,
@@ -157,12 +153,32 @@ fn printHelp() void {
     std.debug.print("  <text>           Run a completion and persist the turn\n\n", .{});
 }
 
-/// Raw-mode input filter: accept only the printable ASCII range (0x20–0x7E) for
-/// the line buffer. Drops C0 controls (incl. ESC 0x1B and NUL 0x00) and DEL
-/// (0x7F) so attacker-injected escape bytes never reach the buffered line.
-/// Pure and file-local so it is unit-testable without a live terminal.
-fn isPrintableInput(key: u8) bool {
-    return key >= 0x20 and key < 0x7f;
+const SlashCompletion = union(enum) {
+    none,
+    unique: []const u8,
+    ambiguous: []const *const SlashCommand,
+};
+
+/// Find canonical slash-command names for a partially typed command token.
+/// Completion is intentionally unavailable after whitespace, so prompts and
+/// `/model` arguments always retain their literal input behavior.
+fn completeSlashCommand(input: []const u8, matches: *[slash_commands.len]*const SlashCommand) SlashCompletion {
+    if (input.len < 2 or input[0] != '/' or firstWhitespace(input) != null) return .none;
+    const prefix = input[1..];
+    var count: usize = 0;
+    for (&slash_commands) |*def| {
+        var matched = std.mem.startsWith(u8, def.name, prefix);
+        for (def.aliases) |alias| matched = matched or std.mem.startsWith(u8, alias, prefix);
+        if (matched) {
+            matches[count] = def;
+            count += 1;
+        }
+    }
+    return switch (count) {
+        0 => .none,
+        1 => .{ .unique = matches[0].name },
+        else => .{ .ambiguous = matches[0..count] },
+    };
 }
 
 pub const ReplLoop = struct {
@@ -230,40 +246,102 @@ pub const ReplLoop = struct {
         }
     }
 
-    /// Phase-2 path: assemble input character-by-character under raw mode. Echo
-    /// is disabled in raw mode so printable keys are echoed manually; Enter
-    /// submits, Backspace edits, and Ctrl-D on an empty buffer ends the session.
+    /// Raw-mode path with bounded line editing. The terminal itself supplies
+    /// bytes; `line_editor` decodes them into safe editor actions so controls
+    /// never become part of a submitted prompt.
     fn runRawMode(self: *ReplLoop, term: *terminal.InteractiveTerminal, io: std.Io) !void {
-        var line_buf: [RAW_LINE_BUF_BYTES]u8 = undefined;
-        var len: usize = 0;
-        std.debug.print("{s}", .{self.state.config.prompt_prefix});
+        var editor = line_editor.LineEditor.init(self.allocator);
+        defer editor.deinit();
+        var decoder = line_editor.KeyDecoder{};
+        self.resetRawPrompt(&editor);
 
         while (true) {
-            const key = term.readKey() orelse break; // closed stdin
+            const key = try self.readRawKey(term, &decoder) orelse break;
             switch (key) {
-                '\r', '\n' => {
+                .printable => |byte| if (try editor.insertPrintable(byte)) self.redrawRawInput(&editor),
+                .left => if (editor.moveLeft()) self.redrawRawInput(&editor),
+                .right => if (editor.moveRight()) self.redrawRawInput(&editor),
+                .home => if (editor.moveHome()) self.redrawRawInput(&editor),
+                .end => if (editor.moveEnd()) self.redrawRawInput(&editor),
+                .backspace => if (editor.deleteBackward()) self.redrawRawInput(&editor),
+                .delete => if (editor.deleteForward()) self.redrawRawInput(&editor),
+                .up => if (try editor.historyUp()) self.redrawRawInput(&editor),
+                .down => if (try editor.historyDown()) self.redrawRawInput(&editor),
+                .tab => try self.applyTabCompletion(&editor),
+                .enter => {
+                    self.finishRawLine(&editor);
                     std.debug.print("\n", .{});
-                    const line = std.mem.trim(u8, line_buf[0..len], " \t\r\n");
-                    const outcome = if (line.len > 0) try self.dispatchLine(line, io) else .keep_going;
-                    len = 0;
+                    const line = std.mem.trim(u8, editor.text(), " \t\r\n");
+                    const outcome = if (line.len > 0) blk: {
+                        try editor.recordSubmitted();
+                        break :blk try self.dispatchLine(line, io);
+                    } else .keep_going;
+                    editor.clear();
                     if (outcome == .quit) return;
-                    std.debug.print("{s}", .{self.state.config.prompt_prefix});
+                    self.resetRawPrompt(&editor);
                 },
-                0x04 => break, // Ctrl-D
-                0x7f, 0x08 => { // Backspace / Delete
-                    if (len > 0) {
-                        len -= 1;
-                        std.debug.print("\x08 \x08", .{}); // erase the echoed glyph
-                    }
-                },
-                else => {
-                    if (isPrintableInput(key) and len < line_buf.len) {
-                        line_buf[len] = key;
-                        len += 1;
-                        std.debug.print("{c}", .{key});
-                    }
-                },
+                .eof => break,
+                .ignore => {},
             }
+        }
+    }
+
+    /// Decode one terminal action. Escape sequences are given a short bounded
+    /// wait; a lone or malformed escape is cancelled and has no editor effect.
+    fn readRawKey(self: *ReplLoop, term: *terminal.InteractiveTerminal, decoder: *line_editor.KeyDecoder) !?line_editor.Key {
+        _ = self;
+        const first = term.readKey() orelse return null;
+        if (decoder.feed(first)) |key| return key;
+        while (decoder.pending()) {
+            if (!term.pollInput(30)) {
+                decoder.cancelPending();
+                return .ignore;
+            }
+            const next = term.readKey() orelse {
+                decoder.cancelPending();
+                return null;
+            };
+            if (decoder.feed(next)) |key| return key;
+        }
+        return .ignore;
+    }
+
+    fn redrawRawInput(self: *ReplLoop, editor: *const line_editor.LineEditor) void {
+        std.debug.print("\x1b[u{s}{s}\x1b[0J", .{ self.state.config.prompt_prefix, editor.text() });
+        const trailing = editor.text().len - editor.cursor;
+        if (trailing > 0) std.debug.print("\x1b[{d}D", .{trailing});
+    }
+
+    /// Anchor a prompt at its first cell. Each redraw restores this anchor and
+    /// clears to the end of the terminal, removing stale wrapped rows from a
+    /// long (up to 4 KiB) line before rendering the current editor state.
+    fn resetRawPrompt(self: *ReplLoop, editor: *const line_editor.LineEditor) void {
+        std.debug.print("\x1b[s", .{});
+        self.redrawRawInput(editor);
+    }
+
+    fn finishRawLine(self: *ReplLoop, editor: *const line_editor.LineEditor) void {
+        _ = self;
+        const trailing = editor.text().len - editor.cursor;
+        if (trailing > 0) std.debug.print("\x1b[{d}C", .{trailing});
+    }
+
+    fn applyTabCompletion(self: *ReplLoop, editor: *line_editor.LineEditor) !void {
+        var matches: [slash_commands.len]*const SlashCommand = undefined;
+        switch (completeSlashCommand(editor.text(), &matches)) {
+            .none => {},
+            .unique => |name| {
+                var command: [MODEL_STORAGE_BYTES]u8 = undefined;
+                const completed = try std.fmt.bufPrint(&command, "/{s}", .{name});
+                try editor.replace(completed);
+                self.redrawRawInput(editor);
+            },
+            .ambiguous => |defs| {
+                std.debug.print("\nmatches:", .{});
+                for (defs) |def| std.debug.print(" /{s}", .{def.name});
+                std.debug.print("\n", .{});
+                self.resetRawPrompt(editor);
+            },
         }
     }
 
@@ -486,6 +564,35 @@ test "ReplState init seeds defaults and a session id" {
     try std.testing.expect(state.session_id > 0);
 }
 
+test "slash completion canonicalizes unique prefixes and reports ambiguity" {
+    var matches: [slash_commands.len]*const SlashCommand = undefined;
+
+    switch (completeSlashCommand("/mod", &matches)) {
+        .unique => |name| try std.testing.expectEqualStrings("model", name),
+        else => return error.ExpectedUniqueModel,
+    }
+    switch (completeSlashCommand("/stat", &matches)) {
+        .unique => |name| try std.testing.expectEqualStrings("status", name),
+        else => return error.ExpectedUniqueStatus,
+    }
+    switch (completeSlashCommand("/s", &matches)) {
+        .ambiguous => |defs| {
+            try std.testing.expectEqual(@as(usize, 2), defs.len);
+            try std.testing.expectEqualStrings("status", defs[0].name);
+            try std.testing.expectEqualStrings("sync-clis", defs[1].name);
+        },
+        else => return error.ExpectedAmbiguousSlashPrefix,
+    }
+    switch (completeSlashCommand("/model abi", &matches)) {
+        .none => {},
+        else => return error.ExpectedLiteralModelArgument,
+    }
+    switch (completeSlashCommand("ordinary prompt", &matches)) {
+        .none => {},
+        else => return error.ExpectedLiteralPrompt,
+    }
+}
+
 test "tui input hardening: adversarial bytes never corrupt state" {
     // parseSpecialCommand is the prime fuzz target: it must classify every
     // adversarial line into a valid SpecialCommand variant without panicking,
@@ -513,13 +620,13 @@ test "tui input hardening: adversarial bytes never corrupt state" {
 
     // An overlong buffer (larger than the raw-mode line buffer) must classify
     // without overflow. A leading '/' forces the slash-command body scan.
-    const overlong = try std.testing.allocator.alloc(u8, RAW_LINE_BUF_BYTES * 2);
+    const overlong = try std.testing.allocator.alloc(u8, line_editor.MAX_LINE_BYTES * 2);
     defer std.testing.allocator.free(overlong);
     @memset(overlong, '/');
     _ = parseSpecialCommand(overlong);
-    // Such input exceeds the raw-mode line buffer; runRawMode's printable filter
-    // (`len < line_buf.len`) drops the overflow rather than writing past the bound.
-    try std.testing.expect(overlong.len > RAW_LINE_BUF_BYTES);
+    // Such input exceeds the editor's bounded input capacity, so insertion can
+    // reject overflow rather than writing past its backing storage.
+    try std.testing.expect(overlong.len > line_editor.MAX_LINE_BYTES);
 
     // The output sanitizer must remove ESC and NUL from attacker-influenced text
     // so render fields cannot inject terminal escapes. Length is preserved.
@@ -531,14 +638,17 @@ test "tui input hardening: adversarial bytes never corrupt state" {
     try std.testing.expectEqual(dirty.len, clean.len);
 }
 
-test "isPrintableInput drops control bytes and keeps printable ASCII" {
-    // Drops: ESC, NUL, DEL — the bytes that could inject terminal escapes.
-    try std.testing.expect(!isPrintableInput(0x1b));
-    try std.testing.expect(!isPrintableInput(0x00));
-    try std.testing.expect(!isPrintableInput(0x7f));
-    // Keeps the printable ASCII boundaries.
-    try std.testing.expect(isPrintableInput(0x20));
-    try std.testing.expect(isPrintableInput(0x7e));
+test "raw editor rejects control bytes and accepts printable ASCII" {
+    var editor = line_editor.LineEditor.init(std.testing.allocator);
+    defer editor.deinit();
+
+    // ESC, NUL, and DEL cannot become prompt text.
+    try std.testing.expect(!(try editor.insertPrintable(0x1b)));
+    try std.testing.expect(!(try editor.insertPrintable(0x00)));
+    try std.testing.expect(!(try editor.insertPrintable(0x7f)));
+    try std.testing.expect(try editor.insertPrintable(0x20));
+    try std.testing.expect(try editor.insertPrintable(0x7e));
+    try std.testing.expectEqualStrings(" ~", editor.text());
 }
 
 test {

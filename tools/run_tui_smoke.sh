@@ -181,4 +181,60 @@ case "$agent_out" in
     ;;
 esac
 
+# The heredoc above deliberately covers the stable non-TTY fallback. When tmux
+# is available, also drive the raw-mode editor through a real PTY: cursor edit,
+# tab completion, ambiguous command discovery, and history recall all need a
+# terminal to exercise the byte-oriented input path.
+if command -v tmux >/dev/null 2>&1; then
+  agent_session="abi-agent-tui-smoke-$$"
+  agent_pty_bin="$PWD/$bin"
+  tmux kill-session -t "$agent_session" 2>/dev/null || true
+  tmux new-session -d -s "$agent_session" -x 120 -y 40 "env ABI_WDBX_PATH=:memory: '$agent_pty_bin' agent tui"
+  cleanup_agent_session() {
+    tmux kill-session -t "$agent_session" 2>/dev/null || true
+  }
+  trap cleanup_agent_session EXIT
+
+  sleep 1
+  tmux send-keys -t "$agent_session" -l '/helpx'
+  tmux send-keys -t "$agent_session" Left Delete Enter
+  tmux send-keys -t "$agent_session" -l '/mod'
+  tmux send-keys -t "$agent_session" Tab Enter
+  tmux send-keys -t "$agent_session" -l '/s'
+  tmux send-keys -t "$agent_session" Tab Enter
+  tmux send-keys -t "$agent_session" -l '/model abi-local'
+  tmux send-keys -t "$agent_session" Enter Up Enter
+  sleep 1
+  agent_pty_out=$(tmux capture-pane -pt "$agent_session" 2>&1 || true)
+
+  case "$agent_pty_out" in
+    *"Commands:"*"usage: /model <id>"*"matches: /status /sync-clis"*) ;;
+    *) echo "tui smoke: raw agent editor missed edit or tab-completion output" >&2; echo "$agent_pty_out" >&2; exit 1 ;;
+  esac
+  model_set_count=$(printf '%s' "$agent_pty_out" | grep -F -c "model set to abi-local")
+  if [ "$model_set_count" -lt 2 ]; then
+    echo "tui smoke: raw agent editor did not recall history" >&2
+    echo "$agent_pty_out" >&2
+    exit 1
+  fi
+  case "$agent_pty_out" in
+    *"interactive REPL failed"*|*"FeatureDisabled"*|*"panic"*)
+      echo "tui smoke: raw agent editor reported an unexpected failure" >&2
+      echo "$agent_pty_out" >&2
+      exit 1
+      ;;
+  esac
+
+  tmux send-keys -t "$agent_session" -l '/quit'
+  tmux send-keys -t "$agent_session" Enter
+  sleep 1
+  tmux has-session -t "$agent_session" 2>/dev/null && {
+    echo "tui smoke: raw agent REPL did not exit after /quit" >&2
+    exit 1
+  }
+  trap - EXIT
+else
+  echo "tui smoke: tmux unavailable; skipped raw agent PTY editor check" >&2
+fi
+
 echo "tui smoke: ok"
