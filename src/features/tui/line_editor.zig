@@ -298,7 +298,7 @@ test "line editor evicts the oldest entry after one hundred submissions" {
     try std.testing.expectEqualStrings("entry-100", editor.history.items[editor.history.items.len - 1]);
 }
 
-test "key decoder handles ANSI navigation and ignores malformed sequences" {
+test "line editor key decoder handles ANSI navigation and ignores malformed sequences" {
     var decoder = KeyDecoder{};
     try std.testing.expectEqual(@as(?Key, null), decoder.feed(0x1b));
     try std.testing.expect(decoder.pending());
@@ -333,7 +333,7 @@ test "key decoder handles ANSI navigation and ignores malformed sequences" {
     try std.testing.expectEqual(Key.ignore, decoder.feed(0x00).?);
 }
 
-test "unsupported escape sequence tails never enter the editor buffer" {
+test "line editor unsupported escape sequence tails never enter the editor buffer" {
     var decoder = KeyDecoder{};
     var editor = LineEditor.init(std.testing.allocator);
     defer editor.deinit();
