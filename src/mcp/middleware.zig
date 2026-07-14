@@ -101,9 +101,11 @@ fn validateString(field: FieldSpec, s: []const u8) !void {
     }
 }
 
-/// Rejects path traversal. Absolute paths are intentionally allowed — a local,
-/// single-user CLI server legitimately reads absolute dataset paths — so only
-/// `..` components, which could escape an intended directory, are blocked.
+/// Rejects path traversal (`..` components). Absolute paths are still allowed
+/// at the middleware layer for local single-user use; the training path
+/// (`training_support.confineTrainingPath`) additionally confines dataset and
+/// artifact paths to `ABI_TRAIN_DATA_ROOT` (or cwd) so MCP `ai_train` cannot
+/// open arbitrary host paths when the HTTP transport is fronted (TM-003).
 fn validatePath(path: []const u8) !void {
     var it = std.mem.splitAny(u8, path, "/\\");
     while (it.next()) |segment| {

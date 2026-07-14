@@ -24,7 +24,7 @@ fn runTrainingTask(ctx: ?*anyopaque) anyerror!void {
 }
 
 pub fn train(allocator: std.mem.Allocator, config: types.TrainingConfig) !types.TrainingResult {
-    try training_support.validateTrainingConfig(config);
+    try training_support.validateTrainingConfigConfined(allocator, config);
     const summary = try training_support.inspectDatasetTracked(allocator, config.dataset, config.tracker);
 
     var store = wdbx.Store.init(allocator);
@@ -175,6 +175,8 @@ pub fn trainKnownProfiles(allocator: std.mem.Allocator, store: *wdbx.Store, data
 }
 
 pub fn evaluate(config: types.TrainingConfig) !types.TrainingResult {
+    // evaluate has no allocator parameter; basic validation only. Path
+    // confinement is enforced on train/trainWithStore (the real open paths).
     try training_support.validateTrainingConfig(config);
     return .{
         .accepted = true,
@@ -236,13 +238,11 @@ test "trainWithStore uses the store tracker for dataset inspection when config t
     const foundation_io = @import("../../foundation/io/mod.zig");
     const allocator = std.testing.allocator;
 
-    const path = try temp_path.tempFilePath(allocator, "abi_train_store_tracker", "jsonl");
-    defer allocator.free(path);
-    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, path) catch |err| switch (err) {
-        error.FileNotFound => {},
-        else => std.log.warn("training store-tracker test cleanup failed: {s}", .{@errorName(err)}),
-    };
+    // Relative under cwd so path confinement (cwd/`ABI_TRAIN_DATA_ROOT`) accepts it.
+    const path = "zig-out/abi_train_store_tracker.jsonl";
+    try std.Io.Dir.createDirPath(.cwd(), std.testing.io, "zig-out");
     try foundation_io.asyncWriteFile(path, "{\"input\":\"one\"}\n{\"input\":\"two\"}\n");
+    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
 
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
@@ -270,13 +270,10 @@ test "train accounts its transient internals on config.tracker (balanced)" {
     const foundation_io = @import("../../foundation/io/mod.zig");
     const allocator = std.testing.allocator;
 
-    const path = try temp_path.tempFilePath(allocator, "abi_train_config_tracker", "jsonl");
-    defer allocator.free(path);
-    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, path) catch |err| switch (err) {
-        error.FileNotFound => {},
-        else => std.log.warn("training config-tracker test cleanup failed: {s}", .{@errorName(err)}),
-    };
+    const path = "zig-out/abi_train_config_tracker.jsonl";
+    try std.Io.Dir.createDirPath(.cwd(), std.testing.io, "zig-out");
     try foundation_io.asyncWriteFile(path, "{\"input\":\"one\"}\n{\"input\":\"two\"}\n");
+    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
 
     var tracker = memory.MemoryTracker.init(allocator);
     defer tracker.deinit();

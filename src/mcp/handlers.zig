@@ -308,7 +308,7 @@ pub fn errorMessage(err: anyerror) []const u8 {
         error.InvalidFieldValue => "Invalid field value",
         error.InvalidFieldEncoding => "Invalid field encoding",
         error.FieldTooLong => "Field too long",
-        error.PathTraversal => "Invalid path",
+        error.PathTraversal, error.PathOutsideRoot => "Invalid path",
         error.InvalidCompletionInput => "Invalid input",
         else => "Internal error",
     };

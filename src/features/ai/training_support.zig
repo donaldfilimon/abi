@@ -1,9 +1,16 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const foundation_io = @import("../../foundation/io/mod.zig");
 const core_memory = @import("../../core/memory.zig");
 const temp_path = @import("../../foundation/temp_path.zig");
+const env = @import("../../foundation/env.zig");
 const helpers = @import("helpers.zig");
 const types = @import("types.zig");
+
+/// Optional absolute root for dataset/artifact paths (TM-003). When unset,
+/// the process cwd is the confine root. Absolute paths outside the root and
+/// symlink escapes that resolve outside the root are rejected.
+pub const TRAIN_DATA_ROOT_ENV = "ABI_TRAIN_DATA_ROOT";
 
 pub const DatasetSummary = struct {
     available: bool = false,
@@ -16,6 +23,83 @@ pub fn validateTrainingConfig(config: types.TrainingConfig) !void {
     _ = parseAgentProfile(config.profile) catch return error.InvalidTrainingProfile;
     if (config.dataset.path.len == 0) return error.InvalidDatasetPath;
     if (config.artifact_dir.len == 0) return error.InvalidArtifactPath;
+}
+
+/// Profile + non-empty path checks, then confine dataset/artifact under the
+/// training data root (cwd or `ABI_TRAIN_DATA_ROOT`).
+pub fn validateTrainingConfigConfined(allocator: std.mem.Allocator, config: types.TrainingConfig) !void {
+    try validateTrainingConfig(config);
+    const root = try trainingDataRoot(allocator);
+    defer allocator.free(root);
+    try confineTrainingPath(allocator, config.dataset.path, root);
+    try confineTrainingPath(allocator, config.artifact_dir, root);
+}
+
+/// Resolve the training data root: env override if set, else absolute cwd.
+/// Caller owns the returned slice (free with `allocator.free`).
+pub fn trainingDataRoot(allocator: std.mem.Allocator) ![]u8 {
+    if (env.get(TRAIN_DATA_ROOT_ENV)) |root| {
+        if (root.len == 0) return error.InvalidTrainingDataRoot;
+        return try resolveExistingOrAbsolute(allocator, root);
+    }
+    // currentPathAlloc returns a sentinel slice; re-dupe as a plain `[]u8` so
+    // callers can free with `allocator.free` without sentinel size skew.
+    const cwd_z = try std.process.currentPathAlloc(std.Options.debug_io, allocator);
+    defer allocator.free(cwd_z);
+    return try allocator.dupe(u8, cwd_z);
+}
+
+/// Reject `..` segments, absolute paths outside `root`, and realpath escapes
+/// (symlink to a location outside the root). `root` must be absolute.
+pub fn confineTrainingPath(allocator: std.mem.Allocator, path: []const u8, root: []const u8) !void {
+    if (path.len == 0) return error.InvalidDatasetPath;
+    try rejectDotDot(path);
+
+    const candidate = if (std.fs.path.isAbsolute(path))
+        try allocator.dupe(u8, path)
+    else if (root.len > 0 and (root[root.len - 1] == '/' or (builtin.target.os.tag == .windows and root[root.len - 1] == '\\')))
+        try std.fmt.allocPrint(allocator, "{s}{s}", .{ root, path })
+    else
+        try std.fmt.allocPrint(allocator, "{s}/{s}", .{ root, path });
+    defer allocator.free(candidate);
+
+    // Prefer realpath so symlink escapes surface as PathOutsideRoot.
+    var resolved_buf: [foundation_io.MAX_PATH_LEN]u8 = undefined;
+    if (std.Io.Dir.realPathFile(.cwd(), std.Options.debug_io, candidate, &resolved_buf)) |len| {
+        if (!pathIsUnderRoot(resolved_buf[0..len], root)) return error.PathOutsideRoot;
+        return;
+    } else |_| {
+        // Path does not exist yet (common for artifact_dir): check lexical prefix.
+        if (!pathIsUnderRoot(candidate, root)) return error.PathOutsideRoot;
+    }
+}
+
+fn rejectDotDot(path: []const u8) !void {
+    var it = std.mem.splitAny(u8, path, "/\\");
+    while (it.next()) |segment| {
+        if (std.mem.eql(u8, segment, "..")) return error.PathTraversal;
+    }
+}
+
+fn pathIsUnderRoot(path: []const u8, root: []const u8) bool {
+    if (path.len < root.len) return false;
+    if (!std.mem.startsWith(u8, path, root)) return false;
+    if (path.len == root.len) return true;
+    const next = path[root.len];
+    if (next == '/') return true;
+    if (builtin.target.os.tag == .windows and next == '\\') return true;
+    // Avoid `/tmp/evil` matching root `/tmp/ev`.
+    return false;
+}
+
+fn resolveExistingOrAbsolute(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
+    var buf: [foundation_io.MAX_PATH_LEN]u8 = undefined;
+    if (std.Io.Dir.realPathFile(.cwd(), std.Options.debug_io, path, &buf)) |len| {
+        return try allocator.dupe(u8, buf[0..len]);
+    } else |_| {
+        if (std.fs.path.isAbsolute(path)) return try allocator.dupe(u8, path);
+        return error.InvalidTrainingDataRoot;
+    }
 }
 
 pub fn inspectDataset(allocator: std.mem.Allocator, dataset: types.DatasetSpec) !DatasetSummary {
@@ -113,6 +197,50 @@ test "dataset record counting handles jsonl and surfaces malformed lines" {
     // error propagates) rather than being silently skipped. Pinned so a future
     // skip-malformed change is a deliberate decision, not an accidental drift.
     try std.testing.expect(if (countDatasetRecords(allocator, .jsonl, "{\"a\":1}\nnot json\n")) |_| false else |_| true);
+}
+
+test "pathIsUnderRoot requires separator boundary" {
+    try std.testing.expect(pathIsUnderRoot("/data/train", "/data"));
+    try std.testing.expect(pathIsUnderRoot("/data", "/data"));
+    try std.testing.expect(!pathIsUnderRoot("/data-evil/x", "/data"));
+    try std.testing.expect(!pathIsUnderRoot("/etc/passwd", "/data"));
+}
+
+test "confineTrainingPath rejects traversal absolute outside and accepts under root" {
+    const allocator = std.testing.allocator;
+    const root = try trainingDataRoot(allocator);
+    defer allocator.free(root);
+
+    try std.testing.expectError(error.PathTraversal, confineTrainingPath(allocator, "../secret", root));
+    try std.testing.expectError(error.PathOutsideRoot, confineTrainingPath(allocator, "/etc/passwd", root));
+
+    // Relative paths are joined under the root and accepted even when missing.
+    try confineTrainingPath(allocator, "zig-cache/agents", root);
+    try confineTrainingPath(allocator, "datasets/local-training.jsonl", root);
+}
+
+test "confineTrainingPath rejects symlink escape when present" {
+    if (builtin.target.os.tag == .windows) return;
+
+    const allocator = std.testing.allocator;
+    const root = try temp_path.tempFilePath(allocator, "abi_train_root", "dir");
+    defer allocator.free(root);
+    // tempFilePath returns a file-shaped name; create it as a directory root.
+    std.Io.Dir.createDirPath(.cwd(), std.Options.debug_io, root) catch {
+        std.Io.Dir.deleteFileAbsolute(std.Options.debug_io, root) catch {};
+        try std.Io.Dir.createDirPath(.cwd(), std.Options.debug_io, root);
+    };
+    defer std.Io.Dir.deleteTree(.cwd(), std.Options.debug_io, root) catch {};
+
+    const link_path = try std.fmt.allocPrint(allocator, "{s}/escape", .{root});
+    defer allocator.free(link_path);
+    // Point a symlink at a location outside the root.
+    std.Io.Dir.symLinkAbsolute(std.Options.debug_io, "/etc", link_path, .{}) catch return;
+    defer std.Io.Dir.deleteFileAbsolute(std.Options.debug_io, link_path) catch {};
+
+    try std.testing.expectError(error.PathOutsideRoot, confineTrainingPath(allocator, "escape", root));
+    // Direct child name under root (non-symlink) is fine when missing or present.
+    try confineTrainingPath(allocator, "artifacts", root);
 }
 
 test "inspectDatasetTracked accounts read and JSON parse transients" {
