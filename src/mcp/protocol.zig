@@ -1,6 +1,9 @@
 const std = @import("std");
 
 pub const MAX_REQUEST_SIZE = 64 * 1024; // 64KB request limit
+/// Maximum nesting depth of `{`/`[` containers accepted by JSON-RPC parse paths.
+/// Bounds CPU/stack pressure from adversarial deeply-nested payloads (TM-008).
+pub const MAX_JSON_DEPTH: usize = 32;
 
 pub const JsonRpcRequest = struct {
     jsonrpc: []const u8,
@@ -44,12 +47,50 @@ pub const McpMethod = enum {
     }
 };
 
+/// Structural pre-check for JSON-RPC request lines (stdio + HTTP body).
+/// Rejects empty/oversize input, non-object roots, and over-nested containers
+/// before `std.json.parseFromSlice` so both transports share one bound.
 pub fn validateRequest(line: []const u8) !void {
     if (line.len == 0) return error.EmptyRequest;
     if (line.len > MAX_REQUEST_SIZE) return error.RequestTooLarge;
     var i: usize = 0;
     while (i < line.len and (line[i] == ' ' or line[i] == '\t')) : (i += 1) {}
     if (i >= line.len or line[i] != '{') return error.InvalidJsonFormat;
+    try checkJsonDepth(line, MAX_JSON_DEPTH);
+}
+
+/// Walk JSON text and reject when object/array nesting exceeds `max_depth`.
+/// String contents are skipped so braces inside quoted values do not count.
+pub fn checkJsonDepth(src: []const u8, max_depth: usize) !void {
+    var depth: usize = 0;
+    var in_string = false;
+    var escape = false;
+    for (src) |byte| {
+        if (in_string) {
+            if (escape) {
+                escape = false;
+                continue;
+            }
+            if (byte == '\\') {
+                escape = true;
+                continue;
+            }
+            if (byte == '"') in_string = false;
+            continue;
+        }
+        switch (byte) {
+            '"' => in_string = true,
+            '{', '[' => {
+                depth += 1;
+                if (depth > max_depth) return error.JsonTooDeep;
+            },
+            '}', ']' => {
+                if (depth == 0) return error.InvalidJsonFormat;
+                depth -= 1;
+            },
+            else => {},
+        }
+    }
 }
 
 test "protocol: McpMethod.fromString maps known and unknown methods" {
@@ -75,6 +116,31 @@ test "protocol: validateRequest accepts an object line and rejects malformed inp
     var oversized: [MAX_REQUEST_SIZE + 1]u8 = undefined;
     @memset(&oversized, '{');
     try std.testing.expectError(error.RequestTooLarge, validateRequest(&oversized));
+}
+
+test "protocol: validateRequest rejects over-nested JSON containers" {
+    // Depth-1 object is fine; build a chain of nested objects past MAX_JSON_DEPTH.
+    const allocator = std.testing.allocator;
+    var deep: std.ArrayListUnmanaged(u8) = .empty;
+    defer deep.deinit(allocator);
+    var i: usize = 0;
+    while (i < MAX_JSON_DEPTH + 1) : (i += 1) {
+        try deep.appendSlice(allocator, "{\"a\":");
+    }
+    try deep.appendSlice(allocator, "1");
+    i = 0;
+    while (i < MAX_JSON_DEPTH + 1) : (i += 1) {
+        try deep.append(allocator, '}');
+    }
+    try std.testing.expectError(error.JsonTooDeep, validateRequest(deep.items));
+
+    // Braces inside strings must not count toward depth.
+    try validateRequest("{\"a\":\"{{{{{\"}");
+}
+
+test "protocol: checkJsonDepth allows shallow nests and rejects deeper ones" {
+    try checkJsonDepth("{\"a\":[1,2,{\"b\":3}]}", 4);
+    try std.testing.expectError(error.JsonTooDeep, checkJsonDepth("[[[[[]]]]]", 3));
 }
 
 test {

@@ -65,12 +65,11 @@ fn processRequest(allocator: std.mem.Allocator, io: std.Io, line: []const u8) !v
     if (line.len == 0) return;
 
     validateRequest(line) catch |err| {
-        const code: i32 = switch (err) {
-            error.RequestTooLarge => -32700,
-            error.InvalidJsonFormat => -32700,
-            else => -32700,
+        const message: []const u8 = switch (err) {
+            error.JsonTooDeep => "Parse error: JSON nesting too deep",
+            error.RequestTooLarge, error.InvalidJsonFormat, error.EmptyRequest => "Parse error",
         };
-        writeError(io, null, code, "Parse error");
+        writeError(io, null, -32700, message);
         return err;
     };
 

@@ -289,7 +289,7 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
 /// interpolated `@errorName(err)` straight into the JSON-RPC error body).
 pub fn errorMessage(err: anyerror) []const u8 {
     return switch (err) {
-        error.ParseError, error.InvalidJsonFormat, error.RequestTooLarge => "Parse error",
+        error.ParseError, error.InvalidJsonFormat, error.RequestTooLarge, error.JsonTooDeep => "Parse error",
         error.InvalidRequest => "Invalid Request",
         error.MethodNotFound, error.UnknownTool => "Method not found",
         error.MissingParams => "Missing params",

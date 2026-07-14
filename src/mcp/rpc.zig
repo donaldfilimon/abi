@@ -9,6 +9,10 @@ const McpMethod = protocol.McpMethod;
 const valueToJson = json_helpers.valueToJson;
 
 pub fn processJsonRpc(allocator: std.mem.Allocator, body: []const u8) ![]u8 {
+    // Shared structural bound (size, object root, JSON depth) before parse so
+    // HTTP inherits the same TM-008 depth guard as stdio.
+    protocol.validateRequest(body) catch return error.ParseError;
+
     const request = std.json.parseFromSlice(JsonRpcRequest, allocator, body, .{
         .ignore_unknown_fields = true,
     }) catch return error.ParseError;
@@ -59,6 +63,22 @@ test "processJsonRpc rejects invalid requests" {
     try std.testing.expectError(error.ParseError, processJsonRpc(std.testing.allocator, "not json"));
     try std.testing.expectError(error.InvalidRequest, processJsonRpc(std.testing.allocator, "{\"jsonrpc\":\"1.0\",\"method\":\"ping\"}"));
     try std.testing.expectError(error.MethodNotFound, processJsonRpc(std.testing.allocator, "{\"jsonrpc\":\"2.0\",\"method\":\"unknown\"}"));
+}
+
+test "processJsonRpc rejects over-nested JSON before parse" {
+    const allocator = std.testing.allocator;
+    var deep: std.ArrayListUnmanaged(u8) = .empty;
+    defer deep.deinit(allocator);
+    var i: usize = 0;
+    while (i < protocol.MAX_JSON_DEPTH + 2) : (i += 1) {
+        try deep.appendSlice(allocator, "{\"x\":");
+    }
+    try deep.appendSlice(allocator, "1");
+    i = 0;
+    while (i < protocol.MAX_JSON_DEPTH + 2) : (i += 1) {
+        try deep.append(allocator, '}');
+    }
+    try std.testing.expectError(error.ParseError, processJsonRpc(allocator, deep.items));
 }
 
 test {
