@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const credentials = @import("../../foundation/credentials.zig");
 const io = @import("../../foundation/io/mod.zig");
 const utils = @import("../../foundation/utils.zig");
@@ -132,13 +133,51 @@ fn authSigninHelp() u8 {
         \\usage: abi auth signin <openai|anthropic|discord|grok|twilio>
         \\
         \\Prompt for a credential and persist it in the local ABI credential file.
+        \\On POSIX TTYs, secret entry disables terminal echo (restored after read).
+        \\Windows: no echo-suppress path yet (disclosed gap; use a private console).
+        \\Credentials remain plaintext JSON; Windows ACL/keychain not implemented.
         \\
     , .{});
     return 0;
 }
 
+/// Disable terminal echo while reading a secret on POSIX TTYs (TM-010).
+/// Returns true when echo was successfully disabled (caller must restore).
+/// Non-TTY / non-POSIX / unavailable termios fails closed for the echo path:
+/// the secret is still read, but operators get a one-line notice only when
+/// stdin is a TTY we could not mute.
+fn disableEchoIfTty(fd: std.posix.fd_t) ?std.posix.termios {
+    if (builtin.target.os.tag == .windows) return null;
+    if (@hasDecl(std.posix.system, "isatty") and std.posix.system.isatty(fd) == 0) return null;
+    const original = std.posix.tcgetattr(fd) catch return null;
+    var raw = original;
+    raw.lflag.ECHO = false;
+    std.posix.tcsetattr(fd, .FLUSH, raw) catch return null;
+    return original;
+}
+
+fn restoreEcho(fd: std.posix.fd_t, original: std.posix.termios) void {
+    std.posix.tcsetattr(fd, .FLUSH, original) catch |err| {
+        std.log.warn("auth: failed to restore terminal echo: {s}", .{@errorName(err)});
+    };
+}
+
+/// Pure helper used by tests: reports whether secret entry should attempt
+/// no-echo based on OS. Windows remains a disclosed gap (no termios path).
+pub fn secretEntryDisablesEcho() bool {
+    return builtin.target.os.tag != .windows;
+}
+
 fn readSecretLine(stdin_reader: anytype, prompt: []const u8) ![]const u8 {
     std.debug.print("{s}", .{prompt});
+    const fd = std.Io.File.stdin().handle;
+    const saved = disableEchoIfTty(fd);
+    defer if (saved) |orig| {
+        restoreEcho(fd, orig);
+        // Always emit a newline after a no-echo read so the next prompt starts
+        // on a fresh line (the user's Enter was not echoed).
+        std.debug.print("\n", .{});
+    };
     const line = (try stdin_reader.interface.takeDelimiter('\n')) orelse return error.EndOfStream;
     return utils.trimWhitespace(line);
 }
@@ -190,6 +229,14 @@ test "blank credential detection trims whitespace" {
     try std.testing.expect(isBlankCredential("\t \n"));
     try std.testing.expect(!isBlankCredential("sk-abc"));
     try std.testing.expect(!isBlankCredential("  sk-abc  "));
+}
+
+test "secret entry disables echo on POSIX and discloses Windows gap" {
+    if (builtin.target.os.tag == .windows) {
+        try std.testing.expect(!secretEntryDisablesEcho());
+    } else {
+        try std.testing.expect(secretEntryDisablesEcho());
+    }
 }
 
 test {

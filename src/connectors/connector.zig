@@ -3,6 +3,8 @@ const std = @import("std");
 pub const ConnectorError = error{
     OutOfMemory,
     ConnectionFailed,
+    /// Live `base_url` is missing the `https://` scheme (cleartext or unknown).
+    InsecureBaseUrl,
     AuthenticationError,
     RateLimited,
     InvalidResponse,

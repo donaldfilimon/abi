@@ -101,8 +101,17 @@ fn mapHttpStatus(status: std.http.Status) ConnectorError!void {
     };
 }
 
+/// Live connector base URLs must use HTTPS so API keys are never sent over
+/// cleartext HTTP (TM-007). Local/mock transports never call `joinUrl`.
+pub fn requireHttpsBaseUrl(base_url: []const u8) ConnectorError!void {
+    const prefix = "https://";
+    if (base_url.len < prefix.len) return ConnectorError.InsecureBaseUrl;
+    if (!std.ascii.eqlIgnoreCase(base_url[0..prefix.len], prefix)) return ConnectorError.InsecureBaseUrl;
+}
+
 pub fn joinUrl(allocator: std.mem.Allocator, base_url: []const u8, path: []const u8) ConnectorError![]u8 {
     if (base_url.len == 0 or path.len == 0) return ConnectorError.ConnectionFailed;
+    try requireHttpsBaseUrl(base_url);
     const base_has_slash = base_url[base_url.len - 1] == '/';
     const path_has_slash = path[0] == '/';
     if (base_has_slash and path_has_slash) return try std.fmt.allocPrint(allocator, "{s}{s}", .{ base_url, path[1..] });
@@ -129,6 +138,28 @@ pub fn basicAuthHeader(allocator: std.mem.Allocator, username: []const u8, passw
 
     const encoded_slice = encoder.encode(encoded, combined);
     return try std.fmt.allocPrint(allocator, "Basic {s}", .{encoded_slice});
+}
+
+test "requireHttpsBaseUrl accepts https and rejects cleartext schemes" {
+    try requireHttpsBaseUrl("https://api.openai.com");
+    try requireHttpsBaseUrl("HTTPS://api.anthropic.com/v1");
+    try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl("http://api.openai.com"));
+    try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl("ftp://example.com"));
+    try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl(""));
+    try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl("https:/bad"));
+}
+
+test "joinUrl requires https and joins path segments" {
+    const allocator = std.testing.allocator;
+    const a = try joinUrl(allocator, "https://api.example.com", "/v1/chat");
+    defer allocator.free(a);
+    try std.testing.expectEqualStrings("https://api.example.com/v1/chat", a);
+
+    const b = try joinUrl(allocator, "https://api.example.com/", "v1/chat");
+    defer allocator.free(b);
+    try std.testing.expectEqualStrings("https://api.example.com/v1/chat", b);
+
+    try std.testing.expectError(error.InsecureBaseUrl, joinUrl(allocator, "http://api.example.com", "/v1"));
 }
 
 test {
