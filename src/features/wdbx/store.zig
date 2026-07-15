@@ -9,6 +9,7 @@ const storage = @import("chain.zig");
 const spatial_3d = @import("spatial_3d.zig");
 const temporal = @import("temporal.zig");
 const wal = @import("wal.zig");
+const temp_path = @import("../../foundation/temp_path.zig");
 
 const HNSW_DIMENSIONS = types.HNSW_DIMENSIONS;
 const VECTOR_PADDED_BYTES = types.VECTOR_PADDED_BYTES;
@@ -493,7 +494,8 @@ test "Store.putVector does not burn the vector id when index.insert fails" {
 
 test "WAL replay survives an id reused after a failed index.insert" {
     const allocator = std.testing.allocator;
-    const path = "zig-out/wdbx-wal-burned-id.wal";
+    const path = try temp_path.tempFilePath(allocator, "wdbx-wal-burned-id", "wal");
+    defer allocator.free(path);
     const cleanup = struct {
         fn run(p: []const u8) void {
             std.Io.Dir.cwd().deleteFile(std.testing.io, p) catch |err| switch (err) {
