@@ -63,7 +63,7 @@ fi
 
 # --- CLI surface ---------------------------------------------------------
 run "cli help"          "Usage: abi"        -- "$ABI" help
-run "cli backends"      "GPU backend report" -- "$ABI" backends
+run "cli backends"      "Compute Backends:" -- "$ABI" backends
 run "cli scheduler"     "source=cli-scheduler-status" -- "$ABI" scheduler status
 run "cli complete"      "model=claude-fable-5"   -- "$ABI" complete "smoke: summarize scheduler status"
 run "cli plugin list"   "Installed Plugins (" -- "$ABI" plugin list

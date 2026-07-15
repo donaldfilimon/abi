@@ -44,11 +44,12 @@ output, and exit code. A non-zero exit equals the number of failed checks.
 
 - macOS (this repo is Darwin-first; `build.zig` links Metal when `feat-gpu=true`).
 - The pinned dev Zig must already be on `PATH`. `.zigversion` pins
-  `0.17.0-dev.1252+e4b325c19`; the tree also compiles on nearby Zig master nightlies
-  (verify with `zig version` / the `zig-newest-skills` driver). `./build.sh` does **not**
-  switch or enforce the pin — it runs whatever `zig` is on `PATH` and just echoes
-  `Using Zig: …`. Select the toolchain with zvm/zigup first. Zig 0.16 will not
-  compile this tree.
+  `0.17.0-dev.1275+59a628c6d` (see repo-root `.zigversion`; `build.zig.zon`
+  `minimum_zig_version` may be a lower bound). The tree also compiles on nearby
+  Zig master nightlies (verify with `zig version` / the `zig-newest-skills`
+  driver). `./build.sh` does **not** switch or enforce the pin — it runs
+  whatever `zig` is on `PATH` and just echoes `Using Zig: …`. Select the
+  toolchain with zvm/zigup first. Zig 0.16 will not compile this tree.
 
 ```bash
 zig version    # must be a 0.17.0-dev build
