@@ -1,8 +1,8 @@
 # GEMINI.md — ABI Framework
 
-Quick reference for Google Gemini and compatible agents. Trust executable config and source over prose when they disagree. `AGENTS.md` is the canonical instruction file; `tasks/lessons.md` is the session checklist and `tasks/todo.md` tracks active work.
+Quick reference for Google Gemini and compatible agents. Trust executable config and source over prose when they disagree. `AGENTS.md` is the canonical instruction file; `tasks/lessons.md` is the session checklist, `tasks/todo.md` tracks active work, and `tasks/goals.md` holds long-horizon direction.
 
-Three sibling instruction files share repo conventions — `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`. When commands, contracts, feature flags, or Zig patterns change, update all three.
+Three sibling instruction files share repo conventions — `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`. When commands, contracts, feature flags, or Zig patterns change, update all three. Use the `instruction-sync` agent (read-only) to verify a convention change propagated to all three before landing.
 
 ## Toolchain
 
@@ -69,7 +69,7 @@ Inside `src/`: relative `.zig` imports only. **Only** the MCP handler group (`sr
 - `agent` supports `plan`, `train`, `tui`, `multi`, `spawn`, `browser`, `os`:
   - `browser` is reviewed local planning only and never embeds or launches a browser.
   - `os` runs commands through the `os_control` policy gate: `agent os dry-run <cmd>` only renders a plan (no side effects); `agent os execute --confirm <cmd>` is the only execution path, requires the literal `--confirm` token, and is restricted to a read-only allow-list (`true`/`pwd`/`ls`/`whoami`/`date`) plus workspace path-containment. Shells (`sh`/`bash`/`zsh`/`fish`) and a destructive deny-list are blocked.
-  - `agent tui` REPL slash-commands include `/open <path>` (load file into context), `/diff` (git diff), `/commit` (git commit), `/context` (show context state), `/features` (show build-time feature flags), `/learn` (toggle SEA self-learning mode), `/save <name>` / `/load <name>` (session save/restore), and plugin-provided commands declared via `abi-plugin.json` `commands` field.
+  - `agent tui` REPL slash-commands include `/open <path>` (load file into context), `/diff` (git diff), `/commit` (git commit), `/context` (show context state), `/features` (show build-time feature flags), `/learn` (toggle SEA self-learning mode), `/save <name>` / `/load <name>` (session save/restore), `/sessions` (list saved sessions), `/clear` (clear screen), and plugin-provided commands declared via `abi-plugin.json` `commands` field.
 - `tui`/`dashboard` flags: `--help` documents them. `abi --tui` is a shortcut.
 - `scheduler status` runs a one-shot self-terminating probe task and reports counters + attached MemoryTracker stats + always-on telemetry block. Probe is a no-op, so memory counters read 0 by design.
 - Malformed numeric args → usage + exit 2
