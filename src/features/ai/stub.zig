@@ -12,6 +12,7 @@ const types = @import("stub_types.zig");
 // `helpers` is dependency-free (std only), so the disabled-AI stub can reuse the
 // real embedding to keep dimensionality identical across the mod/stub boundary.
 const helpers = @import("helpers.zig");
+const point_neural_net = @import("point_neural_net.zig");
 
 pub const Principle = types.Principle;
 pub const AuditResult = types.AuditResult;

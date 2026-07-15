@@ -1,10 +1,10 @@
 ---
 title: "WDBX (Rust) Capability Extract: Governance E-score, Point Neural Net, IoT, Multimodal, Discord Gateway"
-description: "Status: PARTIAL / DESIGN REFERENCE — IoT monitoring and multimodal fusion ported to ABI Zig source."
+description: "Status: PARTIAL / DESIGN REFERENCE — IoT monitoring, multimodal fusion, and PointNeuralNetwork + SoulLayout ported to ABI Zig source."
 ---
 
 **Date:** 2026-06-27 (updated 2026-07-06)
-**Status:** **PARTIAL / DESIGN REFERENCE — IoT stream monitoring (src/features/ai/iot_monitor.zig) and multimodal fusion (src/features/ai/multimodal_fusion.zig) ported to ABI Zig source. Remaining Proposed items (PointNeuralNetwork training, Discord gateway loop, mandatory telemetry snapshot) remain design reference.**
+**Status:** **PARTIAL / DESIGN REFERENCE — IoT stream monitoring (src/features/ai/iot_monitor.zig), multimodal fusion (src/features/ai/multimodal_fusion.zig), and the trainable PointNeuralNetwork + SoulLayout (src/features/ai/point_neural_net.zig + src/features/ai/soul_layout.zig) ported to ABI Zig source. Remaining Proposed items (Discord gateway loop, mandatory telemetry snapshot) remain design reference.**
 
 > **Disclaimer (standard).** Design-reference extract only. Where this document and ABI source disagree, ABI source wins (`build.zig`, `src/`, `tests/contracts/`). Public claim boundaries: `docs/contracts/external-claims-audit.mdx`.
 
@@ -328,8 +328,8 @@ wins where it disagrees.
 | --- | --- | --- |
 | **Governance E-score** | 4-pillar weighted scalar `E = 0.25·Aut + 0.35·NonMal + 0.20·Ben + 0.20·Just`, per-turn, with a hard safety veto; surfaced in `PipelineTelemetry.ethical_scores` (`src/features/ai/constitution`, `src/pipeline.rs`). | `feat-ai` now maps that lineage onto ABI's six-principle constitution: `AuditResult` carries per-principle scores, weighted `escore`, and `vetoed`; CLI/MCP completion output exposes `audit_escore`/`audit_vetoed`; persisted completion metadata stores `escore` and `audit_vetoed`. ABI still does not have the Rust SDK's single mandatory `PipelineTelemetry.ethical_scores` snapshot. |
 | **Telemetry emission discipline** | Mandatory `PipelineTelemetry` snapshot every turn (provider, retrieval, neural, cluster, ethics, p99, errors); repo rule ties code changes to telemetry updates. | `feat-telemetry` provides default-on fire-and-forget counters; per-instance `feat-metrics` is also default-on but still narrower than this design. No single mandatory per-turn snapshot aggregating ethics + neural + latency. |
-| **Trainable neural net** | Real `PointNeuralNetwork` MLP (`[3,8,1]`) with genuine backprop/SGD (`backtrace_teach`), topology optimization + weight pruning, serde persistence, and weight telemetry (`src/neural/`). | `ai_train` / `train` **records training metadata only** — `training.zig` returns `"model weights unchanged"`; the actual adaptive piece is the router's `AdaptiveModulator` (EMA smoothing of persona route weights), not gradient descent on a network. |
-| **Soul-prompt seeding** | `SoulLayout` (MD/CSV/JSON) of labeled value records → memory writes + `optimize_topology` over soul points; sets `soul_summary`/`soul_records` telemetry (`src/neural/soul.rs`). | No soul-prompt concept. Persona identity is static profile routing (Abbey/Aviva/Abi) in `src/features/ai/router.zig`; no file-seeded geometry. |
+| **Trainable neural net** | Real `PointNeuralNetwork` MLP (`[3,8,1]`) with genuine backprop/SGD (`backtrace_teach`), topology optimization + weight pruning, serde persistence, and weight telemetry (`src/neural/`). | ABI Zig `PointNeuralNetwork` (`src/features/ai/point_neural_net.zig`) implements a real trainable MLP with `forwardWithTrace`/`backtraceTeach` backprop+SGD, `optimizeTopology` (weight pruning + dead-neuron removal), JSON `save`/load, and `NeuralTelemetry`. Still not invoked by `training.zig` (which remains metadata-only for the `train` path). |
+| **Soul-prompt seeding** | `SoulLayout` (MD/CSV/JSON) of labeled value records → memory writes + `optimize_topology` over soul points; sets `soul_summary`/`soul_records` telemetry (`src/neural/soul.rs`). | ABI Zig `SoulLayout` (`src/features/ai/soul_layout.zig`) parses labeled records (JSON from-path), derives 3-D `Point`s via `Point.fromText` when coords absent, and `bootstrap` persists each record into WDBX, trains the net ~100 epochs, and runs `optimizeTopology` with telemetry. Not yet wired into the static profile router. |
 | **IoT stream monitoring** | `IoTStreamMonitor` per-sensor thresholds → `SystemIssue` Warning into the shared health/audit channel (`src/features/ai/iot_monitor.rs`). | ABI Zig `IotMonitor` (`src/features/ai/iot_monitor.zig`) implements the same z-score threshold-based anomaly detection with Welford's online mean/variance. |
 | **Multimodal fusion** | `MultimodalProcessor` trait; vision/audio (hash→3D) + IoT (LE-f32 → mean/max/count) → deterministic 3-D `Vector`; text bypasses (`src/features/ai/multimodal_fusion.rs`). | ABI Zig `VisionProcessor`/`AudioProcessor`/`IotProcessor` (`src/features/ai/multimodal_fusion.zig`) encode text descriptions and IoT telemetry into deterministic fixed-length vectors; `fuse()` concatenates them. |
 | **Discord gateway** | Working WS gateway loop (Hello/Identify/heartbeat/sequence) + REST reply POST, prefix-scoped + bot-safe + token-safe routing (`src/features/discord.rs`). | `src/connectors/` Discord connector validates credentials/IDs/message size with an explicit live transport boundary — **no** gateway loop or autonomous reply posting. |
@@ -337,11 +337,15 @@ wins where it disagrees.
 
 ### What ABI would still gain, and the cost
 
-Two designs were **promoted to Current** as of 2026-07-06:
-- **IoT stream monitoring** (`src/features/ai/iot_monitor.zig`) — deterministic z-score
-  anomaly detection, 4 tests, landing under mod/stub parity.
-- **Multimodal fusion** (`src/features/ai/multimodal_fusion.zig`) — deterministic
-  Vision/Audio/IotProcessor embedders + concatenative fuse, 5 tests, mod/stub parity.
+Three designs were **promoted to Current**:
+ - **IoT stream monitoring** (`src/features/ai/iot_monitor.zig`) — deterministic z-score
+   anomaly detection, 4 tests, landing under mod/stub parity.
+ - **Multimodal fusion** (`src/features/ai/multimodal_fusion.zig`) — deterministic
+   Vision/Audio/IotProcessor embedders + concatenative fuse, 5 tests, mod/stub parity.
+ - **Trainable `PointNeuralNetwork` + `SoulLayout`** (`src/features/ai/point_neural_net.zig`
+   + `src/features/ai/soul_layout.zig`) — real gradient-descent MLP (backprop/SGD, topology
+   optimization, weight pruning, JSON persistence, telemetry) and file-seeded soul geometry,
+   ~20 tests, mod/stub parity. Not yet wired into the `training.zig` train path.
 
 The WDBX-unique designs ABI could still adopt, roughly easiest → hardest:
 
@@ -350,9 +354,6 @@ The WDBX-unique designs ABI could still adopt, roughly easiest → hardest:
   neural, latency, provider, and retrieval state like the Rust pipeline.
 - **Discord gateway loop**: real network/async surface; must respect ABI's connector
   live-transport boundary and credential-handling rules.
-- **Trainable `PointNeuralNetwork` + soul prompts**: the largest change — ABI's `train` is
-  deliberately metadata-only today, so this introduces genuine ML (weights, gradients,
-  persistence) under the mod/stub parity + contract rules.
 
 Any promotion must land as real ABI source + tests under the Mod/Stub parity rules, pass
 `./build.sh check`, keep the `tests/contracts/public_docs.zig` claim boundary green, and be

@@ -2,6 +2,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const core_memory = @import("../../core/memory.zig");
+const point_neural_net = @import("point_neural_net.zig");
 
 pub const Principle = enum {
     truthfulness,

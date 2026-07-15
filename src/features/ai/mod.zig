@@ -12,6 +12,8 @@ const helpers = @import("helpers.zig");
 const types = @import("types.zig");
 const completion = @import("completion.zig");
 const training = @import("training.zig");
+const point_neural_net = @import("point_neural_net.zig");
+const soul_layout = @import("soul_layout.zig");
 
 const router = @import("router.zig");
 pub const abbey = router.abbey;

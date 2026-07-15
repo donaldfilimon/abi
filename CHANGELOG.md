@@ -21,6 +21,8 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 - AI multimodal fusion: `src/features/ai/multimodal_fusion.zig` with deterministic `VisionProcessor` (64-d), `AudioProcessor` (32-d), `IotProcessor` (16-d) text/telemetry embedders (character-bucket hashing + L2 normalization) and concatenative `fuse()` combinator. 5 tests.
 - All four modules wired through `mod.zig` + `stub.zig` for both SEA (`src/features/sea/`) and AI (`src/features/ai/`) with full declaration-name parity; `zig build check-parity` passes.
 
+- **Trainable `PointNeuralNetwork` + soul-prompt seeding** — `src/features/ai/point_neural_net.zig` (real trainable MLP: `ActivationFunction` relu/tanh/sigmoid/linear + derivatives, `Point.fromText`, `DenseLayer`, `ForwardTrace`, `PointNeuralNetwork` with `forwardWithTrace`/`backtraceTeach`/`train`/`optimizeTopology` (weight-pruning + neuron-pruning dead-neuron removal)/`save` JSON/`telemetry`, `NeuralTelemetry`, `SoulRecord`, `SoulLayout.fromJson`/`bootstrap`) and `src/features/ai/soul_layout.zig` (`SoulLayout.fromJson` parsing + `bootstrap` that persists each record into WDBX, trains the net ~100 epochs, and runs topology optimization with `NeuralTelemetry` reporting). Wired through `mod.zig`/`stub.zig`/`stub_types.zig` with full parity; `./build.sh check` 39/39 green. Honest status: real trainable net (not a disclosed stub); not yet invoked by `training.zig` (still metadata-only).
+
 ### Changed
 
 - `docs/spec/sea-design-extract.mdx` status from DESIGN REFERENCE / PROPOSED → PARTIAL — MemoryKind, Authority, 8-signal scorer with task-aware weight deltas, cluster-diversity selection, and context-pack now promoted to Current ABI Zig source. Mapping table updated.
