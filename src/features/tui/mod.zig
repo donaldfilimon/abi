@@ -7,6 +7,7 @@ const types = @import("types.zig");
 pub const repl = @import("repl.zig");
 pub const repl_types = @import("repl_types.zig");
 pub const repl_session = @import("repl_session.zig");
+pub const repl_git_commands = @import("repl_git_commands.zig");
 pub const ReplLoop = repl.ReplLoop;
 pub const ReplState = repl.ReplState;
 pub const ReplConfig = repl.ReplConfig;

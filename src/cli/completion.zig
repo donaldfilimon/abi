@@ -1,5 +1,4 @@
 const std = @import("std");
-const usage_mod = @import("usage.zig");
 const registry = @import("registry.zig");
 
 pub const CompletionShell = enum {

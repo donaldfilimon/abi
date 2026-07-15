@@ -1,16 +1,24 @@
 const std = @import("std");
 const sanitize = @import("sanitize.zig");
 const types = @import("types.zig");
+const widgets = @import("dashboard_widgets.zig");
+const panes = @import("dashboard_panes.zig");
 
 const sanitizeControlBytes = sanitize.sanitizeControlBytes;
 
 const DASHBOARD_PANES = types.DASHBOARD_PANES;
 const DASHBOARD_PANE_COUNT = types.DASHBOARD_PANE_COUNT;
 
-const DIAG_WIDTH: usize = 68;
-const LABEL_WIDTH: usize = 25;
-const VALUE_WIDTH: usize = 40;
-const MAX_PLUGIN_ROWS: usize = 6;
+const appendRepeated = widgets.appendRepeated;
+const appendRule = widgets.appendRule;
+const appendFitted = widgets.appendFitted;
+const appendBorder = widgets.appendBorder;
+const appendRow = widgets.appendRow;
+const appendPanelHeader = widgets.appendPanelHeader;
+const appendPanelFooter = widgets.appendPanelFooter;
+const paneColor = panes.paneColor;
+const appendPaneBody = panes.appendPaneBody;
+
 const AGENT_PANE_WIDTH: usize = 36;
 const SPLIT_SEP: []const u8 = " │ ";
 
@@ -71,148 +79,9 @@ pub fn nextDashboardPane(current: usize, key: u8) ?usize {
     return null;
 }
 
-fn boolText(value: bool) []const u8 {
-    return if (value) "yes" else "no";
-}
-
-fn appendRepeated(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, byte: u8, count: usize) !void {
-    var i: usize = 0;
-    while (i < count) : (i += 1) try out.append(allocator, byte);
-}
-
-fn appendRule(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, count: usize) !void {
-    var i: usize = 0;
-    while (i < count) : (i += 1) try out.appendSlice(allocator, "─");
-}
-
-fn appendFitted(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, raw: []const u8, width: usize) !void {
-    const safe = try sanitizeControlBytes(allocator, raw);
-    defer allocator.free(safe);
-
-    if (safe.len <= width) {
-        try out.appendSlice(allocator, safe);
-        try appendRepeated(out, allocator, ' ', width - safe.len);
-        return;
-    }
-
-    if (width == 0) return;
-    if (width == 1) {
-        try out.append(allocator, '~');
-        return;
-    }
-
-    const end = utf8PrefixLen(safe, width - 1);
-    try out.appendSlice(allocator, safe[0..end]);
-    try appendRepeated(out, allocator, ' ', (width - 1) - end);
-    try out.append(allocator, '~');
-}
-
-fn utf8PrefixLen(input: []const u8, max_len: usize) usize {
-    var end = @min(input.len, max_len);
-    while (end > 0 and !std.unicode.utf8ValidateSlice(input[0..end])) : (end -= 1) {}
-    return end;
-}
-
-fn appendBorder(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, left: []const u8, title: []const u8, right: []const u8) !void {
-    try out.appendSlice(allocator, left);
-    if (title.len > 0) {
-        try out.appendSlice(allocator, " ");
-        try appendFitted(out, allocator, title, @min(title.len, DIAG_WIDTH - 4));
-        try out.appendSlice(allocator, " ");
-        const used = @min(title.len, DIAG_WIDTH - 4) + 2;
-        if (used < DIAG_WIDTH) try appendRule(out, allocator, DIAG_WIDTH - used);
-    } else {
-        try appendRule(out, allocator, DIAG_WIDTH);
-    }
-    try out.appendSlice(allocator, right);
-    try out.append(allocator, '\n');
-}
-
-fn appendRow(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, label: []const u8, value: []const u8) !void {
-    try out.appendSlice(allocator, "│ ");
-    try appendFitted(out, allocator, label, LABEL_WIDTH);
-    try out.appendSlice(allocator, " ");
-    try appendFitted(out, allocator, value, VALUE_WIDTH);
-    try out.appendSlice(allocator, " │\n");
-}
-
-fn appendMetricRow(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, label: []const u8, value: usize) !void {
-    var buf: [32]u8 = undefined;
-    const rendered = try std.fmt.bufPrint(&buf, "{d}", .{value});
-    try appendRow(out, allocator, label, rendered);
-}
-
-fn appendPanelHeader(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, title: []const u8) !void {
-    try appendBorder(out, allocator, "┌", title, "┐");
-}
-
-fn appendPanelFooter(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator) !void {
-    try appendBorder(out, allocator, "└", "", "┘");
-}
-
-fn appendPluginRows(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, plugin_names: []const []const u8) !void {
-    const shown = @min(plugin_names.len, MAX_PLUGIN_ROWS);
-    var i: usize = 0;
-    while (i < shown) : (i += 1) {
-        try appendRow(out, allocator, "plugin", plugin_names[i]);
-    }
-    if (plugin_names.len > shown) {
-        var buf: [48]u8 = undefined;
-        const more = try std.fmt.bufPrint(&buf, "+{d} more registered", .{plugin_names.len - shown});
-        try appendRow(out, allocator, "plugin", more);
-    }
-}
-
-fn paneColor(kind: types.PaneKind) []const u8 {
-    return switch (kind) {
-        .system => "\x1b[1;33m",
-        .plugins => "\x1b[1;32m",
-        .storage => "\x1b[1;35m",
-        .scheduler => "\x1b[1;34m",
-        .memory => "\x1b[1;31m",
-        .agent_output => "\x1b[1;36m",
-    };
-}
-
 fn selectedPaneIndex(selected: usize) usize {
     if (selected < DASHBOARD_PANE_COUNT) return selected;
     return 0;
-}
-
-fn appendPaneBody(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, ds: types.DashboardState, kind: types.PaneKind) !void {
-    switch (kind) {
-        .system => {
-            try appendRow(out, allocator, "GPU backend", ds.gpu_backend);
-            try appendRow(out, allocator, "accelerated", boolText(ds.gpu_accelerated));
-            try appendRow(out, allocator, "native linked", boolText(ds.gpu_linked));
-        },
-        .plugins => {
-            try appendMetricRow(out, allocator, "Registered", ds.plugin_count);
-            try appendPluginRows(out, allocator, ds.plugin_names);
-        },
-        .storage => {
-            try appendMetricRow(out, allocator, "Block chain", ds.wdbx_blocks);
-            try appendMetricRow(out, allocator, "Vectors", ds.wdbx_vectors);
-            try appendMetricRow(out, allocator, "KV Entries", ds.wdbx_entries);
-            try appendMetricRow(out, allocator, "Spatial 3D", ds.wdbx_spatial_records);
-        },
-        .scheduler => {
-            try appendRow(out, allocator, "source", ds.scheduler_source);
-            try appendMetricRow(out, allocator, "Running", ds.scheduler_running);
-            try appendMetricRow(out, allocator, "Pending", ds.scheduler_pending);
-            try appendMetricRow(out, allocator, "Completed", ds.scheduler_completed);
-            try appendMetricRow(out, allocator, "Failed", ds.scheduler_failed);
-        },
-        .memory => {
-            try appendRow(out, allocator, "source", ds.memory_source);
-            try appendMetricRow(out, allocator, "Peak bytes", ds.memory_peak);
-            try appendMetricRow(out, allocator, "Current bytes", ds.memory_current);
-            try appendMetricRow(out, allocator, "Leaked bytes", ds.memory_leaked);
-        },
-        .agent_output => {
-            try appendRow(out, allocator, "Agent Output", "see right pane");
-        },
-    }
 }
 
 fn appendStyle(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, enabled: bool, code: []const u8) !void {

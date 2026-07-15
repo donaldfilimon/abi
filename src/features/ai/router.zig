@@ -215,20 +215,6 @@ pub fn routeInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     return routeToProfile(allocator, profile_sel, input);
 }
 
-/// Route input with adaptive EMA modulation and WDBX persistence.
-/// Loads modulator state from the store, blends sentiment with EMA weights,
-/// routes through the selected profile, then saves updated state.
-pub fn routeInputAdaptive(allocator: std.mem.Allocator, store: anytype, input: []const u8) ![]u8 {
-    var mod = AdaptiveModulator.loadWeights(store);
-    const observed = analyzeSentiment(input);
-    mod.update(observed);
-    try mod.saveWeights(allocator, store);
-
-    const blended = mod.weights();
-    const profile_sel = selectBestProfile(blended);
-    return routeToProfile(allocator, profile_sel, input);
-}
-
 /// Soul-aware routing: blends keyword-based sentiment with a
 /// pre-trained 3-output PointNeuralNetwork (one output per profile:
 /// abbey, aviva, abi). The network's output is softmax-normalized

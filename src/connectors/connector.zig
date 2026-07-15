@@ -1,6 +1,7 @@
 const std = @import("std");
 
 pub const ConnectorError = error{
+    ReadFailed,
     OutOfMemory,
     ConnectionFailed,
     /// Live `base_url` is missing the `https://` scheme (cleartext or unknown).

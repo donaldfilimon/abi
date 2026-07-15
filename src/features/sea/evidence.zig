@@ -3,6 +3,7 @@ const build_options = @import("build_options");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const helpers = @import("../ai/helpers.zig");
 const query_plan = @import("query_plan.zig");
+const ai_types = @import("../ai/types.zig");
 
 /// When a `QueryPlan` requests `exact_recall`, the recalled hit's semantic
 /// similarity is blended with lexical (keyword) overlap so exact-wording matches
@@ -13,7 +14,7 @@ const EXACT_RECALL_KEYWORD_WEIGHT: f32 = 0.5;
 /// Known persona labels. `profile_label` on an `EvidenceItem` is *borrowed*: it
 /// always points at one of these static literals (or `unknown`), never at
 /// freshly parsed/owned memory, so an item can be freed without touching it.
-const known_profile_labels = [_][]const u8{ "abbey", "aviva", "abi" };
+const known_profile_labels = ai_types.PROFILE_LABELS;
 const unknown_profile_label = "unknown";
 
 /// Upper bound on the augmented-prompt preamble. SEA prepends recalled snippets
@@ -123,7 +124,7 @@ pub fn gatherEvidenceWithPlan(
     }
 
     for (hits) |hit| {
-        const key = try std.fmt.allocPrint(allocator, "completion:{d}", .{hit.id});
+        const key = try std.fmt.allocPrint(allocator, ai_types.COMPLETION_KEY_FMT, .{hit.id});
         defer allocator.free(key);
 
         const metadata = store.get(key) orelse continue;
@@ -260,7 +261,7 @@ test "gatherEvidence recalls a stored completion with its resolved persona label
     // A stored turn: a vector plus its completion metadata under completion:<id>.
     const embedding = helpers.textEmbedding("aviva said hello");
     const id = try store.putVector(&embedding);
-    const key = try std.fmt.allocPrint(allocator, "completion:{d}", .{id});
+    const key = try std.fmt.allocPrint(allocator, ai_types.COMPLETION_KEY_FMT, .{id});
     defer allocator.free(key);
     try store.store(key, "{\"profile\":\"aviva\",\"text\":\"hello there\"}");
 
@@ -280,7 +281,7 @@ test "gatherEvidence maps an unrecognized profile to the unknown label" {
 
     const embedding = helpers.textEmbedding("a mystery turn");
     const id = try store.putVector(&embedding);
-    const key = try std.fmt.allocPrint(allocator, "completion:{d}", .{id});
+    const key = try std.fmt.allocPrint(allocator, ai_types.COMPLETION_KEY_FMT, .{id});
     defer allocator.free(key);
     try store.store(key, "{\"profile\":\"nobody\"}");
 
@@ -310,13 +311,13 @@ test "exact_recall re-weights retrieval toward lexical overlap and re-sorts" {
     // exact_recall the lexically-matching record must surface at the top.
     const e1 = helpers.textEmbedding("alpha topic overview");
     const id1 = try store.putVector(&e1);
-    const k1 = try std.fmt.allocPrint(allocator, "completion:{d}", .{id1});
+    const k1 = try std.fmt.allocPrint(allocator, ai_types.COMPLETION_KEY_FMT, .{id1});
     defer allocator.free(k1);
     try store.store(k1, "{\"profile\":\"abbey\",\"text\":\"alpha topic overview\"}");
 
     const e2 = helpers.textEmbedding("the prior decision about widget pricing");
     const id2 = try store.putVector(&e2);
-    const k2 = try std.fmt.allocPrint(allocator, "completion:{d}", .{id2});
+    const k2 = try std.fmt.allocPrint(allocator, ai_types.COMPLETION_KEY_FMT, .{id2});
     defer allocator.free(k2);
     try store.store(k2, "{\"profile\":\"aviva\",\"text\":\"the prior decision about widget pricing\"}");
 

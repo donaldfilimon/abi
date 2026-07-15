@@ -1,7 +1,6 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const scheduler_mod = @import("../../core/scheduler.zig");
-const foundation_time = @import("../../foundation/time.zig");
 const helpers = @import("helpers.zig");
 const router = @import("router.zig");
 const constitution = @import("constitution.zig");
@@ -75,7 +74,7 @@ pub fn completeWithScheduler(
     return ctx.result orelse error.MissingCompletionResult;
 }
 
-const STREAM_CHUNK_SIZE: usize = 16;
+const STREAM_CHUNK_SIZE: usize = 4;
 
 pub fn completeStreaming(
     allocator: std.mem.Allocator,
@@ -259,7 +258,7 @@ pub const completion_kv_delta: usize = 1;
 /// per the committed contract (git show HEAD:docs/contracts/public-api.mdx):
 /// "stores JSON completion metadata under `completion:<query_vector_id>`".
 pub fn completionMetadataKey(allocator: std.mem.Allocator, query_id: u32) ![]const u8 {
-    return std.fmt.allocPrint(allocator, "completion:{d}", .{query_id});
+    return std.fmt.allocPrint(allocator, types.COMPLETION_KEY_FMT, .{query_id});
 }
 
 test "completionMetadataKey matches committed public-api contract" {

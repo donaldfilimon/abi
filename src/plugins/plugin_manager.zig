@@ -119,6 +119,30 @@ const LoadedPlugin = struct {
     info: PluginInfo,
 };
 
+const PluginDispatchEntry = struct {
+    name: []const u8,
+    run_fn: *const fn (std.mem.Allocator, []const u8) anyerror![]u8,
+};
+
+const bundled_plugin_dispatch = [_]PluginDispatchEntry{
+    .{ .name = "example-plugin", .run_fn = &@import("example-plugin/mod.zig").run },
+    .{ .name = "example-wdbx-plugin", .run_fn = &@import("example-wdbx-plugin/mod.zig").run },
+    .{ .name = "telemetry-exporter", .run_fn = &@import("telemetry-exporter/mod.zig").run },
+    .{ .name = "ai-plugin", .run_fn = &@import("ai-plugin/mod.zig").run },
+    .{ .name = "gpu-plugin", .run_fn = &@import("gpu-plugin/mod.zig").run },
+    .{ .name = "accelerator-plugin", .run_fn = &@import("accelerator-plugin/mod.zig").run },
+    .{ .name = "shader-plugin", .run_fn = &@import("shader-plugin/mod.zig").run },
+    .{ .name = "mlir-plugin", .run_fn = &@import("mlir-plugin/mod.zig").run },
+    .{ .name = "os-control-plugin", .run_fn = &@import("os-control-plugin/mod.zig").run },
+    .{ .name = "hash-plugin", .run_fn = &@import("hash-plugin/mod.zig").run },
+    .{ .name = "tui-plugin", .run_fn = &@import("tui-plugin/mod.zig").run },
+    .{ .name = "nn-plugin", .run_fn = &@import("nn-plugin/mod.zig").run },
+    .{ .name = "metrics-plugin", .run_fn = &@import("metrics-plugin/mod.zig").run },
+    .{ .name = "sea-plugin", .run_fn = &@import("sea-plugin/mod.zig").run },
+    .{ .name = "mobile-plugin", .run_fn = &@import("mobile-plugin/mod.zig").run },
+    .{ .name = "foundationmodels-plugin", .run_fn = &@import("foundationmodels-plugin/mod.zig").run },
+};
+
 pub const PluginManager = struct {
     allocator: std.mem.Allocator,
     plugins: std.StringArrayHashMapUnmanaged(LoadedPlugin),
@@ -445,73 +469,12 @@ pub const PluginManager = struct {
         _ = self.plugins.getEntry(name) orelse return error.PluginNotFound;
         telemetry.record("plugin.run");
 
-        // Real dispatch for known bundled plugins (the only ones loadable today via manifest).
-        if (std.mem.eql(u8, name, "example-plugin")) {
-            const plugin = @import("example-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "example-wdbx-plugin")) {
-            const plugin = @import("example-wdbx-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "telemetry-exporter")) {
-            const plugin = @import("telemetry-exporter/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "ai-plugin")) {
-            const plugin = @import("ai-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "gpu-plugin")) {
-            const plugin = @import("gpu-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "accelerator-plugin")) {
-            const plugin = @import("accelerator-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "shader-plugin")) {
-            const plugin = @import("shader-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "mlir-plugin")) {
-            const plugin = @import("mlir-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "os-control-plugin")) {
-            const plugin = @import("os-control-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "hash-plugin")) {
-            const plugin = @import("hash-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "tui-plugin")) {
-            const plugin = @import("tui-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "nn-plugin")) {
-            const plugin = @import("nn-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "metrics-plugin")) {
-            const plugin = @import("metrics-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "sea-plugin")) {
-            const plugin = @import("sea-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "mobile-plugin")) {
-            const plugin = @import("mobile-plugin/mod.zig");
-            return plugin.run(allocator, input);
-        }
-        if (std.mem.eql(u8, name, "foundationmodels-plugin")) {
-            const plugin = @import("foundationmodels-plugin/mod.zig");
-            return plugin.run(allocator, input);
+        inline for (bundled_plugin_dispatch) |entry| {
+            if (std.mem.eql(u8, name, entry.name)) {
+                return entry.run_fn(allocator, input);
+            }
         }
 
-        // For any other registered plugin (future or custom), fall back to contract acknowledgment.
         return try std.fmt.allocPrint(
             allocator,
             "plugin '{s}' executed (contract honored; input len={d}).",
