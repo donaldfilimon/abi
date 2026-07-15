@@ -58,6 +58,7 @@ pub const deinitScreenWriter = terminal.deinitScreenWriter;
 const dashboard = @import("dashboard.zig");
 pub const DiagnosticRenderOptions = dashboard.DiagnosticRenderOptions;
 pub const statusText = dashboard.statusText;
+pub const dashboardHealth = dashboard.dashboardHealth;
 pub const dashboardPaneIndexForKey = dashboard.dashboardPaneIndexForKey;
 pub const dashboardPaneName = dashboard.dashboardPaneName;
 pub const dashboardPaneIndexForToken = dashboard.dashboardPaneIndexForToken;
@@ -67,6 +68,7 @@ pub const renderDiagnostics = dashboard.renderDiagnostics;
 pub const renderDiagnosticsWithOptions = dashboard.renderDiagnosticsWithOptions;
 pub const renderDiagnosticsSplit = dashboard.renderDiagnosticsSplit;
 pub const renderDiagnosticsSplitWithOptions = dashboard.renderDiagnosticsSplitWithOptions;
+pub const formatAgentStatusDigest = dashboard.formatAgentStatusDigest;
 pub const writeDashboard = dashboard.writeDashboard;
 pub const writeDiagnostics = dashboard.writeDiagnostics;
 

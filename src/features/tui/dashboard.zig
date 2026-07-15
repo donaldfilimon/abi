@@ -11,8 +11,13 @@ const DIAG_WIDTH: usize = 68;
 const LABEL_WIDTH: usize = 25;
 const VALUE_WIDTH: usize = 40;
 const MAX_PLUGIN_ROWS: usize = 6;
-const AGENT_PANE_WIDTH: usize = 36;
-const SPLIT_SEP: []const u8 = " │ ";
+/// Visible columns for the left diagnostics column (border corners + DIAG_WIDTH).
+const LEFT_PANE_COLS: usize = DIAG_WIDTH + 2;
+/// Visible columns for the right agent-output column.
+const AGENT_PANE_WIDTH: usize = 40;
+/// Horizontal gap between the diagnostics column and the agent-status column.
+/// Boxes already carry their own `│` borders; a plain gap avoids a triple-pipe seam.
+const SPLIT_SEP: []const u8 = "  ";
 
 pub const DiagnosticRenderOptions = struct {
     color: bool = true,
@@ -29,10 +34,13 @@ pub fn statusText(status: types.Status) []const u8 {
     };
 }
 
-fn dashboardHealth(ds: types.DashboardState) []const u8 {
+/// Operational health band for the dashboard header / JSON snapshot.
+/// `cpu` is the normal Metal-linked CPU-SIMD path (accelerated=false is common);
+/// `degraded` is reserved for future explicit failure signals — not "GPU idle".
+pub fn dashboardHealth(ds: types.DashboardState) []const u8 {
     if (ds.scheduler_failed > 0 or ds.memory_leaked > 0) return "attention";
-    if (!ds.gpu_accelerated or !ds.gpu_linked) return "degraded";
-    return "nominal";
+    if (ds.gpu_accelerated and ds.gpu_linked) return "nominal";
+    return "cpu";
 }
 
 pub fn dashboardPaneIndexForKey(key: u8) ?usize {
@@ -113,6 +121,98 @@ fn utf8PrefixLen(input: []const u8, max_len: usize) usize {
     return end;
 }
 
+/// Visible terminal columns in `s`, treating CSI/ANSI sequences as width 0 and
+/// each UTF-8 codepoint as width 1 (sufficient for ASCII + box-drawing).
+fn ansiVisibleWidth(s: []const u8) usize {
+    var width: usize = 0;
+    var i: usize = 0;
+    while (i < s.len) {
+        if (s[i] == 0x1b) {
+            i += 1;
+            if (i < s.len and s[i] == '[') {
+                i += 1;
+                while (i < s.len and (s[i] < 0x40 or s[i] > 0x7e)) : (i += 1) {}
+                if (i < s.len) i += 1;
+            }
+            continue;
+        }
+        const seq_len = std.unicode.utf8ByteSequenceLength(s[i]) catch {
+            i += 1;
+            width += 1;
+            continue;
+        };
+        if (i + seq_len > s.len) break;
+        i += seq_len;
+        width += 1;
+    }
+    return width;
+}
+
+/// Append `raw` padded or truncated to exactly `cols` visible columns without
+/// slicing mid-UTF-8 sequence or mid-CSI escape.
+fn appendFittedVisible(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, raw: []const u8, cols: usize) !void {
+    var width: usize = 0;
+    var i: usize = 0;
+    while (i < raw.len and width < cols) {
+        if (raw[i] == 0x1b) {
+            const esc_start = i;
+            i += 1;
+            if (i < raw.len and raw[i] == '[') {
+                i += 1;
+                while (i < raw.len and (raw[i] < 0x40 or raw[i] > 0x7e)) : (i += 1) {}
+                if (i < raw.len) i += 1;
+            }
+            try out.appendSlice(allocator, raw[esc_start..i]);
+            continue;
+        }
+        const seq_len = std.unicode.utf8ByteSequenceLength(raw[i]) catch {
+            try out.append(allocator, raw[i]);
+            i += 1;
+            width += 1;
+            continue;
+        };
+        if (i + seq_len > raw.len) break;
+        try out.appendSlice(allocator, raw[i..][0..seq_len]);
+        i += seq_len;
+        width += 1;
+    }
+    if (width < cols) try appendRepeated(out, allocator, ' ', cols - width);
+}
+
+fn countLines(buf: []const u8) usize {
+    if (buf.len == 0) return 0;
+    var n: usize = 1;
+    for (buf) |b| {
+        if (b == '\n') n += 1;
+    }
+    // Trailing newline means a final empty line from splitScalar; callers that
+    // build with terminal '\n' should strip it first. Match splitScalar behavior
+    // used by the interleave loop: empty trailing piece after final \n.
+    if (buf[buf.len - 1] == '\n') n -= 1;
+    return n;
+}
+
+/// Honest status digest for the dashboard's right-hand "Agent Output" pane.
+/// This is not live REPL traffic — it summarizes the current snapshot so the
+/// split view is never blank. Callers own the returned slice.
+pub fn formatAgentStatusDigest(allocator: std.mem.Allocator, ds: types.DashboardState) ![]u8 {
+    var out = std.ArrayListUnmanaged(u8).empty;
+    errdefer out.deinit(allocator);
+
+    try out.appendSlice(allocator, "Snapshot status\n");
+    try out.print(allocator, "health: {s}\n", .{dashboardHealth(ds)});
+    try out.print(allocator, "GPU: {s}\n", .{ds.gpu_backend});
+    try out.print(allocator, "  accelerated: {s}\n", .{boolText(ds.gpu_accelerated)});
+    try out.print(allocator, "  native linked: {s}\n", .{boolText(ds.gpu_linked)});
+    try out.print(allocator, "plugins: {d}\n", .{ds.plugin_count});
+    try out.print(allocator, "wdbx kv/vectors: {d}/{d}\n", .{ ds.wdbx_entries, ds.wdbx_vectors });
+    try out.print(allocator, "scheduler done/fail: {d}/{d}\n", .{ ds.scheduler_completed, ds.scheduler_failed });
+    try out.print(allocator, "memory current: {d}\n", .{ds.memory_current});
+    try out.appendSlice(allocator, "\n(dashboard status log;\n agent REPL: abi agent tui)");
+
+    return try out.toOwnedSlice(allocator);
+}
+
 fn appendBorder(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, left: []const u8, title: []const u8, right: []const u8) !void {
     try out.appendSlice(allocator, left);
     if (title.len > 0) {
@@ -191,6 +291,7 @@ fn appendPaneBody(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator
             try appendPluginRows(out, allocator, ds.plugin_names);
         },
         .storage => {
+            try appendRow(out, allocator, "scope", "ephemeral CLI probe");
             try appendMetricRow(out, allocator, "Block chain", ds.wdbx_blocks);
             try appendMetricRow(out, allocator, "Vectors", ds.wdbx_vectors);
             try appendMetricRow(out, allocator, "KV Entries", ds.wdbx_entries);
@@ -233,16 +334,29 @@ fn appendDiagnosticsPane(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Al
 }
 
 /// Render the agent output pane (right side of split layout).
-fn renderAgentOutputPane(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, ds: types.DashboardState, pane_width: usize, options: DiagnosticRenderOptions) !void {
+/// `total_rows` is the visible line budget (including borders) so the pane can
+/// stretch to match the left diagnostics column height.
+fn renderAgentOutputPane(
+    out: *std.ArrayListUnmanaged(u8),
+    allocator: std.mem.Allocator,
+    ds: types.DashboardState,
+    pane_width: usize,
+    total_rows: usize,
+    options: DiagnosticRenderOptions,
+) !void {
     const is_focused = ds.focused_pane == .right;
     const highlight = if (is_focused) "\x1b[7m" else "";
     const no_highlight = if (is_focused) "\x1b[27m" else "";
     const color_code = paneColor(.agent_output);
 
+    const rows = if (total_rows < 3) @as(usize, 3) else total_rows;
+    const body_rows = rows - 2;
+    const inner_width = if (pane_width > 2) pane_width - 2 else 0;
+
     try appendStyle(out, allocator, options.color, highlight);
     try appendStyle(out, allocator, options.color, color_code);
 
-    // Top border
+    // Top border (pane_width rule cells + corners)
     try out.appendSlice(allocator, "┌");
     const title = " Agent Output ";
     try out.appendSlice(allocator, title);
@@ -253,20 +367,29 @@ fn renderAgentOutputPane(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Al
     try appendStyle(out, allocator, options.color, "\x1b[0m");
     if (is_focused) try appendStyle(out, allocator, options.color, no_highlight);
 
-    // Content rows
+    var written: usize = 0;
     if (ds.agent_output_buffer.len == 0) {
         try out.appendSlice(allocator, "│ ");
-        try appendFitted(out, allocator, "(no agent output yet)", pane_width - 2);
+        try appendFitted(out, allocator, "(no status digest)", inner_width);
         try out.appendSlice(allocator, " │\n");
+        written = 1;
     } else {
         var line_iter = std.mem.splitScalar(u8, ds.agent_output_buffer, '\n');
         var idx: usize = 0;
         while (line_iter.next()) |line| : (idx += 1) {
             if (idx < ds.agent_output_scroll) continue;
+            if (written >= body_rows) break;
             try out.appendSlice(allocator, "│ ");
-            try appendFitted(out, allocator, line, pane_width - 2);
+            try appendFitted(out, allocator, line, inner_width);
             try out.appendSlice(allocator, " │\n");
+            written += 1;
         }
+    }
+
+    while (written < body_rows) : (written += 1) {
+        try out.appendSlice(allocator, "│ ");
+        try appendRepeated(out, allocator, ' ', inner_width);
+        try out.appendSlice(allocator, " │\n");
     }
 
     // Bottom border
@@ -388,7 +511,6 @@ pub fn renderDiagnosticsSplit(allocator: std.mem.Allocator, ds: types.DashboardS
 
 /// Render the diagnostics dashboard in split-pane layout with custom options.
 pub fn renderDiagnosticsSplitWithOptions(allocator: std.mem.Allocator, ds: types.DashboardState, options: DiagnosticRenderOptions) ![]u8 {
-    const left_width: usize = AGENT_PANE_WIDTH;
     const sep: []const u8 = SPLIT_SEP;
 
     // 1. Render left pane content (diagnostics header + panes, no footer)
@@ -406,13 +528,16 @@ pub fn renderDiagnosticsSplitWithOptions(allocator: std.mem.Allocator, ds: types
         }
     }
 
-    // 2. Render right pane (agent output)
+    const left_rows = countLines(left_buf.items);
+
+    // 2. Render right pane stretched to the left column height
     var right_buf = std.ArrayListUnmanaged(u8).empty;
     defer right_buf.deinit(allocator);
 
-    try renderAgentOutputPane(&right_buf, allocator, ds, left_width, options);
+    try renderAgentOutputPane(&right_buf, allocator, ds, AGENT_PANE_WIDTH, left_rows, options);
 
-    // 3. Interleave left and right lines side by side
+    // 3. Interleave left and right lines using visible-column padding so
+    // UTF-8 box-drawing and ANSI escapes are not byte-sliced mid-sequence.
     var out = std.ArrayListUnmanaged(u8).empty;
     errdefer out.deinit(allocator);
 
@@ -423,24 +548,9 @@ pub fn renderDiagnosticsSplitWithOptions(allocator: std.mem.Allocator, ds: types
         const left_line = left_iter.next() orelse break;
         const right_line = right_iter.next() orelse "";
 
-        // Left truncated to left_width
-        if (left_line.len > left_width) {
-            try out.appendSlice(allocator, left_line[0..left_width]);
-        } else {
-            try out.appendSlice(allocator, left_line);
-            try appendRepeated(&out, allocator, ' ', left_width - left_line.len);
-        }
-
+        try appendFittedVisible(&out, allocator, left_line, LEFT_PANE_COLS);
         try out.appendSlice(allocator, sep);
-
-        // Right truncated to left_width
-        if (right_line.len > left_width) {
-            try out.appendSlice(allocator, right_line[0..left_width]);
-        } else {
-            try out.appendSlice(allocator, right_line);
-            try appendRepeated(&out, allocator, ' ', left_width - right_line.len);
-        }
-
+        try appendFittedVisible(&out, allocator, right_line, AGENT_PANE_WIDTH + 2);
         try out.append(allocator, '\n');
     }
 
@@ -550,7 +660,7 @@ test "diagnostics dashboard summarizes attention state and bounds plugin rows" {
     try std.testing.expect(std.mem.indexOf(u8, rendered, "p7") == null);
 }
 
-test "diagnostics dashboard health distinguishes nominal degraded and attention" {
+test "diagnostics dashboard health distinguishes nominal cpu and attention" {
     const nominal = try renderDiagnostics(std.testing.allocator, .{
         .gpu_backend = "metal",
         .gpu_accelerated = true,
@@ -559,13 +669,14 @@ test "diagnostics dashboard health distinguishes nominal degraded and attention"
     defer std.testing.allocator.free(nominal);
     try std.testing.expect(std.mem.indexOf(u8, nominal, "nominal") != null);
 
-    const degraded = try renderDiagnostics(std.testing.allocator, .{
+    const cpu = try renderDiagnostics(std.testing.allocator, .{
         .gpu_backend = "cpu",
         .gpu_accelerated = false,
         .gpu_linked = false,
     });
-    defer std.testing.allocator.free(degraded);
-    try std.testing.expect(std.mem.indexOf(u8, degraded, "degraded") != null);
+    defer std.testing.allocator.free(cpu);
+    try std.testing.expect(std.mem.indexOf(u8, cpu, "cpu") != null);
+    try std.testing.expect(std.mem.indexOf(u8, cpu, "degraded") == null);
 
     const attention = try renderDiagnostics(std.testing.allocator, .{
         .gpu_backend = "metal",
@@ -650,9 +761,51 @@ test "split-pane dashboard renders both sides with placeholder agent output" {
 
     try std.testing.expect(std.mem.indexOf(u8, rendered, "ABI Diagnostics Dashboard") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Agent Output") != null);
-    try std.testing.expect(std.mem.indexOf(u8, rendered, "no agent output yet") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "no status digest") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, SPLIT_SEP) != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "[Tab] Focus [L]") != null);
+    // Left diagnostics must keep full GPU/plugin labels (no 36-byte shredding).
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "GPU backend") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "operational snapshot") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Registered") != null);
+    try std.testing.expect(std.unicode.utf8ValidateSlice(rendered));
+}
+
+test "formatAgentStatusDigest summarizes dashboard snapshot" {
+    const digest = try formatAgentStatusDigest(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .gpu_accelerated = false,
+        .gpu_linked = false,
+        .plugin_count = 16,
+        .wdbx_entries = 3,
+        .wdbx_vectors = 7,
+        .scheduler_completed = 2,
+        .scheduler_failed = 0,
+        .memory_current = 128,
+    });
+    defer std.testing.allocator.free(digest);
+
+    try std.testing.expect(std.mem.indexOf(u8, digest, "health: cpu") != null);
+    try std.testing.expect(std.mem.indexOf(u8, digest, "GPU: metal") != null);
+    try std.testing.expect(std.mem.indexOf(u8, digest, "plugins: 16") != null);
+    try std.testing.expect(std.mem.indexOf(u8, digest, "abi agent tui") != null);
+}
+
+test "split-pane dashboard preserves UTF-8 box drawing under color" {
+    const rendered = try renderDiagnosticsSplitWithOptions(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .gpu_accelerated = true,
+        .gpu_linked = true,
+        .plugin_count = 1,
+        .plugin_names = &.{"core"},
+        .agent_output_buffer = "Snapshot status\nhealth: nominal",
+    }, .{ .color = true });
+    defer std.testing.allocator.free(rendered);
+
+    try std.testing.expect(std.unicode.utf8ValidateSlice(rendered));
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "\u{fffd}") == null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "GPU backend") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Snapshot status") != null);
 }
 
 test "split-pane dashboard with right focus shows correct indicator" {
@@ -680,7 +833,7 @@ test "split-pane dashboard renders agent output buffer content when present" {
 
     try std.testing.expect(std.mem.indexOf(u8, rendered, "hello world") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "line two") != null);
-    try std.testing.expect(std.mem.indexOf(u8, rendered, "no agent output yet") == null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "no status digest") == null);
 }
 
 test "split-pane dashboard respects agent_output_scroll offset" {

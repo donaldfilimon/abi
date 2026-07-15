@@ -7,11 +7,18 @@ const help = @import("agent_help.zig");
 /// a plugin slash-command through its `run` method. Designed to be passed as
 /// `ReplConfig.plugin_dispatch` from the TUI layer.
 fn dispatchPluginCommand(allocator: std.mem.Allocator, plugin: []const u8, cmd_name: []const u8, arg: []const u8) ![]u8 {
-    _ = cmd_name;
     var pm = abi.plugins.PluginManager.init(allocator);
     defer pm.deinit();
     abi.plugins.loadBundled(&pm);
-    return pm.run(allocator, plugin, arg);
+    // Mirror `__context__:<name>`: slash-commands reach plugins as `__cmd__:<name>`
+    // with an optional newline-delimited argument payload.
+    if (cmd_name.len == 0) return pm.run(allocator, plugin, arg);
+    const input = if (arg.len == 0)
+        try std.fmt.allocPrint(allocator, "__cmd__:{s}", .{cmd_name})
+    else
+        try std.fmt.allocPrint(allocator, "__cmd__:{s}\n{s}", .{ cmd_name, arg });
+    defer allocator.free(input);
+    return pm.run(allocator, plugin, input);
 }
 
 /// `abi agent <plan|train|tui|os|multi|spawn|browser> ...`: dispatch agent subcommands.
