@@ -31,6 +31,18 @@ These ship real local artifacts but truthfully disclose that native/external dis
 | Non-loopback REST hardening | ◑ Partial / disclosed | `rest.zig` remains 127.0.0.1-only and can require `Authorization: Bearer` via `ABI_WDBX_REST_TOKEN`; external exposure still needs TLS, rate limiting, authz, and threat review. |
 | Multi-host cluster | ◑ Authenticated routable bind + local multi-node RPC loop / ops story missing | `cluster_rpc.zig` runs real TCP RequestVote/AppendEntries, includes an authenticated loopback multi-node vote+append round that verifies quorum and peer logs, and `cluster serve <port> [node] [host]` can bind a routable host only when `ABI_WDBX_CLUSTER_TOKEN` is set. `ABI_WDBX_CLUSTER_PEERS` can limit accepted node ids. Multi-host production still needs TLS/mTLS or a fronting network policy, deployment controls, dynamic membership, and sharding. |
 
+### Feature-parity north-star (Proposed — not yet in-tree)
+
+Target: feature parity with local inference runtimes (llama-cpp, MLX) and CLI/TUI tools (codex, claude-code) while staying 100% Zig on the 0.17 master branch. Each item is a design investigation first; implementation requires source + tests before any claim lands in docs.
+
+| Item | Status | Gap / Notes |
+| ---- | ------ | ------------ |
+| Local llama-cpp inference bridge | ⚪ Proposed | ABI's `complete` path routes to local model aliases (ollama/lmstudio/llama-cpp/vllm/mlx prefixes → `.local`). A real llama-cpp bridge would dispatch completions to a local ggml inference server process via HTTP, not embed C++ in-tree. Design: connector protocol + health check + streaming SSE. 100% Zig constraint means the bridge is a Zig HTTP client, not a C++ binding. |
+| MLX on-device inference | ⚪ Proposed | `feat-foundationmodels` covers Apple FoundationModels (arm64 macOS). MLX parity would add an Apple Silicon GPU inference path via the Metal compute pipeline (`gpu/metal_shared.zig`) or an external mlx-server HTTP bridge. ANE execution remains a disclosed non-goal (CoreML/ObjC dependency). |
+| Codex/claude-code TUI feature parity | ⚪ Proposed | The `agent tui` REPL has slash-commands, history, model switching, status, and raw-mode line editing. Parity targets: multi-turn context window management, file-aware commands (`/open`, `/diff`, `/commit`), streaming token-by-token rendering, pane split (chat + diffs), and slash-command extensibility via plugins. Design: extend `repl_commands.zig` + `line_editor.zig`; no new top-level CLI commands (frozen surface). |
+| Streaming token-by-token completion | ⚪ Proposed | `streaming.zig` implements a local OpenAI-compatible SSE server. The CLI `complete` and `agent tui` paths return full responses. Streaming token output in the TUI requires a chunked completion API + incremental terminal redraw. Design: `completeWithSchedulerStreaming` + `line_editor` incremental append. |
+| File-aware agent context | ⚪ Proposed | `agent plan` and `agent multi` take text input only. File-aware context (`@file` mentions, workspace tree awareness, diff integration) requires a file-mention parser + context budget manager. Design: `orchestration.zig` extension; no new MCP tools (frozen 12-tool surface). |
+
 ### Candidate next slices (real remaining work)
 
 | Item | Status | Notes |
@@ -64,13 +76,17 @@ These are decisions, not unfinished work — do not "fix" them.
 
 ## Known test failures
 
-- None currently reproduced. Latest review gates: all 196 `*.zig` files pass standalone `zig ast-check`; `zig build lint --summary all` passes (2/2 steps, errors=0); `zig build check-parity` passes (exit 0); pin gate green on `0.17.0-dev.1252+e4b325c19` (`.agents/skills/zig-pin/pin.sh` exit 0); `zig-newest-skills` PASS on Zig master `0.17.0-dev.1275+59a628c6d`; `./build.sh check` passes (39/39 steps, unchanged); `./build.sh full-check` passes (47/47 steps).
+- None currently reproduced. Latest review gates: all 196 `*.zig` files pass standalone `zig ast-check`; `zig build lint --summary all` passes (2/2 steps, errors=0); `zig build check-parity` passes (exit 0); pin gate green on `0.17.0-dev.1275+59a628c6d` (`.agents/skills/zig-pin/pin.sh` exit 0); `zig-newest-skills` PASS on Zig master `0.17.0-dev.1275+59a628c6d`; `./build.sh check` passes (39/39 steps, unchanged); `./build.sh full-check` passes (47/47 steps).
 
 ---
 
 ## Recently landed (digest — full detail in git + CHANGELOG)
 
 One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`.
+- **Module restructure wave** — `registry.zig` 657->398 (handler closures + arg specs -> `wiring.zig` 274); `repl.zig` 656->520 (slash-command parsing + formatting -> `repl_commands.zig` 153); `agent.zig` 528->392 (help text + arg parsers -> `agent_help.zig` 206); `wdbx/mod.zig` 616->61 (`Store` struct -> `store.zig` 582). All slices green: `./build.sh check` 39/39 steps, all tests pass, parity holds.
+- **Zig 0.17 pin bump** — `.zigversion` + CI `ZIG_VERSION` bumped to `0.17.0-dev.1275+59a628c6d` (forward-compat verified: build + 910 tests + parity + lint + binary launch all green on master).
+- **Design doc sync** — `docs/spec/abi-refactor-design.mdx` Section 2 refreshed: wdbx mod/store split, TUI repl/repl_commands split, CLI registry/wiring + agent/agent_help split, 16 plugin fixtures listed, foundation env/temp_path + gpu compute_api + ai models/iot_monitor/multimodal_fusion + sea scorer/types + connectors fm.zig added.
+- **Feature-parity roadmap** — todo.md now includes Proposed north-star items: llama-cpp local inference bridge, MLX on-device inference, codex/claude-code TUI parity, streaming token-by-token completion, file-aware agent context.
 
 - **Priority A G1–G5** — REPL line editor; MCP JSON depth bound; HTTPS-only live connectors + POSIX no-echo signin; `ai_train` path sandbox (`ABI_TRAIN_DATA_ROOT`); durable store parent dirs `0700` on POSIX.
 - **Local agent orchestration + MCP depth** — `agent multi|spawn|browser` now expose scheduler-backed local workers and claim-honest browser planning; background submission is failure-transactional, feature-off stubs preserve type ownership, CLI runtime smoke covers the new surface, and MCP HTTP has transport-level wrong-bearer + oversized-body regression tests.

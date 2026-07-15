@@ -74,7 +74,7 @@ The CLI command surface is guarded by `tests/contracts/surface.zig` and currentl
 - `scheduler`
 - `nn`
 
-The top-level `abi --tui` shortcut is handled in `src/main.zig` outside the frozen `usage.commands` array. `abi complete` prints completion governance/persistence observability (`audit_passed=`, `audit_escore=`, `audit_vetoed=`, `persisted=`, WDBX counts, vector IDs, metadata key, and block hash when available) for its transient in-memory WDBX store. `abi agent plan <input>`, `train <abbey|aviva|abi|all>`, `multi <input>`, and `spawn [--background] [--workers <spec>] <input>` run through local scheduler-backed AI helpers; they do not imply live external model training or distributed agents. `abi agent browser [--url <url>] [--execute --confirm] <task>` emits a reviewed local orchestration plan and local planner result. It does not embed or launch a browser; real navigation remains an external MCP integration step. `abi scheduler status` reports a one-shot CLI scheduler probe with task counts and attached `MemoryTracker` counters; it is not a long-running daemon.
+The top-level `abi --tui` shortcut is handled in `src/main.zig` outside the frozen `usage.commands` array. `abi complete` prints completion governance/persistence observability (`audit_passed=`, `audit_escore=`, `audit_vetoed=`, `persisted=`, WDBX counts, vector IDs, metadata key, and block hash when available) for its transient in-memory WDBX store. `abi agent plan <input>`, `train <abbey|aviva|abi|all>`, `multi <input>`, and `spawn [--background] [--workers <spec>] <input>` run through local scheduler-backed AI helpers; they do not imply live external model training or distributed agents. `abi agent browser [--url <url>] [--execute --confirm] <task>` emits a reviewed local orchestration plan and local planner result. It does not embed or launch a browser; real navigation remains an external MCP integration step. `abi agent tui` runs an interactive REPL: on a POSIX TTY it uses a pure, unit-tested line editor (`src/features/tui/line_editor.zig`) with CSI/arrow decode, cursor edit, history, and tab completion of slash-commands; non-TTY/CI falls back to line-at-a-time stdin (same contract smoke as dashboard one-shot). `abi scheduler status` reports a one-shot CLI scheduler probe with task counts and attached `MemoryTracker` counters; it is not a long-running daemon.
 
 `abi nn` is a miniature character-level demo trainer behind `feat-nn`: `nn train "<text>"`, `nn train --jsonl <path> [--field <name>]`, and `nn sample ...`. It is not a production LLM trainer, distributed trainer, or external model benchmark surface.
 
@@ -82,7 +82,11 @@ The top-level `abi --tui` shortcut is handled in `src/main.zig` outside the froz
 
 ## MCP contract
 
-The MCP server exposes JSON-RPC 2.0 over stdio and loopback HTTP/SSE. Feature-backed tools must expose explicit degraded responses when AI or WDBX is disabled; for example, `ai_train` reports `training disabled` when the AI stub returns `accepted=false`, and `ai_complete` rejects empty input before touching WDBX. MCP completion, training, query, and stats tools share a long-lived in-process WDBX store for the server lifetime; per-call output reports governance fields, call deltas, and total WDBX counts where applicable. When WDBX is enabled, `wdbx_query` seeds local Abbey/Aviva/Abi profile vectors, uses the persisted temporal/causal graph, and returns a hybrid-ranked local match with semantic, temporal, causal, and persona component scores plus `ranking=hybrid`. Contract tools are:
+The MCP server exposes JSON-RPC 2.0 over stdio and loopback HTTP/SSE. Feature-backed tools must expose explicit degraded responses when AI or WDBX is disabled; for example, `ai_train` reports `training disabled` when the AI stub returns `accepted=false`, and `ai_complete` rejects empty input before touching WDBX. Request bodies are capped at 64 KB (`protocol.MAX_REQUEST_SIZE`) and must start with a JSON object; both stdio and HTTP inherit a shared nesting bound (`protocol.MAX_JSON_DEPTH`, currently 32) that rejects over-nested `{`/`[` containers before `std.json.parseFromSlice` (TM-008). MCP completion, training, query, and stats tools share a long-lived in-process WDBX store for the server lifetime; per-call output reports governance fields, call deltas, and total WDBX counts where applicable. When WDBX is enabled, `wdbx_query` seeds local Abbey/Aviva/Abi profile vectors, uses the persisted temporal/causal graph, and returns a hybrid-ranked local match with semantic, temporal, causal, and persona component scores plus `ranking=hybrid`.
+
+`ai_train` dataset and artifact paths are confined under the training data root: process cwd by default, or `ABI_TRAIN_DATA_ROOT` when set. Middleware still rejects `..` segments on all `file_path` fields; the training path additionally rejects absolute paths outside the root and realpath/symlink escapes (`training_support.confineTrainingPath`). This is local path sandboxing, not a full multi-tenant chroot.
+
+Contract tools are:
 
 - `ai_run`
 - `ai_complete`
@@ -139,11 +143,13 @@ Twilio connector calls validate:
 - XML escaping for TwiML `<Say>` and `<Redirect>` text and URL-encoded form fields
 - live response logs include HTTP status and body byte counts, not provider response bodies
 
-OpenAI and Anthropic connectors validate shared connector config and keep local streaming responses deterministic. Live HTTP dispatch remains an explicit `.live` transport path, and connector tests validate malformed live-path inputs before network dispatch.
+OpenAI and Anthropic connectors validate shared connector config and keep local streaming responses deterministic. Live HTTP dispatch remains an explicit `.live` transport path, and connector tests validate malformed live-path inputs before network dispatch. Live URL construction (`connectors/http.joinUrl`) requires a `https://` base URL scheme (`requireHttpsBaseUrl`); cleartext `http://` and other schemes return `error.InsecureBaseUrl`. Local/mock connectors never call `joinUrl`. This is scheme enforcement only — not host allowlisting, certificate pinning, or mTLS.
 
 ## Credential storage contract
 
-`abi auth` persists provider credentials as local plaintext JSON (resolved from `ABI_CREDENTIALS_PATH`, `XDG_CONFIG_HOME/abi/`, or `~/.abi/` as fallback). On POSIX-capable targets, the credential directory is created or repaired as owner-only (`0700`) and the credential file is opened/truncated with owner-only permissions (`0600`) before secret bytes are written; existing permissive files are tightened before overwrite. This is local filesystem hardening, not encryption, OS keychain storage, RBAC, or a regulatory-compliance claim.
+`abi auth` persists provider credentials as local plaintext JSON (resolved from `ABI_CREDENTIALS_PATH`, `XDG_CONFIG_HOME/abi/`, or `~/.abi/` as fallback). On POSIX-capable targets, the credential directory is created or repaired as owner-only (`0700`) and the credential file is opened/truncated with owner-only permissions (`0600`) before secret bytes are written; existing permissive files are tightened before overwrite. On POSIX TTYs, `auth signin` disables terminal echo while reading secrets and restores it afterward; Windows has no echo-suppress or ACL/keychain path yet (disclosed gap). This is local filesystem + TTY hardening, not encryption, OS keychain storage, RBAC, or a regulatory-compliance claim.
+
+Ambient WDBX durable-store parent directories (resolved via `ABI_WDBX_PATH` / XDG / `~/.abi/wdbx`) are created or repaired as owner-only (`0700`) on POSIX when opened through `durable_store.Session.openAt`. WAL frames remain CRC32-framed (not keyed-MAC); this is directory permission hardening only, not production multi-host integrity.
 
 ## Validation gates
 
@@ -159,7 +165,7 @@ For release/readiness changes:
 ./build.sh full-check
 ```
 
-`full-check` is `check` plus integration tests, benchmarks, dashboard smoke, and `agent tui` line-mode smoke.
+`full-check` is `check` plus integration tests, benchmarks, dashboard smoke, and `agent tui` line-mode smoke. When `tmux` is available, `tools/run_tui_smoke.sh` also drives the raw-mode line editor through a PTY (cursor edit, tab completion, history).
 
 For public feature API changes:
 

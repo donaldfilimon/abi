@@ -81,6 +81,40 @@ pub fn httpPostJson(
     };
 }
 
+pub fn httpGetJson(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    config: ConnectorConfig,
+    path: []const u8,
+) ConnectorError!Response {
+    if (config.transport != .live) return ConnectorError.LiveTransportUnavailable;
+
+    const url = try joinUrl(allocator, config.base_url, path);
+    defer allocator.free(url);
+
+    var client = std.http.Client{ .allocator = allocator, .io = io };
+    defer client.deinit();
+
+    var response_writer = std.Io.Writer.Allocating.init(allocator);
+    defer response_writer.deinit();
+
+    const result = client.fetch(.{
+        .location = .{ .url = url },
+        .method = .GET,
+        .headers = .{ .content_type = .{ .override = "application/json" } },
+        .response_writer = &response_writer.writer,
+        .redirect_behavior = .unhandled,
+        .keep_alive = false,
+    }) catch |err| return mapHttpError(err);
+
+    try mapHttpStatus(result.status);
+    return .{
+        .status = @intCast(@intFromEnum(result.status)),
+        .body = try response_writer.toOwnedSlice(),
+        .owned = true,
+    };
+}
+
 fn mapHttpError(err: anyerror) ConnectorError {
     return switch (err) {
         error.OutOfMemory => error.OutOfMemory,
@@ -102,11 +136,16 @@ fn mapHttpStatus(status: std.http.Status) ConnectorError!void {
 }
 
 /// Live connector base URLs must use HTTPS so API keys are never sent over
-/// cleartext HTTP (TM-007). Local/mock transports never call `joinUrl`.
+/// cleartext HTTP (TM-007). Loopback URLs (http://127.0.0.1 / http://localhost)
+/// are exempted so local integration tests and loopback services work without TLS.
 pub fn requireHttpsBaseUrl(base_url: []const u8) ConnectorError!void {
-    const prefix = "https://";
-    if (base_url.len < prefix.len) return ConnectorError.InsecureBaseUrl;
-    if (!std.ascii.eqlIgnoreCase(base_url[0..prefix.len], prefix)) return ConnectorError.InsecureBaseUrl;
+    const https_prefix = "https://";
+    if (base_url.len >= https_prefix.len and std.ascii.eqlIgnoreCase(base_url[0..https_prefix.len], https_prefix)) return;
+    const loopback_http = "http://127.0.0.1";
+    if (base_url.len >= loopback_http.len and std.ascii.eqlIgnoreCase(base_url[0..loopback_http.len], loopback_http)) return;
+    const localhost_http = "http://localhost";
+    if (base_url.len >= localhost_http.len and std.ascii.eqlIgnoreCase(base_url[0..localhost_http.len], localhost_http)) return;
+    return ConnectorError.InsecureBaseUrl;
 }
 
 pub fn joinUrl(allocator: std.mem.Allocator, base_url: []const u8, path: []const u8) ConnectorError![]u8 {

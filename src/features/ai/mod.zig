@@ -35,8 +35,11 @@ pub const TrainingResult = types.TrainingResult;
 pub const models = @import("models.zig");
 pub const iot_monitor = @import("iot_monitor.zig");
 pub const multimodal_fusion = @import("multimodal_fusion.zig");
+pub const file_context = @import("file_context.zig");
 pub const CompletionRequest = types.CompletionRequest;
 pub const CompletionResult = types.CompletionResult;
+pub const StreamChunk = types.StreamChunk;
+pub const StreamCallback = types.StreamCallback;
 pub const CompletionTaskContext = types.CompletionTaskContext;
 pub const TrainingTaskContext = types.TrainingTaskContext;
 pub const AgentTaskContext = types.AgentTaskContext;
@@ -87,6 +90,8 @@ pub const submitCompletionTask = completion.submitCompletionTask;
 pub const submitTrainingTask = training.submitTrainingTask;
 
 pub const completeWithScheduler = completion.completeWithScheduler;
+pub const completeStreaming = completion.completeStreaming;
+pub const completeWithSchedulerStreaming = completion.completeWithSchedulerStreaming;
 
 pub const completeWithStore = completion.completeWithStore;
 pub const completeWithStoreAdaptive = completion.completeWithStoreAdaptive;

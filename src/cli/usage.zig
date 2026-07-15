@@ -61,7 +61,7 @@ pub const commands = [_]Command{
     },
     .{
         .name = "complete",
-        .usage = "abi complete [--live] [--confirm] [--learn] [--model <id>] <input>",
+        .usage = "abi complete [--live] [--confirm] [--learn] [--stream] [--model <id>] <input>",
         .summary = "Run completion through local ABI agent pipeline; --model selects catalog id, --live enables explicit live transport",
         .category = .ai,
         .details = "--model selects a catalog id, --live enables explicit live transport, --learn runs the SEA self-learning loop, and apple-fm requires --confirm. Use `--` before a prompt that starts with `-`.",

@@ -10,6 +10,7 @@ pub const discord = @import("discord.zig");
 pub const twilio = @import("twilio.zig");
 pub const grok = @import("grok.zig");
 pub const fm = @import("fm.zig");
+pub const local_bridge = @import("local_bridge.zig");
 
 // Flatten shared types for backward compatibility
 pub const ConnectorError = connector.ConnectorError;

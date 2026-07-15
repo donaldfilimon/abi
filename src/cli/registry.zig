@@ -6,14 +6,14 @@
 //! without the `abi`/`build_options` imports) can keep projecting the help
 //! surface from it. This module imports that metadata and augments each command
 //! with its argument spec and handler, producing the single table that
-//! `dispatch.zig` walks. Handler *invocation* lives here because this module is
-//! only ever compiled inside the CLI executable graph (which has the handler
-//! imports), never inside the standalone `cli_usage` module.
+//! `dispatch.zig` walks. Handler *invocation* lives in `wiring.zig` (extracted
+//! to keep this module focused on types, the frozen table, and help rendering).
 
 const std = @import("std");
 const usage_mod = @import("usage.zig");
 const handlers = @import("handlers/mod.zig");
 const arg = @import("arg.zig");
+const wiring = @import("wiring.zig");
 
 pub const completion = @import("completion.zig");
 pub const help_json = @import("help_json.zig");
@@ -121,261 +121,6 @@ fn subcommandCmd(comptime name: []const u8, subcommands: []const Command) Comman
     return .{ .name = m.name, .summary = m.summary, .usage = m.usage, .subcommands = subcommands };
 }
 
-// --- Typed argument specs ----------------------------------------------------
-
-const complete_args = [_]Arg{
-    .{ .name = "live", .kind = .flag, .help = "serve anthropic models over the live transport" },
-    .{ .name = "confirm", .kind = .flag, .help = "confirm on-device FoundationModels execution" },
-    .{ .name = "learn", .kind = .flag, .help = "run the SEA self-learning loop" },
-    .{ .name = "model", .kind = .value, .help = "select a catalog model id (e.g. claude-fable-5)" },
-    .{ .name = "input", .kind = .positional, .required = true, .help = "completion prompt" },
-};
-
-const train_args = [_]Arg{
-    .{ .name = "input", .kind = .positional, .required = true, .help = "training input" },
-};
-
-const agent_plan_args = [_]Arg{
-    .{ .name = "input", .kind = .positional, .required = true, .help = "agent planning input" },
-};
-
-const agent_train_args = [_]Arg{
-    .{ .name = "profile", .kind = .positional, .required = true, .choices = &.{ "abbey", "aviva", "abi", "all" }, .help = "agent profile" },
-};
-
-const agent_multi_args = [_]Arg{
-    .{ .name = "input", .kind = .positional, .required = true, .help = "multi-agent task input" },
-};
-
-const agent_subcommands = [_]Command{
-    .{ .name = "plan", .summary = "Run a dry-run agent planning task through the scheduler and print memory tracker statistics.", .usage = "abi agent plan <input>", .args = &agent_plan_args, .handler = agentPlanHandler },
-    .{ .name = "train", .summary = "Train one known local profile or all known profiles against the durable WDBX store.", .usage = "abi agent train <abbey|aviva|abi|all>", .args = &agent_train_args, .handler = agentTrainHandler },
-    .{ .name = "tui", .summary = "Launch the interactive ABI agent REPL. Non-tty input falls back to line mode.", .usage = "abi agent tui", .handler = agentTuiHandler },
-    .{ .name = "multi", .summary = "Run Abbey, Aviva, and Abi concurrently via the scheduler.", .usage = "abi agent multi <input>", .args = &agent_multi_args, .handler = agentMultiHandler },
-    .{ .name = "spawn", .summary = "Create custom smart-agent workers with optional background scheduler submission.", .usage = "abi agent spawn [--background] [--workers <spec>] <input>", .raw_handler = handlers.agent_mod.handleAgentSpawnArgv },
-    .{ .name = "browser", .summary = "Plan browser automation locally (dry-run default; external MCP for real navigation).", .usage = "abi agent browser [--url <url>] [--execute --confirm] <task>", .raw_handler = handlers.agent_mod.handleAgentBrowserArgv },
-    .{ .name = "os", .summary = "Audit an OS-control command request. execute requires --confirm and the policy allow-list.", .usage = "abi agent os <dry-run|execute --confirm> <cmd> [args...]", .raw_handler = handlers.agent_mod.handleAgentOs },
-};
-
-const plugin_args = [_]Arg{
-    .{ .name = "command", .kind = .positional, .required = true, .choices = &.{ "list", "run" }, .help = "plugin subcommand" },
-    .{ .name = "name", .kind = .positional, .help = "plugin name for run" },
-    .{ .name = "input", .kind = .positional, .greedy = true, .help = "optional plugin input" },
-};
-
-const plugin_subcommands = [_]Command{
-    .{ .name = "list", .summary = "Print the generated plugin registry with each installed plugin module.", .usage = "abi plugin list" },
-    .{ .name = "run", .summary = "Run a bundled plugin by registry name with optional text input.", .usage = "abi plugin run <name> [input]" },
-};
-
-const auth_args = [_]Arg{
-    .{ .name = "command", .kind = .positional, .required = true, .choices = &.{ "signin", "logout", "status" }, .help = "auth subcommand" },
-    .{ .name = "service", .kind = .positional, .help = "service for signin" },
-};
-
-const auth_subcommands = [_]Command{
-    .{ .name = "status", .summary = "Show which local connector credentials are configured.", .usage = "abi auth status" },
-    .{ .name = "logout", .summary = "Remove the local ABI credential file when present.", .usage = "abi auth logout" },
-    .{ .name = "signin", .summary = "Prompt for a credential and persist it in the local ABI credential file.", .usage = "abi auth signin <openai|anthropic|discord|grok|twilio>" },
-};
-
-const scheduler_args = [_]Arg{
-    .{ .name = "command", .kind = .positional, .required = true, .choices = &.{"status"}, .help = "scheduler subcommand" },
-};
-
-const twilio_args = [_]Arg{
-    .{ .name = "command", .kind = .positional, .required = true, .choices = &.{"simulate"}, .help = "twilio subcommand" },
-    .{ .name = "input", .kind = .positional, .required = true, .help = "simulation input" },
-};
-
-const dashboard_args = [_]Arg{
-    .{ .name = "pane", .kind = .value, .choices = &.{ "1", "2", "3", "4", "5", "system", "plugins", "storage", "wdbx", "scheduler", "memory" }, .help = "initial diagnostics pane" },
-    .{ .name = "plain", .kind = .flag, .help = "render without ANSI color/style escapes" },
-    .{ .name = "no-color", .kind = .flag, .help = "alias for --plain" },
-    .{ .name = "compact", .kind = .flag, .help = "render only the selected diagnostics pane" },
-    .{ .name = "once", .kind = .flag, .help = "force one-shot output even when stdin is a terminal" },
-    .{ .name = "interval", .kind = .value, .value_kind = .uint, .help = "interactive refresh interval in milliseconds (100-60000)" },
-    .{ .name = "json", .kind = .flag, .help = "emit one machine-readable JSON dashboard snapshot" },
-    .{ .name = "list-panes", .kind = .flag, .help = "print dashboard pane names, titles, and hotkeys" },
-};
-
-const dashboard_usage = "usage: abi dashboard [--pane <pane>] [--plain|--no-color] [--compact] [--once] [--interval <ms>] [--json] [--list-panes]";
-
-const nn_args = [_]Arg{
-    .{ .name = "command", .kind = .positional, .required = true, .choices = &.{ "train", "sample" }, .help = "nn subcommand" },
-    .{ .name = "jsonl", .kind = .value, .help = "JSONL training dataset path" },
-    .{ .name = "field", .kind = .value, .help = "JSONL text field (default: text)" },
-    .{ .name = "text", .kind = .value, .help = "sample corpus text" },
-    .{ .name = "seed", .kind = .value, .help = "sample seed character" },
-    .{ .name = "n", .kind = .value, .value_kind = .uint, .help = "sample character count" },
-    .{ .name = "input", .kind = .positional, .help = "inline training text" },
-};
-
-const nn_subcommands = [_]Command{
-    .{ .name = "train", .summary = "Train the miniature local character model from inline text or a JSONL text field.", .usage = "abi nn train \"<text>\" | train --jsonl <path> [--field <name>]" },
-    .{ .name = "sample", .summary = "Train on <corpus>, then greedily emit k characters from the seed byte.", .usage = "abi nn sample --text \"<corpus>\" --seed <char> --n <k>" },
-};
-
-const wdbx_subcommands = [_]Command{
-    .{ .name = "db", .summary = "Manage segment checkpoints, WAL recovery, and snapshot integrity.", .usage = "abi wdbx db <init|verify|compact> <path> [keep]" },
-    .{ .name = "block", .summary = "Append or inspect SHA-linked conversation blocks in a WDBX checkpoint.", .usage = "abi wdbx block <insert|get> <path> ..." },
-    .{ .name = "query", .summary = "Print store stats or run semantic/persona-scoped retrieval over a recovered store.", .usage = "abi wdbx query <path> [text] [persona]" },
-    .{ .name = "benchmark", .summary = "Measure local insert/search timing for the in-process vector store.", .usage = "abi wdbx benchmark [count]" },
-    .{ .name = "cluster", .summary = "Run single-node status, in-process consensus demo, or authenticated cluster RPC serving.", .usage = "abi wdbx cluster status | cluster demo [nodes] | cluster serve <port> [node] [host]" },
-    .{ .name = "compute", .summary = "Report CPU/GPU/NPU/TPU backend selection and fallback state.", .usage = "abi wdbx compute info" },
-    .{ .name = "secure", .summary = "Demonstrate local compression plus reference homomorphic aggregation; not security-audited FHE.", .usage = "abi wdbx secure demo" },
-    .{ .name = "gpu", .summary = "Report GPU backend capability and native-kernel status.", .usage = "abi wdbx gpu info" },
-    .{ .name = "api", .summary = "Serve the loopback WDBX REST API; optional bearer token via ABI_WDBX_REST_TOKEN.", .usage = "abi wdbx api serve [port]" },
-};
-
-// --- Typed handlers ----------------------------------------------------------
-// Thin adapters that forward parsed arguments to the existing handler functions.
-// Handler output text is preserved verbatim (never re-authored).
-
-fn completeHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    return handlers.handleComplete(
-        ctx.io,
-        ctx.allocator,
-        .{
-            .input = parsed.value("input").?,
-            .model = parsed.value("model"),
-            .live = parsed.flag("live"),
-            .confirmed = parsed.flag("confirm"),
-            .learn = parsed.flag("learn"),
-        },
-    );
-}
-
-fn trainHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    return handlers.handleTrain(ctx.allocator, parsed.value("input").?);
-}
-
-fn agentPlanHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    return handlers.agent_mod.handleAgentPlanInput(ctx.allocator, parsed.value("input").?);
-}
-
-fn agentTrainHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    return handlers.agent_mod.handleAgentTrainProfile(ctx.io, ctx.allocator, parsed.value("profile").?);
-}
-
-fn agentMultiHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    return handlers.agent_mod.handleAgentMultiInput(ctx.allocator, parsed.value("input").?);
-}
-
-fn agentTuiHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    _ = parsed;
-    return handlers.agent_mod.handleAgentTuiNoArgs(ctx.io, ctx.allocator);
-}
-
-fn backendsHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    _ = ctx;
-    _ = parsed;
-    return handlers.handleBackends();
-}
-
-fn pluginHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    const command = parsed.value("command").?;
-    const name = parsed.value("name");
-    const input = parsed.value("input") orelse "";
-
-    if (std.mem.eql(u8, command, "list")) {
-        if (name != null or input.len != 0) return usage_mod.usageError("usage: abi plugin list");
-        return handlers.plugin_mod.handlePluginList(ctx.allocator);
-    }
-
-    if (std.mem.eql(u8, command, "run")) {
-        const plugin_name = name orelse return usage_mod.usageError("usage: abi plugin run <name> [input]");
-        return handlers.plugin_mod.handlePluginRun(ctx.allocator, plugin_name, input);
-    }
-
-    return usage_mod.usageError("usage: abi plugin list | run <name> [input]");
-}
-
-fn authHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    const command = parsed.value("command").?;
-    const service = parsed.value("service");
-
-    if (std.mem.eql(u8, command, "status")) {
-        if (service != null) return usage_mod.usageError("usage: abi auth status");
-        return handlers.auth_mod.handleAuthStatus(ctx.allocator);
-    }
-
-    if (std.mem.eql(u8, command, "logout")) {
-        if (service != null) return usage_mod.usageError("usage: abi auth logout");
-        return handlers.auth_mod.handleAuthLogout(ctx.allocator);
-    }
-
-    if (std.mem.eql(u8, command, "signin")) {
-        const provider = service orelse return usage_mod.usageError("usage: abi auth signin <openai|anthropic|discord|grok|twilio>");
-        return handlers.auth_mod.handleAuthSignin(ctx.io, ctx.allocator, provider);
-    }
-
-    return usage_mod.usageError("usage: abi auth <signin|logout|status>");
-}
-
-fn dashboardHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    const initial_pane = if (parsed.value("pane")) |pane|
-        handlers.dashboard_mod.dashboardPaneIndexForToken(pane) orelse return usage_mod.usageError(dashboard_usage)
-    else
-        0;
-    const color = !(parsed.flag("plain") or parsed.flag("no-color"));
-    const refresh_interval_ms = if (parsed.uint("interval")) |raw|
-        handlers.dashboard_mod.validRefreshInterval(raw) orelse return usage_mod.usageError(dashboard_usage)
-    else
-        handlers.dashboard_mod.DEFAULT_REFRESH_INTERVAL_MS;
-    return handlers.dashboard_mod.handleDashboardWithOptions(ctx.allocator, .{
-        .initial_pane = initial_pane,
-        .color = color,
-        .compact = parsed.flag("compact"),
-        .force_one_shot = parsed.flag("once"),
-        .refresh_interval_ms = refresh_interval_ms,
-        .format = if (parsed.flag("json")) .json else .text,
-        .list_panes = parsed.flag("list-panes"),
-    });
-}
-
-fn schedulerHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    _ = parsed.value("command").?;
-    return handlers.handleSchedulerStatus(ctx.allocator);
-}
-
-fn twilioHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    _ = parsed.value("command").?;
-    return handlers.twilio_mod.handleTwilioSimulate(ctx.allocator, parsed.value("input").?);
-}
-
-fn nnHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    const command = parsed.value("command").?;
-    const input = parsed.value("input");
-    const jsonl_path = parsed.value("jsonl");
-    const field = parsed.value("field") orelse "text";
-    const text = parsed.value("text");
-    const seed = parsed.value("seed");
-    const n = if (parsed.uint("n")) |raw| std.math.cast(usize, raw) orelse return usage_mod.usageError("usage: abi nn sample --text \"<corpus>\" --seed <char> --n <k>") else 16;
-
-    if (std.mem.eql(u8, command, "train")) {
-        if (text != null or seed != null or parsed.value("n") != null) {
-            return usage_mod.usageError("usage: abi nn train \"<text>\" | train --jsonl <path> [--field <name>]");
-        }
-        if (input == null and jsonl_path == null) {
-            return usage_mod.usageError("usage: abi nn train \"<text>\" | train --jsonl <path> [--field <name>]");
-        }
-        return handlers.nn_mod.handleNnTrain(ctx.allocator, input, jsonl_path, field);
-    }
-
-    if (std.mem.eql(u8, command, "sample")) {
-        if (input != null or jsonl_path != null or parsed.value("field") != null) {
-            return usage_mod.usageError("usage: abi nn sample --text \"<corpus>\" --seed <char> --n <k>");
-        }
-        if (text == null or seed == null) {
-            return usage_mod.usageError("usage: abi nn sample --text \"<corpus>\" --seed <char> --n <k>");
-        }
-        return handlers.nn_mod.handleNnSample(ctx.allocator, text, seed, n);
-    }
-
-    return usage_mod.usageError("usage: abi nn <command> ...");
-}
-
 fn printChoices(choices: []const []const u8) void {
     if (choices.len == 0) return;
     std.debug.print(" choices=", .{});
@@ -469,27 +214,23 @@ pub fn findRegistryCommand(name: []const u8) ?Command {
     return null;
 }
 
-// --- Raw handler shims -------------------------------------------------------
-// Commands still on the legacy `(io, allocator, argv)` contract. Thin adapters
-// drop unused parameters and forward to the existing handler functions,
-// reproducing the historical dispatch wrappers exactly.
-
 /// The frozen 13-command surface, in the same order as `usage.commands`.
 /// `help` is metadata-only; `dispatch` intercepts it before the table walk.
+/// Arg specs and handler closures live in `wiring.zig`.
 pub const commands = [_]Command{
     metaCmd("help"),
-    typedCmd("complete", &complete_args, completeHandler),
-    typedCmd("train", &train_args, trainHandler),
-    subcommandCmd("agent", &agent_subcommands),
-    typedCmd("backends", &.{}, backendsHandler),
-    typedCmdWithSubcommands("plugin", &plugin_args, &plugin_subcommands, pluginHandler),
-    typedCmdWithSubcommands("auth", &auth_args, &auth_subcommands, authHandler),
-    typedCmd("twilio", &twilio_args, twilioHandler),
-    typedCmd("tui", &dashboard_args, dashboardHandler),
-    typedCmd("dashboard", &dashboard_args, dashboardHandler),
-    rawCmdWithSubcommands("wdbx", &wdbx_subcommands, handlers.handleWdbx),
-    typedCmd("scheduler", &scheduler_args, schedulerHandler),
-    typedCmdWithSubcommands("nn", &nn_args, &nn_subcommands, nnHandler),
+    typedCmd("complete", &wiring.complete_args, wiring.completeHandler),
+    typedCmd("train", &wiring.train_args, wiring.trainHandler),
+    subcommandCmd("agent", &wiring.agent_subcommands),
+    typedCmd("backends", &.{}, wiring.backendsHandler),
+    typedCmdWithSubcommands("plugin", &wiring.plugin_args, &wiring.plugin_subcommands, wiring.pluginHandler),
+    typedCmdWithSubcommands("auth", &wiring.auth_args, &wiring.auth_subcommands, wiring.authHandler),
+    typedCmd("twilio", &wiring.twilio_args, wiring.twilioHandler),
+    typedCmd("tui", &wiring.dashboard_args, wiring.dashboardHandler),
+    typedCmd("dashboard", &wiring.dashboard_args, wiring.dashboardHandler),
+    rawCmdWithSubcommands("wdbx", &wiring.wdbx_subcommands, handlers.handleWdbx),
+    typedCmd("scheduler", &wiring.scheduler_args, wiring.schedulerHandler),
+    typedCmdWithSubcommands("nn", &wiring.nn_args, &wiring.nn_subcommands, wiring.nnHandler),
 };
 
 test {

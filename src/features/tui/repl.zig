@@ -3,6 +3,9 @@
 //! Reads one line at a time from stdin using the standard reader (no raw-mode
 //! terminal handling yet — that is Phase 2), dispatches slash-commands, and runs
 //! ordinary input through the AI completion path against the ambient WDBX store.
+//!
+//! Slash-command parsing, completion, and status/history formatting live in
+//! `repl_commands.zig`; this module owns the interactive `ReplLoop`.
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -17,9 +20,22 @@ const time = @import("../../foundation/time.zig");
 const sanitize = @import("sanitize.zig");
 const terminal = @import("terminal.zig");
 const line_editor = @import("line_editor.zig");
+const file_context = @import("../ai/file_context.zig");
+const cmds = @import("repl_commands.zig");
 
-/// Maximum length of a model id settable via `/model`.
-const MODEL_STORAGE_BYTES = 128;
+pub const MODEL_STORAGE_BYTES = cmds.MODEL_STORAGE_BYTES;
+pub const SpecialCommand = cmds.SpecialCommand;
+pub const SlashCommand = cmds.SlashCommand;
+pub const slash_commands = cmds.slash_commands;
+pub const SlashCompletion = cmds.SlashCompletion;
+pub const parseSpecialCommand = cmds.parseSpecialCommand;
+pub const specialArg = cmds.specialArg;
+pub const completeSlashCommand = cmds.completeSlashCommand;
+pub const formatHistoryHeader = cmds.formatHistoryHeader;
+pub const formatStatusLine = cmds.formatStatusLine;
+pub const formatOpenStatus = cmds.formatOpenStatus;
+pub const validModelId = cmds.validModelId;
+pub const printHelp = cmds.printHelp;
 
 pub const ReplConfig = struct {
     model: []const u8 = models.default_model,
@@ -34,6 +50,12 @@ pub const ReplState = struct {
     /// Backing storage for a model id set at runtime via `/model`, so
     /// `config.model` never dangles into the transient stdin read buffer.
     model_storage: [MODEL_STORAGE_BYTES]u8 = undefined,
+    /// File context from `/open <path>`: the opened file path (owned by
+    /// `file_context_buf`) and the loaded contents (owned by `file_context_buf`).
+    open_path: []const u8 = "",
+    open_content: []const u8 = "",
+    /// Backing allocation for file context strings; freed on next `/open` or reset.
+    file_context_buf: ?[]u8 = null,
 
     pub fn init(config: ReplConfig) ReplState {
         return .{
@@ -42,144 +64,14 @@ pub const ReplState = struct {
             .session_id = time.unixMs(),
         };
     }
+
+    pub fn clearFileContext(self: *ReplState, allocator: std.mem.Allocator) void {
+        if (self.file_context_buf) |buf| allocator.free(buf);
+        self.open_path = "";
+        self.open_content = "";
+        self.file_context_buf = null;
+    }
 };
-
-pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, syncclis, unknown };
-
-const SlashCommand = struct {
-    kind: SpecialCommand,
-    name: []const u8,
-    aliases: []const []const u8 = &.{},
-    summary: []const u8,
-};
-
-const slash_commands = [_]SlashCommand{
-    .{ .kind = .help, .name = "help", .aliases = &.{"h"}, .summary = "Show this help" },
-    .{ .kind = .model, .name = "model", .summary = "Switch the completion model (alias-resolved)" },
-    .{ .kind = .profile, .name = "profile", .summary = "Show profile routing status" },
-    .{ .kind = .status, .name = "status", .aliases = &.{"stat"}, .summary = "Show session, model, and persistence status" },
-    .{ .kind = .history, .name = "history", .aliases = &.{"hist"}, .summary = "Show recent session turns and persisted blocks" },
-    .{ .kind = .reset, .name = "reset", .summary = "Reset the turn counter and start a fresh session" },
-    .{ .kind = .syncclis, .name = "sync-clis", .aliases = &.{"syncclis"}, .summary = "Sync skills/plugins/commands/experiences across CLIs" },
-    .{ .kind = .quit, .name = "quit", .aliases = &.{ "q", "exit" }, .summary = "Exit the REPL" },
-};
-
-fn firstWhitespace(input: []const u8) ?usize {
-    for (input, 0..) |byte, idx| {
-        if (std.ascii.isWhitespace(byte)) return idx;
-    }
-    return null;
-}
-
-fn matchesSlashCommand(def: SlashCommand, token: []const u8) bool {
-    if (std.mem.eql(u8, token, def.name)) return true;
-    for (def.aliases) |alias| {
-        if (std.mem.eql(u8, token, alias)) return true;
-    }
-    return false;
-}
-
-/// Classify a line as a slash-command. Non-slash lines (ordinary prompts) and
-/// unrecognized slash-commands both map to `.unknown`; callers distinguish the
-/// two by checking for a leading `/`.
-pub fn parseSpecialCommand(line: []const u8) SpecialCommand {
-    if (line.len == 0 or line[0] != '/') return .unknown;
-    const body = line[1..];
-    const end = firstWhitespace(body) orelse body.len;
-    const cmd = body[0..end];
-    for (slash_commands) |def| {
-        if (matchesSlashCommand(def, cmd)) return def.kind;
-    }
-    return .unknown;
-}
-
-/// Format a one-line `/history` summary header into `buf`. Pure (no IO/store) so
-/// it is unit-testable; falls back to a fixed string if formatting overflows.
-fn formatHistoryHeader(buf: []u8, turn_count: usize, block_count: usize) []const u8 {
-    return std.fmt.bufPrint(
-        buf,
-        "history: {d} turn(s) this session, {d} persisted block(s)",
-        .{ turn_count, block_count },
-    ) catch "history: summary unavailable";
-}
-
-fn boolText(value: bool) []const u8 {
-    return if (value) "true" else "false";
-}
-
-fn validModelId(id: []const u8) bool {
-    if (id.len == 0 or id.len > MODEL_STORAGE_BYTES) return false;
-    for (id) |byte| {
-        if (byte < 0x21 or byte >= 0x7f or std.ascii.isWhitespace(byte)) return false;
-    }
-    return true;
-}
-
-/// Format a one-line `/status` summary into `buf`. Pure so contracts can verify
-/// the operator-facing status fields without constructing a live store.
-fn formatStatusLine(
-    buf: []u8,
-    session_id: i64,
-    turn_count: usize,
-    model: []const u8,
-    store_turns: bool,
-    block_count: usize,
-) []const u8 {
-    return std.fmt.bufPrint(
-        buf,
-        "status: session_id={d} turns={d} model={s} provider={s} store_turns={s} persisted_blocks={d}",
-        .{
-            session_id,
-            turn_count,
-            model,
-            models.providerOf(model).label(),
-            boolText(store_turns),
-            block_count,
-        },
-    ) catch "status: summary unavailable";
-}
-
-/// Return the trimmed argument following a slash-command token, or "" if none.
-fn specialArg(line: []const u8) []const u8 {
-    const sp = firstWhitespace(line) orelse return "";
-    return std.mem.trim(u8, line[sp + 1 ..], " \t\r");
-}
-
-fn printHelp() void {
-    std.debug.print("Commands:\n", .{});
-    for (slash_commands) |def| {
-        std.debug.print("  /{s:<14} {s}\n", .{ def.name, def.summary });
-    }
-    std.debug.print("  <text>           Run a completion and persist the turn\n\n", .{});
-}
-
-const SlashCompletion = union(enum) {
-    none,
-    unique: []const u8,
-    ambiguous: []const *const SlashCommand,
-};
-
-/// Find canonical slash-command names for a partially typed command token.
-/// Completion is intentionally unavailable after whitespace, so prompts and
-/// `/model` arguments always retain their literal input behavior.
-fn completeSlashCommand(input: []const u8, matches: *[slash_commands.len]*const SlashCommand) SlashCompletion {
-    if (input.len < 2 or input[0] != '/' or firstWhitespace(input) != null) return .none;
-    const prefix = input[1..];
-    var count: usize = 0;
-    for (&slash_commands) |*def| {
-        var matched = std.mem.startsWith(u8, def.name, prefix);
-        for (def.aliases) |alias| matched = matched or std.mem.startsWith(u8, alias, prefix);
-        if (matched) {
-            matches[count] = def;
-            count += 1;
-        }
-    }
-    return switch (count) {
-        0 => .none,
-        1 => .{ .unique = matches[0].name },
-        else => .{ .ambiguous = matches[0..count] },
-    };
-}
 
 pub const ReplLoop = struct {
     allocator: std.mem.Allocator,
@@ -202,7 +94,7 @@ pub const ReplLoop = struct {
     }
 
     pub fn deinit(self: *ReplLoop) void {
-        _ = self;
+        self.state.clearFileContext(self.allocator);
     }
 
     /// Outcome of dispatching one input line. Lets the raw-mode and line-mode
@@ -362,6 +254,9 @@ pub const ReplLoop = struct {
             .history => self.showHistory(),
             .profile => self.showProfileStatus(),
             .syncclis => try self.runSyncClis(io),
+            .open => try self.runOpen(specialArg(line), io),
+            .diff => try self.runDiff(io),
+            .commit => try self.runCommit(io),
             .unknown => try self.printUnknownCommand(line),
         }
         return .keep_going;
@@ -420,20 +315,43 @@ pub const ReplLoop = struct {
         std.debug.print("unknown command: {s} (try /help)\n", .{safe_line});
     }
 
+    const StreamCtx = struct {
+        allocator: std.mem.Allocator,
+        fn callback(ctx: *anyopaque, chunk: ai.StreamChunk) anyerror!void {
+            if (chunk.delta.len == 0) return;
+            const self: *@This() = @ptrCast(@alignCast(ctx));
+            const safe = try sanitize.sanitizeControlBytes(self.allocator, chunk.delta);
+            defer self.allocator.free(safe);
+            std.debug.print("{s}", .{safe});
+        }
+    };
+
     fn completePrompt(self: *ReplLoop, line: []const u8) !LineOutcome {
-        var result = try ai.completeWithScheduler(self.allocator, self.store, self.scheduler, "complete:agent-tui", .{
-            .input = line,
+        var augmented_line = line;
+        var augmented_buf: ?[]u8 = null;
+        defer if (augmented_buf) |b| self.allocator.free(b);
+
+        // Prepend file context if a file was loaded via /open
+        if (self.state.open_content.len > 0) {
+            const prefix = try std.fmt.allocPrint(self.allocator, "[file: {s}]\n{s}\n---\n{s}", .{
+                self.state.open_path,
+                self.state.open_content,
+                line,
+            });
+            augmented_buf = prefix;
+            augmented_line = prefix;
+        }
+
+        var stream_ctx = StreamCtx{ .allocator = self.allocator };
+        var result = try ai.completeWithSchedulerStreaming(self.allocator, self.store, self.scheduler, "complete:agent-tui", .{
+            .input = augmented_line,
             .model = self.state.config.model,
             .store_result = self.state.config.store_turns,
-        });
+        }, StreamCtx.callback, &stream_ctx);
         defer result.deinit(self.allocator);
         self.state.turn_count += 1;
 
-        // Completion output can echo poisoned WDBX content; strip control bytes so
-        // it cannot inject terminal escapes into the operator's render stream.
-        const safe_output = try sanitize.sanitizeControlBytes(self.allocator, result.output);
-        defer self.allocator.free(safe_output);
-        std.debug.print("{s}\n", .{safe_output});
+        std.debug.print("\n", .{});
         std.debug.print("[turn {d} | model={s} | profile={s} | persisted={s}]\n", .{
             self.state.turn_count,
             result.model,
@@ -449,6 +367,7 @@ pub const ReplLoop = struct {
     fn resetSession(self: *ReplLoop) void {
         self.state.turn_count = 0;
         self.state.session_id = time.unixMs();
+        self.state.clearFileContext(self.allocator);
         std.debug.print("session reset (id={d})\n", .{self.state.session_id});
     }
 
@@ -480,6 +399,139 @@ pub const ReplLoop = struct {
             self.state.config.model,
             self.state.turn_count,
         });
+    }
+
+    /// `/open <path>`: read a file into the prompt context. The content is stored
+    /// and injected before the next completion.
+    fn runOpen(self: *ReplLoop, path: []const u8, io: std.Io) !void {
+        if (path.len == 0) {
+            if (self.state.open_path.len > 0) {
+                var buf: [256]u8 = undefined;
+                std.debug.print("{s}\n", .{formatOpenStatus(&buf, self.state.open_path, self.state.open_content.len)});
+            } else {
+                std.debug.print("usage: /open <path>\n", .{});
+            }
+            return;
+        }
+        // Clear previous file context
+        self.state.clearFileContext(self.allocator);
+
+        // Read file content (up to 64 KiB) into an owned buffer
+        const max_read: usize = 65536;
+        const content = file_context.readFileBounded(io, self.allocator, ".", path, max_read) catch |err| {
+            std.debug.print("open: cannot read '{s}': {s}\n", .{ path, @errorName(err) });
+            return;
+        };
+
+        // Allocate a single buffer for both path and content, packed with a
+        // header: [path_len: usize][path bytes][content bytes]
+        const path_bytes = std.mem.trim(u8, path, " \t\r");
+        const header_len = @sizeOf(usize);
+        const total_len = header_len + path_bytes.len + content.len;
+        const buf = try self.allocator.alloc(u8, total_len);
+        @memcpy(buf[0..header_len], std.mem.asBytes(&path_bytes.len));
+        @memcpy(buf[header_len..][0..path_bytes.len], path_bytes);
+        @memcpy(buf[header_len + path_bytes.len ..], content);
+
+        self.state.file_context_buf = buf;
+        const stored_path_len = std.mem.bytesAsSlice(usize, buf[0..header_len])[0];
+        self.state.open_path = buf[header_len..][0..stored_path_len];
+        self.state.open_content = buf[header_len + stored_path_len ..];
+
+        var status_buf: [256]u8 = undefined;
+        std.debug.print("{s}\n", .{formatOpenStatus(&status_buf, self.state.open_path, self.state.open_content.len)});
+    }
+
+    /// `/diff`: run `git diff` and print the output.
+    fn runDiff(self: *ReplLoop, io: std.Io) !void {
+        var child = std.process.spawn(io, .{
+            .argv = &[_][]const u8{ "git", "diff", "--color=never" },
+            .cwd = .inherit,
+            .stdin = .ignore,
+            .stdout = .pipe,
+            .stderr = .ignore,
+        }) catch |err| {
+            std.debug.print("diff: failed to run git diff: {s}\n", .{@errorName(err)});
+            return;
+        };
+        defer child.kill(io);
+
+        // Read all output using streaming reads
+        var output = std.ArrayListUnmanaged(u8).empty;
+        defer output.deinit(self.allocator);
+        var buf: [4096]u8 = undefined;
+        while (true) {
+            const n = std.Io.File.readStreaming(child.stdout.?, io, &.{&buf}) catch break;
+            if (n == 0) break;
+            try output.appendSlice(self.allocator, buf[0..n]);
+        }
+        const term = try child.wait(io);
+
+        if (output.items.len == 0) {
+            std.debug.print("diff: working tree is clean\n", .{});
+        } else {
+            std.debug.print("{s}\n", .{output.items});
+        }
+        if (term != .exited or term.exited != 0) {
+            std.debug.print("diff: git diff terminated: {any}\n", .{term});
+        }
+    }
+
+    /// `/commit`: stage all changes and create a commit. Prompts for a commit
+    /// message interactively via the next REPL input line.
+    fn runCommit(self: *ReplLoop, io: std.Io) !void {
+        // Stage all changes
+        var add_child = std.process.spawn(io, .{
+            .argv = &[_][]const u8{ "git", "add", "-A" },
+            .cwd = .inherit,
+            .stdin = .ignore,
+            .stdout = .ignore,
+            .stderr = .ignore,
+        }) catch |err| {
+            std.debug.print("commit: failed to stage: {s}\n", .{@errorName(err)});
+            return;
+        };
+        _ = try add_child.wait(io);
+
+        // Prompt for commit message
+        std.debug.print("commit message (end with Ctrl-D or empty line to cancel):\n> ", .{});
+
+        var msg_buf: [4096]u8 = undefined;
+        var stdin_reader = std.Io.File.stdin().reader(io, &msg_buf);
+        var msg_lines = std.ArrayListUnmanaged(u8).empty;
+        defer msg_lines.deinit(self.allocator);
+
+        while (true) {
+            const maybe_line = stdin_reader.interface.takeDelimiter('\n') catch break;
+            const line = (maybe_line orelse break);
+            const trimmed = std.mem.trim(u8, line, " \t\r\n");
+            if (trimmed.len == 0 and msg_lines.items.len == 0) {
+                std.debug.print("commit cancelled\n", .{});
+                return;
+            }
+            if (trimmed.len == 0 and msg_lines.items.len > 0) break;
+            if (msg_lines.items.len > 0) try msg_lines.append(self.allocator, '\n');
+            try msg_lines.appendSlice(self.allocator, trimmed);
+        }
+
+        if (msg_lines.items.len == 0) {
+            std.debug.print("commit cancelled\n", .{});
+            return;
+        }
+
+        // Run git commit
+        var commit_child = std.process.spawn(io, .{
+            .argv = &[_][]const u8{ "git", "commit", "-m", msg_lines.items },
+            .cwd = .inherit,
+            .stdin = .ignore,
+            .stdout = .inherit,
+            .stderr = .inherit,
+        }) catch |err| {
+            std.debug.print("commit: failed: {s}\n", .{@errorName(err)});
+            return;
+        };
+        const term = try commit_child.wait(io);
+        std.debug.print("commit done (exit {any})\n", .{term});
     }
 
     /// Set the active model from a `/model <id>` argument, copying the
@@ -594,42 +646,30 @@ test "slash completion canonicalizes unique prefixes and reports ambiguity" {
 }
 
 test "tui input hardening: adversarial bytes never corrupt state" {
-    // parseSpecialCommand is the prime fuzz target: it must classify every
-    // adversarial line into a valid SpecialCommand variant without panicking,
-    // reading out of bounds, or overflowing.
     const adversarial = [_][]const u8{
-        "", // empty
-        "\x00", // lone NUL
-        "\x1b[A\x1b[B", // arrow-key ESC sequences
-        "\xff\xfe", // invalid UTF-8
-        "quit\x00extra", // embedded NUL after a word (non-slash → unknown)
-        "/quit\x00extra", // slash-command with trailing NUL payload
+        "",
+        "\x00",
+        "\x1b[A\x1b[B",
+        "\xff\xfe",
+        "quit\x00extra",
+        "/quit\x00extra",
     };
     for (adversarial) |input| {
-        // Exhaustive switch: reaching every arm without a panic is the safety
-        // assertion (the classifier is total over all byte strings).
         switch (parseSpecialCommand(input)) {
-            .quit, .reset, .help, .model, .profile, .status, .history, .syncclis, .unknown => {},
+            .quit, .reset, .help, .model, .profile, .status, .history, .syncclis, .open, .diff, .commit, .unknown => {},
         }
     }
 
-    // Every one of the 256 byte values in a single line must be tolerated.
     var all_bytes: [256]u8 = undefined;
     for (&all_bytes, 0..) |*b, i| b.* = @intCast(i);
     _ = parseSpecialCommand(&all_bytes);
 
-    // An overlong buffer (larger than the raw-mode line buffer) must classify
-    // without overflow. A leading '/' forces the slash-command body scan.
     const overlong = try std.testing.allocator.alloc(u8, line_editor.MAX_LINE_BYTES * 2);
     defer std.testing.allocator.free(overlong);
     @memset(overlong, '/');
     _ = parseSpecialCommand(overlong);
-    // Such input exceeds the editor's bounded input capacity, so insertion can
-    // reject overflow rather than writing past its backing storage.
     try std.testing.expect(overlong.len > line_editor.MAX_LINE_BYTES);
 
-    // The output sanitizer must remove ESC and NUL from attacker-influenced text
-    // so render fields cannot inject terminal escapes. Length is preserved.
     const dirty = "\x1b[31mred\x00\x07\x7fboom\x1b[0m";
     const clean = try sanitize.sanitizeControlBytes(std.testing.allocator, dirty);
     defer std.testing.allocator.free(clean);
@@ -642,7 +682,6 @@ test "raw editor rejects control bytes and accepts printable ASCII" {
     var editor = line_editor.LineEditor.init(std.testing.allocator);
     defer editor.deinit();
 
-    // ESC, NUL, and DEL cannot become prompt text.
     try std.testing.expect(!(try editor.insertPrintable(0x1b)));
     try std.testing.expect(!(try editor.insertPrintable(0x00)));
     try std.testing.expect(!(try editor.insertPrintable(0x7f)));

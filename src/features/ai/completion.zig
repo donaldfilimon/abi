@@ -75,6 +75,59 @@ pub fn completeWithScheduler(
     return ctx.result orelse error.MissingCompletionResult;
 }
 
+const STREAM_CHUNK_SIZE: usize = 16;
+
+pub fn completeStreaming(
+    allocator: std.mem.Allocator,
+    request: types.CompletionRequest,
+    on_chunk: types.StreamCallback,
+    callback_ctx: *anyopaque,
+) !types.CompletionResult {
+    if (request.input.len == 0) return error.InvalidCompletionInput;
+    const weights = router.analyzeSentiment(request.input);
+    const selected = router.selectBestProfile(weights);
+    const result = try completeWithSelectedProfile(allocator, request, selected);
+    errdefer result.deinit(allocator);
+
+    var offset: usize = 0;
+    while (offset < result.output.len) {
+        const end = @min(offset + STREAM_CHUNK_SIZE, result.output.len);
+        try on_chunk(callback_ctx, .{ .delta = result.output[offset..end], .done = false });
+        offset = end;
+    }
+    try on_chunk(callback_ctx, .{ .delta = "", .done = true });
+    return result;
+}
+
+pub fn completeWithSchedulerStreaming(
+    allocator: std.mem.Allocator,
+    store: *wdbx.Store,
+    sched: *scheduler_mod.Scheduler,
+    name: []const u8,
+    request: types.CompletionRequest,
+    on_chunk: types.StreamCallback,
+    callback_ctx: *anyopaque,
+) !types.CompletionResult {
+    var ctx = types.CompletionTaskContext{
+        .allocator = allocator,
+        .store = store,
+        .request = request,
+    };
+    _ = try submitCompletionTask(sched, name, &ctx);
+    try sched.runAll();
+    var result = ctx.result orelse return error.MissingCompletionResult;
+    errdefer result.deinit(allocator);
+
+    var offset: usize = 0;
+    while (offset < result.output.len) {
+        const end = @min(offset + STREAM_CHUNK_SIZE, result.output.len);
+        try on_chunk(callback_ctx, .{ .delta = result.output[offset..end], .done = false });
+        offset = end;
+    }
+    try on_chunk(callback_ctx, .{ .delta = "", .done = true });
+    return result;
+}
+
 fn runCompletionTask(ctx: ?*anyopaque) anyerror!void {
     const c = @as(*types.CompletionTaskContext, @ptrCast(@alignCast(ctx orelse return error.MissingTaskContext)));
     if (c.result) |old| old.deinit(c.allocator);

@@ -6,6 +6,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- **Priority A security + REPL (G1–G5)** — pure REPL line editor (`src/features/tui/line_editor.zig`) with CSI decode, cursor, history, and tab slash-completion wired into raw-mode `agent tui`; MCP/stdio shared JSON nesting depth bound (`protocol.MAX_JSON_DEPTH=32`); live connectors require `https://` base URLs; POSIX no-echo `auth signin`; `ai_train` dataset/artifact confinement under cwd or `ABI_TRAIN_DATA_ROOT` (symlink escape rejected); ambient durable-store parent dirs created/repaired as owner-only `0700` on POSIX. No new CLI commands or MCP tools.
 - Local multi-agent orchestration: `src/features/ai/orchestration.zig` plus CLI `abi agent multi|spawn|browser` (scheduler workers, claim-honest browser plan with `embedded_browser=false`, no new top-level CLI or MCP tools). Contract smoke via `tools/contract_cli/agent_orchestration.sh`; `agent-plan-train` / `run-abi` skills exercise the paths.
 - Docs contributing guide (`docs/contributing.mdx`) linked from the Mintlify hub; `abi-refactor-design.mdx` and multi-persona overview refreshed for orchestration.
 - Codex coordinator agent (`.codex/agents/abi.toml`) and modern-refactor plan archival under `modern-refactor/examples/`.

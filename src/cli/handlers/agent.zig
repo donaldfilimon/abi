@@ -1,6 +1,7 @@
 const std = @import("std");
 const abi = @import("../../root.zig");
 const usage_mod = @import("../usage.zig");
+const help = @import("agent_help.zig");
 
 /// `abi agent <plan|train|tui|os|multi|spawn|browser> ...`: dispatch agent subcommands.
 /// `plan` runs a dry-run agent over a single input (reporting scheduler and
@@ -13,69 +14,29 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
     const sub_cmd = args[2];
     if (usage_mod.isHelpToken(sub_cmd)) return usage_mod.printCommandHelp("agent");
     if (std.mem.eql(u8, sub_cmd, "plan")) {
-        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return agentPlanHelp();
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return help.agentPlanHelp();
         return handleAgentPlan(allocator, args);
     } else if (std.mem.eql(u8, sub_cmd, "train")) {
-        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return agentTrainHelp();
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return help.agentTrainHelp();
         return handleAgentTrain(io, allocator, args);
     } else if (std.mem.eql(u8, sub_cmd, "tui")) {
-        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return agentTuiHelp();
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return help.agentTuiHelp();
         return handleAgentTui(io, allocator, args);
     } else if (std.mem.eql(u8, sub_cmd, "os")) {
-        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return agentOsHelp();
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return help.agentOsHelp();
         return handleAgentOs(io, allocator, args);
     } else if (std.mem.eql(u8, sub_cmd, "multi")) {
-        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return agentMultiHelp();
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return help.agentMultiHelp();
         return handleAgentMulti(allocator, args);
     } else if (std.mem.eql(u8, sub_cmd, "spawn")) {
-        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return agentSpawnHelp();
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return help.agentSpawnHelp();
         return handleAgentSpawn(io, allocator, args);
     } else if (std.mem.eql(u8, sub_cmd, "browser")) {
-        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return agentBrowserHelp();
+        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return help.agentBrowserHelp();
         return handleAgentBrowser(io, allocator, args);
     } else {
         return usage_mod.usageError("usage: abi agent <plan|train|tui|os|multi|spawn|browser> ...");
     }
-}
-
-fn agentPlanHelp() u8 {
-    std.debug.print(
-        \\usage: abi agent plan <input>
-        \\
-        \\Run a dry-run agent planning task through the scheduler and print memory tracker statistics.
-        \\
-    , .{});
-    return 0;
-}
-
-fn agentTrainHelp() u8 {
-    std.debug.print(
-        \\usage: abi agent train <abbey|aviva|abi|all>
-        \\
-        \\Train one known local profile or all known profiles against the durable WDBX store.
-        \\
-    , .{});
-    return 0;
-}
-
-fn agentTuiHelp() u8 {
-    std.debug.print(
-        \\usage: abi agent tui
-        \\
-        \\Launch the interactive ABI agent REPL. Non-tty input falls back to line mode.
-        \\
-    , .{});
-    return 0;
-}
-
-fn agentOsHelp() u8 {
-    std.debug.print(
-        \\usage: abi agent os <dry-run|execute --confirm> <cmd> [args...]
-        \\
-        \\Audit an OS-control command request. execute requires --confirm and the policy allow-list.
-        \\
-    , .{});
-    return 0;
 }
 
 fn handleAgentPlan(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
@@ -242,38 +203,6 @@ pub fn handleAgentTuiNoArgs(io: std.Io, allocator: std.mem.Allocator) !u8 {
     return 0;
 }
 
-fn agentMultiHelp() u8 {
-    std.debug.print(
-        \\usage: abi agent multi <input>
-        \\
-        \\Run Abbey, Aviva, and Abi concurrently via the scheduler and print aggregated output.
-        \\
-    , .{});
-    return 0;
-}
-
-fn agentSpawnHelp() u8 {
-    std.debug.print(
-        \\usage: abi agent spawn [--background] [--workers <spec>] <input>
-        \\
-        \\Create custom smart-agent workers (name|instructions|hints;...). Submits via scheduler;
-        \\--background prints task ids before running workers.
-        \\
-    , .{});
-    return 0;
-}
-
-fn agentBrowserHelp() u8 {
-    std.debug.print(
-        \\usage: abi agent browser [--url <url>] [--execute --confirm] <task>
-        \\
-        \\Plan local browser automation (dry-run by default). Real navigation requires external MCP;
-        \\ABI does not embed a headless browser.
-        \\
-    , .{});
-    return 0;
-}
-
 pub fn handleAgentMultiInput(allocator: std.mem.Allocator, input: []const u8) !u8 {
     var sched = abi.scheduler.Scheduler.init(allocator);
     defer sched.deinit();
@@ -296,38 +225,14 @@ pub fn handleAgentSpawnArgv(io: std.Io, allocator: std.mem.Allocator, args: []co
     if (args.len < 4) return usage_mod.usageError("usage: abi agent spawn [--background] [--workers <spec>] <input>");
     const cli_args = args[3..];
 
-    var background = false;
-    var workers_spec: ?[]const u8 = null;
-    var input_parts = std.ArrayListUnmanaged([]const u8).empty;
-    defer input_parts.deinit(allocator);
-
-    var i: usize = 0;
-    while (i < cli_args.len) : (i += 1) {
-        const arg = cli_args[i];
-        if (std.mem.eql(u8, arg, "--background")) {
-            background = true;
-        } else if (std.mem.eql(u8, arg, "--workers")) {
-            i += 1;
-            if (i >= cli_args.len) return usage_mod.usageError("usage: abi agent spawn [--background] [--workers <spec>] <input>");
-            workers_spec = cli_args[i];
-        } else {
-            try input_parts.append(allocator, arg);
-        }
-    }
-    if (input_parts.items.len == 0) return usage_mod.usageError("usage: abi agent spawn [--background] [--workers <spec>] <input>");
-
-    var input_buf = std.ArrayListUnmanaged(u8).empty;
-    defer input_buf.deinit(allocator);
-    for (input_parts.items, 0..) |part, idx| {
-        if (idx > 0) try input_buf.append(allocator, ' ');
-        try input_buf.appendSlice(allocator, part);
-    }
-    const input = try input_buf.toOwnedSlice(allocator);
-    defer allocator.free(input);
+    const parsed = help.parseSpawnArgs(allocator, cli_args) catch {
+        return usage_mod.usageError("usage: abi agent spawn [--background] [--workers <spec>] <input>");
+    } orelse return usage_mod.usageError("usage: abi agent spawn [--background] [--workers <spec>] <input>");
+    defer allocator.free(parsed.input);
 
     var owned_specs: ?[]abi.features.ai.AgentWorkerSpec = null;
     const specs_slice: []const abi.features.ai.AgentWorkerSpec = blk: {
-        if (workers_spec) |spec_text| {
+        if (parsed.workers_spec) |spec_text| {
             owned_specs = abi.features.ai.parseWorkerSpecs(allocator, spec_text) catch |err| switch (err) {
                 error.InvalidWorkerSpec, error.InvalidAgentToolHint => return usage_mod.usageError(
                     "usage: abi agent spawn [--background] [--workers \"name|instructions|hints;...\"] <input>",
@@ -345,8 +250,8 @@ pub fn handleAgentSpawnArgv(io: std.Io, allocator: std.mem.Allocator, args: []co
     var sched = abi.scheduler.Scheduler.init(allocator);
     defer sched.deinit();
 
-    if (background) {
-        var batch = try abi.features.ai.submitAgentsBackground(allocator, &sched, "agent:spawn", specs_slice, input);
+    if (parsed.background) {
+        var batch = try abi.features.ai.submitAgentsBackground(allocator, &sched, "agent:spawn", specs_slice, parsed.input);
         defer batch.deinit();
         std.debug.print("submitted background agent tasks:\n", .{});
         for (batch.task_ids, 0..) |id, n| {
@@ -357,7 +262,7 @@ pub fn handleAgentSpawnArgv(io: std.Io, allocator: std.mem.Allocator, args: []co
         defer collected.deinit(allocator);
         std.debug.print("{s}\n", .{collected.aggregated});
     } else {
-        var result = try abi.features.ai.runCustomMultiAgentWithScheduler(allocator, &sched, "agent:spawn", specs_slice, input);
+        var result = try abi.features.ai.runCustomMultiAgentWithScheduler(allocator, &sched, "agent:spawn", specs_slice, parsed.input);
         defer result.deinit(allocator);
         std.debug.print("{s}\n", .{result.aggregated});
     }
@@ -376,51 +281,23 @@ pub fn handleAgentBrowserArgv(io: std.Io, allocator: std.mem.Allocator, args: []
     if (args.len < 4) return usage_mod.usageError("usage: abi agent browser [--url <url>] [--execute --confirm] <task>");
     const cli_args = args[3..];
 
-    var url: ?[]const u8 = null;
-    var execute_confirmed = false;
-    var task_parts = std.ArrayListUnmanaged([]const u8).empty;
-    defer task_parts.deinit(allocator);
-
-    var i: usize = 0;
-    while (i < cli_args.len) : (i += 1) {
-        const arg = cli_args[i];
-        if (std.mem.eql(u8, arg, "--url")) {
-            i += 1;
-            if (i >= cli_args.len) return usage_mod.usageError("usage: abi agent browser [--url <url>] [--execute --confirm] <task>");
-            url = cli_args[i];
-        } else if (std.mem.eql(u8, arg, "--execute")) {
-            if (i + 1 < cli_args.len and std.mem.eql(u8, cli_args[i + 1], "--confirm")) {
-                i += 1;
-                execute_confirmed = true;
-            } else {
-                return usage_mod.usageError("usage: abi agent browser --execute --confirm <task>");
-            }
-        } else {
-            try task_parts.append(allocator, arg);
-        }
-    }
-    if (task_parts.items.len == 0) return usage_mod.usageError("usage: abi agent browser [--url <url>] [--execute --confirm] <task>");
-
-    var task_buf = std.ArrayListUnmanaged(u8).empty;
-    defer task_buf.deinit(allocator);
-    for (task_parts.items, 0..) |part, idx| {
-        if (idx > 0) try task_buf.append(allocator, ' ');
-        try task_buf.appendSlice(allocator, part);
-    }
-    const task = try task_buf.toOwnedSlice(allocator);
-    defer allocator.free(task);
+    const parsed = help.parseBrowserArgs(allocator, cli_args) catch |err| switch (err) {
+        error.Usage => return usage_mod.usageError("usage: abi agent browser --execute --confirm <task>"),
+        else => return err,
+    } orelse return usage_mod.usageError("usage: abi agent browser [--url <url>] [--execute --confirm] <task>");
+    defer allocator.free(parsed.task);
 
     var sched = abi.scheduler.Scheduler.init(allocator);
     defer sched.deinit();
 
-    var plan = try abi.features.ai.planBrowserOrchestration(allocator, task, url, execute_confirmed);
+    var plan = try abi.features.ai.planBrowserOrchestration(allocator, parsed.task, parsed.url, parsed.execute_confirmed);
     defer plan.deinit(allocator);
     std.debug.print("{s}\n", .{plan.output});
 
     const browser_specs = [_]abi.features.ai.AgentWorkerSpec{
         .{ .name = "browser-planner", .instructions = "Plan safe browser steps; never access credentials.", .tool_hints = &.{ .browser, .plan } },
     };
-    var agent_result = try abi.features.ai.runCustomMultiAgentWithScheduler(allocator, &sched, "agent:browser", &browser_specs, task);
+    var agent_result = try abi.features.ai.runCustomMultiAgentWithScheduler(allocator, &sched, "agent:browser", &browser_specs, parsed.task);
     defer agent_result.deinit(allocator);
     std.debug.print("\n--- local planner worker (dry-run) ---\n{s}\n", .{agent_result.aggregated});
 
@@ -445,9 +322,6 @@ pub fn handleAgentOs(io: std.Io, allocator: std.mem.Allocator, args: []const []c
     const start: usize = if (std.mem.eql(u8, os_cmd, "execute") and args.len >= 6 and std.mem.eql(u8, args[4], "--confirm")) 5 else 4;
     if (start >= args.len) return usage_mod.usageError("usage: abi agent os <dry-run|execute --confirm> <cmd> [args...]");
 
-    // Intent is honest audit metadata: arbitrary user argv is not provably
-    // read-only, so it is classified `.unknown` (the policy gate is the
-    // allow-list + workspace containment, not this label).
     const request = abi.features.os_control.CommandRequest{
         .intent = .unknown,
         .argv = args[start..],
@@ -460,13 +334,6 @@ pub fn handleAgentOs(io: std.Io, allocator: std.mem.Allocator, args: []const []c
         return 0;
     } else if (std.mem.eql(u8, os_cmd, "execute")) {
         if (start != 5) return usage_mod.usageError("usage: abi agent os execute --confirm <cmd> [args...]");
-        // Workspace containment (os_control.pathsContained) only rejects
-        // absolute path args that escape `workspace_root`. Falling back to "/"
-        // when PWD is unset would make every absolute path "contained" and
-        // silently disable the guard, so refuse instead of widening the sandbox.
-        // Portable env lookup (no libc), borrowed from the captured process
-        // environment. On Windows PWD is typically unset, so this resolves to
-        // the safe refuse path rather than widening the sandbox.
         const workspace_root = abi.foundation.env.get("PWD") orelse "";
         if (workspace_root.len == 0 or !std.fs.path.isAbsolute(workspace_root)) {
             return usage_mod.usageError("cannot determine an absolute workspace root (PWD unset); refusing to execute");
@@ -494,14 +361,11 @@ pub fn handleAgentOs(io: std.Io, allocator: std.mem.Allocator, args: []const []c
 test "agent dispatch rejects malformed grammar with exit code 2" {
     const allocator = std.testing.allocator;
     const t = std.testing.io;
-    // Only the cheap usage branches are exercised — none of these spin up the
-    // scheduler, store, or TUI, and none execute an OS command.
     try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent" }));
     try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "bogus" }));
     try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "plan" }));
     try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "train" }));
     try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "os" }));
-    // `execute` without the mandatory `--confirm` token must refuse.
     try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "os", "execute", "ls" }));
     try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "multi" }));
     try std.testing.expectEqual(@as(u8, 2), try handleAgent(t, allocator, &.{ "abi", "agent", "spawn" }));

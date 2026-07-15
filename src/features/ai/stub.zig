@@ -23,6 +23,8 @@ pub const TrainingConfig = types.TrainingConfig;
 pub const TrainingResult = types.TrainingResult;
 pub const CompletionRequest = types.CompletionRequest;
 pub const CompletionResult = types.CompletionResult;
+pub const StreamChunk = types.StreamChunk;
+pub const StreamCallback = types.StreamCallback;
 pub const CompletionTaskContext = types.CompletionTaskContext;
 pub const TrainingTaskContext = types.TrainingTaskContext;
 pub const AgentTaskContext = types.AgentTaskContext;
@@ -30,6 +32,41 @@ pub const AgentConfig = types.AgentConfig;
 pub const AgentResult = types.AgentResult;
 
 pub const AgentToolHint = types.AgentToolHint;
+pub const file_context = struct {
+    pub const FileMention = struct { path: []const u8, start: usize, end: usize };
+    pub const ContextBudget = struct {
+        max_bytes: usize,
+        used: usize = 0,
+        pub fn init(max_bytes: usize) ContextBudget {
+            return .{ .max_bytes = max_bytes };
+        }
+        pub fn remaining(self: ContextBudget) usize {
+            return if (self.used >= self.max_bytes) 0 else self.max_bytes - self.used;
+        }
+        pub fn canFit(self: ContextBudget, bytes: usize) bool {
+            return self.used + bytes <= self.max_bytes;
+        }
+        pub fn consume(self: *ContextBudget, bytes: usize) void {
+            self.used += bytes;
+            if (self.used > self.max_bytes) self.used = self.max_bytes;
+        }
+    };
+    pub const DEFAULT_BUDGET_BYTES: usize = 8192;
+    pub fn parseFileMentions(allocator: std.mem.Allocator, input: []const u8) ![]FileMention {
+        _ = input;
+        return try allocator.alloc(FileMention, 0);
+    }
+    pub fn validateMentionPath(path: []const u8, root: []const u8) !void {
+        _ = path;
+        _ = root;
+    }
+    pub fn resolveAndInject(io: std.Io, allocator: std.mem.Allocator, input: []const u8, root: []const u8, budget: *ContextBudget) ![]u8 {
+        _ = io;
+        _ = root;
+        _ = budget;
+        return try allocator.dupe(u8, input);
+    }
+};
 pub const AgentWorkerSpec = struct {
     name: []const u8,
     instructions: []const u8,
@@ -257,6 +294,21 @@ pub fn completeWithScheduler(allocator: std.mem.Allocator, store: anytype, sched
     _ = sched;
     _ = name;
     return completeWithStore(allocator, store, request);
+}
+
+pub fn completeStreaming(allocator: std.mem.Allocator, request: CompletionRequest, on_chunk: StreamCallback, callback_ctx: *anyopaque) !CompletionResult {
+    const result = try complete(allocator, request);
+    errdefer result.deinit(allocator);
+    try on_chunk(callback_ctx, .{ .delta = result.output, .done = false });
+    try on_chunk(callback_ctx, .{ .delta = "", .done = true });
+    return result;
+}
+
+pub fn completeWithSchedulerStreaming(allocator: std.mem.Allocator, store: anytype, sched: *scheduler_mod.Scheduler, name: []const u8, request: CompletionRequest, on_chunk: StreamCallback, callback_ctx: *anyopaque) !CompletionResult {
+    _ = store;
+    _ = sched;
+    _ = name;
+    return completeStreaming(allocator, request, on_chunk, callback_ctx);
 }
 
 pub fn completeWithStore(allocator: std.mem.Allocator, store: anytype, request: CompletionRequest) !CompletionResult {

@@ -3,8 +3,8 @@ title: "ABI Framework Refactor Design (Zig 0.17.0)"
 description: "Status: Implemented baseline; refreshed against current source layout"
 ---
 
-**Date:** 2026-07-10
-**Status:** Implemented baseline; refreshed against current source layout (includes local `agent multi|spawn|browser` orchestration)
+**Date:** 2026-07-14
+**Status:** Implemented baseline; refreshed against current source layout (includes local `agent multi|spawn|browser` orchestration + module restructure: registry/wiring, repl/repl_commands, agent/agent_help, wdbx mod/store)
 **Scope:** Full codebase refactor based on current ABI source, executable contracts, and WDBX/Abbey design inputs. Performance and deployment-scale claims require separate benchmark evidence.
 
 ---
@@ -50,7 +50,9 @@ src/
 │   ├── errors.zig     # Centralized error types
 │   ├── pool_allocator.zig # Arena/pool allocator utilities
 │   ├── plugin_validator.zig # Plugin manifest schema validation
-│   └── validation.zig # General validation helpers
+│   ├── validation.zig # General validation helpers
+│   ├── env.zig        # Portable environment variable lookup
+│   └── temp_path.zig  # getTempDir()/tempFilePath() (XDG/TMPDIR-aware)
 ├── features/          # Domain-specific modules (mod/stub pattern)
 │   ├── mod.zig        # Feature selection via build_options
 │   ├── ai/            # Abbey-Aviva-Abi Pipeline (flat layout)
@@ -66,21 +68,28 @@ src/
 │   │   ├── constitution.zig # 6-principle governance validation
 │   │   ├── pipeline.zig # Training pipeline
 │   │   ├── orchestration.zig # Custom worker specs, background scheduler batch, browser plan (local dry-run)
-│   │   └── streaming.zig # Local OpenAI-compatible SSE server
+│   │   ├── streaming.zig # Local OpenAI-compatible SSE server
+│   │   ├── models.zig # Model catalog, alias routing, provider labels
+│   │   ├── iot_monitor.zig # IoT monitoring helper
+│   │   └── multimodal_fusion.zig # Multimodal input fusion helper
 │   ├── sea/           # Sparse Evidence Attention self-learning pass (mod/stub)
 │   │   ├── mod.zig / stub.zig
 │   │   ├── learn_loop.zig # Evidence recall + adaptive-router persistence
 │   │   ├── evidence.zig   # Task-aware evidence retrieval and prompt augmentation
-│   │   └── query_plan.zig # Local task intent inference for retrieval weighting
+│   │   ├── query_plan.zig # Local task intent inference for retrieval weighting
+│   │   ├── scorer.zig     # 8-signal evidence scorer
+│   │   └── types.zig      # SEA shared types
 │   ├── gpu/           # GPU status & vector operations (mod/stub)
 │   │   ├── mod.zig         # Entry point, re-exports, Metal init
 │   │   ├── stub.zig        # No-op stubs when feat-gpu disabled
 │   │   ├── backends.zig    # Backend enum, detection, capabilities
 │   │   ├── vector_ops.zig  # VectorOps: dot, squaredL2, cosineSimilarity
 │   │   ├── reporting.zig   # backendStatusReport, isAvailable
+│   │   ├── compute_api.zig # GPU compute API surface
 │   │   └── metal_shared.zig # Metal ObjC runtime context
 │   ├── wdbx/          # Vector Store & Block Chain (mod/stub, flat layout)
-│   │   ├── mod.zig    # Store, putVector, search, appendBlock
+│   │   ├── mod.zig    # Re-export hub: Store, types, and all submodule re-exports
+│   │   ├── store.zig  # Store struct: putVector, search, appendBlock, MVCC, memory-tracker wiring
 │   │   ├── stub.zig   # No-op stubs when feat-wdbx disabled
 │   │   ├── types.zig  # Shared constants and record/stat types re-exported by mod.zig
 │   │   ├── stub_types.zig / stub_index.zig / stub_storage.zig / stub_spatial_3d.zig
@@ -96,6 +105,7 @@ src/
 │   │   ├── durable_store.zig / runtime.zig # CLI durable session + acceleration/status helpers
 │   │   ├── cluster.zig # In-process Raft-style consensus demo: election/quorum/failover
 │   │   ├── cluster_rpc.zig # TCP RequestVote/AppendEntries RPC + authenticated local multi-node loop helper
+│   │   ├── net_line.zig # Line-delimited protocol helper used by cluster_rpc
 │   │   ├── compression.zig / entropy.zig / neural_compress.zig # demo compression codecs, not production/SOTA
 │   │   ├── crypto_he.zig / fhe.zig # Additive HE + bounded DGHV-style demo, not audited full FHE
 │   │   ├── compute.zig # CPU/GPU/NPU/TPU backend selector w/ deterministic CPU fallback (native dispatch not linked)
@@ -109,6 +119,14 @@ src/
 │   ├── metrics/       # Optional observability counters (mod/stub, enabled by default)
 │   ├── telemetry/     # Fixed-capacity process-wide event/counter hooks (mod/stub, enabled by default)
 │   ├── tui/           # Operational diagnostics dashboard + live terminal redraw helpers (mod/stub, enabled by default)
+│   │   ├── mod.zig / stub.zig
+│   │   ├── dashboard.zig # Diagnostics dashboard render loop
+│   │   ├── repl.zig      # Interactive REPL loop (raw-mode + line-mode)
+│   │   ├── repl_commands.zig # Slash-command parsing, completion, status formatting (pure)
+│   │   ├── line_editor.zig  # Bounded raw-mode line editor (CSI decode, cursor, history)
+│   │   ├── terminal.zig     # Interactive terminal raw-mode wrapper
+│   │   ├── sanitize.zig     # Control-byte sanitizer for render-safe output
+│   │   └── types.zig        # TUI shared types
 │   ├── mobile/        # Mobile runtime profile surface (mod/stub, enabled by default)
 │   └── os_control/    # Safe OS command policy controls (mod/stub)
 ├── connectors/        # External service connectors
@@ -121,6 +139,7 @@ src/
 │   ├── discord.zig    # Discord connector with credential/snowflake-like/message validation
 │   ├── twilio.zig     # Twilio ConversationRelay simulator with SID/token/base-url/timeout validation
 │   ├── grok.zig       # Grok/xAI connector (local deterministic + .live opt-in)
+│   ├── fm.zig         # Apple FoundationModels connector (arm64 macOS)
 │   └── tests.zig      # Connector contract and live-boundary tests imported by mod.zig
 ├── cli/           # CLI dispatch, handlers, usage
 │   ├── arg.zig        # Declarative typed argument parser
@@ -128,7 +147,8 @@ src/
 │   ├── dispatch.zig   # Top-level command routing
 │   ├── handlers/      # Per-command handler implementations
 │   │   ├── mod.zig    # Handler module re-export hub
-│   │   ├── agent.zig
+│   │   ├── agent.zig      # Agent subcommand dispatch + scheduler-backed execution
+│   │   ├── agent_help.zig # Agent help text + spawn/browser arg parsers (pure)
 │   │   ├── auth.zig
 │   │   ├── backends.zig
 │   │   ├── dashboard.zig
@@ -142,7 +162,8 @@ src/
 │   │   ├── wdbx_db.zig # Snapshot/WAL db/block/query operations
 │   │   └── wdbx_runtime.zig # benchmark/cluster/compute/secure/gpu/api demos
 │   ├── help_json.zig  # `help --json` typed command metadata emitter
-│   ├── registry.zig   # Command definitions and handler wiring
+│   ├── registry.zig   # Command types, frozen table, and help rendering
+│   ├── wiring.zig     # Handler closures + typed argument specs (extracted from registry)
 │   ├── suggest.zig    # Edit-distance "did you mean?" suggestion engine
 │   ├── usage.zig      # Source of truth for CLI help text
 ├── mcp/               # MCP JSON-RPC 2.0 server
@@ -160,10 +181,23 @@ src/
 │   ├── stdio_transport.zig # Stdio transport (reads stdin, writes stdout)
 │   ├── http_transport.zig  # Loopback HTTP/SSE transport
 │   └── server.zig     # Thin re-export facade over stdio_transport + http_transport
-├── plugins/           # Plugin manifests and local plugin manager
+├── plugins/           # Plugin manifests and local plugin manager (16 bundled fixtures)
 │   ├── plugin_manager.zig      # Load/unload/list from required JSON manifests
 │   ├── example-plugin/         # Baseline example plugin fixture (abi-plugin.json + mod.zig + stub.zig)
-│   └── example-wdbx-plugin/    # WDBX-targeted registry fixture (abi-plugin.json + mod.zig + stub.zig)
+│   ├── example-wdbx-plugin/    # WDBX-targeted registry fixture (abi-plugin.json + mod.zig + stub.zig)
+│   ├── accelerator-plugin/     # Accelerator backend selection fixture
+│   ├── ai-plugin/              # AI pipeline fixture
+│   ├── foundationmodels-plugin/ # Apple FoundationModels connector fixture
+│   ├── gpu-plugin/             # GPU vector operations fixture
+│   ├── hash-plugin/            # Stable hashing fixture
+│   ├── metrics-plugin/         # Observability counters fixture
+│   ├── mlir-plugin/            # Textual MLIR lowering fixture
+│   ├── mobile-plugin/          # Mobile runtime profile fixture
+│   ├── nn-plugin/              # Char-LM trainer fixture
+│   ├── os-control-plugin/      # OS command policy fixture
+│   ├── sea-plugin/             # SEA self-learning fixture
+│   ├── shader-plugin/          # Shader validation fixture
+│   └── telemetry-exporter/     # Telemetry event export fixture
 ├── plugin_registry.zig # Auto-generated metadata registry (do not edit)
 ├── testing/           # Test infrastructure
 │   └── test_helpers.zig # TestAllocator, TempDir, mocks, assertions

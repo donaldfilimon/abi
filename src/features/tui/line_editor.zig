@@ -188,9 +188,12 @@ pub const LineEditor = struct {
     }
 
     pub fn replace(self: *LineEditor, value: []const u8) !void {
+        // Bound the same way as printable insertion so history/tab-complete
+        // cannot grow the buffer past MAX_LINE_BYTES.
+        const slice = if (value.len > MAX_LINE_BYTES) value[0..MAX_LINE_BYTES] else value;
         self.buffer.clearRetainingCapacity();
-        try self.buffer.appendSlice(self.allocator, value);
-        self.cursor = value.len;
+        try self.buffer.appendSlice(self.allocator, slice);
+        self.cursor = slice.len;
     }
 
     pub fn clear(self: *LineEditor) void {

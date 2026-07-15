@@ -68,6 +68,16 @@ pub const CompletionRequest = struct {
     store_result: bool = false,
 };
 
+/// A single delta chunk emitted during streaming completion.
+pub const StreamChunk = struct {
+    delta: []const u8,
+    done: bool,
+};
+
+/// Callback invoked per chunk during streaming completion. The callback
+/// receives a borrowed `delta` slice (valid for the duration of the call).
+pub const StreamCallback = *const fn (ctx: *anyopaque, chunk: StreamChunk) anyerror!void;
+
 pub const CompletionResult = struct {
     model: []const u8,
     selected_profile: AgentProfile,

@@ -142,10 +142,9 @@ fn authSigninHelp() u8 {
 }
 
 /// Disable terminal echo while reading a secret on POSIX TTYs (TM-010).
-/// Returns true when echo was successfully disabled (caller must restore).
-/// Non-TTY / non-POSIX / unavailable termios fails closed for the echo path:
-/// the secret is still read, but operators get a one-line notice only when
-/// stdin is a TTY we could not mute.
+/// Returns the prior termios when echo was successfully disabled (caller must
+/// restore). Non-TTY / non-POSIX / unavailable termios returns null and the
+/// secret is still read with echo unchanged (disclosed Windows/non-TTY gap).
 fn disableEchoIfTty(fd: std.posix.fd_t) ?std.posix.termios {
     if (builtin.target.os.tag == .windows) return null;
     if (@hasDecl(std.posix.system, "isatty") and std.posix.system.isatty(fd) == 0) return null;

@@ -1,12 +1,14 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 Trust executable config over prose: when this file conflicts with `build.zig`, `tools/build.sh`, or source, trust the executable source. `AGENTS.md` is the canonical instruction file for this repo; `tasks/lessons.md` is the session-start checklist and `tasks/todo.md` tracks active work.
 
 Three sibling instruction files share repo conventions — `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`. When commands, contracts, feature flags, or Zig patterns change, update all three.
 
 ## Toolchain
 
-Pinned by `.zigversion` to `0.17.0-dev.1252+e4b325c19`. `build.sh`/`tools/build.sh` invoke whatever `zig` is on PATH — they do **not** switch. Zig 0.16 fails on WDBX/MCP listeners (uses `std.Io.net.Stream`). Use zvm/zigup to select the pin before building.
+Pinned by `.zigversion` to `0.17.0-dev.1275+59a628c6d`. `build.sh`/`tools/build.sh` invoke whatever `zig` is on PATH — they do **not** switch. Zig 0.16 fails on WDBX/MCP listeners (uses `std.Io.net.Stream`). Use zvm/zigup to select the pin before building.
 
 On macOS: `./build.sh ...` for the documented Metal-linking workflow.
 
@@ -15,7 +17,7 @@ On macOS: `./build.sh ...` for the documented Metal-linking workflow.
 | Command | What it does |
 |---------|-------------|
 | `./build.sh check` | Primary gate: build, tests, lint, parity, feature-off stubs, CLI smoke |
-| `./build.sh full-check` | check + integration + benchmarks + dashboard smoke |
+| `./build.sh full-check` | check + integration + benchmarks + dashboard/agent TUI smoke |
 | `./build.sh cli` | Build `zig-out/bin/abi` |
 | `./build.sh mcp` | Build `zig-out/bin/abi-mcp` |
 | `zig build test -Dtest-filter="<pattern>"` | Single test (post-`--` form silently ignored) |
@@ -28,11 +30,24 @@ On macOS: `./build.sh ...` for the documented Metal-linking workflow.
 
 ## Architecture
 
-- **Public API**: `src/root.zig` → `@import("abi")`
-- **CLI**: `src/main.zig` → `src/cli/dispatch.zig`
-- **MCP**: `src/mcp/` (Zig). Repo-root `mcp/` + `.mcp.json` is host launcher glue only.
-- **Features**: `src/features/mod.zig` selects `mod.zig` (real) or `stub.zig` (disabled) per `-Dfeat-*`. All default **on**; turn off with `-Dfeat-<name>=false`.
-- **Generated**: `src/plugin_registry.zig` — never hand-edit. Regenerated from `src/plugins/*/abi-plugin.json`.
+Layered modular codebase. The executable config (`build.zig`, `tools/build.sh`) owns linking and feature selection; trust it over prose.
+
+| Layer | Path | Role |
+|-------|------|------|
+| Public API | `src/root.zig` | Exposes the `abi` module to consumers (`@import("abi")`). |
+| CLI | `src/main.zig`, `src/cli/` | Arg parsing, sub-command dispatch, and handlers. Entry: `pub fn main(init: std.process.Init) !void`. |
+| MCP server | `src/mcp/main.zig` + `handlers.zig` group (`handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) | JSON-RPC 2.0 over stdio + optional loopback HTTP/SSE. `src/mcp/middleware.zig` runs declarative argument validation on every `tools/call` before dispatch. |
+| Feature selection | `src/features/mod.zig` | Each `-Dfeat-*` flag selects between a real `mod.zig` and a disabled `stub.zig`. |
+| AI | `src/features/ai/` | Profiles, router, constitution, training, and model catalog (`models.zig`). |
+| Vector store | `src/features/wdbx/` | In-memory KV + vector storage, HNSW index, MVCC snapshots, WAL/segment checkpoints. |
+| GPU | `src/features/gpu/` | Runtime capability report; Metal attempt on macOS; deterministic CPU fallback. |
+| Connectors | `src/connectors/` | Local/live adapters: openai, anthropic, grok, discord, twilio, fm, http, json. |
+| Plugins | `src/plugins/`, `src/plugin_registry.zig` | Manifest validation + generated metadata registry. |
+| Core/Foundation | `src/core/`, `src/foundation/` | Scheduler, registry, memory, time, sync, logger, IO, credentials, OS abstractions. |
+
+Repo-root `mcp/` holds launcher scripts and `.mcp.json` host wiring — it is **not** the Zig MCP implementation.
+
+- **Generated**: `src/plugin_registry.zig` — never hand-edit. Regenerated from `src/plugins/*/abi-plugin.json` at build time.
 - **`feat-foundationmodels`**: comptime-gated to arm64 macOS. Requires Xcode + macOS 26 SDK for `xcrun swiftc`. Use `-Dfeat-foundationmodels=false` to skip.
 
 ## Import Rules
@@ -51,13 +66,20 @@ Inside `src/`: relative `.zig` imports only. **Only** the MCP handler group (`sr
 
 ## MCP Surface (12 tools)
 
-`ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. JSON-RPC 2.0 over stdio (64 KB cap). Optional HTTP/SSE on `127.0.0.1:8080` (`ABI_MCP_HTTP_PORT`, `ABI_MCP_HTTP_TOKEN`). Loopback-only hardening.
+`ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. JSON-RPC 2.0 over stdio (64 KB cap + `MAX_JSON_DEPTH` nesting bound). Optional HTTP/SSE on `127.0.0.1:8080` (`ABI_MCP_HTTP_PORT`, `ABI_MCP_HTTP_TOKEN`). Loopback-only hardening. `ai_train` paths confined under cwd or `ABI_TRAIN_DATA_ROOT`.
 
 ## API & Contract Rules
 
 - Public API change → update both `mod.zig` + `stub.zig`; run `zig build check-parity`.
 - Parity tool: scans column-0 `pub const`/`pub fn` (not `pub var`, threadlocal, nested).
 - 5 contract test suites: `surface.zig`, `feature_modules.zig`, `mcp_tools.zig`, `plugin_registry.zig`, `public_docs.zig`.
+
+## Commits & CI
+
+- Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore(build):`, …).
+- `origin/main` shares **no common ancestor** with local `main` — never force-push to reconcile.
+- CI (`.github/workflows/ci.yml`) runs `zig build check` + `cross-smoke` on macOS; keep its Zig version in sync with `.zigversion` when either moves.
+- When commands, contracts, feature flags, or Zig patterns change, update all three siblings: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`.
 
 ## Zig 0.17 Patterns
 
@@ -68,12 +90,14 @@ Inside `src/`: relative `.zig` imports only. **Only** the MCP handler group (`sr
 - Tests: inline `test {}`; end modules with `std.testing.refAllDecls(@This())`
 - No silent `catch {}` in persistence/inference/connector/data paths — propagate or log
 - Conditional compilation: `build_options.feat_*`
+- Pass an explicit `std.mem.Allocator`; no global/hidden allocator
+- Naming: `camelCase` functions/vars, `PascalCase` types, `SCREAMING_SNAKE_CASE` constants, `snake_case` enum variants
 
 ## WDBX / GPU / Connectors
 
-- WDBX: in-process store + segment/WAL persistence. Cluster RPC is real TCP RequestVote/AppendEntries (`ABI_WDBX_CLUSTER_TOKEN` for non-loopback; `ABI_WDBX_CLUSTER_PEERS` allowlist). **Not** production multi-host or sharding.
+- WDBX: in-process store + segment/WAL persistence; ambient durable parent dirs `0700` on POSIX. Cluster RPC is real TCP RequestVote/AppendEntries (`ABI_WDBX_CLUSTER_TOKEN` for non-loopback; `ABI_WDBX_CLUSTER_PEERS` allowlist). **Not** production multi-host or sharding.
 - GPU: capability report + CPU fallback. No `-Dgpu-backend` option.
-- Live connectors require explicit credentials + `.live` transport.
+- Live connectors require explicit credentials + `.live` transport + `https://` base URL. POSIX `auth signin` no-echo; credentials still plaintext JSON.
 
 ## AI Subsystem
 

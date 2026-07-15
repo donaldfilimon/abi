@@ -12,6 +12,7 @@ const registry = @import("cli/registry.zig");
 const arg = @import("cli/arg.zig");
 const dispatch = @import("cli/dispatch.zig");
 const suggest = @import("cli/suggest.zig");
+const wiring = @import("cli/wiring.zig");
 
 fn specFor(comptime name: []const u8) []const arg.Arg {
     return comptime blk: {
@@ -273,4 +274,5 @@ test {
     std.testing.refAllDecls(@This());
     std.testing.refAllDecls(dispatch);
     std.testing.refAllDecls(suggest);
+    std.testing.refAllDecls(wiring);
 }

@@ -137,6 +137,13 @@ pub const CompletionRequest = struct {
     store_result: bool = false,
 };
 
+pub const StreamChunk = struct {
+    delta: []const u8,
+    done: bool,
+};
+
+pub const StreamCallback = *const fn (ctx: *anyopaque, chunk: StreamChunk) anyerror!void;
+
 pub const CompletionResult = struct {
     model: []const u8,
     selected_profile: AgentProfile,

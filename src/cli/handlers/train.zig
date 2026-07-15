@@ -3,9 +3,11 @@ const features = @import("../../features/mod.zig");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const memory_mod = @import("../../core/memory.zig");
 const usage_mod = @import("../usage.zig");
+const env = @import("../../foundation/env.zig");
 const credentials = @import("../../foundation/credentials.zig");
 const anthropic = @import("../../connectors/anthropic.zig");
 const fm = @import("../../connectors/fm.zig");
+const connectors = @import("../../connectors/mod.zig");
 
 /// `abi train <input>`: run the local AI persona router over `input` and print
 /// the response. Returns the process exit code.
@@ -31,6 +33,7 @@ pub const CompleteOptions = struct {
     live: bool = false,
     confirmed: bool = false,
     learn: bool = false,
+    stream: bool = false,
 };
 
 const LearnMetadata = struct {
@@ -97,6 +100,14 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOp
         return handleLiveComplete(io, allocator, input, selected_model);
     }
 
+    // Local inference bridge: when the model id has a local-bridge prefix
+    // (llama-cpp/, ollama/, mlx/, etc.), dispatch to a user-run local server
+    // via HTTP instead of the in-process persona router. The server must be
+    // started separately; ABI does not embed or bundle any inference engine.
+    if (connectors.local_bridge.isLocalBridgeModel(selected_model)) {
+        return handleLocalBridgeComplete(io, allocator, input, selected_model);
+    }
+
     var session = try features.wdbx.durable_store.Session.open(io, allocator);
     defer session.deinit();
     const store = session.storePtr();
@@ -113,6 +124,29 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOp
     var tracker = memory_mod.MemoryTracker.init(allocator);
     defer tracker.deinit();
     scheduler.setMemoryTracker(&tracker);
+
+    if (opts.stream) {
+        const StreamCtx = struct {
+            fn callback(_: *anyopaque, chunk: features.ai.StreamChunk) anyerror!void {
+                if (chunk.delta.len > 0) std.debug.print("{s}", .{chunk.delta});
+            }
+        };
+        var dummy: u8 = 0;
+        var result = try features.ai.completeWithSchedulerStreaming(
+            allocator,
+            store,
+            &scheduler,
+            "complete:cli",
+            .{ .input = input, .model = selected_model, .store_result = true },
+            StreamCtx.callback,
+            @ptrCast(&dummy),
+        );
+        defer result.deinit(allocator);
+        std.debug.print("\n", .{});
+        const stats = store.stats();
+        printCompletionMetadata(&result, stats, null);
+        return 0;
+    }
 
     var result = try features.ai.completeWithScheduler(
         allocator,
@@ -228,6 +262,53 @@ fn handleFmComplete(allocator: std.mem.Allocator, input: []const u8, model: []co
     std.debug.print("model={s} provider=fm transport=on-device status={d}\n", .{ model, resp.status });
     std.debug.print("{s}\n", .{resp.body});
     return if (resp.status >= 200 and resp.status < 300) 0 else 1;
+}
+
+/// Local inference bridge completion: dispatch to a user-run local
+/// OpenAI-compatible server (llama-server, ollama, mlx-server) via HTTP.
+/// Falls back to the in-process persona router with a warning when the
+/// server is unreachable. ABI does not embed or bundle any inference engine.
+fn handleLocalBridgeComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: []const u8) !u8 {
+    // Resolve endpoint: check env vars first (`ABI_LLAMA_CPP_ENDPOINT` /
+    // `ABI_MLX_ENDPOINT`), then fall back to the compiled-in default.
+    const is_mlx = std.mem.startsWith(u8, model, "mlx/") or std.mem.startsWith(u8, model, "mlx-");
+    const env_key = if (is_mlx) "ABI_MLX_ENDPOINT" else "ABI_LLAMA_CPP_ENDPOINT";
+    const override = env.get(env_key);
+    const endpoint = connectors.local_bridge.endpointFor(model, override);
+    if (!connectors.local_bridge.healthCheck(io, allocator, endpoint)) {
+        std.debug.print("warning: local inference server not reachable at {s}; falling back to in-process router\n", .{endpoint});
+        // Fall back to the in-process persona router
+        var session = try features.wdbx.durable_store.Session.open(io, allocator);
+        defer session.deinit();
+        const store = session.storePtr();
+        var scheduler = scheduler_mod.Scheduler.init(allocator);
+        defer scheduler.deinit();
+        var result = try features.ai.completeWithScheduler(allocator, store, &scheduler, "complete:local-bridge-fallback", .{
+            .input = input,
+            .model = model,
+            .store_result = true,
+        });
+        defer result.deinit(allocator);
+        const stats = store.stats();
+        printCompletionMetadata(&result, stats, null);
+        return 0;
+    }
+
+    var response = connectors.local_bridge.completeLive(io, allocator, model, input) catch |err| {
+        std.debug.print("error: local bridge request failed: {s}\n", .{@errorName(err)});
+        return 1;
+    };
+    defer response.deinit(allocator);
+
+    const completion_text = connectors.local_bridge.extractCompletion(allocator, response.body) catch |err| {
+        std.debug.print("error: failed to parse local bridge response: {s}\n", .{@errorName(err)});
+        return 1;
+    };
+    defer allocator.free(completion_text);
+
+    std.debug.print("{s}\n", .{completion_text});
+    std.debug.print("[model={s} | bridge={s} | local=true]\n", .{ model, endpoint });
+    return 0;
 }
 
 test "complete --live rejects non-anthropic models before any network or credential read" {

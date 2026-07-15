@@ -114,6 +114,10 @@ pub const persistence = struct {
 
 pub const storage = @import("stub_storage.zig");
 
+pub const store_module = struct {
+    pub const Store = @import("stub.zig").Store;
+};
+
 pub const Store = struct {
     pub fn init(a: std.mem.Allocator) Store {
         _ = a;
