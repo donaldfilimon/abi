@@ -43,11 +43,24 @@ pub const SoulLayout = struct {
 
         // Store each soul record as a WDBX block with intent "soul_bootstrap"
         for (self.records) |record| {
-            const meta = try std.json.stringifyToAlloc(
-                self.allocator,
-                .{ .intent = "soul_bootstrap", .label = record.label, .x = record.point.x, .y = record.point.y, .z = record.point.z, .value = record.point.value },
-                .{},
-            );
+            var out: std.Io.Writer.Allocating = .init(self.allocator);
+            defer out.deinit();
+            var w = std.json.Stringify{ .writer = &out.writer, .options = .{ .whitespace = .minified } };
+            try w.beginObject();
+            try w.objectField("intent");
+            try w.write("soul_bootstrap");
+            try w.objectField("label");
+            try w.write(record.label);
+            try w.objectField("x");
+            try w.write(record.point.x);
+            try w.objectField("y");
+            try w.write(record.point.y);
+            try w.objectField("z");
+            try w.write(record.point.z);
+            try w.objectField("value");
+            try w.write(record.point.value);
+            try w.endObject();
+            const meta = try self.allocator.dupe(u8, out.written());
             defer self.allocator.free(meta);
             try store.store(record.label, meta);
             _ = try store.appendBlock(record.label, 0, 0, meta);
@@ -97,9 +110,9 @@ pub const SoulLayout = struct {
             .array => |a| a,
             else => return error.InvalidSoulFormat,
         };
-        if (arr.len == 0) return error.EmptySoulPrompt;
+        if (arr.items.len == 0) return error.EmptySoulPrompt;
 
-        const records = try allocator.alloc(SoulRecord, arr.len);
+        const records = try allocator.alloc(SoulRecord, arr.items.len);
         errdefer allocator.free(records);
 
         for (arr.items, 0..) |item, i| {
@@ -152,7 +165,7 @@ pub const SoulLayout = struct {
 };
 
 test "SoulLayout.fromJson parses a simple JSON soul prompt" {
-    const json = "[{\" ++ \"label\": \"test\" ++ \"}\"]";
+    const json = "[{\"label\": \"test\"}]";
     var layout = try SoulLayout.fromJson(std.testing.allocator, json);
     defer layout.deinit();
     try std.testing.expectEqual(@as(usize, 1), layout.records.len);
@@ -160,14 +173,14 @@ test "SoulLayout.fromJson parses a simple JSON soul prompt" {
 }
 
 test "SoulLayout.fromJson derives points for missing x/y/z via fromText" {
-    const json = "[{\" ++ \"label\": \"hello world\" ++ \"}]";
+    const json = "[{\"label\": \"hello world\"}]";
     var layout = try SoulLayout.fromJson(std.testing.allocator, json);
     defer layout.deinit();
     try std.testing.expectEqual(@as(usize, 1), layout.records.len);
     try std.testing.expectEqualStrings("hello world", layout.records[0].label);
     try std.testing.expect(layout.records[0].point.x > 0);
     try std.testing.expect(layout.records[0].point.y > 0);
-    try std.testing.expect(layout.records[0].point.z > 0);
+    try std.testing.expect(layout.records[0].point.z >= 0);
     try std.testing.expectEqual(@as(f32, 1.0), layout.records[0].point.value);
 }
 

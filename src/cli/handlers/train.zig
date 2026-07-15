@@ -18,7 +18,7 @@ pub fn handleTrain(allocator: std.mem.Allocator, input: []const u8) !u8 {
     return 0;
 }
 
-/// `abi complete [--live] [--confirm] [--model <id>] <input>`.
+/// `abi complete [--live] [--confirm] [--model <id>] [--learn] [--stream] [--soul <file>] [--soul-alpha <f32>] <input>`.
 ///
 /// `model` is the raw `--model` value (or null for the default). It is
 /// alias-resolved at this edge through the model catalog so `fable-5` records
@@ -27,6 +27,9 @@ pub fn handleTrain(allocator: std.mem.Allocator, input: []const u8) !u8 {
 /// an `apple-fm` (on-device FoundationModels) model requires `--confirm` and is
 /// routed to `handleFmComplete`; otherwise the local persona router runs and the
 /// completion is persisted.
+/// `--soul <file>` loads a SoulLayout from JSON and uses its trained neural
+/// network to blend with keyword-based routing. `--soul-alpha` (0.0-1.0) controls
+/// the blend weight (0.0 = keyword only, 1.0 = neural only).
 pub const CompleteOptions = struct {
     input: []const u8,
     model: ?[]const u8 = null,
@@ -34,6 +37,8 @@ pub const CompleteOptions = struct {
     confirmed: bool = false,
     learn: bool = false,
     stream: bool = false,
+    soul: ?[]const u8 = null,
+    soul_alpha: f32 = 0.5,
 };
 
 const LearnMetadata = struct {
@@ -106,6 +111,12 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOp
     // started separately; ABI does not embed or bundle any inference engine.
     if (connectors.local_bridge.isLocalBridgeModel(selected_model)) {
         return handleLocalBridgeComplete(io, allocator, input, selected_model, opts.stream);
+    }
+
+    // `--soul <file>`: load a SoulLayout from JSON, bootstrap its neural network,
+    // and use it to blend with keyword-based routing.
+    if (opts.soul) |soul_path| {
+        return handleSoulComplete(io, allocator, input, selected_model, opts.soul_alpha, soul_path);
     }
 
     var session = try features.wdbx.durable_store.Session.open(io, allocator);
@@ -201,6 +212,39 @@ fn handleLearnComplete(
     const completion = result.completion;
     const stats = store.stats();
     printCompletionMetadata(&completion, stats, .{ .evidence_count = result.evidence_count, .adapted = result.adapted }, false);
+    return 0;
+}
+
+/// `--soul`: load a SoulLayout from JSON, bootstrap its neural network,
+/// and use it to blend with keyword-based routing.
+fn handleSoulComplete(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    input: []const u8,
+    model: []const u8,
+    blend_alpha: ?f32,
+    soul_path: []const u8,
+) !u8 {
+    _ = model;
+    const alpha = blend_alpha orelse 0.5;
+    const json = try std.Io.Dir.cwd().readFileAlloc(io, soul_path, allocator, .limited(64 * 1024));
+    defer allocator.free(json);
+
+    var layout = try features.ai.soul_layout.SoulLayout.fromJson(allocator, json);
+    defer layout.deinit();
+
+    // Create a 3-output network for routing (3 inputs -> 8 hidden -> 3 outputs)
+    var net = try features.ai.point_neural_net.PointNeuralNetwork.init(allocator, &.{ 3, 8, 3 }, 0.01);
+    defer net.deinit();
+
+    // Bootstrap the network with soul records
+    _ = try layout.bootstrap(&net);
+
+    // Use the soul-aware routing
+    const response = try features.ai.routeInputWithSoul(allocator, &net, alpha, input);
+    defer allocator.free(response);
+
+    std.debug.print("{s}\n", .{response});
     return 0;
 }
 

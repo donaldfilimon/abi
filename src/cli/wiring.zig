@@ -20,6 +20,8 @@ pub const complete_args = [_]Arg{
     .{ .name = "live", .kind = .flag, .help = "serve anthropic models over the live transport" },
     .{ .name = "confirm", .kind = .flag, .help = "confirm on-device FoundationModels execution" },
     .{ .name = "learn", .kind = .flag, .help = "run the SEA self-learning loop" },
+    .{ .name = "soul", .kind = .value, .help = "soul layout JSON file for neural routing" },
+    .{ .name = "soul-alpha", .kind = .value, .help = "blend weight for soul neural routing (0.0-1.0)" },
     .{ .name = "stream", .kind = .flag, .help = "stream completion tokens to stdout" },
     .{ .name = "model", .kind = .value, .help = "select a catalog model id (e.g. claude-fable-5)" },
     .{ .name = "input", .kind = .positional, .required = true, .help = "completion prompt" },
@@ -137,6 +139,8 @@ pub fn completeHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
             .confirmed = parsed.flag("confirm"),
             .learn = parsed.flag("learn"),
             .stream = parsed.flag("stream"),
+            .soul = parsed.value("soul"),
+            .soul_alpha = if (parsed.value("soul-alpha")) |s| std.fmt.parseFloat(f32, s) catch 0.5 else 0.5,
         },
     );
 }

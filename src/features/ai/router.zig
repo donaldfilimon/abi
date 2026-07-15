@@ -1,5 +1,6 @@
 const std = @import("std");
 const types = @import("types.zig");
+const point_neural_net = @import("point_neural_net.zig");
 
 pub const ProfileWeights = struct {
     w_abbey: f32,
@@ -226,6 +227,60 @@ pub fn routeInputAdaptive(allocator: std.mem.Allocator, store: anytype, input: [
     const blended = mod.weights();
     const profile_sel = selectBestProfile(blended);
     return routeToProfile(allocator, profile_sel, input);
+}
+
+/// Soul-aware routing: blends keyword-based sentiment with a
+/// pre-trained 3-output PointNeuralNetwork (one output per profile:
+/// abbey, aviva, abi). The network's output is softmax-normalized
+/// and blended with keyword weights using `blend_alpha` (0.0 = keyword only,
+/// 1.0 = neural only). Falls back to keyword-only if `net` is null
+/// or doesn't have 3 outputs.
+pub fn routeInputWithSoul(
+    allocator: std.mem.Allocator,
+    net: ?*point_neural_net.PointNeuralNetwork,
+    blend_alpha: f32,
+    input: []const u8,
+) ![]u8 {
+    const keyword_weights = analyzeSentiment(input);
+    var neural_weights: ProfileWeights = .{
+        .w_abbey = 0.33,
+        .w_aviva = 0.33,
+        .w_abi = 0.34,
+    };
+
+    if (net) |n| {
+        if (n.layers.len > 0 and n.layers[n.layers.len - 1].output_size == 3) {
+            const point = point_neural_net.Point.fromText(input);
+            const output = try n.forward(&point.toArray());
+            defer allocator.free(output);
+            // Softmax the 3 outputs
+            var exps: [3]f32 = undefined;
+            var sum: f32 = 0;
+            for (output, 0..) |o, i| {
+                exps[i] = @exp(o);
+                sum += exps[i];
+            }
+            if (sum > 0) {
+                neural_weights.w_abbey = exps[0] / sum;
+                neural_weights.w_aviva = exps[1] / sum;
+                neural_weights.w_abi = exps[2] / sum;
+            }
+        }
+    }
+
+    const blended = blendWeights(keyword_weights, neural_weights, blend_alpha);
+    const profile_sel = selectBestProfile(blended);
+    return routeToProfile(allocator, profile_sel, input);
+}
+
+/// Blend two ProfileWeights with alpha (0.0 = a only, 1.0 = b only).
+pub fn blendWeights(a: ProfileWeights, b: ProfileWeights, alpha: f32) ProfileWeights {
+    const a_alpha = 1.0 - alpha;
+    return .{
+        .w_abbey = a.w_abbey * a_alpha + b.w_abbey * alpha,
+        .w_aviva = a.w_aviva * a_alpha + b.w_aviva * alpha,
+        .w_abi = a.w_abi * a_alpha + b.w_abi * alpha,
+    };
 }
 
 fn startsWithIgnoreCase(haystack: []const u8, needle: []const u8) bool {

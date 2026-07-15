@@ -12,7 +12,72 @@ const types = @import("stub_types.zig");
 // `helpers` is dependency-free (std only), so the disabled-AI stub can reuse the
 // real embedding to keep dimensionality identical across the mod/stub boundary.
 const helpers = @import("helpers.zig");
-const point_neural_net = @import("point_neural_net.zig");
+pub const point_neural_net = @import("point_neural_net.zig");
+
+pub fn routeInputWithSoul(
+    allocator: std.mem.Allocator,
+    net: ?*point_neural_net.PointNeuralNetwork,
+    blend_alpha: f32,
+    input: []const u8,
+) ![]u8 {
+    _ = allocator;
+    _ = net;
+    _ = blend_alpha;
+    _ = input;
+    return error.FeatureDisabled;
+}
+
+pub fn blendWeights(
+    a: @import("router.zig").ProfileWeights,
+    b: @import("router.zig").ProfileWeights,
+    alpha: f32,
+) @import("router.zig").ProfileWeights {
+    _ = a;
+    _ = b;
+    _ = alpha;
+    return .{ .w_abbey = 0.33, .w_aviva = 0.33, .w_abi = 0.34 };
+}
+
+pub const soul_layout = struct {
+    pub const SoulRecord = struct {
+        label: []const u8,
+        point: point_neural_net.Point,
+
+        pub fn deinit(self: SoulRecord, allocator: std.mem.Allocator) void {
+            {
+                _ = self;
+            }
+            {
+                _ = allocator;
+            }
+        }
+    };
+
+    pub const SoulLayout = struct {
+        records: []SoulRecord,
+        allocator: std.mem.Allocator,
+
+        pub fn deinit(self: *SoulLayout) void {
+            {
+                _ = self;
+            }
+        }
+
+        pub fn fromJson(allocator: std.mem.Allocator, _: []const u8) !SoulLayout {
+            {
+                _ = allocator;
+            }
+            return error.FeatureDisabled;
+        }
+
+        pub fn bootstrap(self: *SoulLayout, _: *point_neural_net.PointNeuralNetwork) !void {
+            {
+                _ = self;
+            }
+            return error.FeatureDisabled;
+        }
+    };
+};
 
 pub const Principle = types.Principle;
 pub const AuditResult = types.AuditResult;
