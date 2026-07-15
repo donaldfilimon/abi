@@ -284,7 +284,21 @@ pub const PointNeuralNetwork = struct {
 
         const density_gain = 1.0 / (1.0 + spread);
         const regularization_factor: f32 = 0.95 + 0.05 * density_gain;
-        const prune_threshold = 0.001 * (1.0 + density_gain);
+
+        // Magnitude-based pruning: prune weights whose absolute value is a
+        // small fraction of the largest active weight in the network. This is
+        // genuine near-zero (relative) pruning rather than an absolute
+        // threshold that almost never triggers for normalized random init.
+        var max_abs: f32 = 0;
+        for (self.layers) |layer| {
+            for (layer.weights) |w_row| {
+                for (w_row) |*w| {
+                    const a = @abs(w.*);
+                    if (a > max_abs) max_abs = a;
+                }
+            }
+        }
+        const prune_threshold = if (max_abs > 0) 0.02 * max_abs / (1.0 + density_gain) else 0;
 
         var pruned_count: usize = 0;
         for (self.layers) |*layer| {
@@ -422,9 +436,9 @@ pub const SoulLayout = struct {
             .array => |a| a,
             else => return error.InvalidSoulFormat,
         };
-        if (arr.len == 0) return error.EmptySoulPrompt;
+        if (arr.items.len == 0) return error.EmptySoulPrompt;
 
-        const records = try allocator.alloc(SoulRecord, arr.len);
+        const records = try allocator.alloc(SoulRecord, arr.items.len);
         errdefer allocator.free(records);
 
         for (arr.items, 0..) |item, i| {

@@ -213,6 +213,106 @@ pub const streaming = struct {
 
 pub const constitution = @import("stub_constitution.zig");
 
+// Disabled-AI parity shims for the per-turn `PipelineTelemetry` snapshot
+// (docs/spec/wdbx-rust-capability-extract.mdx §3). Names mirror `mod.zig`;
+// bodies are inert (feature disabled).
+pub const pipeline_telemetry = struct {
+    pub const NeuralTelemetryView = struct {
+        layer_count: usize = 0,
+        total_weights: usize = 0,
+        nonzero_weights: usize = 0,
+        l1_norms: []const f32 = &.{},
+    };
+
+    pub const PipelineTelemetryImpl = struct {
+        ethical_scores: [6]f32,
+        escore: f32,
+        vetoed: bool,
+        neural: NeuralTelemetryView,
+        provider: []u8,
+        retrieval_summary: []u8,
+        cluster_status: []u8,
+        governance_version: []u8,
+        prompt_version: []u8,
+        guardrail_summary: []u8,
+        p99_latency_ms: f64,
+        total_errors: u64,
+        responses_total: u64,
+
+        pub fn deinit(self: *PipelineTelemetry, allocator: std.mem.Allocator) void {
+            _ = self;
+            _ = allocator;
+        }
+    };
+
+    pub const SnapshotOptions = struct {
+        provider: []const u8 = "local",
+        retrieval_summary: []const u8 = "",
+        cluster_status: []const u8 = "single-node",
+        governance_version: []const u8 = "constitution:6.0",
+        prompt_version: []const u8 = "prompt:1.0",
+        guardrail_summary: []const u8 = "ok",
+        p99_latency_ms: f64 = 0,
+    };
+
+    pub const ObservabilityHubImpl = struct {
+        allocator: std.mem.Allocator,
+        responses_total: u64 = 0,
+        total_errors: u64 = 0,
+        constitution_blocks: u64 = 0,
+
+        pub fn init(allocator: std.mem.Allocator) ObservabilityHub {
+            return .{ .allocator = allocator };
+        }
+        pub fn recordResponse(self: *ObservabilityHub) void {
+            _ = self;
+        }
+        pub fn recordError(self: *ObservabilityHub) void {
+            _ = self;
+        }
+        pub fn recordConstitutionBlock(self: *ObservabilityHub) void {
+            _ = self;
+        }
+        pub fn snapshot(
+            self: *ObservabilityHub,
+            allocator: std.mem.Allocator,
+            audit: AuditResult,
+            maybe_neural: ?point_neural_net.NeuralTelemetry,
+            opts: SnapshotOptions,
+        ) !PipelineTelemetry {
+            _ = self;
+            _ = maybe_neural;
+            _ = opts;
+            return .{
+                .ethical_scores = audit.scores,
+                .escore = audit.escore,
+                .vetoed = audit.vetoed,
+                .neural = .{},
+                .provider = try allocator.dupe(u8, "disabled"),
+                .retrieval_summary = try allocator.dupe(u8, ""),
+                .cluster_status = try allocator.dupe(u8, "disabled"),
+                .governance_version = try allocator.dupe(u8, ""),
+                .prompt_version = try allocator.dupe(u8, ""),
+                .guardrail_summary = try allocator.dupe(u8, ""),
+                .p99_latency_ms = 0,
+                .total_errors = 0,
+                .responses_total = 0,
+            };
+        }
+        pub fn finishTurn(
+            self: *ObservabilityHub,
+            allocator: std.mem.Allocator,
+            audit: AuditResult,
+            maybe_neural: ?point_neural_net.NeuralTelemetry,
+            opts: SnapshotOptions,
+        ) !PipelineTelemetry {
+            return self.snapshot(allocator, audit, maybe_neural, opts);
+        }
+    };
+};
+pub const PipelineTelemetry = pipeline_telemetry.PipelineTelemetryImpl;
+pub const ObservabilityHub = pipeline_telemetry.ObservabilityHubImpl;
+
 // `models` is dependency-free (std only) plain data, so the disabled-AI stub
 // reuses the real catalog to keep declaration parity across the mod/stub
 // boundary (`zig build check-parity`).

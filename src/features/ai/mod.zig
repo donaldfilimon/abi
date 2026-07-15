@@ -27,6 +27,9 @@ pub const streaming = struct {
 pub const constitution = @import("constitution.zig");
 pub const AuditResult = constitution.AuditResult;
 pub const Principle = constitution.Principle;
+pub const pipeline_telemetry = @import("pipeline_telemetry.zig");
+pub const PipelineTelemetry = pipeline_telemetry.PipelineTelemetry;
+pub const ObservabilityHub = pipeline_telemetry.ObservabilityHub;
 
 pub const AgentProfile = types.AgentProfile;
 pub const known_profiles = types.known_profiles;

@@ -7,6 +7,7 @@ pub const json = @import("json.zig");
 pub const openai = @import("openai.zig");
 pub const anthropic = @import("anthropic.zig");
 pub const discord = @import("discord.zig");
+pub const discord_gateway = @import("discord_gateway.zig");
 pub const twilio = @import("twilio.zig");
 pub const grok = @import("grok.zig");
 pub const fm = @import("fm.zig");
