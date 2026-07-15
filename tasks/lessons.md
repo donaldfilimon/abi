@@ -78,6 +78,25 @@ zig build check-parity
 ./build.sh full-check
 ```
 
+## Modern-Refactor Skills
+
+The modern-refactor skills (codebase-analysis, modern-patterns, refactor-strategy, refactor-implementation, refactor-validation) + agents (refactor-planner, modern-refactorer) are installed in .agents/skills/ and synced to .claude/skills/. Use them for clean-slate analysis, planning, and execution of refactors. Always follow with `./build.sh check`. The modern-refactor/ dir contains the portable package source.
+
+## Superpower Skills (from docs/specs)
+
+9 superpower skills created from ABI documentation and specs, all in `.agents/skills/` (symlinked to `.opencode/skills/`):
+- `abi-superpower-agent-orchestration` — multi/spawn/browser local orchestration
+- `abi-superpower-constitution` — 6-principle constitutional audit
+- `abi-superpower-wdbx-cluster` — Raft consensus + networked RPC
+- `abi-superpower-wdbx-compute` — CPU/GPU/NPU/TPU backend selector
+- `abi-superpower-wdbx-secure` — compression + HE demos
+- `abi-claims-validator` — external-claims audit against repo source
+- `abi-wdbx-persistence` — WAL + segments + recovery
+- `abi-mcp-transport` — JSON-RPC stdio + HTTP/SSE
+- `abi-plugin-system` — manifest + generated registry
+
+All skills include honest claim boundaries per `docs/contracts/external-claims-audit.mdx`.
+
 ## Common Pitfalls to Avoid
 
 1. **Circular imports**: Avoid `@import("abi")` from within `src/` except the MCP executable + handler module graph (`src/mcp/main.zig` + the `handlers.zig` group); use relative paths elsewhere.

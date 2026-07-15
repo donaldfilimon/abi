@@ -131,4 +131,6 @@ No unproven claims (distributed sharding, production FHE/AES/RBAC, non-loopback 
 
 ## OpenCode Setup
 
-`opencode.json` auto-loaded. `.opencode/skills/` is a symlink to `.agents/skills/`. MCP servers: `abi-mcp`, `skill-loop`. Sync canonical skills: `.agents/skills/sync-clis/launch.sh`.
+`opencode.json` auto-loaded. `.opencode/skills/` is a symlink to `.agents/skills/`. MCP servers: `abi-mcp`, `skill-loop`. Sync canonical skills: `.agents/skills/sync-clis/launch.sh`. Modern-refactor skills (codebase-analysis etc.) installed and updated to ABI style in .agents/skills/ (and synced). Use for refactors; follow with `./build.sh check`.
+
+9 superpower skills from docs/specs: `abi-superpower-agent-orchestration` (multi/spawn/browser), `abi-superpower-constitution` (6-principle audit), `abi-superpower-wdbx-cluster` (Raft + RPC), `abi-superpower-wdbx-compute` (CPU/GPU/NPU/TPU selector), `abi-superpower-wdbx-secure` (compression + HE demos), `abi-claims-validator` (external-claims audit), `abi-wdbx-persistence` (WAL + segments + recovery), `abi-mcp-transport` (JSON-RPC stdio + HTTP/SSE), `abi-plugin-system` (manifest + registry). All in `.agents/skills/` (symlinked to `.opencode/skills/`).

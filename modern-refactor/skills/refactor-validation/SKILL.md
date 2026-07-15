@@ -1,41 +1,23 @@
 ---
-name: Refactor Validation
-description: This skill should be used when the user asks to "validate the refactor", "check parity", "from scratch quality review", "ensure modernization succeeded", "run modernization tests", "verify clean slate implementation", or needs criteria and methods to confirm that a refactored module truly achieves modern quality.
-version: 0.1.0
+name: refactor-validation
+description: Parity, modern quality criteria, and validation checklists for ABI refactors. Use as final step to ensure clean-slate changes meet standards.
 ---
 
 # Refactor Validation
 
-Defines what "as good as written from scratch" means and how to prove it.
+Validation layers for modernization: behavioral parity, modern quality, structural.
 
-## Validation Layers
+## Layers
 
-1. **Behavioral Parity**
-   - Existing tests still pass.
-   - Property-based or contract tests cover key invariants.
-   - Manual/edge scenarios from original.
-
-2. **Modern Quality**
-   - Passes modern patterns review (no legacy smells).
-   - Improved or equal performance characteristics.
-   - Better or equal observability and error messages.
-   - Code is easier to understand and change (subjective + metrics).
-
-3. **Structural**
-   - Clear module boundaries.
-   - No unnecessary coupling.
-   - Documentation and types reflect the modern design.
-
-## Recommended Checks
-
-- Run full test suite + targeted new tests.
-- Static analysis / linters with modern rules.
-- Manual review using the modern-patterns skill.
-- Compare size and complexity metrics (when meaningful).
+- Behavioral: contracts, tests, ./build.sh check, check-parity pass.
+- Modern: apply patterns from modern-patterns, no legacy smells.
+- Structural: boundaries clean, no god files, explicit over implicit.
 
 ## Additional Resources
 
 - `references/validation-checklist.md`
-- Use agents for deep review.
 
-Only declare a refactor complete when all layers pass.
+Run the validation skill + modern-refactorer agent review as final step.
+
+Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/refactor-validation
+Relative paths in this skill (e.g., references/) are relative to this base directory.

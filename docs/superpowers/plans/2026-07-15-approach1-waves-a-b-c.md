@@ -73,7 +73,7 @@
 ### C5 Hygiene
 
 - [x] `tasks/todo.md` north-star honest status
-- [ ] Skill tooling: drop or implement missing `scripts/abi_inventory.py` / `current-goals.md` references
+- [x] Skill tooling: 9 new superpower skills created from docs/specs (agent-orchestration, constitution, wdbx-cluster, wdbx-compute, wdbx-secure, claims-validator, wdbx-persistence, mcp-transport, plugin-system)
 - [ ] `/abi-skills`: sync-clis after skill land
 
 ### C6 Zig 0.17

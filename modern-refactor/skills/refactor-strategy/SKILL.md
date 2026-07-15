@@ -1,7 +1,6 @@
 ---
-name: Refactor Strategy
-description: This skill should be used when the user asks to "plan a refactor", "from scratch modernization", "refactor strategy", "clean slate refactor", "phased modernization plan", "modernization roadmap", "how to approach this refactor from scratch", or needs guidance on choosing between incremental, phased, and full clean-slate rewrites.
-version: 0.1.0
+name: refactor-strategy
+description: Clean-slate planning, strategy selection (direct / phased / parallel), risk assessment for ABI refactors. Use at start of any significant modernization.
 ---
 
 # Refactor Strategy
@@ -42,6 +41,9 @@ When designing the target:
 ## Additional Resources
 
 - `references/strategy-guide.md` — detailed decision trees and examples of each strategy.
-- `examples/` — real plan outlines from previous modernizations.
+- `examples/sample-plan-outline.md` — real plan outlines from previous modernizations.
 
-Use this skill before touching code.
+Use this skill before touching code. Always run `./build.sh check` before and after.
+
+Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/refactor-strategy
+Relative paths in this skill (e.g., references/) are relative to this base directory.

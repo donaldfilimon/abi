@@ -121,6 +121,7 @@ One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`
 - Local-provider model alias routing in models.zig (ollama/lmstudio/llama-cpp/vllm/mlx prefixes → .local, deterministic offline)
 - Module declaration coverage cleanup (9 modules + 32 plugin files)
 - Whole-tree refactoring wave — param bundling (CompleteOptions, BlockRecord), 4 large file splits (tui, wdbx rest, mcp server, nn), refAllDecls coverage, instruction-file sync.
+- **9 new superpower skills from docs/specs** — `abi-superpower-agent-orchestration` (multi/spawn/browser), `abi-superpower-constitution` (6-principle audit), `abi-superpower-wdbx-cluster` (Raft + RPC), `abi-superpower-wdbx-compute` (CPU/GPU/NPU/TPU selector), `abi-superpower-wdbx-secure` (compression + HE demos), `abi-claims-validator` (external-claims audit), `abi-wdbx-persistence` (WAL + segments + recovery), `abi-mcp-transport` (JSON-RPC stdio + HTTP/SSE), `abi-plugin-system` (manifest + registry). All in `.agents/skills/` (symlinked to `.opencode/skills/`). `./build.sh check` green.
 
 ---
 

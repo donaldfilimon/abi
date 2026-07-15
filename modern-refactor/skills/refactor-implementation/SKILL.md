@@ -1,35 +1,25 @@
 ---
-name: Refactor Implementation
-description: This skill should be used when the user asks to "implement the refactor", "rewrite this using modern patterns", "apply the clean slate design", "modernize this function/module", "perform the rewrite", or needs step-by-step guidance for safely transforming code while following from-scratch designs.
-version: 0.1.0
+name: refactor-implementation
+description: Safe transformation techniques and implementation playbooks for clean-slate refactors in ABI. Use when executing modernization plans.
 ---
 
 # Refactor Implementation
 
-Practical guidance for executing the modernization while maintaining correctness.
+Safe transformation techniques for applying modern designs while preserving behavior.
 
-## Core Rules
+## Principles
 
-- Never delete the old implementation until parity is proven.
-- Write or extend tests first (or in parallel) for the target behavior.
-- Make one semantic change at a time when possible.
-- After each significant change, run relevant validation (see validation skill).
-- Use the modern patterns skill constantly.
-
-## Safe Transformation Techniques
-
-- Parallel implementation (new file/module next to old).
-- Strangler fig (introduce new behind flag or router).
-- Expand / contract (add modern API, migrate callers, remove old).
-- Extract pure functions before changing behavior.
-
-## Working With Agents
-
-Pair with `modern-refactorer` agent for larger modules.
+- Write modern impl beside old (parallel) when risk high.
+- Use strangler fig for gradual cutover.
+- Validate at each step with ./build.sh check, parity, contracts.
+- Prefer direct boring code.
 
 ## Additional Resources
 
-- `references/implementation-playbook.md` — preconditions, gate table, cutover rules
-- `examples/parallel-extract-outline.md` — thin-extract / strangler outline
+- `references/implementation-playbook.md`
+- `examples/parallel-extract-outline.md`
 
-Always leave the codebase in a better state than you found it, even mid-refactor.
+Pair with `modern-refactorer` agent for larger modules.
+
+Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/refactor-implementation
+Relative paths in this skill (e.g., references/) are relative to this base directory.

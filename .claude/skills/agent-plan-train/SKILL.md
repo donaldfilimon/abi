@@ -1,42 +1,33 @@
 ---
 name: agent-plan-train
-description: Build the abi CLI and drive non-interactive agent surfaces — plan, train, multi, spawn, and browser orchestration. Use after touching src/features/ai/ profiles, routing, orchestration.zig, or agent CLI handlers.
----
+description: Plan and execute ABI repo work from current TODOs, roadmap/spec docs, Zig 0.17 constraints, and validation gates. Use when user asks to find all ABI todos/roadmaps, compile ABI goals/specs, organize a large ABI implementation goal, or decide the next safe work slice in ~/abi.
 
-# agent-plan-train — drive abi agent surfaces
+## Workflow
 
-Driver: **`.agents/skills/agent-plan-train/agent.sh`** (paths relative to repo root).
-Builds the CLI and exercises non-interactive `agent` subcommands. Evidence is
-the `RESULT:` line. Fully local, no network.
+1. Start in `/Users/donaldfilimon/abi` unless the user gives another ABI checkout.
+2. Inspect `git status --short --branch` before edits; preserve unrelated dirty work.
+3. Read `AGENTS.md`, `tasks/todo.md`, and `tasks/lessons.md`.
+4. Generate or refresh the inventory with `../../scripts/abi_inventory.py --repo /Users/donaldfilimon/abi`.
+5. Load `references/current-goals.md` for the source map and goal taxonomy.
+6. Derive a small executable slice. Prefer changes that make one TODO, roadmap gap, doc mismatch, or validation gap measurably more true.
+7. Keep claims honest: source/build/tests override prose.
+8. Verify with the narrow command that proves the slice, then the broader gate when the blast radius justifies it.
 
-## Run (agent path)
+## Goal Rules
+
+- Treat `tasks/todo.md` as the active board and `docs/spec/wdbx-north-star.mdx` as the Current/Partial/Proposed map.
+- Do not convert disclosed stubs into fake completions. Native dispatch, production clustering, production FHE, and learned-compression claims need real source/tests.
+- Do not add legacy CLI names. Preserve the frozen top-level command set and the MCP 12-tool contract.
+- When changing public feature APIs, update both the real and stub modules and run `zig build check-parity`.
+- When changing docs, run `.agents/skills/docs-validate/validate.sh` in addition to code gates.
+
+## Useful Commands
+
 ```bash
-.agents/skills/agent-plan-train/agent.sh                                  # default plan, profile=abbey
-.agents/skills/agent-plan-train/agent.sh "draft a release note" all       # custom plan, train all
+../../scripts/abi_inventory.py --repo /Users/donaldfilimon/abi
+zig version
+zig build check-parity --summary all
+./build.sh check
 ```
 
-What it asserts:
-
-| Command | Markers |
-|---------|---------|
-| `agent plan` | `agent=cli-agent`, `mode=dry-run`, `selected_profile=`, `response=` |
-| `agent train` | `training executed via scheduler`, `recorded in wdbx` |
-| `agent multi` | `MULTI-AGENT RESULTS` (Abbey/Aviva/Abi trio) |
-| `agent spawn` | `CUSTOM MULTI-AGENT RESULTS` |
-| `agent browser` | `embedded_browser=false`, `delegation_hint=external-mcp-playwright` |
-| `agent browser --execute` without `--confirm` | exit **2** |
-
-Prints `RESULT: PASS` (exit 0) or a FAIL count.
-
-## Gotchas
-- `agent train` does **real** scheduler work and appends training metadata to WDBX.
-- `agent multi` / `spawn` / `browser` are local orchestration only — no embedded browser, no distributed agents, no new MCP tools.
-- Skipped: `agent tui` (interactive) and `agent os` (use `os-control-dryrun`).
-- For router/constitution internals, use the `ai-constitution-reviewer` subagent.
-
-## Troubleshooting
-| Symptom | Fix |
-|---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./build.sh check`. |
-| multi/spawn FAIL | Check `src/features/ai/orchestration.zig` and `src/cli/handlers/agent.zig`. |
-| browser missing `embedded_browser=false` | Claim-honesty regression in `planBrowserOrchestration`. |
+Use `references/current-goals.md` for the current source inventory and validation ladder.

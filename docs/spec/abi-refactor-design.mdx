@@ -220,6 +220,24 @@ tools/                 # Build helpers and verification scripts
 └── run_contract_cli.sh # CLI contract test runner
 ```
 
+### 2.1 Skill Modules (`.agents/skills/`, symlinked to `.opencode/skills/`)
+
+9 superpower skills created from ABI documentation and specs, all with honest claim boundaries per `docs/contracts/external-claims-audit.mdx`:
+
+| Skill | Source Spec | Purpose |
+|-------|-------------|---------|
+| `abi-superpower-agent-orchestration` | `multi-persona-technical.mdx` §5.4 | Local multi/spawn/browser orchestration |
+| `abi-superpower-constitution` | `abi-refactor-design.mdx` §5.3 | 6-principle constitutional audit |
+| `abi-superpower-wdbx-cluster` | `wdbx-north-star.mdx` §3.5 | Raft consensus + networked RPC |
+| `abi-superpower-wdbx-compute` | `wdbx-north-star.mdx` §3.3 | CPU/GPU/NPU/TPU backend selector |
+| `abi-superpower-wdbx-secure` | `wdbx-north-star.mdx` §3.4 | Compression + HE demos |
+| `abi-claims-validator` | `external-claims-audit.mdx` | External claims audit against repo |
+| `abi-wdbx-persistence` | `wdbx-north-star.mdx` §3.1 | WAL + segments + recovery |
+| `abi-mcp-transport` | `abi-refactor-design.mdx` §3.6 | JSON-RPC stdio + HTTP/SSE |
+| `abi-plugin-system` | `abi-refactor-design.mdx` §plugins | Manifest + generated registry |
+
+Plus existing superpower skills: `abi-superpower-ai`, `abi-superpower-gpu`, `abi-superpower-mcp`, `abi-superpower-sea`, `abi-superpower-tui`, `abi-superpower-wdbx`. All in `.agents/skills/` (symlinked to `.opencode/skills/`).
+
 ---
 
 ## 3. WDBX Substrate: HNSW Index (Priority 1)
