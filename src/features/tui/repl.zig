@@ -26,8 +26,10 @@ const cmds = @import("repl_commands.zig");
 const local_bridge = @import("../../connectors/local_bridge.zig");
 const connector_http = @import("../../connectors/http.zig");
 const connector_mod = @import("../../connectors/connector.zig");
+const repl_types = @import("repl_types.zig");
+const repl_session = @import("repl_session.zig");
 
-pub const MODEL_STORAGE_BYTES = cmds.MODEL_STORAGE_BYTES;
+pub const MODEL_STORAGE_BYTES = repl_types.MODEL_STORAGE_BYTES;
 pub const SpecialCommand = cmds.SpecialCommand;
 pub const SlashCommand = cmds.SlashCommand;
 pub const slash_commands = cmds.slash_commands;
@@ -46,95 +48,12 @@ pub const printPluginHelp = cmds.printPluginHelp;
 pub const PluginSlashCommand = cmds.PluginSlashCommand;
 pub const matchPluginCommandToken = cmds.matchPluginCommandToken;
 
-/// Callback type for dispatching a plugin slash-command. Takes the plugin name,
-/// command name, and argument text; returns the output to display. `null` means
-/// plugin dispatch is unavailable (e.g. TUI feature disabled at build time).
-pub const PluginDispatchFn = *const fn (allocator: std.mem.Allocator, plugin: []const u8, cmd_name: []const u8, arg: []const u8) anyerror![]u8;
-
-pub const ReplConfig = struct {
-    model: []const u8 = models.default_model,
-    store_turns: bool = true,
-    prompt_prefix: []const u8 = "> ",
-    /// Slash-commands registered by plugins. Built from the Registry at startup.
-    plugin_commands: []const cmds.PluginSlashCommand = &.{},
-    /// Optional dispatch callback for executing plugin slash-commands.
-    /// When non-null, `runPluginCommand` routes through this instead of
-    /// printing a stub acknowledgment.
-    plugin_dispatch: ?PluginDispatchFn = null,
-    /// Context snippets from plugin context providers, injected before every
-    /// completion. Owned by the caller; the REPL reads but does not free this.
-    context_snippets: []const u8 = "",
-    /// Whether SEA self-learning mode is active. When true, completions route
-    /// through `runLearnLoop` for evidence-augmented output.
-    learn_mode: bool = false,
-};
-
-pub const MAX_TURN_HISTORY: usize = 10;
-
-pub const TurnEntry = struct {
-    input: []const u8,
-    response: []const u8,
-};
-
-pub const ReplState = struct {
-    config: ReplConfig,
-    turn_count: usize,
-    session_id: i64,
-    /// Backing storage for a model id set at runtime via `/model`, so
-    /// `config.model` never dangles into the transient stdin read buffer.
-    model_storage: [MODEL_STORAGE_BYTES]u8 = undefined,
-    /// File context from `/open <path>`: the opened file path (owned by
-    /// `file_context_buf`) and the loaded contents (owned by `file_context_buf`).
-    open_path: []const u8 = "",
-    open_content: []const u8 = "",
-    /// Backing allocation for file context strings; freed on next `/open` or reset.
-    file_context_buf: ?[]u8 = null,
-    /// Ring buffer of recent (input, response) pairs for multi-turn context.
-    turn_history: [MAX_TURN_HISTORY]TurnEntry = @splat(TurnEntry{ .input = "", .response = "" }),
-    turn_history_count: usize = 0,
-    turn_history_head: usize = 0,
-
-    pub fn init(config: ReplConfig) ReplState {
-        return .{
-            .config = config,
-            .turn_count = 0,
-            .session_id = time.unixMs(),
-        };
-    }
-
-    pub fn pushTurn(self: *ReplState, allocator: std.mem.Allocator, input: []const u8, response: []const u8) void {
-        // Free the oldest entry if we're overwriting it
-        if (self.turn_history_count == MAX_TURN_HISTORY) {
-            const old = &self.turn_history[self.turn_history_head];
-            allocator.free(old.input);
-            allocator.free(old.response);
-        }
-        self.turn_history[self.turn_history_head] = .{
-            .input = allocator.dupe(u8, input) catch @panic("OOM"),
-            .response = allocator.dupe(u8, response) catch @panic("OOM"),
-        };
-        self.turn_history_head = (self.turn_history_head + 1) % MAX_TURN_HISTORY;
-        if (self.turn_history_count < MAX_TURN_HISTORY) self.turn_history_count += 1;
-    }
-
-    pub fn clearFileContext(self: *ReplState, allocator: std.mem.Allocator) void {
-        if (self.file_context_buf) |buf| allocator.free(buf);
-        self.open_path = "";
-        self.open_content = "";
-        self.file_context_buf = null;
-    }
-
-    pub fn clearTurnHistory(self: *ReplState, allocator: std.mem.Allocator) void {
-        var i: usize = 0;
-        while (i < self.turn_history_count) : (i += 1) {
-            const idx = (self.turn_history_head + MAX_TURN_HISTORY - self.turn_history_count + i) % MAX_TURN_HISTORY;
-            allocator.free(self.turn_history[idx].input);
-            allocator.free(self.turn_history[idx].response);
-        }
-        self.turn_history_count = 0;
-        self.turn_history_head = 0;
-    }
-};
+pub const PluginDispatchFn = repl_types.PluginDispatchFn;
+pub const ReplConfig = repl_types.ReplConfig;
+pub const MAX_TURN_HISTORY = repl_types.MAX_TURN_HISTORY;
+pub const TurnEntry = repl_types.TurnEntry;
+pub const ReplState = repl_types.ReplState;
+pub const SessionFile = repl_session.SessionFile;
 
 pub const ReplLoop = struct {
     allocator: std.mem.Allocator,
@@ -881,171 +800,18 @@ pub const ReplLoop = struct {
         }
     }
 
-    pub const SessionFile = struct {
-        version: u32,
-        session_id: i64,
-        model: []const u8,
-        learn_mode: bool,
-        open_path: []const u8,
-        open_content: []const u8,
-        turn_count: usize,
-        turn_history_count: usize,
-        turn_history_head: usize,
-        turns: []const TurnData,
-
-        pub const TurnData = struct {
-            input: []const u8,
-            response: []const u8,
-        };
-    };
-
     fn sessionsDir(self: *ReplLoop) ![]const u8 {
-        const home = env.get("HOME") orelse return error.HomeNotSet;
-        const dir = try utils.pathJoin(home, ".abi/sessions", self.allocator);
-        return dir;
+        return try repl_session.sessionsDir(self.allocator);
     }
 
     /// `/save <name>`: serialize session state to ~/.abi/sessions/<name>.json.
-    /// Writes a single JSON object matching `SessionFile` so `/load` can parse
-    /// it with `parseFromSlice`. The directory is created idempotently on save.
     fn saveSession(self: *ReplLoop, name: []const u8, io: std.Io) !void {
-        if (name.len == 0) {
-            std.debug.print("usage: /save <name>\n", .{});
-            return;
-        }
-        const sessions_dir = try self.sessionsDir();
-        defer self.allocator.free(sessions_dir);
-
-        // Ensure the sessions directory exists (idempotent — succeeds if
-        // the path already exists, creates intermediate dirs otherwise).
-        std.Io.Dir.createDirPath(.cwd(), io, sessions_dir) catch |err| {
-            std.debug.print("save: cannot create sessions dir '{s}': {s}\n", .{ sessions_dir, @errorName(err) });
-            return;
-        };
-
-        const filepath = try std.fmt.allocPrint(self.allocator, "{s}/{s}.json", .{ sessions_dir, name });
-        defer self.allocator.free(filepath);
-
-        // Extract valid turn entries in order
-        var turns = std.ArrayListUnmanaged(SessionFile.TurnData).empty;
-        defer turns.deinit(self.allocator);
-        var i: usize = 0;
-        while (i < self.state.turn_history_count) : (i += 1) {
-            const idx = (self.state.turn_history_head + MAX_TURN_HISTORY - self.state.turn_history_count + i) % MAX_TURN_HISTORY;
-            try turns.append(self.allocator, .{
-                .input = self.state.turn_history[idx].input,
-                .response = self.state.turn_history[idx].response,
-            });
-        }
-
-        var json_out: std.Io.Writer.Allocating = .init(self.allocator);
-        defer json_out.deinit();
-        var jw = std.json.Stringify{ .writer = &json_out.writer, .options = .{ .whitespace = .indent_2 } };
-        try jw.beginObject();
-        try jw.objectField("version");
-        try jw.write(@as(u32, 1));
-        try jw.objectField("session_id");
-        try jw.write(self.state.session_id);
-        try jw.objectField("model");
-        try jw.write(self.state.config.model);
-        try jw.objectField("learn_mode");
-        try jw.write(self.state.config.learn_mode);
-        try jw.objectField("open_path");
-        try jw.write(self.state.open_path);
-        try jw.objectField("open_content");
-        try jw.write(self.state.open_content);
-        try jw.objectField("turn_count");
-        try jw.write(self.state.turn_count);
-        try jw.objectField("turn_history_count");
-        try jw.write(self.state.turn_history_count);
-        try jw.objectField("turn_history_head");
-        try jw.write(self.state.turn_history_head);
-        try jw.objectField("turns");
-        try jw.beginArray();
-        for (turns.items) |t| {
-            try jw.beginObject();
-            try jw.objectField("input");
-            try jw.write(t.input);
-            try jw.objectField("response");
-            try jw.write(t.response);
-            try jw.endObject();
-        }
-        try jw.endArray();
-        try jw.endObject();
-
-        try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = filepath, .data = json_out.written() });
-
-        std.debug.print("session saved: {s} ({d} turns)\n", .{ filepath, turns.items.len });
+        try repl_session.saveSession(self.allocator, &self.state, name, io);
     }
 
     /// `/load <name>`: restore session state from ~/.abi/sessions/<name>.json.
     fn loadSession(self: *ReplLoop, name: []const u8, io: std.Io) !void {
-        if (name.len == 0) {
-            std.debug.print("usage: /load <name>\n", .{});
-            return;
-        }
-        const sessions_dir = try self.sessionsDir();
-        defer self.allocator.free(sessions_dir);
-
-        const filepath = try std.fmt.allocPrint(self.allocator, "{s}/{s}.json", .{ sessions_dir, name });
-        defer self.allocator.free(filepath);
-
-        const content = std.Io.Dir.cwd().readFileAlloc(io, filepath, self.allocator, .limited(10 * 1024 * 1024)) catch |err| {
-            std.debug.print("load: cannot read '{s}': {s}\n", .{ filepath, @errorName(err) });
-            return;
-        };
-        defer self.allocator.free(content);
-
-        const parsed = std.json.parseFromSlice(SessionFile, self.allocator, content, .{
-            .ignore_unknown_fields = true,
-        }) catch |err| {
-            std.debug.print("load: parse error: {s}\n", .{@errorName(err)});
-            return;
-        };
-        defer parsed.deinit();
-
-        // Clear current state before restoring
-        self.state.clearTurnHistory(self.allocator);
-        self.state.clearFileContext(self.allocator);
-
-        // Restore config
-        if (parsed.value.model.len > 0 and parsed.value.model.len <= MODEL_STORAGE_BYTES) {
-            @memcpy(self.state.model_storage[0..parsed.value.model.len], parsed.value.model);
-            self.state.config.model = self.state.model_storage[0..parsed.value.model.len];
-        }
-        self.state.config.learn_mode = parsed.value.learn_mode;
-        self.state.session_id = parsed.value.session_id;
-        self.state.turn_count = parsed.value.turn_count;
-        // Clamp untrusted file values to valid ring-buffer ranges.
-        self.state.turn_history_count = @min(parsed.value.turn_history_count, MAX_TURN_HISTORY);
-        self.state.turn_history_head = parsed.value.turn_history_head % MAX_TURN_HISTORY;
-
-        // Restore turn history
-        var ti: usize = 0;
-        while (ti < self.state.turn_history_count and ti < parsed.value.turns.len) : (ti += 1) {
-            const idx = (self.state.turn_history_head + MAX_TURN_HISTORY - self.state.turn_history_count + ti) % MAX_TURN_HISTORY;
-            self.state.turn_history[idx] = .{
-                .input = try self.allocator.dupe(u8, parsed.value.turns[ti].input),
-                .response = try self.allocator.dupe(u8, parsed.value.turns[ti].response),
-            };
-        }
-
-        // Restore file context
-        if (parsed.value.open_path.len > 0 and parsed.value.open_content.len > 0) {
-            const path_bytes = parsed.value.open_path;
-            const content_bytes = parsed.value.open_content;
-            const header_len = @sizeOf(usize);
-            const total_len = header_len + path_bytes.len + content_bytes.len;
-            const buf = try self.allocator.alloc(u8, total_len);
-            @memcpy(buf[0..header_len], std.mem.asBytes(&path_bytes.len));
-            @memcpy(buf[header_len..][0..path_bytes.len], path_bytes);
-            @memcpy(buf[header_len + path_bytes.len ..], content_bytes);
-            self.state.file_context_buf = buf;
-            self.state.open_path = buf[header_len..][0..path_bytes.len];
-            self.state.open_content = buf[header_len + path_bytes.len ..];
-        }
-
-        std.debug.print("session loaded: {s} ({d} turns)\n", .{ filepath, parsed.value.turn_history_count });
+        try repl_session.loadSession(self.allocator, &self.state, name, io);
     }
 };
 
@@ -1297,7 +1063,6 @@ test "save and load session round-trip restores state" {
     if (!build_options.feat_wdbx) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
-    const io = std.testing.io;
 
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
@@ -1318,69 +1083,15 @@ test "save and load session round-trip restores state" {
     repl.state.pushTurn(allocator, "hello", "world");
     repl.state.pushTurn(allocator, "foo", "bar");
 
-    // Save to a temp file by setting HOME to a temp dir
-    const temp_home = "/tmp/abi-test-save-load";
-    // Clean up any prior state
-    std.Io.Dir.deleteTree(.cwd(), io, temp_home) catch {};
-    defer std.Io.Dir.deleteTree(.cwd(), io, temp_home) catch {};
+    // Serialization lives in repl_session; exercise it through the loop state.
+    const json = try repl_session.serializeSession(allocator, &repl.state);
+    defer allocator.free(json);
 
-    // We can't easily override HOME for the sessionsDir() call, so test
-    // the serialization format directly: build the JSON and parse it back.
-    const SessionFile = ReplLoop.SessionFile;
-    var turns = std.ArrayListUnmanaged(SessionFile.TurnData).empty;
-    defer turns.deinit(allocator);
-    var i: usize = 0;
-    while (i < repl.state.turn_history_count) : (i += 1) {
-        const idx = (repl.state.turn_history_head + MAX_TURN_HISTORY - repl.state.turn_history_count + i) % MAX_TURN_HISTORY;
-        try turns.append(allocator, .{
-            .input = repl.state.turn_history[idx].input,
-            .response = repl.state.turn_history[idx].response,
-        });
-    }
-
-    // Serialize
-    var json_out: std.Io.Writer.Allocating = .init(allocator);
-    defer json_out.deinit();
-    var jw = std.json.Stringify{ .writer = &json_out.writer, .options = .{ .whitespace = .indent_2 } };
-    try jw.beginObject();
-    try jw.objectField("version");
-    try jw.write(@as(u32, 1));
-    try jw.objectField("session_id");
-    try jw.write(repl.state.session_id);
-    try jw.objectField("model");
-    try jw.write(repl.state.config.model);
-    try jw.objectField("learn_mode");
-    try jw.write(repl.state.config.learn_mode);
-    try jw.objectField("open_path");
-    try jw.write(repl.state.open_path);
-    try jw.objectField("open_content");
-    try jw.write(repl.state.open_content);
-    try jw.objectField("turn_count");
-    try jw.write(repl.state.turn_count);
-    try jw.objectField("turn_history_count");
-    try jw.write(repl.state.turn_history_count);
-    try jw.objectField("turn_history_head");
-    try jw.write(repl.state.turn_history_head);
-    try jw.objectField("turns");
-    try jw.beginArray();
-    for (turns.items) |t| {
-        try jw.beginObject();
-        try jw.objectField("input");
-        try jw.write(t.input);
-        try jw.objectField("response");
-        try jw.write(t.response);
-        try jw.endObject();
-    }
-    try jw.endArray();
-    try jw.endObject();
-
-    // Parse it back
-    const parsed = try std.json.parseFromSlice(SessionFile, allocator, json_out.written(), .{
+    const parsed = try std.json.parseFromSlice(SessionFile, allocator, json, .{
         .ignore_unknown_fields = true,
     });
     defer parsed.deinit();
 
-    // Verify round-trip
     try std.testing.expectEqual(@as(u32, 1), parsed.value.version);
     try std.testing.expectEqual(@as(i64, 123456), parsed.value.session_id);
     try std.testing.expectEqualStrings("test-model", parsed.value.model);

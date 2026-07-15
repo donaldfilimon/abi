@@ -5,6 +5,8 @@ const terminal = @import("terminal.zig");
 const types = @import("types.zig");
 
 pub const repl = @import("repl.zig");
+pub const repl_types = @import("repl_types.zig");
+pub const repl_session = @import("repl_session.zig");
 pub const ReplLoop = repl.ReplLoop;
 pub const ReplState = repl.ReplState;
 pub const ReplConfig = repl.ReplConfig;
@@ -16,6 +18,7 @@ pub const formatContextStatus = repl.formatContextStatus;
 pub const printHelpWithPlugins = repl.printHelpWithPlugins;
 pub const MAX_TURN_HISTORY = repl.MAX_TURN_HISTORY;
 pub const TurnEntry = repl.TurnEntry;
+pub const SessionFile = repl.SessionFile;
 
 pub const Status = types.Status;
 pub const Item = types.Item;

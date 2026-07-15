@@ -51,6 +51,25 @@ pub const TurnEntry = struct {
     response: []const u8 = "",
 };
 
+/// Disabled-TUI session file shape (parity with `repl_session.SessionFile`).
+pub const SessionFile = struct {
+    version: u32 = 0,
+    session_id: i64 = 0,
+    model: []const u8 = "",
+    learn_mode: bool = false,
+    open_path: []const u8 = "",
+    open_content: []const u8 = "",
+    turn_count: usize = 0,
+    turn_history_count: usize = 0,
+    turn_history_head: usize = 0,
+    turns: []const TurnData = &.{},
+
+    pub const TurnData = struct {
+        input: []const u8 = "",
+        response: []const u8 = "",
+    };
+};
+
 pub const ReplConfig = struct {
     model: []const u8 = "abi-local",
     store_turns: bool = true,
@@ -103,6 +122,10 @@ pub const ReplLoop = struct {
 };
 
 /// Namespace mirror of `repl.zig` so `tui.repl.*` resolves under the stub too.
+/// Leaf modules re-exported by `mod.zig` for discovery; stubs keep parity.
+pub const repl_types = struct {};
+pub const repl_session = struct {};
+
 pub const repl = struct {
     pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, save, load, unknown };
 
