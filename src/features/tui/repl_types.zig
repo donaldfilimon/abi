@@ -33,6 +33,17 @@ pub const ReplConfig = struct {
 
 pub const MAX_TURN_HISTORY: usize = 10;
 
+/// Maximum bytes for file context loaded via '/open' (was 64 KiB, now unified).
+pub const OPEN_FILE_BUDGET_BYTES: usize = 32 * 1024;
+
+/// Maximum bytes for '@file' mention resolution (was 16 KiB, now shared).
+pub const MENTION_FILE_BUDGET_BYTES: usize = 16 * 1024;
+
+/// Approximate token estimate (4 chars per token) for context budgeting.
+pub fn estimateTokens(text: []const u8) usize {
+    return (text.len + 3) / 4;
+}
+
 pub const TurnEntry = struct {
     input: []const u8,
     response: []const u8,

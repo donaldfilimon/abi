@@ -155,6 +155,15 @@ pub const ReplLoop = struct {
                     if (outcome == .quit) return;
                     self.resetRawPrompt(&editor);
                 },
+                .newline => if (try editor.insertNewline()) self.redrawRawInput(&editor),
+                .ctrl_r => try self.startReverseSearch(term, &editor),
+                .ctrl_l => {
+                    std.debug.print("\x1b[2J\x1b[H", .{});
+                    self.resetRawPrompt(&editor);
+                },
+                .ctrl_k => if (editor.killToEnd()) self.redrawRawInput(&editor),
+                .ctrl_u => if (editor.killToBeginning()) self.redrawRawInput(&editor),
+                .ctrl_w => if (editor.deletePreviousWord()) self.redrawRawInput(&editor),
                 .eof => break,
                 .ignore => {},
             }
@@ -220,6 +229,56 @@ pub const ReplLoop = struct {
         }
     }
 
+    /// Ctrl-R: start an incremental reverse history search. Reads bytes from
+    /// the terminal until Enter (accept), Ctrl-C/Esc (cancel), or backspace
+    /// (shorten query). Matching history entries replace the editor buffer.
+    fn startReverseSearch(self: *ReplLoop, term: *terminal.InteractiveTerminal, editor: *line_editor.LineEditor) !void {
+        var query = std.ArrayListUnmanaged(u8).empty;
+        defer query.deinit(self.allocator);
+
+        std.debug.print("\n(reverse-search) ", .{});
+        self.redrawRawInput(editor);
+
+        while (true) {
+            const byte = term.readKey() orelse break;
+            switch (byte) {
+                '\r', '\n' => {
+                    if (editor.text().len > 0) {
+                        std.debug.print("\n", .{});
+                        return;
+                    }
+                },
+                0x03, 0x1b => {
+                    editor.clear();
+                    std.debug.print("\n(cancelled)\n", .{});
+                    self.resetRawPrompt(editor);
+                    return;
+                },
+                0x08, 0x7f => {
+                    if (query.items.len > 0) {
+                        _ = query.pop();
+                        editor.clear();
+                        if (query.items.len > 0) {
+                            _ = try editor.searchHistory(query.items);
+                        }
+                        std.debug.print("\r(reverse-search) {s} ", .{query.items});
+                        self.redrawRawInput(editor);
+                    }
+                },
+                else => if (byte >= 0x20 and byte < 0x7f) {
+                    try query.append(self.allocator, byte);
+                    editor.clear();
+                    if (try editor.searchHistory(query.items)) |_| {
+                        std.debug.print("\r(reverse-search) {s} ", .{query.items});
+                        self.redrawRawInput(editor);
+                    } else {
+                        std.debug.print("\r(reverse-search) {s} (no match)", .{query.items});
+                    }
+                },
+            }
+        }
+    }
+
     /// Dispatch one already-trimmed, non-empty input line: slash-commands route
     /// to their handlers, ordinary text runs a completion and persists the turn.
     fn dispatchLine(self: *ReplLoop, line: []const u8, io: std.Io) !LineOutcome {
@@ -244,6 +303,8 @@ pub const ReplLoop = struct {
             .learn => self.toggleLearn(),
             .save => try self.saveSession(specialArg(line), io),
             .load => try self.loadSession(specialArg(line), io),
+            .sessions => try self.listSessions(io),
+            .clear => self.clearScreen(),
             .commit => try self.runCommit(io),
             .unknown => {
                 // Check plugin commands
@@ -628,7 +689,7 @@ pub const ReplLoop = struct {
         self.state.clearFileContext(self.allocator);
 
         // Read file content (up to 64 KiB) into an owned buffer
-        const max_read: usize = 65536;
+        const max_read: usize = repl_types.OPEN_FILE_BUDGET_BYTES;
         const content = file_context.readFileBounded(io, self.allocator, ".", path, max_read) catch |err| {
             std.debug.print("open: cannot read '{s}': {s}\n", .{ path, @errorName(err) });
             return;
@@ -654,9 +715,20 @@ pub const ReplLoop = struct {
     }
 
     /// `/diff`: run `git diff` and print the output.
+    /// `/diff [--stat]`: run `git diff` and print the output. When `--stat` is
+    /// passed, shows a summary of changed files. Output is colorized with ANSI
+    /// codes for added (+) lines in green and removed (-) lines in red.
     fn runDiff(self: *ReplLoop, io: std.Io) !void {
+        const arg = specialArg("/diff ");
+        const want_stat = std.mem.eql(u8, arg, "--stat");
+
+        const argv: []const []const u8 = if (want_stat)
+            &[_][]const u8{ "git", "diff", "--stat" }
+        else
+            &[_][]const u8{ "git", "diff", "--color=never" };
+
         var child = std.process.spawn(io, .{
-            .argv = &[_][]const u8{ "git", "diff", "--color=never" },
+            .argv = argv,
             .cwd = .inherit,
             .stdin = .ignore,
             .stdout = .pipe,
@@ -680,11 +752,50 @@ pub const ReplLoop = struct {
 
         if (output.items.len == 0) {
             std.debug.print("diff: working tree is clean\n", .{});
-        } else {
+        } else if (want_stat) {
             std.debug.print("{s}\n", .{output.items});
+        } else {
+            // Colorize diff output: + lines green, - lines red
+            try self.printColorizedDiff(output.items);
         }
         if (term != .exited or term.exited != 0) {
             std.debug.print("diff: git diff terminated: {any}\n", .{term});
+        }
+    }
+
+    /// Print a git diff with ANSI color codes: green for additions, red for
+    /// deletions, dim for hunk headers. All other lines pass through unchanged.
+    fn printColorizedDiff(self: *ReplLoop, diff: []const u8) !void {
+        _ = self;
+        var iter = std.mem.splitScalar(u8, diff, '\n');
+        while (iter.next()) |line| {
+            if (line.len > 0) {
+                switch (line[0]) {
+                    '+' => {
+                        if (!std.mem.startsWith(u8, line, "+++")) {
+                            std.debug.print("\x1b[32m{s}\x1b[0m\n", .{line});
+                        } else {
+                            std.debug.print("\x1b[1m{s}\x1b[0m\n", .{line});
+                        }
+                    },
+                    '-' => {
+                        if (!std.mem.startsWith(u8, line, "---")) {
+                            std.debug.print("\x1b[31m{s}\x1b[0m\n", .{line});
+                        } else {
+                            std.debug.print("\x1b[1m{s}\x1b[0m\n", .{line});
+                        }
+                    },
+                    '@' => std.debug.print("\x1b[36m{s}\x1b[0m\n", .{line}),
+                    'd' => if (std.mem.startsWith(u8, line, "diff")) {
+                        std.debug.print("\x1b[1m{s}\x1b[0m\n", .{line});
+                    } else {
+                        std.debug.print("{s}\n", .{line});
+                    },
+                    else => std.debug.print("{s}\n", .{line}),
+                }
+            } else {
+                std.debug.print("\n", .{});
+            }
         }
     }
 
@@ -813,6 +924,41 @@ pub const ReplLoop = struct {
     fn loadSession(self: *ReplLoop, name: []const u8, io: std.Io) !void {
         try repl_session.loadSession(self.allocator, &self.state, name, io);
     }
+
+    /// `/sessions`: list saved session files in ~/.abi/sessions/.
+    fn listSessions(self: *ReplLoop, io: std.Io) !void {
+        const sessions_dir = repl_session.sessionsDir(self.allocator) catch |err| {
+            std.debug.print("sessions: cannot resolve sessions dir: {s}\n", .{@errorName(err)});
+            return;
+        };
+        defer self.allocator.free(sessions_dir);
+
+        var dir = std.Io.Dir.cwd().openDir(io, sessions_dir, .{}) catch |err| {
+            std.debug.print("sessions: no sessions directory ({s})\n", .{@errorName(err)});
+            return;
+        };
+        defer dir.close(io);
+
+        std.debug.print("Saved sessions:\n", .{});
+        var iter = dir.iterate();
+        var count: usize = 0;
+        while (try iter.next(io)) |entry| {
+            if (entry.kind != .file) continue;
+            if (!std.mem.endsWith(u8, entry.name, ".json")) continue;
+            const name = entry.name[0 .. entry.name.len - 5];
+            std.debug.print("  {s}\n", .{name});
+            count += 1;
+        }
+        if (count == 0) {
+            std.debug.print("  (none)\n", .{});
+        }
+    }
+
+    /// `/clear`: clear the terminal screen and redraw the prompt.
+    fn clearScreen(self: *ReplLoop) void {
+        _ = self;
+        std.debug.print("\x1b[2J\x1b[H", .{});
+    }
 };
 
 /// Resolve `@file` mentions in input text by reading file contents.
@@ -887,6 +1033,10 @@ test "parseSpecialCommand recognizes slash commands and treats prompts as unknow
     try std.testing.expectEqual(SpecialCommand.learn, parseSpecialCommand("/learn"));
     try std.testing.expectEqual(SpecialCommand.save, parseSpecialCommand("/save my-session"));
     try std.testing.expectEqual(SpecialCommand.load, parseSpecialCommand("/load my-session"));
+    try std.testing.expectEqual(SpecialCommand.sessions, parseSpecialCommand("/sessions"));
+    try std.testing.expectEqual(SpecialCommand.sessions, parseSpecialCommand("/ls-sessions"));
+    try std.testing.expectEqual(SpecialCommand.clear, parseSpecialCommand("/clear"));
+    try std.testing.expectEqual(SpecialCommand.clear, parseSpecialCommand("/cls"));
     try std.testing.expectEqual(SpecialCommand.unknown, parseSpecialCommand("/bogus"));
     try std.testing.expectEqual(SpecialCommand.unknown, parseSpecialCommand("hello there"));
     try std.testing.expectEqual(SpecialCommand.unknown, parseSpecialCommand(""));
@@ -949,10 +1099,11 @@ test "slash completion canonicalizes unique prefixes and reports ambiguity" {
     }
     switch (completeSlashCommand("/s", &matches)) {
         .ambiguous => |defs| {
-            try std.testing.expectEqual(@as(usize, 3), defs.len);
+            try std.testing.expectEqual(@as(usize, 4), defs.len);
             try std.testing.expectEqualStrings("status", defs[0].name);
             try std.testing.expectEqualStrings("sync-clis", defs[1].name);
             try std.testing.expectEqualStrings("save", defs[2].name);
+            try std.testing.expectEqualStrings("sessions", defs[3].name);
         },
         else => return error.ExpectedAmbiguousSlashPrefix,
     }
@@ -977,7 +1128,7 @@ test "tui input hardening: adversarial bytes never corrupt state" {
     };
     for (adversarial) |input| {
         switch (parseSpecialCommand(input)) {
-            .quit, .reset, .help, .model, .profile, .status, .history, .context, .syncclis, .open, .diff, .commit, .features, .learn, .save, .load, .unknown => {},
+            .quit, .reset, .help, .model, .profile, .status, .history, .context, .syncclis, .open, .diff, .commit, .features, .learn, .save, .load, .sessions, .clear, .unknown => {},
         }
     }
 

@@ -21,6 +21,12 @@ pub const Key = union(enum) {
     backspace,
     tab,
     enter,
+    newline,
+    ctrl_r,
+    ctrl_l,
+    ctrl_k,
+    ctrl_u,
+    ctrl_w,
     eof,
     ignore,
 };
@@ -59,9 +65,16 @@ pub const KeyDecoder = struct {
             },
             '\r', '\n' => .enter,
             0x01 => .home, // Ctrl-A
+            0x02 => .left, // Ctrl-B
             0x04 => .eof,
             0x05 => .end, // Ctrl-E
+            0x06 => .right, // Ctrl-F
             0x08, 0x7f => .backspace,
+            0x0b => .ctrl_k, // Ctrl-K — kill to end of line
+            0x0c => .ctrl_l, // Ctrl-L — clear screen
+            0x12 => .ctrl_r, // Ctrl-R — reverse search
+            0x15 => .ctrl_u, // Ctrl-U — kill to beginning of line
+            0x17 => .ctrl_w, // Ctrl-W — delete previous word
             '\t' => .tab,
             else => if (byte >= 0x20 and byte < 0x7f) .{ .printable = byte } else .ignore,
         };
@@ -74,6 +87,7 @@ pub const KeyDecoder = struct {
                 break :blk .csi;
             },
             'O' => .ss3,
+            '\r', '\n' => return .newline, // Alt-Enter for multi-line
             else => .normal,
         };
         return null;
@@ -201,6 +215,66 @@ pub const LineEditor = struct {
         self.draft.clearRetainingCapacity();
         self.cursor = 0;
         self.history_index = null;
+    }
+
+    /// Ctrl-K: delete from cursor to end of line.
+    pub fn killToEnd(self: *LineEditor) bool {
+        if (self.cursor >= self.buffer.items.len) return false;
+        self.buffer.shrinkRetainingCapacity(self.cursor);
+        self.history_index = null;
+        return true;
+    }
+
+    /// Ctrl-U: delete from beginning of line to cursor.
+    pub fn killToBeginning(self: *LineEditor) bool {
+        if (self.cursor == 0) return false;
+        const removed = self.cursor;
+        var i: usize = 0;
+        while (i < removed) : (i += 1) _ = self.buffer.orderedRemove(0);
+        self.cursor = 0;
+        self.history_index = null;
+        return true;
+    }
+
+    /// Ctrl-W: delete the word before the cursor (whitespace-delimited).
+    pub fn deletePreviousWord(self: *LineEditor) bool {
+        if (self.cursor == 0) return false;
+        const end = self.cursor;
+        var start = end;
+        while (start > 0 and (self.buffer.items[start - 1] == ' ' or self.buffer.items[start - 1] == '\t')) start -= 1;
+        while (start > 0 and (self.buffer.items[start - 1] != ' ' and self.buffer.items[start - 1] != '\t')) start -= 1;
+        if (start == end) return false;
+        var i = start;
+        while (i < end) : (i += 1) _ = self.buffer.orderedRemove(start);
+        self.cursor = start;
+        self.history_index = null;
+        return true;
+    }
+
+    /// Alt-Enter: insert a literal newline for multi-line input.
+    pub fn insertNewline(self: *LineEditor) !bool {
+        if (self.buffer.items.len >= MAX_LINE_BYTES) return false;
+        try self.buffer.insert(self.allocator, self.cursor, '\n');
+        self.cursor += 1;
+        self.history_index = null;
+        return true;
+    }
+
+    /// Ctrl-R: search history backward for 'query'. Returns matching text or null.
+    pub fn searchHistory(self: *LineEditor, query: []const u8) !?[]const u8 {
+        if (self.history.items.len == 0 or query.len == 0) return null;
+        const start_idx = if (self.history_index) |idx| (if (idx > 0) idx - 1 else return null) else self.history.items.len - 1;
+        var i = start_idx;
+        while (true) {
+            if (std.mem.indexOf(u8, self.history.items[i], query) != null) {
+                self.history_index = i;
+                try self.replace(self.history.items[i]);
+                return self.history.items[i];
+            }
+            if (i == 0) break;
+            i -= 1;
+        }
+        return null;
     }
 
     /// Record the submitted line in ephemeral history. Existing consecutive
@@ -349,6 +423,76 @@ test "line editor unsupported escape sequence tails never enter the editor buffe
         };
     }
     try std.testing.expectEqualStrings("ab", editor.text());
+}
+
+test "ctrl-K kills to end of line" {
+    var editor = LineEditor.init(std.testing.allocator);
+    defer editor.deinit();
+    try editor.replace("hello world");
+    // replace() puts cursor at end; move left 6 to position 5
+    for (0..6) |_| {
+        _ = editor.moveLeft();
+    }
+    try std.testing.expect(editor.killToEnd());
+    try std.testing.expectEqualStrings("hello", editor.text());
+}
+
+test "ctrl-U kills to beginning of line" {
+    var editor = LineEditor.init(std.testing.allocator);
+    defer editor.deinit();
+    try editor.replace("hello world");
+    // replace() puts cursor at end; move left to position 5
+    for (0..6) |_| {
+        _ = editor.moveLeft();
+    }
+    try std.testing.expect(editor.killToBeginning());
+    try std.testing.expectEqualStrings(" world", editor.text());
+    try std.testing.expectEqual(@as(usize, 0), editor.cursor);
+}
+
+test "ctrl-W deletes previous word" {
+    var editor = LineEditor.init(std.testing.allocator);
+    defer editor.deinit();
+    try editor.replace("hello world");
+    _ = editor.moveEnd();
+    try std.testing.expect(editor.deletePreviousWord());
+    try std.testing.expectEqualStrings("hello ", editor.text());
+}
+
+test "insertNewline adds a literal newline" {
+    var editor = LineEditor.init(std.testing.allocator);
+    defer editor.deinit();
+    _ = try editor.insertPrintable('a');
+    _ = try editor.insertNewline();
+    _ = try editor.insertPrintable('b');
+    try std.testing.expectEqualStrings("a\nb", editor.text());
+}
+
+test "searchHistory finds matching entries backward" {
+    var editor = LineEditor.init(std.testing.allocator);
+    defer editor.deinit();
+    try editor.replace("git status");
+    try editor.recordSubmitted();
+    try editor.replace("git commit");
+    try editor.recordSubmitted();
+    try editor.replace("git push");
+    try editor.recordSubmitted();
+
+    const result = try editor.searchHistory("commit");
+    try std.testing.expect(result != null);
+    try std.testing.expectEqualStrings("git commit", editor.text());
+
+    const result2 = try editor.searchHistory("commit");
+    try std.testing.expect(result2 == null);
+}
+
+test "key decoder maps ctrl-r ctrl-l ctrl-k ctrl-u ctrl-w" {
+    var decoder = KeyDecoder{};
+    try std.testing.expectEqual(Key.ctrl_r, decoder.feed(0x12).?);
+    try std.testing.expectEqual(Key.ctrl_l, decoder.feed(0x0c).?);
+    try std.testing.expectEqual(Key.ctrl_k, decoder.feed(0x0b).?);
+    try std.testing.expectEqual(Key.ctrl_u, decoder.feed(0x15).?);
+    try std.testing.expectEqual(Key.ctrl_w, decoder.feed(0x17).?);
 }
 
 test {

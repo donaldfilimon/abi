@@ -11,7 +11,7 @@ const models = @import("../ai/models.zig");
 /// Maximum length of a model id settable via `/model`.
 pub const MODEL_STORAGE_BYTES = 128;
 
-pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, save, load, unknown };
+pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, save, load, sessions, clear, unknown };
 
 pub const SlashCommand = struct {
     kind: SpecialCommand,
@@ -30,13 +30,15 @@ pub const slash_commands = [_]SlashCommand{
     .{ .kind = .context, .name = "context", .summary = "Show current context state (open file, turn history)" },
     .{ .kind = .syncclis, .name = "sync-clis", .aliases = &.{"syncclis"}, .summary = "Sync skills/plugins/commands/experiences across CLIs" },
     .{ .kind = .open, .name = "open", .summary = "Read a file into the prompt context" },
-    .{ .kind = .diff, .name = "diff", .summary = "Show git diff for the working tree" },
+    .{ .kind = .diff, .name = "diff", .summary = "Show git diff (use --stat for summary)" },
     .{ .kind = .commit, .name = "commit", .summary = "Stage all changes and create a commit" },
     .{ .kind = .quit, .name = "quit", .aliases = &.{ "q", "exit" }, .summary = "Exit the REPL" },
     .{ .kind = .features, .name = "features", .aliases = &.{"feat"}, .summary = "Show active build-time features" },
     .{ .kind = .learn, .name = "learn", .summary = "Toggle SEA self-learning mode on/off" },
     .{ .kind = .save, .name = "save", .summary = "Save session context to ~/.abi/sessions/<name>.json" },
     .{ .kind = .load, .name = "load", .summary = "Restore session context from ~/.abi/sessions/<name>.json" },
+    .{ .kind = .sessions, .name = "sessions", .aliases = &.{"ls-sessions"}, .summary = "List saved sessions in ~/.abi/sessions/" },
+    .{ .kind = .clear, .name = "clear", .aliases = &.{"cls"}, .summary = "Clear the terminal screen" },
 };
 
 pub const SlashCompletion = union(enum) {
