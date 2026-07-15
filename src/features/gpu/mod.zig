@@ -6,7 +6,6 @@ const std = @import("std");
 pub const backends = @import("backends.zig");
 pub const vector_ops = @import("vector_ops.zig");
 pub const reporting = @import("reporting.zig");
-const metal_shared = @import("metal_shared.zig");
 
 // ---- Type re-exports from backends ----
 pub const Backend = backends.Backend;

@@ -120,6 +120,7 @@ fn mapHttpError(err: anyerror) ConnectorError {
         error.OutOfMemory => error.OutOfMemory,
         error.Timeout => error.Timeout,
         error.AuthenticationError => error.AuthenticationError,
+        error.ReadFailed, error.ConnectionRefused, error.ConnectionResetByPeer, error.HostUnreachable, error.NetworkUnreachable, error.UnknownHostName, error.WouldBlock, error.Canceled, error.Unexpected, error.SystemResources, error.AddressInUse, error.AddressUnavailable, error.AddressFamilyUnsupported, error.ProtocolUnsupportedBySystem, error.ProtocolUnsupportedByAddressFamily, error.SocketModeUnsupported, error.OptionUnsupported, error.ConnectionPending, error.AccessDenied, error.ProcessFdQuotaExceeded, error.SystemFdQuotaExceeded, error.NetworkDown, error.NameServerFailure, error.InvalidDnsARecord, error.InvalidDnsAAAARecord, error.InvalidDnsCnameRecord, error.InvalidHostName, error.ResolvConfParseFailed, error.NoAddressReturned, error.DetectingNetworkConfigurationFailed, error.TlsInitializationFailed, error.UnsupportedUriScheme, error.UriMissingHost, error.CertificateBundleLoadFailure => error.ConnectionFailed,
         else => error.ConnectionFailed,
     };
 }
@@ -234,6 +235,150 @@ pub fn httpPostJsonStreaming(
     // Parse SSE stream from response body; returned slice is the full
     // concatenated token text (owned by caller).
     return try parseSseStream(allocator, response_writer.written(), on_chunk, callback_ctx);
+}
+
+/// Streaming SSE response handler with **true incremental HTTP read**.
+/// Uses the lower-level `std.http.Client.request` API to parse SSE events
+/// as they arrive over the network, without buffering the entire response.
+/// The callback receives `done=true` with empty `delta` when the stream ends.
+pub fn httpPostJsonStreamingIncremental(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    config: ConnectorConfig,
+    path: []const u8,
+    body: []const u8,
+    on_chunk: *const fn (ctx: *anyopaque, chunk: StreamChunk) ConnectorError!void,
+    callback_ctx: *anyopaque,
+) ConnectorError![]const u8 {
+    if (config.transport != .live) return ConnectorError.LiveTransportUnavailable;
+
+    const url = try joinUrl(allocator, config.base_url, path);
+    defer allocator.free(url);
+
+    const uri = std.Uri.parse(url) catch return ConnectorError.ConnectionFailed;
+
+    var client = std.http.Client{ .allocator = allocator, .io = io };
+    defer client.deinit();
+
+    // Create request using lower-level API for streaming access
+    var req = (blk: {
+        const r = std.http.Client.request(&client, .POST, uri, .{
+            .headers = .{
+                .content_type = .{ .override = "application/json" },
+            },
+            .extra_headers = &[_]std.http.Header{
+                .{ .name = "Accept", .value = "text/event-stream" },
+                .{ .name = "Cache-Control", .value = "no-cache" },
+            },
+            .redirect_behavior = .unhandled,
+            .keep_alive = true,
+        }) catch |err| {
+            break :blk mapHttpError(err);
+        };
+        break :blk r;
+    }) catch |err| return err;
+    defer req.deinit();
+
+    // Send request body
+    const mutable_body = @constCast(body);
+    req.sendBodyComplete(mutable_body) catch |err| {
+        return mapHttpError(err);
+    };
+
+    // Receive response headers
+    var redirect_buffer: [8192]u8 = undefined;
+    var response = req.receiveHead(&redirect_buffer) catch |err| {
+        return mapHttpError(err);
+    };
+    try mapHttpStatus(response.head.status);
+
+    // Get decompressing reader for incremental body reading
+    var transfer_buffer: [64]u8 = undefined;
+    var decompress: std.http.Decompress = undefined;
+    var decompress_buffer: []u8 = &.{};
+    if (response.head.content_encoding != .identity) {
+        decompress_buffer = try allocator.alloc(u8, switch (response.head.content_encoding) {
+            .zstd => std.compress.zstd.default_window_len,
+            .deflate, .gzip => std.compress.flate.max_window_len,
+            else => return ConnectorError.InvalidResponse,
+        });
+        defer allocator.free(decompress_buffer);
+    }
+    const reader = response.readerDecompressing(&transfer_buffer, &decompress, decompress_buffer);
+
+    // Parse SSE incrementally as data arrives
+    return try parseSseStreamIncremental(allocator, reader, on_chunk, callback_ctx);
+}
+
+fn parseSseStreamIncremental(
+    allocator: std.mem.Allocator,
+    reader: *std.Io.Reader,
+    on_chunk: *const fn (ctx: *anyopaque, chunk: StreamChunk) ConnectorError!void,
+    callback_ctx: *anyopaque,
+) ConnectorError![]const u8 {
+    var accumulated = std.ArrayListUnmanaged(u8).empty;
+    errdefer accumulated.deinit(allocator);
+
+    // Read in chunks and parse SSE events incrementally
+    var read_buf: [4096]u8 = undefined;
+    var line_buf = std.ArrayListUnmanaged(u8).empty;
+    defer line_buf.deinit(allocator);
+    var data_buffer = std.ArrayListUnmanaged(u8).empty;
+    defer data_buffer.deinit(allocator);
+
+    while (true) {
+        var n: usize = 0;
+        blk: {
+            n = try std.Io.Reader.readSliceShort(reader, read_buf[0..]);
+            if (n == 0) break :blk;
+        }
+        if (n == 0) break;
+
+        var i: usize = 0;
+        while (i < n) {
+            const byte = read_buf[i];
+            i += 1;
+
+            if (byte == '\n') {
+                // End of line - process it
+                const line = std.mem.trim(u8, line_buf.items, "\r");
+                if (line.len == 0) {
+                    // Empty line = end of SSE event
+                    if (data_buffer.items.len > 0) {
+                        const event_data = try data_buffer.toOwnedSlice(allocator);
+                        defer allocator.free(event_data);
+                        try processSseEvent(event_data, allocator, on_chunk, callback_ctx, &accumulated);
+                        data_buffer = std.ArrayListUnmanaged(u8).empty;
+                    }
+                } else if (std.mem.startsWith(u8, line, "data:")) {
+                    const data = std.mem.trim(u8, line[5..], " \t");
+                    // OpenAI SSE sentinel: data: [DONE]
+                    if (std.mem.eql(u8, data, "[DONE]")) {
+                        try on_chunk(callback_ctx, .{ .delta = "", .done = true });
+                    } else {
+                        try data_buffer.appendSlice(allocator, data);
+                        try data_buffer.append(allocator, '\n');
+                    }
+                }
+                // Ignore other SSE fields (event:, id:, retry:)
+                line_buf = std.ArrayListUnmanaged(u8).empty;
+            } else {
+                // Accumulate line
+                try line_buf.append(allocator, byte);
+            }
+        }
+    }
+
+    // Handle final event if no trailing newline
+    if (data_buffer.items.len > 0) {
+        const event_data = try data_buffer.toOwnedSlice(allocator);
+        defer allocator.free(event_data);
+        try processSseEvent(event_data, allocator, on_chunk, callback_ctx, &accumulated);
+    }
+
+    // Ensure a terminal done event even if the server omitted finish_reason/[DONE]
+    try on_chunk(callback_ctx, .{ .delta = "", .done = true });
+    return try accumulated.toOwnedSlice(allocator);
 }
 
 fn parseSseStream(

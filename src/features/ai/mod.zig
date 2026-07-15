@@ -35,6 +35,8 @@ pub const ObservabilityHub = pipeline_telemetry.ObservabilityHub;
 
 pub const AgentProfile = types.AgentProfile;
 pub const known_profiles = types.known_profiles;
+pub const COMPLETION_KEY_FMT = types.COMPLETION_KEY_FMT;
+pub const PROFILE_LABELS = types.PROFILE_LABELS;
 pub const DatasetFormat = types.DatasetFormat;
 pub const DatasetSpec = types.DatasetSpec;
 pub const TrainingConfig = types.TrainingConfig;
@@ -429,7 +431,7 @@ test "completion with store records vectors metadata and block" {
         try std.testing.expect(result.block_id != null);
         try std.testing.expectEqual(@as(usize, 2), store.vectorCount());
         try std.testing.expectEqual(@as(usize, 1), store.blockCount());
-        const key = try std.fmt.allocPrint(std.testing.allocator, "completion:{d}", .{result.query_vector_id.?});
+        const key = try std.fmt.allocPrint(std.testing.allocator, types.COMPLETION_KEY_FMT, .{result.query_vector_id.?});
         defer std.testing.allocator.free(key);
         const metadata = store.get(key) orelse return error.MissingCompletionMetadata;
         const parsed_metadata = try std.json.parseFromSlice(std.json.Value, std.testing.allocator, metadata, .{});

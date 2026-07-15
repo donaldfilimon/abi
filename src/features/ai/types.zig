@@ -4,6 +4,10 @@ const constitution = @import("constitution.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const core_memory = @import("../../core/memory.zig");
 
+/// Shared format string for completion metadata keys. Use `completionMetadataKey`
+/// when possible, or reference this constant to avoid format-string drift.
+pub const COMPLETION_KEY_FMT = "completion:{d}";
+
 pub const AgentProfile = enum {
     abbey,
     aviva,
@@ -19,6 +23,9 @@ pub const AgentProfile = enum {
 };
 
 pub const known_profiles = [_]AgentProfile{ .abbey, .aviva, .abi };
+
+/// Profile label strings in canonical order.
+pub const PROFILE_LABELS = [_][]const u8{ "abbey", "aviva", "abi" };
 
 pub const DatasetFormat = enum {
     jsonl,

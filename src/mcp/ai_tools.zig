@@ -278,7 +278,7 @@ fn queryPersonaWeight(ctx: *const anyopaque, id: u32) f32 {
 fn seedMcpProfileVectors(allocator: std.mem.Allocator, store: *features.wdbx.Store) !void {
     if (store.get("wdbx:profiles_seeded") != null and store.temporalNodeCount() > 0) return;
 
-    const labels = [_][]const u8{ "abbey", "aviva", "abi" };
+    const labels = abi.features.ai.PROFILE_LABELS;
 
     var seeded_ids: [labels.len]u32 = undefined;
     for (labels, 0..) |label, i| {
@@ -302,7 +302,7 @@ fn profileForVector(store: *const features.wdbx.Store, id: u32) []const u8 {
     const profile_key = std.fmt.bufPrint(&key_buf, "wdbx:profile:{d}", .{id}) catch return "unknown";
     if (store.get(profile_key)) |label| return label;
 
-    const completion_key = std.fmt.bufPrint(&key_buf, "completion:{d}", .{id}) catch return "unknown";
+    const completion_key = std.fmt.bufPrint(&key_buf, abi.features.ai.COMPLETION_KEY_FMT, .{id}) catch return "unknown";
     const metadata = store.get(completion_key) orelse return "unknown";
     return profileFromCompletionMetadata(metadata);
 }
