@@ -6,6 +6,9 @@ const temp_path = @import("../../foundation/temp_path.zig");
 const env = @import("../../foundation/env.zig");
 const helpers = @import("helpers.zig");
 const types = @import("types.zig");
+const point_neural_net = @import("point_neural_net.zig");
+
+const Point = point_neural_net.Point;
 
 /// Optional absolute root for dataset/artifact paths (TM-003). When unset,
 /// the process cwd is the confine root. Absolute paths outside the root and
@@ -176,6 +179,88 @@ fn countJsonlRecords(allocator: std.mem.Allocator, data: []const u8) !usize {
     return records;
 }
 
+/// Extract a single training text from a parsed JSON value. Prefers the
+/// `input`/`text`/`content` string fields; a bare JSON string is used directly;
+/// anything else yields null (caller skips the record).
+fn extractTextFromJson(allocator: std.mem.Allocator, value: std.json.Value) !?[]const u8 {
+    switch (value) {
+        .string => |s| return try allocator.dupe(u8, s),
+        .object => |obj| {
+            if (obj.get("input")) |v| if (v == .string) return try allocator.dupe(u8, v.string);
+            if (obj.get("text")) |v| if (v == .string) return try allocator.dupe(u8, v.string);
+            if (obj.get("content")) |v| if (v == .string) return try allocator.dupe(u8, v.string);
+            return null;
+        },
+        else => return null,
+    }
+}
+
+/// Read a training dataset and turn each record into a 3-D `Point` via
+/// `Point.fromText`. Returns `null` when the file is missing, empty, or yields
+/// no parseable text records. Caller owns the returned slice of `Point`s.
+pub fn datasetToPoints(allocator: std.mem.Allocator, dataset: types.DatasetSpec) !?[]Point {
+    const path = foundation_io.resolvePath(allocator, dataset.path) catch return null;
+    defer allocator.free(path);
+    const data = foundation_io.asyncReadFile(allocator, path) catch return null;
+    defer allocator.free(data);
+
+    var texts = std.ArrayListUnmanaged([]const u8).empty;
+    errdefer {
+        for (texts.items) |t| allocator.free(t);
+        texts.deinit(allocator);
+    }
+
+    switch (dataset.format) {
+        .text => {
+            var lines = std.mem.splitScalar(u8, data, '\n');
+            while (lines.next()) |line| {
+                const trimmed = std.mem.trim(u8, line, " \t\r");
+                if (trimmed.len == 0) continue;
+                try texts.append(allocator, try allocator.dupe(u8, trimmed));
+            }
+        },
+        .jsonl => {
+            var lines = std.mem.splitScalar(u8, data, '\n');
+            while (lines.next()) |line| {
+                const trimmed = std.mem.trim(u8, line, " \t\r");
+                if (trimmed.len == 0) continue;
+                const parsed = std.json.parseFromSlice(std.json.Value, allocator, trimmed, .{}) catch continue;
+                const text = extractTextFromJson(allocator, parsed.value) catch {
+                    parsed.deinit();
+                    continue;
+                };
+                parsed.deinit();
+                if (text) |t| try texts.append(allocator, t);
+            }
+        },
+        .csv => {
+            var lines = std.mem.splitScalar(u8, data, '\n');
+            var first = true;
+            while (lines.next()) |line| {
+                const trimmed = std.mem.trim(u8, line, " \t\r");
+                if (trimmed.len == 0) continue;
+                if (first) {
+                    first = false;
+                    continue; // header row
+                }
+                var cell_iter = std.mem.splitScalar(u8, trimmed, ',');
+                const cell = std.mem.trim(u8, cell_iter.first(), " \"");
+                if (cell.len == 0) continue;
+                try texts.append(allocator, try allocator.dupe(u8, cell));
+            }
+        },
+    }
+
+    if (texts.items.len == 0) return null;
+
+    const points = try allocator.alloc(Point, texts.items.len);
+    errdefer allocator.free(points);
+    for (texts.items, 0..) |t, i| points[i] = Point.fromText(t);
+    for (texts.items) |t| allocator.free(t);
+    texts.deinit(allocator);
+    return points;
+}
+
 test "profile parsing accepts known profiles" {
     try std.testing.expectEqual(types.AgentProfile.abbey, try parseAgentProfile("abbey"));
     try std.testing.expectEqual(types.AgentProfile.aviva, try parseAgentProfile("aviva"));
@@ -266,6 +351,37 @@ test "inspectDatasetTracked accounts read and JSON parse transients" {
     try std.testing.expectEqual(tracker.getTotalAllocated(), tracker.getTotalFreed());
     try std.testing.expectEqual(@as(usize, 0), tracker.getCurrentUsage());
     try std.testing.expectEqual(@as(usize, 0), tracker.getRecordCount());
+}
+
+test "datasetToPoints parses jsonl/text/csv records into points" {
+    const allocator = std.testing.allocator;
+
+    const jsonl = try temp_path.tempFilePath(allocator, "abi_ds_jsonl", "jsonl");
+    defer allocator.free(jsonl);
+    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, jsonl) catch {};
+    try foundation_io.asyncWriteFile(jsonl, "{\"input\":\"hello world\"}\n{\"input\":\"foo bar\"}\n");
+    const jp = (try datasetToPoints(allocator, .{ .path = jsonl, .format = .jsonl })).?;
+    defer allocator.free(jp);
+    try std.testing.expectEqual(@as(usize, 2), jp.len);
+
+    const text = try temp_path.tempFilePath(allocator, "abi_ds_text", "txt");
+    defer allocator.free(text);
+    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, text) catch {};
+    try foundation_io.asyncWriteFile(text, "alpha\nbeta\ngamma\n");
+    const tp = (try datasetToPoints(allocator, .{ .path = text, .format = .text })).?;
+    defer allocator.free(tp);
+    try std.testing.expectEqual(@as(usize, 3), tp.len);
+
+    const csv = try temp_path.tempFilePath(allocator, "abi_ds_csv", "csv");
+    defer allocator.free(csv);
+    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, csv) catch {};
+    try foundation_io.asyncWriteFile(csv, "text\nred\ngreen\n");
+    const cp = (try datasetToPoints(allocator, .{ .path = csv, .format = .csv })).?;
+    defer allocator.free(cp);
+    try std.testing.expectEqual(@as(usize, 2), cp.len);
+
+    // Missing file yields null.
+    try std.testing.expect((try datasetToPoints(allocator, .{ .path = "/no/such/file.jsonl", .format = .jsonl })) == null);
 }
 
 test {

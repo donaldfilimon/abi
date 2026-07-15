@@ -1,5 +1,6 @@
 const std = @import("std");
 const build_options = @import("build_options");
+const foundation_io = @import("../../foundation/io/mod.zig");
 const accelerator = if (build_options.feat_accelerator) @import("../accelerator/mod.zig") else @import("../accelerator/stub.zig");
 const mlir = if (build_options.feat_mlir) @import("../mlir/mod.zig") else @import("../mlir/stub.zig");
 const shaders = if (build_options.feat_shader) @import("../shaders/mod.zig") else @import("../shaders/stub.zig");
@@ -7,8 +8,59 @@ const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @impor
 const scheduler_mod = @import("../../core/scheduler.zig");
 const helpers = @import("helpers.zig");
 const training_support = @import("training_support.zig");
+const point_neural_net = @import("point_neural_net.zig");
 const temp_path = @import("../../foundation/temp_path.zig");
 const types = @import("types.zig");
+
+/// Outcome of training a real `PointNeuralNetwork` on a dataset during `train`.
+const NeuralNetOutcome = struct {
+    records: usize,
+    weights_path: []u8,
+    final_loss: f32,
+};
+
+/// Train a small `PointNeuralNetwork` autoencoder on the dataset's records and
+/// persist the weights to `artifact_dir/neural_net_<profile>.json`. Returns
+/// `null` when no parseable records exist or any step fails — the caller keeps
+/// its metadata-only path. Caller owns nothing (the weights path is duped into
+/// the returned struct and freed by the caller after building the message).
+fn trainNeuralNetOnDataset(allocator: std.mem.Allocator, config: types.TrainingConfig) !?NeuralNetOutcome {
+    const points = try training_support.datasetToPoints(allocator, config.dataset) orelse return null;
+    defer allocator.free(points);
+    if (points.len == 0) return null;
+
+    var net = try point_neural_net.PointNeuralNetwork.init(allocator, &.{ 3, 8, 3 }, 0.01);
+    defer net.deinit();
+
+    // Autoencoder: reconstruct each input point as its own target.
+    var coords = try allocator.alloc([3]f32, points.len);
+    defer allocator.free(coords);
+    var targets = try allocator.alloc([]const f32, points.len);
+    defer allocator.free(targets);
+    for (points, 0..) |p, i| {
+        coords[i] = .{ p.x, p.y, p.z };
+        targets[i] = &coords[i];
+    }
+
+    const final_loss = try net.train(points, targets, 50);
+    _ = net.optimizeTopology(points);
+
+    const json = try net.save();
+    defer allocator.free(json);
+
+    // Best-effort: ensure the confined artifact dir exists before writing.
+    std.Io.Dir.createDirPath(.cwd(), std.Options.debug_io, config.artifact_dir) catch {};
+
+    const weights_path = try std.fmt.allocPrint(allocator, "{s}/neural_net_{s}.json", .{ config.artifact_dir, config.profile });
+    defer allocator.free(weights_path);
+    try foundation_io.asyncWriteFile(weights_path, json);
+
+    return .{
+        .records = points.len,
+        .weights_path = try allocator.dupe(u8, weights_path),
+        .final_loss = final_loss,
+    };
+}
 
 pub fn submitTrainingTask(sched: *scheduler_mod.Scheduler, name: []const u8, ctx: *types.TrainingTaskContext) !u64 {
     if (sched.getMemoryTracker()) |tracker| {
@@ -26,6 +78,21 @@ fn runTrainingTask(ctx: ?*anyopaque) anyerror!void {
 pub fn train(allocator: std.mem.Allocator, config: types.TrainingConfig) !types.TrainingResult {
     try training_support.validateTrainingConfigConfined(allocator, config);
     const summary = try training_support.inspectDatasetTracked(allocator, config.dataset, config.tracker);
+
+    // Real neural-net training when a dataset is available: train a small
+    // PointNeuralNetwork (autoencoder) on the records and persist the weights to
+    // artifact_dir. Failures fall back to the metadata-only path below.
+    var net_outcome: ?NeuralNetOutcome = null;
+    if (summary.available and summary.records > 0) {
+        net_outcome = trainNeuralNetOnDataset(allocator, config) catch null;
+    }
+    const net_part = if (net_outcome) |o| try std.fmt.allocPrint(
+        allocator,
+        "; model trained on {d} records; weights={s}; final_loss={d}",
+        .{ o.records, o.weights_path, o.final_loss },
+    ) else try allocator.dupe(u8, "; model weights unchanged");
+    defer allocator.free(net_part);
+    if (net_outcome) |o| allocator.free(o.weights_path);
 
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
@@ -53,12 +120,12 @@ pub fn train(allocator: std.mem.Allocator, config: types.TrainingConfig) !types.
     const records_stored: usize = if (metadata_recorded) summary.records else 0;
     const message = if (metadata_recorded) try std.fmt.allocPrint(
         allocator,
-        "training metadata accepted; dataset_available={s}; records={d}; bytes={d}; model weights unchanged",
-        .{ if (summary.available) "true" else "false", summary.records, summary.bytes },
+        "training metadata accepted; dataset_available={s}; records={d}; bytes={d}{s}",
+        .{ if (summary.available) "true" else "false", summary.records, summary.bytes, net_part },
     ) else try std.fmt.allocPrint(
         allocator,
-        "training accepted; wdbx feature is disabled for this build; dataset_available={s}; dataset_records={d}; bytes={d}; model weights unchanged",
-        .{ if (summary.available) "true" else "false", summary.records, summary.bytes },
+        "training accepted; wdbx feature is disabled for this build; dataset_available={s}; dataset_records={d}; bytes={d}{s}",
+        .{ if (summary.available) "true" else "false", summary.records, summary.bytes, net_part },
     );
     errdefer allocator.free(message);
 
@@ -235,7 +302,6 @@ test "trainWithStore tracks transient persistence memory and frees it" {
 test "trainWithStore uses the store tracker for dataset inspection when config tracker is unset" {
     if (!build_options.feat_wdbx) return;
     const memory = @import("../../core/memory.zig");
-    const foundation_io = @import("../../foundation/io/mod.zig");
     const allocator = std.testing.allocator;
 
     // Relative under cwd so path confinement (cwd/`ABI_TRAIN_DATA_ROOT`) accepts it.
@@ -267,7 +333,6 @@ test "trainWithStore uses the store tracker for dataset inspection when config t
 
 test "train accounts its transient internals on config.tracker (balanced)" {
     const memory = @import("../../core/memory.zig");
-    const foundation_io = @import("../../foundation/io/mod.zig");
     const allocator = std.testing.allocator;
 
     const path = "zig-out/abi_train_config_tracker.jsonl";
@@ -311,6 +376,31 @@ test "evaluate accepts a valid config and rejects an invalid profile" {
         .dataset = .{ .path = "d" },
         .artifact_dir = "a",
     }));
+}
+
+test "train trains a real net and persists weights when a dataset is available" {
+    const allocator = std.testing.allocator;
+
+    // Dataset + artifact dir live under cwd so path confinement accepts them.
+    try std.Io.Dir.createDirPath(.cwd(), std.testing.io, "zig-out");
+    const path = "zig-out/abi_train_real_net.jsonl";
+    try foundation_io.asyncWriteFile(path, "{\"input\":\"hello world\"}\n{\"input\":\"foo bar baz\"}\n");
+    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
+
+    // Artifact dir from an earlier test run may already exist; best-effort.
+    std.Io.Dir.createDirPath(.cwd(), std.testing.io, "zig-cache/agent-artifacts") catch {};
+
+    var result = try train(allocator, .{
+        .profile = "abbey",
+        .dataset = .{ .path = path, .format = .jsonl },
+        .artifact_dir = "zig-cache/agent-artifacts",
+    });
+    defer result.deinit(allocator);
+
+    try std.testing.expect(result.accepted);
+    // The real network was trained (not the metadata-only disclosure).
+    try std.testing.expect(std.mem.indexOf(u8, result.message, "model trained") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result.message, "neural_net_abbey.json") != null);
 }
 
 test {
