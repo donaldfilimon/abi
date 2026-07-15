@@ -34,12 +34,11 @@
 
 - [x] Inventory dirty tree (~91 paths) and baseline `./build.sh check`
 - [x] Confirm agent surfaces via `.agents/skills/agent-plan-train/agent.sh`
-- [ ] Commit by subsystem (conventional commits):
-  - `feat(connectors|ai|tui|cli|wdbx|plugins):` source
-  - `chore(skills):` skill pack
-  - `docs:` instruction + todo board
-- [ ] Exclude or leave untracked: `modernized/`, large `datasets/`, scratch `.superpower-verification.json` unless intentional
-- [ ] Re-run `./build.sh check` after commits
+- [x] Commit by subsystem (conventional commits):
+  - `d69ee6cd` feat: stream bridge SSE, agent TUI multi-turn, WDBX rate/TLS config
+  - `654cc951` chore(skills): expand agent skills pack and Approach-1 wave plan
+- [x] Exclude untracked: `modernized/`, `datasets/`, `.superpower-verification.json`, `test_build_flags.sh`
+- [x] Re-run `./build.sh check` after implementation (exit 0; parity green)
 
 ## Wave B — Streaming token path
 
@@ -55,7 +54,7 @@
 - [x] Unit tests: parseSseEvent + multi-token parseSseStream
 - [x] Agent TUI: if `isLocalBridgeModel`, health-check → `completeLiveStreaming` with sanitize print
 - [x] CLI: `handleLocalBridgeComplete(..., stream)`
-- [ ] Prove with gate: `zig build test -Dtest-filter=parseSse` + `./build.sh check`
+- [x] Prove with gate: `zig build test -Dtest-filter=parseSse` + `./build.sh check` (exit 0)
 - [ ] Optional live smoke: local llama-server + `abi complete --stream --model llama-cpp/…` (requires server)
 
 ## Wave C — Remaining Approach-1 slices
