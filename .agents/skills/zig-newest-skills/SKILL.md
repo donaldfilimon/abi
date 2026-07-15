@@ -33,7 +33,7 @@ What it does, cheapest gate first: `zvm use master` → `zig build check-parity`
 `RESULT: PASS — abi builds + runs on the newest Zig master.` (exit 0) or
 `RESULT: FAIL — master drift broke N gate(s).` (exit N).
 
-Historical verification on master `0.17.0-dev.1275` (pin is `1252`):
+Historical verification on master `0.17.0-dev.1275` (pin was `1252` at the time):
 **PASS, 0 failed gates.**
 
 Flags:
