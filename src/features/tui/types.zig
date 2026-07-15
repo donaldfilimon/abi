@@ -29,6 +29,12 @@ pub const PaneKind = enum {
     storage,
     scheduler,
     memory,
+    agent_output,
+};
+
+pub const FocusedPane = enum {
+    left,
+    right,
 };
 
 pub const DashboardPaneMeta = struct {
@@ -73,6 +79,13 @@ pub const DashboardState = struct {
     memory_current: usize = 0,
     memory_leaked: usize = 0,
     selected_pane: usize = 0,
+
+    /// Split-pane agent output (owned buffer, last ~8KB of agent REPL output).
+    agent_output_buffer: []const u8 = &.{},
+    /// Scroll offset into agent_output_buffer lines.
+    agent_output_scroll: usize = 0,
+    /// Which pane currently receives keyboard input.
+    focused_pane: FocusedPane = .left,
 };
 
 test {

@@ -114,6 +114,8 @@ pub fn handleDashboardWithOptions(allocator: std.mem.Allocator, options: Dashboa
     defer session.deinit();
 
     var selected_pane: usize = options.initial_pane;
+    var focused_pane: abi.features.tui.FocusedPane = .left;
+    var agent_scroll: usize = 0;
     var quit = false;
     while (!quit) {
         _ = try scheduler.submit("dashboard-refresh", .low, struct {
@@ -121,10 +123,11 @@ pub fn handleDashboardWithOptions(allocator: std.mem.Allocator, options: Dashboa
         }.run, null);
         _ = try scheduler.runNext();
 
-        try renderAndPrint(allocator, &scheduler, &store, &registry, plugin_names, gpu_snapshot, selected_pane, options);
+        try renderWithSplit(allocator, &scheduler, &store, &registry, plugin_names, gpu_snapshot, selected_pane, options, focused_pane, agent_scroll);
 
         // Timeout auto-refreshes; r/R refreshes immediately; 1-5 or h/l to
-        // select pane; unrelated keys ignored.
+        // select pane when left-focused; Tab toggles focus; j/k scrolls
+        // agent output when right-focused.
         while (session.term.pollInput(options.refresh_interval_ms)) {
             const key = session.term.readKey() orelse {
                 quit = true;
@@ -134,10 +137,26 @@ pub fn handleDashboardWithOptions(allocator: std.mem.Allocator, options: Dashboa
                 quit = true;
                 break;
             }
-            if (abi.features.tui.isRefreshKey(key)) break;
-            if (nextPane(selected_pane, key)) |pane| {
-                selected_pane = pane;
+            if (abi.features.tui.isTabKey(key)) {
+                focused_pane = if (focused_pane == .left) .right else .left;
                 break;
+            }
+            if (focused_pane == .right) {
+                if (abi.features.tui.isScrollUpKey(key)) {
+                    if (agent_scroll > 0) agent_scroll -= 1;
+                    break;
+                }
+                if (abi.features.tui.isScrollDownKey(key)) {
+                    agent_scroll += 1;
+                    break;
+                }
+            }
+            if (focused_pane == .left) {
+                if (abi.features.tui.isRefreshKey(key)) break;
+                if (nextPane(selected_pane, key)) |pane| {
+                    selected_pane = pane;
+                    break;
+                }
             }
         }
     }
@@ -153,6 +172,11 @@ fn renderOneShot(allocator: std.mem.Allocator, scheduler: anytype, store: anytyp
 
 fn renderAndPrint(allocator: std.mem.Allocator, scheduler: anytype, store: anytype, registry: anytype, plugin_names: []const []const u8, gpu_snapshot: GpuSnapshot, selected: usize, options: DashboardOptions) !void {
     try renderFrame(allocator, scheduler, store, registry, plugin_names, gpu_snapshot, selected, options, true);
+}
+
+fn renderWithSplit(allocator: std.mem.Allocator, scheduler: anytype, store: anytype, registry: anytype, plugin_names: []const []const u8, gpu_snapshot: GpuSnapshot, selected: usize, options: DashboardOptions, focused_pane: abi.features.tui.FocusedPane, agent_scroll: usize) !void {
+    var writer = DebugWriter{};
+    try renderFrameWriterSplit(&writer, allocator, scheduler, store, registry, plugin_names, gpu_snapshot, selected, options, true, focused_pane, agent_scroll);
 }
 
 fn renderFrame(allocator: std.mem.Allocator, scheduler: anytype, store: anytype, registry: anytype, plugin_names: []const []const u8, gpu_snapshot: GpuSnapshot, selected: usize, options: DashboardOptions, screen_control: bool) !void {
@@ -181,6 +205,25 @@ fn renderFrameWriter(writer: anytype, allocator: std.mem.Allocator, scheduler: a
 
     // Flicker-free redraw: home the cursor, overwrite the frame in place, then
     // clear any trailing rows a shorter frame would have left behind.
+    if (screen_control) try abi.features.tui.homeScreenWriter(writer);
+    try writer.writeAll(rendered);
+    if (screen_control) try abi.features.tui.clearToEndWriter(writer);
+}
+
+/// Render the split-pane dashboard (diagnostics left, agent output right).
+/// Same screen-control protocol as renderFrameWriter for flicker-free redraw.
+fn renderFrameWriterSplit(writer: anytype, allocator: std.mem.Allocator, scheduler: anytype, store: anytype, registry: anytype, plugin_names: []const []const u8, gpu_snapshot: GpuSnapshot, selected: usize, options: DashboardOptions, screen_control: bool, focused_pane: abi.features.tui.FocusedPane, agent_scroll: usize) !void {
+    var state = collectDashboardState(scheduler, store, registry, plugin_names, gpu_snapshot, selected);
+    state.focused_pane = focused_pane;
+    state.agent_output_scroll = agent_scroll;
+
+    const rendered = try abi.features.tui.renderDiagnosticsSplitWithOptions(allocator, state, .{
+        .color = options.color,
+        .refresh_interval_ms = @intCast(options.refresh_interval_ms),
+        .compact = options.compact,
+    });
+    defer allocator.free(rendered);
+
     if (screen_control) try abi.features.tui.homeScreenWriter(writer);
     try writer.writeAll(rendered);
     if (screen_control) try abi.features.tui.clearToEndWriter(writer);

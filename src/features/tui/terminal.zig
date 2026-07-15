@@ -118,6 +118,18 @@ pub fn isRefreshKey(byte: u8) bool {
     return byte == 'r' or byte == 'R';
 }
 
+pub fn isTabKey(byte: u8) bool {
+    return byte == 0x09;
+}
+
+pub fn isScrollUpKey(byte: u8) bool {
+    return byte == 'k' or byte == 'K';
+}
+
+pub fn isScrollDownKey(byte: u8) bool {
+    return byte == 'j' or byte == 'J';
+}
+
 pub fn initScreen() !void {
     std.debug.print("\x1b[?1049h\x1b[H", .{});
 }
@@ -265,6 +277,21 @@ test "quit and refresh key detection" {
     try std.testing.expect(isRefreshKey('r'));
     try std.testing.expect(isRefreshKey('R'));
     try std.testing.expect(!isRefreshKey('q'));
+}
+
+test "tab key detection" {
+    try std.testing.expect(isTabKey(0x09));
+    try std.testing.expect(!isTabKey(' '));
+    try std.testing.expect(!isTabKey('t'));
+}
+
+test "scroll key detection" {
+    try std.testing.expect(isScrollUpKey('k'));
+    try std.testing.expect(isScrollUpKey('K'));
+    try std.testing.expect(!isScrollUpKey('j'));
+    try std.testing.expect(isScrollDownKey('j'));
+    try std.testing.expect(isScrollDownKey('J'));
+    try std.testing.expect(!isScrollDownKey('k'));
 }
 
 test {

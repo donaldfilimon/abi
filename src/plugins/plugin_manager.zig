@@ -17,12 +17,25 @@ pub const ManifestSchemaError = error{
     InvalidJson,
 };
 
+pub const ManifestCommand = struct {
+    name: []const u8,
+    summary: []const u8 = "",
+    aliases: []const []const u8 = &.{},
+};
+
+pub const ManifestContextProvider = struct {
+    name: []const u8,
+    summary: []const u8 = "",
+};
+
 pub const PluginManifest = struct {
     name: []const u8,
     version: []const u8,
     description: []const u8,
     target_feature: []const u8,
     entry_point: []const u8,
+    commands: []const ManifestCommand = &.{},
+    context_providers: []const ManifestContextProvider = &.{},
 
     pub fn deinit(self: PluginManifest, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
@@ -30,6 +43,18 @@ pub const PluginManifest = struct {
         allocator.free(self.description);
         allocator.free(self.target_feature);
         allocator.free(self.entry_point);
+        for (self.commands) |cmd| {
+            allocator.free(cmd.name);
+            allocator.free(cmd.summary);
+            for (cmd.aliases) |alias| allocator.free(alias);
+            allocator.free(cmd.aliases);
+        }
+        allocator.free(self.commands);
+        for (self.context_providers) |cp| {
+            allocator.free(cp.name);
+            allocator.free(cp.summary);
+        }
+        allocator.free(self.context_providers);
     }
 };
 
@@ -41,6 +66,8 @@ pub const PluginInfo = struct {
     entry_point: []const u8,
     path: []const u8,
     loaded: bool,
+    commands: []const ManifestCommand = &.{},
+    context_providers: []const ManifestContextProvider = &.{},
 };
 
 pub const PluginLoadError = error{
@@ -119,6 +146,18 @@ pub const PluginManager = struct {
             self.allocator.free(plugin.info.target_feature);
             self.allocator.free(plugin.info.entry_point);
             self.allocator.free(plugin.info.path);
+            for (plugin.info.commands) |cmd| {
+                self.allocator.free(cmd.name);
+                self.allocator.free(cmd.summary);
+                for (cmd.aliases) |alias| self.allocator.free(alias);
+                self.allocator.free(cmd.aliases);
+            }
+            self.allocator.free(plugin.info.commands);
+            for (plugin.info.context_providers) |cp| {
+                self.allocator.free(cp.name);
+                self.allocator.free(cp.summary);
+            }
+            self.allocator.free(plugin.info.context_providers);
         }
         self.plugins.deinit(self.allocator);
     }
@@ -167,12 +206,71 @@ pub const PluginManager = struct {
         const owned_entry = try allocator.dupe(u8, entry_point);
         errdefer allocator.free(owned_entry);
 
+        // Parse optional commands array
+        const commands = if (obj.get("commands")) |cmds_val| blk: {
+            if (cmds_val != .array) break :blk &.{};
+            const arr = cmds_val.array.items;
+            const cmds = try allocator.alloc(ManifestCommand, arr.len);
+            errdefer allocator.free(cmds);
+            for (arr, 0..) |cmd_val, i| {
+                if (cmd_val != .object) return ManifestSchemaError.InvalidJson;
+                const cmd_obj = cmd_val.object;
+                const cmd_name = cmd_obj.get("name") orelse return ManifestSchemaError.InvalidJson;
+                if (cmd_name != .string or cmd_name.string.len == 0) return ManifestSchemaError.InvalidJson;
+                const cmd_summary = if (cmd_obj.get("summary")) |s| if (s == .string) s.string else "" else "";
+                const owned_cmd_name = try allocator.dupe(u8, cmd_name.string);
+                errdefer allocator.free(owned_cmd_name);
+                const owned_cmd_summary = try allocator.dupe(u8, cmd_summary);
+                errdefer allocator.free(owned_cmd_summary);
+
+                // Parse optional aliases
+                var aliases: []const []const u8 = &.{};
+                if (cmd_obj.get("aliases")) |alias_val| {
+                    if (alias_val == .array) {
+                        const alias_arr = try allocator.alloc([]const u8, alias_val.array.items.len);
+                        errdefer allocator.free(alias_arr);
+                        for (alias_val.array.items, 0..) |a, j| {
+                            if (a != .string) return ManifestSchemaError.InvalidJson;
+                            alias_arr[j] = try allocator.dupe(u8, a.string);
+                        }
+                        aliases = alias_arr;
+                    }
+                }
+
+                cmds[i] = .{ .name = owned_cmd_name, .summary = owned_cmd_summary, .aliases = aliases };
+            }
+            break :blk cmds;
+        } else &.{};
+
+        // Parse optional context_providers array
+        const context_providers = if (obj.get("context_providers")) |cps_val| blk: {
+            if (cps_val != .array) break :blk &.{};
+            const arr = cps_val.array.items;
+            const cps = try allocator.alloc(ManifestContextProvider, arr.len);
+            errdefer allocator.free(cps);
+            for (arr, 0..) |cp_val, i| {
+                if (cp_val != .object) return ManifestSchemaError.InvalidJson;
+                const cp_obj = cp_val.object;
+                const cp_name = cp_obj.get("name") orelse return ManifestSchemaError.InvalidJson;
+                if (cp_name != .string or cp_name.string.len == 0) return ManifestSchemaError.InvalidJson;
+                const cp_summary = if (cp_obj.get("summary")) |s| if (s == .string) s.string else "" else "";
+                const owned_cp_name = try allocator.dupe(u8, cp_name.string);
+                errdefer allocator.free(owned_cp_name);
+                const owned_cp_summary = try allocator.dupe(u8, cp_summary);
+                errdefer allocator.free(owned_cp_summary);
+                cps[i] = .{ .name = owned_cp_name, .summary = owned_cp_summary };
+            }
+            break :blk cps;
+        } else &.{};
+
         return .{
             .name = owned_name,
             .version = owned_version,
             .description = owned_description,
             .target_feature = owned_target,
             .entry_point = owned_entry,
+            .commands = commands,
+            .context_providers = context_providers,
         };
     }
 
@@ -228,6 +326,8 @@ pub const PluginManager = struct {
             .entry_point = manifest.entry_point,
             .path = owned_path,
             .loaded = true,
+            .commands = manifest.commands,
+            .context_providers = manifest.context_providers,
         };
 
         const loaded = LoadedPlugin{ .info = plugin_info };
@@ -254,6 +354,18 @@ pub const PluginManager = struct {
         self.allocator.free(info.target_feature);
         self.allocator.free(info.entry_point);
         self.allocator.free(info.path);
+        for (info.commands) |cmd| {
+            self.allocator.free(cmd.name);
+            self.allocator.free(cmd.summary);
+            for (cmd.aliases) |alias| self.allocator.free(alias);
+            self.allocator.free(cmd.aliases);
+        }
+        self.allocator.free(info.commands);
+        for (info.context_providers) |cp| {
+            self.allocator.free(cp.name);
+            self.allocator.free(cp.summary);
+        }
+        self.allocator.free(info.context_providers);
 
         telemetry.record("plugin.unloaded");
     }
@@ -286,6 +398,40 @@ pub const PluginManager = struct {
         self.lock.lockRead();
         defer self.lock.unlockRead();
         return self.plugins.count();
+    }
+
+    /// Collect context snippets from all loaded plugins that declare
+    /// context_providers. Calls each provider's `run()` with input
+    /// `__context__:<name>` and formats the results as
+    /// `[context:plugin:provider]\nsnippet\n[/context]\n`.
+    /// Caller owns the returned slice; returns empty string if none.
+    pub fn collectContextSnippets(self: *PluginManager, allocator: std.mem.Allocator) ![]const u8 {
+        self.lock.lockRead();
+        defer self.lock.unlockRead();
+
+        var out = std.ArrayListUnmanaged(u8).empty;
+        errdefer out.deinit(allocator);
+
+        var it = self.plugins.iterator();
+        while (it.next()) |entry| {
+            const info = entry.value_ptr.info;
+            if (info.context_providers.len == 0) continue;
+
+            for (info.context_providers) |provider| {
+                const input = try std.fmt.allocPrint(allocator, "__context__:{s}", .{provider.name});
+                defer allocator.free(input);
+
+                const snippet = self.run(allocator, info.name, input) catch |err| {
+                    std.log.warn("context provider {s}/{s} failed: {s}", .{ info.name, provider.name, @errorName(err) });
+                    continue;
+                };
+                defer allocator.free(snippet);
+
+                try out.print(allocator, "[context:{s}:{s}]\n{s}\n[/context]\n", .{ info.name, provider.name, snippet });
+            }
+        }
+
+        return try out.toOwnedSlice(allocator);
     }
 
     /// Real plugin execution dispatch for registered in-tree plugins.

@@ -8,10 +8,57 @@ const sanitize = @import("sanitize.zig");
 /// Disabled-TUI REPL surface. Mirrors `repl.zig`'s public names so
 /// `zig build check-parity` holds; `ReplLoop.run` refuses with
 /// `error.FeatureDisabled`.
+pub const PluginSlashCommand = struct {
+    name: []const u8,
+    summary: []const u8,
+    plugin: []const u8,
+    aliases: []const []const u8 = &.{},
+};
+
+pub const PluginDispatchFn = *const fn (allocator: std.mem.Allocator, plugin: []const u8, cmd_name: []const u8, arg: []const u8) anyerror![]u8;
+
+pub fn matchPluginCommandToken(token: []const u8, plugin_cmds: []const PluginSlashCommand) ?PluginSlashCommand {
+    for (plugin_cmds) |cmd| {
+        if (std.mem.eql(u8, token, cmd.name)) return cmd;
+        for (cmd.aliases) |alias| {
+            if (std.mem.eql(u8, token, alias)) return cmd;
+        }
+    }
+    return null;
+}
+
+pub fn printPluginHelp(plugin_cmds: []const PluginSlashCommand) void {
+    _ = plugin_cmds;
+}
+
+pub fn formatContextStatus(allocator: std.mem.Allocator, open_path: []const u8, open_content: []const u8, turn_count: usize, history_count: usize, turn_history_preview: []const u8) ![]u8 {
+    _ = open_path;
+    _ = open_content;
+    _ = turn_count;
+    _ = history_count;
+    _ = turn_history_preview;
+    return allocator.dupe(u8, "context: TUI feature is disabled");
+}
+
+pub fn printHelpWithPlugins(plugin_cmds: []const PluginSlashCommand) void {
+    _ = plugin_cmds;
+}
+
+pub const MAX_TURN_HISTORY = 10;
+
+pub const TurnEntry = struct {
+    input: []const u8 = "",
+    response: []const u8 = "",
+};
+
 pub const ReplConfig = struct {
     model: []const u8 = "abi-local",
     store_turns: bool = true,
     prompt_prefix: []const u8 = "> ",
+    plugin_commands: []const PluginSlashCommand = &.{},
+    plugin_dispatch: ?PluginDispatchFn = null,
+    context_snippets: []const u8 = "",
+    learn_mode: bool = false,
 };
 
 pub const ReplState = struct {
@@ -57,7 +104,7 @@ pub const ReplLoop = struct {
 
 /// Namespace mirror of `repl.zig` so `tui.repl.*` resolves under the stub too.
 pub const repl = struct {
-    pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, syncclis, unknown };
+    pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, save, load, unknown };
 
     pub fn parseSpecialCommand(line: []const u8) SpecialCommand {
         _ = line;
@@ -73,6 +120,7 @@ pub const PaneKind = types.PaneKind;
 pub const DiagPane = types.DiagPane;
 pub const DashboardPaneMeta = types.DashboardPaneMeta;
 pub const DashboardState = types.DashboardState;
+pub const FocusedPane = types.FocusedPane;
 pub const DASHBOARD_PANES = types.DASHBOARD_PANES;
 pub const DASHBOARD_PANE_COUNT = types.DASHBOARD_PANE_COUNT;
 
@@ -96,6 +144,7 @@ pub fn dashboardPaneName(kind: PaneKind) []const u8 {
         .storage => "storage",
         .scheduler => "scheduler",
         .memory => "memory",
+        .agent_output => "agent_output",
     };
 }
 
@@ -217,6 +266,16 @@ pub fn renderDiagnosticsWithOptions(allocator: std.mem.Allocator, ds: DashboardS
     return try allocator.dupe(u8, "TUI diagnostics are disabled in this build");
 }
 
+pub fn renderDiagnosticsSplit(allocator: std.mem.Allocator, ds: DashboardState) ![]u8 {
+    return renderDiagnosticsSplitWithOptions(allocator, ds, .{});
+}
+
+pub fn renderDiagnosticsSplitWithOptions(allocator: std.mem.Allocator, ds: DashboardState, options: DiagnosticRenderOptions) ![]u8 {
+    _ = ds;
+    _ = options;
+    return try allocator.dupe(u8, "TUI diagnostics split mode is disabled in this build");
+}
+
 pub fn writeDashboard(writer: anytype, allocator: std.mem.Allocator, state: State) !void {
     const rendered = try renderDashboard(allocator, state);
     defer allocator.free(rendered);
@@ -235,6 +294,18 @@ pub fn isQuitKey(byte: u8) bool {
 
 pub fn isRefreshKey(byte: u8) bool {
     return byte == 'r' or byte == 'R';
+}
+
+pub fn isTabKey(byte: u8) bool {
+    return byte == 0x09;
+}
+
+pub fn isScrollUpKey(byte: u8) bool {
+    return byte == 'k' or byte == 'K';
+}
+
+pub fn isScrollDownKey(byte: u8) bool {
+    return byte == 'j' or byte == 'J';
 }
 
 test {

@@ -3,6 +3,17 @@ const abi = @import("../../root.zig");
 const usage_mod = @import("../usage.zig");
 const help = @import("agent_help.zig");
 
+/// Wrapper that creates a PluginManager, loads bundled plugins, and dispatches
+/// a plugin slash-command through its `run` method. Designed to be passed as
+/// `ReplConfig.plugin_dispatch` from the TUI layer.
+fn dispatchPluginCommand(allocator: std.mem.Allocator, plugin: []const u8, cmd_name: []const u8, arg: []const u8) ![]u8 {
+    _ = cmd_name;
+    var pm = abi.plugins.PluginManager.init(allocator);
+    defer pm.deinit();
+    abi.plugins.loadBundled(&pm);
+    return pm.run(allocator, plugin, arg);
+}
+
 /// `abi agent <plan|train|tui|os|multi|spawn|browser> ...`: dispatch agent subcommands.
 /// `plan` runs a dry-run agent over a single input (reporting scheduler and
 /// memory-tracker stats), `train` trains one or all AI profiles against the
@@ -15,7 +26,7 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
     if (usage_mod.isHelpToken(sub_cmd)) return usage_mod.printCommandHelp("agent");
     if (std.mem.eql(u8, sub_cmd, "plan")) {
         if (args.len == 4 and usage_mod.isHelpToken(args[3])) return help.agentPlanHelp();
-        return handleAgentPlan(allocator, args);
+        return handleAgentPlan(io, allocator, args);
     } else if (std.mem.eql(u8, sub_cmd, "train")) {
         if (args.len == 4 and usage_mod.isHelpToken(args[3])) return help.agentTrainHelp();
         return handleAgentTrain(io, allocator, args);
@@ -27,7 +38,7 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
         return handleAgentOs(io, allocator, args);
     } else if (std.mem.eql(u8, sub_cmd, "multi")) {
         if (args.len == 4 and usage_mod.isHelpToken(args[3])) return help.agentMultiHelp();
-        return handleAgentMulti(allocator, args);
+        return handleAgentMulti(io, allocator, args);
     } else if (std.mem.eql(u8, sub_cmd, "spawn")) {
         if (args.len == 4 and usage_mod.isHelpToken(args[3])) return help.agentSpawnHelp();
         return handleAgentSpawn(io, allocator, args);
@@ -39,12 +50,16 @@ pub fn handleAgent(io: std.Io, allocator: std.mem.Allocator, args: []const []con
     }
 }
 
-fn handleAgentPlan(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
+fn handleAgentPlan(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len != 4) return usage_mod.usageError("usage: abi agent plan <input>");
-    return handleAgentPlanInput(allocator, args[3]);
+    return handleAgentPlanInput(io, allocator, args[3]);
 }
 
-pub fn handleAgentPlanInput(allocator: std.mem.Allocator, input: []const u8) !u8 {
+pub fn handleAgentPlanInput(io: std.Io, allocator: std.mem.Allocator, input: []const u8) !u8 {
+    var budget = abi.features.ai.file_context.ContextBudget.init(abi.features.ai.file_context.DEFAULT_BUDGET_BYTES);
+    const augmented = try abi.features.ai.file_context.resolveAndInject(io, allocator, input, ".", &budget);
+    defer allocator.free(augmented);
+
     var sched = abi.scheduler.Scheduler.init(allocator);
     defer sched.deinit();
 
@@ -54,7 +69,7 @@ pub fn handleAgentPlanInput(allocator: std.mem.Allocator, input: []const u8) !u8
     sched.setMemoryTracker(&mem_tracker);
 
     const plan_allocator = tracking_alloc.allocator();
-    const result = try abi.features.ai.runAgentWithScheduler(plan_allocator, &sched, "agent:plan", .{ .name = "cli-agent", .instructions = "Plan only; do not execute.", .dry_run = true }, input);
+    const result = try abi.features.ai.runAgentWithScheduler(plan_allocator, &sched, "agent:plan", .{ .name = "cli-agent", .instructions = "Plan only; do not execute.", .dry_run = true }, augmented);
     defer result.deinit(plan_allocator);
     std.debug.print("{s}\n", .{result.output});
     const s = sched.stats();
@@ -190,8 +205,65 @@ pub fn handleAgentTuiNoArgs(io: std.Io, allocator: std.mem.Allocator) !u8 {
     var sched = abi.scheduler.Scheduler.init(allocator);
     defer sched.deinit();
 
-    var repl = abi.features.tui.ReplLoop.init(allocator, store, &sched, .{});
-    defer repl.deinit();
+    // Build plugin command list from the Registry
+    var reg = abi.registry.Registry.init(allocator);
+    defer reg.deinit();
+    try reg.loadPlugins();
+
+    var plugin_cmds = std.ArrayListUnmanaged(abi.features.tui.PluginSlashCommand).empty;
+    defer {
+        for (plugin_cmds.items) |pc| {
+            allocator.free(pc.name);
+            allocator.free(pc.summary);
+            allocator.free(pc.plugin);
+            for (pc.aliases) |a| allocator.free(a);
+            allocator.free(pc.aliases);
+        }
+        plugin_cmds.deinit(allocator);
+    }
+
+    {
+        const plugins = try reg.snapshotPlugins(allocator);
+        defer abi.registry.Registry.freePluginSnapshot(allocator, plugins);
+        for (plugins) |plugin| {
+            for (plugin.commands) |cmd| {
+                const name = try allocator.dupe(u8, cmd.name);
+                errdefer allocator.free(name);
+                const summary = try allocator.dupe(u8, cmd.summary);
+                errdefer allocator.free(summary);
+                const plugin_name = try allocator.dupe(u8, plugin.name);
+                errdefer allocator.free(plugin_name);
+                const aliases = try allocator.alloc([]const u8, cmd.aliases.len);
+                errdefer allocator.free(aliases);
+                for (cmd.aliases, 0..) |a, j| {
+                    aliases[j] = try allocator.dupe(u8, a);
+                }
+                try plugin_cmds.append(allocator, .{
+                    .name = name,
+                    .summary = summary,
+                    .plugin = plugin_name,
+                    .aliases = aliases,
+                });
+            }
+        }
+    }
+
+    // Collect context snippets from plugin context providers
+    var pm = abi.plugins.PluginManager.init(allocator);
+    defer pm.deinit();
+    abi.plugins.loadBundled(&pm);
+    const context_snippets = try pm.collectContextSnippets(allocator);
+    errdefer allocator.free(context_snippets);
+
+    var repl = abi.features.tui.ReplLoop.init(allocator, store, &sched, .{
+        .plugin_commands = plugin_cmds.items,
+        .plugin_dispatch = dispatchPluginCommand,
+        .context_snippets = context_snippets,
+    });
+    defer {
+        allocator.free(context_snippets);
+        repl.deinit();
+    }
     repl.run(io) catch |err| {
         if (err == error.FeatureDisabled) {
             std.debug.print("error: TUI feature is disabled in this build; rebuild without -Dfeat-tui=false to use `abi agent tui`\n", .{});
@@ -203,11 +275,15 @@ pub fn handleAgentTuiNoArgs(io: std.Io, allocator: std.mem.Allocator) !u8 {
     return 0;
 }
 
-pub fn handleAgentMultiInput(allocator: std.mem.Allocator, input: []const u8) !u8 {
+pub fn handleAgentMultiInput(io: std.Io, allocator: std.mem.Allocator, input: []const u8) !u8 {
+    var budget = abi.features.ai.file_context.ContextBudget.init(abi.features.ai.file_context.DEFAULT_BUDGET_BYTES);
+    const augmented = try abi.features.ai.file_context.resolveAndInject(io, allocator, input, ".", &budget);
+    defer allocator.free(augmented);
+
     var sched = abi.scheduler.Scheduler.init(allocator);
     defer sched.deinit();
 
-    var result = try abi.features.ai.runMultiAgentWithScheduler(allocator, &sched, "agent:multi", input);
+    var result = try abi.features.ai.runMultiAgentWithScheduler(allocator, &sched, "agent:multi", augmented);
     defer result.deinit(allocator);
     std.debug.print("{s}\n", .{result.aggregated});
     const s = sched.stats();
@@ -215,9 +291,9 @@ pub fn handleAgentMultiInput(allocator: std.mem.Allocator, input: []const u8) !u
     return 0;
 }
 
-fn handleAgentMulti(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
+fn handleAgentMulti(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len != 4) return usage_mod.usageError("usage: abi agent multi <input>");
-    return handleAgentMultiInput(allocator, args[3]);
+    return handleAgentMultiInput(io, allocator, args[3]);
 }
 
 pub fn handleAgentSpawnArgv(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {

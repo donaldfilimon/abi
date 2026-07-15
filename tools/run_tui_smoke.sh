@@ -205,7 +205,7 @@ if command -v tmux >/dev/null 2>&1; then
   tmux send-keys -t "$agent_session" -l '/model abi-local'
   tmux send-keys -t "$agent_session" Enter Up Enter
   sleep 1
-  agent_pty_out=$(tmux capture-pane -pt "$agent_session" 2>&1 || true)
+  agent_pty_out=$(tmux capture-pane -p -S -200 -t "$agent_session" 2>&1 || true)
 
   case "$agent_pty_out" in
     *"Commands:"*"usage: /model <id>"*"matches: /status /sync-clis"*) ;;

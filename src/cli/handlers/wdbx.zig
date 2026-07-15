@@ -222,7 +222,7 @@ fn wdbxGpuHelp() u8 {
 }
 
 fn wdbxApiHelp() u8 {
-    std.debug.print("usage: abi wdbx api serve [port]\n\nServe the loopback WDBX REST API; optional bearer token via ABI_WDBX_REST_TOKEN.\n", .{});
+    std.debug.print("usage: abi wdbx api serve [port]\n\nServe the loopback WDBX REST API.\n\nEnv:\n  ABI_WDBX_REST_TOKEN     Optional bearer token for request auth.\n  ABI_WDBX_TLS_CERT       Path to PEM certificate (TLS config / proxy deployment).\n  ABI_WDBX_TLS_KEY        Path to PEM private key (TLS config / proxy deployment).\n\nTLS: native termination is not linked; deploy behind nginx/Caddy/haproxy.\n", .{});
     return 0;
 }
 

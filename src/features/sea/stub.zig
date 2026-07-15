@@ -180,6 +180,8 @@ pub const LearnLoopConfig = struct {
     persist: bool = true,
     adapt_router: bool = true,
     max_prompt_bytes: usize = 4096,
+    stream_callback: ?ai.StreamCallback = null,
+    stream_ctx: ?*anyopaque = null,
 };
 
 pub const LearnLoopResult = struct {

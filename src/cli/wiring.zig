@@ -119,7 +119,7 @@ pub const wdbx_subcommands = [_]Command{
     .{ .name = "compute", .summary = "Report CPU/GPU/NPU/TPU backend selection and fallback state.", .usage = "abi wdbx compute info" },
     .{ .name = "secure", .summary = "Demonstrate local compression plus reference homomorphic aggregation; not security-audited FHE.", .usage = "abi wdbx secure demo" },
     .{ .name = "gpu", .summary = "Report GPU backend capability and native-kernel status.", .usage = "abi wdbx gpu info" },
-    .{ .name = "api", .summary = "Serve the loopback WDBX REST API; optional bearer token via ABI_WDBX_REST_TOKEN.", .usage = "abi wdbx api serve [port]" },
+    .{ .name = "api", .summary = "Serve the loopback WDBX REST API; bearer token via ABI_WDBX_REST_TOKEN; TLS via ABI_WDBX_TLS_CERT/KEY (proxy-terminated).", .usage = "abi wdbx api serve [port]" },
 };
 
 // --- Typed handlers ----------------------------------------------------------
@@ -146,7 +146,7 @@ pub fn trainHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
 }
 
 fn agentPlanHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    return handlers.agent_mod.handleAgentPlanInput(ctx.allocator, parsed.value("input").?);
+    return handlers.agent_mod.handleAgentPlanInput(ctx.io, ctx.allocator, parsed.value("input").?);
 }
 
 fn agentTrainHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
@@ -154,7 +154,7 @@ fn agentTrainHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
 }
 
 fn agentMultiHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
-    return handlers.agent_mod.handleAgentMultiInput(ctx.allocator, parsed.value("input").?);
+    return handlers.agent_mod.handleAgentMultiInput(ctx.io, ctx.allocator, parsed.value("input").?);
 }
 
 fn agentTuiHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {

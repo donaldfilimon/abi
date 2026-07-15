@@ -1,4 +1,3 @@
-
 # ── AI tool config directories ────────────────────────────────────────
 .grok/
 
@@ -18,7 +17,7 @@ docs_html/
 /target_contract.o
 /libcontext_init.a
 /mutex_check.o
-# ── Documentation build artifacts ─────────────────────────────────────
+# ── Documentation build artifacts ──────────────────────────────────────
 docs-src/build/
 docs/api-app/data/docs_engine.component.wasm
 docs/api-app/data/features.json
@@ -64,7 +63,7 @@ coverage/
 /quick.json
 /simd.json
 
-# ── Logs ──────────────────────────────────────────────────────────────
+# ── Logs ─────────────────────────────────────────────────────────────
 *.log
 logs/
 firebase-debug.log
@@ -82,8 +81,8 @@ firebase-debug.log
 *.sqlite
 
 # ── Temporary and generated files ─────────────────────────────────────
-tmp/
-temp/
+/tmp/
+/temp/
 *.tmp
 updated_site/
 abi.json
@@ -99,7 +98,7 @@ src/build_options.zig
 fix_*.py
 migrate*.sh
 
-# ── Debug/test output files ───────────────────────────────────────────
+# ── Debug/test output files ────────────────────────────────────────────
 test_log.txt
 test_output.txt
 test_full.txt
@@ -111,7 +110,7 @@ wasm_build_log.txt
 wasm_install_log.txt
 training_data.txt
 
-# ── AI model files and training artifacts ─────────────────────────────
+# ── AI model files and training artifacts ───────────────────────────────
 *.onnx
 *.pt
 *.pth
@@ -130,7 +129,7 @@ testingllm.ckpt/
 # ── GPU shader artifacts ─────────────────────────────────────────────
 *.spv
 
-# ── Root-level build artifacts (one-off test binaries) ────────────────
+# ── Root-level build artifacts (one-off test binaries) ───────────────
 /test_page_size
 /test_arraylist
 /test_nolld
@@ -146,7 +145,7 @@ testingllm.ckpt/
 /target_contract.o
 /libcontext_init.a
 
-# ── Zig package cache (downloaded by build system) ───────────────────
+# ── Zig package cache (downloaded by build system) ────────────────────
 zig-pkg/
 zig-pkg.lock
 
@@ -161,7 +160,7 @@ zig-pkg.lock
 *.pdb.*
 *.core
 
-# ── Profiling data ────────────────────────────────────────────────────
+# ── Profiling data ───────────────────────────────────────────────────
 *.prof
 *.profraw
 *.tracy
@@ -207,15 +206,15 @@ perf.data*
 # ── Development checkpoints ───────────────────────────────────────────
 checkpoints/
 
-# ── Generated reports (Ralph gate, skill memory) ─────────────────────
+# ── Generated reports (Ralph gate, skill memory) ─────────────────────────────
 reports/
 
-# ── Backup files ──────────────────────────────────────────────────────
+# ── Backup files ────────────────────────────────────────────────────
 backups/
 *.bak
 *.backup
 
-# ── Distribution ──────────────────────────────────────────────────────
+# ── Distribution ───────────────────────────────────────────────────
 /dist/
 /release/
 *.tar.gz
@@ -225,12 +224,12 @@ backups/
 bindings/**/target/
 bindings/c/.zig-cache/
 
-# ── OS specific ───────────────────────────────────────────────────────
+# ── OS specific ─────────────────────────────────────────────────────
 Thumbs.db
 desktop.ini
 nul
 
-# ── Misc generated / workspace ────────────────────────────────────────
+# ── Misc generated / workspace ───────────────────────────────────────
 tmpclaude-*-cwd
 tmpclaude-*
 /abi/
@@ -242,12 +241,11 @@ examples/c_test
 TRASH/
 TRASH-FILES.md
 
-# ── Legacy local probes/binaries (cleanup guard) ────────────────────
+# ── Legacy local probes/binaries (cleanup guard) ─────────────────────────────
 /dummy.txt
 /dummy2.txt
 /dummy3.txt
 /test_child.zig
-/test_fs.zig
 /test_sleep.zig
 /test_sock.zig
 /test_socket.zig
@@ -256,7 +254,7 @@ TRASH-FILES.md
 /zig-aarch64-*/
 /zig-x86_64-*/
 
-# ── Root-level scratch/test files (never track) ─────────────────────
+# ── Root-level scratch/test files (never track) ───────────────────────────────
 /hello
 /hello.zig
 # /test — conflicts with test/ directory, removed
@@ -267,31 +265,29 @@ TRASH-FILES.md
 /test_main.zig
 /test_libc
 /test_libc.zig
-/test_libc.c
 /test_libc_c
 /test_link
 /test_zig
 /check_ver
 /check_ver.zig
-/libc.txt
 /abi-bootstrap-cli
 /abi-simple.zig
 
-# ── Consolidation cleanup (0.17 refactor) ───────────────────────────
+# ── Consolidation cleanup (0.17 refactor) ───────────────────────────────
 /build_output.txt
 /run_contract_cli
 /test_gpu.zig
-/test_gpu
-/probe
+test_gpu
+t/probe
 /probe2
-/test_imports
-/test_imports2
-/test_imports3
+test_imports
+test_imports2
+test_imports3
 /src_next/
 .antigravitycli/
 .zls.json
 
-# ── Cleanup policy: markdown allowlist only ─────────────────────────
+# ── Cleanup policy: markdown allowlist only ─────────────────────────────
 # Ignore all markdown except explicitly allowlisted files.
 # NOTE: new docs under docs/ must be added to this allowlist.
 *.md
@@ -335,6 +331,7 @@ TRASH-FILES.md
 # (.claude/skills/** is un-ignored above at line ~177, but the blanket
 #  *.md rule re-ignores skill docs — this negation must come after it.)
 !.claude/skills/**/SKILL.md
+!.agents/skills/**/SKILL.md
 !.agents/skills/abi-doc-claims-sync/references/claim-boundaries.md
 
 # Claude project agents: same story — .claude/agents/** is un-ignored above, but
@@ -371,6 +368,7 @@ TRASH-FILES.md
 .zig-global-cache/
 /hashmap_check
 /hashmap_check2
+/check_mutex
 
 # ── Scratch/workaround artifacts (superseded by CEL) ────────────────
 *.dSYM/

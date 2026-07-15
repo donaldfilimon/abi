@@ -357,6 +357,54 @@ test "segments: compactRetainingLatest keeps the newest checkpoints" {
     try testing.expectEqual(@as(usize, 4), loaded.blockCount());
 }
 
+test "segments: compactRetainingLatest with single segment is a no-op" {
+    const allocator = testing.allocator;
+    const base = "zig-out/wdbx-seg-single";
+    cleanup(base);
+    defer cleanup(base);
+
+    var ss = SegmentStore.init(allocator, testing.io, base);
+    var s = wdbx_mod.Store.init(allocator);
+    defer s.deinit();
+    _ = try s.appendBlock("p", 0, 0, "{\"t\":1}");
+    _ = try ss.flush(&s);
+
+    const result = try ss.compactRetainingLatest(1);
+    try testing.expectEqual(@as(usize, 1), result.before);
+    try testing.expectEqual(@as(usize, 1), result.after);
+    try testing.expectEqual(@as(usize, 0), result.deleted);
+
+    const active = try ss.activeEpochs(allocator);
+    defer allocator.free(active);
+    try testing.expectEqualSlices(u64, &.{0}, active);
+}
+
+test "segments: compactRetainingLatest on empty store succeeds" {
+    const allocator = testing.allocator;
+    const base = "zig-out/wdbx-seg-empty";
+    cleanup(base);
+    defer cleanup(base);
+
+    var ss = SegmentStore.init(allocator, testing.io, base);
+
+    const result = try ss.compactRetainingLatest(1);
+    try testing.expectEqual(@as(usize, 0), result.before);
+    try testing.expectEqual(@as(usize, 0), result.after);
+    try testing.expectEqual(@as(usize, 0), result.deleted);
+    try testing.expectEqual(@as(?u64, null), result.latest_epoch);
+    try testing.expectEqual(@as(?u64, null), result.watermark_epoch);
+}
+
+test "segments: compactRetainingLatest with keep_latest=0 returns error" {
+    const allocator = testing.allocator;
+    const base = "zig-out/wdbx-seg-err";
+    cleanup(base);
+    defer cleanup(base);
+
+    var ss = SegmentStore.init(allocator, testing.io, base);
+    try testing.expectError(SegmentError.InvalidCompactionPolicy, ss.compactRetainingLatest(0));
+}
+
 test "segments: reset removes manifest-listed checkpoints" {
     const allocator = testing.allocator;
     const base = "zig-out/wdbx-seg-reset";

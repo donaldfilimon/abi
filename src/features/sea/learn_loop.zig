@@ -22,6 +22,13 @@ pub const LearnLoopConfig = struct {
     /// persistence is observable. The buffer is balanced (alloc+free inside
     /// `saveWeights`), so no caller-owned/escaping allocation is tracked.
     tracker: ?*core_memory.MemoryTracker = null,
+    /// Optional streaming callback. When set, forwarded to the underlying
+    /// `CompletionRequest` so `completeWithStoreAdaptive` emits output chunks
+    /// through this callback (~16-byte post-hoc splits; true per-token streaming
+    /// requires a chunked model backend).
+    stream_callback: ?ai.StreamCallback = null,
+    /// Opaque context passed to `stream_callback` as the first argument.
+    stream_ctx: ?*anyopaque = null,
 };
 
 /// Result of `runLearnLoop`. Owns the underlying completion; `deinit` frees it.
@@ -70,6 +77,8 @@ pub fn runLearnLoop(
         .input = augmented,
         .model = model,
         .store_result = config.persist,
+        .stream_callback = config.stream_callback,
+        .stream_ctx = config.stream_ctx,
     });
     errdefer completion.deinit(allocator);
 

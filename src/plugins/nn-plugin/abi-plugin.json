@@ -3,5 +3,15 @@
   "version": "0.1.0",
   "description": "Example reference plugin targeting the feat-nn gate.",
   "target_feature": "nn",
-  "entry_point": "mod.zig"
+  "entry_point": "mod.zig",
+  "commands": [
+    {
+      "name": "nn-train",
+      "summary": "Train the miniature character-level neural-net demo"
+    },
+    {
+      "name": "nn-sample",
+      "summary": "Generate text from the trained neural-net model"
+    }
+  ]
 }

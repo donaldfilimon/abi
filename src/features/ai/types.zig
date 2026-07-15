@@ -62,12 +62,6 @@ pub const TrainingResult = struct {
     }
 };
 
-pub const CompletionRequest = struct {
-    input: []const u8,
-    model: []const u8 = "claude-fable-5",
-    store_result: bool = false,
-};
-
 /// A single delta chunk emitted during streaming completion.
 pub const StreamChunk = struct {
     delta: []const u8,
@@ -77,6 +71,19 @@ pub const StreamChunk = struct {
 /// Callback invoked per chunk during streaming completion. The callback
 /// receives a borrowed `delta` slice (valid for the duration of the call).
 pub const StreamCallback = *const fn (ctx: *anyopaque, chunk: StreamChunk) anyerror!void;
+
+pub const CompletionRequest = struct {
+    input: []const u8,
+    model: []const u8 = "claude-fable-5",
+    store_result: bool = false,
+    /// Optional streaming callback. When set, `completeWithStoreAdaptive` emits
+    /// the output through this callback in ~16-byte chunks after the completion
+    /// finishes (the underlying model path returns full text; this is a bridge
+    /// toward true per-token streaming).
+    stream_callback: ?StreamCallback = null,
+    /// Opaque context passed to `stream_callback` as the first argument.
+    stream_ctx: ?*anyopaque = null,
+};
 
 pub const CompletionResult = struct {
     model: []const u8,

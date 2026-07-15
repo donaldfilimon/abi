@@ -3,5 +3,16 @@
   "version": "0.1.0",
   "description": "Example reference plugin targeting the feat-ai gate.",
   "target_feature": "ai",
-  "entry_point": "mod.zig"
+  "entry_point": "mod.zig",
+  "commands": [
+    {
+      "name": "profile",
+      "summary": "Show the current AI profile and router status",
+      "aliases": ["ai-status"]
+    },
+    {
+      "name": "models",
+      "summary": "List available model backends"
+    }
+  ]
 }

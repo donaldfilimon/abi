@@ -41,7 +41,7 @@ const LearnMetadata = struct {
     adapted: bool,
 };
 
-fn printCompletionMetadata(completion: *const features.ai.CompletionResult, stats: anytype, learn: ?LearnMetadata) void {
+fn printCompletionMetadata(completion: *const features.ai.CompletionResult, stats: anytype, learn: ?LearnMetadata, skip_output: bool) void {
     const persisted = completion.query_vector_id != null and completion.response_vector_id != null and completion.block_id != null;
 
     if (learn) |meta| {
@@ -77,7 +77,7 @@ fn printCompletionMetadata(completion: *const features.ai.CompletionResult, stat
         std.debug.print("block_id={s}\n", .{&block_hex});
     }
     if (!persisted) std.debug.print("wdbx_status={s}\n", .{stats.acceleration.message});
-    std.debug.print("{s}\n", .{completion.output});
+    if (!skip_output) std.debug.print("{s}\n", .{completion.output});
 }
 
 pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOptions) !u8 {
@@ -105,7 +105,7 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOp
     // via HTTP instead of the in-process persona router. The server must be
     // started separately; ABI does not embed or bundle any inference engine.
     if (connectors.local_bridge.isLocalBridgeModel(selected_model)) {
-        return handleLocalBridgeComplete(io, allocator, input, selected_model);
+        return handleLocalBridgeComplete(io, allocator, input, selected_model, opts.stream);
     }
 
     var session = try features.wdbx.durable_store.Session.open(io, allocator);
@@ -117,7 +117,30 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOp
     // the flag is always accepted: with `-Dfeat-sea=false` the stub degrades to
     // a plain persisted completion (evidence_count=0, adapted=false); with the
     // feature on it recalls evidence and adapts the persona-router weights.
-    if (opts.learn) return handleLearnComplete(allocator, store, input, selected_model);
+    // When combined with `--stream` the output is emitted as chunks through the
+    // streaming callback during `runLearnLoop` and the metadata line excludes
+    // the output (no re-print).
+    if (opts.learn) {
+        if (opts.stream) {
+            const StreamCtx = struct {
+                fn callback(_: *anyopaque, chunk: features.ai.StreamChunk) anyerror!void {
+                    if (chunk.delta.len > 0) std.debug.print("{s}", .{chunk.delta});
+                }
+            };
+            var dummy: u8 = 0;
+            var result = try features.sea.runLearnLoop(allocator, store, input, selected_model, .{
+                .stream_callback = StreamCtx.callback,
+                .stream_ctx = &dummy,
+            });
+            defer result.deinit(allocator);
+            const completion = result.completion;
+            const stats = store.stats();
+            std.debug.print("\n", .{});
+            printCompletionMetadata(&completion, stats, .{ .evidence_count = result.evidence_count, .adapted = result.adapted }, true);
+            return 0;
+        }
+        return handleLearnComplete(allocator, store, input, selected_model);
+    }
 
     var scheduler = scheduler_mod.Scheduler.init(allocator);
     defer scheduler.deinit();
@@ -144,7 +167,7 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOp
         defer result.deinit(allocator);
         std.debug.print("\n", .{});
         const stats = store.stats();
-        printCompletionMetadata(&result, stats, null);
+        printCompletionMetadata(&result, stats, null, false);
         return 0;
     }
 
@@ -158,7 +181,7 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOp
     defer result.deinit(allocator);
 
     const stats = store.stats();
-    printCompletionMetadata(&result, stats, null);
+    printCompletionMetadata(&result, stats, null, false);
     return 0;
 }
 
@@ -177,7 +200,7 @@ fn handleLearnComplete(
 
     const completion = result.completion;
     const stats = store.stats();
-    printCompletionMetadata(&completion, stats, .{ .evidence_count = result.evidence_count, .adapted = result.adapted });
+    printCompletionMetadata(&completion, stats, .{ .evidence_count = result.evidence_count, .adapted = result.adapted }, false);
     return 0;
 }
 
@@ -268,7 +291,7 @@ fn handleFmComplete(allocator: std.mem.Allocator, input: []const u8, model: []co
 /// OpenAI-compatible server (llama-server, ollama, mlx-server) via HTTP.
 /// Falls back to the in-process persona router with a warning when the
 /// server is unreachable. ABI does not embed or bundle any inference engine.
-fn handleLocalBridgeComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: []const u8) !u8 {
+fn handleLocalBridgeComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: []const u8, stream: bool) !u8 {
     // Resolve endpoint: check env vars first (`ABI_LLAMA_CPP_ENDPOINT` /
     // `ABI_MLX_ENDPOINT`), then fall back to the compiled-in default.
     const is_mlx = std.mem.startsWith(u8, model, "mlx/") or std.mem.startsWith(u8, model, "mlx-");
@@ -283,6 +306,28 @@ fn handleLocalBridgeComplete(io: std.Io, allocator: std.mem.Allocator, input: []
         const store = session.storePtr();
         var scheduler = scheduler_mod.Scheduler.init(allocator);
         defer scheduler.deinit();
+        if (stream) {
+            const StreamCtx = struct {
+                fn callback(_: *anyopaque, chunk: features.ai.StreamChunk) anyerror!void {
+                    if (chunk.delta.len > 0) std.debug.print("{s}", .{chunk.delta});
+                }
+            };
+            var dummy: u8 = 0;
+            var result = try features.ai.completeWithSchedulerStreaming(
+                allocator,
+                store,
+                &scheduler,
+                "complete:local-bridge-fallback",
+                .{ .input = input, .model = model, .store_result = true },
+                StreamCtx.callback,
+                @ptrCast(&dummy),
+            );
+            defer result.deinit(allocator);
+            std.debug.print("\n", .{});
+            const stats = store.stats();
+            printCompletionMetadata(&result, stats, null, false);
+            return 0;
+        }
         var result = try features.ai.completeWithScheduler(allocator, store, &scheduler, "complete:local-bridge-fallback", .{
             .input = input,
             .model = model,
@@ -290,7 +335,31 @@ fn handleLocalBridgeComplete(io: std.Io, allocator: std.mem.Allocator, input: []
         });
         defer result.deinit(allocator);
         const stats = store.stats();
-        printCompletionMetadata(&result, stats, null);
+        printCompletionMetadata(&result, stats, null, false);
+        return 0;
+    }
+
+    if (stream) {
+        const StreamCtx = struct {
+            fn callback(_: *anyopaque, chunk: connectors.http.StreamChunk) connectors.connector.ConnectorError!void {
+                if (chunk.delta.len > 0) std.debug.print("{s}", .{chunk.delta});
+            }
+        };
+        var dummy: u8 = 0;
+        const full = connectors.local_bridge.completeLiveStreaming(
+            io,
+            allocator,
+            model,
+            input,
+            StreamCtx.callback,
+            @ptrCast(&dummy),
+        ) catch |err| {
+            std.debug.print("error: local bridge stream failed: {s}\n", .{@errorName(err)});
+            return 1;
+        };
+        defer allocator.free(full);
+        std.debug.print("\n", .{});
+        std.debug.print("[model={s} | bridge={s} | local=true | stream=sse]\n", .{ model, endpoint });
         return 0;
     }
 

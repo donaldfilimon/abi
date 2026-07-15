@@ -3,5 +3,16 @@
   "version": "0.1.0",
   "description": "Example reference plugin targeting the feat-gpu gate.",
   "target_feature": "gpu",
-  "entry_point": "mod.zig"
+  "entry_point": "mod.zig",
+  "commands": [
+    {
+      "name": "gpu-status",
+      "summary": "Report GPU backend and acceleration mode",
+      "aliases": ["gpu"]
+    },
+    {
+      "name": "gpu-info",
+      "summary": "Show detailed GPU capabilities"
+    }
+  ]
 }

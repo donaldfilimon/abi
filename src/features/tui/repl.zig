@@ -15,6 +15,7 @@ const utils = @import("../../foundation/utils.zig");
 const models = @import("../ai/models.zig");
 const ai = if (build_options.feat_ai) @import("../ai/mod.zig") else @import("../ai/stub.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
+const sea = if (build_options.feat_sea) @import("../sea/mod.zig") else @import("../sea/stub.zig");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const time = @import("../../foundation/time.zig");
 const sanitize = @import("sanitize.zig");
@@ -22,6 +23,9 @@ const terminal = @import("terminal.zig");
 const line_editor = @import("line_editor.zig");
 const file_context = @import("../ai/file_context.zig");
 const cmds = @import("repl_commands.zig");
+const local_bridge = @import("../../connectors/local_bridge.zig");
+const connector_http = @import("../../connectors/http.zig");
+const connector_mod = @import("../../connectors/connector.zig");
 
 pub const MODEL_STORAGE_BYTES = cmds.MODEL_STORAGE_BYTES;
 pub const SpecialCommand = cmds.SpecialCommand;
@@ -34,13 +38,42 @@ pub const completeSlashCommand = cmds.completeSlashCommand;
 pub const formatHistoryHeader = cmds.formatHistoryHeader;
 pub const formatStatusLine = cmds.formatStatusLine;
 pub const formatOpenStatus = cmds.formatOpenStatus;
+pub const formatContextStatus = cmds.formatContextStatus;
 pub const validModelId = cmds.validModelId;
 pub const printHelp = cmds.printHelp;
+pub const printHelpWithPlugins = cmds.printHelpWithPlugins;
+pub const printPluginHelp = cmds.printPluginHelp;
+pub const PluginSlashCommand = cmds.PluginSlashCommand;
+pub const matchPluginCommandToken = cmds.matchPluginCommandToken;
+
+/// Callback type for dispatching a plugin slash-command. Takes the plugin name,
+/// command name, and argument text; returns the output to display. `null` means
+/// plugin dispatch is unavailable (e.g. TUI feature disabled at build time).
+pub const PluginDispatchFn = *const fn (allocator: std.mem.Allocator, plugin: []const u8, cmd_name: []const u8, arg: []const u8) anyerror![]u8;
 
 pub const ReplConfig = struct {
     model: []const u8 = models.default_model,
     store_turns: bool = true,
     prompt_prefix: []const u8 = "> ",
+    /// Slash-commands registered by plugins. Built from the Registry at startup.
+    plugin_commands: []const cmds.PluginSlashCommand = &.{},
+    /// Optional dispatch callback for executing plugin slash-commands.
+    /// When non-null, `runPluginCommand` routes through this instead of
+    /// printing a stub acknowledgment.
+    plugin_dispatch: ?PluginDispatchFn = null,
+    /// Context snippets from plugin context providers, injected before every
+    /// completion. Owned by the caller; the REPL reads but does not free this.
+    context_snippets: []const u8 = "",
+    /// Whether SEA self-learning mode is active. When true, completions route
+    /// through `runLearnLoop` for evidence-augmented output.
+    learn_mode: bool = false,
+};
+
+pub const MAX_TURN_HISTORY: usize = 10;
+
+pub const TurnEntry = struct {
+    input: []const u8,
+    response: []const u8,
 };
 
 pub const ReplState = struct {
@@ -56,6 +89,10 @@ pub const ReplState = struct {
     open_content: []const u8 = "",
     /// Backing allocation for file context strings; freed on next `/open` or reset.
     file_context_buf: ?[]u8 = null,
+    /// Ring buffer of recent (input, response) pairs for multi-turn context.
+    turn_history: [MAX_TURN_HISTORY]TurnEntry = @splat(TurnEntry{ .input = "", .response = "" }),
+    turn_history_count: usize = 0,
+    turn_history_head: usize = 0,
 
     pub fn init(config: ReplConfig) ReplState {
         return .{
@@ -65,11 +102,37 @@ pub const ReplState = struct {
         };
     }
 
+    pub fn pushTurn(self: *ReplState, allocator: std.mem.Allocator, input: []const u8, response: []const u8) void {
+        // Free the oldest entry if we're overwriting it
+        if (self.turn_history_count == MAX_TURN_HISTORY) {
+            const old = &self.turn_history[self.turn_history_head];
+            allocator.free(old.input);
+            allocator.free(old.response);
+        }
+        self.turn_history[self.turn_history_head] = .{
+            .input = allocator.dupe(u8, input) catch @panic("OOM"),
+            .response = allocator.dupe(u8, response) catch @panic("OOM"),
+        };
+        self.turn_history_head = (self.turn_history_head + 1) % MAX_TURN_HISTORY;
+        if (self.turn_history_count < MAX_TURN_HISTORY) self.turn_history_count += 1;
+    }
+
     pub fn clearFileContext(self: *ReplState, allocator: std.mem.Allocator) void {
         if (self.file_context_buf) |buf| allocator.free(buf);
         self.open_path = "";
         self.open_content = "";
         self.file_context_buf = null;
+    }
+
+    pub fn clearTurnHistory(self: *ReplState, allocator: std.mem.Allocator) void {
+        var i: usize = 0;
+        while (i < self.turn_history_count) : (i += 1) {
+            const idx = (self.turn_history_head + MAX_TURN_HISTORY - self.turn_history_count + i) % MAX_TURN_HISTORY;
+            allocator.free(self.turn_history[idx].input);
+            allocator.free(self.turn_history[idx].response);
+        }
+        self.turn_history_count = 0;
+        self.turn_history_head = 0;
     }
 };
 
@@ -95,6 +158,7 @@ pub const ReplLoop = struct {
 
     pub fn deinit(self: *ReplLoop) void {
         self.state.clearFileContext(self.allocator);
+        self.state.clearTurnHistory(self.allocator);
     }
 
     /// Outcome of dispatching one input line. Lets the raw-mode and line-mode
@@ -241,23 +305,39 @@ pub const ReplLoop = struct {
     /// to their handlers, ordinary text runs a completion and persists the turn.
     fn dispatchLine(self: *ReplLoop, line: []const u8, io: std.Io) !LineOutcome {
         if (line[0] == '/') return self.dispatchSlashCommand(line, io);
-        return self.completePrompt(line);
+        return self.completePrompt(line, io);
     }
 
     fn dispatchSlashCommand(self: *ReplLoop, line: []const u8, io: std.Io) !LineOutcome {
         switch (parseSpecialCommand(line)) {
             .quit => return .quit,
-            .help => printHelp(),
+            .help => printHelpWithPlugins(self.state.config.plugin_commands),
             .model => self.applyModel(specialArg(line)),
             .reset => self.resetSession(),
             .status => self.showStatus(),
             .history => self.showHistory(),
+            .context => self.showContext(),
             .profile => self.showProfileStatus(),
             .syncclis => try self.runSyncClis(io),
             .open => try self.runOpen(specialArg(line), io),
             .diff => try self.runDiff(io),
+            .features => self.showFeatures(),
+            .learn => self.toggleLearn(),
+            .save => try self.saveSession(specialArg(line), io),
+            .load => try self.loadSession(specialArg(line), io),
             .commit => try self.runCommit(io),
-            .unknown => try self.printUnknownCommand(line),
+            .unknown => {
+                // Check plugin commands
+                const token = blk: {
+                    const body = line[1..];
+                    const end = std.mem.indexOfAny(u8, body, " \t\r") orelse body.len;
+                    break :blk body[0..end];
+                };
+                if (cmds.matchPluginCommandToken(token, self.state.config.plugin_commands)) |plugin_cmd| {
+                    return self.runPluginCommand(plugin_cmd, specialArg(line));
+                }
+                try self.printUnknownCommand(line);
+            },
         }
         return .keep_going;
     }
@@ -268,15 +348,29 @@ pub const ReplLoop = struct {
     }
 
     fn showStatus(self: *ReplLoop) void {
-        var buf: [256]u8 = undefined;
+        var buf: [512]u8 = undefined;
         std.debug.print("{s}\n", .{formatStatusLine(
-            &buf,
+            buf[0..256],
             self.state.session_id,
             self.state.turn_count,
             self.state.config.model,
             self.state.config.store_turns,
             self.persistedBlockCount(),
         )});
+        std.debug.print("  session:  {d}\n", .{self.state.session_id});
+        std.debug.print("  model:    {s}\n", .{self.state.config.model});
+        std.debug.print("  provider: {s}\n", .{models.providerOf(self.state.config.model).label()});
+        std.debug.print("  turns:    {d} in session, {d} in history\n", .{ self.state.turn_count, self.state.turn_history_count });
+        std.debug.print("  sea:      {s}\n", .{if (self.state.config.learn_mode) "on (self-learning)" else "off"});
+        std.debug.print("  store:    {s}\n", .{if (self.state.config.store_turns) "on" else "off"});
+        if (self.state.open_path.len > 0) {
+            std.debug.print("  file:     {s} ({d} bytes)\n", .{ self.state.open_path, self.state.open_content.len });
+        } else {
+            std.debug.print("  file:     (none)\n", .{});
+        }
+        const context_active = self.state.config.context_snippets.len > 0;
+        std.debug.print("  context:  {s}\n", .{if (context_active) "loaded" else "none"});
+        std.debug.print("  blocks:   {d}\n", .{self.persistedBlockCount()});
     }
 
     fn runSyncClis(self: *ReplLoop, io: std.Io) !void {
@@ -324,40 +418,180 @@ pub const ReplLoop = struct {
             defer self.allocator.free(safe);
             std.debug.print("{s}", .{safe});
         }
+        /// Connector SSE path uses ConnectorError; print-only and never abort mid-stream.
+        fn bridgeCallback(ctx: *anyopaque, chunk: connector_http.StreamChunk) connector_mod.ConnectorError!void {
+            if (chunk.delta.len == 0) return;
+            const self: *@This() = @ptrCast(@alignCast(ctx));
+            const safe = sanitize.sanitizeControlBytes(self.allocator, chunk.delta) catch return;
+            defer self.allocator.free(safe);
+            std.debug.print("{s}", .{safe});
+        }
     };
 
-    fn completePrompt(self: *ReplLoop, line: []const u8) !LineOutcome {
-        var augmented_line = line;
+    fn completePrompt(self: *ReplLoop, line: []const u8, io: std.Io) !LineOutcome {
+        // Resolve @file mentions in the input before building context
+        const resolved = try resolveFileMentions(self.allocator, line, ".", io);
+        defer self.allocator.free(resolved);
+
+        var augmented_line = resolved;
         var augmented_buf: ?[]u8 = null;
         defer if (augmented_buf) |b| self.allocator.free(b);
 
+        // Build context from turn history + file context + plugin context snippets
+        var ctx_parts = std.ArrayListUnmanaged(u8).empty;
+        defer ctx_parts.deinit(self.allocator);
+
+        // Prepend context snippets from plugin context providers
+        if (self.state.config.context_snippets.len > 0) {
+            ctx_parts.appendSlice(self.allocator, self.state.config.context_snippets) catch {};
+        }
+
+        // Prepend recent turn history for multi-turn continuity
+        if (self.state.turn_history_count > 0) {
+            ctx_parts.appendSlice(self.allocator, "[history]\n") catch {};
+            var i: usize = 0;
+            while (i < self.state.turn_history_count) : (i += 1) {
+                const idx = (self.state.turn_history_head + MAX_TURN_HISTORY - self.state.turn_history_count + i) % MAX_TURN_HISTORY;
+                const entry = &self.state.turn_history[idx];
+                if (entry.input.len > 0) {
+                    ctx_parts.appendSlice(self.allocator, "user: ") catch {};
+                    ctx_parts.appendSlice(self.allocator, entry.input) catch {};
+                    ctx_parts.appendSlice(self.allocator, "\n") catch {};
+                }
+                if (entry.response.len > 0) {
+                    ctx_parts.appendSlice(self.allocator, "assistant: ") catch {};
+                    ctx_parts.appendSlice(self.allocator, entry.response) catch {};
+                    ctx_parts.appendSlice(self.allocator, "\n") catch {};
+                }
+            }
+            ctx_parts.appendSlice(self.allocator, "[/history]\n") catch {};
+        }
+
         // Prepend file context if a file was loaded via /open
         if (self.state.open_content.len > 0) {
-            const prefix = try std.fmt.allocPrint(self.allocator, "[file: {s}]\n{s}\n---\n{s}", .{
-                self.state.open_path,
-                self.state.open_content,
-                line,
-            });
+            ctx_parts.appendSlice(self.allocator, "[file: ") catch {};
+            ctx_parts.appendSlice(self.allocator, self.state.open_path) catch {};
+            ctx_parts.appendSlice(self.allocator, "]\n") catch {};
+            ctx_parts.appendSlice(self.allocator, self.state.open_content) catch {};
+            ctx_parts.appendSlice(self.allocator, "\n") catch {};
+        }
+
+        if (ctx_parts.items.len > 0) {
+            ctx_parts.appendSlice(self.allocator, "---\n") catch {};
+            ctx_parts.appendSlice(self.allocator, resolved) catch {};
+            const prefix = try ctx_parts.toOwnedSlice(self.allocator);
             augmented_buf = prefix;
             augmented_line = prefix;
         }
 
-        var stream_ctx = StreamCtx{ .allocator = self.allocator };
-        var result = try ai.completeWithSchedulerStreaming(self.allocator, self.store, self.scheduler, "complete:agent-tui", .{
-            .input = augmented_line,
-            .model = self.state.config.model,
-            .store_result = self.state.config.store_turns,
-        }, StreamCtx.callback, &stream_ctx);
-        defer result.deinit(self.allocator);
-        self.state.turn_count += 1;
+        if (self.state.config.learn_mode and build_options.feat_sea) {
+            // SEA self-learning path: evidence-augmented completion
+            var stream_ctx = StreamCtx{ .allocator = self.allocator };
+            var result = try sea.runLearnLoop(self.allocator, self.store, augmented_line, self.state.config.model, .{
+                .persist = self.state.config.store_turns,
+                .adapt_router = true,
+                .stream_callback = StreamCtx.callback,
+                .stream_ctx = &stream_ctx,
+            });
+            defer result.deinit(self.allocator);
 
-        std.debug.print("\n", .{});
-        std.debug.print("[turn {d} | model={s} | profile={s} | persisted={s}]\n", .{
-            self.state.turn_count,
-            result.model,
-            result.selected_profile.label(),
-            if (result.query_vector_id != null) "true" else "false",
-        });
+            // All chunks emitted; print turn metadata.
+            std.debug.print("\n", .{});
+            std.debug.print("[turn {d} | model={s} | profile={s} | sea | evidence={d} | adapted={s}]\n", .{
+                self.state.turn_count + 1,
+                result.completion.model,
+                result.completion.selected_profile.label(),
+                result.evidence_count,
+                if (result.adapted) "true" else "false",
+            });
+
+            self.state.pushTurn(self.allocator, line, result.completion.output);
+        } else if (local_bridge.isLocalBridgeModel(self.state.config.model)) {
+            // Local OpenAI-compatible server (llama-server / ollama / mlx-server).
+            // Prefer SSE token streaming when the server is reachable; fall back
+            // to the in-process persona router with post-hoc chunked output.
+            const model = self.state.config.model;
+            const is_mlx = std.mem.startsWith(u8, model, "mlx/") or std.mem.startsWith(u8, model, "mlx-");
+            const env_key = if (is_mlx) "ABI_MLX_ENDPOINT" else "ABI_LLAMA_CPP_ENDPOINT";
+            const override = env.get(env_key);
+            const endpoint = local_bridge.endpointFor(model, override);
+
+            if (local_bridge.healthCheck(io, self.allocator, endpoint)) {
+                var stream_ctx = StreamCtx{ .allocator = self.allocator };
+                const full = local_bridge.completeLiveStreaming(
+                    io,
+                    self.allocator,
+                    model,
+                    augmented_line,
+                    StreamCtx.bridgeCallback,
+                    &stream_ctx,
+                ) catch |err| {
+                    std.debug.print("\n[bridge stream error: {s}; falling back to in-process]\n", .{@errorName(err)});
+                    var stream_ctx_fb = StreamCtx{ .allocator = self.allocator };
+                    var result = try ai.completeWithSchedulerStreaming(self.allocator, self.store, self.scheduler, "complete:agent-tui-bridge-fb", .{
+                        .input = augmented_line,
+                        .model = model,
+                        .store_result = self.state.config.store_turns,
+                    }, StreamCtx.callback, &stream_ctx_fb);
+                    defer result.deinit(self.allocator);
+                    std.debug.print("\n", .{});
+                    std.debug.print("[turn {d} | model={s} | profile={s} | bridge=fallback | persisted={s}]\n", .{
+                        self.state.turn_count + 1,
+                        result.model,
+                        result.selected_profile.label(),
+                        if (result.query_vector_id != null) "true" else "false",
+                    });
+                    self.state.pushTurn(self.allocator, line, result.output);
+                    self.state.turn_count += 1;
+                    return .keep_going;
+                };
+                defer self.allocator.free(full);
+                std.debug.print("\n", .{});
+                std.debug.print("[turn {d} | model={s} | bridge={s} | stream=sse]\n", .{
+                    self.state.turn_count + 1,
+                    model,
+                    endpoint,
+                });
+                self.state.pushTurn(self.allocator, line, full);
+            } else {
+                std.debug.print("warning: local inference server not reachable at {s}; falling back to in-process router\n", .{endpoint});
+                var stream_ctx = StreamCtx{ .allocator = self.allocator };
+                var result = try ai.completeWithSchedulerStreaming(self.allocator, self.store, self.scheduler, "complete:agent-tui-bridge-down", .{
+                    .input = augmented_line,
+                    .model = model,
+                    .store_result = self.state.config.store_turns,
+                }, StreamCtx.callback, &stream_ctx);
+                defer result.deinit(self.allocator);
+                std.debug.print("\n", .{});
+                std.debug.print("[turn {d} | model={s} | profile={s} | bridge=unreachable | persisted={s}]\n", .{
+                    self.state.turn_count + 1,
+                    result.model,
+                    result.selected_profile.label(),
+                    if (result.query_vector_id != null) "true" else "false",
+                });
+                self.state.pushTurn(self.allocator, line, result.output);
+            }
+        } else {
+            var stream_ctx = StreamCtx{ .allocator = self.allocator };
+            var result = try ai.completeWithSchedulerStreaming(self.allocator, self.store, self.scheduler, "complete:agent-tui", .{
+                .input = augmented_line,
+                .model = self.state.config.model,
+                .store_result = self.state.config.store_turns,
+            }, StreamCtx.callback, &stream_ctx);
+            defer result.deinit(self.allocator);
+
+            // All chunks emitted; print turn metadata.
+            std.debug.print("\n", .{});
+            std.debug.print("[turn {d} | model={s} | profile={s} | persisted={s}]\n", .{
+                self.state.turn_count + 1,
+                result.model,
+                result.selected_profile.label(),
+                if (result.query_vector_id != null) "true" else "false",
+            });
+
+            self.state.pushTurn(self.allocator, line, result.output);
+        }
+        self.state.turn_count += 1;
         return .keep_going;
     }
 
@@ -368,6 +602,7 @@ pub const ReplLoop = struct {
         self.state.turn_count = 0;
         self.state.session_id = time.unixMs();
         self.state.clearFileContext(self.allocator);
+        self.state.clearTurnHistory(self.allocator);
         std.debug.print("session reset (id={d})\n", .{self.state.session_id});
     }
 
@@ -392,6 +627,63 @@ pub const ReplLoop = struct {
         } else {
             std.debug.print("history: unavailable (wdbx feature is disabled in this build)\n", .{});
         }
+    }
+
+    /// `/context`: show current context state (open file, turn history, preview).
+    fn showContext(self: *ReplLoop) void {
+        // Build a preview of the accumulated turn history
+        var preview = std.ArrayListUnmanaged(u8).empty;
+        defer preview.deinit(self.allocator);
+        var i: usize = 0;
+        while (i < self.state.turn_history_count) : (i += 1) {
+            const idx = (self.state.turn_history_head + MAX_TURN_HISTORY - self.state.turn_history_count + i) % MAX_TURN_HISTORY;
+            const entry = &self.state.turn_history[idx];
+            if (entry.input.len > 0) {
+                preview.appendSlice(self.allocator, "user: ") catch {};
+                preview.appendSlice(self.allocator, entry.input) catch {};
+                preview.appendSlice(self.allocator, "\n") catch {};
+            }
+            if (entry.response.len > 0) {
+                preview.appendSlice(self.allocator, "assistant: ") catch {};
+                preview.appendSlice(self.allocator, entry.response) catch {};
+                preview.appendSlice(self.allocator, "\n") catch {};
+            }
+        }
+
+        const status = formatContextStatus(
+            self.allocator,
+            self.state.open_path,
+            self.state.open_content,
+            self.state.turn_count,
+            self.state.turn_history_count,
+            preview.items,
+        ) catch {
+            std.debug.print("context: status unavailable\n", .{});
+            return;
+        };
+        defer self.allocator.free(status);
+        std.debug.print("{s}\n", .{status});
+    }
+
+    /// Dispatch a plugin-registered slash-command. Routes through
+    /// `config.plugin_dispatch` when set (real plugin execution), otherwise
+    /// prints a stub acknowledgment.
+    fn runPluginCommand(self: *ReplLoop, cmd: cmds.PluginSlashCommand, arg: []const u8) !LineOutcome {
+        if (self.state.config.plugin_dispatch) |dispatch| {
+            const output = dispatch(self.allocator, cmd.plugin, cmd.name, arg) catch |err| {
+                std.debug.print("plugin command /{s} failed: {s}\n", .{ cmd.name, @errorName(err) });
+                return .keep_going;
+            };
+            defer self.allocator.free(output);
+            std.debug.print("{s}\n", .{output});
+        } else {
+            if (arg.len > 0) {
+                std.debug.print("[plugin:{s}] /{s} '{s}'\n", .{ cmd.plugin, cmd.name, arg });
+            } else {
+                std.debug.print("[plugin:{s}] /{s}\n", .{ cmd.plugin, cmd.name });
+            }
+        }
+        return .keep_going;
     }
 
     fn showProfileStatus(self: *ReplLoop) void {
@@ -550,7 +842,263 @@ pub const ReplLoop = struct {
         self.state.config.model = self.state.model_storage[0..canon.len];
         std.debug.print("model set to {s}\n", .{self.state.config.model});
     }
+
+    /// `/features`: display active build-time features with ✓ or empty markers.
+    fn showFeatures(self: *ReplLoop) void {
+        _ = self;
+        const Feature = struct { name: []const u8, active: bool, desc: []const u8 };
+        const features = [_]Feature{
+            .{ .name = "ai", .active = build_options.feat_ai, .desc = "AI profiles, routing, constitution" },
+            .{ .name = "wdbx", .active = build_options.feat_wdbx, .desc = "Vector store, HNSW index" },
+            .{ .name = "sea", .active = build_options.feat_sea, .desc = "Self-learning evidence loop" },
+            .{ .name = "gpu", .active = build_options.feat_gpu, .desc = "GPU acceleration" },
+            .{ .name = "tui", .active = build_options.feat_tui, .desc = "Terminal UI" },
+            .{ .name = "accelerator", .active = build_options.feat_accelerator, .desc = "Accelerator backend selection" },
+            .{ .name = "shaders", .active = build_options.feat_shader, .desc = "Shader validation" },
+            .{ .name = "mlir", .active = build_options.feat_mlir, .desc = "MLIR lowering" },
+            .{ .name = "mobile", .active = build_options.feat_mobile, .desc = "Mobile platform profile" },
+            .{ .name = "os_control", .active = build_options.feat_os_control, .desc = "OS command policy controls" },
+            .{ .name = "hash", .active = build_options.feat_hash, .desc = "Portable hashing utilities" },
+            .{ .name = "metrics", .active = build_options.feat_metrics, .desc = "In-process metrics" },
+            .{ .name = "telemetry", .active = build_options.feat_telemetry, .desc = "Telemetry event emission" },
+            .{ .name = "nn", .active = build_options.feat_nn, .desc = "Char-LM neural net trainer" },
+            .{ .name = "foundationmodels", .active = build_options.feat_foundationmodels, .desc = "FoundationModels (macOS)" },
+        };
+        std.debug.print("Active Features:\n", .{});
+        for (features) |f| {
+            const marker = if (f.active) "✓" else " ";
+            std.debug.print("  {s:<18} [{s}]  {s}\n", .{ f.name, marker, f.desc });
+        }
+    }
+
+    /// `/learn`: toggle SEA self-learning mode on/off.
+    fn toggleLearn(self: *ReplLoop) void {
+        self.state.config.learn_mode = !self.state.config.learn_mode;
+        if (!build_options.feat_sea and self.state.config.learn_mode) {
+            std.debug.print("SEA learning: on (feature disabled — falling back to plain completion)\n", .{});
+        } else {
+            std.debug.print("SEA learning: {s}\n", .{if (self.state.config.learn_mode) "on" else "off"});
+        }
+    }
+
+    pub const SessionFile = struct {
+        version: u32,
+        session_id: i64,
+        model: []const u8,
+        learn_mode: bool,
+        open_path: []const u8,
+        open_content: []const u8,
+        turn_count: usize,
+        turn_history_count: usize,
+        turn_history_head: usize,
+        turns: []const TurnData,
+
+        pub const TurnData = struct {
+            input: []const u8,
+            response: []const u8,
+        };
+    };
+
+    fn sessionsDir(self: *ReplLoop) ![]const u8 {
+        const home = env.get("HOME") orelse return error.HomeNotSet;
+        const dir = try utils.pathJoin(home, ".abi/sessions", self.allocator);
+        return dir;
+    }
+
+    /// `/save <name>`: serialize session state to ~/.abi/sessions/<name>.json.
+    /// Writes a single JSON object matching `SessionFile` so `/load` can parse
+    /// it with `parseFromSlice`. The directory is created idempotently on save.
+    fn saveSession(self: *ReplLoop, name: []const u8, io: std.Io) !void {
+        if (name.len == 0) {
+            std.debug.print("usage: /save <name>\n", .{});
+            return;
+        }
+        const sessions_dir = try self.sessionsDir();
+        defer self.allocator.free(sessions_dir);
+
+        // Ensure the sessions directory exists (idempotent — succeeds if
+        // the path already exists, creates intermediate dirs otherwise).
+        std.Io.Dir.createDirPath(.cwd(), io, sessions_dir) catch |err| {
+            std.debug.print("save: cannot create sessions dir '{s}': {s}\n", .{ sessions_dir, @errorName(err) });
+            return;
+        };
+
+        const filepath = try std.fmt.allocPrint(self.allocator, "{s}/{s}.json", .{ sessions_dir, name });
+        defer self.allocator.free(filepath);
+
+        // Extract valid turn entries in order
+        var turns = std.ArrayListUnmanaged(SessionFile.TurnData).empty;
+        defer turns.deinit(self.allocator);
+        var i: usize = 0;
+        while (i < self.state.turn_history_count) : (i += 1) {
+            const idx = (self.state.turn_history_head + MAX_TURN_HISTORY - self.state.turn_history_count + i) % MAX_TURN_HISTORY;
+            try turns.append(self.allocator, .{
+                .input = self.state.turn_history[idx].input,
+                .response = self.state.turn_history[idx].response,
+            });
+        }
+
+        var json_out: std.Io.Writer.Allocating = .init(self.allocator);
+        defer json_out.deinit();
+        var jw = std.json.Stringify{ .writer = &json_out.writer, .options = .{ .whitespace = .indent_2 } };
+        try jw.beginObject();
+        try jw.objectField("version");
+        try jw.write(@as(u32, 1));
+        try jw.objectField("session_id");
+        try jw.write(self.state.session_id);
+        try jw.objectField("model");
+        try jw.write(self.state.config.model);
+        try jw.objectField("learn_mode");
+        try jw.write(self.state.config.learn_mode);
+        try jw.objectField("open_path");
+        try jw.write(self.state.open_path);
+        try jw.objectField("open_content");
+        try jw.write(self.state.open_content);
+        try jw.objectField("turn_count");
+        try jw.write(self.state.turn_count);
+        try jw.objectField("turn_history_count");
+        try jw.write(self.state.turn_history_count);
+        try jw.objectField("turn_history_head");
+        try jw.write(self.state.turn_history_head);
+        try jw.objectField("turns");
+        try jw.beginArray();
+        for (turns.items) |t| {
+            try jw.beginObject();
+            try jw.objectField("input");
+            try jw.write(t.input);
+            try jw.objectField("response");
+            try jw.write(t.response);
+            try jw.endObject();
+        }
+        try jw.endArray();
+        try jw.endObject();
+
+        try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = filepath, .data = json_out.written() });
+
+        std.debug.print("session saved: {s} ({d} turns)\n", .{ filepath, turns.items.len });
+    }
+
+    /// `/load <name>`: restore session state from ~/.abi/sessions/<name>.json.
+    fn loadSession(self: *ReplLoop, name: []const u8, io: std.Io) !void {
+        if (name.len == 0) {
+            std.debug.print("usage: /load <name>\n", .{});
+            return;
+        }
+        const sessions_dir = try self.sessionsDir();
+        defer self.allocator.free(sessions_dir);
+
+        const filepath = try std.fmt.allocPrint(self.allocator, "{s}/{s}.json", .{ sessions_dir, name });
+        defer self.allocator.free(filepath);
+
+        const content = std.Io.Dir.cwd().readFileAlloc(io, filepath, self.allocator, .limited(10 * 1024 * 1024)) catch |err| {
+            std.debug.print("load: cannot read '{s}': {s}\n", .{ filepath, @errorName(err) });
+            return;
+        };
+        defer self.allocator.free(content);
+
+        const parsed = std.json.parseFromSlice(SessionFile, self.allocator, content, .{
+            .ignore_unknown_fields = true,
+        }) catch |err| {
+            std.debug.print("load: parse error: {s}\n", .{@errorName(err)});
+            return;
+        };
+        defer parsed.deinit();
+
+        // Clear current state before restoring
+        self.state.clearTurnHistory(self.allocator);
+        self.state.clearFileContext(self.allocator);
+
+        // Restore config
+        if (parsed.value.model.len > 0 and parsed.value.model.len <= MODEL_STORAGE_BYTES) {
+            @memcpy(self.state.model_storage[0..parsed.value.model.len], parsed.value.model);
+            self.state.config.model = self.state.model_storage[0..parsed.value.model.len];
+        }
+        self.state.config.learn_mode = parsed.value.learn_mode;
+        self.state.session_id = parsed.value.session_id;
+        self.state.turn_count = parsed.value.turn_count;
+        // Clamp untrusted file values to valid ring-buffer ranges.
+        self.state.turn_history_count = @min(parsed.value.turn_history_count, MAX_TURN_HISTORY);
+        self.state.turn_history_head = parsed.value.turn_history_head % MAX_TURN_HISTORY;
+
+        // Restore turn history
+        var ti: usize = 0;
+        while (ti < self.state.turn_history_count and ti < parsed.value.turns.len) : (ti += 1) {
+            const idx = (self.state.turn_history_head + MAX_TURN_HISTORY - self.state.turn_history_count + ti) % MAX_TURN_HISTORY;
+            self.state.turn_history[idx] = .{
+                .input = try self.allocator.dupe(u8, parsed.value.turns[ti].input),
+                .response = try self.allocator.dupe(u8, parsed.value.turns[ti].response),
+            };
+        }
+
+        // Restore file context
+        if (parsed.value.open_path.len > 0 and parsed.value.open_content.len > 0) {
+            const path_bytes = parsed.value.open_path;
+            const content_bytes = parsed.value.open_content;
+            const header_len = @sizeOf(usize);
+            const total_len = header_len + path_bytes.len + content_bytes.len;
+            const buf = try self.allocator.alloc(u8, total_len);
+            @memcpy(buf[0..header_len], std.mem.asBytes(&path_bytes.len));
+            @memcpy(buf[header_len..][0..path_bytes.len], path_bytes);
+            @memcpy(buf[header_len + path_bytes.len ..], content_bytes);
+            self.state.file_context_buf = buf;
+            self.state.open_path = buf[header_len..][0..path_bytes.len];
+            self.state.open_content = buf[header_len + path_bytes.len ..];
+        }
+
+        std.debug.print("session loaded: {s} ({d} turns)\n", .{ filepath, parsed.value.turn_history_count });
+    }
 };
+
+/// Resolve `@file` mentions in input text by reading file contents.
+/// Each `@path` mention is replaced with `[file: path]\ncontent\n[/file]`.
+/// If the file cannot be read, the mention is replaced with
+/// `[file: path] (not found)[/file]`.
+/// Returns an owned string; caller must free.
+fn resolveFileMentions(allocator: std.mem.Allocator, input: []const u8, root: []const u8, io: std.Io) ![]u8 {
+    const max_file_read: usize = 16384;
+
+    const mentions = file_context.parseFileMentions(allocator, input) catch {
+        return try allocator.dupe(u8, input);
+    };
+    defer allocator.free(mentions);
+
+    if (mentions.len == 0) {
+        return try allocator.dupe(u8, input);
+    }
+
+    var result = std.ArrayListUnmanaged(u8).empty;
+    defer result.deinit(allocator);
+
+    var last_end: usize = 0;
+    for (mentions) |mention| {
+        // Append text before the mention
+        try result.appendSlice(allocator, input[last_end..mention.start]);
+
+        // Try to read the file (bounded to 16 KB)
+        const file_contents = file_context.readFileBounded(io, allocator, root, mention.path, max_file_read) catch {
+            // File not found or unreadable — emit placeholder
+            try result.appendSlice(allocator, "[file: ");
+            try result.appendSlice(allocator, mention.path);
+            try result.appendSlice(allocator, "] (not found)[/file]");
+            last_end = mention.end;
+            continue;
+        };
+        defer allocator.free(file_contents);
+
+        // Inject file contents with markers
+        try result.appendSlice(allocator, "[file: ");
+        try result.appendSlice(allocator, mention.path);
+        try result.appendSlice(allocator, "]\n");
+        try result.appendSlice(allocator, file_contents);
+        try result.appendSlice(allocator, "\n[/file]");
+
+        last_end = mention.end;
+    }
+    // Append remaining text after the last mention
+    try result.appendSlice(allocator, input[last_end..]);
+
+    return try result.toOwnedSlice(allocator);
+}
 
 test "parseSpecialCommand recognizes slash commands and treats prompts as unknown" {
     try std.testing.expectEqual(SpecialCommand.quit, parseSpecialCommand("/quit"));
@@ -567,6 +1115,12 @@ test "parseSpecialCommand recognizes slash commands and treats prompts as unknow
     try std.testing.expectEqual(SpecialCommand.profile, parseSpecialCommand("/profile abbey"));
     try std.testing.expectEqual(SpecialCommand.syncclis, parseSpecialCommand("/sync-clis"));
     try std.testing.expectEqual(SpecialCommand.syncclis, parseSpecialCommand("/syncclis"));
+    try std.testing.expectEqual(SpecialCommand.context, parseSpecialCommand("/context"));
+    try std.testing.expectEqual(SpecialCommand.features, parseSpecialCommand("/features"));
+    try std.testing.expectEqual(SpecialCommand.features, parseSpecialCommand("/feat"));
+    try std.testing.expectEqual(SpecialCommand.learn, parseSpecialCommand("/learn"));
+    try std.testing.expectEqual(SpecialCommand.save, parseSpecialCommand("/save my-session"));
+    try std.testing.expectEqual(SpecialCommand.load, parseSpecialCommand("/load my-session"));
     try std.testing.expectEqual(SpecialCommand.unknown, parseSpecialCommand("/bogus"));
     try std.testing.expectEqual(SpecialCommand.unknown, parseSpecialCommand("hello there"));
     try std.testing.expectEqual(SpecialCommand.unknown, parseSpecialCommand(""));
@@ -629,9 +1183,10 @@ test "slash completion canonicalizes unique prefixes and reports ambiguity" {
     }
     switch (completeSlashCommand("/s", &matches)) {
         .ambiguous => |defs| {
-            try std.testing.expectEqual(@as(usize, 2), defs.len);
+            try std.testing.expectEqual(@as(usize, 3), defs.len);
             try std.testing.expectEqualStrings("status", defs[0].name);
             try std.testing.expectEqualStrings("sync-clis", defs[1].name);
+            try std.testing.expectEqualStrings("save", defs[2].name);
         },
         else => return error.ExpectedAmbiguousSlashPrefix,
     }
@@ -656,7 +1211,7 @@ test "tui input hardening: adversarial bytes never corrupt state" {
     };
     for (adversarial) |input| {
         switch (parseSpecialCommand(input)) {
-            .quit, .reset, .help, .model, .profile, .status, .history, .syncclis, .open, .diff, .commit, .unknown => {},
+            .quit, .reset, .help, .model, .profile, .status, .history, .context, .syncclis, .open, .diff, .commit, .features, .learn, .save, .load, .unknown => {},
         }
     }
 
@@ -688,6 +1243,155 @@ test "raw editor rejects control bytes and accepts printable ASCII" {
     try std.testing.expect(try editor.insertPrintable(0x20));
     try std.testing.expect(try editor.insertPrintable(0x7e));
     try std.testing.expectEqualStrings(" ~", editor.text());
+}
+
+test "resolveFileMentions passes through input with no mentions" {
+    const allocator = std.testing.allocator;
+    const result = try resolveFileMentions(allocator, "hello world", ".", std.testing.io);
+    defer allocator.free(result);
+    try std.testing.expectEqualStrings("hello world", result);
+}
+
+test "resolveFileMentions replaces unfound file with placeholder" {
+    const allocator = std.testing.allocator;
+    const result = try resolveFileMentions(allocator, "read @nonexistent-file.xyz end", ".", std.testing.io);
+    defer allocator.free(result);
+    try std.testing.expect(std.mem.indexOf(u8, result, "(not found)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "[file: nonexistent-file.xyz]") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "[/file]") != null);
+    try std.testing.expect(std.mem.startsWith(u8, result, "read "));
+    try std.testing.expect(std.mem.endsWith(u8, result, " end"));
+}
+
+test "resolveFileMentions preserves text before and after the mention" {
+    // Tests that surrounding text is preserved when a file mention resolves to
+    // the (not found) placeholder. Covers the position tracking logic.
+    const allocator = std.testing.allocator;
+    const result = try resolveFileMentions(allocator, "before @missing.txt after", ".", std.testing.io);
+    defer allocator.free(result);
+    try std.testing.expect(std.mem.startsWith(u8, result, "before "));
+    try std.testing.expect(std.mem.endsWith(u8, result, " after"));
+    try std.testing.expect(std.mem.indexOf(u8, result, "(not found)") != null);
+}
+
+test "resolveFileMentions ignores email-like @ tokens" {
+    const allocator = std.testing.allocator;
+    const result = try resolveFileMentions(allocator, "contact user@example.com for details", ".", std.testing.io);
+    defer allocator.free(result);
+    // No @file resolution; text passes through unchanged
+    try std.testing.expectEqualStrings("contact user@example.com for details", result);
+}
+
+test "resolveFileMentions handles multiple mentions with mix of found and missing" {
+    const allocator = std.testing.allocator;
+    const result = try resolveFileMentions(allocator, "process @missing-one.xyz and @missing-two.abc", ".", std.testing.io);
+    defer allocator.free(result);
+    // Both should produce (not found) placeholders
+    try std.testing.expect(std.mem.indexOf(u8, result, "(not found)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "missing-one.xyz") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "missing-two.abc") != null);
+    try std.testing.expect(std.mem.startsWith(u8, result, "process "));
+}
+
+test "save and load session round-trip restores state" {
+    if (!build_options.feat_wdbx) return error.SkipZigTest;
+
+    const allocator = std.testing.allocator;
+    const io = std.testing.io;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+    var scheduler = scheduler_mod.Scheduler.init(allocator);
+    defer scheduler.deinit();
+
+    var repl = ReplLoop.init(allocator, &store, &scheduler, .{
+        .model = "test-model",
+        .learn_mode = true,
+        .store_turns = false,
+    });
+    defer repl.deinit();
+
+    // Seed some state
+    repl.state.turn_count = 5;
+    repl.state.session_id = 123456;
+    repl.state.config.learn_mode = true;
+    repl.state.pushTurn(allocator, "hello", "world");
+    repl.state.pushTurn(allocator, "foo", "bar");
+
+    // Save to a temp file by setting HOME to a temp dir
+    const temp_home = "/tmp/abi-test-save-load";
+    // Clean up any prior state
+    std.Io.Dir.deleteTree(.cwd(), io, temp_home) catch {};
+    defer std.Io.Dir.deleteTree(.cwd(), io, temp_home) catch {};
+
+    // We can't easily override HOME for the sessionsDir() call, so test
+    // the serialization format directly: build the JSON and parse it back.
+    const SessionFile = ReplLoop.SessionFile;
+    var turns = std.ArrayListUnmanaged(SessionFile.TurnData).empty;
+    defer turns.deinit(allocator);
+    var i: usize = 0;
+    while (i < repl.state.turn_history_count) : (i += 1) {
+        const idx = (repl.state.turn_history_head + MAX_TURN_HISTORY - repl.state.turn_history_count + i) % MAX_TURN_HISTORY;
+        try turns.append(allocator, .{
+            .input = repl.state.turn_history[idx].input,
+            .response = repl.state.turn_history[idx].response,
+        });
+    }
+
+    // Serialize
+    var json_out: std.Io.Writer.Allocating = .init(allocator);
+    defer json_out.deinit();
+    var jw = std.json.Stringify{ .writer = &json_out.writer, .options = .{ .whitespace = .indent_2 } };
+    try jw.beginObject();
+    try jw.objectField("version");
+    try jw.write(@as(u32, 1));
+    try jw.objectField("session_id");
+    try jw.write(repl.state.session_id);
+    try jw.objectField("model");
+    try jw.write(repl.state.config.model);
+    try jw.objectField("learn_mode");
+    try jw.write(repl.state.config.learn_mode);
+    try jw.objectField("open_path");
+    try jw.write(repl.state.open_path);
+    try jw.objectField("open_content");
+    try jw.write(repl.state.open_content);
+    try jw.objectField("turn_count");
+    try jw.write(repl.state.turn_count);
+    try jw.objectField("turn_history_count");
+    try jw.write(repl.state.turn_history_count);
+    try jw.objectField("turn_history_head");
+    try jw.write(repl.state.turn_history_head);
+    try jw.objectField("turns");
+    try jw.beginArray();
+    for (turns.items) |t| {
+        try jw.beginObject();
+        try jw.objectField("input");
+        try jw.write(t.input);
+        try jw.objectField("response");
+        try jw.write(t.response);
+        try jw.endObject();
+    }
+    try jw.endArray();
+    try jw.endObject();
+
+    // Parse it back
+    const parsed = try std.json.parseFromSlice(SessionFile, allocator, json_out.written(), .{
+        .ignore_unknown_fields = true,
+    });
+    defer parsed.deinit();
+
+    // Verify round-trip
+    try std.testing.expectEqual(@as(u32, 1), parsed.value.version);
+    try std.testing.expectEqual(@as(i64, 123456), parsed.value.session_id);
+    try std.testing.expectEqualStrings("test-model", parsed.value.model);
+    try std.testing.expect(parsed.value.learn_mode);
+    try std.testing.expectEqual(@as(usize, 5), parsed.value.turn_count);
+    try std.testing.expectEqual(@as(usize, 2), parsed.value.turn_history_count);
+    try std.testing.expectEqual(@as(usize, 2), parsed.value.turns.len);
+    try std.testing.expectEqualStrings("hello", parsed.value.turns[0].input);
+    try std.testing.expectEqualStrings("world", parsed.value.turns[0].response);
+    try std.testing.expectEqualStrings("foo", parsed.value.turns[1].input);
+    try std.testing.expectEqualStrings("bar", parsed.value.turns[1].response);
 }
 
 test {

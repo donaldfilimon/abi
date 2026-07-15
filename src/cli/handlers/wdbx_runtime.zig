@@ -294,10 +294,13 @@ pub fn gpuInfo(allocator: std.mem.Allocator) anyerror!u8 {
 
 /// `abi wdbx api serve [port]`: serve the WDBX REST API over an in-memory store
 /// on `127.0.0.1:<port>` until interrupted. Returns the process exit code.
+/// TLS: when ABI_WDBX_TLS_CERT and ABI_WDBX_TLS_KEY are set, the server validates
+/// cert/key files and advises proxy-based HTTPS deployment (native TLS not linked).
 pub fn serveApi(io: std.Io, allocator: std.mem.Allocator, port: u16) anyerror!u8 {
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
-    std.debug.print("serving WDBX REST on http://127.0.0.1:{d} (Ctrl-C to stop)\n", .{port});
+    const tls_str = if (wdbx.tls_config.TlsConfig.fromEnv(io) != null) " (TLS configured)" else "";
+    std.debug.print("serving WDBX REST on http://127.0.0.1:{d}{s} (Ctrl-C to stop)\n", .{ port, tls_str });
     wdbx.rest.serve(allocator, io, &store, port) catch |err| {
         std.debug.print("REST server error: {s}\n", .{@errorName(err)});
         return 1;

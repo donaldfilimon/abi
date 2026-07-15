@@ -11,6 +11,8 @@ const DIAG_WIDTH: usize = 68;
 const LABEL_WIDTH: usize = 25;
 const VALUE_WIDTH: usize = 40;
 const MAX_PLUGIN_ROWS: usize = 6;
+const AGENT_PANE_WIDTH: usize = 36;
+const SPLIT_SEP: []const u8 = " │ ";
 
 pub const DiagnosticRenderOptions = struct {
     color: bool = true,
@@ -47,6 +49,7 @@ pub fn dashboardPaneName(kind: types.PaneKind) []const u8 {
         .storage => "storage",
         .scheduler => "scheduler",
         .memory => "memory",
+        .agent_output => "agent_output",
     };
 }
 
@@ -167,6 +170,7 @@ fn paneColor(kind: types.PaneKind) []const u8 {
         .storage => "\x1b[1;35m",
         .scheduler => "\x1b[1;34m",
         .memory => "\x1b[1;31m",
+        .agent_output => "\x1b[1;36m",
     };
 }
 
@@ -205,6 +209,9 @@ fn appendPaneBody(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator
             try appendMetricRow(out, allocator, "Current bytes", ds.memory_current);
             try appendMetricRow(out, allocator, "Leaked bytes", ds.memory_leaked);
         },
+        .agent_output => {
+            try appendRow(out, allocator, "Agent Output", "see right pane");
+        },
     }
 }
 
@@ -223,6 +230,69 @@ fn appendDiagnosticsPane(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Al
     try appendPanelFooter(out, allocator);
     try appendStyle(out, allocator, options.color, "\x1b[0m");
     if (idx == selected) try appendStyle(out, allocator, options.color, no_highlight);
+}
+
+/// Render the agent output pane (right side of split layout).
+fn renderAgentOutputPane(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, ds: types.DashboardState, pane_width: usize, options: DiagnosticRenderOptions) !void {
+    const is_focused = ds.focused_pane == .right;
+    const highlight = if (is_focused) "\x1b[7m" else "";
+    const no_highlight = if (is_focused) "\x1b[27m" else "";
+    const color_code = paneColor(.agent_output);
+
+    try appendStyle(out, allocator, options.color, highlight);
+    try appendStyle(out, allocator, options.color, color_code);
+
+    // Top border
+    try out.appendSlice(allocator, "┌");
+    const title = " Agent Output ";
+    try out.appendSlice(allocator, title);
+    const used = title.len;
+    if (used < pane_width) try appendRule(out, allocator, pane_width - used);
+    try out.appendSlice(allocator, "┐\n");
+
+    try appendStyle(out, allocator, options.color, "\x1b[0m");
+    if (is_focused) try appendStyle(out, allocator, options.color, no_highlight);
+
+    // Content rows
+    if (ds.agent_output_buffer.len == 0) {
+        try out.appendSlice(allocator, "│ ");
+        try appendFitted(out, allocator, "(no agent output yet)", pane_width - 2);
+        try out.appendSlice(allocator, " │\n");
+    } else {
+        var line_iter = std.mem.splitScalar(u8, ds.agent_output_buffer, '\n');
+        var idx: usize = 0;
+        while (line_iter.next()) |line| : (idx += 1) {
+            if (idx < ds.agent_output_scroll) continue;
+            try out.appendSlice(allocator, "│ ");
+            try appendFitted(out, allocator, line, pane_width - 2);
+            try out.appendSlice(allocator, " │\n");
+        }
+    }
+
+    // Bottom border
+    try out.appendSlice(allocator, "└");
+    try appendRule(out, allocator, pane_width);
+    try out.appendSlice(allocator, "┘\n");
+}
+
+/// Footer for split-pane layout, includes focus indicator and scroll hints.
+fn appendDashboardFooterSplit(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, options: DiagnosticRenderOptions, focused: types.FocusedPane) !void {
+    try out.append(allocator, '\n');
+    try appendStyle(out, allocator, options.color, "\x1b[2m");
+
+    const focus_indicator = if (focused == .left) " [L]" else " [R]";
+    try out.print(allocator, "[q] Quit  [Tab] Focus{s}", .{focus_indicator});
+
+    if (focused == .right) {
+        try out.appendSlice(allocator, "  [j/k] Scroll");
+    } else {
+        try out.appendSlice(allocator, "  [r] Refresh  [1-5] Panes  [h/l] Prev/Next");
+    }
+
+    try out.appendSlice(allocator, "  every ");
+    try appendRefreshInterval(out, allocator, options.refresh_interval_ms);
+    try appendStyle(out, allocator, options.color, "\x1b[0m");
+    try out.append(allocator, '\n');
 }
 
 fn appendRefreshInterval(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, refresh_interval_ms: u64) !void {
@@ -306,6 +376,76 @@ pub fn renderDiagnosticsWithOptions(allocator: std.mem.Allocator, ds: types.Dash
     }
 
     try appendDashboardFooter(&out, allocator, options);
+
+    return try out.toOwnedSlice(allocator);
+}
+
+/// Render the diagnostics dashboard in split-pane layout: diagnostics (left)
+/// and agent output log (right) side by side.
+pub fn renderDiagnosticsSplit(allocator: std.mem.Allocator, ds: types.DashboardState) ![]u8 {
+    return renderDiagnosticsSplitWithOptions(allocator, ds, .{});
+}
+
+/// Render the diagnostics dashboard in split-pane layout with custom options.
+pub fn renderDiagnosticsSplitWithOptions(allocator: std.mem.Allocator, ds: types.DashboardState, options: DiagnosticRenderOptions) ![]u8 {
+    const left_width: usize = AGENT_PANE_WIDTH;
+    const sep: []const u8 = SPLIT_SEP;
+
+    // 1. Render left pane content (diagnostics header + panes, no footer)
+    var left_buf = std.ArrayListUnmanaged(u8).empty;
+    defer left_buf.deinit(allocator);
+
+    try appendDashboardHeader(&left_buf, allocator, ds, options);
+
+    const selected = selectedPaneIndex(ds.selected_pane);
+    if (options.compact) {
+        try appendDiagnosticsPane(&left_buf, allocator, ds, DASHBOARD_PANES[selected], selected, selected, options);
+    } else {
+        for (DASHBOARD_PANES, 0..) |pane, idx| {
+            try appendDiagnosticsPane(&left_buf, allocator, ds, pane, idx, selected, options);
+        }
+    }
+
+    // 2. Render right pane (agent output)
+    var right_buf = std.ArrayListUnmanaged(u8).empty;
+    defer right_buf.deinit(allocator);
+
+    try renderAgentOutputPane(&right_buf, allocator, ds, left_width, options);
+
+    // 3. Interleave left and right lines side by side
+    var out = std.ArrayListUnmanaged(u8).empty;
+    errdefer out.deinit(allocator);
+
+    var left_iter = std.mem.splitScalar(u8, left_buf.items, '\n');
+    var right_iter = std.mem.splitScalar(u8, right_buf.items, '\n');
+
+    while (true) {
+        const left_line = left_iter.next() orelse break;
+        const right_line = right_iter.next() orelse "";
+
+        // Left truncated to left_width
+        if (left_line.len > left_width) {
+            try out.appendSlice(allocator, left_line[0..left_width]);
+        } else {
+            try out.appendSlice(allocator, left_line);
+            try appendRepeated(&out, allocator, ' ', left_width - left_line.len);
+        }
+
+        try out.appendSlice(allocator, sep);
+
+        // Right truncated to left_width
+        if (right_line.len > left_width) {
+            try out.appendSlice(allocator, right_line[0..left_width]);
+        } else {
+            try out.appendSlice(allocator, right_line);
+            try appendRepeated(&out, allocator, ' ', left_width - right_line.len);
+        }
+
+        try out.append(allocator, '\n');
+    }
+
+    // 4. Split-mode footer
+    try appendDashboardFooterSplit(&out, allocator, options, ds.focused_pane);
 
     return try out.toOwnedSlice(allocator);
 }
@@ -498,6 +638,64 @@ test "diagnostics dashboard compact mode renders only selected pane" {
     try std.testing.expect(std.mem.indexOf(u8, rendered, "System") == null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "WDBX Storage") == null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Memory") == null);
+}
+
+test "split-pane dashboard renders both sides with placeholder agent output" {
+    const rendered = try renderDiagnosticsSplitWithOptions(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .gpu_accelerated = true,
+        .gpu_linked = true,
+    }, .{ .color = false });
+    defer std.testing.allocator.free(rendered);
+
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "ABI Diagnostics Dashboard") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Agent Output") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "no agent output yet") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, SPLIT_SEP) != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "[Tab] Focus [L]") != null);
+}
+
+test "split-pane dashboard with right focus shows correct indicator" {
+    const rendered = try renderDiagnosticsSplitWithOptions(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .gpu_accelerated = true,
+        .gpu_linked = true,
+        .focused_pane = .right,
+    }, .{ .color = false });
+    defer std.testing.allocator.free(rendered);
+
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "[Tab] Focus [R]") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "[j/k] Scroll") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Scheduler") != null);
+}
+
+test "split-pane dashboard renders agent output buffer content when present" {
+    const rendered = try renderDiagnosticsSplitWithOptions(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .gpu_accelerated = true,
+        .gpu_linked = true,
+        .agent_output_buffer = "hello world\nline two",
+    }, .{ .color = false });
+    defer std.testing.allocator.free(rendered);
+
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "hello world") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "line two") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "no agent output yet") == null);
+}
+
+test "split-pane dashboard respects agent_output_scroll offset" {
+    const rendered = try renderDiagnosticsSplitWithOptions(std.testing.allocator, .{
+        .gpu_backend = "metal",
+        .gpu_accelerated = true,
+        .gpu_linked = true,
+        .agent_output_buffer = "line1\nline2\nline3",
+        .agent_output_scroll = 1,
+    }, .{ .color = false });
+    defer std.testing.allocator.free(rendered);
+
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "line1") == null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "line2") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "line3") != null);
 }
 
 test {

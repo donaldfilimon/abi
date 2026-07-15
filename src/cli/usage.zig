@@ -19,18 +19,20 @@ pub const Command = struct {
 pub const Category = enum {
     core,
     ai,
-    runtime,
-    operations,
+    data,
+    system,
+    network,
 };
 
-const category_order = [_]Category{ .core, .ai, .runtime, .operations };
+const category_order = [_]Category{ .core, .ai, .data, .system, .network };
 
 fn categoryTitle(category: Category) []const u8 {
     return switch (category) {
         .core => "Core",
         .ai => "AI",
-        .runtime => "Runtime",
-        .operations => "Operations",
+        .data => "Data",
+        .system => "System",
+        .network => "Network",
     };
 }
 
@@ -38,8 +40,9 @@ pub fn categoryName(category: Category) []const u8 {
     return switch (category) {
         .core => "core",
         .ai => "ai",
-        .runtime => "runtime",
-        .operations => "operations",
+        .data => "data",
+        .system => "system",
+        .network => "network",
     };
 }
 
@@ -96,16 +99,16 @@ pub const commands = [_]Command{
     .{
         .name = "backends",
         .usage = "abi backends",
-        .summary = "Show GPU, accelerator, shader, and MLIR status",
-        .category = .runtime,
-        .details = "Reports truthful linked/native/fallback status for local compute backends.",
+        .summary = "Show GPU, accelerator, shader, MLIR status, feature flags, and version info",
+        .category = .system,
+        .details = "Reports truthful linked/native/fallback status for local compute backends, lists all build-time feature flags with their enabled/disabled status, and shows framework version and build info.",
         .examples = &.{"abi backends"},
     },
     .{
         .name = "plugin",
         .usage = "abi plugin list | run <name> [input]",
         .summary = "Inspect or execute installed plugins",
-        .category = .runtime,
+        .category = .data,
         .details = "The list path reads the generated plugin registry; run loads bundled plugins and dispatches by plugin name.",
         .examples = &.{
             "abi plugin list",
@@ -116,7 +119,7 @@ pub const commands = [_]Command{
         .name = "auth",
         .usage = "abi auth <signin|logout|status>",
         .summary = "Manage external-service authentication state",
-        .category = .operations,
+        .category = .system,
         .details = "Credential helpers are local; live connectors still require explicit credentials and live transport selection.",
         .examples = &.{"abi auth status"},
     },
@@ -124,7 +127,7 @@ pub const commands = [_]Command{
         .name = "twilio",
         .usage = "abi twilio simulate <input>",
         .summary = "Run a local Twilio voice-agent simulation",
-        .category = .runtime,
+        .category = .network,
         .details = "Offline simulation only; live Twilio transport requires explicit connector credentials and live mode elsewhere.",
         .examples = &.{"abi twilio simulate \"billing question\""},
     },
@@ -132,7 +135,7 @@ pub const commands = [_]Command{
         .name = "tui",
         .usage = "abi tui [--pane <pane>] [--plain|--no-color] [--compact] [--once] [--interval <ms>] [--json] [--list-panes]",
         .summary = "Render the diagnostics dashboard",
-        .category = .core,
+        .category = .system,
         .details = "Launches the interactive diagnostics dashboard when stdin is a terminal; otherwise renders a one-shot dashboard frame. --pane accepts system, plugins, storage/wdbx, scheduler, memory, or 1-5. --plain/--no-color omit ANSI styling for logs. --compact renders only the selected pane. --once forces one-shot output; --interval sets the interactive refresh cadence in milliseconds. --json emits one machine-readable snapshot. --list-panes prints pane names, titles, and hotkeys without launching the dashboard.",
         .examples = &.{
             "abi tui",
@@ -148,7 +151,7 @@ pub const commands = [_]Command{
         .name = "dashboard",
         .usage = "abi dashboard [--pane <pane>] [--plain|--no-color] [--compact] [--once] [--interval <ms>] [--json] [--list-panes]",
         .summary = "Render the diagnostics dashboard",
-        .category = .core,
+        .category = .system,
         .details = "Alias of `abi tui` for the diagnostics dashboard. --pane selects the initially highlighted diagnostics pane; --plain/--no-color omit ANSI styling. --compact renders only the selected pane. --once forces one-shot output; --interval sets the interactive refresh cadence in milliseconds. --json emits one machine-readable snapshot. --list-panes prints pane names, titles, and hotkeys without launching the dashboard.",
         .examples = &.{
             "abi dashboard",
@@ -164,7 +167,7 @@ pub const commands = [_]Command{
         .name = "wdbx",
         .usage = "abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api> ...",
         .summary = "Operate WDBX storage, WAL, blocks, stats, and demos",
-        .category = .runtime,
+        .category = .data,
         .details = "Subcommands: db init|verify|compact, block insert|get, query, benchmark, cluster status|demo|serve, compute info, secure demo, gpu info, api serve.",
         .examples = &.{
             "abi wdbx db verify",
@@ -175,7 +178,7 @@ pub const commands = [_]Command{
         .name = "scheduler",
         .usage = "abi scheduler status",
         .summary = "Report scheduler and memory tracker status",
-        .category = .operations,
+        .category = .system,
         .details = "Runs a one-shot scheduler status task and reports attached memory tracker counters.",
         .examples = &.{"abi scheduler status"},
     },
@@ -183,7 +186,7 @@ pub const commands = [_]Command{
         .name = "nn",
         .usage = "abi nn train \"<text>\" | train --jsonl <path> [--field <name>] | sample --text \"<corpus>\" --seed <char> --n <k>",
         .summary = "Run the miniature character-level demo trainer",
-        .category = .runtime,
+        .category = .ai,
         .details = "This is a small local demo trainer, not a production/LLM/distributed trainer.",
         .examples = &.{"abi nn sample --text \"hello\" --seed h --n 16"},
     },
@@ -192,15 +195,15 @@ pub const commands = [_]Command{
 pub fn printUsage() void {
     std.debug.print("Usage: abi <command> [args...]\n       abi --tui [dashboard flags]\n\n", .{});
     for (category_order) |category| {
-        std.debug.print("{s}:\n", .{categoryTitle(category)});
+        std.debug.print("\x1b[1m{s}\x1b[0m\n", .{categoryTitle(category)});
         for (commands) |command| {
             if (command.category == category) {
-                std.debug.print("  {s:<10} {s}\n", .{ command.name, command.summary });
+                std.debug.print("  \x1b[36m{s:<12}\x1b[0m {s}\n", .{ command.name, command.summary });
             }
         }
         std.debug.print("\n", .{});
     }
-    std.debug.print("\nRun `abi help [--json|--completion <shell>] <command> [subcommand]` for details.\n", .{});
+    std.debug.print("Run `abi help [--json|--completion <shell>] <command> [subcommand]` for details.\n", .{});
 }
 
 pub fn findCommand(name: []const u8) ?Command {

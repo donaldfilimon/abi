@@ -2,12 +2,31 @@
 const std = @import("std");
 const sync = @import("../foundation/sync.zig");
 
+/// A slash-command provided by a plugin.
+pub const PluginCommand = struct {
+    name: []const u8,
+    summary: []const u8 = "",
+    aliases: []const []const u8 = &.{},
+};
+
+/// A context provider declared by a plugin to augment the REPL prompt
+/// context at startup. Each provider is called with `__context__:<name>`
+/// via the plugin's `run()` entry point.
+pub const ContextProvider = struct {
+    name: []const u8,
+    summary: []const u8 = "",
+};
+
 pub const PluginDescriptor = struct {
     name: []const u8,
     version: []const u8 = "",
     description: []const u8,
     target_feature: []const u8 = "",
     entry_point: []const u8 = "",
+    /// Optional slash-commands registered by this plugin.
+    commands: []const PluginCommand = &.{},
+    /// Optional context providers that augment the REPL prompt context.
+    context_providers: []const ContextProvider = &.{},
 };
 
 pub const Registry = struct {
@@ -139,6 +158,23 @@ pub const Registry = struct {
         allocator.free(plugins);
     }
 
+    /// Find a plugin command by name (checking aliases too). Returns the owning
+    /// plugin name and the command descriptor, or null if not found.
+    pub fn findPluginCommand(self: *Registry, name: []const u8) ?struct { plugin: []const u8, command: PluginCommand } {
+        self.lock.lockRead();
+        defer self.lock.unlockRead();
+        var it = self.modules.iterator();
+        while (it.next()) |entry| {
+            for (entry.value_ptr.commands) |cmd| {
+                if (std.mem.eql(u8, cmd.name, name)) return .{ .plugin = entry.key_ptr.*, .command = cmd };
+                for (cmd.aliases) |alias| {
+                    if (std.mem.eql(u8, alias, name)) return .{ .plugin = entry.key_ptr.*, .command = cmd };
+                }
+            }
+        }
+        return null;
+    }
+
     pub fn formatPluginList(self: *Registry, allocator: std.mem.Allocator) ![]u8 {
         self.lock.lockRead();
         defer self.lock.unlockRead();
@@ -175,12 +211,39 @@ fn dupeDescriptor(allocator: std.mem.Allocator, descriptor: PluginDescriptor) !P
     const entry_point = try allocator.dupe(u8, descriptor.entry_point);
     errdefer allocator.free(entry_point);
 
+    const commands = try allocator.alloc(PluginCommand, descriptor.commands.len);
+    errdefer allocator.free(commands);
+    for (descriptor.commands, 0..) |cmd, i| {
+        const cmd_name = try allocator.dupe(u8, cmd.name);
+        errdefer allocator.free(cmd_name);
+        const cmd_summary = try allocator.dupe(u8, cmd.summary);
+        errdefer allocator.free(cmd_summary);
+        const aliases = try allocator.alloc([]const u8, cmd.aliases.len);
+        errdefer allocator.free(aliases);
+        for (cmd.aliases, 0..) |alias, j| {
+            aliases[j] = try allocator.dupe(u8, alias);
+        }
+        commands[i] = .{ .name = cmd_name, .summary = cmd_summary, .aliases = aliases };
+    }
+
+    const context_providers = try allocator.alloc(ContextProvider, descriptor.context_providers.len);
+    errdefer allocator.free(context_providers);
+    for (descriptor.context_providers, 0..) |cp, i| {
+        const cp_name = try allocator.dupe(u8, cp.name);
+        errdefer allocator.free(cp_name);
+        const cp_summary = try allocator.dupe(u8, cp.summary);
+        errdefer allocator.free(cp_summary);
+        context_providers[i] = .{ .name = cp_name, .summary = cp_summary };
+    }
+
     return .{
         .name = name,
         .version = version,
         .description = description,
         .target_feature = target_feature,
         .entry_point = entry_point,
+        .commands = commands,
+        .context_providers = context_providers,
     };
 }
 
@@ -190,6 +253,18 @@ fn freeDescriptor(allocator: std.mem.Allocator, descriptor: PluginDescriptor) vo
     allocator.free(descriptor.description);
     allocator.free(descriptor.target_feature);
     allocator.free(descriptor.entry_point);
+    for (descriptor.commands) |cmd| {
+        allocator.free(cmd.name);
+        allocator.free(cmd.summary);
+        for (cmd.aliases) |alias| allocator.free(alias);
+        allocator.free(cmd.aliases);
+    }
+    allocator.free(descriptor.commands);
+    for (descriptor.context_providers) |cp| {
+        allocator.free(cp.name);
+        allocator.free(cp.summary);
+    }
+    allocator.free(descriptor.context_providers);
 }
 
 pub const Config = struct {

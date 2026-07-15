@@ -131,18 +131,20 @@ pub const TrainingResult = struct {
     }
 };
 
-pub const CompletionRequest = struct {
-    input: []const u8,
-    model: []const u8 = "claude-fable-5",
-    store_result: bool = false,
-};
-
 pub const StreamChunk = struct {
     delta: []const u8,
     done: bool,
 };
 
 pub const StreamCallback = *const fn (ctx: *anyopaque, chunk: StreamChunk) anyerror!void;
+
+pub const CompletionRequest = struct {
+    input: []const u8,
+    model: []const u8 = "claude-fable-5",
+    store_result: bool = false,
+    stream_callback: ?StreamCallback = null,
+    stream_ctx: ?*anyopaque = null,
+};
 
 pub const CompletionResult = struct {
     model: []const u8,

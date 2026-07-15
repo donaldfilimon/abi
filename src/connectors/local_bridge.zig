@@ -23,6 +23,10 @@ const Response = connector.Response;
 pub const LLAMA_CPP_DEFAULT_ENDPOINT = "http://127.0.0.1:8080";
 pub const MLX_DEFAULT_ENDPOINT = "http://127.0.0.1:8081";
 
+/// Re-export HTTP stream types for callers
+pub const StreamCallback = http.StreamCallback;
+pub const StreamChunk = http.StreamChunk;
+
 /// Determine whether a model id should dispatch to a local inference bridge
 /// rather than the in-process persona router. Matches the same prefixes that
 /// `models.providerOf` classifies as `.local`.
@@ -92,6 +96,38 @@ pub fn completeLive(
     defer allocator.free(body);
 
     return try http.httpPostJson(io, allocator, config, "/v1/chat/completions", body, &.{});
+}
+
+/// Send a streaming completion request to the local inference server via SSE.
+/// The server must support OpenAI-compatible `/v1/chat/completions` with
+/// `stream=true`. The callback is invoked for each token delta.
+pub fn completeLiveStreaming(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    model: []const u8,
+    input: []const u8,
+    on_chunk: http.StreamCallback,
+    callback_ctx: *anyopaque,
+) ![]const u8 {
+    const endpoint = endpointFor(model, null);
+    const config = ConnectorConfig{
+        .api_key = "",
+        .base_url = endpoint,
+        .timeout_ms = 60000,
+        .transport = .live,
+    };
+
+    // Build OpenAI-compatible messages array with stream=true
+    var messages = std.ArrayListUnmanaged(u8).empty;
+    defer messages.deinit(allocator);
+    try messages.appendSlice(allocator, "[{\"role\":\"user\",\"content\":");
+    try json.appendJsonString(&messages, allocator, input);
+    try messages.appendSlice(allocator, "}]");
+
+    const body = try json.buildOpenAiBody(allocator, model, messages.items, true);
+    defer allocator.free(body);
+
+    return try http.httpPostJsonStreaming(io, allocator, config, "/v1/chat/completions", body, on_chunk, callback_ctx);
 }
 
 /// Extract the completion text from an OpenAI-compatible JSON response.

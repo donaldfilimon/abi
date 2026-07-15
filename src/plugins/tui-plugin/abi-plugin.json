@@ -3,5 +3,16 @@
   "version": "0.1.0",
   "description": "Example reference plugin targeting the feat-tui gate.",
   "target_feature": "tui",
-  "entry_point": "mod.zig"
+  "entry_point": "mod.zig",
+  "commands": [
+    {
+      "name": "hello",
+      "summary": "Greet from the tui-plugin",
+      "aliases": ["hi"]
+    },
+    {
+      "name": "ping",
+      "summary": "Respond with pong and timing info"
+    }
+  ]
 }

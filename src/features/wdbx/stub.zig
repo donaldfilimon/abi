@@ -34,6 +34,48 @@ pub const fhe = struct {};
 pub const compute = struct {};
 pub const remote_compute = struct {};
 pub const rest = struct {};
+
+pub const tls_config = struct {
+    pub const TLS_CERT_ENV = "ABI_WDBX_TLS_CERT";
+    pub const TLS_KEY_ENV = "ABI_WDBX_TLS_KEY";
+
+    pub const TlsConfig = struct {
+        cert_path: []const u8 = "",
+        key_path: []const u8 = "",
+
+        pub fn fromEnv(io: std.Io) ?TlsConfig {
+            _ = io;
+            return null;
+        }
+    };
+};
+pub const rate_limiter = struct {
+    pub const RateLimiter = struct {
+        requests_allowed: u64 = 0,
+        requests_denied: u64 = 0,
+
+        pub fn init(capacity: u64, refill_rate: u64) @This() {
+            _ = capacity;
+            _ = refill_rate;
+            return .{};
+        }
+
+        pub fn initFromEnv() @This() {
+            return .{};
+        }
+
+        pub fn acquire(self: *@This()) bool {
+            _ = self;
+            return true;
+        }
+
+        pub fn statsJson(self: *@This(), allocator: std.mem.Allocator) ![]u8 {
+            _ = self;
+            return allocator.dupe(u8, "\"rate_limit\":{\"capacity\":0,\"tokens\":0,\"refill_rate\":0,\"allowed\":0,\"denied\":0}");
+        }
+    };
+};
+pub const RateLimiter = rate_limiter.RateLimiter;
 pub const recovery = struct {};
 pub const retrieval = struct {};
 pub const segments = struct {};

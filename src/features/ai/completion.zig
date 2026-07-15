@@ -141,6 +141,23 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
 
 pub fn completeWithStoreAdaptive(allocator: std.mem.Allocator, store: *wdbx.Store, request: types.CompletionRequest) !types.CompletionResult {
     const result = try completeAdaptive(allocator, store, request);
+    errdefer result.deinit(allocator);
+
+    // Emit chunks through the streaming callback when configured.
+    // The underyling model path returns full text, so this splits post-hoc;
+    // a future chunked backend will emit incrementally.
+    if (request.stream_callback) |cb| {
+        if (request.stream_ctx) |sc_ctx| {
+            var offset: usize = 0;
+            while (offset < result.output.len) {
+                const end = @min(offset + STREAM_CHUNK_SIZE, result.output.len);
+                try cb(sc_ctx, .{ .delta = result.output[offset..end], .done = false });
+                offset = end;
+            }
+            try cb(sc_ctx, .{ .delta = "", .done = true });
+        }
+    }
+
     return persistCompletionResult(allocator, store, request, result);
 }
 
