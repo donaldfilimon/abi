@@ -4,13 +4,17 @@
 # it only prints the plan. The execute path (`agent os execute --confirm`) is
 # deliberately out of scope for this skill (destructive / requires confirmation).
 #
-# Usage: .agents/skills/os-control-dryrun/dryrun.sh ["command description"]
+# Usage: .agents/skills/os-control-dryrun/dryrun.sh [command [args...]]
 set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
 ABI="$REPO_ROOT/zig-out/bin/abi"
-PLAN="${1:-list current directory}"
+if [ "$#" -eq 0 ]; then
+    COMMAND=(pwd)
+else
+    COMMAND=("$@")
+fi
 fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 
@@ -19,16 +23,16 @@ say "build cli"
 [ -x "$ABI" ] || { echo "[FAIL] no binary"; exit 1; }
 
 say "abi agent os dry-run (planning only — no execution)"
-out=$("$ABI" agent os dry-run "$PLAN" 2>&1); rc=$?
+out=$("$ABI" agent os dry-run "${COMMAND[@]}" 2>&1); rc=$?
 printf '%s\n' "$out"
 [ "$rc" -eq 0 ] || { echo "[FAIL] dry-run exit $rc"; fail=$((fail+1)); }
-grep -qF "dry-run:" <<<"$out" && echo "[ok] plan emitted (no execution)" \
+[[ "$out" == *"dry-run:"* ]] && echo "[ok] plan emitted (no execution)" \
     || { echo "[FAIL] missing 'dry-run:' marker"; fail=$((fail+1)); }
 
 # Safety assertion: execute WITHOUT --confirm must be refused with usage (exit 2),
 # never run. This guards the confirm gate without ever executing anything.
 say "safety: execute without --confirm is refused"
-"$ABI" agent os execute "list current directory" >/dev/null 2>&1; rc=$?
+"$ABI" agent os execute rm >/dev/null 2>&1; rc=$?
 if [ "$rc" -eq 2 ]; then echo "[ok] execute without --confirm -> usage (exit 2)"; \
     else echo "[FAIL] execute without --confirm returned $rc (expected 2)"; fail=$((fail+1)); fi
 
