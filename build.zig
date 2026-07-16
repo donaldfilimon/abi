@@ -137,6 +137,8 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
+            // link_libc is per-module (not inherited from abi_mod).
+            .link_libc = true,
             .imports = &.{
                 .{ .name = "abi", .module = abi_mod },
                 .{ .name = "build_options", .module = options_mod },
@@ -152,6 +154,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/mcp/main.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
             .imports = &.{
                 .{ .name = "abi", .module = abi_mod },
                 .{ .name = "build_options", .module = options_mod },
@@ -210,6 +213,9 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/cli_test.zig"),
             .target = target,
             .optimize = optimize,
+            // link_libc is per-module, not inherited from imported abi_mod;
+            // needed so Linux cross builds resolve socket/getpid paths.
+            .link_libc = true,
             .imports = &.{
                 .{ .name = "abi", .module = abi_mod },
                 .{ .name = "build_options", .module = options_mod },
@@ -231,6 +237,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/plugins_test.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
             .imports = &.{
                 .{ .name = "abi", .module = abi_mod },
                 .{ .name = "build_options", .module = options_mod },
@@ -249,6 +256,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("tests/contracts/feature_modules.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
             .imports = &.{
                 .{ .name = "abi", .module = abi_mod },
                 .{ .name = "build_options", .module = options_mod },
@@ -275,6 +283,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/integration_tests.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
             .imports = &.{
                 .{ .name = "abi", .module = abi_mod },
                 .{ .name = "build_options", .module = options_mod },
@@ -293,6 +302,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/benchmarks.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
             .imports = &.{
                 .{ .name = "abi", .module = abi_mod },
                 .{ .name = "build_options", .module = options_mod },
@@ -314,6 +324,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/mcp/handlers.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
         .imports = &.{
             .{ .name = "abi", .module = abi_mod },
             .{ .name = "build_options", .module = options_mod },
@@ -324,6 +335,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("tests/contracts/surface.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
             .imports = &.{
                 .{ .name = "abi", .module = abi_mod },
                 .{ .name = "cli_usage", .module = cli_usage_mod },
@@ -339,6 +351,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("tests/contracts/mcp_tools.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
             .imports = &.{
                 .{ .name = "cli_usage", .module = cli_usage_mod },
                 .{ .name = "mcp_handlers", .module = mcp_handlers_mod },
@@ -393,6 +406,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("tests/contracts/plugin_registry.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
             .imports = &.{
                 .{ .name = "abi", .module = abi_mod },
             },
@@ -407,6 +421,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("tests/contracts/public_docs.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
         }),
         .filters = test_filters,
     });

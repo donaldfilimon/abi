@@ -2,11 +2,15 @@ const builtin = @import("builtin");
 const std = @import("std");
 const sync = @import("../../foundation/sync.zig");
 
-const objc = struct {
+// The objc runtime symbols only exist on macOS. Declare the externs only when
+// targeting macOS so cross-compiles (Linux/Windows) don't emit undefined
+// symbols at link time. Off-macOS this is an empty struct and the objc-using
+// function bodies are comptime-dead (see the `comptime` early returns below).
+const objc = if (builtin.target.os.tag == .macos) struct {
     extern fn objc_getClass(name: [*c]const u8) ?*anyopaque;
     extern fn sel_registerName(name: [*c]const u8) ?*anyopaque;
     extern fn objc_msgSend() void;
-};
+} else struct {};
 
 const MTLCreateSystemDefaultDeviceFn = fn () callconv(.c) ?*anyopaque;
 const MTLCreateSystemDefaultDevice: ?*const MTLCreateSystemDefaultDeviceFn = if (builtin.target.os.tag == .macos)
@@ -33,7 +37,7 @@ const MsgSendIdUsizeUsizeRetVoid = *const fn (?*anyopaque, ?*anyopaque, ?*anyopa
 const MsgSendMtlSizeMtlSizeRetVoid = *const fn (?*anyopaque, ?*anyopaque, MTLSize, MTLSize) callconv(.c) void;
 
 fn createNSString(allocator: std.mem.Allocator, str: []const u8) !?*anyopaque {
-    if (builtin.target.os.tag != .macos) return null;
+    if (comptime builtin.target.os.tag != .macos) return null;
     const class_nsstring = objc.objc_getClass("NSString");
     const sel_string_with_utf8 = objc.sel_registerName("stringWithUTF8String:");
     const MsgSendCstrRetId = *const fn (?*anyopaque, ?*anyopaque, [*c]const u8) callconv(.c) ?*anyopaque;
@@ -60,7 +64,7 @@ const MetalContext = struct {
         defer self.mutex.unlock();
         if (self.initialized) return;
 
-        if (builtin.target.os.tag != .macos) {
+        if (comptime builtin.target.os.tag != .macos) {
             return error.NotSupported;
         }
 
@@ -151,6 +155,7 @@ const MetalContext = struct {
     }
 
     pub fn runKernel(self: *MetalContext, pipeline: ?*anyopaque, len: usize, a: []const f32, b: []const f32, res: []f32) !void {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
         if (!self.initialized) return error.NotInitialized;
 
         const msg_send_void_ret_id = @as(MsgSendVoidRetId, @ptrCast(&objc.objc_msgSend));
