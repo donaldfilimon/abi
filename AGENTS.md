@@ -151,3 +151,13 @@ No unproven claims (distributed sharding, production FHE/AES/RBAC, non-loopback 
 - MCP HTTP vs WDBX REST framing duplication is intentional (MCP module-root isolation); do not unify them as an organization refactor.
 - Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves: `docs/superpowers/plans/2026-07-15-approach1-waves-a-b-c.md`; `modern-refactor/examples/` is historical, not the active board.
 
+## Cursor Cloud specific instructions
+
+The cloud VM is **Linux x86_64**; this project is macOS-primary (CI is macOS-only). The startup update script installs the pinned Zig from `.zigversion` and symlinks it to `/usr/local/bin/zig`, so `zig`/`./build.sh` are ready without extra setup. Build commands are unchanged from the Commands table above.
+
+Non-obvious Linux caveats (macOS is unaffected):
+
+- **Ambient WDBX store panics on Linux.** CLI/MCP paths that use the ambient durable store (`abi complete`, `abi agent …`, `abi-mcp` with WDBX) hit a `std.Io` `setPermissions`/`fchmod` `BADF` panic in `src/features/wdbx/durable_store.zig` (`ensureOwnerOnlyDir`) on this Zig nightly. Run these with `ABI_WDBX_PERSIST=0` (or `ABI_WDBX_PATH=:memory:`) to use an in-memory store. Explicit `abi wdbx <path> …` subcommands (a separate open path in `src/cli/handlers/wdbx_db.zig`) persist to disk normally.
+- **`./build.sh check` does not fully pass on Linux.** Test targets for `src/mcp/server.zig`, `src/root.zig`, and `src/cli_test.zig` fail to link libc (`getsockname`/`getpid`) because libc is only wired for the macOS build. The `abi` and `abi-mcp` binaries themselves build and run fine. Focused suites `test-plugins`, `test-feature-contracts`, and `test-mcp-contracts` pass; `zig build lint` and `zig build check-parity` pass. Run the full `check` gate on macOS.
+- Two `tests/contracts/public_docs.zig` cases (README/audit version string) currently expect the old min-version `0.17.0-dev.1252+e4b325c19` while the docs carry the new pin `0.17.0-dev.1398+cb5635714`; this is a pre-existing repo mismatch, not an environment problem.
+
