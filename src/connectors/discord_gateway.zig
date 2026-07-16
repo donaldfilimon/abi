@@ -27,23 +27,20 @@ const std = @import("std");
 const connector = @import("connector.zig");
 const http = @import("http.zig");
 const json = @import("json.zig");
+const ws_client = @import("discord_ws_client.zig");
+const routing = @import("discord_routing.zig");
 
 pub const ConnectorError = connector.ConnectorError;
 
-/// Fill `buf` with pseudo-random bytes (reference-grade xorshift; not a CSPRNG
-/// — the live path only needs a non-deterministic-looking WebSocket key and
-/// frame mask, which this satisfies).
-var rng_state: u64 = 0x9E3779B97F4A7C15;
-fn fillRandom(buf: []u8) void {
-    var s = rng_state;
-    for (buf) |*b| {
-        s ^= s << 13;
-        s ^= s >> 7;
-        s ^= s << 17;
-        b.* = @intCast(s & 0xFF);
-    }
-    rng_state = s;
-}
+// Re-export extracted symbols for backward compatibility.
+pub const WebSocketClient = ws_client.WebSocketClient;
+pub const DiscordCommand = routing.DiscordCommand;
+pub const MAX_MESSAGE_CONTENT_BYTES = routing.MAX_MESSAGE_CONTENT_BYTES;
+pub const parseDiscordCommand = routing.parseDiscordCommand;
+pub const routeDiscordMessage = routing.routeDiscordMessage;
+pub const truncate = routing.truncate;
+pub const promptSummary = routing.promptSummary;
+pub const governanceSummary = routing.governanceSummary;
 
 /// Discord gateway WebSocket endpoint (v10, JSON encoding).
 pub const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
@@ -51,18 +48,6 @@ pub const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 pub const API_BASE = "https://discord.com/api/v10";
 /// Default gateway intents: guild messages (1<<9) | DMs (1<<12) | message content (1<<15).
 pub const DEFAULT_INTENTS: u32 = (1 << 9) | (1 << 12) | (1 << 15);
-/// Replies are truncated to this many bytes (Discord message limit is 2000).
-pub const MAX_MESSAGE_CONTENT_BYTES: usize = 1900;
-
-/// Parsed Discord command from a message body.
-pub const DiscordCommand = enum {
-    help,
-    status,
-    prompt,
-    governance,
-    unknown,
-    not_for_abbey,
-};
 
 /// Gateway run configuration.
 pub const GatewayConfig = struct {
@@ -172,72 +157,6 @@ pub const Gateway = struct {
         return stats;
     }
 };
-
-// ---------------------------------------------------------------------------
-// Command routing (pure, testable)
-// ---------------------------------------------------------------------------
-
-/// Parse a command from a message body given a command prefix. An empty prefix
-/// captures nothing (so the bot never replies to every message); a message
-/// without the prefix is `not_for_abbey` (no reply).
-pub fn parseDiscordCommand(content: []const u8, prefix: []const u8) DiscordCommand {
-    if (prefix.len == 0) return .not_for_abbey;
-    if (!std.mem.startsWith(u8, content, prefix)) return .not_for_abbey;
-    const rest = content[prefix.len..];
-    var it = std.mem.tokenizeScalar(u8, rest, ' ');
-    const cmd = it.next() orelse return .unknown;
-    if (std.ascii.eqlIgnoreCase(cmd, "help")) return .help;
-    if (std.ascii.eqlIgnoreCase(cmd, "status")) return .status;
-    if (std.ascii.eqlIgnoreCase(cmd, "prompt")) return .prompt;
-    if (std.ascii.eqlIgnoreCase(cmd, "governance")) return .governance;
-    return .unknown;
-}
-
-fn helpText() []const u8 {
-    return "Available commands: !help, !status, !prompt, !governance";
-}
-
-/// Deterministic local prompt summary (reference routing reply).
-pub fn promptSummary() []const u8 {
-    return "prompt summary: local persona routing (Abbey/Aviva/Abi) via keyword sentiment; completions recorded to WDBX.";
-}
-
-/// Deterministic local governance summary (reference routing reply).
-pub fn governanceSummary() []const u8 {
-    return "governance: six-principle constitutional audit (truthfulness, safety, helpfulness, fairness, privacy, transparency) with a weighted E-score and a hard safety-class veto.";
-}
-
-fn statusText(token_configured: bool) []const u8 {
-    if (token_configured) return "status: connected (token configured)";
-    return "status: offline (no token configured)";
-}
-
-/// Route a parsed command to a reply string (owned). Returns `null` when no
-/// reply should be sent (e.g. a message that is not for Abbey).
-pub fn routeDiscordMessage(
-    allocator: std.mem.Allocator,
-    content: []const u8,
-    prefix: []const u8,
-    token_configured: bool,
-) !?[]u8 {
-    const cmd = parseDiscordCommand(content, prefix);
-    return switch (cmd) {
-        .not_for_abbey => null,
-        .unknown => try allocator.dupe(u8, "Unknown command. Type `!help` for available commands."),
-        .help => try allocator.dupe(u8, helpText()),
-        .status => try allocator.dupe(u8, statusText(token_configured)),
-        .prompt => try allocator.dupe(u8, promptSummary()),
-        .governance => try allocator.dupe(u8, governanceSummary()),
-    };
-}
-
-/// Truncate `text` to at most `max` bytes without splitting a UTF-8 sequence.
-pub fn truncate(allocator: std.mem.Allocator, text: []const u8, max: usize) ![]u8 {
-    if (text.len <= max) return try allocator.dupe(u8, text);
-    var end = max;
-    while (end > 0 and (text[end] & 0xC0) == 0x80) end -= 1; // back up over UTF-8 continuation
-    return try allocator.dupe(u8, text[0..end]);
-}
 
 // ---------------------------------------------------------------------------
 // Gateway message (de)serialization helpers
@@ -390,205 +309,6 @@ pub const FakeTransport = struct {
 // Live WebSocket transport (reference-grade; TLS not linked)
 // ---------------------------------------------------------------------------
 
-/// Minimal WebSocket client over a connected `std.Io.net.Stream`. Performs the
-/// HTTP upgrade handshake and masks client→server frames. Server→client frames
-/// (text / close / ping / pong) are parsed. Honesty note: TLS termination is
-/// not linked, so this must sit behind a TLS-terminating proxy to reach a real
-/// wss:// gateway.
-pub const WebSocketClient = struct {
-    stream: std.Io.net.Stream,
-    io: std.Io,
-    allocator: std.mem.Allocator,
-    read_buf: std.ArrayListUnmanaged(u8) = .empty,
-    write_buf: []u8,
-    closed: bool = false,
-
-    pub fn connect(io: std.Io, allocator: std.mem.Allocator, host: []const u8, port: u16) !WebSocketClient {
-        const addr = try std.Io.net.IpAddress.parseIp4(host, port);
-        const stream = try addr.connect(io, .{ .mode = .stream });
-        var client = WebSocketClient{
-            .stream = stream,
-            .io = io,
-            .allocator = allocator,
-            .write_buf = try allocator.alloc(u8, 8192),
-        };
-        try client.handshake();
-        return client;
-    }
-
-    pub fn deinit(self: *WebSocketClient, allocator: std.mem.Allocator) void {
-        if (!self.closed) {
-            self.stream.close(self.io);
-            self.closed = true;
-        }
-        self.read_buf.deinit(allocator);
-        allocator.free(self.write_buf);
-    }
-
-    fn writeAll(self: *WebSocketClient, data: []const u8) !void {
-        var w = self.stream.writer(self.io, self.write_buf);
-        try w.interface.writeAll(data);
-    }
-
-    fn readSome(self: *WebSocketClient) !usize {
-        var buf: [4096]u8 = undefined;
-        var iovec: [1][]u8 = .{buf[0..]};
-        const n = try self.stream.read(self.io, &iovec);
-        if (n == 0) return error.SocketClosed;
-        try self.read_buf.appendSlice(self.allocator, buf[0..n]);
-        return n;
-    }
-
-    fn handshake(self: *WebSocketClient) !void {
-        var key_bytes: [16]u8 = undefined;
-        fillRandom(&key_bytes);
-        var key_b64: [28]u8 = undefined;
-        const key_len = std.base64.standard.Encoder.calcSize(key_bytes.len);
-        _ = key_len;
-        const encoded = std.base64.standard.Encoder.encode(&key_b64, &key_bytes);
-        const request = try std.fmt.allocPrint(
-            self.allocator,
-            "GET /?v=10&encoding=json HTTP/1.1\r\n" ++
-                "Host: gateway.discord.gg\r\n" ++
-                "Upgrade: websocket\r\n" ++
-                "Connection: Upgrade\r\n" ++
-                "Sec-WebSocket-Key: {s}\r\n" ++
-                "Sec-WebSocket-Version: 13\r\n\r\n",
-            .{encoded},
-        );
-        defer self.allocator.free(request);
-        try self.writeAll(request);
-
-        // Read until the end of the response headers.
-        while (true) {
-            if (std.mem.indexOf(u8, self.read_buf.items, "\r\n\r\n") != null) break;
-            _ = try self.readSome();
-        }
-        const headers = self.read_buf.items;
-        if (std.mem.indexOf(u8, headers, "101") == null) {
-            return error.WebSocketHandshakeFailed;
-        }
-        self.read_buf.clearRetainingCapacity();
-    }
-
-    fn writeFrame(self: *WebSocketClient, opcode: u8, payload: []const u8) !void {
-        var header: [10]u8 = undefined;
-        var hlen: usize = 0;
-        header[0] = 0x80 | opcode; // FIN + opcode
-        const len = payload.len;
-        var mask: [4]u8 = undefined;
-        fillRandom(&mask);
-        if (len < 126) {
-            header[1] = 0x80 | @as(u8, @intCast(len));
-            hlen = 2;
-        } else if (len <= 0xFFFF) {
-            header[1] = 0x80 | 126;
-            std.mem.writeInt(u16, header[2..4], @intCast(len), .big);
-            hlen = 4;
-        } else {
-            header[1] = 0x80 | 127;
-            std.mem.writeInt(u64, header[2..10], @intCast(len), .big);
-            hlen = 10;
-        }
-        try self.writeAll(header[0..hlen]);
-        try self.writeAll(&mask);
-        const masked = try self.allocator.alloc(u8, len);
-        defer self.allocator.free(masked);
-        for (payload, 0..) |b, i| masked[i] = b ^ mask[i % 4];
-        try self.writeAll(masked);
-    }
-
-    fn readFrame(self: *WebSocketClient, allocator: std.mem.Allocator) !?[]u8 {
-        while (true) {
-            if (self.read_buf.items.len >= 2) {
-                const b0 = self.read_buf.items[0];
-                const b1 = self.read_buf.items[1];
-                const opcode = b0 & 0x0F;
-                const masked = (b1 & 0x80) != 0;
-                var len: usize = b1 & 0x7F;
-                var off: usize = 2;
-                if (len == 126) {
-                    if (self.read_buf.items.len < 4) {
-                        _ = try self.readSome();
-                        continue;
-                    }
-                    len = std.mem.readInt(u16, self.read_buf.items[2..4], .big);
-                    off = 4;
-                } else if (len == 127) {
-                    if (self.read_buf.items.len < 10) {
-                        _ = try self.readSome();
-                        continue;
-                    }
-                    len = @intCast(std.mem.readInt(u64, self.read_buf.items[2..10], .big));
-                    off = 10;
-                }
-                var mask_key: ?[4]u8 = null;
-                if (masked) {
-                    if (self.read_buf.items.len < off + 4) {
-                        _ = try self.readSome();
-                        continue;
-                    }
-                    mask_key = self.read_buf.items[off..][0..4].*;
-                    off += 4;
-                }
-                if (self.read_buf.items.len < off + len) {
-                    _ = try self.readSome();
-                    continue;
-                }
-                const payload = self.read_buf.items[off .. off + len];
-                var out = try allocator.alloc(u8, len);
-                if (mask_key) |mk| {
-                    for (payload, 0..) |p, i| out[i] = p ^ mk[i % 4];
-                } else {
-                    @memcpy(out, payload);
-                }
-                self.read_buf.replaceRange(allocator, 0, off + len, &[_]u8{}) catch {};
-                switch (opcode) {
-                    0x8 => { // close
-                        allocator.free(out);
-                        return null;
-                    },
-                    0x9 => { // ping -> respond pong
-                        allocator.free(out);
-                        try self.writeFrame(0xA, &[_]u8{});
-                        continue;
-                    },
-                    0xA => { // pong
-                        allocator.free(out);
-                        continue;
-                    },
-                    0x1 => return out, // text
-                    else => {
-                        allocator.free(out);
-                        continue;
-                    },
-                }
-            }
-            _ = try self.readSome();
-        }
-    }
-
-    /// Read the next gateway JSON message, or null when the socket closes.
-    pub fn readMessage(self: *WebSocketClient, allocator: std.mem.Allocator) !?[]u8 {
-        if (self.closed) return null;
-        return try self.readFrame(allocator);
-    }
-
-    /// Send a JSON text frame (the gateway protocol payload).
-    pub fn sendText(self: *WebSocketClient, _: std.mem.Allocator, text: []const u8) !void {
-        if (self.closed) return error.SocketClosed;
-        try self.writeFrame(0x1, text);
-    }
-
-    /// Send a close frame and tear down the socket.
-    pub fn close(self: *WebSocketClient) void {
-        if (self.closed) return;
-        self.writeFrame(0x8, &[_]u8{}) catch {};
-        self.stream.close(self.io);
-        self.closed = true;
-    }
-};
-
 /// Live transport wrapping a `WebSocketClient`; replies go out over REST.
 pub const WebSocketTransport = struct {
     allocator: std.mem.Allocator,
@@ -654,47 +374,6 @@ pub fn connectAndRun(
 
 test {
     std.testing.refAllDecls(@This());
-}
-
-test "parseDiscordCommand honors prefix and empty-prefix safety" {
-    try std.testing.expect(parseDiscordCommand("!help", "!") == .help);
-    try std.testing.expect(parseDiscordCommand("!status", "!") == .status);
-    try std.testing.expect(parseDiscordCommand("!prompt", "!") == .prompt);
-    try std.testing.expect(parseDiscordCommand("!governance", "!") == .governance);
-    try std.testing.expect(parseDiscordCommand("!nonsense", "!") == .unknown);
-    // No prefix -> never captures (avoids replying to every message).
-    try std.testing.expect(parseDiscordCommand("help", "") == .not_for_abbey);
-    // Prefix absent -> not for abbey.
-    try std.testing.expect(parseDiscordCommand("help me", "!") == .not_for_abbey);
-}
-
-test "routeDiscordMessage produces reply strings and null for non-abbey" {
-    const allocator = std.testing.allocator;
-    const none = try routeDiscordMessage(allocator, "hello there", "!", true);
-    try std.testing.expect(none == null);
-    const status = (try routeDiscordMessage(allocator, "!status", "!", true)) orelse return error.UnexpectedNull;
-    defer allocator.free(status);
-    try std.testing.expect(std.mem.indexOf(u8, status, "connected") != null);
-    const status_off = (try routeDiscordMessage(allocator, "!status", "!", false)) orelse return error.UnexpectedNull;
-    defer allocator.free(status_off);
-    try std.testing.expect(std.mem.indexOf(u8, status_off, "offline") != null);
-    const gov = (try routeDiscordMessage(allocator, "!governance", "!", true)) orelse return error.UnexpectedNull;
-    defer allocator.free(gov);
-    try std.testing.expect(std.mem.indexOf(u8, gov, "constitutional") != null);
-}
-
-test "truncate respects byte and utf8 boundaries" {
-    const allocator = std.testing.allocator;
-    const short = try truncate(allocator, "hello", 1900);
-    defer allocator.free(short);
-    try std.testing.expectEqualStrings("hello", short);
-
-    // A multi-byte char at the boundary must not be split.
-    const t = "ééééé"; // 5 bytes * 2 = 10 bytes total; truncate to 5 -> 2 chars (4 bytes).
-    const cut = try truncate(allocator, t, 5);
-    defer allocator.free(cut);
-    try std.testing.expectEqual(@as(usize, 4), cut.len);
-    try std.testing.expectEqualStrings("éé", cut);
 }
 
 test "gateway loop runs hello/identify/heartbeat/message_create offline" {

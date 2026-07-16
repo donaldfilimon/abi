@@ -6,7 +6,7 @@ Three sibling instruction files share repo conventions — `AGENTS.md`, `CLAUDE.
 
 ## Toolchain
 
-Pinned by `.zigversion` to `0.17.0-dev.1275+59a628c6d`. `build.zig.zon` `minimum_zig_version` is `0.17.0-dev.1252+e4b325c19` (a separate lower bound — the older PATH zig still compiles). `build.sh`/`tools/build.sh` invoke whatever `zig` is on PATH — they do **not** switch. Zig 0.16 fails on WDBX/MCP listeners (uses `std.Io.net.Stream`). Use zvm/zigup to select the pin before building (old nightlies may need `zvm install`, not just `zvm use`).
+Pinned by `.zigversion` to `0.17.0-dev.1398+cb5635714`. `build.zig.zon` `minimum_zig_version` is `0.17.0-dev.1252+e4b325c19` (a separate lower bound — the older PATH zig still compiles). `build.sh`/`tools/build.sh` invoke whatever `zig` is on PATH — they do **not** switch. Zig 0.16 fails on WDBX/MCP listeners (uses `std.Io.net.Stream`). Use zvm/zigup to select the pin before building (old nightlies may need `zvm install`, not just `zvm use`).
 
 On macOS: `./build.sh ...` for the documented Metal-linking workflow.
 
@@ -65,7 +65,7 @@ Inside `src/`: relative `.zig` imports only. **Only** the MCP handler group (`sr
 
 13 commands: `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`. Full specs in `src/cli/usage.zig`.
 - `help --json` / `--completion <bash|zsh|fish>`
-- `complete` supports `--live`, `--model`, `--confirm` (apple-fm), `--learn` (SEA)
+- `complete` supports `--live`, `--model`, `--confirm` (apple-fm), `--learn` (SEA), `--stream`, `--soul <file.json>` + `--soul-alpha <0.0-1.0>` (SoulLayout neural-routing blend)
 - `agent` supports `plan`, `train`, `tui`, `multi`, `spawn`, `browser`, `os`:
   - `browser` is reviewed local planning only and never embeds or launches a browser.
   - `os` runs commands through the `os_control` policy gate: `agent os dry-run <cmd>` only renders a plan (no side effects); `agent os execute --confirm <cmd>` is the only execution path, requires the literal `--confirm` token, and is restricted to a read-only allow-list (`true`/`pwd`/`ls`/`whoami`/`date`) plus workspace path-containment. Shells (`sh`/`bash`/`zsh`/`fish`) and a destructive deny-list are blocked.
@@ -92,7 +92,7 @@ Inside `src/`: relative `.zig` imports only. **Only** the MCP handler group (`sr
 ## Commits & CI
 
 - Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore(build):`, …).
-- `origin/main` shares **no common ancestor** with local `main` — never force-push to reconcile.
+- Local `main` and `origin/main` share history (reconciled at `848ec2c8`; the old no-common-ancestor state is resolved). Never force-push `main`.
 - CI (`.github/workflows/ci.yml`) runs `zig build check` + `cross-smoke` on macOS; keep its Zig version in sync with `.zigversion` when either moves.
 
 ## Zig 0.17 Patterns
@@ -123,7 +123,7 @@ Inside `src/`: relative `.zig` imports only. **Only** the MCP handler group (`sr
 - **Constitution audit** (6 principles: truthfulness, safety, helpfulness, fairness, privacy, transparency): **observability-only, not a gate** — sets `audit_passed`/`audit_vetoed`/`escore` in metadata and `std.log.warn`s on violation, but `complete`/`run` still return the response. Safety+privacy form a safety class with a hard veto if either scores < 0.5. Checks use case-insensitive **substring** (infix) matching — "harm" fires on "harmless"; cannot detect novel harm patterns, only the 7 hardcoded negative substrings.
 - **Router**: `analyzeSentiment` uses **prefix-only** single-token keyword matching (`startsWithIgnoreCase`); `selectBestProfile` ties resolve `abbey > aviva > abi`, so neutral input (no keyword matches) routes to `abi`. `routeInputAdaptive` in `router.zig` is unreferenced; the live EMA path is `completeAdaptive`/`completeWithStoreAdaptive` via `runLearnLoop` only.
 - **Connector validation**: Discord validates numeric snowflake IDs + non-empty printable credentials + ≤2000-byte messages; Twilio validates `AC`+32-hex SIDs, 32-hex tokens, non-empty base URL, non-zero timeout, explicit `.live` transport.
-- **Streaming + file context**: `CompletionRequest`/`LearnLoopConfig` accept `stream_callback`/`stream_ctx` for post-hoc chunked output (~16-byte splits; true per-token streaming requires a chunked model backend). `file_context.zig` resolves `@file` mentions (sandboxed to cwd, rejects `..`/absolute/symlink escape) with an 8 KB budget; wired into `agent plan`, `agent multi`, and the `agent tui` REPL.
+- **Streaming + file context**: `CompletionRequest`/`LearnLoopConfig` accept `stream_callback`/`stream_ctx` for post-hoc chunked output (~4-byte splits; true per-token streaming requires a chunked model backend). `file_context.zig` resolves `@file` mentions (sandboxed to cwd, rejects `..`/absolute/symlink escape) with an 8 KB budget; wired into `agent plan`, `agent multi`, and the `agent tui` REPL.
 
 ## Claims & Docs
 
@@ -131,6 +131,33 @@ No unproven claims (distributed sharding, production FHE/AES/RBAC, non-loopback 
 
 ## OpenCode Setup
 
-`opencode.json` auto-loaded. `.opencode/skills/` is a symlink to `.agents/skills/`. MCP servers: `abi-mcp`, `skill-loop`. Sync canonical skills: `.agents/skills/sync-clis/launch.sh`. Modern-refactor skills (codebase-analysis etc.) installed and updated to ABI style in .agents/skills/ (and synced). Use for refactors; follow with `./build.sh check`.
+`opencode.json` auto-loaded (instructions: `AGENTS.md`, `tasks/lessons.md`, `tasks/todo.md`). `.opencode/skills/` is a symlink to `.agents/skills/`. MCP servers: `abi-mcp`, `skill-loop`. Sync canonical skills: `.agents/skills/sync-clis/launch.sh`. Modern-refactor skills (codebase-analysis etc.) in `.agents/skills/` — use for refactors; follow with `./build.sh check`. Superpower + operational skills are enumerated in the system prompt's `available_skills`; don't maintain a parallel list here.
 
-9 superpower skills from docs/specs: `abi-superpower-agent-orchestration` (multi/spawn/browser), `abi-superpower-constitution` (6-principle audit), `abi-superpower-wdbx-cluster` (Raft + RPC), `abi-superpower-wdbx-compute` (CPU/GPU/NPU/TPU selector), `abi-superpower-wdbx-secure` (compression + HE demos), `abi-claims-validator` (external-claims audit), `abi-wdbx-persistence` (WAL + segments + recovery), `abi-mcp-transport` (JSON-RPC stdio + HTTP/SSE), `abi-plugin-system` (manifest + registry). All in `.agents/skills/` (symlinked to `.opencode/skills/`).
+## Learned User Preferences
+
+- Prefer feature branches named with the `cursor/` prefix; when creating a PR from the default branch, branch first and do not commit or push directly to `main`.
+- Prefer draft PRs when the create-pull-request flow requests draft.
+- Verify interactive dashboard/TUI with `.agents/skills/run-tui/tui.sh` (tmux pty); never prepend Homebrew `/opt/homebrew/bin` ahead of the pinned Zig on PATH.
+- Prefer honest status digests and labeled demos over fake live bridges when IPC or production capability is absent.
+- For refactor/organization work, prefer scoped tracks (module extraction vs north-star features vs docs/claims) over open-ended clean-slate rewrites; confirm scope before planning.
+
+## Learned Workspace Facts
+
+- Modern-refactor Phases 2–4 and major module-extraction waves are done; remaining high-value org hotspots are mainly `src/features/tui/repl.zig` and `src/features/tui/dashboard.zig` (next safe extracts often `repl_git.zig` / `dashboard_render.zig`).
+- Interactive `abi dashboard` / `abi tui` / `abi --tui` use a split layout (diagnostics + Agent Output); one-shot `--once` stays stacked panes — layouts diverge by design.
+- Dashboard Agent Output is a status digest, not live `agent tui` traffic; dashboard WDBX is an ephemeral CLI probe (labeled), not the durable agent store.
+- Plugin-declared slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>` for context providers).
+- Open product goal for TUI/CLI north-star (streaming, pane-split, richer `@file`) is in `tasks/goals.md`; Partial north-star / demo modules must not be promoted to Current without source and tests.
+- MCP HTTP vs WDBX REST framing duplication is intentional (MCP module-root isolation); do not unify them as an organization refactor.
+- Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves: `docs/superpowers/plans/2026-07-15-approach1-waves-a-b-c.md`; `modern-refactor/examples/` is historical, not the active board.
+
+## Cursor Cloud specific instructions
+
+The cloud VM is **Linux x86_64**; this project is macOS-primary (CI is macOS-only). The startup update script installs the pinned Zig from `.zigversion` and symlinks it to `/usr/local/bin/zig`, so `zig`/`./build.sh` are ready without extra setup. Build commands are unchanged from the Commands table above.
+
+Non-obvious Linux caveats (macOS is unaffected):
+
+- **Ambient WDBX store panics on Linux.** CLI/MCP paths that use the ambient durable store (`abi complete`, `abi agent …`, `abi-mcp` with WDBX) hit a `std.Io` `setPermissions`/`fchmod` `BADF` panic in `src/features/wdbx/durable_store.zig` (`ensureOwnerOnlyDir`) on this Zig nightly. Run these with `ABI_WDBX_PERSIST=0` (or `ABI_WDBX_PATH=:memory:`) to use an in-memory store. Explicit `abi wdbx <path> …` subcommands (a separate open path in `src/cli/handlers/wdbx_db.zig`) persist to disk normally.
+- **`./build.sh check` does not fully pass on Linux.** Test targets for `src/mcp/server.zig`, `src/root.zig`, and `src/cli_test.zig` fail to link libc (`getsockname`/`getpid`) because libc is only wired for the macOS build. The `abi` and `abi-mcp` binaries themselves build and run fine. Focused suites `test-plugins`, `test-feature-contracts`, and `test-mcp-contracts` pass; `zig build lint` and `zig build check-parity` pass. Run the full `check` gate on macOS.
+- Two `tests/contracts/public_docs.zig` cases (README/audit version string) currently expect the old min-version `0.17.0-dev.1252+e4b325c19` while the docs carry the new pin `0.17.0-dev.1398+cb5635714`; this is a pre-existing repo mismatch, not an environment problem.
+

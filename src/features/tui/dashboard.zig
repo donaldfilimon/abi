@@ -1,6 +1,8 @@
 const std = @import("std");
 const sanitize = @import("sanitize.zig");
 const types = @import("types.zig");
+const widgets = @import("dashboard_widgets.zig");
+const panes = @import("dashboard_panes.zig");
 
 const sanitizeControlBytes = sanitize.sanitizeControlBytes;
 

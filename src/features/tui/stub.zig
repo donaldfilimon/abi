@@ -125,6 +125,7 @@ pub const ReplLoop = struct {
 /// Leaf modules re-exported by `mod.zig` for discovery; stubs keep parity.
 pub const repl_types = struct {};
 pub const repl_session = struct {};
+pub const repl_git_commands = struct {};
 
 pub const repl = struct {
     pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, save, load, sessions, clear, unknown };

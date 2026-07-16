@@ -127,7 +127,7 @@ pub fn completeLiveStreaming(
     const body = try json.buildOpenAiBody(allocator, model, messages.items, true);
     defer allocator.free(body);
 
-    return try http.httpPostJsonStreaming(io, allocator, config, "/v1/chat/completions", body, on_chunk, callback_ctx);
+    return try http.httpPostJsonStreamingIncremental(io, allocator, config, "/v1/chat/completions", body, on_chunk, callback_ctx);
 }
 
 /// Extract the completion text from an OpenAI-compatible JSON response.

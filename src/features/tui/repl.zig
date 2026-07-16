@@ -9,7 +9,6 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const builtin = @import("builtin");
 const env = @import("../../foundation/env.zig");
 const utils = @import("../../foundation/utils.zig");
 const models = @import("../ai/models.zig");
@@ -28,6 +27,7 @@ const connector_http = @import("../../connectors/http.zig");
 const connector_mod = @import("../../connectors/connector.zig");
 const repl_types = @import("repl_types.zig");
 const repl_session = @import("repl_session.zig");
+const git_cmds = @import("repl_git_commands.zig");
 
 pub const MODEL_STORAGE_BYTES = repl_types.MODEL_STORAGE_BYTES;
 pub const SpecialCommand = cmds.SpecialCommand;
@@ -435,49 +435,17 @@ pub const ReplLoop = struct {
         var augmented_buf: ?[]u8 = null;
         defer if (augmented_buf) |b| self.allocator.free(b);
 
-        // Build context from turn history + file context + plugin context snippets
-        var ctx_parts = std.ArrayListUnmanaged(u8).empty;
-        defer ctx_parts.deinit(self.allocator);
-
-        // Prepend context snippets from plugin context providers
-        if (self.state.config.context_snippets.len > 0) {
-            ctx_parts.appendSlice(self.allocator, self.state.config.context_snippets) catch {};
-        }
-
-        // Prepend recent turn history for multi-turn continuity
-        if (self.state.turn_history_count > 0) {
-            ctx_parts.appendSlice(self.allocator, "[history]\n") catch {};
-            var i: usize = 0;
-            while (i < self.state.turn_history_count) : (i += 1) {
-                const idx = (self.state.turn_history_head + MAX_TURN_HISTORY - self.state.turn_history_count + i) % MAX_TURN_HISTORY;
-                const entry = &self.state.turn_history[idx];
-                if (entry.input.len > 0) {
-                    ctx_parts.appendSlice(self.allocator, "user: ") catch {};
-                    ctx_parts.appendSlice(self.allocator, entry.input) catch {};
-                    ctx_parts.appendSlice(self.allocator, "\n") catch {};
-                }
-                if (entry.response.len > 0) {
-                    ctx_parts.appendSlice(self.allocator, "assistant: ") catch {};
-                    ctx_parts.appendSlice(self.allocator, entry.response) catch {};
-                    ctx_parts.appendSlice(self.allocator, "\n") catch {};
-                }
-            }
-            ctx_parts.appendSlice(self.allocator, "[/history]\n") catch {};
-        }
-
-        // Prepend file context if a file was loaded via /open
-        if (self.state.open_content.len > 0) {
-            ctx_parts.appendSlice(self.allocator, "[file: ") catch {};
-            ctx_parts.appendSlice(self.allocator, self.state.open_path) catch {};
-            ctx_parts.appendSlice(self.allocator, "]\n") catch {};
-            ctx_parts.appendSlice(self.allocator, self.state.open_content) catch {};
-            ctx_parts.appendSlice(self.allocator, "\n") catch {};
-        }
-
-        if (ctx_parts.items.len > 0) {
-            ctx_parts.appendSlice(self.allocator, "---\n") catch {};
-            ctx_parts.appendSlice(self.allocator, resolved) catch {};
-            const prefix = try ctx_parts.toOwnedSlice(self.allocator);
+        const maybe_prefix = try cmds.buildCompletionContext(
+            self.allocator,
+            self.state.config.context_snippets,
+            &self.state.turn_history,
+            self.state.turn_history_count,
+            self.state.turn_history_head,
+            self.state.open_path,
+            self.state.open_content,
+            resolved,
+        );
+        if (maybe_prefix) |prefix| {
             augmented_buf = prefix;
             augmented_line = prefix;
         }
@@ -629,24 +597,13 @@ pub const ReplLoop = struct {
 
     /// `/context`: show current context state (open file, turn history, preview).
     fn showContext(self: *ReplLoop) void {
-        // Build a preview of the accumulated turn history
-        var preview = std.ArrayListUnmanaged(u8).empty;
-        defer preview.deinit(self.allocator);
-        var i: usize = 0;
-        while (i < self.state.turn_history_count) : (i += 1) {
-            const idx = (self.state.turn_history_head + MAX_TURN_HISTORY - self.state.turn_history_count + i) % MAX_TURN_HISTORY;
-            const entry = &self.state.turn_history[idx];
-            if (entry.input.len > 0) {
-                preview.appendSlice(self.allocator, "user: ") catch {};
-                preview.appendSlice(self.allocator, entry.input) catch {};
-                preview.appendSlice(self.allocator, "\n") catch {};
-            }
-            if (entry.response.len > 0) {
-                preview.appendSlice(self.allocator, "assistant: ") catch {};
-                preview.appendSlice(self.allocator, entry.response) catch {};
-                preview.appendSlice(self.allocator, "\n") catch {};
-            }
-        }
+        const preview = cmds.formatTurnHistoryPreview(
+            self.allocator,
+            &self.state.turn_history,
+            self.state.turn_history_count,
+            self.state.turn_history_head,
+        ) catch &.{};
+        defer self.allocator.free(preview);
 
         const status = formatContextStatus(
             self.allocator,
@@ -654,7 +611,7 @@ pub const ReplLoop = struct {
             self.state.open_content,
             self.state.turn_count,
             self.state.turn_history_count,
-            preview.items,
+            preview,
         ) catch {
             std.debug.print("context: status unavailable\n", .{});
             return;
@@ -675,11 +632,9 @@ pub const ReplLoop = struct {
             defer self.allocator.free(output);
             std.debug.print("{s}\n", .{output});
         } else {
-            if (arg.len > 0) {
-                std.debug.print("[plugin:{s}] /{s} '{s}'\n", .{ cmd.plugin, cmd.name, arg });
-            } else {
-                std.debug.print("[plugin:{s}] /{s}\n", .{ cmd.plugin, cmd.name });
-            }
+            const ack = try cmds.formatPluginCommandAck(self.allocator, cmd, arg);
+            defer self.allocator.free(ack);
+            std.debug.print("{s}\n", .{ack});
         }
         return .keep_going;
     }
@@ -694,42 +649,7 @@ pub const ReplLoop = struct {
     /// `/open <path>`: read a file into the prompt context. The content is stored
     /// and injected before the next completion.
     fn runOpen(self: *ReplLoop, path: []const u8, io: std.Io) !void {
-        if (path.len == 0) {
-            if (self.state.open_path.len > 0) {
-                var buf: [256]u8 = undefined;
-                std.debug.print("{s}\n", .{formatOpenStatus(&buf, self.state.open_path, self.state.open_content.len)});
-            } else {
-                std.debug.print("usage: /open <path>\n", .{});
-            }
-            return;
-        }
-        // Clear previous file context
-        self.state.clearFileContext(self.allocator);
-
-        // Read file content (up to 64 KiB) into an owned buffer
-        const max_read: usize = repl_types.OPEN_FILE_BUDGET_BYTES;
-        const content = file_context.readFileBounded(io, self.allocator, ".", path, max_read) catch |err| {
-            std.debug.print("open: cannot read '{s}': {s}\n", .{ path, @errorName(err) });
-            return;
-        };
-
-        // Allocate a single buffer for both path and content, packed with a
-        // header: [path_len: usize][path bytes][content bytes]
-        const path_bytes = std.mem.trim(u8, path, " \t\r");
-        const header_len = @sizeOf(usize);
-        const total_len = header_len + path_bytes.len + content.len;
-        const buf = try self.allocator.alloc(u8, total_len);
-        @memcpy(buf[0..header_len], std.mem.asBytes(&path_bytes.len));
-        @memcpy(buf[header_len..][0..path_bytes.len], path_bytes);
-        @memcpy(buf[header_len + path_bytes.len ..], content);
-
-        self.state.file_context_buf = buf;
-        const stored_path_len = std.mem.bytesAsSlice(usize, buf[0..header_len])[0];
-        self.state.open_path = buf[header_len..][0..stored_path_len];
-        self.state.open_content = buf[header_len + stored_path_len ..];
-
-        var status_buf: [256]u8 = undefined;
-        std.debug.print("{s}\n", .{formatOpenStatus(&status_buf, self.state.open_path, self.state.open_content.len)});
+        try git_cmds.runOpen(self.allocator, &self.state, path, io);
     }
 
     /// `/diff`: run `git diff` and print the output.
@@ -737,141 +657,13 @@ pub const ReplLoop = struct {
     /// passed, shows a summary of changed files. Output is colorized with ANSI
     /// codes for added (+) lines in green and removed (-) lines in red.
     fn runDiff(self: *ReplLoop, io: std.Io) !void {
-        const arg = specialArg("/diff ");
-        const want_stat = std.mem.eql(u8, arg, "--stat");
-
-        const argv: []const []const u8 = if (want_stat)
-            &[_][]const u8{ "git", "diff", "--stat" }
-        else
-            &[_][]const u8{ "git", "diff", "--color=never" };
-
-        var child = std.process.spawn(io, .{
-            .argv = argv,
-            .cwd = .inherit,
-            .stdin = .ignore,
-            .stdout = .pipe,
-            .stderr = .ignore,
-        }) catch |err| {
-            std.debug.print("diff: failed to run git diff: {s}\n", .{@errorName(err)});
-            return;
-        };
-        defer child.kill(io);
-
-        // Read all output using streaming reads
-        var output = std.ArrayListUnmanaged(u8).empty;
-        defer output.deinit(self.allocator);
-        var buf: [4096]u8 = undefined;
-        while (true) {
-            const n = std.Io.File.readStreaming(child.stdout.?, io, &.{&buf}) catch break;
-            if (n == 0) break;
-            try output.appendSlice(self.allocator, buf[0..n]);
-        }
-        const term = try child.wait(io);
-
-        if (output.items.len == 0) {
-            std.debug.print("diff: working tree is clean\n", .{});
-        } else if (want_stat) {
-            std.debug.print("{s}\n", .{output.items});
-        } else {
-            // Colorize diff output: + lines green, - lines red
-            try self.printColorizedDiff(output.items);
-        }
-        if (term != .exited or term.exited != 0) {
-            std.debug.print("diff: git diff terminated: {any}\n", .{term});
-        }
-    }
-
-    /// Print a git diff with ANSI color codes: green for additions, red for
-    /// deletions, dim for hunk headers. All other lines pass through unchanged.
-    fn printColorizedDiff(self: *ReplLoop, diff: []const u8) !void {
-        _ = self;
-        var iter = std.mem.splitScalar(u8, diff, '\n');
-        while (iter.next()) |line| {
-            if (line.len > 0) {
-                switch (line[0]) {
-                    '+' => {
-                        if (!std.mem.startsWith(u8, line, "+++")) {
-                            std.debug.print("\x1b[32m{s}\x1b[0m\n", .{line});
-                        } else {
-                            std.debug.print("\x1b[1m{s}\x1b[0m\n", .{line});
-                        }
-                    },
-                    '-' => {
-                        if (!std.mem.startsWith(u8, line, "---")) {
-                            std.debug.print("\x1b[31m{s}\x1b[0m\n", .{line});
-                        } else {
-                            std.debug.print("\x1b[1m{s}\x1b[0m\n", .{line});
-                        }
-                    },
-                    '@' => std.debug.print("\x1b[36m{s}\x1b[0m\n", .{line}),
-                    'd' => if (std.mem.startsWith(u8, line, "diff")) {
-                        std.debug.print("\x1b[1m{s}\x1b[0m\n", .{line});
-                    } else {
-                        std.debug.print("{s}\n", .{line});
-                    },
-                    else => std.debug.print("{s}\n", .{line}),
-                }
-            } else {
-                std.debug.print("\n", .{});
-            }
-        }
+        try git_cmds.runDiff(self.allocator, io);
     }
 
     /// `/commit`: stage all changes and create a commit. Prompts for a commit
     /// message interactively via the next REPL input line.
     fn runCommit(self: *ReplLoop, io: std.Io) !void {
-        // Stage all changes
-        var add_child = std.process.spawn(io, .{
-            .argv = &[_][]const u8{ "git", "add", "-A" },
-            .cwd = .inherit,
-            .stdin = .ignore,
-            .stdout = .ignore,
-            .stderr = .ignore,
-        }) catch |err| {
-            std.debug.print("commit: failed to stage: {s}\n", .{@errorName(err)});
-            return;
-        };
-        _ = try add_child.wait(io);
-
-        // Prompt for commit message
-        std.debug.print("commit message (end with Ctrl-D or empty line to cancel):\n> ", .{});
-
-        var msg_buf: [4096]u8 = undefined;
-        var stdin_reader = std.Io.File.stdin().reader(io, &msg_buf);
-        var msg_lines = std.ArrayListUnmanaged(u8).empty;
-        defer msg_lines.deinit(self.allocator);
-
-        while (true) {
-            const maybe_line = stdin_reader.interface.takeDelimiter('\n') catch break;
-            const line = (maybe_line orelse break);
-            const trimmed = std.mem.trim(u8, line, " \t\r\n");
-            if (trimmed.len == 0 and msg_lines.items.len == 0) {
-                std.debug.print("commit cancelled\n", .{});
-                return;
-            }
-            if (trimmed.len == 0 and msg_lines.items.len > 0) break;
-            if (msg_lines.items.len > 0) try msg_lines.append(self.allocator, '\n');
-            try msg_lines.appendSlice(self.allocator, trimmed);
-        }
-
-        if (msg_lines.items.len == 0) {
-            std.debug.print("commit cancelled\n", .{});
-            return;
-        }
-
-        // Run git commit
-        var commit_child = std.process.spawn(io, .{
-            .argv = &[_][]const u8{ "git", "commit", "-m", msg_lines.items },
-            .cwd = .inherit,
-            .stdin = .ignore,
-            .stdout = .inherit,
-            .stderr = .inherit,
-        }) catch |err| {
-            std.debug.print("commit: failed: {s}\n", .{@errorName(err)});
-            return;
-        };
-        const term = try commit_child.wait(io);
-        std.debug.print("commit done (exit {any})\n", .{term});
+        try git_cmds.runCommit(self.allocator, io);
     }
 
     /// Set the active model from a `/model <id>` argument, copying the
@@ -948,31 +740,7 @@ pub const ReplLoop = struct {
 
     /// `/sessions`: list saved session files in ~/.abi/sessions/.
     fn listSessions(self: *ReplLoop, io: std.Io) !void {
-        const sessions_dir = repl_session.sessionsDir(self.allocator) catch |err| {
-            std.debug.print("sessions: cannot resolve sessions dir: {s}\n", .{@errorName(err)});
-            return;
-        };
-        defer self.allocator.free(sessions_dir);
-
-        var dir = std.Io.Dir.cwd().openDir(io, sessions_dir, .{}) catch |err| {
-            std.debug.print("sessions: no sessions directory ({s})\n", .{@errorName(err)});
-            return;
-        };
-        defer dir.close(io);
-
-        std.debug.print("Saved sessions:\n", .{});
-        var iter = dir.iterate();
-        var count: usize = 0;
-        while (try iter.next(io)) |entry| {
-            if (entry.kind != .file) continue;
-            if (!std.mem.endsWith(u8, entry.name, ".json")) continue;
-            const name = entry.name[0 .. entry.name.len - 5];
-            std.debug.print("  {s}\n", .{name});
-            count += 1;
-        }
-        if (count == 0) {
-            std.debug.print("  (none)\n", .{});
-        }
+        try git_cmds.listSessions(self.allocator, io);
     }
 
     /// `/clear`: clear the terminal screen and redraw the prompt.

@@ -59,12 +59,6 @@ pub fn routeInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     return try allocator.dupe(u8, disabled_response);
 }
 
-pub fn routeInputAdaptive(allocator: std.mem.Allocator, store: anytype, input: []const u8) ![]u8 {
-    _ = store;
-    _ = input;
-    return try allocator.dupe(u8, disabled_response);
-}
-
 pub const AdaptiveModulator = struct {
     w_ema: ProfileWeights,
     alpha: f32,

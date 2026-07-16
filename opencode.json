@@ -11,11 +11,6 @@
       "type": "local",
       "enabled": true,
       "command": ["npx", "-y", "-p", "@stylusnexus/skill-loop-cli@0.3.3", "skill-loop-mcp"]
-    },
-    "zls": {
-      "type": "local",
-      "enabled": true,
-      "command": ["zls"]
     }
   }
 }

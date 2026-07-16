@@ -9,7 +9,6 @@ const scheduler_mod = @import("../../core/scheduler.zig");
 const helpers = @import("helpers.zig");
 const training_support = @import("training_support.zig");
 const point_neural_net = @import("point_neural_net.zig");
-const temp_path = @import("../../foundation/temp_path.zig");
 const types = @import("types.zig");
 
 /// Outcome of training a real `PointNeuralNetwork` on a dataset during `train`.
