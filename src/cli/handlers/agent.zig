@@ -488,6 +488,22 @@ test "agent os dry-run denies commands outside the policy allow-list" {
     try std.testing.expectEqual(@as(u8, 1), try handleAgentOs(t, allocator, &.{ "abi", "agent", "os", "dry-run", "rm" }));
 }
 
+test "agent os dry-run allow-listed command succeeds without executing" {
+    // Skip when os_control is stubbed out (-Dfeat-os-control=false) or the
+    // target has no trusted executable table (non-macOS/Linux): both make
+    // every request deny by design.
+    if (abi.features.os_control.trustedCommandSpec("pwd") == null) return error.SkipZigTest;
+
+    const allocator = std.testing.allocator;
+    const t = std.testing.io;
+    // The handler resolves the ambient cwd itself and uses it as both the
+    // policy workspace root and the request cwd, so containment holds in any
+    // real directory. `renderDryRun` applies the full policy gate and renders
+    // the escaped plan — it never spawns a child process.
+    try std.testing.expectEqual(@as(u8, 0), try handleAgentOs(t, allocator, &.{ "abi", "agent", "os", "dry-run", "pwd" }));
+    try std.testing.expectEqual(@as(u8, 0), try handleAgentOs(t, allocator, &.{ "abi", "agent", "os", "dry-run", "true" }));
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

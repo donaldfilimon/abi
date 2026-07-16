@@ -1,4 +1,5 @@
 const std = @import("std");
+const test_helpers = @import("../../testing/test_helpers.zig");
 const features = @import("../../features/mod.zig");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const memory_mod = @import("../../core/memory.zig");
@@ -458,6 +459,19 @@ test "complete --live apple-fm with --confirm tracks on-device availability" {
     const code = try handleComplete(std.testing.io, allocator, .{ .input = "hello", .model = "apple-fm", .live = true, .confirmed = true });
     const expected: u8 = if (fm.fmAvailable()) 0 else 1;
     try std.testing.expectEqual(expected, code);
+}
+
+test "complete --soul with a missing layout file fails before any store or session" {
+    const allocator = std.testing.allocator;
+    // The soul path is dispatched before the durable session opens, so a
+    // missing layout file surfaces as FileNotFound from the initial read —
+    // no store, scheduler, or completion is ever constructed. (`--soul` with a
+    // missing file *argument* and a malformed `--soul-alpha` are usage errors
+    // (exit 2) at the parse/wiring edge; covered in cli_test.zig via runCli.)
+    try std.testing.expectError(error.FileNotFound, handleComplete(std.testing.io, allocator, .{
+        .input = "hello",
+        .soul = "zig-out/definitely-missing-soul-layout.json",
+    }));
 }
 
 test "complete --learn routes through the SEA loop against an in-memory store" {
