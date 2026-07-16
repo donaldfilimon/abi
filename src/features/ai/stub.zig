@@ -119,7 +119,29 @@ pub const file_context = struct {
             if (self.used > self.max_bytes) self.used = self.max_bytes;
         }
     };
+    pub const TREE_MAX_DEPTH: usize = 3;
+    pub const TREE_MAX_ENTRIES: usize = 64;
     pub const DEFAULT_BUDGET_BYTES: usize = 8192;
+    pub const GIT_DIFF_DEFAULT_BUDGET_BYTES: usize = 2048;
+    pub const TREE_DEFAULT_BUDGET_BYTES: usize = 2048;
+
+    pub const AgentContextOptions = struct {
+        include_tree: bool = true,
+        include_git_diff: bool = true,
+        git_stat_only: bool = true,
+        open_path: []const u8 = "",
+        open_content: []const u8 = "",
+        tree_max_depth: usize = TREE_MAX_DEPTH,
+        tree_max_entries: usize = TREE_MAX_ENTRIES,
+    };
+
+    pub fn buildAgentContext(io: std.Io, allocator: std.mem.Allocator, input: []const u8, root: []const u8, total_budget: usize, opts: AgentContextOptions) ![]u8 {
+        _ = io;
+        _ = root;
+        _ = total_budget;
+        _ = opts;
+        return try allocator.dupe(u8, input);
+    }
     pub fn parseFileMentions(allocator: std.mem.Allocator, input: []const u8) ![]FileMention {
         _ = input;
         return try allocator.alloc(FileMention, 0);

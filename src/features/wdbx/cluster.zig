@@ -4,8 +4,12 @@
 //! in-process node array with a deterministic, caller-driven step model (no
 //! wall-clock timers or randomness, so it is fully reproducible and testable).
 //! This is an honest single-process consensus core — node failure, leader
-//! failover, and majority-quorum replication all work — NOT a networked
-//! multi-host deployment. A real RPC transport is the remaining Phase-2 step.
+//! failover, and majority-quorum replication all work.
+//!
+//! Networked RPC: `cluster_rpc.zig` implements real TCP RequestVote/AppendEntries
+//! (loopback multi-node + optional routable bind with `ABI_WDBX_CLUSTER_TOKEN`).
+//! That is still not production multi-host/sharding (TLS/mTLS, dynamic membership,
+//! and ops story remain gaps).
 
 const std = @import("std");
 

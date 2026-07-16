@@ -4,17 +4,32 @@
 //! and formatting helpers live separately from the interactive `ReplLoop`. The
 //! loop owns IO, store, scheduler, and dispatch; this module owns the
 //! declarative slash-command table and the pure string helpers.
+//!
+//! Git/diff/commit pure helpers (colorizeDiff, diffArgv, commitArgvFor, etc.)
+//! live in the sibling `repl_git_helpers.zig` and are re-exported here.
 
 const std = @import("std");
 const builtin = @import("builtin");
 const models = @import("../ai/models.zig");
 const repl_types = @import("repl_types.zig");
 const utils = @import("../../foundation/utils.zig");
+const git_helpers = @import("repl_git_helpers.zig");
+
+// Re-export pure git/diff/commit helpers from the extracted leaf
+pub const colorizeDiff = git_helpers.colorizeDiff;
+pub const diffArgv = git_helpers.diffArgv;
+pub const diffWantsStat = git_helpers.diffWantsStat;
+pub const commitAddArgv = git_helpers.commitAddArgv;
+pub const commitArgvFor = git_helpers.commitArgvFor;
+pub const CommitMessageOutcome = git_helpers.CommitMessageOutcome;
+pub const accumulateCommitMessage = git_helpers.accumulateCommitMessage;
+pub const homeEnvVarName = git_helpers.homeEnvVarName;
+pub const syncClisLauncherPath = git_helpers.syncClisLauncherPath;
 
 /// Maximum length of a model id settable via `/model`.
 pub const MODEL_STORAGE_BYTES = 128;
 
-pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, save, load, sessions, clear, pane, unknown };
+pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, live, save, load, sessions, clear, pane, unknown };
 
 pub const SlashCommand = struct {
     kind: SpecialCommand,
@@ -38,6 +53,7 @@ pub const slash_commands = [_]SlashCommand{
     .{ .kind = .quit, .name = "quit", .aliases = &.{ "q", "exit" }, .summary = "Exit the REPL" },
     .{ .kind = .features, .name = "features", .aliases = &.{"feat"}, .summary = "Show active build-time features" },
     .{ .kind = .learn, .name = "learn", .summary = "Toggle SEA self-learning mode on/off" },
+    .{ .kind = .live, .name = "live", .summary = "Toggle live Anthropic transport (requires credentials)" },
     .{ .kind = .save, .name = "save", .summary = "Save session context to ~/.abi/sessions/<name>.json" },
     .{ .kind = .load, .name = "load", .summary = "Restore session context from ~/.abi/sessions/<name>.json" },
     .{ .kind = .sessions, .name = "sessions", .aliases = &.{"ls-sessions"}, .summary = "List saved sessions in ~/.abi/sessions/" },
@@ -182,7 +198,6 @@ pub fn printPluginHelp(plugin_cmds: []const PluginSlashCommand) void {
     std.debug.print("\nPlugin commands:\n", .{});
     for (plugin_cmds) |cmd| {
         if (cmd.aliases.len > 0) {
-            // Format aliases as a comma-separated list in parentheses
             var alias_buf: [256]u8 = undefined;
             var alias_idx: usize = 0;
             for (cmd.aliases, 0..) |alias, ai| {
@@ -216,7 +231,6 @@ pub fn formatContextStatus(allocator: std.mem.Allocator, open_path: []const u8, 
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    // Open file section
     if (open_path.len > 0) {
         try buf.appendSlice(allocator, "context: open file: ");
         try buf.appendSlice(allocator, open_path);
@@ -231,7 +245,6 @@ pub fn formatContextStatus(allocator: std.mem.Allocator, open_path: []const u8, 
         try buf.appendSlice(allocator, "context: no file loaded\n");
     }
 
-    // Turn history section
     {
         try buf.appendSlice(allocator, "context: ");
         {
@@ -248,7 +261,6 @@ pub fn formatContextStatus(allocator: std.mem.Allocator, open_path: []const u8, 
         try buf.appendSlice(allocator, " history entr(ies)\n");
     }
 
-    // Preview of turn history
     if (turn_history_preview.len > 0) {
         const preview_len = @min(turn_history_preview.len, @as(usize, 200));
         try buf.appendSlice(allocator, "context: history preview (");
@@ -280,134 +292,6 @@ pub fn printHelpWithPlugins(plugin_cmds: []const PluginSlashCommand) void {
     std.debug.print("  <text>           Run a completion and persist the turn\n\n", .{});
 }
 
-// ── Proposal B: colorizeDiff ──────────────────────────────────────────────
-
-/// Render a git diff with ANSI color codes: green for additions, red for
-/// deletions, cyan for hunk headers, bold for file headers (`+++`/`---`/diff).
-/// Returns an owned slice; caller frees. Pure: no IO, no terminal.
-pub fn colorizeDiff(allocator: std.mem.Allocator, diff: []const u8) ![]u8 {
-    var out = std.ArrayListUnmanaged(u8).empty;
-    defer out.deinit(allocator);
-    var iter = std.mem.splitScalar(u8, diff, '\n');
-    while (iter.next()) |line| {
-        if (line.len > 0) {
-            switch (line[0]) {
-                '+' => {
-                    if (!std.mem.startsWith(u8, line, "+++")) {
-                        try out.appendSlice(allocator, "\x1b[32m");
-                        try out.appendSlice(allocator, line);
-                        try out.appendSlice(allocator, "\x1b[0m\n");
-                    } else {
-                        try out.appendSlice(allocator, "\x1b[1m");
-                        try out.appendSlice(allocator, line);
-                        try out.appendSlice(allocator, "\x1b[0m\n");
-                    }
-                },
-                '-' => {
-                    if (!std.mem.startsWith(u8, line, "---")) {
-                        try out.appendSlice(allocator, "\x1b[31m");
-                        try out.appendSlice(allocator, line);
-                        try out.appendSlice(allocator, "\x1b[0m\n");
-                    } else {
-                        try out.appendSlice(allocator, "\x1b[1m");
-                        try out.appendSlice(allocator, line);
-                        try out.appendSlice(allocator, "\x1b[0m\n");
-                    }
-                },
-                '@' => {
-                    try out.appendSlice(allocator, "\x1b[36m");
-                    try out.appendSlice(allocator, line);
-                    try out.appendSlice(allocator, "\x1b[0m\n");
-                },
-                'd' => if (std.mem.startsWith(u8, line, "diff")) {
-                    try out.appendSlice(allocator, "\x1b[1m");
-                    try out.appendSlice(allocator, line);
-                    try out.appendSlice(allocator, "\x1b[0m\n");
-                } else {
-                    try out.appendSlice(allocator, line);
-                    try out.appendSlice(allocator, "\n");
-                },
-                else => {
-                    try out.appendSlice(allocator, line);
-                    try out.appendSlice(allocator, "\n");
-                },
-            }
-        } else {
-            try out.appendSlice(allocator, "\n");
-        }
-    }
-    return out.toOwnedSlice(allocator);
-}
-
-// ── Proposal C: diffArgv / commitArgv ──────────────────────────────────────
-
-/// Return the git argv for /diff. Pure; no spawn.
-pub fn diffArgv(want_stat: bool) []const []const u8 {
-    return if (want_stat)
-        &[_][]const u8{ "git", "diff", "--stat" }
-    else
-        &[_][]const u8{ "git", "diff", "--color=never" };
-}
-
-/// Parse the /diff argument token and return whether --stat was requested. Pure.
-pub fn diffWantsStat(arg: []const u8) bool {
-    return std.mem.eql(u8, arg, "--stat");
-}
-
-/// The constant git-add argv used by /commit. Pure.
-pub fn commitAddArgv() []const []const u8 {
-    return &[_][]const u8{ "git", "add", "-A" };
-}
-
-/// Build the git-commit argv for a given (owned) message. Pure; caller owns msg lifetime.
-pub fn commitArgvFor(msg: []const u8) [4][]const u8 {
-    return .{ "git", "commit", "-m", msg };
-}
-
-// ── Proposal D: accumulateCommitMessage ────────────────────────────────────
-
-pub const CommitMessageOutcome = union(enum) {
-    cancelled,
-    message: []u8, // owned; caller frees
-};
-
-/// Accumulate a multi-line commit message from pre-read, pre-trimmed lines.
-/// First empty line cancels; a subsequent empty line after non-empty content
-/// submits. Pure: no stdin, no spawn. Caller frees .message.
-pub fn accumulateCommitMessage(allocator: std.mem.Allocator, lines: []const []const u8) !CommitMessageOutcome {
-    var msg = std.ArrayListUnmanaged(u8).empty;
-    defer msg.deinit(allocator);
-
-    for (lines) |line| {
-        if (line.len == 0) {
-            if (msg.items.len == 0) return .cancelled;
-            break;
-        }
-        if (msg.items.len > 0) try msg.append(allocator, '\n');
-        try msg.appendSlice(allocator, line);
-    }
-
-    if (msg.items.len == 0) return .cancelled;
-    return .{ .message = try msg.toOwnedSlice(allocator) };
-}
-
-// ── Proposal E: homeEnvVarName / syncClisLauncherPath ─────────────────────
-
-/// Return the OS-appropriate home environment variable name. Pure.
-pub fn homeEnvVarName(os_tag: std.Target.Os.Tag) []const u8 {
-    return if (os_tag == .windows) "USERPROFILE" else "HOME";
-}
-
-/// Join `home` with the sync-clis launcher path. Returns null when home is null.
-/// Pure: no FS access. Caller frees non-null result.
-pub fn syncClisLauncherPath(allocator: std.mem.Allocator, home: ?[]const u8) !?[]u8 {
-    if (home == null) return null;
-    const joined = try utils.pathJoin(home.?, ".grok/skills/sync-clis/launch.sh", allocator);
-    return @constCast(joined);
-}
-
-// ── Proposal F: formatPluginCommandAck ────────────────────────────────────
-
 /// Format the stub acknowledgment printed when no plugin dispatch callback is
 /// configured. Returns an owned slice; caller frees. Pure: no IO.
 pub fn formatPluginCommandAck(allocator: std.mem.Allocator, cmd: PluginSlashCommand, arg: []const u8) ![]u8 {
@@ -417,8 +301,6 @@ pub fn formatPluginCommandAck(allocator: std.mem.Allocator, cmd: PluginSlashComm
         return std.fmt.allocPrint(allocator, "[plugin:{s}] /{s}", .{ cmd.plugin, cmd.name });
     }
 }
-
-// ── Proposal A: formatTurnHistoryPreview / buildCompletionContext ──────────
 
 /// Format the turn-history ring buffer as a `user:` / `assistant:` preview.
 /// Pure: no IO, no store. Caller frees the returned slice.
@@ -467,12 +349,10 @@ pub fn buildCompletionContext(
     var ctx_parts = std.ArrayListUnmanaged(u8).empty;
     defer ctx_parts.deinit(allocator);
 
-    // Prepend context snippets from plugin context providers
     if (context_snippets.len > 0) {
         try ctx_parts.appendSlice(allocator, context_snippets);
     }
 
-    // Prepend recent turn history for multi-turn continuity
     if (turn_history_count > 0) {
         try ctx_parts.appendSlice(allocator, "[history]\n");
         const preview = try formatTurnHistoryPreview(allocator, turn_history, turn_history_count, turn_history_head);
@@ -481,7 +361,6 @@ pub fn buildCompletionContext(
         try ctx_parts.appendSlice(allocator, "[/history]\n");
     }
 
-    // Prepend file context if a file was loaded via /open
     if (open_content.len > 0) {
         try ctx_parts.appendSlice(allocator, "[file: ");
         try ctx_parts.appendSlice(allocator, open_path);
@@ -498,149 +377,6 @@ pub fn buildCompletionContext(
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────
-
-test "colorizeDiff marks added lines green and removed lines red" {
-    const input = "+add\n-del\n";
-    const result = try colorizeDiff(std.testing.allocator, input);
-    defer std.testing.allocator.free(result);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[32m+add\x1b[0m") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[31m-del\x1b[0m") != null);
-}
-
-test "colorizeDiff leaves +++ and --- file headers bold not colored" {
-    const input = "+++ b/file\n--- a/file\n";
-    const result = try colorizeDiff(std.testing.allocator, input);
-    defer std.testing.allocator.free(result);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[32m") == null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[31m") == null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[1m") != null);
-}
-
-test "colorizeDiff colors hunk headers cyan and diff headers bold" {
-    const input = "@@ -1,2 +1,3 @@\ndiff --git a/f b/f\n";
-    const result = try colorizeDiff(std.testing.allocator, input);
-    defer std.testing.allocator.free(result);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[36m@@ -1,2 +1,3 @@") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[1mdiff --git") != null);
-}
-
-test "colorizeDiff passes context lines through unchanged" {
-    const input = " context line\n";
-    const result = try colorizeDiff(std.testing.allocator, input);
-    defer std.testing.allocator.free(result);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[") == null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "context line") != null);
-}
-
-test "colorizeDiff preserves empty lines as bare newlines" {
-    const input = "\n\n";
-    const result = try colorizeDiff(std.testing.allocator, input);
-    defer std.testing.allocator.free(result);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[") == null);
-}
-
-test "diffArgv selects --stat argv when requested" {
-    const argv = diffArgv(true);
-    try std.testing.expectEqualStrings("git", argv[0]);
-    try std.testing.expectEqualStrings("diff", argv[1]);
-    try std.testing.expectEqualStrings("--stat", argv[2]);
-}
-
-test "diffArgv selects colorless argv by default" {
-    const argv = diffArgv(false);
-    try std.testing.expectEqualStrings("git", argv[0]);
-    try std.testing.expectEqualStrings("diff", argv[1]);
-    try std.testing.expectEqualStrings("--color=never", argv[2]);
-}
-
-test "diffWantsStat is true only for the exact --stat token" {
-    try std.testing.expect(diffWantsStat("--stat"));
-    try std.testing.expect(!diffWantsStat(""));
-    try std.testing.expect(!diffWantsStat("--stats"));
-    try std.testing.expect(!diffWantsStat("stat"));
-}
-
-test "commitAddArgv stages all changes" {
-    const argv = commitAddArgv();
-    try std.testing.expectEqualStrings("git", argv[0]);
-    try std.testing.expectEqualStrings("add", argv[1]);
-    try std.testing.expectEqualStrings("-A", argv[2]);
-}
-
-test "commitArgvFor embeds the message as the -m argument" {
-    const argv = commitArgvFor("fix: x");
-    try std.testing.expectEqualStrings("git", argv[0]);
-    try std.testing.expectEqualStrings("commit", argv[1]);
-    try std.testing.expectEqualStrings("-m", argv[2]);
-    try std.testing.expectEqualStrings("fix: x", argv[3]);
-}
-
-test "accumulateCommitMessage cancels on leading empty line" {
-    const result = try accumulateCommitMessage(std.testing.allocator, &.{""});
-    try std.testing.expect(result == .cancelled);
-}
-
-test "accumulateCommitMessage cancels on empty input" {
-    const result = try accumulateCommitMessage(std.testing.allocator, &.{});
-    try std.testing.expect(result == .cancelled);
-}
-
-test "accumulateCommitMessage submits a single non-empty line" {
-    const result = try accumulateCommitMessage(std.testing.allocator, &.{"fix: thing"});
-    defer std.testing.allocator.free(result.message);
-    try std.testing.expectEqualStrings("fix: thing", result.message);
-}
-
-test "accumulateCommitMessage joins multiple lines with newlines" {
-    const result = try accumulateCommitMessage(std.testing.allocator, &.{ "a", "b", "c" });
-    defer std.testing.allocator.free(result.message);
-    try std.testing.expectEqualStrings("a\nb\nc", result.message);
-}
-
-test "accumulateCommitMessage submits on the first empty line after content" {
-    const result = try accumulateCommitMessage(std.testing.allocator, &.{ "a", "b", "" });
-    defer std.testing.allocator.free(result.message);
-    try std.testing.expectEqualStrings("a\nb", result.message);
-}
-
-test "accumulateCommitMessage ignores trailing empties beyond the first submit boundary" {
-    const result = try accumulateCommitMessage(std.testing.allocator, &.{ "a", "", "b" });
-    defer std.testing.allocator.free(result.message);
-    try std.testing.expectEqualStrings("a", result.message);
-}
-
-test "homeEnvVarName selects HOME on posix and USERPROFILE on windows" {
-    try std.testing.expectEqualStrings("HOME", homeEnvVarName(.macos));
-    try std.testing.expectEqualStrings("HOME", homeEnvVarName(.linux));
-    try std.testing.expectEqualStrings("USERPROFILE", homeEnvVarName(.windows));
-}
-
-test "syncClisLauncherPath returns null when home is null" {
-    const result = try syncClisLauncherPath(std.testing.allocator, null);
-    try std.testing.expect(result == null);
-}
-
-test "syncClisLauncherPath joins home with the grok skill launcher path" {
-    const result = try syncClisLauncherPath(std.testing.allocator, "/Users/x");
-    try std.testing.expect(result != null);
-    defer std.testing.allocator.free(result.?);
-    try std.testing.expect(std.mem.endsWith(u8, result.?, "sync-clis/launch.sh"));
-}
-
-test "formatPluginCommandAck includes arg in quotes when present" {
-    const cmd = PluginSlashCommand{ .name = "greet", .summary = "", .plugin = "p" };
-    const result = try formatPluginCommandAck(std.testing.allocator, cmd, "hi");
-    defer std.testing.allocator.free(result);
-    try std.testing.expect(std.mem.indexOf(u8, result, "[plugin:p] /greet 'hi'") != null);
-}
-
-test "formatPluginCommandAck omits arg section when empty" {
-    const cmd = PluginSlashCommand{ .name = "greet", .summary = "", .plugin = "p" };
-    const result = try formatPluginCommandAck(std.testing.allocator, cmd, "");
-    defer std.testing.allocator.free(result);
-    try std.testing.expect(std.mem.indexOf(u8, result, "[plugin:p] /greet") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "'") == null);
-}
 
 test "buildCompletionContext returns null with no history file or snippets" {
     const turn_history: [repl_types.MAX_TURN_HISTORY]repl_types.TurnEntry = @splat(repl_types.TurnEntry{ .input = "", .response = "" });
@@ -685,7 +421,6 @@ test "buildCompletionContext prepends turn history in insertion order" {
 
 test "buildCompletionContext wraps ring buffer at MAX_TURN_HISTORY" {
     var state = repl_types.ReplState.init(.{});
-    // Push MAX + 2 turns; only the last MAX should survive
     var i: usize = 0;
     while (i < repl_types.MAX_TURN_HISTORY + 2) : (i += 1) {
         var buf: [32]u8 = undefined;
@@ -706,7 +441,6 @@ test "buildCompletionContext wraps ring buffer at MAX_TURN_HISTORY" {
     );
     try std.testing.expect(result != null);
     defer std.testing.allocator.free(result.?);
-    // t00 and t01 should NOT appear (evicted); turn2..turn11 should
     try std.testing.expect(std.mem.indexOf(u8, result.?, "user: t00") == null);
     try std.testing.expect(std.mem.indexOf(u8, result.?, "user: t01") == null);
     try std.testing.expect(std.mem.indexOf(u8, result.?, "user: t02") != null);

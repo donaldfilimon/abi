@@ -151,7 +151,8 @@ fn writeCredentialsFile(path: []const u8, data: []const u8) !void {
 
 fn setDirectoryPermissions(path: []const u8, permissions: std.Io.Dir.Permissions) !void {
     const io_context = std.Options.debug_io;
-    const dir = try std.Io.Dir.openDirAbsolute(io_context, path, .{});
+    // `iterate = true` avoids Linux O_PATH fds that make fchmod return EBADF.
+    const dir = try std.Io.Dir.openDirAbsolute(io_context, path, .{ .iterate = true });
     defer dir.close(io_context);
     try dir.setPermissions(io_context, permissions);
 }

@@ -77,6 +77,12 @@ pub const BlockChain = struct {
     pub fn appendAt(self: *BlockChain, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8, timestamp_ms: i64) ![HASH_LEN]u8 {
         if (profile.len == 0) return error.InvalidProfile;
 
+        // Writers take the RwLock exclusive side so getSnapshot / iterators
+        // observe a frozen length for the duration of their read lock (MVCC
+        // concurrent-checkpoint coordination within a single process).
+        self.read_lock.lockWrite();
+        defer self.read_lock.unlockWrite();
+
         self.write_lock.lock();
         defer self.write_lock.unlock();
 
@@ -330,6 +336,21 @@ test "BlockChain snapshot isolation" {
         count += 1;
     }
     try std.testing.expectEqual(@as(usize, 2), count);
+}
+
+test "BlockChain writer excluded while snapshot read lock is held" {
+    var chain = BlockChain.init(std.testing.allocator);
+    defer chain.deinit();
+
+    _ = try chain.append("abbey", 1, 2, "before");
+    const snapshot = chain.getSnapshot();
+    // Concurrent checkpoint coordination: tryLockWrite must fail while a
+    // snapshot holds the shared read lock (serialize/checkpoint path).
+    try std.testing.expect(!chain.read_lock.tryLockWrite());
+    chain.releaseSnapshot();
+    try std.testing.expect(chain.read_lock.tryLockWrite());
+    chain.read_lock.unlockWrite();
+    _ = snapshot;
 }
 
 test "BlockChain invalid profile" {
