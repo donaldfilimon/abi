@@ -12,8 +12,8 @@ Use this skill to turn ABI's active board and long-horizon specs into a concrete
 1. Start in `/Users/donaldfilimon/abi` unless the user gives another ABI checkout.
 2. Inspect `git status --short --branch` before edits; preserve unrelated dirty work.
 3. Read `AGENTS.md`, `tasks/todo.md`, and `tasks/lessons.md`.
-4. Generate or refresh the inventory with `../../scripts/abi_inventory.py --repo /Users/donaldfilimon/abi`.
-5. Load `references/current-goals.md` for the source map and goal taxonomy.
+4. Optional: refresh the inventory with `abi_inventory.py --repo /Users/donaldfilimon/abi` if available (ships with the codex `abi-mega` plugin, not this repo); skip when absent.
+5. Optional: load `references/current-goals.md` if present alongside this skill (codex plugin copies carry it; the canonical repo copy does not) — otherwise derive the source map from `tasks/todo.md` + `docs/spec/wdbx-north-star.mdx`.
 6. Derive a small executable slice. Prefer changes that make one TODO, roadmap gap, doc mismatch, or validation gap measurably more true.
 7. Keep claims honest: source/build/tests override prose.
 8. Verify with the narrow command that proves the slice, then the broader gate when the blast radius justifies it.
@@ -29,10 +29,10 @@ Use this skill to turn ABI's active board and long-horizon specs into a concrete
 ## Useful Commands
 
 ```bash
-../../scripts/abi_inventory.py --repo /Users/donaldfilimon/abi
+abi_inventory.py --repo /Users/donaldfilimon/abi   # optional; codex abi-mega plugin only
 zig version
 zig build check-parity --summary all
 ./build.sh check
 ```
 
-Use `references/current-goals.md` for the current source inventory and validation ladder.
+Use `references/current-goals.md` (when present — see Workflow step 5) for the current source inventory and validation ladder.

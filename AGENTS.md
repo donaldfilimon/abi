@@ -150,6 +150,7 @@ No unproven claims (distributed sharding, production FHE/AES/RBAC, non-loopback 
 - Open product goal for TUI/CLI north-star (streaming, pane-split, richer `@file`) is in `tasks/goals.md`; Partial north-star / demo modules must not be promoted to Current without source and tests.
 - MCP HTTP vs WDBX REST framing duplication is intentional (MCP module-root isolation); do not unify them as an organization refactor.
 - Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves: `docs/superpowers/plans/2026-07-15-approach1-waves-a-b-c.md`; `modern-refactor/examples/` is historical, not the active board.
+- `modernized/` holds only a pointer-only README (allowlisted via `!/modernized/README.md` in `.gitignore`); the `src-reimagined/{ai,mcp,wdbx}` scaffolds it once described were never committed anywhere in git — do not scaffold reimagined trees until reimagine Phase D is approved; live code stays under `src/`.
 
 ## Cursor Cloud specific instructions
 
