@@ -345,6 +345,9 @@ test_imports3
 !/modern-refactor/.claude/
 !/modern-refactor/.claude/**
 
+# Pointer-only archive (no scaffold Zig; documents empty modernized/)
+!/modernized/README.md
+
 # Subsystem docs
 !/benchmarks/README.md
 !/benchmarks/STRUCTURE.md

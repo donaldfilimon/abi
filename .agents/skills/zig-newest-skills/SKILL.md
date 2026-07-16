@@ -6,7 +6,8 @@ description: Switch the abi repo to the newest Zig master nightly (via zvm), bui
 # zig-newest-skills — validate abi against the newest Zig master
 
 The abi repo pins a specific Zig nightly in `.zigversion`
-(`0.17.0-dev.1252+e4b325c19`). This skill does the opposite of pin-safety:
+(currently `0.17.0-dev.1398+cb5635714` — read the file for the live value).
+This skill does the opposite of pin-safety:
 it switches the active toolchain to the **current Zig master** via `zvm`,
 rebuilds the real binaries, and proves abi still compiles and runs against
 bleeding-edge `std` — surfacing forward API drift the pin would otherwise hide.
@@ -56,7 +57,8 @@ it's a build+exercise gate you read the tail of.
 ## Gotchas (battle scars from this session)
 
 - **Old nightlies are NOT re-downloadable.** zvm only serves the *current*
-  master from ziglang.org. `zvm install 0.17.0-dev.1252+e4b325c19` fails with
+  master from ziglang.org. e.g. `zvm install 0.17.0-dev.1252+e4b325c19` (a
+  since-superseded pin) fails with
   `unsupported Zig version`. So once master replaces the pin's local
   `~/.zvm/<version>` dir, the exact pin is **gone for good** unless you kept
   the tarball. Installing master can therefore permanently retire the

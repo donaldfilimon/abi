@@ -217,6 +217,11 @@ fn renderFrameWriterSplit(writer: anytype, allocator: std.mem.Allocator, schedul
     state.focused_pane = focused_pane;
     state.agent_output_scroll = agent_scroll;
 
+    // Fill the right pane with an honest snapshot digest (not live REPL text).
+    const digest = try abi.features.tui.formatAgentStatusDigest(allocator, state);
+    defer allocator.free(digest);
+    state.agent_output_buffer = digest;
+
     const rendered = try abi.features.tui.renderDiagnosticsSplitWithOptions(allocator, state, .{
         .color = options.color,
         .refresh_interval_ms = @intCast(options.refresh_interval_ms),

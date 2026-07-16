@@ -128,7 +128,7 @@ pub const repl_session = struct {};
 pub const repl_git_commands = struct {};
 
 pub const repl = struct {
-    pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, save, load, unknown };
+    pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, save, load, sessions, clear, unknown };
 
     pub fn parseSpecialCommand(line: []const u8) SpecialCommand {
         _ = line;
@@ -300,6 +300,11 @@ pub fn renderDiagnosticsSplitWithOptions(allocator: std.mem.Allocator, ds: Dashb
     return try allocator.dupe(u8, "TUI diagnostics split mode is disabled in this build");
 }
 
+pub fn formatAgentStatusDigest(allocator: std.mem.Allocator, ds: DashboardState) ![]u8 {
+    _ = ds;
+    return try allocator.dupe(u8, "TUI feature is disabled");
+}
+
 pub fn writeDashboard(writer: anytype, allocator: std.mem.Allocator, state: State) !void {
     const rendered = try renderDashboard(allocator, state);
     defer allocator.free(rendered);
@@ -343,4 +348,10 @@ pub fn statusText(status: Status) []const u8 {
         .warning => "warning",
         .disabled => "disabled",
     };
+}
+
+pub fn dashboardHealth(ds: DashboardState) []const u8 {
+    if (ds.scheduler_failed > 0 or ds.memory_leaked > 0) return "attention";
+    if (ds.gpu_accelerated and ds.gpu_linked) return "nominal";
+    return "cpu";
 }

@@ -80,7 +80,9 @@ pub const DashboardState = struct {
     memory_leaked: usize = 0,
     selected_pane: usize = 0,
 
-    /// Split-pane agent output (owned buffer, last ~8KB of agent REPL output).
+    /// Split-pane right buffer (caller-owned). Interactive `abi dashboard` /
+    /// `abi tui` fill this with `formatAgentStatusDigest` each frame — not live
+    /// agent-REPL traffic (`abi agent tui` owns the REPL).
     agent_output_buffer: []const u8 = &.{},
     /// Scroll offset into agent_output_buffer lines.
     agent_output_scroll: usize = 0,

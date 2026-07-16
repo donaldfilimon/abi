@@ -3,9 +3,7 @@ const abi = @import("../../root.zig");
 const DashboardOptions = @import("dashboard.zig").DashboardOptions;
 
 pub fn dashboardHealth(ds: abi.features.tui.DashboardState) []const u8 {
-    if (ds.scheduler_failed > 0 or ds.memory_leaked > 0) return "attention";
-    if (!ds.gpu_accelerated or !ds.gpu_linked) return "degraded";
-    return "nominal";
+    return abi.features.tui.dashboardHealth(ds);
 }
 
 pub fn paneNameForIndex(selected: usize) []const u8 {
