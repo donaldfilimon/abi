@@ -354,7 +354,49 @@ pub const ReplLoop = struct {
     }
 
     fn runSyncClis(self: *ReplLoop, io: std.Io) !void {
-        try git_cmds.runSyncClis(self.allocator, io);
+        // Prefer the in-repo canonical launcher, then common synched skill dirs.
+        // Never execute a missing script.
+        const candidates = [_][]const u8{
+            ".agents/skills/sync-clis/launch.sh",
+            ".claude/skills/sync-clis/launch.sh",
+        };
+        var launch_owned: ?[]const u8 = null;
+        defer if (launch_owned) |p| self.allocator.free(p);
+
+        var launch_path: ?[]const u8 = null;
+        for (candidates) |rel| {
+            std.Io.Dir.cwd().access(io, rel, .{}) catch continue;
+            launch_path = rel;
+            break;
+        }
+        if (launch_path == null) {
+            const home_var = if (builtin.target.os.tag == .windows) "USERPROFILE" else "HOME";
+            if (env.get(home_var)) |home| {
+                const grok = try utils.pathJoin(home, ".grok/skills/sync-clis/launch.sh", self.allocator);
+                std.Io.Dir.cwd().access(io, grok, .{}) catch {
+                    self.allocator.free(grok);
+                    std.debug.print("sync-clis: launcher not found (tried .agents/, .claude/, ~/.grok/)\n", .{});
+                    return;
+                };
+                launch_owned = grok;
+                launch_path = grok;
+            } else {
+                std.debug.print("sync-clis: launcher not found (tried .agents/, .claude/; HOME unset)\n", .{});
+                return;
+            }
+        }
+
+        std.debug.print("sync-clis: executing {s}...\n", .{launch_path.?});
+        var child = try std.process.spawn(io, .{
+            .argv = &[_][]const u8{launch_path.?},
+            .cwd = .inherit,
+            .stdin = .ignore,
+            .stdout = .inherit,
+            .stderr = .inherit,
+        });
+        defer child.kill(io);
+        const term = try child.wait(io);
+        std.debug.print("sync-clis done (exit {any})\n", .{term});
     }
 
     fn printUnknownCommand(self: *ReplLoop, line: []const u8) !void {
@@ -641,7 +683,9 @@ pub const ReplLoop = struct {
         std.debug.print("model set to {s}\n", .{self.state.config.model});
     }
 
-    /// `/features`: display active build-time features with ✓ or empty markers.
+    /// `/features`: display compile-time feature flags with ✓ or empty markers.
+    /// These are build gates (`-Dfeat-*`), not runtime `available`/`native_dispatch`
+    /// capability bits — see `abi backends` for honesty on GPU/accelerator stubs.
     fn showFeatures(self: *ReplLoop) void {
         _ = self;
         const Feature = struct { name: []const u8, active: bool, desc: []const u8 };
@@ -649,12 +693,12 @@ pub const ReplLoop = struct {
             .{ .name = "ai", .active = build_options.feat_ai, .desc = "AI profiles, routing, constitution" },
             .{ .name = "wdbx", .active = build_options.feat_wdbx, .desc = "Vector store, HNSW index" },
             .{ .name = "sea", .active = build_options.feat_sea, .desc = "Self-learning evidence loop" },
-            .{ .name = "gpu", .active = build_options.feat_gpu, .desc = "GPU acceleration" },
-            .{ .name = "tui", .active = build_options.feat_tui, .desc = "Terminal UI" },
-            .{ .name = "accelerator", .active = build_options.feat_accelerator, .desc = "Accelerator backend selection" },
-            .{ .name = "shaders", .active = build_options.feat_shader, .desc = "Shader validation" },
-            .{ .name = "mlir", .active = build_options.feat_mlir, .desc = "MLIR lowering" },
-            .{ .name = "mobile", .active = build_options.feat_mobile, .desc = "Mobile platform profile" },
+            .{ .name = "gpu", .active = build_options.feat_gpu, .desc = "GPU feature linked (runtime accel separate)" },
+            .{ .name = "tui", .active = build_options.feat_tui, .desc = "Terminal UI / diagnostics dashboard" },
+            .{ .name = "accelerator", .active = build_options.feat_accelerator, .desc = "Accelerator selection report (no native dispatch)" },
+            .{ .name = "shaders", .active = build_options.feat_shader, .desc = "Shader validate+checksum (no compiler)" },
+            .{ .name = "mlir", .active = build_options.feat_mlir, .desc = "Textual MLIR lower (no LLVM toolchain)" },
+            .{ .name = "mobile", .active = build_options.feat_mobile, .desc = "Mobile profile report (no runtime)" },
             .{ .name = "os_control", .active = build_options.feat_os_control, .desc = "OS command policy controls" },
             .{ .name = "hash", .active = build_options.feat_hash, .desc = "Portable hashing utilities" },
             .{ .name = "metrics", .active = build_options.feat_metrics, .desc = "In-process metrics" },
@@ -662,11 +706,12 @@ pub const ReplLoop = struct {
             .{ .name = "nn", .active = build_options.feat_nn, .desc = "Char-LM neural net trainer" },
             .{ .name = "foundationmodels", .active = build_options.feat_foundationmodels, .desc = "FoundationModels (macOS)" },
         };
-        std.debug.print("Active Features:\n", .{});
+        std.debug.print("Build-time feature flags (-Dfeat-*):\n", .{});
         for (features) |f| {
             const marker = if (f.active) "✓" else " ";
             std.debug.print("  {s:<18} [{s}]  {s}\n", .{ f.name, marker, f.desc });
         }
+        std.debug.print("(compile-on only — use `abi backends` for runtime GPU/accelerator status)\n", .{});
     }
 
     /// `/learn`: toggle SEA self-learning mode on/off.
