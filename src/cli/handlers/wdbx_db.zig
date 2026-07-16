@@ -171,60 +171,190 @@ pub fn blockGet(io: std.Io, allocator: std.mem.Allocator, path: []const u8) anye
     return 0;
 }
 
-/// `abi wdbx query <path> [text] [persona]`. With no text, prints the
-/// store-stats manifest (unchanged legacy behavior). With text, embeds the query
-/// and returns hybrid-ranked (semantic × temporal × causal × persona) results.
-/// With a persona, results are ISOLATED to that persona's memories rather than
-/// blended — multi-persona memory routing over the recovered store's vectors.
-pub fn query(io: std.Io, allocator: std.mem.Allocator, path: []const u8, text: ?[]const u8, persona: ?[]const u8) anyerror!u8 {
-    var opened = openRecovered(io, allocator, path) catch return 1;
+/// Options for `abi wdbx query`. Positionals (`text`, `persona`) remain for
+/// compatibility; flags (`--text`, `--persona`, `--limit`, `--json`) are preferred.
+pub const QueryOptions = struct {
+    path: []const u8,
+    text: ?[]const u8 = null,
+    persona: ?[]const u8 = null,
+    limit: usize = 10,
+    json: bool = false,
+};
+
+pub const ParseQueryError = error{Usage};
+
+/// Parse `abi wdbx query` args after the `query` token.
+/// Accepts: `<path> [text] [persona] [--limit N] [--json] [--text T] [--persona P]`
+pub fn parseQueryArgs(args: []const []const u8) ParseQueryError!QueryOptions {
+    if (args.len == 0) return error.Usage;
+    var opts = QueryOptions{ .path = args[0] };
+    var positionals: [2]?[]const u8 = .{ null, null };
+    var positional_count: usize = 0;
+    var i: usize = 1;
+    while (i < args.len) : (i += 1) {
+        const tok = args[i];
+        if (std.mem.eql(u8, tok, "--json")) {
+            opts.json = true;
+        } else if (std.mem.eql(u8, tok, "--limit")) {
+            i += 1;
+            if (i >= args.len) return error.Usage;
+            opts.limit = std.fmt.parseInt(usize, args[i], 10) catch return error.Usage;
+            if (opts.limit == 0) return error.Usage;
+        } else if (std.mem.eql(u8, tok, "--text")) {
+            i += 1;
+            if (i >= args.len) return error.Usage;
+            opts.text = args[i];
+        } else if (std.mem.eql(u8, tok, "--persona")) {
+            i += 1;
+            if (i >= args.len) return error.Usage;
+            opts.persona = args[i];
+        } else if (std.mem.startsWith(u8, tok, "--")) {
+            return error.Usage;
+        } else {
+            if (positional_count >= positionals.len) return error.Usage;
+            positionals[positional_count] = tok;
+            positional_count += 1;
+        }
+    }
+    if (opts.text == null and positionals[0] != null) opts.text = positionals[0];
+    if (opts.persona == null and positionals[1] != null) opts.persona = positionals[1];
+    // Legacy: single positional after path with --persona flag already set is text.
+    if (opts.text == null and opts.persona != null and positionals[0] != null and positionals[1] == null) {
+        opts.text = positionals[0];
+    }
+    return opts;
+}
+
+/// `abi wdbx query <path> [text] [persona] [--limit N] [--json] ...`.
+/// With no text, prints the store-stats manifest (or a JSON wrapper when `--json`).
+/// With text, embeds the query and returns hybrid-ranked
+/// (semantic × temporal × causal × persona) results. With a persona, results are
+/// ISOLATED to that persona's memories rather than blended.
+pub fn query(io: std.Io, allocator: std.mem.Allocator, opts: QueryOptions) anyerror!u8 {
+    var opened = openRecovered(io, allocator, opts.path) catch return 1;
     defer opened.store.deinit();
 
-    const q = text orelse {
+    const q = opts.text orelse {
         const manifest = try opened.store.exportManifest(allocator);
         defer allocator.free(manifest);
-        std.debug.print("{s}\n", .{manifest});
+        if (opts.json) {
+            const path_json = try jsonStringAlloc(allocator, opts.path);
+            defer allocator.free(path_json);
+            std.debug.print("{{\"path\":{s},\"mode\":\"stats\",\"ranking\":null,\"manifest\":{s}}}\n", .{ path_json, manifest });
+        } else {
+            std.debug.print("{s}\n", .{manifest});
+        }
         return 0;
     };
 
-    const store = &opened.store;
+    return queryWithText(allocator, &opened.store, opts, q);
+}
+
+fn queryWithText(allocator: std.mem.Allocator, store: *wdbx.Store, opts: QueryOptions, q: []const u8) anyerror!u8 {
     const stats = store.stats();
     if (stats.vectors == 0) {
-        std.debug.print("no vectors in {s}; nothing to rank (populate with `abi complete`)\n", .{path});
+        if (opts.json) {
+            const path_json = try jsonStringAlloc(allocator, opts.path);
+            defer allocator.free(path_json);
+            const q_json = try jsonStringAlloc(allocator, q);
+            defer allocator.free(q_json);
+            std.debug.print("{{\"path\":{s},\"query\":{s},\"persona\":\"all\",\"ranking\":\"hybrid\",\"limit\":{d},\"vectors\":0,\"results\":[]}}\n", .{
+                path_json, q_json, opts.limit,
+            });
+        } else {
+            std.debug.print("no vectors in {s}; nothing to rank (populate with `abi complete`)\n", .{opts.path});
+        }
         return 0;
     }
 
     const query_vec = features.ai.textEmbedding(q);
     const scorer = wdbx.temporal.HybridScorer{ .now_ms = foundation_time.unixMs(), .half_life_ms = 24 * 60 * 60 * 1000 };
-    // Anchor causal proximity on the most recent vector when present.
     const focus_id: u32 = if (stats.next_vector_id > 1) stats.next_vector_id - 1 else 1;
 
-    // One pass over the chain so persona resolution (scoped filtering below and
-    // the result display) is O(1) per vector instead of an O(blocks) chain scan.
     var persona_cache = try buildPersonaCache(allocator, store);
     defer persona_cache.deinit(allocator);
 
-    const ranked = if (persona) |p| blk: {
-        // Isolation: only this persona's memories, resolved via the durable
-        // profile tags / block-backed cache — keeps persona semantics out of the
-        // storage layer.
+    const ranked = if (opts.persona) |p| blk: {
         const scope = PersonaScope{ .store = store, .cache = &persona_cache, .target = p };
-        break :blk try wdbx.retrieval.hybridSearchScoped(allocator, store, &query_vec, 10, &store.temporal_graph, scorer, focus_id, &scope, personaScopeKeep);
-    } else try wdbx.retrieval.hybridSearch(allocator, store, &query_vec, 10, &store.temporal_graph, scorer, focus_id, constPersona);
+        break :blk try wdbx.retrieval.hybridSearchScoped(allocator, store, &query_vec, opts.limit, &store.temporal_graph, scorer, focus_id, &scope, personaScopeKeep);
+    } else try wdbx.retrieval.hybridSearch(allocator, store, &query_vec, opts.limit, &store.temporal_graph, scorer, focus_id, constPersona);
     defer allocator.free(ranked);
 
-    const scope_label = persona orelse "all";
+    const scope_label = opts.persona orelse "all";
+    if (opts.json) {
+        return printQueryJson(allocator, opts, q, scope_label, store, &persona_cache, ranked, stats.vectors);
+    }
+
     if (ranked.len == 0) {
         std.debug.print("no matches for \"{s}\" (persona={s})\n", .{ q, scope_label });
         return 0;
     }
-    std.debug.print("query \"{s}\" persona={s} -> {d} ranked result(s) over {d} vectors (ranking=hybrid):\n", .{ q, scope_label, ranked.len, stats.vectors });
+    std.debug.print("query \"{s}\" persona={s} -> {d} ranked result(s) over {d} vectors (ranking=hybrid limit={d}):\n", .{
+        q, scope_label, ranked.len, stats.vectors, opts.limit,
+    });
     for (ranked, 0..) |r, i| {
+        // Zero-copy: dims come from a borrowed getVector view (valid until store mutation).
+        const dims: usize = if (store.getVector(r.id)) |view| view.len else 0;
         std.debug.print(
-            "  {d}. vector_id={d} persona={s} score={d:.4} semantic={d:.4} temporal={d:.4} causal={d:.4} persona_w={d:.4}\n",
-            .{ i + 1, r.id, resolvePersona(store, &persona_cache, r.id), r.score, r.components.semantic, r.components.temporal, r.components.causal, r.components.persona },
+            "  {d}. vector_id={d} persona={s} score={d:.4} semantic={d:.4} temporal={d:.4} causal={d:.4} persona_w={d:.4} dims={d}\n",
+            .{ i + 1, r.id, resolvePersona(store, &persona_cache, r.id), r.score, r.components.semantic, r.components.temporal, r.components.causal, r.components.persona, dims },
         );
     }
+    return 0;
+}
+
+fn jsonStringAlloc(allocator: std.mem.Allocator, s: []const u8) ![]u8 {
+    var out: std.Io.Writer.Allocating = .init(allocator);
+    defer out.deinit();
+    var stringify = std.json.Stringify{ .writer = &out.writer, .options = .{ .whitespace = .minified } };
+    try stringify.write(s);
+    return try allocator.dupe(u8, out.written());
+}
+
+fn printQueryJson(
+    allocator: std.mem.Allocator,
+    opts: QueryOptions,
+    q: []const u8,
+    scope_label: []const u8,
+    store: *const wdbx.Store,
+    persona_cache: *const PersonaCache,
+    ranked: []const wdbx.temporal.RankedNode,
+    vector_count: usize,
+) !u8 {
+    const path_json = try jsonStringAlloc(allocator, opts.path);
+    defer allocator.free(path_json);
+    const q_json = try jsonStringAlloc(allocator, q);
+    defer allocator.free(q_json);
+    const persona_json = try jsonStringAlloc(allocator, scope_label);
+    defer allocator.free(persona_json);
+
+    var out: std.Io.Writer.Allocating = .init(allocator);
+    defer out.deinit();
+    const w = &out.writer;
+
+    try w.print("{{\"path\":{s},\"query\":{s},\"persona\":{s},\"ranking\":\"hybrid\",\"limit\":{d},\"vectors\":{d},\"results\":[", .{
+        path_json, q_json, persona_json, opts.limit, vector_count,
+    });
+    for (ranked, 0..) |r, i| {
+        if (i > 0) try w.writeAll(",");
+        const label = resolvePersona(store, persona_cache, r.id);
+        const label_json = try jsonStringAlloc(allocator, label);
+        defer allocator.free(label_json);
+        // Borrowed view — no vector copy; only dims are serialized.
+        const dims: usize = if (store.getVector(r.id)) |view| view.len else 0;
+        try w.print("{{\"vector_id\":{d},\"persona\":{s},\"score\":{d:.6},\"dims\":{d},\"vector_view\":\"borrowed\",\"components\":{{\"semantic\":{d:.6},\"temporal\":{d:.6},\"causal\":{d:.6},\"persona\":{d:.6}}}}}", .{
+            r.id,
+            label_json,
+            r.score,
+            dims,
+            r.components.semantic,
+            r.components.temporal,
+            r.components.causal,
+            r.components.persona,
+        });
+    }
+    try w.writeAll("]}\n");
+    std.debug.print("{s}", .{out.written()});
     return 0;
 }
 
@@ -294,6 +424,29 @@ test "resolvePersona resolves query AND response vectors via the block cache" {
     try std.testing.expectEqualStrings("abbey", resolvePersona(&store, &cache, qid));
     try std.testing.expectEqualStrings("abbey", resolvePersona(&store, &cache, rid));
     try std.testing.expectEqualStrings("unknown", resolvePersona(&store, &cache, 9999));
+}
+
+test "parseQueryArgs accepts flags and legacy positionals" {
+    const a = try parseQueryArgs(&.{"/tmp/store.jsonl"});
+    try std.testing.expectEqualStrings("/tmp/store.jsonl", a.path);
+    try std.testing.expect(a.text == null);
+    try std.testing.expectEqual(@as(usize, 10), a.limit);
+    try std.testing.expect(!a.json);
+
+    const b = try parseQueryArgs(&.{ "/tmp/s", "hello", "abbey", "--limit", "3", "--json" });
+    try std.testing.expectEqualStrings("hello", b.text.?);
+    try std.testing.expectEqualStrings("abbey", b.persona.?);
+    try std.testing.expectEqual(@as(usize, 3), b.limit);
+    try std.testing.expect(b.json);
+
+    const c = try parseQueryArgs(&.{ "/tmp/s", "--text", "hi", "--persona", "aviva", "--limit", "1" });
+    try std.testing.expectEqualStrings("hi", c.text.?);
+    try std.testing.expectEqualStrings("aviva", c.persona.?);
+    try std.testing.expectEqual(@as(usize, 1), c.limit);
+
+    try std.testing.expectError(error.Usage, parseQueryArgs(&.{}));
+    try std.testing.expectError(error.Usage, parseQueryArgs(&.{ "/tmp/s", "--limit", "0" }));
+    try std.testing.expectError(error.Usage, parseQueryArgs(&.{ "/tmp/s", "--unknown" }));
 }
 
 test {

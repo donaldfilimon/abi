@@ -32,7 +32,7 @@ fn usageCode(code: u8) u8 {
         \\  db compact <path> [keep]       Retain the newest segment checkpoints (default keep=2)
         \\  block insert <path> <profile> <metadata>   Append a conversation block (snapshot + WAL)
         \\  block get <path>               Print the most recent block
-        \\  query <path> [text] [persona]  Store statistics; hybrid semantic search with text; isolated to one persona's memories when a persona is given
+        \\  query <path> [text] [persona] [--limit N] [--json]  Store stats; hybrid semantic search (flags: --text/--persona/--limit/--json)
         \\  benchmark [count]              Measure local insert/search timing
         \\  cluster status                 Report cluster topology (single-node default)
         \\  cluster demo [nodes]           Run in-process consensus: elect, replicate, fail over
@@ -93,11 +93,10 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     }
 
     if (std.mem.eql(u8, sub, "query")) {
-        if (args.len == 4 and usage_mod.isHelpToken(args[3])) return wdbxQueryHelp();
-        if (args.len == 4) return db_commands.query(io, allocator, args[3], null, null);
-        if (args.len == 5) return db_commands.query(io, allocator, args[3], args[4], null);
-        if (args.len == 6) return db_commands.query(io, allocator, args[3], args[4], args[5]);
-        return usage();
+        if (args.len >= 4 and usage_mod.isHelpToken(args[3])) return wdbxQueryHelp();
+        if (args.len < 4) return usage();
+        const opts = db_commands.parseQueryArgs(args[3..]) catch return usage();
+        return db_commands.query(io, allocator, opts);
     }
 
     if (std.mem.eql(u8, sub, "benchmark")) {
@@ -192,7 +191,14 @@ fn wdbxBlockHelp() u8 {
 }
 
 fn wdbxQueryHelp() u8 {
-    std.debug.print("usage: abi wdbx query <path> [text] [persona]\n\nPrint store stats or run semantic/persona-scoped retrieval over a recovered store.\n", .{});
+    std.debug.print(
+        \\usage: abi wdbx query <path> [text] [persona] [--limit N] [--json] [--text T] [--persona P]
+        \\
+        \\Print store stats (no text) or run hybrid semantic retrieval (semantic × temporal × causal × persona).
+        \\Persona isolates results to that persona's memories. --limit defaults to 10. --json emits a machine-
+        \\readable result list (ranking=hybrid) with borrowed vector dims (zero-copy getVector view).
+        \\
+    , .{});
     return 0;
 }
 
@@ -344,6 +350,9 @@ test "wdbx query runs scoped to a persona over a recovered store" {
     // Persona-scoped query and unscoped query both succeed over the recovery.
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path, "hello", "abbey" }));
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path, "hello" }));
+    // Flag form: --limit / --json / --persona must accept the same recovered store.
+    try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path, "--text", "hello", "--persona", "abbey", "--limit", "2", "--json" }));
+    try std.testing.expectEqual(@as(u8, 2), try handleWdbx(std.testing.io, allocator, &.{ "abi", "wdbx", "query", path, "--limit", "0" }));
 }
 
 test "wdbx CLI keeps the live WAL tagged to the checkpoint epoch" {
