@@ -308,6 +308,9 @@ test_imports3
 !/CODE_OF_CONDUCT.md
 !/walkthrough.md
 
+# GitHub Actions runner ops (self-hosted security + day-2)
+!/.github/self-hosted-runner.md
+
 # Documentation tree
 !/docs/README.md
 !/docs/index.md
