@@ -3,41 +3,17 @@ const std = @import("std");
 const sync = @import("../foundation/sync.zig");
 const time = @import("../foundation/time.zig");
 const errors = @import("../foundation/errors.zig");
+const task_types = @import("task.zig");
 
 const build_options = @import("build_options");
 const metrics = if (build_options.feat_metrics) @import("../features/metrics/mod.zig") else @import("../features/metrics/stub.zig");
 const telemetry = if (build_options.feat_telemetry) @import("../features/telemetry/mod.zig") else @import("../features/telemetry/stub.zig");
 const memory = @import("memory.zig");
 
-pub const TaskStatus = enum(u8) {
-    pending,
-    running,
-    completed,
-    failed,
-    cancelled,
-};
-
-pub const TaskPriority = enum(u8) {
-    low = 0,
-    normal = 1,
-    high = 2,
-    critical = 3,
-};
-
-pub const TaskFn = *const fn (ctx: ?*anyopaque) anyerror!void;
-
-pub const Task = struct {
-    id: u64,
-    name: []const u8,
-    priority: TaskPriority,
-    status: TaskStatus,
-    fn_ptr: TaskFn,
-    ctx: ?*anyopaque,
-    created_at: i64,
-    started_at: i64,
-    completed_at: i64,
-    error_msg: ?[]const u8,
-};
+pub const TaskStatus = task_types.TaskStatus;
+pub const TaskPriority = task_types.TaskPriority;
+pub const TaskFn = task_types.TaskFn;
+pub const Task = task_types.Task;
 
 pub const Scheduler = struct {
     allocator: std.mem.Allocator,
