@@ -14,29 +14,44 @@ const repl_types = @import("repl_types.zig");
 const repl_session = @import("repl_session.zig");
 const file_context = @import("../ai/file_context.zig");
 
-/// `/sync-clis`: execute the central sync-clis launcher from the operator's
-/// Grok skill dir. Resolves the launcher path from the OS-appropriate home
-/// env var and never executes a missing script.
+/// `/sync-clis`: execute the central sync-clis launcher. Prefers the in-repo
+/// canonical launcher, then the synced `.claude` copy, then the operator's
+/// `~/.grok` skill dir (via the OS-appropriate home env var). Never executes
+/// a missing script.
 pub fn runSyncClis(allocator: std.mem.Allocator, io: std.Io) !void {
-    const home_var = cmds.homeEnvVarName(builtin.target.os.tag);
-    const home = env.get(home_var) orelse {
-        std.debug.print("sync-clis: HOME not set; cannot locate launcher\n", .{});
-        return;
+    const candidates = [_][]const u8{
+        ".agents/skills/sync-clis/launch.sh",
+        ".claude/skills/sync-clis/launch.sh",
     };
-    const maybe_launch_path = try cmds.syncClisLauncherPath(allocator, home);
-    if (maybe_launch_path == null) {
-        std.debug.print("sync-clis: HOME not set; cannot locate launcher\n", .{});
-        return;
+    var launch_owned: ?[]const u8 = null;
+    defer if (launch_owned) |p| allocator.free(p);
+
+    var launch_path: ?[]const u8 = null;
+    for (candidates) |rel| {
+        std.Io.Dir.cwd().access(io, rel, .{}) catch continue;
+        launch_path = rel;
+        break;
     }
-    const launch_path = maybe_launch_path.?;
-    defer allocator.free(launch_path);
-    std.Io.Dir.cwd().access(io, launch_path, .{}) catch {
-        std.debug.print("sync-clis: launcher not found at {s}\n", .{launch_path});
-        return;
-    };
-    std.debug.print("sync-clis: executing central sync (full targets via driver)...\n", .{});
+    if (launch_path == null) {
+        const home_var = cmds.homeEnvVarName(builtin.target.os.tag);
+        const maybe_grok = try cmds.syncClisLauncherPath(allocator, env.get(home_var));
+        if (maybe_grok) |grok| {
+            std.Io.Dir.cwd().access(io, grok, .{}) catch {
+                allocator.free(grok);
+                std.debug.print("sync-clis: launcher not found (tried .agents/, .claude/, ~/.grok/)\n", .{});
+                return;
+            };
+            launch_owned = grok;
+            launch_path = grok;
+        } else {
+            std.debug.print("sync-clis: launcher not found (tried .agents/, .claude/; HOME unset)\n", .{});
+            return;
+        }
+    }
+
+    std.debug.print("sync-clis: executing {s}...\n", .{launch_path.?});
     var child = try std.process.spawn(io, .{
-        .argv = &[_][]const u8{launch_path},
+        .argv = &[_][]const u8{launch_path.?},
         .cwd = .inherit,
         .stdin = .ignore,
         .stdout = .inherit,
@@ -85,11 +100,12 @@ pub fn runOpen(allocator: std.mem.Allocator, state: *repl_types.ReplState, path:
     std.debug.print("{s}\n", .{cmds.formatOpenStatus(&status_buf, state.open_path, state.open_content.len)});
 }
 
-/// `/diff`: run `git diff` and print the output. When `--stat` is passed,
-/// shows a summary of changed files. Output is colorized with ANSI codes for
-/// added (+) lines in green and removed (-) lines in red.
-pub fn runDiff(allocator: std.mem.Allocator, io: std.Io) !void {
-    const arg = cmds.specialArg("/diff ");
+/// `/diff [--stat]`: run `git diff` and print the output. `arg` is the
+/// argument text after the slash command (e.g. `--stat` from `/diff --stat`).
+/// When `--stat` is passed, shows a summary of changed files. Output is
+/// colorized with ANSI codes for added (+) lines in green and removed (-)
+/// lines in red.
+pub fn runDiff(allocator: std.mem.Allocator, arg: []const u8, io: std.Io) !void {
     const want_stat = cmds.diffWantsStat(arg);
     const argv = cmds.diffArgv(want_stat);
 

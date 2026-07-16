@@ -298,7 +298,7 @@ pub const ReplLoop = struct {
             .profile => self.showProfileStatus(),
             .syncclis => try self.runSyncClis(io),
             .open => try self.runOpen(specialArg(line), io),
-            .diff => try self.runDiff(io),
+            .diff => try self.runDiff(specialArg(line), io),
             .features => self.showFeatures(),
             .learn => self.toggleLearn(),
             .save => try self.saveSession(specialArg(line), io),
@@ -353,50 +353,10 @@ pub const ReplLoop = struct {
         std.debug.print("  blocks:   {d}\n", .{self.persistedBlockCount()});
     }
 
+    /// `/sync-clis`: execute the central sync-clis launcher (in-repo canonical
+    /// first, then synced copies; never executes a missing script).
     fn runSyncClis(self: *ReplLoop, io: std.Io) !void {
-        // Prefer the in-repo canonical launcher, then common synched skill dirs.
-        // Never execute a missing script.
-        const candidates = [_][]const u8{
-            ".agents/skills/sync-clis/launch.sh",
-            ".claude/skills/sync-clis/launch.sh",
-        };
-        var launch_owned: ?[]const u8 = null;
-        defer if (launch_owned) |p| self.allocator.free(p);
-
-        var launch_path: ?[]const u8 = null;
-        for (candidates) |rel| {
-            std.Io.Dir.cwd().access(io, rel, .{}) catch continue;
-            launch_path = rel;
-            break;
-        }
-        if (launch_path == null) {
-            const home_var = cmds.homeEnvVarName(@import("builtin").target.os.tag);
-            if (env.get(home_var)) |home| {
-                const grok = try utils.pathJoin(home, ".grok/skills/sync-clis/launch.sh", self.allocator);
-                std.Io.Dir.cwd().access(io, grok, .{}) catch {
-                    self.allocator.free(grok);
-                    std.debug.print("sync-clis: launcher not found (tried .agents/, .claude/, ~/.grok/)\n", .{});
-                    return;
-                };
-                launch_owned = grok;
-                launch_path = grok;
-            } else {
-                std.debug.print("sync-clis: launcher not found (tried .agents/, .claude/; HOME unset)\n", .{});
-                return;
-            }
-        }
-
-        std.debug.print("sync-clis: executing {s}...\n", .{launch_path.?});
-        var child = try std.process.spawn(io, .{
-            .argv = &[_][]const u8{launch_path.?},
-            .cwd = .inherit,
-            .stdin = .ignore,
-            .stdout = .inherit,
-            .stderr = .inherit,
-        });
-        defer child.kill(io);
-        const term = try child.wait(io);
-        std.debug.print("sync-clis done (exit {any})\n", .{term});
+        try git_cmds.runSyncClis(self.allocator, io);
     }
 
     fn printUnknownCommand(self: *ReplLoop, line: []const u8) !void {
@@ -652,12 +612,11 @@ pub const ReplLoop = struct {
         try git_cmds.runOpen(self.allocator, &self.state, path, io);
     }
 
-    /// `/diff`: run `git diff` and print the output.
     /// `/diff [--stat]`: run `git diff` and print the output. When `--stat` is
     /// passed, shows a summary of changed files. Output is colorized with ANSI
     /// codes for added (+) lines in green and removed (-) lines in red.
-    fn runDiff(self: *ReplLoop, io: std.Io) !void {
-        try git_cmds.runDiff(self.allocator, io);
+    fn runDiff(self: *ReplLoop, arg: []const u8, io: std.Io) !void {
+        try git_cmds.runDiff(self.allocator, arg, io);
     }
 
     /// `/commit`: stage all changes and create a commit. Prompts for a commit
