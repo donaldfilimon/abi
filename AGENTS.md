@@ -161,3 +161,4 @@ Linux x86_64 VM with the pinned Zig (`.zigversion`) already installed at `/opt/z
 - Open product goal for TUI/CLI north-star (streaming, pane-split, richer `@file`) is in `tasks/goals.md`; Partial north-star / demo modules must not be promoted to Current without source and tests.
 - MCP HTTP vs WDBX REST framing duplication is intentional (MCP module-root isolation); do not unify them as an organization refactor.
 - Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A/B mostly done with C leftovers (pane defer, REST hygiene, sync-clis) in `docs/superpowers/plans/2026-07-15-approach1-waves-a-b-c.md`; `modern-refactor/examples/` is historical, not the active board.
+- `modernized/` is pointer-only (`README.md` is allowlisted in `.gitignore`); previously described `src-reimagined/{ai,mcp,wdbx}` scaffolds were never committed, so live code remains under `src/` until reimagine Phase D is approved.
