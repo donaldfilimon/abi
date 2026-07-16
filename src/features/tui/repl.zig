@@ -10,7 +10,6 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const env = @import("../../foundation/env.zig");
-const utils = @import("../../foundation/utils.zig");
 const models = @import("../ai/models.zig");
 const ai = if (build_options.feat_ai) @import("../ai/mod.zig") else @import("../ai/stub.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
