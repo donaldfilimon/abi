@@ -94,7 +94,7 @@ Inside `src/`: relative `.zig` imports only. **Only** the MCP handler group (`sr
 
 - Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore(build):`, …).
 - Local `main` and `origin/main` share history (reconciled at `848ec2c8`; the old no-common-ancestor state is resolved). Never force-push `main`.
-- CI (`.github/workflows/ci.yml`) runs `zig build check` + `cross-smoke` on macOS; keep its Zig version in sync with `.zigversion` when either moves.
+- CI (`.github/workflows/ci.yml`) runs `zig build check` + `cross-smoke` on macOS. Same-repo push/PR/workflow_dispatch use the labeled self-hosted runner (`self-hosted,macOS,ARM64,abi`); fork PRs stay on GitHub-hosted `macos-latest` only. Never add self-hosted jobs without the same-repo `if:` gate — see `.github/self-hosted-runner.md`. Keep workflow `ZIG_VERSION` in sync with `.zigversion` when either moves.
 
 ## Zig 0.17 Patterns
 
