@@ -151,3 +151,15 @@ No unproven claims (distributed sharding, production FHE/AES/RBAC, non-loopback 
 - MCP HTTP vs WDBX REST framing duplication is intentional (MCP module-root isolation); do not unify them as an organization refactor.
 - Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves: `docs/superpowers/plans/2026-07-15-approach1-waves-a-b-c.md`; `modern-refactor/examples/` is historical, not the active board.
 
+## Cursor Cloud specific instructions
+
+The Cloud Agent VM is **Linux x86_64**, but this repo is **macOS-primary** (CI is macOS-only). The pinned Zig from `.zigversion` is installed at `/opt/zig/...` and symlinked to `/usr/local/bin/zig` (persisted in the VM snapshot; the startup update script self-heals the symlink and reinstalls only if missing). Standard build/run commands are in the Commands table above; binaries land in `zig-out/bin/{abi,abi-mcp}`.
+
+Linux-only caveats discovered during setup (do NOT "fix" these by editing source — they don't reproduce on the macOS primary platform):
+
+- **`zig build check` does not fully pass on Linux.** Two independent reasons:
+  1. **libc link gap.** `build.zig` never calls `linkLibC()`; macOS auto-links libc for native builds, so test roots that reach `std.c` (`getpid` via `src/foundation/temp_path.zig`/`io/mod.zig`, `getsockname` via `src/mcp/server.zig`) fail to compile only on Linux (`error: dependency on libc must be explicitly specified` / `undefined symbol`). Affected suites: `test`, `test-cli`, `test-contracts`, `test-mcp-*`. Many other module/contract unit suites still compile and pass.
+  2. **Pre-existing doc drift** (platform-independent): `tests/contracts/public_docs.zig` still expects the old min-version string `0.17.0-dev.1252+e4b325c19`, but README/`docs/contracts/external-claims-audit.mdx` were updated to the pin `0.17.0-dev.1398+cb5635714`, so 2 `public_docs` tests fail.
+- **`zig build lint`, `zig build cli`, `zig build mcp` all succeed.** Use these plus targeted binary runs to validate work.
+- **Ambient durable WDBX store panics on Linux overlayfs.** `complete`, `agent`, and `train` open the ambient store (`~/.abi/wdbx` by default) which repairs the dir to `0700`; Zig 0.17 std `Threaded.setPermissionsPosix` (`fchmod`) returns `EBADF` on overlayfs, which debug std turns into a `programmer bug caused syscall error: BADF` panic. Workaround for those commands: **`ABI_WDBX_PERSIST=0`** (in-memory store, skips the on-disk permission-repair). Explicit `abi wdbx db init|block insert|query <path>` into an **already-existing** directory (e.g. `zig-out/...`) work durably and are unaffected.
+
