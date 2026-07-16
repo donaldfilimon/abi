@@ -67,6 +67,12 @@ pub const ReplState = struct {
     open_content: []const u8 = "",
     /// Backing allocation for file context strings; freed on next `/open` or reset.
     file_context_buf: ?[]u8 = null,
+    /// `/pane` split view: when true, each completed turn renders as a
+    /// two-column block (chat left, `git diff --stat` right) instead of the
+    /// plain streamed print. `pane_cols` is the terminal width captured at
+    /// toggle time; a later resize takes effect on the next `/pane`.
+    pane_mode: bool = false,
+    pane_cols: usize = 0,
     /// Ring buffer of recent (input, response) pairs for multi-turn context.
     turn_history: [MAX_TURN_HISTORY]TurnEntry = @splat(TurnEntry{ .input = "", .response = "" }),
     turn_history_count: usize = 0,

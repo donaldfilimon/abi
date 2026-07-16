@@ -14,7 +14,7 @@ const utils = @import("../../foundation/utils.zig");
 /// Maximum length of a model id settable via `/model`.
 pub const MODEL_STORAGE_BYTES = 128;
 
-pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, save, load, sessions, clear, unknown };
+pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, save, load, sessions, clear, pane, unknown };
 
 pub const SlashCommand = struct {
     kind: SpecialCommand,
@@ -42,6 +42,7 @@ pub const slash_commands = [_]SlashCommand{
     .{ .kind = .load, .name = "load", .summary = "Restore session context from ~/.abi/sessions/<name>.json" },
     .{ .kind = .sessions, .name = "sessions", .aliases = &.{"ls-sessions"}, .summary = "List saved sessions in ~/.abi/sessions/" },
     .{ .kind = .clear, .name = "clear", .aliases = &.{"cls"}, .summary = "Clear the terminal screen" },
+    .{ .kind = .pane, .name = "pane", .summary = "Toggle split view (chat left, git diff --stat right)" },
 };
 
 pub const SlashCompletion = union(enum) {
