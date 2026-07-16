@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Status: Completed** (hub Cards + nav landed; index hygiene closed `da2221cc` on `cursor/agent-orch-skill-docs-hygiene`). Do not re-implement the hub. Do not claim tools-split or Phase 3 product work from this plan.
+
 **Goal:** Replace the flat `docs/index.mdx` bullet hub with a Mintlify-native Card hub and align `docs/docs.json` navigation, without inventing capabilities or expanding CLI/MCP surfaces.
 
 **Architecture:** Docs-only change. Index becomes a thin navigation shell that links to existing `docs/contracts/*`, `docs/spec/*`, and root guides. Executable contracts (`src/cli/usage.zig`, `src/mcp/handlers.zig`, `tests/contracts/`) remain source of truth.
@@ -41,7 +43,7 @@
 - Consumes: existing page paths already linked from current index
 - Produces: Card-based hub; no new pages required
 
-- [ ] **Step 1: Read current index and docs.json**
+- [x] **Step 1: Read current index and docs.json**
 
 ```bash
 sed -n '1,50p' docs/index.mdx
@@ -50,7 +52,7 @@ python3 -m json.tool docs/docs.json > /dev/null && echo JSON_OK
 
 Expected: JSON_OK; index is flat bullets.
 
-- [ ] **Step 2: Replace body of `docs/index.mdx` with Card hub**
+- [x] **Step 2: Replace body of `docs/index.mdx` with Card hub**
 
 Keep frontmatter `title` / `description`. Body should:
 
@@ -59,7 +61,7 @@ Keep frontmatter `title` / `description`. Body should:
 3. `CardGroup` cols={2} groups roughly:
    - **Contracts** → `contracts/public-api`, `contracts/external-claims-audit`
    - **Architecture / roadmap** → `spec/wdbx-north-star`, `spec/agent-wdbx-architecture`, `spec/abi-refactor-design`, `spec/multi-persona-technical`
-   - **Partial design extracts** (label as PARTIAL) → `spec/sea-design-extract`, `spec/wdbx-rust-capability-extract`
+   - **Partial design extracts** (label as PARTIAL) → `spec/sea-design-extract` only (`spec/wdbx-rust-capability-extract` was removed from the tree; do not re-add)
 4. Short **Build** section (prose, not fake metrics): link to `../README.md`, `../walkthrough.md`; mention `./build.sh check` and `./build.sh full-check`.
 5. Short **Instruction files** links: `../AGENTS.md`, `../CLAUDE.md`, `../GEMINI.md`, `../CHANGELOG.md`.
 6. **Historical** note: archive under `superpowers/archive/` is not active contract; link archive README only.
@@ -86,7 +88,7 @@ Use Mintlify components (valid in this docs site):
 
 **Do not** paste full 13-command or 12-tool enumerations on the index — link to public-api instead.
 
-- [ ] **Step 3: Grep index for claim red flags**
+- [x] **Step 3: Grep index for claim red flags**
 
 ```bash
 rg -n 'QPS|sharding|AES-256|HIPAA|H100|12,000|production multi-host' docs/index.mdx || echo CLEAN
@@ -94,7 +96,7 @@ rg -n 'QPS|sharding|AES-256|HIPAA|H100|12,000|production multi-host' docs/index.
 
 Expected: `CLEAN` (no matches).
 
-- [ ] **Step 4: Commit (on feature branch)**
+- [x] **Step 4: Commit (on feature branch)**
 
 ```bash
 git add docs/index.mdx
@@ -106,6 +108,8 @@ or inventing capabilities.
 EOF
 )"
 ```
+
+Landed as `3b340b8b`; index hygiene (dedupe + drop dead wdbx-rust card) as `da2221cc`.
 
 ---
 
@@ -119,7 +123,7 @@ EOF
 - Consumes: page slugs from Task 1 links (Mintlify paths omit `.mdx`)
 - Produces: nav groups Overview / Architecture / Specs / Contracts
 
-- [ ] **Step 1: Update navigation groups**
+- [x] **Step 1: Update navigation groups**
 
 Ensure groups include at least:
 
@@ -143,8 +147,7 @@ Ensure groups include at least:
       {
         "group": "Specs (partial extracts)",
         "pages": [
-          "spec/sea-design-extract",
-          "spec/wdbx-rust-capability-extract"
+          "spec/sea-design-extract"
         ]
       },
       {
@@ -159,9 +162,9 @@ Ensure groups include at least:
 }
 ```
 
-Do **not** add `superpowers/archive/*` pages to active navigation.
+Do **not** add `superpowers/archive/*` pages to active navigation. Do **not** list `spec/wdbx-rust-capability-extract` (file deleted; SEA extract only).
 
-- [ ] **Step 2: Validate JSON**
+- [x] **Step 2: Validate JSON**
 
 ```bash
 python3 -m json.tool docs/docs.json > /dev/null && echo JSON_OK
@@ -169,7 +172,7 @@ python3 -m json.tool docs/docs.json > /dev/null && echo JSON_OK
 
 Expected: `JSON_OK`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/docs.json
@@ -179,6 +182,8 @@ EOF
 )"
 ```
 
+Landed as `92e07827`.
+
 ---
 
 ### Task 3: Validate mint + claims boundary
@@ -187,41 +192,43 @@ EOF
 - Test only (no code unless mint reports a real path error)
 - Optional read: `tests/contracts/public_docs.zig` if claim prose was edited outside index
 
-- [ ] **Step 1: Mint validate**
+- [x] **Step 1: Mint validate**
 
 ```bash
 npx mint@latest validate
 ```
 
-Expected: exit 0. If Node/mint unavailable, record the error in the SDD report and verify:
+Expected: exit 0. Optional; not in CI; validate when Node available (Mintlify requires LTS Node ≤24; current host Node 26+ is unsupported — path existence still verified):
 
 ```bash
 # every href target without ../ must exist as docs/<path>.mdx
 test -f docs/contracts/public-api.mdx && test -f docs/contracts/external-claims-audit.mdx
-test -f docs/spec/wdbx-north-star.mdx && echo PATHS_OK
+test -f docs/spec/wdbx-north-star.mdx && test -f docs/spec/sea-design-extract.mdx && echo PATHS_OK
 ```
 
-- [ ] **Step 2: Optional public_docs contract if claim sentences were added**
+- [x] **Step 2: Optional public_docs contract if claim sentences were added**
 
-Only if Task 1 introduced new capability sentences (should not):
+Only if Task 1 introduced new capability sentences (should not): skipped — no new capability sentences.
 
 ```bash
 zig build test-contracts -Dtest-filter="public_docs"
 ```
 
-- [ ] **Step 3: Repo gate if any non-docs file was touched (should be none)**
+- [x] **Step 3: Repo gate if any non-docs file was touched (should be none)**
 
 ```bash
 ./build.sh check
 ```
 
-Expected: skip if docs-only; if run, 39/39 style success.
+Expected: skip if docs-only; if run, 39/39 style success. Skipped (docs-only commits).
 
-- [ ] **Step 4: Update tracker one-liner if slice closes**
+- [x] **Step 4: Update tracker one-liner if slice closes**
 
 In `tasks/todo.md`, under modern-refactor Phase 2–4 notes, add that **docs hub Card redesign landed** (do not claim tools-split or flag-matrix done).
 
-- [ ] **Step 5: Final commit if todo changed**
+Landed as `788676bb`.
+
+- [x] **Step 5: Final commit if todo changed**
 
 ```bash
 git add tasks/todo.md
@@ -247,6 +254,8 @@ EOF
 ## Execution handoff
 
 Plan complete at `docs/superpowers/plans/2026-07-08-mintlify-docs-hub.md`.
+
+**Status: Completed** — do not re-run Tasks 1–3 unless the hub regresses. Remaining modern-refactor product slices (tools-split, flag matrix, MCP contract depth) are **out of scope** for this plan.
 
 **1. Subagent-Driven (recommended)** — fresh implementer per task + review
 
