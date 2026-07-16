@@ -14,17 +14,18 @@ On macOS: `./build.sh ...` for the documented Metal-linking workflow.
 
 | Command | What it does |
 |---------|-------------|
+| `./build.sh -l` / `./build.sh list` | List available build targets (wrapper for `zig build -l`) |
 | `./build.sh check` | Primary gate: build, tests, lint, parity, feature-off stubs, CLI smoke |
 | `./build.sh full-check` | check + integration + benchmarks + dashboard/agent TUI smoke |
 | `./build.sh cli` | Build `zig-out/bin/abi` |
 | `./build.sh mcp` | Build `zig-out/bin/abi-mcp` |
 | `./build.sh test -Dtest-filter="<pattern>"` | Single test on macOS (wrapper passes args through) |
 | `zig build test -Dtest-filter="<pattern>"` | Single test without wrapper (post-`--` form silently ignored) |
-| `zig build test-cli` / `test-plugins` / `test-contracts` / `test-mcp-contracts` / `test-mcp-server` / `test-integration` / `test-feature-contracts` | Focused test suites |
-| `zig build benchmarks` | Benchmark suite |
-| `zig build lint` / `fix` | Check/apply formatting |
-| `zig build check-parity` | Verify mod/stub public declaration-name parity |
-| `zig build cross-smoke` | Opt-in cross-compile (Linux/Windows/macOS; slow) |
+| `./build.sh test-cli` / `test-plugins` / `test-contracts` / `test-mcp-contracts` / `test-mcp-server` / `test-integration` / `test-feature-contracts` | Focused test suites |
+| `./build.sh benchmarks` | Benchmark suite |
+| `./build.sh lint` / `fix` | Check/apply formatting |
+| `./build.sh check-parity` | Verify mod/stub public declaration-name parity |
+| `./build.sh cross-smoke` | Opt-in cross-compile (Linux/Windows/macOS; slow) |
 | `npx mint@latest validate` | Docs site validation (not in CI) |
 
 ## Feature Flags
