@@ -95,6 +95,10 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
+        // Explicit libc: sockets/getpid paths need it on Linux. On macOS Metal/
+        // objc often pull libc transitively, but tests that do not link frameworks
+        // (and Linux hosts) still require an explicit link.
+        .link_libc = true,
     });
     abi_mod.addImport("build_options", options_mod);
 
@@ -178,6 +182,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/connectors/mod.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
         .imports = &.{
             .{ .name = "build_options", .module = options_mod },
         },
@@ -368,6 +373,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/mcp/server.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
             .imports = &.{
                 .{ .name = "abi", .module = abi_mod },
                 .{ .name = "build_options", .module = options_mod },
