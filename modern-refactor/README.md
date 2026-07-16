@@ -2,6 +2,8 @@
 
 Portable agent toolkit for high-quality, "from scratch" style codebase refactors. Applies clean-slate modern design thinking to legacy code while preserving correct behavior.
 
+**Status (this package):** Phase 1–4 tools/docs modernization for the modern-refactor package is **complete** (skills/refs, layout verifiers, docs hub/tools polish, archived plan under `examples/`). Product greenfield reimagine (`src-reimagined/` / Phase D) is a **separate** track and stays blocked on HITL — not part of this package.
+
 Usable from Claude Code, OpenCode, Grok/Codex-style agent hosts, or any workflow that loads `agents/` + `skills/` markdown. In this repo, align with `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` and always run `./build.sh check` before and after substantive changes.
 
 ## Purpose

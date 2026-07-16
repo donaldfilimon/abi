@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-08
 
-**Status:** Ready for implementation plan
+**Status: Completed** (hub Cards + nav landed; index hygiene closed `da2221cc` on `cursor/agent-orch-skill-docs-hygiene`). Implementation plan: `docs/superpowers/plans/2026-07-08-mintlify-docs-hub.md`.
 
 **Owner slice:** modern-refactor Phase 2 @docs (IMPROVEMENT_PLAN Slice 1)
 
@@ -35,6 +35,7 @@
 | WDBX REST bearer | `ABI_WDBX_REST_TOKEN` + tests |
 | `wdbx db compact` | handlers + recovery test |
 | modern-refactor Phase 1 | skill `references/` filled |
+| Mintlify Card hub + nav | `3b340b8b`, `92e07827`; hygiene `da2221cc` |
 
 ## Architecture (docs-only)
 
@@ -54,15 +55,15 @@ tests/contracts/public_docs.zig       (only if claim wording changes)
 
 ## Success criteria
 
-- [ ] Index uses Mintlify `Card`/`CardGroup` (or equivalent) instead of a single flat list for primary destinations.
-- [ ] Active nav does not promote `superpowers/archive` as contracts.
-- [ ] No new unproven capability sentences.
-- [ ] `npx mint@latest validate` passes (or document Node unavailability and still produce valid MDX).
-- [ ] Unrelated dirty files remain untouched.
+- [x] Index uses Mintlify `Card`/`CardGroup` (or equivalent) instead of a single flat list for primary destinations.
+- [x] Active nav does not promote `superpowers/archive` as contracts.
+- [x] No new unproven capability sentences.
+- [x] `npx mint@latest validate` passes (or document Node unavailability and still produce valid MDX). *Optional; not in CI; validate when Node available* — attempted with host Node 26.5.0; mint@latest requires LTS Node ≤24. MDX paths and `docs.json` verified manually (`PATHS_OK` / `JSON_OK`).
+- [x] Unrelated dirty files remain untouched.
 
 ## Recommended execution order after this design
 
-1. This hub slice (low risk).
+1. ~~This hub slice (low risk).~~ **Done.**
 2. IMPROVEMENT_PLAN Slice 2 — factor `tools/run_contract_cli.sh`.
 3. Slice 3 — data-driven feature-flag matrix.
 4. Slice 4 — MCP contract depth (existing 12 tools only).
