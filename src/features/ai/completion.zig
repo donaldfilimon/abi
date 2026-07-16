@@ -76,6 +76,11 @@ pub fn completeWithScheduler(
 
 const STREAM_CHUNK_SIZE: usize = 4;
 
+/// In-process persona/template completions return full text in one shot.
+/// When a stream callback is set, output is split into ~STREAM_CHUNK_SIZE
+/// byte deltas for progressive tty paint. This is **post-hoc chunking**, not
+/// true incremental token generation — live Anthropic SSE and local-bridge
+/// OpenAI-compatible SSE are the real incremental paths.
 pub fn completeStreaming(
     allocator: std.mem.Allocator,
     request: types.CompletionRequest,

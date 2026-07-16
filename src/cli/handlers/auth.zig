@@ -70,6 +70,7 @@ pub fn handleAuthSignin(io_mod: std.Io, allocator: std.mem.Allocator, service: [
     defer creds.deinit(allocator);
 
     var buf: [1024]u8 = undefined;
+    defer std.crypto.secureZero(u8, &buf);
     var stdin_reader = std.Io.File.stdin().reader(io_mod, &buf);
 
     if (std.mem.eql(u8, service, "openai")) {
@@ -134,6 +135,7 @@ fn authSigninHelp() u8 {
         \\
         \\Prompt for a credential and persist it in the local ABI credential file.
         \\On POSIX TTYs, secret entry disables terminal echo (restored after read).
+        \\Secret bytes are securely zeroed in memory after use (heap + stdin buffer).
         \\Windows: no echo-suppress path yet (disclosed gap; use a private console).
         \\Credentials remain plaintext JSON; Windows ACL/keychain not implemented.
         \\

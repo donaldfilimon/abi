@@ -14,18 +14,29 @@ pub const Credentials = struct {
     twilio_auth_token: ?[]const u8 = null,
 
     pub fn deinit(self: *Credentials, allocator: std.mem.Allocator) void {
-        if (self.openai_api_key) |k| allocator.free(k);
-        if (self.anthropic_api_key) |k| allocator.free(k);
-        if (self.discord_token) |k| allocator.free(k);
-        if (self.grok_api_key) |k| allocator.free(k);
-        if (self.twilio_account_sid) |k| allocator.free(k);
-        if (self.twilio_auth_token) |k| allocator.free(k);
+        wipeAndFree(allocator, &self.openai_api_key);
+        wipeAndFree(allocator, &self.anthropic_api_key);
+        wipeAndFree(allocator, &self.discord_token);
+        wipeAndFree(allocator, &self.grok_api_key);
+        wipeAndFree(allocator, &self.twilio_account_sid);
+        wipeAndFree(allocator, &self.twilio_auth_token);
     }
 };
 
+/// Securely zero an owned secret slice then free it. POSIX-safe heap hygiene;
+/// does not claim Windows ACL or OS keychain clearing.
+fn wipeAndFree(allocator: std.mem.Allocator, field: *?[]const u8) void {
+    if (field.*) |k| {
+        const mutable: []u8 = @constCast(k);
+        std.crypto.secureZero(u8, mutable);
+        allocator.free(mutable);
+        field.* = null;
+    }
+}
+
 pub fn replaceOwnedString(allocator: std.mem.Allocator, field: *?[]const u8, value: []const u8) !void {
     const replacement = try allocator.dupe(u8, value);
-    if (field.*) |old| allocator.free(old);
+    wipeAndFree(allocator, field);
     field.* = replacement;
 }
 
@@ -57,7 +68,11 @@ fn loadCredentialsFromPath(allocator: std.mem.Allocator, path: []const u8) !Cred
     if (!io.fileExists(path)) return Credentials{};
 
     const content = try io.asyncReadFile(allocator, path);
-    defer allocator.free(content);
+    defer {
+        // File bytes may contain secrets — wipe before free.
+        std.crypto.secureZero(u8, content);
+        allocator.free(content);
+    }
 
     const tree = try std.json.parseFromSlice(std.json.Value, allocator, content, .{});
     defer tree.deinit();
@@ -89,7 +104,10 @@ pub fn saveCredentials(allocator: std.mem.Allocator, creds: Credentials) !void {
 
 fn saveCredentialsToPath(allocator: std.mem.Allocator, path: []const u8, creds: Credentials) !void {
     var out: std.Io.Writer.Allocating = .init(allocator);
-    defer out.deinit();
+    defer {
+        std.crypto.secureZero(u8, out.written());
+        out.deinit();
+    }
 
     var writer = std.json.Stringify{
         .writer = &out.writer,
@@ -319,8 +337,21 @@ test "replaceOwnedString preserves old value on allocation failure" {
     var failing = std.testing.FailingAllocator.init(std.testing.allocator, .{ .fail_index = 0 });
     const allocator = std.testing.allocator;
     var field: ?[]const u8 = try allocator.dupe(u8, "old-value");
-    defer if (field) |value| allocator.free(value);
+    defer wipeAndFree(allocator, &field);
 
     try std.testing.expectError(error.OutOfMemory, replaceOwnedString(failing.allocator(), &field, "new-value"));
     try std.testing.expectEqualStrings("old-value", field orelse return error.MissingOldValue);
+}
+
+test "Credentials deinit clears secret field; secureZero clears in place" {
+    const allocator = std.testing.allocator;
+    var creds = Credentials{};
+    try replaceOwnedString(allocator, &creds.openai_api_key, "sk-secret-test-key");
+    creds.deinit(allocator);
+    try std.testing.expect(creds.openai_api_key == null);
+
+    const buf = try allocator.dupe(u8, "still-secret");
+    defer allocator.free(buf);
+    std.crypto.secureZero(u8, buf);
+    for (buf) |b| try std.testing.expectEqual(@as(u8, 0), b);
 }

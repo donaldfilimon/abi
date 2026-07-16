@@ -233,6 +233,11 @@ pub const Store = struct {
         const results = try self.index.search(padded_query, limit);
         self.paddedFree(padded_query);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
+        // Thread zero-copy borrowed views through SearchResult while the store
+        // is quiescent — aliases getVector (trimmed active dims).
+        for (results) |*r| {
+            r.vector = self.getVector(r.id);
+        }
         self.acceleration = try runtime.runAccelerationKernel("wdbx.search", query.len * self.index.count());
         return results;
     }

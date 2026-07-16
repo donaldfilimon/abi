@@ -157,21 +157,21 @@ fn startReverseSearch(
     var query = std.ArrayListUnmanaged(u8).empty;
     defer query.deinit(allocator);
 
-    std.debug.print("\n(reverse-search) ", .{});
-    redrawRawInput(prompt_prefix, editor);
+    paintReverseSearch(prompt_prefix, editor, query.items, false);
 
     while (true) {
         const byte = term.readKey() orelse break;
         switch (byte) {
             '\r', '\n' => {
                 if (editor.text().len > 0) {
-                    std.debug.print("\n", .{});
+                    // Leave the status/editor block and advance past it.
+                    std.debug.print("\n\n", .{});
                     return;
                 }
             },
             0x03, 0x1b => {
                 editor.clear();
-                std.debug.print("\n(cancelled)\n", .{});
+                std.debug.print("\n\n(cancelled)\n", .{});
                 resetRawPrompt(prompt_prefix, editor);
                 return;
             },
@@ -182,22 +182,38 @@ fn startReverseSearch(
                     if (query.items.len > 0) {
                         _ = try editor.searchHistory(query.items);
                     }
-                    std.debug.print("\r(reverse-search) {s} ", .{query.items});
-                    redrawRawInput(prompt_prefix, editor);
+                    paintReverseSearch(prompt_prefix, editor, query.items, false);
                 }
             },
             else => if (byte >= 0x20 and byte < 0x7f) {
                 try query.append(allocator, byte);
                 editor.clear();
-                if (try editor.searchHistory(query.items)) |_| {
-                    std.debug.print("\r(reverse-search) {s} ", .{query.items});
-                    redrawRawInput(prompt_prefix, editor);
-                } else {
-                    std.debug.print("\r(reverse-search) {s} (no match)", .{query.items});
-                }
+                const matched = (try editor.searchHistory(query.items)) != null;
+                paintReverseSearch(prompt_prefix, editor, query.items, !matched);
             },
         }
     }
+}
+
+/// Clear the reverse-search status line and redraw the prompt+editor.
+/// Status and editor share one visual block: status on the current line,
+/// editor on the next. `\x1b[2K` clears stale "(no match)" / long queries
+/// without scrolling a new line on every keystroke.
+fn paintReverseSearch(
+    prompt_prefix: []const u8,
+    editor: *const line_editor.LineEditor,
+    query: []const u8,
+    no_match: bool,
+) void {
+    const suffix: []const u8 = if (no_match) " (no match)" else "";
+    // Clear current line for the status label, then a second cleared line for
+    // the editor so wrapped leftovers from prior redraws do not linger.
+    std.debug.print("\r\x1b[2K(reverse-search) {s}{s}\n\x1b[2K", .{ query, suffix });
+    std.debug.print("\x1b[s", .{});
+    redrawRawInput(prompt_prefix, editor);
+    // Move cursor back up onto the status line so the next paint overwrites
+    // instead of appending another status+editor pair.
+    std.debug.print("\x1b[1A", .{});
 }
 
 test "slash completion canonicalizes unique prefixes and reports ambiguity" {

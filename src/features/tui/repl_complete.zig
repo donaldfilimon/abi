@@ -106,14 +106,18 @@ pub fn completePrompt(
         });
         defer result.deinit(allocator);
 
-        // All chunks emitted; print turn metadata.
+        state.recordConstitution(result.completion.audit.escore, result.completion.audit.passed, result.completion.audit.vetoed);
+
+        // All chunks emitted; print turn metadata (post-hoc chunking is honest).
         std.debug.print("\n", .{});
-        std.debug.print("[turn {d} | model={s} | profile={s} | sea | evidence={d} | adapted={s}]\n", .{
+        std.debug.print("[turn {d} | model={s} | profile={s} | sea | evidence={d} | adapted={s} | stream=post-hoc | constitution=escore={d:.2} passed={s}]\n", .{
             state.turn_count + 1,
             result.completion.model,
             result.completion.selected_profile.label(),
             result.evidence_count,
             if (result.adapted) "true" else "false",
+            result.completion.audit.escore,
+            if (result.completion.audit.passed) "true" else "false",
         });
 
         state.pushTurn(allocator, line, result.completion.output);
@@ -139,7 +143,7 @@ pub fn completePrompt(
                 StreamCtx.bridgeCallback,
                 &stream_ctx,
             ) catch |err| {
-                std.debug.print("\n[bridge stream error: {s}; falling back to in-process]\n", .{@errorName(err)});
+                std.debug.print("\n[bridge stream error: {s}; falling back to in-process (stream=post-hoc)]\n", .{@errorName(err)});
                 var stream_ctx_fb = StreamCtx{ .allocator = allocator };
                 var result = try ai.completeWithSchedulerStreaming(allocator, store, scheduler, "complete:agent-tui-bridge-fb", .{
                     .input = augmented_line,
@@ -147,11 +151,13 @@ pub fn completePrompt(
                     .store_result = state.config.store_turns,
                 }, StreamCtx.callback, &stream_ctx_fb);
                 defer result.deinit(allocator);
+                state.recordConstitution(result.audit.escore, result.audit.passed, result.audit.vetoed);
                 std.debug.print("\n", .{});
-                std.debug.print("[turn {d} | model={s} | profile={s} | bridge=fallback | persisted={s}]\n", .{
+                std.debug.print("[turn {d} | model={s} | profile={s} | bridge=fallback | stream=post-hoc | constitution=escore={d:.2} | persisted={s}]\n", .{
                     state.turn_count + 1,
                     result.model,
                     result.selected_profile.label(),
+                    result.audit.escore,
                     if (result.query_vector_id != null) "true" else "false",
                 });
                 state.pushTurn(allocator, line, result.output);
@@ -167,7 +173,7 @@ pub fn completePrompt(
             });
             state.pushTurn(allocator, line, full);
         } else {
-            std.debug.print("warning: local inference server not reachable at {s}; falling back to in-process router\n", .{endpoint});
+            std.debug.print("warning: local inference server not reachable at {s}; falling back to in-process (stream=post-hoc)\n", .{endpoint});
             var stream_ctx = StreamCtx{ .allocator = allocator };
             var result = try ai.completeWithSchedulerStreaming(allocator, store, scheduler, "complete:agent-tui-bridge-down", .{
                 .input = augmented_line,
@@ -175,11 +181,13 @@ pub fn completePrompt(
                 .store_result = state.config.store_turns,
             }, StreamCtx.callback, &stream_ctx);
             defer result.deinit(allocator);
+            state.recordConstitution(result.audit.escore, result.audit.passed, result.audit.vetoed);
             std.debug.print("\n", .{});
-            std.debug.print("[turn {d} | model={s} | profile={s} | bridge=unreachable | persisted={s}]\n", .{
+            std.debug.print("[turn {d} | model={s} | profile={s} | bridge=unreachable | stream=post-hoc | constitution=escore={d:.2} | persisted={s}]\n", .{
                 state.turn_count + 1,
                 result.model,
                 result.selected_profile.label(),
+                result.audit.escore,
                 if (result.query_vector_id != null) "true" else "false",
             });
             state.pushTurn(allocator, line, result.output);
@@ -193,12 +201,16 @@ pub fn completePrompt(
         }, StreamCtx.callback, &stream_ctx);
         defer result.deinit(allocator);
 
-        // All chunks emitted; print turn metadata.
+        state.recordConstitution(result.audit.escore, result.audit.passed, result.audit.vetoed);
+
+        // All chunks emitted; print turn metadata (post-hoc = template split, not token gen).
         std.debug.print("\n", .{});
-        std.debug.print("[turn {d} | model={s} | profile={s} | persisted={s}]\n", .{
+        std.debug.print("[turn {d} | model={s} | profile={s} | stream=post-hoc | constitution=escore={d:.2} passed={s} | persisted={s}]\n", .{
             state.turn_count + 1,
             result.model,
             result.selected_profile.label(),
+            result.audit.escore,
+            if (result.audit.passed) "true" else "false",
             if (result.query_vector_id != null) "true" else "false",
         });
 
