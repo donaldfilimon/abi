@@ -370,7 +370,7 @@ pub const ReplLoop = struct {
             break;
         }
         if (launch_path == null) {
-            const home_var = if (builtin.target.os.tag == .windows) "USERPROFILE" else "HOME";
+            const home_var = cmds.homeEnvVarName(@import("builtin").target.os.tag);
             if (env.get(home_var)) |home| {
                 const grok = try utils.pathJoin(home, ".grok/skills/sync-clis/launch.sh", self.allocator);
                 std.Io.Dir.cwd().access(io, grok, .{}) catch {
