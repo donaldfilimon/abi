@@ -48,7 +48,8 @@ graph TD
 | Area | Source | Current role |
 | --- | --- | --- |
 | Public root | `src/root.zig` | Exposes the `abi` module namespace. |
-| AI module | `src/features/ai/mod.zig` | Completion, training metadata acceptance, WDBX persistence integration. |
+| AI module | `src/features/ai/mod.zig` | Completion, training metadata acceptance, WDBX persistence integration, fixed-trio multi-agent entrypoint. |
+| Orchestration | `src/features/ai/orchestration.zig` | Custom worker specs, background scheduler batch, browser local dry-run plan (`embedded_browser=false`). |
 | AI router | `src/features/ai/router.zig` | Keyword-weighted routing, profile selection, optional EMA smoothing. |
 | Constitution | `src/features/ai/constitution.zig` | Response validation against repository-defined principles. |
 | WDBX | `src/features/wdbx/mod.zig` | In-process key/value, vector, block, spatial, and stats surfaces. |

@@ -40,7 +40,7 @@ Run fixed Abbey/Aviva/Abi trio via scheduler:
 ### spawn
 Run custom workers parsed from `name|instructions|hints` (semicolon-separated):
 ```
-/abi-superpower-agent-orchestration spawn --input "refactor module" --workers "reviewer|find bugs|focus on safety;optimizer|improve performance|simd opportunities"
+/abi-superpower-agent-orchestration spawn --input "refactor module" --workers "reviewer|find bugs|plan;optimizer|improve performance|explore"
 ```
 Options:
 - `--background` — prints task IDs before `runAll()` (synchronous completion, NOT a detached daemon)
@@ -54,17 +54,19 @@ Options:
 - `--execute --confirm` — REQUIRES literal `--confirm` token; local planner only runs dry-run; real navigation = external MCP step
 
 ### plan
-Show the orchestration plan without executing:
+Single-agent dry-run planning via the scheduler (maps to `abi agent plan`, not a multi-worker dry-run):
 ```
-/abi-superpower-agent-orchestration plan --input "task" --workers "worker1|instructions|hints"
+/abi-superpower-agent-orchestration plan --input "inspect WDBX persistence"
 ```
+For multi-worker execution use `multi` or `spawn`. For claim-honest browser planning without navigation use `browser` (still runs a local dry-run planner worker after printing the plan).
 
 ## Architecture
 
 | Component | Source | Role |
 |-----------|--------|------|
-| Orchestration | `src/features/ai/orchestration.zig` | `runMultiAgentWithScheduler`, `runCustomMultiAgentWithScheduler`, `submitAgentsBackground`, `planBrowserOrchestration` |
-| Scheduler | `src/core/scheduler.zig` | Local task coordination, memory tracker integration |
+| Orchestration | `src/features/ai/orchestration.zig` | `parseWorkerSpecs`, `defaultTrioSpecs`, `runCustomMultiAgentWithScheduler`, `submitAgentsBackground`, `planBrowserOrchestration` |
+| AI module | `src/features/ai/mod.zig` | `runMultiAgentWithScheduler` (fixed trio entrypoint), `runAgent` / `submitAgentTask`, re-exports |
+| Scheduler | `src/core/scheduler.zig` | Local task coordination, memory tracker integration (unconditional core — not a feature flag) |
 | Router | `src/features/ai/router.zig` | Abbey/Aviva/Abi profile selection |
 | Constitution | `src/features/ai/constitution.zig` | 6-principle response audit |
 
@@ -86,7 +88,7 @@ Show the orchestration plan without executing:
 
 ## Feature Gates
 
-Requires `feat-ai=true` and `feat-scheduler=true` (both default). When disabled, returns explicit degraded behavior.
+Requires `feat-ai=true` (default). When AI is disabled, stubs preserve public symbols and return explicit degraded behavior. The scheduler lives in unconditional `src/core/` — there is no `feat-scheduler` flag.
 
 ## Claim Boundary
 
