@@ -141,3 +141,23 @@ Linux x86_64 VM with the pinned Zig (`.zigversion`) already installed at `/opt/z
 - **Ambient WDBX persistence panics on Linux.** `abi complete` (no flags) and `abi-mcp` default to the ambient durable store, whose `durable_store.ensureOwnerOnlyDir` calls `dir.setPermissions` → `fchmod` on an `O_PATH` directory fd, which returns `EBADF` and panics (`programmer bug caused syscall error: BADF`). This is a Zig-std/Linux interaction, not a repo bug (macOS has no `O_PATH`). Run these with `ABI_WDBX_PERSIST=0` (in-memory store) to exercise the full completion/MCP pipeline. The explicit `abi wdbx ...` subcommands use a different open path and work without the flag.
 - **`./build.sh check` is not fully green on Linux.** Two categories fail here but pass on the macOS CI: (1) libc-linked test targets (`test-integration`, `test-cli`, `test-mcp-server`, and the root test) fail to compile with `dependency on libc must be explicitly specified` / `undefined symbol: getsockname`/`getpid` because `build.zig` only implicitly links libc on macOS; (2) `tests/contracts/public_docs.zig` has content-drift assertions (expects `0.17.0-dev.1252+e4b325c19` in `README.md`/`external-claims-audit.mdx`). Green suites on Linux: `zig build lint`, `check-parity`, `test-plugins`, `test-mcp-contracts`, `test-feature-contracts`, plus the 100+ inline unit tests that don't need libc. Prefer these for verification; run the full `check` gate on macOS.
 - **`abi` binary can get overwritten by feature-stub smoke.** `./build.sh check` runs `tools/check_feature_stubs.sh`, which builds `abi` with feature flags disabled and installs it over `zig-out/bin/abi`. Re-run `zig build cli` (or `./build.sh cli`) afterward to restore the full-featured binary (otherwise e.g. `wdbx` shows disabled in `abi backends`).
+
+## Learned User Preferences
+
+- Prefer feature branches named with the `cursor/` prefix from `origin/main`; when creating a PR from the default branch, branch first and do not commit or push directly to `main`.
+- For AGENTS.md Learned-section-only PRs, append prefs/facts onto `origin/main` rather than overwriting toolchain/OpenCode wording that already landed on main.
+- Prefer draft PRs when the create-pull-request flow requests draft.
+- Verify interactive dashboard/TUI with `.agents/skills/run-tui/tui.sh` (tmux pty); never prepend Homebrew `/opt/homebrew/bin` ahead of the pinned Zig on PATH.
+- Prefer honest status digests and labeled demos over fake live bridges when IPC or production capability is absent.
+- For refactor/organization work, prefer scoped tracks (module extraction vs north-star features vs docs/claims) over open-ended clean-slate rewrites; confirm scope before planning.
+- When reducing Cursor context budget, prefer disabling unused `alwaysApply` plugin rules and unrelated MCP servers; keep AGENTS/CLAUDE/GEMINI sibling sync rather than letting those files drift for token savings.
+
+## Learned Workspace Facts
+
+- Modern-refactor Phases 2–4 and major module-extraction waves are done; `tasks/todo.md` treats post-extraction health as excellent with no high-risk org slices; remaining high-value org hotspots are mainly `src/features/tui/repl.zig` and `src/features/tui/dashboard.zig` (next safe extracts often `repl_git.zig` / `dashboard_render.zig`).
+- Interactive `abi dashboard` / `abi tui` / `abi --tui` use a split layout (diagnostics + Agent Output); one-shot `--once` stays stacked panes — layouts diverge by design.
+- Dashboard Agent Output is a status digest, not live `agent tui` traffic; dashboard WDBX is an ephemeral CLI probe (labeled), not the durable agent store.
+- Plugin-declared slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>` for context providers).
+- Open product goal for TUI/CLI north-star (streaming, pane-split, richer `@file`) is in `tasks/goals.md`; Partial north-star / demo modules must not be promoted to Current without source and tests.
+- MCP HTTP vs WDBX REST framing duplication is intentional (MCP module-root isolation); do not unify them as an organization refactor.
+- Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A/B mostly done with C leftovers (pane defer, REST hygiene, sync-clis) in `docs/superpowers/plans/2026-07-15-approach1-waves-a-b-c.md`; `modern-refactor/examples/` is historical, not the active board.
