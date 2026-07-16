@@ -120,11 +120,21 @@ fi
 
 # --- optional deep smoke (reuses the run-abi harness) --------------------
 if [ "$SMOKE" -eq 1 ]; then
-    SMOKE_SH="$REPO_ROOT/.agents/skills/run-abi/smoke.sh"
-    if [ -x "$SMOKE_SH" ]; then
+    # Prefer canonical .agents path; fall back to Claude mirror layout.
+    SMOKE_SH=""
+    for candidate in \
+        "$REPO_ROOT/.agents/skills/run-abi/smoke.sh" \
+        "$REPO_ROOT/.claude/skills/run-abi/smoke.sh"
+    do
+        if [ -x "$candidate" ]; then
+            SMOKE_SH="$candidate"
+            break
+        fi
+    done
+    if [ -n "$SMOKE_SH" ]; then
         gate "run-abi smoke (full CLI+MCP)" -- "$SMOKE_SH"
     else
-        echo "note: --smoke requested but $SMOKE_SH not found/executable; skipping."
+        echo "note: --smoke requested but run-abi/smoke.sh not found/executable under .agents or .claude; skipping."
     fi
 fi
 

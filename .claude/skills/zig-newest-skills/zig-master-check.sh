@@ -8,10 +8,10 @@
 # version, it proves (or disproves) that abi keeps working on the latest Zig.
 #
 # Usage:
-#   .claude/skills/zig-newest-skills/zig-master-check.sh            # use already-installed master
-#   .claude/skills/zig-newest-skills/zig-master-check.sh --update   # re-fetch latest master first
-#   .claude/skills/zig-newest-skills/zig-master-check.sh --smoke    # also run the full run-abi smoke
-#   .claude/skills/zig-newest-skills/zig-master-check.sh --revert   # switch back to the .zigversion pin and exit
+#   .agents/skills/zig-newest-skills/zig-master-check.sh            # use already-installed master
+#   .agents/skills/zig-newest-skills/zig-master-check.sh --update   # re-fetch latest master first
+#   .agents/skills/zig-newest-skills/zig-master-check.sh --smoke    # also run the full run-abi smoke
+#   .agents/skills/zig-newest-skills/zig-master-check.sh --revert   # switch back to the .zigversion pin and exit
 #
 # Resolves the repo root from its own location; safe to run from any cwd.
 set -uo pipefail
@@ -120,11 +120,21 @@ fi
 
 # --- optional deep smoke (reuses the run-abi harness) --------------------
 if [ "$SMOKE" -eq 1 ]; then
-    SMOKE_SH="$REPO_ROOT/.claude/skills/run-abi/smoke.sh"
-    if [ -x "$SMOKE_SH" ]; then
+    # Prefer canonical .agents path; fall back to Claude mirror layout.
+    SMOKE_SH=""
+    for candidate in \
+        "$REPO_ROOT/.agents/skills/run-abi/smoke.sh" \
+        "$REPO_ROOT/.claude/skills/run-abi/smoke.sh"
+    do
+        if [ -x "$candidate" ]; then
+            SMOKE_SH="$candidate"
+            break
+        fi
+    done
+    if [ -n "$SMOKE_SH" ]; then
         gate "run-abi smoke (full CLI+MCP)" -- "$SMOKE_SH"
     else
-        echo "note: --smoke requested but $SMOKE_SH not found/executable; skipping."
+        echo "note: --smoke requested but run-abi/smoke.sh not found/executable under .agents or .claude; skipping."
     fi
 fi
 
