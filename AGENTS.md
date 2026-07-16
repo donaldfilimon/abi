@@ -50,3 +50,25 @@ No unproven claims (production FHE/AES/RBAC, multi-host sharding, QPS/latency/ac
 
 ## Linux / non-macOS note
 Cross-compiles link cleanly for `x86_64-linux-gnu` / `aarch64-linux-gnu` / `windows-gnu` (exe + all test modules set `link_libc=true`; `metal_shared.zig` gates objc externs to macOS via `comptime`). Ambient WDBX persist EBADF is **fixed** (`ensureOwnerOnlyDir` opens with `iterate=true` so Linux `fchmod` works). Execution of cross binaries still needs a Linux/Windows host (CI `cross-smoke`); this macOS host cannot run them. Green native suites on macOS: full `./build.sh check`. Feature-stub smoke in `check` overwrites `zig-out/bin/abi` — re-run `./build.sh cli` to restore it.
+
+## Learned User Preferences
+- Prefer feature branches named with the `cursor/` prefix from `origin/main`; do not commit or push directly to `main`; never force-push `main`.
+- Recurring ask: land finished work onto `main` via PR/merge rather than leaving stranded feature branches.
+- For AGENTS.md Learned-section-only updates, append prefs/facts onto `origin/main` rather than overwriting the compact toolchain/commands body.
+- Prefer draft PRs when the create-pull-request flow requests draft.
+- Verify interactive dashboard/TUI with `.agents/skills/run-tui/tui.sh` (tmux pty); never prepend Homebrew `/opt/homebrew/bin` ahead of the pinned Zig on PATH.
+- Prefer honest status digests and labeled demos over fake live bridges when IPC or production capability is absent.
+- For refactor/organization work, prefer scoped tracks (module extraction vs north-star features vs docs/claims) over open-ended clean-slate rewrites; confirm scope before planning.
+- When reducing Cursor context budget, disable unused `alwaysApply` plugin rules and unrelated MCP servers; do not re-inflate `CLAUDE.md`/`GEMINI.md` (they are thin redirects to `AGENTS.md`).
+- When the user invokes `/abi`, route ABI implementation through the `abi` subagent.
+
+## Learned Workspace Facts
+- Org/extraction waves are largely done; TUI hub is `repl.zig` (~564) with leaves `repl_io`, `repl_complete`, `repl_pane`, `repl_commands`, `repl_git_*`, `repl_session`, `repl_types`; `dashboard.zig` + `dashboard_render.zig` are ~399 each.
+- Interactive `abi dashboard` / `abi tui` / `abi --tui` use a split layout (diagnostics + Agent Output); one-shot `--once` stays stacked — layouts diverge by design.
+- Dashboard Agent Output is a status digest, not live `agent tui` traffic; dashboard WDBX is an ephemeral CLI probe (labeled), not the durable agent store.
+- Plugin-declared slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>` for context providers).
+- REPL `/pane` split landed in `repl_pane.zig`; remaining TUI north-star residual is mainly true in-process token streaming — track in `tasks/todo.md`.
+- `tasks/goals.md` is gitignored (`/tasks/*` + root `*.md`); treat committed `tasks/todo.md` as the active board.
+- Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A–C complete; `modern-refactor/examples/` is historical, not the active board.
+- `modernized/` is pointer-only (Phase D reimagine HITL-blocked); live code remains under `src/`.
+- Ambient WDBX Linux `EBADF` owner-only repair is fixed (`iterate=true`); `ABI_WDBX_PERSIST=0` is no longer required to avoid ambient-open panics on Linux.
