@@ -10,6 +10,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Changed
 
+- refactor: leaf-extraction wave across connectors/core/CLI/MCP — SSE streaming types + parsing from `connectors/http.zig` into `sse_stream.zig` (314); os_control policy types/validation from `os_control/mod.zig` into `policy.zig` (181); `Task` types from `core/scheduler.zig` into `core/task.zig`; completion handlers from `cli/handlers/train.zig` into `complete_handlers.zig` (287); connector test monolith `connectors/tests.zig` (651) split into per-connector `*_tests.zig` leaves (anthropic/discord/grok/http/json/openai/twilio); MCP HTTP request parsing into `mcp/http_parse.zig` (118). Public APIs unchanged; parity green.
 - refactor(tui): final REPL organization split — `repl.zig` 1050→538 as a thin dispatch hub; raw/line input loops, key decode, redraw, tab completion, and Ctrl-R reverse search extracted to `repl_io.zig` (248); `completePrompt`, stream callback contexts, and `resolveFileMentions` extracted to `repl_complete.zig` (292); duplicated `runSyncClis` consolidated in `repl_git_commands.zig`. Public TUI API unchanged (parity green). `docs/spec/abi-refactor-design.mdx` §2 synced with the current module tree.
 
 ### Added
