@@ -100,3 +100,26 @@ test "master spec keeps GPU acceleration claim boundary explicit" {
     try expectContains(spec, "native Metal execution is claimed only when the runtime backend reports initialized native kernels");
     try expectNotContains(spec, "real GPU acceleration for HNSW cosine *has* been implemented");
 }
+
+test "CI workflow isolates self-hosted jobs from fork PRs" {
+    // Drives the shipped workflow file: same-repo jobs must request the labeled
+    // self-hosted runner; fork-only jobs must stay on GitHub-hosted macos-latest
+    // with mutually exclusive trust predicates (public-repo hardening).
+    const ci = try std.Io.Dir.cwd().readFileAlloc(
+        std.Options.debug_io,
+        ".github/workflows/ci.yml",
+        std.testing.allocator,
+        .limited(256 * 1024),
+    );
+    defer std.testing.allocator.free(ci);
+
+    try expectContains(ci, "permissions:");
+    try expectContains(ci, "contents: read");
+    try expectContains(ci, "runs-on: [self-hosted, macOS, ARM64, abi]");
+    try expectContains(ci, "runs-on: macos-latest");
+    try expectContains(ci, "github.event.pull_request.head.repo.full_name == github.repository");
+    try expectContains(ci, "github.event.pull_request.head.repo.full_name != github.repository");
+    try expectContains(ci, "check-hosted:");
+    try expectContains(ci, "cross-smoke-hosted:");
+    try expectContains(ci, "self-hosted-runner.md");
+}

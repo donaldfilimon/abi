@@ -141,25 +141,45 @@ fn authSigninHelp() u8 {
     return 0;
 }
 
-/// Disable terminal echo while reading a secret on POSIX TTYs (TM-010).
-/// Returns the prior termios when echo was successfully disabled (caller must
-/// restore). Non-TTY / non-POSIX / unavailable termios returns null and the
-/// secret is still read with echo unchanged (disclosed Windows/non-TTY gap).
-fn disableEchoIfTty(fd: std.posix.fd_t) ?std.posix.termios {
-    if (builtin.target.os.tag == .windows) return null;
-    if (@hasDecl(std.posix.system, "isatty") and std.posix.system.isatty(fd) == 0) return null;
-    const original = std.posix.tcgetattr(fd) catch return null;
-    var raw = original;
-    raw.lflag.ECHO = false;
-    std.posix.tcsetattr(fd, .FLUSH, raw) catch return null;
-    return original;
-}
+/// Platform echo helpers: Windows never references termios/libc (required for
+/// clean `x86_64-windows-gnu` cross-smoke). POSIX path is TM-010 no-echo entry.
+const echo_platform = if (builtin.os.tag == .windows) echo_windows else echo_posix;
 
-fn restoreEcho(fd: std.posix.fd_t, original: std.posix.termios) void {
-    std.posix.tcsetattr(fd, .FLUSH, original) catch |err| {
-        std.log.warn("auth: failed to restore terminal echo: {s}", .{@errorName(err)});
-    };
-}
+const echo_windows = struct {
+    const Saved = void;
+
+    fn disableEchoIfTty(fd: std.posix.fd_t) ?Saved {
+        _ = fd;
+        return null;
+    }
+
+    fn restoreEcho(fd: std.posix.fd_t, original: Saved) void {
+        _ = fd;
+        _ = original;
+    }
+};
+
+const echo_posix = struct {
+    const Saved = std.posix.termios;
+
+    fn disableEchoIfTty(fd: std.posix.fd_t) ?Saved {
+        if (@hasDecl(std.posix.system, "isatty") and std.posix.system.isatty(fd) == 0) return null;
+        const original = std.posix.tcgetattr(fd) catch return null;
+        var raw = original;
+        raw.lflag.ECHO = false;
+        std.posix.tcsetattr(fd, .FLUSH, raw) catch return null;
+        return original;
+    }
+
+    fn restoreEcho(fd: std.posix.fd_t, original: Saved) void {
+        std.posix.tcsetattr(fd, .FLUSH, original) catch |err| {
+            std.log.warn("auth: failed to restore terminal echo: {s}", .{@errorName(err)});
+        };
+    }
+};
+
+const disableEchoIfTty = echo_platform.disableEchoIfTty;
+const restoreEcho = echo_platform.restoreEcho;
 
 /// Pure helper used by tests: reports whether secret entry should attempt
 /// no-echo based on OS. Windows remains a disclosed gap (no termios path).
