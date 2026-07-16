@@ -154,11 +154,12 @@ Linux x86_64 VM with the pinned Zig (`.zigversion`) already installed at `/opt/z
 
 ## Learned Workspace Facts
 
-- Modern-refactor Phases 2–4 and major module-extraction waves are done; `tasks/todo.md` treats post-extraction health as excellent with no high-risk org slices; remaining high-value org hotspots are mainly `src/features/tui/repl.zig` and `src/features/tui/dashboard.zig` (next safe extracts often `repl_git.zig` / `dashboard_render.zig`).
+- Modern-refactor Phases 2–4 and major module-extraction waves are done; `tasks/todo.md` treats post-extraction health as excellent with no high-risk org slices. `dashboard_render.zig` landed (`dashboard.zig` ~399 + render leaf); remaining high-value org hotspot is mainly `src/features/tui/repl.zig` (~1050; `repl_git_commands.zig` / `repl_commands.zig` already exist).
 - Interactive `abi dashboard` / `abi tui` / `abi --tui` use a split layout (diagnostics + Agent Output); one-shot `--once` stays stacked panes — layouts diverge by design.
 - Dashboard Agent Output is a status digest, not live `agent tui` traffic; dashboard WDBX is an ephemeral CLI probe (labeled), not the durable agent store.
 - Plugin-declared slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>` for context providers).
-- Open product goal for TUI/CLI north-star (streaming, pane-split, richer `@file`) is in `tasks/goals.md`; Partial north-star / demo modules must not be promoted to Current without source and tests.
+- Open product goal for TUI/CLI north-star (streaming, pane-split, richer `@file`) is in `tasks/goals.md`; Partial north-star / demo modules must not be promoted to Current without source and tests. Do not invent pane-split product work as an org extract.
+- `tasks/goals.md` is gitignored by the root `*.md` rule — local edits stay local unless force-added; treat `tasks/todo.md` as the committed active board.
 - MCP HTTP vs WDBX REST framing duplication is intentional (MCP module-root isolation); do not unify them as an organization refactor.
 - Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A/B mostly done with C leftovers (pane defer, REST hygiene, sync-clis) in `docs/superpowers/plans/2026-07-15-approach1-waves-a-b-c.md`; `modern-refactor/examples/` is historical, not the active board.
 - `modernized/` is pointer-only (`README.md` is allowlisted in `.gitignore`); previously described `src-reimagined/{ai,mcp,wdbx}` scaffolds were never committed, so live code remains under `src/` until reimagine Phase D is approved.
