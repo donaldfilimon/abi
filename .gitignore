@@ -332,6 +332,10 @@ test_imports3
 #  *.md rule re-ignores skill docs — this negation must come after it.)
 !.claude/skills/**/SKILL.md
 !.agents/skills/**/SKILL.md
+!.agents/skills/**/references/**
+!.agents/skills/**/references/**/*.md
+!.claude/skills/**/references/**
+!.claude/skills/**/references/**/*.md
 !.agents/skills/abi-doc-claims-sync/references/claim-boundaries.md
 
 # Claude project agents: same story — .claude/agents/** is un-ignored above, but
