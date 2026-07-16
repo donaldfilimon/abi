@@ -135,19 +135,21 @@ No unproven claims (distributed sharding, production FHE/AES/RBAC, non-loopback 
 
 ## Learned User Preferences
 
-- Prefer feature branches named with the `cursor/` prefix; when creating a PR from the default branch, branch first and do not commit or push directly to `main`.
+- Prefer feature branches named with the `cursor/` prefix from `origin/main`; when creating a PR from the default branch, branch first and do not commit or push directly to `main`.
+- For AGENTS.md Learned-section-only PRs, append prefs/facts onto `origin/main` rather than overwriting toolchain/OpenCode wording that already landed on main.
 - Prefer draft PRs when the create-pull-request flow requests draft.
 - Verify interactive dashboard/TUI with `.agents/skills/run-tui/tui.sh` (tmux pty); never prepend Homebrew `/opt/homebrew/bin` ahead of the pinned Zig on PATH.
 - Prefer honest status digests and labeled demos over fake live bridges when IPC or production capability is absent.
 - For refactor/organization work, prefer scoped tracks (module extraction vs north-star features vs docs/claims) over open-ended clean-slate rewrites; confirm scope before planning.
+- When reducing Cursor context budget, prefer disabling unused `alwaysApply` plugin rules and unrelated MCP servers; keep AGENTS/CLAUDE/GEMINI sibling sync rather than letting those files drift for token savings.
 
 ## Learned Workspace Facts
 
-- Modern-refactor Phases 2–4 and major module-extraction waves are done; remaining high-value org hotspots are mainly `src/features/tui/repl.zig` and `src/features/tui/dashboard.zig` (next safe extracts often `repl_git.zig` / `dashboard_render.zig`).
+- Modern-refactor Phases 2–4 and major module-extraction waves are done; `tasks/todo.md` treats post-extraction health as excellent with no high-risk org slices; remaining high-value org hotspots are mainly `src/features/tui/repl.zig` and `src/features/tui/dashboard.zig` (next safe extracts often `repl_git.zig` / `dashboard_render.zig`).
 - Interactive `abi dashboard` / `abi tui` / `abi --tui` use a split layout (diagnostics + Agent Output); one-shot `--once` stays stacked panes — layouts diverge by design.
 - Dashboard Agent Output is a status digest, not live `agent tui` traffic; dashboard WDBX is an ephemeral CLI probe (labeled), not the durable agent store.
 - Plugin-declared slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>` for context providers).
 - Open product goal for TUI/CLI north-star (streaming, pane-split, richer `@file`) is in `tasks/goals.md`; Partial north-star / demo modules must not be promoted to Current without source and tests.
 - MCP HTTP vs WDBX REST framing duplication is intentional (MCP module-root isolation); do not unify them as an organization refactor.
-- Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves: `docs/superpowers/plans/2026-07-15-approach1-waves-a-b-c.md`; `modern-refactor/examples/` is historical, not the active board.
+- Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A/B mostly done with C leftovers (pane defer, REST hygiene, sync-clis) in `docs/superpowers/plans/2026-07-15-approach1-waves-a-b-c.md`; `modern-refactor/examples/` is historical, not the active board.
 
