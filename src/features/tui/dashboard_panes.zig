@@ -47,6 +47,7 @@ pub fn appendPaneBody(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Alloc
             try appendPluginRows(out, allocator, ds.plugin_names);
         },
         .storage => {
+            try appendRow(out, allocator, "scope", "ephemeral CLI probe");
             try appendMetricRow(out, allocator, "Block chain", ds.wdbx_blocks);
             try appendMetricRow(out, allocator, "Vectors", ds.wdbx_vectors);
             try appendMetricRow(out, allocator, "KV Entries", ds.wdbx_entries);
