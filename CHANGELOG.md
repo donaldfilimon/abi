@@ -14,6 +14,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- feat(tui): `/pane` toggle for a post-turn split view (chat left, `git diff --stat` or open-file summary right) in `repl_pane.zig`; reuses `dashboard_render` visible-column fit helpers; stays unsplit below 80 cols or when terminal width is unknown; layout math unit-tested.
 - test(tui,cli): `runOpen` packed-context round-trip/budget/leak coverage, `--soul`/`--soul-alpha` usage-contract tests (+ `wiring.parseSoulAlpha`), and an `agent os dry-run` handler success-path test.
 - docs(skills): complete the 8 referenced-but-empty skills (opencode, ai-plan, gpu, mcp, sea, tui, wdbx, agent-status-reporter) with honest-stub framing; add tools/check_skills.sh frontmatter validator; remove 6 dead repo-root abi-superpower-* orphans.
 - **TUI feature-parity improvements** — Ctrl-R reverse history search, Alt-Enter multi-line input, Ctrl-K/U/W/L Emacs keys, `/sessions` list command, `/clear` screen command, colorized `/diff` (green +/red -/cyan hunks), `/diff --stat`, unified file context budgets (32 KiB `/open`, 16 KiB `@file`), `estimateTokens()` helper.
