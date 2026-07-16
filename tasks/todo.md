@@ -86,6 +86,7 @@ These are decisions, not unfinished work — do not "fix" them.
 ## Recently landed (digest — full detail in git + CHANGELOG)
 
 One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`.
+- Skill-set completion: authored opencode/ai-plan/gpu/mcp/sea/tui/wdbx/agent-status-reporter; added tools/check_skills.sh validator; removed 6 repo-root abi-superpower-* orphans. ./tools/check_skills.sh green; ./build.sh check green.
 - **TUI dashboard_render extract** — `dashboard.zig` 858→399; composition/split helpers → `dashboard_render.zig` 399 (wired to existing `dashboard_widgets`/`dashboard_panes`; storage pane scope row synced); 5 pure-helper tests. Public TUI API unchanged.
 - **Docs hub + Approach-1 plan closeout** — Mintlify index dedupe/dead `wdbx-rust` card drop; plan/design residual checkboxes closed honestly; `modernized/` stays pointer-only (Phase D reimagine HITL-blocked, no scaffold).
 - **Dead code + duplication cleanup (wave 5)** — removed duplicated `SoulLayout`/`SoulRecord` from `point_neural_net.zig` (676→543, dead copy of `soul_layout.zig`); deduplicated `"completion:{d}"` format string via shared `COMPLETION_KEY_FMT` in `types.zig`/`stub_types.zig` (parity); deduplicated profile labels via shared `PROFILE_LABELS` constant; kept `streaming.zig` at 16-byte chunks (SSE JSON framing requires larger chunks than the in-process 4-byte path).
