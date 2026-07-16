@@ -14,6 +14,11 @@ pub const Decision = enum {
     allow_execute,
 };
 
+pub const TrustedCommandSpec = struct {
+    name: []const u8,
+    executable_path: []const u8,
+};
+
 pub const CommandRequest = struct {
     argv: []const []const u8,
     cwd: ?[]const u8 = null,
@@ -37,22 +42,30 @@ pub const CommandResult = struct {
     message: []const u8,
 };
 
+pub fn trustedCommandSpec(name: []const u8) ?TrustedCommandSpec {
+    _ = name;
+    return null;
+}
+
 pub fn validateCommand(request: CommandRequest, policy: Policy) CommandResult {
     _ = request;
     _ = policy;
     return .{ .decision = .deny, .message = "os control feature is disabled" };
 }
 
-pub fn renderDryRun(allocator: std.mem.Allocator, request: CommandRequest) ![]u8 {
+pub fn renderDryRun(allocator: std.mem.Allocator, io: std.Io, request: CommandRequest, policy: Policy) anyerror![]u8 {
+    _ = allocator;
+    _ = io;
     _ = request;
-    return allocator.dupe(u8, "dry-run: os control feature is disabled");
+    _ = policy;
+    return error.CommandDenied;
 }
 
 test {
     std.testing.refAllDecls(@This());
 }
 
-pub fn executeConfirmed(allocator: std.mem.Allocator, io: std.Io, request: CommandRequest, policy: Policy) !CommandResult {
+pub fn executeConfirmed(allocator: std.mem.Allocator, io: std.Io, request: CommandRequest, policy: Policy) anyerror!CommandResult {
     _ = allocator;
     _ = io;
     _ = request;
