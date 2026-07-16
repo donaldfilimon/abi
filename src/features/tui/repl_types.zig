@@ -34,6 +34,10 @@ pub const ReplConfig = struct {
     /// Whether SEA self-learning mode is active. When true, completions route
     /// through `runLearnLoop` for evidence-augmented output.
     learn_mode: bool = false,
+    /// When true and the active model is an Anthropic catalog id, completions
+    /// use live `streamMessageLiveIncremental` (SSE) with stored credentials.
+    /// Opt-in via `/live` — default stays the in-process persona router.
+    live_mode: bool = false,
 };
 
 pub const MAX_TURN_HISTORY: usize = 10;

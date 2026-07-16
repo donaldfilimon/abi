@@ -4,13 +4,14 @@
 //! slash-command routing. This leaf owns `completePrompt` — the ordinary-input
 //! path that resolves `@file` mentions, builds the multi-turn context prefix,
 //! and streams a completion via the SEA learn loop, the local-bridge SSE
-//! transport, or the in-process persona router — plus the stream-callback
-//! contexts those paths share. Free functions take the needed pieces
-//! (allocator, store, scheduler, state, io) as parameters.
+//! transport, live Anthropic SSE (`/live`), or the in-process persona router —
+//! plus the stream-callback contexts those paths share. Free functions take the
+//! needed pieces (allocator, store, scheduler, state, io) as parameters.
 
 const std = @import("std");
 const build_options = @import("build_options");
 const env = @import("../../foundation/env.zig");
+const credentials = @import("../../foundation/credentials.zig");
 const ai = if (build_options.feat_ai) @import("../ai/mod.zig") else @import("../ai/stub.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const sea = if (build_options.feat_sea) @import("../sea/mod.zig") else @import("../sea/stub.zig");
@@ -21,9 +22,19 @@ const cmds = @import("repl_commands.zig");
 const local_bridge = @import("../../connectors/local_bridge.zig");
 const connector_http = @import("../../connectors/http.zig");
 const connector_mod = @import("../../connectors/connector.zig");
+const anthropic = @import("../../connectors/anthropic.zig");
 const repl_types = @import("repl_types.zig");
 
 const LineOutcome = repl_types.LineOutcome;
+
+/// Best-effort flush so stream deltas appear as they arrive on a tty.
+/// Non-tty degrades silently (keeps OS buffering); sync errors are ignored.
+fn flushStreamPaint() void {
+    if (comptime @hasDecl(std.posix.system, "isatty")) {
+        if (std.posix.system.isatty(std.posix.STDERR_FILENO) == 0) return;
+    }
+    std.Io.File.stderr().sync(std.Options.debug_io) catch {};
+}
 
 const StreamCtx = struct {
     allocator: std.mem.Allocator,
@@ -33,6 +44,7 @@ const StreamCtx = struct {
         const safe = try sanitize.sanitizeControlBytes(self.allocator, chunk.delta);
         defer self.allocator.free(safe);
         std.debug.print("{s}", .{safe});
+        flushStreamPaint();
     }
     /// Connector SSE path uses ConnectorError; print-only and never abort mid-stream.
     fn bridgeCallback(ctx: *anyopaque, chunk: connector_http.StreamChunk) connector_mod.ConnectorError!void {
@@ -41,8 +53,14 @@ const StreamCtx = struct {
         const safe = sanitize.sanitizeControlBytes(self.allocator, chunk.delta) catch return;
         defer self.allocator.free(safe);
         std.debug.print("{s}", .{safe});
+        flushStreamPaint();
     }
 };
+
+/// True when `/live` is on and the active model is an Anthropic catalog id.
+pub fn shouldUseLiveAnthropic(state: *const repl_types.ReplState) bool {
+    return state.config.live_mode and ai.models.providerOf(state.config.model) == .anthropic;
+}
 
 /// Run one ordinary (non-slash) input line through the completion path and
 /// persist the turn into `state`.
@@ -99,6 +117,8 @@ pub fn completePrompt(
         });
 
         state.pushTurn(allocator, line, result.completion.output);
+    } else if (shouldUseLiveAnthropic(state)) {
+        try completeLiveAnthropic(allocator, state, line, augmented_line, io);
     } else if (local_bridge.isLocalBridgeModel(state.config.model)) {
         // Local OpenAI-compatible server (llama-server / ollama / mlx-server).
         // Prefer SSE token streaming when the server is reachable; fall back
@@ -186,6 +206,54 @@ pub fn completePrompt(
     }
     state.turn_count += 1;
     return .keep_going;
+}
+
+fn completeLiveAnthropic(
+    allocator: std.mem.Allocator,
+    state: *repl_types.ReplState,
+    line: []const u8,
+    augmented_line: []const u8,
+    io: std.Io,
+) !void {
+    var creds = credentials.loadCredentials(allocator) catch |err| {
+        std.debug.print("error: live anthropic requires credentials ({s}); run `abi auth signin anthropic` or `/live` off\n", .{@errorName(err)});
+        return;
+    };
+    defer creds.deinit(allocator);
+
+    const api_key = creds.anthropic_api_key orelse {
+        std.debug.print("error: no anthropic credentials; run `abi auth signin anthropic` or `/live` off\n", .{});
+        return;
+    };
+
+    var client = anthropic.Client.init(allocator, .{
+        .api_key = api_key,
+        .base_url = "https://api.anthropic.com",
+        .transport = .live,
+    });
+    defer client.deinit();
+
+    var stream_ctx = StreamCtx{ .allocator = allocator };
+    const full = client.streamMessageLiveIncremental(
+        io,
+        allocator,
+        state.config.model,
+        augmented_line,
+        1024,
+        StreamCtx.bridgeCallback,
+        &stream_ctx,
+    ) catch |err| {
+        std.debug.print("\n[live anthropic stream error: {s}]\n", .{@errorName(err)});
+        return;
+    };
+    defer allocator.free(full);
+
+    std.debug.print("\n", .{});
+    std.debug.print("[turn {d} | model={s} | provider=anthropic | transport=live | stream=sse]\n", .{
+        state.turn_count + 1,
+        state.config.model,
+    });
+    state.pushTurn(allocator, line, full);
 }
 
 /// Resolve `@file` mentions in input text by reading file contents.
@@ -285,6 +353,16 @@ test "resolveFileMentions handles multiple mentions with mix of found and missin
     try std.testing.expect(std.mem.indexOf(u8, result, "missing-one.xyz") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "missing-two.abc") != null);
     try std.testing.expect(std.mem.startsWith(u8, result, "process "));
+}
+
+test "shouldUseLiveAnthropic requires live_mode and anthropic provider" {
+    var state = repl_types.ReplState.init(.{});
+    try std.testing.expect(!shouldUseLiveAnthropic(&state));
+    state.config.live_mode = true;
+    // default model is anthropic (claude-fable-5)
+    try std.testing.expect(shouldUseLiveAnthropic(&state));
+    state.config.model = "abi-local";
+    try std.testing.expect(!shouldUseLiveAnthropic(&state));
 }
 
 test {

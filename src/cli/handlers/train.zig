@@ -103,7 +103,7 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOp
         if (features.ai.models.providerOf(selected_model) == .fm) {
             return handleFmComplete(allocator, input, selected_model, opts.confirmed);
         }
-        return handleLiveComplete(io, allocator, input, selected_model);
+        return handleLiveComplete(io, allocator, input, selected_model, opts.stream);
     }
 
     // Local inference bridge: when the model id has a local-bridge prefix
@@ -251,8 +251,9 @@ fn handleSoulComplete(
 
 /// Stage 2: the live anthropic path behind `--live`. Only anthropic-provider
 /// models are supported; the API key is read from the credential store and the
-/// request crosses the explicit `.live` transport boundary.
-fn handleLiveComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: []const u8) !u8 {
+/// request crosses the explicit `.live` transport boundary. With `--stream`,
+/// deltas are printed via `streamMessageLiveIncremental` (Anthropic SSE).
+fn handleLiveComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: []const u8, stream: bool) !u8 {
     if (features.ai.models.providerOf(model) != .anthropic) {
         return usage_mod.usageError("--live currently supports anthropic models only (e.g. --model fable-5)");
     }
@@ -283,6 +284,31 @@ fn handleLiveComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u
         .transport = .live,
     });
     defer client.deinit();
+
+    if (stream) {
+        const StreamCtx = struct {
+            fn callback(_: *anyopaque, chunk: connectors.http.StreamChunk) connectors.connector.ConnectorError!void {
+                if (chunk.delta.len > 0) std.debug.print("{s}", .{chunk.delta});
+            }
+        };
+        var dummy: u8 = 0;
+        const full = client.streamMessageLiveIncremental(
+            io,
+            allocator,
+            model,
+            input,
+            1024,
+            StreamCtx.callback,
+            @ptrCast(&dummy),
+        ) catch |err| {
+            std.debug.print("error: anthropic live stream failed: {s}\n", .{@errorName(err)});
+            return 1;
+        };
+        defer allocator.free(full);
+        std.debug.print("\n", .{});
+        std.debug.print("model={s} provider=anthropic transport=live stream=sse\n", .{model});
+        return 0;
+    }
 
     var resp = client.messageLive(io, allocator, model, input, 1024) catch |err| {
         std.debug.print("error: anthropic live request failed: {s}\n", .{@errorName(err)});
@@ -431,6 +457,18 @@ test "complete --live rejects non-anthropic models before any network or credent
     // live path must reject it with usage (exit 2) before touching the
     // credential store or the network transport.
     const code = try handleComplete(std.testing.io, allocator, .{ .input = "hello", .model = "abi-local", .live = true });
+    try std.testing.expectEqual(@as(u8, 2), code);
+}
+
+test "complete --live --stream rejects non-anthropic models on the same branch" {
+    const allocator = std.testing.allocator;
+    // Stream flag must not bypass the anthropic-provider gate.
+    const code = try handleComplete(std.testing.io, allocator, .{
+        .input = "hello",
+        .model = "abi-local",
+        .live = true,
+        .stream = true,
+    });
     try std.testing.expectEqual(@as(u8, 2), code);
 }
 

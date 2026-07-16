@@ -190,9 +190,10 @@ pub const StreamChunk = struct {
     done: bool,
 };
 
-/// Streaming SSE response handler. Parses Server-Sent Events from an OpenAI-compatible
-/// streaming response and invokes the callback for each token delta.
-/// The callback receives `done=true` with empty `delta` when the stream ends.
+/// Streaming SSE response handler. Parses Server-Sent Events from an OpenAI- or
+/// Anthropic-compatible streaming response and invokes the callback for each
+/// token delta. The callback receives `done=true` with empty `delta` when the
+/// stream ends. `extra_headers` may carry provider auth (e.g. `x-api-key`).
 pub fn httpPostJsonStreaming(
     io: std.Io,
     allocator: std.mem.Allocator,
@@ -201,6 +202,7 @@ pub fn httpPostJsonStreaming(
     body: []const u8,
     on_chunk: *const fn (ctx: *anyopaque, chunk: StreamChunk) ConnectorError!void,
     callback_ctx: *anyopaque,
+    extra_headers: []const std.http.Header,
 ) ConnectorError![]const u8 {
     if (config.transport != .live) return ConnectorError.LiveTransportUnavailable;
 
@@ -209,6 +211,19 @@ pub fn httpPostJsonStreaming(
 
     var client = std.http.Client{ .allocator = allocator, .io = io };
     defer client.deinit();
+
+    // Merge Accept/Cache-Control with caller auth headers into one buffer.
+    var headers_buf: [16]std.http.Header = undefined;
+    var header_count: usize = 0;
+    headers_buf[header_count] = .{ .name = "Accept", .value = "text/event-stream" };
+    header_count += 1;
+    headers_buf[header_count] = .{ .name = "Cache-Control", .value = "no-cache" };
+    header_count += 1;
+    for (extra_headers) |h| {
+        if (header_count >= headers_buf.len) return ConnectorError.InvalidResponse;
+        headers_buf[header_count] = h;
+        header_count += 1;
+    }
 
     // We need to read the response body incrementally for SSE parsing
     var response_writer = std.Io.Writer.Allocating.init(allocator);
@@ -221,10 +236,7 @@ pub fn httpPostJsonStreaming(
         .headers = .{
             .content_type = .{ .override = "application/json" },
         },
-        .extra_headers = &[_]std.http.Header{
-            .{ .name = "Accept", .value = "text/event-stream" },
-            .{ .name = "Cache-Control", .value = "no-cache" },
-        },
+        .extra_headers = headers_buf[0..header_count],
         .response_writer = &response_writer.writer,
         .redirect_behavior = .unhandled,
         .keep_alive = true,
@@ -241,6 +253,7 @@ pub fn httpPostJsonStreaming(
 /// Uses the lower-level `std.http.Client.request` API to parse SSE events
 /// as they arrive over the network, without buffering the entire response.
 /// The callback receives `done=true` with empty `delta` when the stream ends.
+/// `extra_headers` may carry provider auth (e.g. Anthropic `x-api-key`).
 pub fn httpPostJsonStreamingIncremental(
     io: std.Io,
     allocator: std.mem.Allocator,
@@ -249,6 +262,7 @@ pub fn httpPostJsonStreamingIncremental(
     body: []const u8,
     on_chunk: *const fn (ctx: *anyopaque, chunk: StreamChunk) ConnectorError!void,
     callback_ctx: *anyopaque,
+    extra_headers: []const std.http.Header,
 ) ConnectorError![]const u8 {
     if (config.transport != .live) return ConnectorError.LiveTransportUnavailable;
 
@@ -260,16 +274,25 @@ pub fn httpPostJsonStreamingIncremental(
     var client = std.http.Client{ .allocator = allocator, .io = io };
     defer client.deinit();
 
+    var headers_buf: [16]std.http.Header = undefined;
+    var header_count: usize = 0;
+    headers_buf[header_count] = .{ .name = "Accept", .value = "text/event-stream" };
+    header_count += 1;
+    headers_buf[header_count] = .{ .name = "Cache-Control", .value = "no-cache" };
+    header_count += 1;
+    for (extra_headers) |h| {
+        if (header_count >= headers_buf.len) return ConnectorError.InvalidResponse;
+        headers_buf[header_count] = h;
+        header_count += 1;
+    }
+
     // Create request using lower-level API for streaming access
     var req = (blk: {
         const r = std.http.Client.request(&client, .POST, uri, .{
             .headers = .{
                 .content_type = .{ .override = "application/json" },
             },
-            .extra_headers = &[_]std.http.Header{
-                .{ .name = "Accept", .value = "text/event-stream" },
-                .{ .name = "Cache-Control", .value = "no-cache" },
-            },
+            .extra_headers = headers_buf[0..header_count],
             .redirect_behavior = .unhandled,
             .keep_alive = true,
         }) catch |err| {
@@ -445,11 +468,29 @@ fn processSseEvent(
     if (trimmed_event.len == 0) return;
 
     // Parse JSON from event data
-    // Expected format: {"choices":[{"delta":{"content":"token"},"finish_reason":null}]}
     const parsed = std.json.parseFromSlice(std.json.Value, allocator, trimmed_event, .{}) catch return ConnectorError.InvalidResponse;
     defer parsed.deinit();
 
     const root = parsed.value.object;
+
+    // Anthropic Messages SSE: {"type":"content_block_delta","delta":{"type":"text_delta","text":"…"}}
+    // or compact local form {"delta":{"text":"…"}}. Prefer this when `choices` is absent.
+    if (root.get("choices") == null) {
+        if (root.get("delta")) |delta_val| {
+            if (delta_val == .object) {
+                if (delta_val.object.get("text")) |text_val| {
+                    if (text_val == .string and text_val.string.len > 0) {
+                        try accumulated.appendSlice(allocator, text_val.string);
+                        try on_chunk(callback_ctx, .{ .delta = text_val.string, .done = false });
+                    }
+                }
+            }
+        }
+        // message_stop / other Anthropic control events: no text to emit
+        return;
+    }
+
+    // OpenAI-compatible: {"choices":[{"delta":{"content":"token"},"finish_reason":null}]}
     const choices = root.get("choices") orelse return;
     if (choices.array.items.len == 0) return;
 
@@ -558,6 +599,61 @@ test "parseSseStream accumulates multi-token SSE and forwards callback_ctx" {
 
 test {
     std.testing.refAllDecls(@This());
+}
+
+test "parseSseEvent parses Anthropic text delta" {
+    const allocator = std.testing.allocator;
+    var context = struct {
+        called: bool = false,
+        last_len: usize = 0,
+    }{};
+    const callback: *const fn (ctx: *anyopaque, chunk: StreamChunk) ConnectorError!void = struct {
+        fn call(ctx: *anyopaque, chunk: StreamChunk) ConnectorError!void {
+            const self: *@TypeOf(context) = @ptrCast(@alignCast(ctx));
+            self.called = true;
+            self.last_len = chunk.delta.len;
+        }
+    }.call;
+    var accumulated = std.ArrayListUnmanaged(u8).empty;
+    defer accumulated.deinit(allocator);
+    try processSseEvent(
+        "{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"Hi\"}}",
+        allocator,
+        callback,
+        &context,
+        &accumulated,
+    );
+    try std.testing.expect(context.called);
+    try std.testing.expectEqual(@as(usize, 2), context.last_len);
+    try std.testing.expectEqualStrings("Hi", accumulated.items);
+}
+
+test "parseSseStream accumulates Anthropic multi-token SSE" {
+    const allocator = std.testing.allocator;
+    var tokens = std.ArrayListUnmanaged(u8).empty;
+    defer tokens.deinit(allocator);
+    const callback: *const fn (ctx: *anyopaque, chunk: StreamChunk) ConnectorError!void = struct {
+        fn call(ctx: *anyopaque, chunk: StreamChunk) ConnectorError!void {
+            if (chunk.delta.len == 0) return;
+            const list: *std.ArrayListUnmanaged(u8) = @ptrCast(@alignCast(ctx));
+            list.appendSlice(std.testing.allocator, chunk.delta) catch {};
+        }
+    }.call;
+    const body =
+        \\event: content_block_delta
+        \\data: {"delta":{"text":"Hel"}}
+        \\
+        \\event: content_block_delta
+        \\data: {"delta":{"text":"lo"}}
+        \\
+        \\event: message_stop
+        \\data: {"type":"message_stop"}
+        \\
+    ;
+    const full = try parseSseStream(allocator, body, callback, &tokens);
+    defer allocator.free(full);
+    try std.testing.expectEqualStrings("Hello", full);
+    try std.testing.expectEqualStrings("Hello", tokens.items);
 }
 
 test "requireHttpsBaseUrl accepts https and rejects cleartext schemes" {

@@ -121,6 +121,7 @@ pub const ReplLoop = struct {
             .diff => try self.runDiff(specialArg(line), io),
             .features => self.showFeatures(),
             .learn => self.toggleLearn(),
+            .live => self.toggleLive(),
             .save => try self.saveSession(specialArg(line), io),
             .load => try self.loadSession(specialArg(line), io),
             .sessions => try self.listSessions(io),
@@ -163,6 +164,7 @@ pub const ReplLoop = struct {
         std.debug.print("  provider: {s}\n", .{models.providerOf(self.state.config.model).label()});
         std.debug.print("  turns:    {d} in session, {d} in history\n", .{ self.state.turn_count, self.state.turn_history_count });
         std.debug.print("  sea:      {s}\n", .{if (self.state.config.learn_mode) "on (self-learning)" else "off"});
+        std.debug.print("  live:     {s}\n", .{if (self.state.config.live_mode) "on (anthropic SSE)" else "off"});
         std.debug.print("  store:    {s}\n", .{if (self.state.config.store_turns) "on" else "off"});
         if (self.state.open_path.len > 0) {
             std.debug.print("  file:     {s} ({d} bytes)\n", .{ self.state.open_path, self.state.open_content.len });
@@ -356,6 +358,16 @@ pub const ReplLoop = struct {
         }
     }
 
+    /// `/live`: toggle live Anthropic SSE transport for anthropic-provider models.
+    fn toggleLive(self: *ReplLoop) void {
+        self.state.config.live_mode = !self.state.config.live_mode;
+        if (self.state.config.live_mode) {
+            std.debug.print("live transport: on (anthropic models use streamMessageLiveIncremental; run `abi auth signin anthropic`)\n", .{});
+        } else {
+            std.debug.print("live transport: off\n", .{});
+        }
+    }
+
     fn sessionsDir(self: *ReplLoop) ![]const u8 {
         return try repl_session.sessionsDir(self.allocator);
     }
@@ -412,6 +424,7 @@ test "parseSpecialCommand recognizes slash commands and treats prompts as unknow
     try std.testing.expectEqual(SpecialCommand.features, parseSpecialCommand("/features"));
     try std.testing.expectEqual(SpecialCommand.features, parseSpecialCommand("/feat"));
     try std.testing.expectEqual(SpecialCommand.learn, parseSpecialCommand("/learn"));
+    try std.testing.expectEqual(SpecialCommand.live, parseSpecialCommand("/live"));
     try std.testing.expectEqual(SpecialCommand.save, parseSpecialCommand("/save my-session"));
     try std.testing.expectEqual(SpecialCommand.load, parseSpecialCommand("/load my-session"));
     try std.testing.expectEqual(SpecialCommand.sessions, parseSpecialCommand("/sessions"));
@@ -478,7 +491,7 @@ test "tui input hardening: adversarial bytes never corrupt state" {
     };
     for (adversarial) |input| {
         switch (parseSpecialCommand(input)) {
-            .quit, .reset, .help, .model, .profile, .status, .history, .context, .syncclis, .open, .diff, .commit, .features, .learn, .save, .load, .sessions, .clear, .unknown => {},
+            .quit, .reset, .help, .model, .profile, .status, .history, .context, .syncclis, .open, .diff, .commit, .features, .learn, .live, .save, .load, .sessions, .clear, .pane, .unknown => {},
         }
     }
 

@@ -130,6 +130,25 @@ test "anthropic live transport is explicit opt-in boundary" {
     );
 }
 
+test "anthropic streamMessageLiveIncremental rejects non-live transport" {
+    const allocator = std.testing.allocator;
+    var client = anthropic.Client.init(allocator, .{
+        .api_key = "test-key",
+        .base_url = "https://api.anthropic.com",
+        // default transport is local/non-live
+    });
+    defer client.deinit();
+
+    const noop: *const fn (ctx: *anyopaque, chunk: http.StreamChunk) ConnectorError!void = struct {
+        fn call(_: *anyopaque, _: http.StreamChunk) ConnectorError!void {}
+    }.call;
+    var dummy: u8 = 0;
+    try std.testing.expectError(
+        ConnectorError.LiveTransportUnavailable,
+        client.streamMessageLiveIncremental(std.testing.io, allocator, "claude-3", "hello", 128, noop, &dummy),
+    );
+}
+
 test "anthropic body builder escapes prompt" {
     const allocator = std.testing.allocator;
     const body = try json.buildAnthropicBody(allocator, "claude", "hello \"world\"", 128, false);
