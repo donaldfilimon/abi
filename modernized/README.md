@@ -37,3 +37,6 @@ Tracked planning sources: `docs/spec/abi-refactor-design.mdx`,
 - Treat this directory as package sources or run a separate `build.zig` here.
 - Invent `src-reimagined/` Zig to “match” the old claim without Phase D HITL.
 - Merge any future scaffold wholesale over live `src/`.
+- Treat Phase D reimagine as the next automatic step — it stays **blocked on HITL approval**.
+
+**Closeout (2026-07-16):** pointer-only README remains complete; no Phase D scaffold.
