@@ -408,6 +408,25 @@ test "getVector is a zero-copy view aliasing the backing buffer" {
     try std.testing.expectEqual(raw.ptr, view.ptr);
 }
 
+test "getVector after search remains a zero-copy alias (query path lifetime)" {
+    var store_obj = Store.init(std.testing.allocator);
+    defer store_obj.deinit();
+
+    const id = try store_obj.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+    _ = try store_obj.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+
+    const results = try store_obj.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 2);
+    defer std.testing.allocator.free(results);
+    try std.testing.expect(results.len >= 1);
+
+    // After search returns (HNSW read-lock released), getVector still aliases the
+    // backing buffer — the CLI/JSON query path may borrow dims without copying.
+    const view = store_obj.getVector(results[0].id) orelse return error.MissingVector;
+    const raw = store_obj.index.storage.get(results[0].id) orelse return error.MissingVector;
+    try std.testing.expectEqual(raw.ptr, view.ptr);
+    try std.testing.expectEqual(id, results[0].id);
+}
+
 test "Store rejects mismatched vector dimensions" {
     var store_obj = Store.init(std.testing.allocator);
     defer store_obj.deinit();
