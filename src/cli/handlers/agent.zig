@@ -65,8 +65,14 @@ fn handleAgentPlan(io: std.Io, allocator: std.mem.Allocator, args: []const []con
 }
 
 pub fn handleAgentPlanInput(io: std.Io, allocator: std.mem.Allocator, input: []const u8) !u8 {
-    var budget = abi.features.ai.file_context.ContextBudget.init(abi.features.ai.file_context.DEFAULT_BUDGET_BYTES);
-    const augmented = try abi.features.ai.file_context.resolveAndInject(io, allocator, input, ".", &budget);
+    const augmented = try abi.features.ai.file_context.buildAgentContext(
+        io,
+        allocator,
+        input,
+        ".",
+        abi.features.ai.file_context.DEFAULT_BUDGET_BYTES,
+        .{ .include_tree = true, .include_git_diff = true, .git_stat_only = true },
+    );
     defer allocator.free(augmented);
 
     var sched = abi.scheduler.Scheduler.init(allocator);
@@ -285,8 +291,14 @@ pub fn handleAgentTuiNoArgs(io: std.Io, allocator: std.mem.Allocator) !u8 {
 }
 
 pub fn handleAgentMultiInput(io: std.Io, allocator: std.mem.Allocator, input: []const u8) !u8 {
-    var budget = abi.features.ai.file_context.ContextBudget.init(abi.features.ai.file_context.DEFAULT_BUDGET_BYTES);
-    const augmented = try abi.features.ai.file_context.resolveAndInject(io, allocator, input, ".", &budget);
+    const augmented = try abi.features.ai.file_context.buildAgentContext(
+        io,
+        allocator,
+        input,
+        ".",
+        abi.features.ai.file_context.DEFAULT_BUDGET_BYTES,
+        .{ .include_tree = true, .include_git_diff = true, .git_stat_only = true },
+    );
     defer allocator.free(augmented);
 
     var sched = abi.scheduler.Scheduler.init(allocator);

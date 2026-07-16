@@ -18,7 +18,7 @@
 |----|------|------|---------------|
 | C1 | Stabilize & land dirty WIP | **A** | ✅ Done — conventional commits; `./build.sh check` green |
 | C2 | Streaming parity (SSE + TUI + CLI) | **B** | ✅ Done in source — optional live smoke deferred |
-| C3 | TUI multi-turn / pane remainder | **C** | ✅ Multi-turn landed; pane split deferred product follow-on |
+| C3 | TUI multi-turn / pane remainder | **C** | ✅ Multi-turn + `/pane` split landed (`repl_pane.zig`) |
 | C4 | WDBX REST rate limit + TLS config honesty | **C** | ✅ Done — committed + wired; claim boundary held |
 | C5 | Doc/todo/skill hygiene | **C** | ✅ Board/skills hygiene; sync-clis operator-optional |
 | C6 | Zig 0.17 hygiene only on real debt | **C** | ✅ Standing policy; pin green per `tasks/todo.md` |
@@ -64,7 +64,7 @@
 ### C3 TUI multi-turn (partial already)
 
 - [x] Ring buffer `MAX_TURN_HISTORY` + history injection in `completePrompt`
-- [ ] Optional pane split (DEFERRED — product follow-on; not Approach-1 blocking)
+- [x] Optional pane split (`/pane` via `repl_pane.zig` — chat left, `git diff --stat` right)
 
 ### C4 WDBX REST partial hardening
 
@@ -103,7 +103,7 @@ zig build check-parity --summary all   # if public API
 
 1. **A** — stabilize + commit WIP ✅  
 2. **B** — streaming ✅ (source + unit gates; live llama-server smoke deferred)  
-3. **C** — REST/skills hygiene ✅ (pane split deferred product follow-on)  
+3. **C** — REST/skills hygiene ✅ (`/pane` split landed)  
 
 ---
 
@@ -113,7 +113,7 @@ zig build check-parity --summary all   # if public API
 |-----------|---------------|
 | C1 land WIP | Wave A commits ✅ |
 | C2 streaming | Wave B files + tests ✅; live smoke deferred |
-| C3 multi-turn | Landed partial; pane split deferred |
+| C3 multi-turn | Landed + `/pane` split ✅ |
 | C4 REST | rate_limiter/tls_config committed + wired; claim boundary held ✅ |
 | C5 docs/skills | todo + skills under `.agents/skills/`; sync-clis operator-optional ✅ |
 | C6 zig | standing policy; pin green; no rewrite ✅ |
