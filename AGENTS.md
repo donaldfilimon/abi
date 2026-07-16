@@ -134,32 +134,10 @@ No unproven claims (distributed sharding, production FHE/AES/RBAC, non-loopback 
 
 `opencode.json` auto-loaded (instructions: `AGENTS.md`, `tasks/lessons.md`, `tasks/todo.md`). `.opencode/skills/` is a symlink to `.agents/skills/`. MCP servers: `abi-mcp`, `skill-loop`. Sync canonical skills: `.agents/skills/sync-clis/launch.sh`. Modern-refactor skills (codebase-analysis etc.) in `.agents/skills/` — use for refactors; follow with `./build.sh check`. Superpower + operational skills are enumerated in the system prompt's `available_skills`; don't maintain a parallel list here.
 
-## Learned User Preferences
-
-- Prefer feature branches named with the `cursor/` prefix; when creating a PR from the default branch, branch first and do not commit or push directly to `main`.
-- Prefer draft PRs when the create-pull-request flow requests draft.
-- Verify interactive dashboard/TUI with `.agents/skills/run-tui/tui.sh` (tmux pty); never prepend Homebrew `/opt/homebrew/bin` ahead of the pinned Zig on PATH.
-- Prefer honest status digests and labeled demos over fake live bridges when IPC or production capability is absent.
-- For refactor/organization work, prefer scoped tracks (module extraction vs north-star features vs docs/claims) over open-ended clean-slate rewrites; confirm scope before planning.
-
-## Learned Workspace Facts
-
-- Modern-refactor Phases 2–4 and major module-extraction waves are done; remaining high-value org hotspots are mainly `src/features/tui/repl.zig` and `src/features/tui/dashboard.zig` (next safe extracts often `repl_git.zig` / `dashboard_render.zig`).
-- Interactive `abi dashboard` / `abi tui` / `abi --tui` use a split layout (diagnostics + Agent Output); one-shot `--once` stays stacked panes — layouts diverge by design.
-- Dashboard Agent Output is a status digest, not live `agent tui` traffic; dashboard WDBX is an ephemeral CLI probe (labeled), not the durable agent store.
-- Plugin-declared slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>` for context providers).
-- Open product goal for TUI/CLI north-star (streaming, pane-split, richer `@file`) is in `tasks/goals.md`; Partial north-star / demo modules must not be promoted to Current without source and tests.
-- MCP HTTP vs WDBX REST framing duplication is intentional (MCP module-root isolation); do not unify them as an organization refactor.
-- Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves: `docs/superpowers/plans/2026-07-15-approach1-waves-a-b-c.md`; `modern-refactor/examples/` is historical, not the active board.
-- `modernized/` holds only a pointer-only README (allowlisted via `!/modernized/README.md` in `.gitignore`); the `src-reimagined/{ai,mcp,wdbx}` scaffolds it once described were never committed anywhere in git — do not scaffold reimagined trees until reimagine Phase D is approved; live code stays under `src/`.
-
 ## Cursor Cloud specific instructions
 
-The cloud VM is **Linux x86_64**; this project is macOS-primary (CI is macOS-only). The startup update script installs the pinned Zig from `.zigversion` and symlinks it to `/usr/local/bin/zig`, so `zig`/`./build.sh` are ready without extra setup. Build commands are unchanged from the Commands table above.
+Linux x86_64 VM with the pinned Zig (`.zigversion`) already installed at `/opt/zig` and symlinked to `/usr/local/bin/zig` (the startup update script re-installs it only if missing/mismatched). Build/run/test commands are the standard ones documented under **Commands** above (`./build.sh cli`, `./build.sh mcp`, `zig build lint`, focused `zig build test-*` suites). This repo is macOS-first (CI is macOS-only; GPU is Metal), so a few surfaces behave differently on this Linux VM:
 
-Non-obvious Linux caveats (macOS is unaffected):
-
-- **Ambient WDBX store panics on Linux.** CLI/MCP paths that use the ambient durable store (`abi complete`, `abi agent …`, `abi-mcp` with WDBX) hit a `std.Io` `setPermissions`/`fchmod` `BADF` panic in `src/features/wdbx/durable_store.zig` (`ensureOwnerOnlyDir`) on this Zig nightly. Run these with `ABI_WDBX_PERSIST=0` (or `ABI_WDBX_PATH=:memory:`) to use an in-memory store. Explicit `abi wdbx <path> …` subcommands (a separate open path in `src/cli/handlers/wdbx_db.zig`) persist to disk normally.
-- **`./build.sh check` does not fully pass on Linux.** Test targets for `src/mcp/server.zig`, `src/root.zig`, and `src/cli_test.zig` fail to link libc (`getsockname`/`getpid`) because libc is only wired for the macOS build. The `abi` and `abi-mcp` binaries themselves build and run fine. Focused suites `test-plugins`, `test-feature-contracts`, and `test-mcp-contracts` pass; `zig build lint` and `zig build check-parity` pass. Run the full `check` gate on macOS.
-- Two `tests/contracts/public_docs.zig` cases (README/audit version string) currently expect the old min-version `0.17.0-dev.1252+e4b325c19` while the docs carry the new pin `0.17.0-dev.1398+cb5635714`; this is a pre-existing repo mismatch, not an environment problem.
-
+- **Ambient WDBX persistence panics on Linux.** `abi complete` (no flags) and `abi-mcp` default to the ambient durable store, whose `durable_store.ensureOwnerOnlyDir` calls `dir.setPermissions` → `fchmod` on an `O_PATH` directory fd, which returns `EBADF` and panics (`programmer bug caused syscall error: BADF`). This is a Zig-std/Linux interaction, not a repo bug (macOS has no `O_PATH`). Run these with `ABI_WDBX_PERSIST=0` (in-memory store) to exercise the full completion/MCP pipeline. The explicit `abi wdbx ...` subcommands use a different open path and work without the flag.
+- **`./build.sh check` is not fully green on Linux.** Two categories fail here but pass on the macOS CI: (1) libc-linked test targets (`test-integration`, `test-cli`, `test-mcp-server`, and the root test) fail to compile with `dependency on libc must be explicitly specified` / `undefined symbol: getsockname`/`getpid` because `build.zig` only implicitly links libc on macOS; (2) `tests/contracts/public_docs.zig` has content-drift assertions (expects `0.17.0-dev.1252+e4b325c19` in `README.md`/`external-claims-audit.mdx`). Green suites on Linux: `zig build lint`, `check-parity`, `test-plugins`, `test-mcp-contracts`, `test-feature-contracts`, plus the 100+ inline unit tests that don't need libc. Prefer these for verification; run the full `check` gate on macOS.
+- **`abi` binary can get overwritten by feature-stub smoke.** `./build.sh check` runs `tools/check_feature_stubs.sh`, which builds `abi` with feature flags disabled and installs it over `zig-out/bin/abi`. Re-run `zig build cli` (or `./build.sh cli`) afterward to restore the full-featured binary (otherwise e.g. `wdbx` shows disabled in `abi backends`).
