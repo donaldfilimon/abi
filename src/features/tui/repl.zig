@@ -26,6 +26,7 @@ const repl_session = @import("repl_session.zig");
 const git_cmds = @import("repl_git_commands.zig");
 const repl_io = @import("repl_io.zig");
 const repl_complete = @import("repl_complete.zig");
+const repl_pane = @import("repl_pane.zig");
 
 pub const MODEL_STORAGE_BYTES = repl_types.MODEL_STORAGE_BYTES;
 pub const SpecialCommand = cmds.SpecialCommand;
@@ -124,6 +125,7 @@ pub const ReplLoop = struct {
             .load => try self.loadSession(specialArg(line), io),
             .sessions => try self.listSessions(io),
             .clear => self.clearScreen(),
+            .pane => self.togglePane(io),
             .commit => try self.runCommit(io),
             .unknown => {
                 // Check plugin commands
@@ -377,6 +379,17 @@ pub const ReplLoop = struct {
     fn clearScreen(self: *ReplLoop) void {
         _ = self;
         std.debug.print("\x1b[2J\x1b[H", .{});
+    }
+
+    /// `/pane`: toggle the split view (chat left, `git diff --stat` right).
+    /// Refuses (with a one-line notice) when the terminal is narrower than
+    /// `repl_pane.MIN_SPLIT_COLS` or its width cannot be measured, so
+    /// non-interactive/one-shot paths always stay unsplit.
+    fn togglePane(self: *ReplLoop, io: std.Io) void {
+        const decision = repl_pane.paneToggleDecision(self.state.pane_mode, repl_pane.terminalCols(io));
+        self.state.pane_mode = decision.enabled;
+        self.state.pane_cols = decision.cols;
+        std.debug.print("{s}\n", .{decision.notice});
     }
 };
 
