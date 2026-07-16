@@ -1,19 +1,30 @@
 ---
 name: tui
+description: Plan abi TUI/dashboard work — the interactive diagnostics dashboard and agent REPL. Use when asked about abi tui / dashboard, pane splits, slash commands, or session save/load. Routes to run-tui, dashboard-smoke, and abi-superpower-tui. A headless fallback exists; tmux is only for the interactive refresh loop.
 ---
 
-# TUI Skill
+# tui
 
-Terminal User Interface capabilities for ABI interactions including command-line interface management and real-time status display.
+Entry point for abi's TUI surface (`abi tui` / `abi dashboard` / `abi --tui`).
+Routes:
 
-## Responsibilities
+| You want to… | Use |
+| --- | --- |
+| Drive the interactive dashboard in a real pty (screenshot) | `run-tui` |
+| Non-interactive one-shot `abi dashboard` smoke (CI/headless) | `dashboard-smoke` |
+| Deep-dive the TUI superpower (panes, slash commands) | `abi-superpower-tui` |
 
-- Interactive terminal interface management
-- Real-time status monitoring and display
-- Command execution and output formatting
-- Session management and history tracking
-- User interaction and feedback handling
+## Slash commands backed by skills (`.opencode.json` `slash_commands`)
+`/open`→file-context-loader, `/diff`→git-diff-integration,
+`/commit`→git-commit-integration, `/context`→context-state-reporter,
+`/features`→feature-flag-display, `/learn`→sea-learning-controller,
+`/save`→session-persister, `/load`→session-restorer,
+`/status`→agent-status-reporter, `/reset`→context-resetter. Plugin-provided
+commands come from `abi-plugin.json` `commands`.
 
-## Integration
-
-Connects with ABI's CLI and dashboard systems to provide a rich terminal experience for users to interact with the system.
+## Gotchas
+- `dashboard-smoke` reads stdin from `/dev/null` to force the non-interactive
+  fallback; the only surface that needs a real terminal is the interactive
+  refresh loop (`run-tui` uses tmux).
+- `@file` mentions are sandboxed to cwd (8 KB budget; rejects `..` / absolute /
+  symlink escape) via `file_context.zig`.
