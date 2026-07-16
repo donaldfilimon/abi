@@ -14,6 +14,10 @@ pub const VectorRecord = struct {
 pub const SearchResult = struct {
     id: u32,
     score: f32,
+    /// Optional zero-copy borrowed view of the stored vector (active dims).
+    /// Aliases store index backing — valid until the next mutating store op.
+    /// Populated by `Store.search` via `getVector`; null when absent.
+    vector: ?[]const f32 = null,
 };
 
 pub const ConversationBlock = struct {

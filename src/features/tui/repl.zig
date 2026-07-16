@@ -166,6 +166,16 @@ pub const ReplLoop = struct {
         std.debug.print("  sea:      {s}\n", .{if (self.state.config.learn_mode) "on (self-learning)" else "off"});
         std.debug.print("  live:     {s}\n", .{if (self.state.config.live_mode) "on (anthropic SSE)" else "off"});
         std.debug.print("  store:    {s}\n", .{if (self.state.config.store_turns) "on" else "off"});
+        if (self.state.last_constitution.recorded) {
+            const c = self.state.last_constitution;
+            std.debug.print("  constitution: escore={d:.2} passed={s} vetoed={s}\n", .{
+                c.escore,
+                if (c.passed) "true" else "false",
+                if (c.vetoed) "true" else "false",
+            });
+        } else {
+            std.debug.print("  constitution: (no in-process audit yet)\n", .{});
+        }
         if (self.state.open_path.len > 0) {
             std.debug.print("  file:     {s} ({d} bytes)\n", .{ self.state.open_path, self.state.open_content.len });
         } else {

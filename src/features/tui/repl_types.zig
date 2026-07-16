@@ -42,6 +42,16 @@ pub const ReplConfig = struct {
 
 pub const MAX_TURN_HISTORY: usize = 10;
 
+/// Snapshot of the last in-process constitution audit for `/status` observability.
+/// Live/bridge SSE paths leave this unset (no in-process AuditResult).
+pub const LastConstitution = struct {
+    escore: f32 = 1.0,
+    passed: bool = true,
+    vetoed: bool = false,
+    /// True once at least one in-process completion recorded an audit.
+    recorded: bool = false,
+};
+
 /// Maximum bytes for file context loaded via '/open' (was 64 KiB, now unified).
 pub const OPEN_FILE_BUDGET_BYTES: usize = 32 * 1024;
 
@@ -81,12 +91,23 @@ pub const ReplState = struct {
     turn_history: [MAX_TURN_HISTORY]TurnEntry = @splat(TurnEntry{ .input = "", .response = "" }),
     turn_history_count: usize = 0,
     turn_history_head: usize = 0,
+    /// Last in-process constitution audit (updated by persona/SEA completion paths).
+    last_constitution: LastConstitution = .{},
 
     pub fn init(config: ReplConfig) ReplState {
         return .{
             .config = config,
             .turn_count = 0,
             .session_id = time.unixMs(),
+        };
+    }
+
+    pub fn recordConstitution(self: *ReplState, escore: f32, passed: bool, vetoed: bool) void {
+        self.last_constitution = .{
+            .escore = escore,
+            .passed = passed,
+            .vetoed = vetoed,
+            .recorded = true,
         };
     }
 

@@ -19,6 +19,8 @@ pub const VectorRecord = struct {
 pub const SearchResult = struct {
     id: u32,
     score: f32,
+    /// Optional borrowed vector view; stub path leaves this null.
+    vector: ?[]const f32 = null,
 };
 
 pub const ConversationBlock = struct {

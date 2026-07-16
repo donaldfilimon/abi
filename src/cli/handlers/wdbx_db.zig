@@ -293,8 +293,8 @@ fn queryWithText(allocator: std.mem.Allocator, store: *wdbx.Store, opts: QueryOp
         q, scope_label, ranked.len, stats.vectors, opts.limit,
     });
     for (ranked, 0..) |r, i| {
-        // Zero-copy: dims come from a borrowed getVector view (valid until store mutation).
-        const dims: usize = if (store.getVector(r.id)) |view| view.len else 0;
+        // Prefer RankedNode.vector (attached zero-copy view); fall back to getVector.
+        const dims: usize = if (r.vector) |view| view.len else if (store.getVector(r.id)) |view| view.len else 0;
         std.debug.print(
             "  {d}. vector_id={d} persona={s} score={d:.4} semantic={d:.4} temporal={d:.4} causal={d:.4} persona_w={d:.4} dims={d}\n",
             .{ i + 1, r.id, resolvePersona(store, &persona_cache, r.id), r.score, r.components.semantic, r.components.temporal, r.components.causal, r.components.persona, dims },
@@ -340,8 +340,8 @@ fn printQueryJson(
         const label = resolvePersona(store, persona_cache, r.id);
         const label_json = try jsonStringAlloc(allocator, label);
         defer allocator.free(label_json);
-        // Borrowed view — no vector copy; only dims are serialized.
-        const dims: usize = if (store.getVector(r.id)) |view| view.len else 0;
+        // Prefer RankedNode.vector (attached zero-copy); fall back to getVector.
+        const dims: usize = if (r.vector) |view| view.len else if (store.getVector(r.id)) |view| view.len else 0;
         try w.print("{{\"vector_id\":{d},\"persona\":{s},\"score\":{d:.6},\"dims\":{d},\"vector_view\":\"borrowed\",\"components\":{{\"semantic\":{d:.6},\"temporal\":{d:.6},\"causal\":{d:.6},\"persona\":{d:.6}}}}}", .{
             r.id,
             label_json,
