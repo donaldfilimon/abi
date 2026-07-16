@@ -1,33 +1,31 @@
-//! Interactive TUI REPL (Phase 1: line-at-a-time).
+//! Interactive TUI REPL dispatch hub.
 //!
-//! Reads one line at a time from stdin using the standard reader (no raw-mode
-//! terminal handling yet — that is Phase 2), dispatches slash-commands, and runs
-//! ordinary input through the AI completion path against the ambient WDBX store.
+//! Owns the `ReplLoop` and routes each input line: slash-commands go to their
+//! handlers, ordinary input runs the AI completion path against the ambient
+//! WDBX store.
 //!
-//! Slash-command parsing, completion, and status/history formatting live in
-//! `repl_commands.zig`; this module owns the interactive `ReplLoop`.
+//! The surrounding leaves keep this module thin: slash-command parsing,
+//! completion, and status/history formatting live in `repl_commands.zig`; the
+//! raw-mode/line-mode terminal input loops in `repl_io.zig`; the prompt
+//! completion path (SEA / local-bridge SSE / in-process streaming) in
+//! `repl_complete.zig`; git and session subprocess work in
+//! `repl_git_commands.zig`; session save/load in `repl_session.zig`.
 
 const std = @import("std");
 const build_options = @import("build_options");
-const env = @import("../../foundation/env.zig");
-const utils = @import("../../foundation/utils.zig");
 const models = @import("../ai/models.zig");
-const ai = if (build_options.feat_ai) @import("../ai/mod.zig") else @import("../ai/stub.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
-const sea = if (build_options.feat_sea) @import("../sea/mod.zig") else @import("../sea/stub.zig");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const time = @import("../../foundation/time.zig");
 const sanitize = @import("sanitize.zig");
 const terminal = @import("terminal.zig");
 const line_editor = @import("line_editor.zig");
-const file_context = @import("../ai/file_context.zig");
 const cmds = @import("repl_commands.zig");
-const local_bridge = @import("../../connectors/local_bridge.zig");
-const connector_http = @import("../../connectors/http.zig");
-const connector_mod = @import("../../connectors/connector.zig");
 const repl_types = @import("repl_types.zig");
 const repl_session = @import("repl_session.zig");
 const git_cmds = @import("repl_git_commands.zig");
+const repl_io = @import("repl_io.zig");
+const repl_complete = @import("repl_complete.zig");
 
 pub const MODEL_STORAGE_BYTES = repl_types.MODEL_STORAGE_BYTES;
 pub const SpecialCommand = cmds.SpecialCommand;
@@ -82,206 +80,27 @@ pub const ReplLoop = struct {
 
     /// Outcome of dispatching one input line. Lets the raw-mode and line-mode
     /// loops share identical handling and quit semantics.
-    const LineOutcome = enum { keep_going, quit };
+    const LineOutcome = repl_types.LineOutcome;
 
     /// Run the REPL until `/quit` or EOF (Ctrl-D). Phase 2: attempt the raw-mode
     /// `InteractiveTerminal` for nicer character-at-a-time input, and fall back
     /// to the Phase-1 line-at-a-time path when the terminal cannot enter raw mode
     /// (CI / non-tty), mirroring `dashboard.zig`'s fallback. Behavior under a
     /// non-tty is byte-for-byte the Phase-1 path so the `agent tui` contract is
-    /// unchanged.
+    /// unchanged. Both loops live in `repl_io.zig` and call back into
+    /// `dispatchLine`.
     pub fn run(self: *ReplLoop, io: std.Io) !void {
         var term = terminal.InteractiveTerminal.init(terminal.stdinFd()) catch {
-            return self.runLineMode(io);
+            return repl_io.runLineMode(self, io);
         };
         defer term.deinit();
-        return self.runRawMode(&term, io);
-    }
-
-    /// Phase-1 path: read one line at a time from stdin via the standard reader.
-    fn runLineMode(self: *ReplLoop, io: std.Io) !void {
-        var buf: [4096]u8 = undefined;
-        var stdin_reader = std.Io.File.stdin().reader(io, &buf);
-
-        while (true) {
-            std.debug.print("{s}", .{self.state.config.prompt_prefix});
-
-            const maybe_line = stdin_reader.interface.takeDelimiter('\n') catch |err| {
-                std.debug.print("\nrepl: input error: {s}\n", .{@errorName(err)});
-                break;
-            };
-            const raw = maybe_line orelse break; // EOF
-            const line = std.mem.trim(u8, raw, " \t\r\n");
-            if (line.len == 0) continue;
-
-            switch (try self.dispatchLine(line, io)) {
-                .quit => break,
-                .keep_going => {},
-            }
-        }
-    }
-
-    /// Raw-mode path with bounded line editing. The terminal itself supplies
-    /// bytes; `line_editor` decodes them into safe editor actions so controls
-    /// never become part of a submitted prompt.
-    fn runRawMode(self: *ReplLoop, term: *terminal.InteractiveTerminal, io: std.Io) !void {
-        var editor = line_editor.LineEditor.init(self.allocator);
-        defer editor.deinit();
-        var decoder = line_editor.KeyDecoder{};
-        self.resetRawPrompt(&editor);
-
-        while (true) {
-            const key = try self.readRawKey(term, &decoder) orelse break;
-            switch (key) {
-                .printable => |byte| if (try editor.insertPrintable(byte)) self.redrawRawInput(&editor),
-                .left => if (editor.moveLeft()) self.redrawRawInput(&editor),
-                .right => if (editor.moveRight()) self.redrawRawInput(&editor),
-                .home => if (editor.moveHome()) self.redrawRawInput(&editor),
-                .end => if (editor.moveEnd()) self.redrawRawInput(&editor),
-                .backspace => if (editor.deleteBackward()) self.redrawRawInput(&editor),
-                .delete => if (editor.deleteForward()) self.redrawRawInput(&editor),
-                .up => if (try editor.historyUp()) self.redrawRawInput(&editor),
-                .down => if (try editor.historyDown()) self.redrawRawInput(&editor),
-                .tab => try self.applyTabCompletion(&editor),
-                .enter => {
-                    self.finishRawLine(&editor);
-                    std.debug.print("\n", .{});
-                    const line = std.mem.trim(u8, editor.text(), " \t\r\n");
-                    const outcome = if (line.len > 0) blk: {
-                        try editor.recordSubmitted();
-                        break :blk try self.dispatchLine(line, io);
-                    } else .keep_going;
-                    editor.clear();
-                    if (outcome == .quit) return;
-                    self.resetRawPrompt(&editor);
-                },
-                .newline => if (try editor.insertNewline()) self.redrawRawInput(&editor),
-                .ctrl_r => try self.startReverseSearch(term, &editor),
-                .ctrl_l => {
-                    std.debug.print("\x1b[2J\x1b[H", .{});
-                    self.resetRawPrompt(&editor);
-                },
-                .ctrl_k => if (editor.killToEnd()) self.redrawRawInput(&editor),
-                .ctrl_u => if (editor.killToBeginning()) self.redrawRawInput(&editor),
-                .ctrl_w => if (editor.deletePreviousWord()) self.redrawRawInput(&editor),
-                .eof => break,
-                .ignore => {},
-            }
-        }
-    }
-
-    /// Decode one terminal action. Escape sequences are given a short bounded
-    /// wait; a lone or malformed escape is cancelled and has no editor effect.
-    fn readRawKey(self: *ReplLoop, term: *terminal.InteractiveTerminal, decoder: *line_editor.KeyDecoder) !?line_editor.Key {
-        _ = self;
-        const first = term.readKey() orelse return null;
-        if (decoder.feed(first)) |key| return key;
-        while (decoder.pending()) {
-            if (!term.pollInput(30)) {
-                decoder.cancelPending();
-                return .ignore;
-            }
-            const next = term.readKey() orelse {
-                decoder.cancelPending();
-                return null;
-            };
-            if (decoder.feed(next)) |key| return key;
-        }
-        return .ignore;
-    }
-
-    fn redrawRawInput(self: *ReplLoop, editor: *const line_editor.LineEditor) void {
-        std.debug.print("\x1b[u{s}{s}\x1b[0J", .{ self.state.config.prompt_prefix, editor.text() });
-        const trailing = editor.text().len - editor.cursor;
-        if (trailing > 0) std.debug.print("\x1b[{d}D", .{trailing});
-    }
-
-    /// Anchor a prompt at its first cell. Each redraw restores this anchor and
-    /// clears to the end of the terminal, removing stale wrapped rows from a
-    /// long (up to 4 KiB) line before rendering the current editor state.
-    fn resetRawPrompt(self: *ReplLoop, editor: *const line_editor.LineEditor) void {
-        std.debug.print("\x1b[s", .{});
-        self.redrawRawInput(editor);
-    }
-
-    fn finishRawLine(self: *ReplLoop, editor: *const line_editor.LineEditor) void {
-        _ = self;
-        const trailing = editor.text().len - editor.cursor;
-        if (trailing > 0) std.debug.print("\x1b[{d}C", .{trailing});
-    }
-
-    fn applyTabCompletion(self: *ReplLoop, editor: *line_editor.LineEditor) !void {
-        var matches: [slash_commands.len]*const SlashCommand = undefined;
-        switch (completeSlashCommand(editor.text(), &matches)) {
-            .none => {},
-            .unique => |name| {
-                var command: [MODEL_STORAGE_BYTES]u8 = undefined;
-                const completed = try std.fmt.bufPrint(&command, "/{s}", .{name});
-                try editor.replace(completed);
-                self.redrawRawInput(editor);
-            },
-            .ambiguous => |defs| {
-                std.debug.print("\nmatches:", .{});
-                for (defs) |def| std.debug.print(" /{s}", .{def.name});
-                std.debug.print("\n", .{});
-                self.resetRawPrompt(editor);
-            },
-        }
-    }
-
-    /// Ctrl-R: start an incremental reverse history search. Reads bytes from
-    /// the terminal until Enter (accept), Ctrl-C/Esc (cancel), or backspace
-    /// (shorten query). Matching history entries replace the editor buffer.
-    fn startReverseSearch(self: *ReplLoop, term: *terminal.InteractiveTerminal, editor: *line_editor.LineEditor) !void {
-        var query = std.ArrayListUnmanaged(u8).empty;
-        defer query.deinit(self.allocator);
-
-        std.debug.print("\n(reverse-search) ", .{});
-        self.redrawRawInput(editor);
-
-        while (true) {
-            const byte = term.readKey() orelse break;
-            switch (byte) {
-                '\r', '\n' => {
-                    if (editor.text().len > 0) {
-                        std.debug.print("\n", .{});
-                        return;
-                    }
-                },
-                0x03, 0x1b => {
-                    editor.clear();
-                    std.debug.print("\n(cancelled)\n", .{});
-                    self.resetRawPrompt(editor);
-                    return;
-                },
-                0x08, 0x7f => {
-                    if (query.items.len > 0) {
-                        _ = query.pop();
-                        editor.clear();
-                        if (query.items.len > 0) {
-                            _ = try editor.searchHistory(query.items);
-                        }
-                        std.debug.print("\r(reverse-search) {s} ", .{query.items});
-                        self.redrawRawInput(editor);
-                    }
-                },
-                else => if (byte >= 0x20 and byte < 0x7f) {
-                    try query.append(self.allocator, byte);
-                    editor.clear();
-                    if (try editor.searchHistory(query.items)) |_| {
-                        std.debug.print("\r(reverse-search) {s} ", .{query.items});
-                        self.redrawRawInput(editor);
-                    } else {
-                        std.debug.print("\r(reverse-search) {s} (no match)", .{query.items});
-                    }
-                },
-            }
-        }
+        return repl_io.runRawMode(self, &term, io);
     }
 
     /// Dispatch one already-trimmed, non-empty input line: slash-commands route
     /// to their handlers, ordinary text runs a completion and persists the turn.
-    fn dispatchLine(self: *ReplLoop, line: []const u8, io: std.Io) !LineOutcome {
+    /// Public so the input loops in `repl_io.zig` can call back into the hub.
+    pub fn dispatchLine(self: *ReplLoop, line: []const u8, io: std.Io) !LineOutcome {
         if (line[0] == '/') return self.dispatchSlashCommand(line, io);
         return self.completePrompt(line, io);
     }
@@ -298,7 +117,7 @@ pub const ReplLoop = struct {
             .profile => self.showProfileStatus(),
             .syncclis => try self.runSyncClis(io),
             .open => try self.runOpen(specialArg(line), io),
-            .diff => try self.runDiff(io),
+            .diff => try self.runDiff(specialArg(line), io),
             .features => self.showFeatures(),
             .learn => self.toggleLearn(),
             .save => try self.saveSession(specialArg(line), io),
@@ -353,50 +172,10 @@ pub const ReplLoop = struct {
         std.debug.print("  blocks:   {d}\n", .{self.persistedBlockCount()});
     }
 
+    /// `/sync-clis`: execute the central sync-clis launcher (in-repo canonical
+    /// first, then synced copies; never executes a missing script).
     fn runSyncClis(self: *ReplLoop, io: std.Io) !void {
-        // Prefer the in-repo canonical launcher, then common synched skill dirs.
-        // Never execute a missing script.
-        const candidates = [_][]const u8{
-            ".agents/skills/sync-clis/launch.sh",
-            ".claude/skills/sync-clis/launch.sh",
-        };
-        var launch_owned: ?[]const u8 = null;
-        defer if (launch_owned) |p| self.allocator.free(p);
-
-        var launch_path: ?[]const u8 = null;
-        for (candidates) |rel| {
-            std.Io.Dir.cwd().access(io, rel, .{}) catch continue;
-            launch_path = rel;
-            break;
-        }
-        if (launch_path == null) {
-            const home_var = cmds.homeEnvVarName(@import("builtin").target.os.tag);
-            if (env.get(home_var)) |home| {
-                const grok = try utils.pathJoin(home, ".grok/skills/sync-clis/launch.sh", self.allocator);
-                std.Io.Dir.cwd().access(io, grok, .{}) catch {
-                    self.allocator.free(grok);
-                    std.debug.print("sync-clis: launcher not found (tried .agents/, .claude/, ~/.grok/)\n", .{});
-                    return;
-                };
-                launch_owned = grok;
-                launch_path = grok;
-            } else {
-                std.debug.print("sync-clis: launcher not found (tried .agents/, .claude/; HOME unset)\n", .{});
-                return;
-            }
-        }
-
-        std.debug.print("sync-clis: executing {s}...\n", .{launch_path.?});
-        var child = try std.process.spawn(io, .{
-            .argv = &[_][]const u8{launch_path.?},
-            .cwd = .inherit,
-            .stdin = .ignore,
-            .stdout = .inherit,
-            .stderr = .inherit,
-        });
-        defer child.kill(io);
-        const term = try child.wait(io);
-        std.debug.print("sync-clis done (exit {any})\n", .{term});
+        try git_cmds.runSyncClis(self.allocator, io);
     }
 
     fn printUnknownCommand(self: *ReplLoop, line: []const u8) !void {
@@ -407,158 +186,10 @@ pub const ReplLoop = struct {
         std.debug.print("unknown command: {s} (try /help)\n", .{safe_line});
     }
 
-    const StreamCtx = struct {
-        allocator: std.mem.Allocator,
-        fn callback(ctx: *anyopaque, chunk: ai.StreamChunk) anyerror!void {
-            if (chunk.delta.len == 0) return;
-            const self: *@This() = @ptrCast(@alignCast(ctx));
-            const safe = try sanitize.sanitizeControlBytes(self.allocator, chunk.delta);
-            defer self.allocator.free(safe);
-            std.debug.print("{s}", .{safe});
-        }
-        /// Connector SSE path uses ConnectorError; print-only and never abort mid-stream.
-        fn bridgeCallback(ctx: *anyopaque, chunk: connector_http.StreamChunk) connector_mod.ConnectorError!void {
-            if (chunk.delta.len == 0) return;
-            const self: *@This() = @ptrCast(@alignCast(ctx));
-            const safe = sanitize.sanitizeControlBytes(self.allocator, chunk.delta) catch return;
-            defer self.allocator.free(safe);
-            std.debug.print("{s}", .{safe});
-        }
-    };
-
+    /// Ordinary (non-slash) input: run the completion path in
+    /// `repl_complete.zig` (SEA / local-bridge SSE / in-process streaming).
     fn completePrompt(self: *ReplLoop, line: []const u8, io: std.Io) !LineOutcome {
-        // Resolve @file mentions in the input before building context
-        const resolved = try resolveFileMentions(self.allocator, line, ".", io);
-        defer self.allocator.free(resolved);
-
-        var augmented_line = resolved;
-        var augmented_buf: ?[]u8 = null;
-        defer if (augmented_buf) |b| self.allocator.free(b);
-
-        const maybe_prefix = try cmds.buildCompletionContext(
-            self.allocator,
-            self.state.config.context_snippets,
-            &self.state.turn_history,
-            self.state.turn_history_count,
-            self.state.turn_history_head,
-            self.state.open_path,
-            self.state.open_content,
-            resolved,
-        );
-        if (maybe_prefix) |prefix| {
-            augmented_buf = prefix;
-            augmented_line = prefix;
-        }
-
-        if (self.state.config.learn_mode and build_options.feat_sea) {
-            // SEA self-learning path: evidence-augmented completion
-            var stream_ctx = StreamCtx{ .allocator = self.allocator };
-            var result = try sea.runLearnLoop(self.allocator, self.store, augmented_line, self.state.config.model, .{
-                .persist = self.state.config.store_turns,
-                .adapt_router = true,
-                .stream_callback = StreamCtx.callback,
-                .stream_ctx = &stream_ctx,
-            });
-            defer result.deinit(self.allocator);
-
-            // All chunks emitted; print turn metadata.
-            std.debug.print("\n", .{});
-            std.debug.print("[turn {d} | model={s} | profile={s} | sea | evidence={d} | adapted={s}]\n", .{
-                self.state.turn_count + 1,
-                result.completion.model,
-                result.completion.selected_profile.label(),
-                result.evidence_count,
-                if (result.adapted) "true" else "false",
-            });
-
-            self.state.pushTurn(self.allocator, line, result.completion.output);
-        } else if (local_bridge.isLocalBridgeModel(self.state.config.model)) {
-            // Local OpenAI-compatible server (llama-server / ollama / mlx-server).
-            // Prefer SSE token streaming when the server is reachable; fall back
-            // to the in-process persona router with post-hoc chunked output.
-            const model = self.state.config.model;
-            const is_mlx = std.mem.startsWith(u8, model, "mlx/") or std.mem.startsWith(u8, model, "mlx-");
-            const env_key = if (is_mlx) "ABI_MLX_ENDPOINT" else "ABI_LLAMA_CPP_ENDPOINT";
-            const override = env.get(env_key);
-            const endpoint = local_bridge.endpointFor(model, override);
-
-            if (local_bridge.healthCheck(io, self.allocator, endpoint)) {
-                var stream_ctx = StreamCtx{ .allocator = self.allocator };
-                const full = local_bridge.completeLiveStreaming(
-                    io,
-                    self.allocator,
-                    model,
-                    augmented_line,
-                    StreamCtx.bridgeCallback,
-                    &stream_ctx,
-                ) catch |err| {
-                    std.debug.print("\n[bridge stream error: {s}; falling back to in-process]\n", .{@errorName(err)});
-                    var stream_ctx_fb = StreamCtx{ .allocator = self.allocator };
-                    var result = try ai.completeWithSchedulerStreaming(self.allocator, self.store, self.scheduler, "complete:agent-tui-bridge-fb", .{
-                        .input = augmented_line,
-                        .model = model,
-                        .store_result = self.state.config.store_turns,
-                    }, StreamCtx.callback, &stream_ctx_fb);
-                    defer result.deinit(self.allocator);
-                    std.debug.print("\n", .{});
-                    std.debug.print("[turn {d} | model={s} | profile={s} | bridge=fallback | persisted={s}]\n", .{
-                        self.state.turn_count + 1,
-                        result.model,
-                        result.selected_profile.label(),
-                        if (result.query_vector_id != null) "true" else "false",
-                    });
-                    self.state.pushTurn(self.allocator, line, result.output);
-                    self.state.turn_count += 1;
-                    return .keep_going;
-                };
-                defer self.allocator.free(full);
-                std.debug.print("\n", .{});
-                std.debug.print("[turn {d} | model={s} | bridge={s} | stream=sse]\n", .{
-                    self.state.turn_count + 1,
-                    model,
-                    endpoint,
-                });
-                self.state.pushTurn(self.allocator, line, full);
-            } else {
-                std.debug.print("warning: local inference server not reachable at {s}; falling back to in-process router\n", .{endpoint});
-                var stream_ctx = StreamCtx{ .allocator = self.allocator };
-                var result = try ai.completeWithSchedulerStreaming(self.allocator, self.store, self.scheduler, "complete:agent-tui-bridge-down", .{
-                    .input = augmented_line,
-                    .model = model,
-                    .store_result = self.state.config.store_turns,
-                }, StreamCtx.callback, &stream_ctx);
-                defer result.deinit(self.allocator);
-                std.debug.print("\n", .{});
-                std.debug.print("[turn {d} | model={s} | profile={s} | bridge=unreachable | persisted={s}]\n", .{
-                    self.state.turn_count + 1,
-                    result.model,
-                    result.selected_profile.label(),
-                    if (result.query_vector_id != null) "true" else "false",
-                });
-                self.state.pushTurn(self.allocator, line, result.output);
-            }
-        } else {
-            var stream_ctx = StreamCtx{ .allocator = self.allocator };
-            var result = try ai.completeWithSchedulerStreaming(self.allocator, self.store, self.scheduler, "complete:agent-tui", .{
-                .input = augmented_line,
-                .model = self.state.config.model,
-                .store_result = self.state.config.store_turns,
-            }, StreamCtx.callback, &stream_ctx);
-            defer result.deinit(self.allocator);
-
-            // All chunks emitted; print turn metadata.
-            std.debug.print("\n", .{});
-            std.debug.print("[turn {d} | model={s} | profile={s} | persisted={s}]\n", .{
-                self.state.turn_count + 1,
-                result.model,
-                result.selected_profile.label(),
-                if (result.query_vector_id != null) "true" else "false",
-            });
-
-            self.state.pushTurn(self.allocator, line, result.output);
-        }
-        self.state.turn_count += 1;
-        return .keep_going;
+        return repl_complete.completePrompt(self.allocator, self.store, self.scheduler, &self.state, line, io);
     }
 
     /// `/reset`: clear the per-session turn counter and start a fresh session
@@ -652,12 +283,11 @@ pub const ReplLoop = struct {
         try git_cmds.runOpen(self.allocator, &self.state, path, io);
     }
 
-    /// `/diff`: run `git diff` and print the output.
     /// `/diff [--stat]`: run `git diff` and print the output. When `--stat` is
     /// passed, shows a summary of changed files. Output is colorized with ANSI
     /// codes for added (+) lines in green and removed (-) lines in red.
-    fn runDiff(self: *ReplLoop, io: std.Io) !void {
-        try git_cmds.runDiff(self.allocator, io);
+    fn runDiff(self: *ReplLoop, arg: []const u8, io: std.Io) !void {
+        try git_cmds.runDiff(self.allocator, arg, io);
     }
 
     /// `/commit`: stage all changes and create a commit. Prompts for a commit
@@ -750,57 +380,6 @@ pub const ReplLoop = struct {
     }
 };
 
-/// Resolve `@file` mentions in input text by reading file contents.
-/// Each `@path` mention is replaced with `[file: path]\ncontent\n[/file]`.
-/// If the file cannot be read, the mention is replaced with
-/// `[file: path] (not found)[/file]`.
-/// Returns an owned string; caller must free.
-fn resolveFileMentions(allocator: std.mem.Allocator, input: []const u8, root: []const u8, io: std.Io) ![]u8 {
-    const max_file_read: usize = 16384;
-
-    const mentions = file_context.parseFileMentions(allocator, input) catch {
-        return try allocator.dupe(u8, input);
-    };
-    defer allocator.free(mentions);
-
-    if (mentions.len == 0) {
-        return try allocator.dupe(u8, input);
-    }
-
-    var result = std.ArrayListUnmanaged(u8).empty;
-    defer result.deinit(allocator);
-
-    var last_end: usize = 0;
-    for (mentions) |mention| {
-        // Append text before the mention
-        try result.appendSlice(allocator, input[last_end..mention.start]);
-
-        // Try to read the file (bounded to 16 KB)
-        const file_contents = file_context.readFileBounded(io, allocator, root, mention.path, max_file_read) catch {
-            // File not found or unreadable — emit placeholder
-            try result.appendSlice(allocator, "[file: ");
-            try result.appendSlice(allocator, mention.path);
-            try result.appendSlice(allocator, "] (not found)[/file]");
-            last_end = mention.end;
-            continue;
-        };
-        defer allocator.free(file_contents);
-
-        // Inject file contents with markers
-        try result.appendSlice(allocator, "[file: ");
-        try result.appendSlice(allocator, mention.path);
-        try result.appendSlice(allocator, "]\n");
-        try result.appendSlice(allocator, file_contents);
-        try result.appendSlice(allocator, "\n[/file]");
-
-        last_end = mention.end;
-    }
-    // Append remaining text after the last mention
-    try result.appendSlice(allocator, input[last_end..]);
-
-    return try result.toOwnedSlice(allocator);
-}
-
 test "parseSpecialCommand recognizes slash commands and treats prompts as unknown" {
     try std.testing.expectEqual(SpecialCommand.quit, parseSpecialCommand("/quit"));
     try std.testing.expectEqual(SpecialCommand.quit, parseSpecialCommand("/q"));
@@ -875,37 +454,6 @@ test "ReplState init seeds defaults and a session id" {
     try std.testing.expect(state.session_id > 0);
 }
 
-test "slash completion canonicalizes unique prefixes and reports ambiguity" {
-    var matches: [slash_commands.len]*const SlashCommand = undefined;
-
-    switch (completeSlashCommand("/mod", &matches)) {
-        .unique => |name| try std.testing.expectEqualStrings("model", name),
-        else => return error.ExpectedUniqueModel,
-    }
-    switch (completeSlashCommand("/stat", &matches)) {
-        .unique => |name| try std.testing.expectEqualStrings("status", name),
-        else => return error.ExpectedUniqueStatus,
-    }
-    switch (completeSlashCommand("/s", &matches)) {
-        .ambiguous => |defs| {
-            try std.testing.expectEqual(@as(usize, 4), defs.len);
-            try std.testing.expectEqualStrings("status", defs[0].name);
-            try std.testing.expectEqualStrings("sync-clis", defs[1].name);
-            try std.testing.expectEqualStrings("save", defs[2].name);
-            try std.testing.expectEqualStrings("sessions", defs[3].name);
-        },
-        else => return error.ExpectedAmbiguousSlashPrefix,
-    }
-    switch (completeSlashCommand("/model abi", &matches)) {
-        .none => {},
-        else => return error.ExpectedLiteralModelArgument,
-    }
-    switch (completeSlashCommand("ordinary prompt", &matches)) {
-        .none => {},
-        else => return error.ExpectedLiteralPrompt,
-    }
-}
-
 test "tui input hardening: adversarial bytes never corrupt state" {
     const adversarial = [_][]const u8{
         "",
@@ -937,66 +485,6 @@ test "tui input hardening: adversarial bytes never corrupt state" {
     try std.testing.expect(std.mem.indexOfScalar(u8, clean, 0x1b) == null);
     try std.testing.expect(std.mem.indexOfScalar(u8, clean, 0x00) == null);
     try std.testing.expectEqual(dirty.len, clean.len);
-}
-
-test "raw editor rejects control bytes and accepts printable ASCII" {
-    var editor = line_editor.LineEditor.init(std.testing.allocator);
-    defer editor.deinit();
-
-    try std.testing.expect(!(try editor.insertPrintable(0x1b)));
-    try std.testing.expect(!(try editor.insertPrintable(0x00)));
-    try std.testing.expect(!(try editor.insertPrintable(0x7f)));
-    try std.testing.expect(try editor.insertPrintable(0x20));
-    try std.testing.expect(try editor.insertPrintable(0x7e));
-    try std.testing.expectEqualStrings(" ~", editor.text());
-}
-
-test "resolveFileMentions passes through input with no mentions" {
-    const allocator = std.testing.allocator;
-    const result = try resolveFileMentions(allocator, "hello world", ".", std.testing.io);
-    defer allocator.free(result);
-    try std.testing.expectEqualStrings("hello world", result);
-}
-
-test "resolveFileMentions replaces unfound file with placeholder" {
-    const allocator = std.testing.allocator;
-    const result = try resolveFileMentions(allocator, "read @nonexistent-file.xyz end", ".", std.testing.io);
-    defer allocator.free(result);
-    try std.testing.expect(std.mem.indexOf(u8, result, "(not found)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "[file: nonexistent-file.xyz]") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "[/file]") != null);
-    try std.testing.expect(std.mem.startsWith(u8, result, "read "));
-    try std.testing.expect(std.mem.endsWith(u8, result, " end"));
-}
-
-test "resolveFileMentions preserves text before and after the mention" {
-    // Tests that surrounding text is preserved when a file mention resolves to
-    // the (not found) placeholder. Covers the position tracking logic.
-    const allocator = std.testing.allocator;
-    const result = try resolveFileMentions(allocator, "before @missing.txt after", ".", std.testing.io);
-    defer allocator.free(result);
-    try std.testing.expect(std.mem.startsWith(u8, result, "before "));
-    try std.testing.expect(std.mem.endsWith(u8, result, " after"));
-    try std.testing.expect(std.mem.indexOf(u8, result, "(not found)") != null);
-}
-
-test "resolveFileMentions ignores email-like @ tokens" {
-    const allocator = std.testing.allocator;
-    const result = try resolveFileMentions(allocator, "contact user@example.com for details", ".", std.testing.io);
-    defer allocator.free(result);
-    // No @file resolution; text passes through unchanged
-    try std.testing.expectEqualStrings("contact user@example.com for details", result);
-}
-
-test "resolveFileMentions handles multiple mentions with mix of found and missing" {
-    const allocator = std.testing.allocator;
-    const result = try resolveFileMentions(allocator, "process @missing-one.xyz and @missing-two.abc", ".", std.testing.io);
-    defer allocator.free(result);
-    // Both should produce (not found) placeholders
-    try std.testing.expect(std.mem.indexOf(u8, result, "(not found)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "missing-one.xyz") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "missing-two.abc") != null);
-    try std.testing.expect(std.mem.startsWith(u8, result, "process "));
 }
 
 test "save and load session round-trip restores state" {

@@ -4,8 +4,17 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ## Unreleased
 
+### Fixed
+
+- fix(tui): `/diff --stat` never worked from the live REPL line (`runDiff` re-parsed a hardcoded `"/diff "` literal); `/open` leaked the transient read buffer on every successful load; malformed `--soul-alpha` was silently coerced to 0.5 instead of usage + exit 2 per the CLI numeric-arg contract.
+
+### Changed
+
+- refactor(tui): final REPL organization split — `repl.zig` 1050→538 as a thin dispatch hub; raw/line input loops, key decode, redraw, tab completion, and Ctrl-R reverse search extracted to `repl_io.zig` (248); `completePrompt`, stream callback contexts, and `resolveFileMentions` extracted to `repl_complete.zig` (292); duplicated `runSyncClis` consolidated in `repl_git_commands.zig`. Public TUI API unchanged (parity green). `docs/spec/abi-refactor-design.mdx` §2 synced with the current module tree.
+
 ### Added
 
+- test(tui,cli): `runOpen` packed-context round-trip/budget/leak coverage, `--soul`/`--soul-alpha` usage-contract tests (+ `wiring.parseSoulAlpha`), and an `agent os dry-run` handler success-path test.
 - docs(skills): complete the 8 referenced-but-empty skills (opencode, ai-plan, gpu, mcp, sea, tui, wdbx, agent-status-reporter) with honest-stub framing; add tools/check_skills.sh frontmatter validator; remove 6 dead repo-root abi-superpower-* orphans.
 - **TUI feature-parity improvements** — Ctrl-R reverse history search, Alt-Enter multi-line input, Ctrl-K/U/W/L Emacs keys, `/sessions` list command, `/clear` screen command, colorized `/diff` (green +/red -/cyan hunks), `/diff --stat`, unified file context budgets (32 KiB `/open`, 16 KiB `@file`), `estimateTokens()` helper.
 + **SoulLayout neural routing wired into CLI** — `src/features/ai/router.zig` adds `routeInputWithSoul()` (keyword-sentiment + 3-output neural softmax blend via `blend_alpha`), `blendWeights()`, and `src/cli/handlers/train.zig` adds `handleSoulComplete` path behind `abi complete --soul <file.json> [--soul-alpha <0.0-1.0>]`. `SoulLayout.fromJson` + `bootstrap` now exercised end-to-end; point_neural_net parity maintained in stub.

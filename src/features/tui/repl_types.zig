@@ -8,6 +8,11 @@ const cmds = @import("repl_commands.zig");
 
 pub const MODEL_STORAGE_BYTES = cmds.MODEL_STORAGE_BYTES;
 
+/// Outcome of dispatching one input line. Lets the raw-mode and line-mode
+/// loops (`repl_io.zig`) and the completion path (`repl_complete.zig`) share
+/// identical handling and quit semantics.
+pub const LineOutcome = enum { keep_going, quit };
+
 /// Callback type for dispatching a plugin slash-command. Takes the plugin name,
 /// command name, and argument text; returns the output to display. `null` means
 /// plugin dispatch is unavailable (e.g. TUI feature disabled at build time).

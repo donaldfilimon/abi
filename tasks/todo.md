@@ -86,6 +86,7 @@ These are decisions, not unfinished work — do not "fix" them.
 ## Recently landed (digest — full detail in git + CHANGELOG)
 
 One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`.
+- **REPL finalization** — `repl.zig` 1050→538 (thin dispatch hub); input loops/keys/redraw/tab/Ctrl-R → `repl_io.zig` 248; `completePrompt` + stream contexts + `resolveFileMentions` → `repl_complete.zig` 292. Fixed `/diff --stat` (hardcoded `"/diff "` re-parse), deduped `runSyncClis` into `repl_git_commands.zig`, fixed `/open` transient-buffer leak, malformed `--soul-alpha` now usage exit 2. New tests: runOpen packing round-trip/budget/leak, `--soul` arg contract, `agent os dry-run` success. Design doc §2 synced.
 - **OS-control policy hardening** — trusted absolute POSIX command specs, empty child environments, retained opened cwd handles, options-only `ls`, and escaped policy-validated dry-runs; feature-off hard-denies and the primary gate is green.
 - Skill-set completion: authored opencode/ai-plan/gpu/mcp/sea/tui/wdbx/agent-status-reporter; added tools/check_skills.sh validator; removed 6 repo-root abi-superpower-* orphans. ./tools/check_skills.sh green; ./build.sh check green.
 - **TUI dashboard_render extract** — `dashboard.zig` 858→399; composition/split helpers → `dashboard_render.zig` 399 (wired to existing `dashboard_widgets`/`dashboard_panes`; storage pane scope row synced); 5 pure-helper tests. Public TUI API unchanged.

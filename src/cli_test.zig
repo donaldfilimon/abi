@@ -59,6 +59,23 @@ test "registry `complete` spec parses like the legacy parseCompleteArgs" {
     try std.testing.expectError(error.Usage, arg.parse(std.testing.allocator, spec, &.{ "abi", "complete", "--model" }));
 }
 
+test "complete --soul/--soul-alpha malformed usage exits 2 without running a completion" {
+    const t = std.testing.io;
+    const a = std.testing.allocator;
+    // A dangling `--soul` (missing file argument) or `--soul-alpha` (missing
+    // value) is a parse-level usage error.
+    try std.testing.expectEqual(@as(u8, 2), try dispatch.runCli(t, a, &.{ "abi", "complete", "--soul" }));
+    try std.testing.expectEqual(@as(u8, 2), try dispatch.runCli(t, a, &.{ "abi", "complete", "--soul-alpha" }));
+    // `--soul <file>` without the required <input> positional is also usage.
+    try std.testing.expectEqual(@as(u8, 2), try dispatch.runCli(t, a, &.{ "abi", "complete", "--soul", "soul.json" }));
+    // Malformed or out-of-range alpha values are rejected at the wiring edge
+    // (wiring.parseSoulAlpha) before handleComplete runs — no soul file read,
+    // no session, no completion.
+    try std.testing.expectEqual(@as(u8, 2), try dispatch.runCli(t, a, &.{ "abi", "complete", "--soul", "soul.json", "--soul-alpha", "abc", "hi" }));
+    try std.testing.expectEqual(@as(u8, 2), try dispatch.runCli(t, a, &.{ "abi", "complete", "--soul", "soul.json", "--soul-alpha", "1.5", "hi" }));
+    try std.testing.expectEqual(@as(u8, 2), try dispatch.runCli(t, a, &.{ "abi", "complete", "--soul-alpha", "-0.25", "hi" }));
+}
+
 test "registry `train` spec requires exactly one positional" {
     const spec = specFor("train");
 
