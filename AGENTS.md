@@ -1,6 +1,6 @@
 # AGENTS.md — abi
 
-Canonical instruction file. If this conflicts with `build.zig`, `tools/build.sh`, or source, trust the executable source. Sibling files `CLAUDE.md`/`GEMINI.md` mirror these conventions — update all three on command/flag/pattern changes. Session-start checklist: `tasks/lessons.md`; active board: `tasks/todo.md`.
+Canonical instruction file. If this conflicts with `build.zig`, `tools/build.sh`, or source, trust the executable source. Sibling files `CLAUDE.md`/`GEMINI.md` are thin redirects that each point here — update only this file on command/flag/pattern changes. Session-start checklist: `tasks/lessons.md`; active board: `tasks/todo.md`.
 
 ## Toolchain
 - Pinned to `0.17.0-dev.1398+cb5635714` (`.zigversion`). Use zvm/zigup to select it; the wrapper does **not** switch. Zig 0.16 fails on WDBX/MCP listeners (`std.Io.net.Stream`).
