@@ -98,7 +98,7 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
-- **Metal multi-pass reduce** — `runReduceSum` loops 256-wide threadgroup partials until one scalar; claims sync README/external-claims/north-star.
+- **#684 Metal multi-pass reduce** — `runReduceSum` loops 256-wide threadgroup partials until one scalar; claims sync README/external-claims/north-star; kernel comment aligned.
 - **#683** — Metal `reduce_sum_kernel` + REST wrong-bearer 401/`WWW-Authenticate` parity.
 - **#682** — abi-mega ops paths + inventory/board note; markdown audit fix-severity 0.
 - **#681/#680** — cluster mTLS ops + Phase D cutover HITL; host SIMD `sumF32` + REST threat review.
