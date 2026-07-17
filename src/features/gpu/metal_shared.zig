@@ -197,6 +197,7 @@ const MetalContext = struct {
     dot_pipeline: ?*anyopaque = null,
     l2_pipeline: ?*anyopaque = null,
     cosine_parts_pipeline: ?*anyopaque = null,
+    batch_cosine_pipeline: ?*anyopaque = null,
     reduce_sum_pipeline: ?*anyopaque = null,
     initialized: bool = false,
     mutex: sync.SpinLock = .{},
@@ -255,6 +256,53 @@ const MetalContext = struct {
             \\    bb[id] = bv * bv;
             \\}
             \\
+            \\// One threadgroup per candidate row (candidate `dim`-length vectors
+            \\// are laid out contiguously in `candidates`). Threads stride over
+            \\// the dimension accumulating partial qc/cc sums, then a shared-memory
+            \\// tree reduction (same pattern as reduce_sum_kernel) collapses to one
+            \\// value per threadgroup; thread 0 divides by the precomputed query
+            \\// norm and writes the cosine similarity for that candidate.
+            \\kernel void batch_cosine_kernel(
+            \\    device const float* query [[buffer(0)]],
+            \\    device const float* candidates [[buffer(1)]],
+            \\    device float* out [[buffer(2)]],
+            \\    constant uint& dim [[buffer(3)]],
+            \\    constant float& q_norm [[buffer(4)]],
+            \\    uint lid [[thread_position_in_threadgroup]],
+            \\    uint tgid [[threadgroup_position_in_grid]]
+            \\) {
+            \\    threadgroup float shared_qc[256];
+            \\    threadgroup float shared_cc[256];
+            \\    const uint lsize = 256u;
+            \\    const uint base = tgid * dim;
+            \\    float qc_part = 0.0f;
+            \\    float cc_part = 0.0f;
+            \\    for (uint i = lid; i < dim; i += lsize) {
+            \\        float qv = query[i];
+            \\        float cv = candidates[base + i];
+            \\        qc_part += qv * cv;
+            \\        cc_part += cv * cv;
+            \\    }
+            \\    shared_qc[lid] = qc_part;
+            \\    shared_cc[lid] = cc_part;
+            \\    threadgroup_barrier(mem_flags::mem_threadgroup);
+            \\    for (uint stride = lsize / 2u; stride > 0u; stride >>= 1u) {
+            \\        if (lid < stride) {
+            \\            shared_qc[lid] += shared_qc[lid + stride];
+            \\            shared_cc[lid] += shared_cc[lid + stride];
+            \\        }
+            \\        threadgroup_barrier(mem_flags::mem_threadgroup);
+            \\    }
+            \\    if (lid == 0u) {
+            \\        float cc = shared_cc[0];
+            \\        if (q_norm == 0.0f || cc == 0.0f) {
+            \\            out[tgid] = 0.0f;
+            \\        } else {
+            \\            out[tgid] = shared_qc[0] / (q_norm * sqrt(cc));
+            \\        }
+            \\    }
+            \\}
+            \\
             \\// One partial sum per threadgroup (256 threads). Zig encodeReduce*
             \\// re-dispatches until a single scalar remains (multi-pass).
             \\kernel void reduce_sum_kernel(
@@ -311,6 +359,9 @@ const MetalContext = struct {
         const cosine_func_name = try createNSString(allocator, "cosine_parts_kernel") orelse return error.CreateStringFailed;
         const cosine_func = msg_send_id_ret_id(library, sel_newFunctionWithName, cosine_func_name) orelse return error.FunctionNotFound;
 
+        const batch_cosine_func_name = try createNSString(allocator, "batch_cosine_kernel") orelse return error.CreateStringFailed;
+        const batch_cosine_func = msg_send_id_ret_id(library, sel_newFunctionWithName, batch_cosine_func_name) orelse return error.FunctionNotFound;
+
         const reduce_func_name = try createNSString(allocator, "reduce_sum_kernel") orelse return error.CreateStringFailed;
         const reduce_func = msg_send_id_ret_id(library, sel_newFunctionWithName, reduce_func_name) orelse return error.FunctionNotFound;
 
@@ -330,6 +381,10 @@ const MetalContext = struct {
         if (self.cosine_parts_pipeline == null) return error.CreatePipelineStateFailed;
 
         err = null;
+        self.batch_cosine_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, batch_cosine_func, @ptrCast(&err));
+        if (self.batch_cosine_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
         self.reduce_sum_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, reduce_func, @ptrCast(&err));
         if (self.reduce_sum_pipeline == null) return error.CreatePipelineStateFailed;
 
@@ -339,11 +394,13 @@ const MetalContext = struct {
         msg_send_void_ret_void(dot_func, sel_release);
         msg_send_void_ret_void(l2_func, sel_release);
         msg_send_void_ret_void(cosine_func, sel_release);
+        msg_send_void_ret_void(batch_cosine_func, sel_release);
         msg_send_void_ret_void(reduce_func, sel_release);
         msg_send_void_ret_void(library, sel_release);
         msg_send_void_ret_void(dot_func_name, sel_release);
         msg_send_void_ret_void(l2_func_name, sel_release);
         msg_send_void_ret_void(cosine_func_name, sel_release);
+        msg_send_void_ret_void(batch_cosine_func_name, sel_release);
         msg_send_void_ret_void(reduce_func_name, sel_release);
         msg_send_void_ret_void(source_nsstring, sel_release);
 
@@ -593,6 +650,75 @@ const MetalContext = struct {
         d.release(aa_scalar);
         d.release(bb_scalar);
         return sums;
+    }
+
+    /// Batched cosine similarity: one command buffer, one dispatch, N
+    /// threadgroups (one per candidate row). `candidates_flat` must be a
+    /// contiguous row-major buffer of `n * d` floats (caller flattens; see
+    /// vector_ops.batchCosineSimilarity, which owns that host-side copy).
+    /// `out` receives the `n` cosine similarities. Correctness-parity proven
+    /// against an independent scalar reference (see vector_ops.zig tests) —
+    /// no speedup claim; dispatch-count reduction vs. the per-pair
+    /// `runCosineFused` loop is unmeasured.
+    pub fn runBatchCosineFused(
+        self: *MetalContext,
+        query: []const f32,
+        candidates_flat: []const f32,
+        n: usize,
+        d: usize,
+        out: []f32,
+    ) !void {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (self.batch_cosine_pipeline == null) return error.NotInitialized;
+        if (query.len != d) return error.DimensionMismatch;
+        if (candidates_flat.len != n * d) return error.DimensionMismatch;
+        if (out.len != n) return error.DimensionMismatch;
+        if (n == 0 or d == 0) return;
+
+        // Query norm computed once, host-side, and passed to every threadgroup
+        // as a kernel constant — avoids re-deriving it per candidate.
+        var q_norm_sq: f32 = 0;
+        for (query) |v| q_norm_sq += v * v;
+        const q_norm = @sqrt(q_norm_sq);
+
+        const disp = MetalDispatch.load();
+        const query_bytes = d * @sizeOf(f32);
+        const candidates_bytes = n * d * @sizeOf(f32);
+        const out_bytes = n * @sizeOf(f32);
+
+        const buffer_query = disp.msg_bytes(self.device, disp.sel_new_bytes, query.ptr, query_bytes, 0) orelse
+            return error.BufferAllocationFailed;
+        defer disp.release(buffer_query);
+        const buffer_candidates = disp.msg_bytes(self.device, disp.sel_new_bytes, candidates_flat.ptr, candidates_bytes, 0) orelse
+            return error.BufferAllocationFailed;
+        defer disp.release(buffer_candidates);
+        const buffer_out = disp.msg_len(self.device, disp.sel_new_length, out_bytes, 0) orelse
+            return error.BufferAllocationFailed;
+        defer disp.release(buffer_out);
+
+        const cmd_buf = disp.msg_void_id(self.queue, disp.sel_command_buffer) orelse
+            return error.CommandBufferCreationFailed;
+
+        const encoder = disp.msg_void_id(cmd_buf, disp.sel_encoder) orelse return error.EncoderCreationFailed;
+        _ = disp.msg_id_id(encoder, disp.sel_set_pipeline, self.batch_cosine_pipeline);
+        disp.msg_set_buf(encoder, disp.sel_set_buffer, buffer_query, 0, 0);
+        disp.msg_set_buf(encoder, disp.sel_set_buffer, buffer_candidates, 0, 1);
+        disp.msg_set_buf(encoder, disp.sel_set_buffer, buffer_out, 0, 2);
+        var dim_u32: u32 = @intCast(d);
+        disp.msg_set_bytes(encoder, disp.sel_set_bytes, &dim_u32, @sizeOf(u32), 3);
+        var q_norm_var: f32 = q_norm;
+        disp.msg_set_bytes(encoder, disp.sel_set_bytes, &q_norm_var, @sizeOf(f32), 4);
+
+        // One threadgroup per candidate row; 256 threads/group matches the
+        // fixed shared-memory arrays declared in batch_cosine_kernel.
+        const groups = MTLSize{ .width = n, .height = 1, .depth = 1 };
+        const threads = MTLSize{ .width = 256, .height = 1, .depth = 1 };
+        disp.msg_dispatch(encoder, disp.sel_dispatch_groups, groups, threads);
+        disp.msg_void_void(encoder, disp.sel_end);
+
+        disp.commitAndWait(cmd_buf);
+        try disp.copyBufferToHost(buffer_out, out[0..n]);
     }
 
     /// Multi-pass threadgroup reduce on the GPU (256-wide). All passes encode
