@@ -184,8 +184,7 @@ test "accelerator selection report exposes fallback and native status" {
 }
 
 test "accelerator never claims native dispatch in this module" {
-    inline for (std.meta.fields(Workload)) |field| {
-        const workload: Workload = @enumFromInt(@intFromEnum(@field(Workload, field.name)));
+    inline for (std.enums.values(Workload)) |workload| {
         const report = selectionReport(workload);
         try std.testing.expect(!report.native_dispatch);
         try std.testing.expect(report.message.len > 0);

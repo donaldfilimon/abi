@@ -337,8 +337,9 @@ test "complete persists canonical model id in result and metadata" {
     defer result.deinit(allocator);
 
     try std.testing.expectEqualStrings(models.fable5, result.model);
+    try std.testing.expect(result.query_vector_id != null);
 
-    const key = try completionMetadataKey(allocator, result.query_vector_id);
+    const key = try completionMetadataKey(allocator, result.query_vector_id.?);
     defer allocator.free(key);
     const metadata = store.get(key) orelse return error.TestUnexpectedResult;
     try std.testing.expect(std.mem.indexOf(u8, metadata, "\"model\":\"claude-fable-5\"") != null);

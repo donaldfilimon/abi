@@ -70,6 +70,11 @@ fn preferredBackendForTarget() Backend {
     return .simulated;
 }
 
+/// Public preferred-backend selector (target OS). Matches stub.zig parity.
+pub fn preferredBackend() Backend {
+    return preferredBackendForTarget();
+}
+
 pub const PresenceProbe = struct {
     backend: Backend,
     declared: bool,

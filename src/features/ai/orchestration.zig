@@ -324,7 +324,7 @@ test "parse worker specs rejects fan-out above max_worker_count" {
     defer segments.deinit(std.testing.allocator);
     for (0..max_worker_count + 1) |i| {
         if (i > 0) try segments.append(std.testing.allocator, ';');
-        try segments.writer(std.testing.allocator).print("w{d}|instructions", .{i});
+        try segments.print(std.testing.allocator, "w{d}|instructions", .{i});
     }
     try std.testing.expectError(error.InvalidWorkerSpec, parseWorkerSpecs(std.testing.allocator, segments.items));
 }
