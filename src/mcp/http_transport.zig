@@ -61,6 +61,13 @@ pub fn runHttpServer(allocator: std.mem.Allocator, io: std.Io) void {
     }
 }
 
+pub fn wakeHttpServer(io: std.Io) void {
+    const net = std.Io.net;
+    const address = net.IpAddress.parseIp4("127.0.0.1", configuredHttpPort()) catch return;
+    const stream = address.connect(io, .{ .mode = .stream }) catch return;
+    defer stream.close(io);
+}
+
 pub fn setHttpPort(raw: ?[]const u8) void {
     configured_http_port = if (raw) |r| (parse.parseHttpPort(r) orelse DEFAULT_HTTP_PORT) else DEFAULT_HTTP_PORT;
 }
@@ -69,50 +76,18 @@ pub fn setHttpToken(raw: ?[]const u8) void {
     configured_http_token = if (raw) |r| parse.parseHttpToken(r) else null;
 }
 
-fn configuredHttpPort() u16 {
+pub fn configuredHttpPort() u16 {
     return configured_http_port;
+}
+
+pub fn configuredHttpToken() ?[]const u8 {
+    return configured_http_token;
 }
 
 // --- HTTP Request Parsing (loopback-only HTTP/1.1, not a general-purpose parser) ---
 
-const HttpReadResult = union(enum) {
-    request: []const u8,
-    empty,
-    too_large,
-};
-
-fn readHttpRequest(io: std.Io, conn: std.Io.net.Stream, buf: []u8) HttpReadResult {
-    var total: usize = 0;
-    var header_end: ?usize = null;
-    var want_total: ?usize = null;
-
-    while (true) {
-        if (header_end == null) {
-            if (std.mem.indexOf(u8, buf[0..total], "\r\n\r\n")) |idx| {
-                const end = idx + 4;
-                header_end = end;
-                const declared = parse.parseContentLength(buf[0..end]) orelse 0;
-                want_total = parse.requestTargetWithinBuffer(end, declared, buf.len) orelse return .too_large;
-            }
-        }
-
-        if (want_total) |want| {
-            if (total >= want) break;
-        }
-
-        if (total >= buf.len) {
-            return .too_large;
-        }
-
-        var rv: [1][]u8 = .{buf[total..]};
-        const n = conn.read(io, &rv) catch break;
-        if (n == 0) break;
-        total += n;
-    }
-
-    if (total == 0) return .empty;
-    return .{ .request = buf[0..total] };
-}
+const HttpReadResult = foundation_http.HttpReadResult;
+const readHttpRequest = foundation_http.readHttpRequest;
 
 fn handleHttpConnection(allocator: std.mem.Allocator, io: std.Io, conn: std.Io.net.Stream) !void {
     try handleHttpConnectionWithAuth(allocator, io, conn, null);
