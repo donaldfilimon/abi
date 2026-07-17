@@ -5,7 +5,7 @@ const foundation_time = @import("../../foundation/time.zig");
 
 const wdbx = features.wdbx;
 
-pub const CLUSTER_TOKEN_ENV = "ABI_WDBX_CLUSTER_TOKEN";
+pub const CLUSTER_TOKEN_ENV = env.WDBX_CLUSTER_TOKEN_ENV;
 pub const CLUSTER_PEERS_ENV = "ABI_WDBX_CLUSTER_PEERS";
 
 const ClusterConfig = struct {

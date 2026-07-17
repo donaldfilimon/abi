@@ -38,6 +38,23 @@ pub fn get(key: []const u8) ?[]const u8 {
     return if (v.len == 0) null else v;
 }
 
+// --- Canonical environment variable names (shared across MCP, WDBX REST, connectors) ---
+
+pub const MCP_HTTP_PORT_ENV = "ABI_MCP_HTTP_PORT";
+pub const MCP_HTTP_TOKEN_ENV = "ABI_MCP_HTTP_TOKEN";
+pub const WDBX_REST_TOKEN_ENV = "ABI_WDBX_REST_TOKEN";
+pub const WDBX_REST_PORT_ENV = "ABI_WDBX_REST_PORT";
+pub const WDBX_CLUSTER_TOKEN_ENV = "ABI_WDBX_CLUSTER_TOKEN";
+pub const WDBX_CLUSTER_PEERS_ENV = "ABI_WDBX_CLUSTER_PEERS";
+pub const WDBX_TLS_CERT_ENV = "ABI_WDBX_TLS_CERT";
+pub const WDBX_TLS_KEY_ENV = "ABI_WDBX_TLS_KEY";
+pub const WDBX_PATH_ENV = "ABI_WDBX_PATH";
+pub const WDBX_PERSIST_ENV = "ABI_WDBX_PERSIST";
+pub const WDBX_RATE_LIMIT_CAPACITY_ENV = "ABI_WDBX_RATE_LIMIT_CAPACITY";
+pub const WDBX_RATE_LIMIT_REFILL_ENV = "ABI_WDBX_RATE_LIMIT_REFILL";
+pub const LLAMA_CPP_ENDPOINT_ENV = "ABI_LLAMA_CPP_ENDPOINT";
+pub const MLX_ENDPOINT_ENV = "ABI_MLX_ENDPOINT";
+
 test "get reports unset before install" {
     // No install() in this unit-test process, so every key resolves to null.
     try std.testing.expect(get("ABI_DEFINITELY_UNSET_VAR_XYZ") == null);

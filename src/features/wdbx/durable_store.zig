@@ -24,8 +24,8 @@ const env = @import("../../foundation/env.zig");
 /// Home-dir env var name, Windows-aware (USERPROFILE vs HOME).
 const HOME_VAR = if (builtin.target.os.tag == .windows) "USERPROFILE" else "HOME";
 
-pub const PATH_ENV = "ABI_WDBX_PATH";
-pub const PERSIST_ENV = "ABI_WDBX_PERSIST";
+pub const PATH_ENV = env.WDBX_PATH_ENV;
+pub const PERSIST_ENV = env.WDBX_PERSIST_ENV;
 pub const MEMORY_SENTINEL = ":memory:";
 pub const DEFAULT_SUBPATH = ".abi/wdbx";
 

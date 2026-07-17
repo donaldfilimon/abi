@@ -129,7 +129,7 @@ pub fn completePrompt(
         // to the in-process persona router with post-hoc chunked output.
         const model = state.config.model;
         const is_mlx = std.mem.startsWith(u8, model, "mlx/") or std.mem.startsWith(u8, model, "mlx-");
-        const env_key = if (is_mlx) "ABI_MLX_ENDPOINT" else "ABI_LLAMA_CPP_ENDPOINT";
+        const env_key = if (is_mlx) env.MLX_ENDPOINT_ENV else env.LLAMA_CPP_ENDPOINT_ENV;
         const override = env.get(env_key);
         const endpoint = local_bridge.endpointFor(model, override);
 

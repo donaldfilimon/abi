@@ -8,6 +8,7 @@ const reg = @import("registry.zig");
 const usage_mod = @import("usage.zig");
 const handlers = @import("handlers/mod.zig");
 const arg = @import("arg.zig");
+const env = @import("../foundation/env.zig");
 
 const Ctx = reg.Ctx;
 const Command = reg.Command;
@@ -121,7 +122,7 @@ pub const wdbx_subcommands = [_]Command{
     .{ .name = "compute", .summary = "Report CPU/GPU/NPU/TPU backend selection and fallback state.", .usage = "abi wdbx compute info" },
     .{ .name = "secure", .summary = "Demonstrate local compression plus reference homomorphic aggregation; not security-audited FHE.", .usage = "abi wdbx secure demo" },
     .{ .name = "gpu", .summary = "Report GPU backend capability and native-kernel status.", .usage = "abi wdbx gpu info" },
-    .{ .name = "api", .summary = "Serve the loopback WDBX REST API; bearer token via ABI_WDBX_REST_TOKEN; TLS via ABI_WDBX_TLS_CERT/KEY (proxy-terminated).", .usage = "abi wdbx api serve [port]" },
+    .{ .name = "api", .summary = "Serve the loopback WDBX REST API; bearer token via " ++ env.WDBX_REST_TOKEN_ENV ++ "; TLS via ABI_WDBX_TLS_CERT/KEY (proxy-terminated).", .usage = "abi wdbx api serve [port]" },
 };
 
 // --- Typed handlers ----------------------------------------------------------
