@@ -12,6 +12,8 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Changed
 
+- perf(gpu): Metal dispatch CQ — shared `MetalDispatch` helper; map+reduce and fused cosine chain multi-pass `reduce_sum` in one command buffer (no host re-upload thrash); Metal failures log then explicit CPU fallback. Broader kernels / CUDA / ANE remain Proposed.
+- refactor(wdbx): dedupe REST missing-token vs wrong-bearer 401 insert fixture (`expectUnauthorizedInsert`).
 - perf(gpu): Metal multi-pass `reduce_sum_kernel` — loop 256-wide threadgroup partials until one scalar (`runReduceSum`); host `sumF32` remains the CPU / failure fallback. Broader kernels / CUDA / ANE remain Proposed.
 - docs(claims): sync north-star / external-claims / README / public-api with Metal fused cosine/dot/L2 + multi-pass reduce; list demo rANS/order-1 (`ans.zig`) beside Huffman — still not CUDA/Vulkan/ANE, SOTA compression, or GPU speedup claims.
 
