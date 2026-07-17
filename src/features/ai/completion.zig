@@ -215,7 +215,7 @@ fn completionMetadataJson(
     errdefer out.deinit(allocator);
 
     try out.appendSlice(allocator, "{\"kind\":\"completion\",\"model\":");
-    try appendMetadataJsonString(&out, allocator, request.model);
+    try appendMetadataJsonString(&out, allocator, result.model);
     try out.appendSlice(allocator, ",\"profile\":");
     try appendMetadataJsonString(&out, allocator, result.selected_profile.label());
     const audit_passed = if (result.audit.passed) "true" else "false";
@@ -309,17 +309,39 @@ test "metadata JSON includes the escore and veto fields" {
 
 test "metadata JSON escapes model and profile fields" {
     var result = types.CompletionResult{
-        .model = "m",
+        .model = "m\"x",
         .selected_profile = .abbey,
         .output = try std.testing.allocator.dupe(u8, "out"),
         .audit = constitution.AuditResult.init(),
     };
     defer result.deinit(std.testing.allocator);
 
-    const metadata = try completionMetadataJson(std.testing.allocator, .{ .input = "in", .model = "m\"x" }, result, 1, 2);
+    const metadata = try completionMetadataJson(std.testing.allocator, .{ .input = "in", .model = "ignored-alias" }, result, 1, 2);
     defer std.testing.allocator.free(metadata);
     try std.testing.expect(std.mem.indexOf(u8, metadata, "\"model\":\"m\\\"x\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, metadata, "\"profile\":\"abbey\"") != null);
+}
+
+test "complete persists canonical model id in result and metadata" {
+    if (!build_options.feat_wdbx) return;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    const result = try completeWithStore(allocator, &store, .{
+        .input = "catalog alias smoke",
+        .model = "fable-5",
+        .store_result = true,
+    });
+    defer result.deinit(allocator);
+
+    try std.testing.expectEqualStrings(models.fable5, result.model);
+
+    const key = try completionMetadataKey(allocator, result.query_vector_id);
+    defer allocator.free(key);
+    const metadata = store.get(key) orelse return error.TestUnexpectedResult;
+    try std.testing.expect(std.mem.indexOf(u8, metadata, "\"model\":\"claude-fable-5\"") != null);
 }
 
 test "completeWithStore tracks transient persistence memory and frees it" {

@@ -37,7 +37,8 @@ test "gpu backend capability report covers all registered backends" {
     try std.testing.expectEqual(backends.Backend.simulated, caps[0].backend);
     const report = try backendStatusReport(std.testing.allocator);
     defer std.testing.allocator.free(report);
-    for (.{ "cuda:", "webgpu:", "webgl2:", "vulkan:", "opengl:" }) |needle| {
+    const needles = [_][]const u8{ "cuda:", "webgpu:", "webgl2:", "vulkan:", "opengl:" };
+    for (needles) |needle| {
         try std.testing.expect(std.mem.indexOf(u8, report, needle) != null);
     }
     for (caps) |cap| {

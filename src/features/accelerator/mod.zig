@@ -32,6 +32,7 @@ pub const SelectionReport = struct {
     selected_backend: Backend,
     fallback_backend: Backend,
     native_available: bool,
+    native_dispatch: bool,
     gpu_available: bool,
     gpu_accelerated: bool,
     message: []const u8,
