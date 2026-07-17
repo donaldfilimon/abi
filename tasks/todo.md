@@ -98,6 +98,7 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
+- **#692** — `TestWriter` consolidated to `foundation/test_helpers.zig` (15 inline copies removed across dashboard, registry, tui); `deleteTestFileIfExists` added for production WDBX use; import paths fixed in recovery/persistence/segments/wal/repl_git_commands.
 - **#691** — Env var names centralized in `foundation/env.zig` (15 constants); `escapeJsonString` delegated to `foundation/json.zig` from `rest_parse.zig`; connectors keep inline `appendJsonString` (module isolation). 99%+ tests pass (1 pre-existing flaky).
 - **#690** — `MAX_REQUEST_SIZE`/`writeUnauthorized`/`jsonStringAlloc` consolidated to `foundation`; `writeUnauthorized` comptime concat bug fixed.
 - **#689** — `reasonPhrase`/`strField`/`bindLoopback` extracted to `foundation`; silent `else |_| {}` fixed in `wdbx_db.zig`.
