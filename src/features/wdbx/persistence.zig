@@ -1,7 +1,7 @@
 const std = @import("std");
 const wdbx_mod = @import("mod.zig");
 const parser = @import("persistence_parse.zig");
-const test_helpers = @import("../../testing/test_helpers.zig");
+const test_helpers = @import("../../foundation/test_helpers.zig");
 
 pub const HEADER = "# ABI-WDBX v1";
 pub const CHECKSUM_PREFIX = "# checksum:";

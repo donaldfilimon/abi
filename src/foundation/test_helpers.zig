@@ -1,4 +1,5 @@
 const std = @import("std");
+const temp_path = @import("temp_path.zig");
 
 pub const TestWriter = struct {
     allocator: std.mem.Allocator,
@@ -14,6 +15,12 @@ pub const TestWriter = struct {
         try self.buffer.appendSlice(self.allocator, rendered);
     }
 };
+
+pub fn deleteTestFileIfExists(path: []const u8) void {
+    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| {
+        std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) });
+    };
+}
 
 test {
     std.testing.refAllDecls(@This());
