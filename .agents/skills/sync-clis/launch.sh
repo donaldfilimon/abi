@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# sync-clis: sync canonical skills/plugins/commands from .agents/skills/ to
-# all target CLI skill directories. Idempotent.
+# sync-clis: sync canonical skills from .agents/skills/ to in-repo CLI skill
+# dirs. Idempotent. Copies SKILL.md plus references/ and examples/ when present.
+# Does not copy .sh launchers. Distinct from ~/.grok/scripts/sync-clis.py.
 #
 # Usage:
 #   .agents/skills/sync-clis/launch.sh              # sync all targets
 #   .agents/skills/sync-clis/launch.sh --dry-run    # preview only
 #
-# Targets: grok (via .grok/config.toml extra_skill_dirs),
-#          claude (.claude/skills/), opencode,
-#          codex (via .codex/config.toml MCP refs)
+# Targets (if present): .claude/skills/, .grok/
 set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -49,9 +48,25 @@ sync_skills() {
         if [ -d "$dst/$skill_name" ]; then
             # Sync SKILL.md (text content only, not the .sh scripts)
             if [ -f "$src/$skill_name/SKILL.md" ]; then
-                cp "$src/$skill_name/SKILL.md" "$dst/$skill_name/SKILL.md"
-                echo "  synced: $label/$skill_name/SKILL.md"
+                if [ "$DRY_RUN" -eq 1 ]; then
+                    echo "  would sync: $label/$skill_name/SKILL.md"
+                else
+                    cp "$src/$skill_name/SKILL.md" "$dst/$skill_name/SKILL.md"
+                    echo "  synced: $label/$skill_name/SKILL.md"
+                fi
             fi
+            # Companion docs skills may load; non-destructive (overwrite/add, no delete)
+            for sub in references examples; do
+                if [ -d "$src/$skill_name/$sub" ]; then
+                    if [ "$DRY_RUN" -eq 1 ]; then
+                        echo "  would sync: $label/$skill_name/$sub/"
+                    else
+                        mkdir -p "$dst/$skill_name/$sub"
+                        cp -R "$src/$skill_name/$sub/." "$dst/$skill_name/$sub/"
+                        echo "  synced: $label/$skill_name/$sub/"
+                    fi
+                fi
+            done
         fi
     done
 }

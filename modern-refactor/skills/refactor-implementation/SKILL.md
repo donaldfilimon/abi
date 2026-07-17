@@ -21,5 +21,5 @@ Safe transformation techniques for applying modern designs while preserving beha
 
 Pair with `modern-refactorer` agent for larger modules.
 
-Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/refactor-implementation
+Base directory for this skill: /Users/donaldfilimon/abi/modern-refactor/skills/refactor-implementation
 Relative paths in this skill (e.g., references/) are relative to this base directory.
