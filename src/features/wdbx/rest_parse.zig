@@ -90,44 +90,8 @@ pub fn findBody(raw: []const u8) []const u8 {
     return "";
 }
 
-pub const HttpReadResult = union(enum) {
-    request: []const u8,
-    empty,
-    too_large,
-};
-
-pub fn readHttpRequest(io: std.Io, conn: std.Io.net.Stream, buf: []u8) HttpReadResult {
-    var total: usize = 0;
-    var header_end: ?usize = null;
-    var want_total: ?usize = null;
-
-    while (true) {
-        if (header_end == null) {
-            if (std.mem.indexOf(u8, buf[0..total], "\r\n\r\n")) |idx| {
-                const end = idx + 4;
-                header_end = end;
-                const declared = parseContentLength(buf[0..end]) orelse 0;
-                want_total = requestTargetWithinBuffer(end, declared, buf.len) orelse return .too_large;
-            }
-        }
-
-        if (want_total) |want| {
-            if (total >= want) break;
-        }
-
-        if (total >= buf.len) {
-            return .too_large;
-        }
-
-        var rv: [1][]u8 = .{buf[total..]};
-        const n = conn.read(io, &rv) catch break;
-        if (n == 0) break;
-        total += n;
-    }
-
-    if (total == 0) return .empty;
-    return .{ .request = buf[0..total] };
-}
+pub const HttpReadResult = foundation.HttpReadResult;
+pub const readHttpRequest = foundation.readHttpRequest;
 
 pub const requestTargetWithinBuffer = foundation.requestTargetWithinBuffer;
 pub const parseContentLength = foundation.parseContentLength;
