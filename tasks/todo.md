@@ -66,13 +66,14 @@ These are decisions, not unfinished work — do not "fix" them.
 
 ## Known test failures
 
-- None currently reproduced. Latest review gates: all `*.zig` files pass standalone `zig ast-check`; `zig build lint` passes (errors=0); `zig build check-parity` passes (exit 0); pin gate green on `0.17.0-dev.1398+cb5635714`; `./build.sh check` passes (39/39 steps, 1750 tests); `./build.sh full-check` passes (47/47 steps).
+- None currently reproduced. Latest review gates: all `*.zig` files pass standalone `zig ast-check`; `zig build lint` passes (errors=0); `zig build check-parity` passes (exit 0); pin gate green on `0.17.0-dev.1398+cb5635714`; `./build.sh check` passes (39/39 steps, 1986 tests).
 
 ---
 
 ## Recently landed (digest — full detail in git + CHANGELOG)
 
 One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`.
+- **Gitignore/config cleanup** — `.gitignore` trimmed ~100 dead entries (non-existent dirs, per-file docs/ allowlist consolidated); stale file refs in GPU skill docs fixed; `.opencode.json` removed (canonical is `opencode.json`). 22 insertions, 245 deletions. `./build.sh check` 39/39. (#675)
 - **Feature polish (streaming / RankedNode / creds / constitution)** — RankedNode+SearchResult borrowed `vector` views; TUI turn footers `stream=sse` vs `stream=post-hoc`; Ctrl-R clear-line redraw; `/status` last constitution escore; POSIX `secureZero` on credential deinit/load/save/signin buffer; north-star zero-copy row updated. Residual: true in-process token gen, Windows ACL/keychain, native GPU kernels.
 - **REPL `/pane` split** — `repl_pane.zig` post-turn composed split (chat left, `git diff --stat` / open-file summary right); reuses `dashboard_render` fit helpers; refuses <80 cols / non-tty; unit-tested layout math.
 - **REPL finalization** — `repl.zig` 1050→538 (thin dispatch hub); input loops/keys/redraw/tab/Ctrl-R → `repl_io.zig` 248; `completePrompt` + stream contexts + `resolveFileMentions` → `repl_complete.zig` 292. Fixed `/diff --stat` (hardcoded `"/diff "` re-parse), deduped `runSyncClis` into `repl_git_commands.zig`, fixed `/open` transient-buffer leak, malformed `--soul-alpha` now usage exit 2. New tests: runOpen packing round-trip/budget/leak, `--soul` arg contract, `agent os dry-run` success. Design doc §2 synced.
