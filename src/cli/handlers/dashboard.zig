@@ -65,6 +65,9 @@ pub fn handleDashboardWithOptions(allocator: std.mem.Allocator, options: Dashboa
         return 0;
     }
 
+    // Probe Metal (or CPU fallback) before the snapshot so System pane flags
+    // match abi backends / wdbx gpu info after a real init attempt.
+    _ = abi.features.gpu.vectorOps();
     const gpu_status = abi.features.gpu.detectBackend();
     const native_gpu = abi.features.gpu.nativeKernelStatus();
     const gpu_snapshot = GpuSnapshot{
