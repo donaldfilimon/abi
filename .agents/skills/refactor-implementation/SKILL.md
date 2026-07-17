@@ -1,6 +1,6 @@
 ---
 name: refactor-implementation
-description: Safe transformation techniques and implementation playbooks for clean-slate refactors in ABI. Use when executing modernization plans.
+description: This skill should be used when the user is ready to execute a refactor plan and asks how to apply it safely — e.g. 'implement this modernization plan', 'extract this safely', 'how do I cut over without breaking things'.
 ---
 
 # Refactor Implementation

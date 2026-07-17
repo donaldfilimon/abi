@@ -59,7 +59,10 @@ sync_skills() {
             if [ "$DRY_RUN" -eq 1 ]; then
                 echo "  would sync: $label/$skill_name/SKILL.md"
             else
-                cp "$src/$skill_name/SKILL.md" "$dst/$skill_name/SKILL.md"
+                # Rewrite any "Base directory for this skill: <path>" footer so it
+                # points at this target's actual location, not the canonical source.
+                sed "s|^Base directory for this skill: .*\$|Base directory for this skill: $dst/$skill_name|" \
+                    "$src/$skill_name/SKILL.md" > "$dst/$skill_name/SKILL.md"
                 echo "  synced: $label/$skill_name/SKILL.md"
             fi
         fi

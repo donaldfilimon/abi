@@ -1,6 +1,6 @@
 ---
 name: refactor-strategy
-description: Clean-slate planning, strategy selection (direct / phased / parallel), risk assessment for ABI refactors. Use at start of any significant modernization.
+description: This skill should be used when the user asks how to approach a modernization — e.g. 'should we rewrite or do this incrementally', 'plan a refactor of X', 'what's the risk here' — at the start of significant work.
 ---
 
 # Refactor Strategy
