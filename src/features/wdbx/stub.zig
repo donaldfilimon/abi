@@ -3,6 +3,7 @@ const build_options = @import("build_options");
 const memory = @import("../../core/memory.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
 const types = @import("stub_types.zig");
+const env = @import("../../foundation/env.zig");
 
 pub const MAX_LAYERS = types.MAX_LAYERS;
 pub const HNSW_DIMENSIONS = types.HNSW_DIMENSIONS;
@@ -37,8 +38,8 @@ pub const remote_compute = struct {};
 pub const rest = struct {};
 
 pub const tls_config = struct {
-    pub const TLS_CERT_ENV = "ABI_WDBX_TLS_CERT";
-    pub const TLS_KEY_ENV = "ABI_WDBX_TLS_KEY";
+    pub const TLS_CERT_ENV = env.WDBX_TLS_CERT_ENV;
+    pub const TLS_KEY_ENV = env.WDBX_TLS_KEY_ENV;
 
     pub const TlsConfig = struct {
         cert_path: []const u8 = "",

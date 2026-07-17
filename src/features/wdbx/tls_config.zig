@@ -25,8 +25,8 @@
 const std = @import("std");
 const env = @import("../../foundation/env.zig");
 
-pub const TLS_CERT_ENV = "ABI_WDBX_TLS_CERT";
-pub const TLS_KEY_ENV = "ABI_WDBX_TLS_KEY";
+pub const TLS_CERT_ENV = env.WDBX_TLS_CERT_ENV;
+pub const TLS_KEY_ENV = env.WDBX_TLS_KEY_ENV;
 
 /// TLS configuration loaded from environment variables.
 ///

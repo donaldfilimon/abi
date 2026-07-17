@@ -202,7 +202,7 @@ pub fn handleFmComplete(allocator: std.mem.Allocator, input: []const u8, model: 
 /// OpenAI-compatible server (llama-server, ollama, mlx-server) via HTTP.
 pub fn handleLocalBridgeComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, model: []const u8, stream: bool) !u8 {
     const is_mlx = std.mem.startsWith(u8, model, "mlx/") or std.mem.startsWith(u8, model, "mlx-");
-    const env_key = if (is_mlx) "ABI_MLX_ENDPOINT" else "ABI_LLAMA_CPP_ENDPOINT";
+    const env_key = if (is_mlx) env.MLX_ENDPOINT_ENV else env.LLAMA_CPP_ENDPOINT_ENV;
     const override = env.get(env_key);
     const endpoint = connectors.local_bridge.endpointFor(model, override);
     if (!connectors.local_bridge.healthCheck(io, allocator, endpoint)) {

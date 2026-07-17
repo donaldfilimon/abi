@@ -5,6 +5,7 @@ const db_commands = @import("wdbx_db.zig");
 const runtime_commands = @import("wdbx_runtime.zig");
 const test_helpers = @import("../../testing/test_helpers.zig");
 const usage_mod = @import("../usage.zig");
+const env = @import("../../foundation/env.zig");
 
 const wdbx = features.wdbx;
 
@@ -228,7 +229,7 @@ fn wdbxGpuHelp() u8 {
 }
 
 fn wdbxApiHelp() u8 {
-    std.debug.print("usage: abi wdbx api serve [port]\n\nServe the loopback WDBX REST API.\n\nEnv:\n  ABI_WDBX_REST_TOKEN     Optional bearer token for request auth.\n  ABI_WDBX_TLS_CERT       Path to PEM certificate (TLS config / proxy deployment).\n  ABI_WDBX_TLS_KEY        Path to PEM private key (TLS config / proxy deployment).\n\nTLS: native termination is not linked; deploy behind nginx/Caddy/haproxy.\n", .{});
+    std.debug.print("usage: abi wdbx api serve [port]\n\nServe the loopback WDBX REST API.\n\nEnv:\n  {s}     Optional bearer token for request auth.\n  ABI_WDBX_TLS_CERT       Path to PEM certificate (TLS config / proxy deployment).\n  ABI_WDBX_TLS_KEY        Path to PEM private key (TLS config / proxy deployment).\n\nTLS: native termination is not linked; deploy behind nginx/Caddy/haproxy.\n", .{env.WDBX_REST_TOKEN_ENV});
     return 0;
 }
 

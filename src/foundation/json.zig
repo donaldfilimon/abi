@@ -41,6 +41,27 @@ pub fn jsonStringAlloc(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
     return try out.toOwnedSlice(allocator);
 }
 
+pub fn escapeJsonStringRaw(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer out.deinit(allocator);
+    for (value) |byte| {
+        switch (byte) {
+            '"' => try out.appendSlice(allocator, "\\\""),
+            '\\' => try out.appendSlice(allocator, "\\\\"),
+            '\n' => try out.appendSlice(allocator, "\\n"),
+            '\r' => try out.appendSlice(allocator, "\\r"),
+            '\t' => try out.appendSlice(allocator, "\\t"),
+            0x00...0x07 => try out.print(allocator, "\\u{X:0>4}", .{byte}),
+            0x08 => try out.appendSlice(allocator, "\\b"),
+            0x0c => try out.appendSlice(allocator, "\\f"),
+            0x0b => try out.print(allocator, "\\u{X:0>4}", .{byte}),
+            0x0e...0x1f => try out.print(allocator, "\\u{X:0>4}", .{byte}),
+            else => try out.append(allocator, byte),
+        }
+    }
+    return try out.toOwnedSlice(allocator);
+}
+
 test "appendJsonString escapes metacharacters and control chars" {
     const allocator = std.testing.allocator;
 

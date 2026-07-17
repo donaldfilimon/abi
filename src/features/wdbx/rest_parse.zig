@@ -3,7 +3,7 @@ const env = @import("../../foundation/env.zig");
 const foundation = @import("../../foundation/http.zig");
 const foundation_json = @import("../../foundation/json.zig");
 
-pub const REST_TOKEN_ENV = "ABI_WDBX_REST_TOKEN";
+pub const REST_TOKEN_ENV = env.WDBX_REST_TOKEN_ENV;
 
 pub const Response = struct {
     status: u16,
@@ -48,22 +48,7 @@ pub fn vectorParseErrorResponse(allocator: std.mem.Allocator, err: VectorParseEr
 }
 
 pub fn escapeJsonString(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
-    var out: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer out.deinit(allocator);
-    for (value) |byte| {
-        switch (byte) {
-            '"' => try out.appendSlice(allocator, "\\\""),
-            '\\' => try out.appendSlice(allocator, "\\\\"),
-            '\n' => try out.appendSlice(allocator, "\\n"),
-            '\r' => try out.appendSlice(allocator, "\\r"),
-            '\t' => try out.appendSlice(allocator, "\\t"),
-            0x08 => try out.appendSlice(allocator, "\\b"),
-            0x0c => try out.appendSlice(allocator, "\\f"),
-            0x00...0x07, 0x0b, 0x0e...0x1f => try out.print(allocator, "\\u{X:0>4}", .{byte}),
-            else => try out.append(allocator, byte),
-        }
-    }
-    return out.toOwnedSlice(allocator);
+    return foundation_json.escapeJsonStringRaw(allocator, value);
 }
 
 pub const strField = foundation_json.strField;

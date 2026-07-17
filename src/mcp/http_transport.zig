@@ -5,14 +5,15 @@ const rpc = @import("rpc.zig");
 const shutdown = @import("shutdown.zig");
 const parse = @import("http_parse.zig");
 const foundation_http = @import("abi").foundation.http;
+const foundation_env = @import("abi").foundation.env;
 
 const MAX_REQUEST_SIZE = protocol.MAX_REQUEST_SIZE;
 const isShutdownRequested = shutdown.isRequested;
 const processJsonRpc = rpc.processJsonRpc;
 
 const DEFAULT_HTTP_PORT: u16 = 8080;
-pub const HTTP_PORT_ENV = "ABI_MCP_HTTP_PORT";
-pub const HTTP_TOKEN_ENV = "ABI_MCP_HTTP_TOKEN";
+pub const HTTP_PORT_ENV = foundation_env.MCP_HTTP_PORT_ENV;
+pub const HTTP_TOKEN_ENV = foundation_env.MCP_HTTP_TOKEN_ENV;
 
 var configured_http_port: u16 = DEFAULT_HTTP_PORT;
 var configured_http_token: ?[]const u8 = null;
