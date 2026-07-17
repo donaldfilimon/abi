@@ -33,7 +33,7 @@ Build the CLI, then exercise the local surfaces without live network credentials
 ./zig-out/bin/abi wdbx db compact zig-out/local-memory.jsonl 2
 ./zig-out/bin/abi wdbx benchmark 256          # local insert/query timing with P50/P95/P99
 ./zig-out/bin/abi wdbx compute info           # CPU/GPU/NPU/TPU backends, ANE detection, remote-dispatch endpoint
-./zig-out/bin/abi wdbx secure demo            # int8 + autoencoder compression; additive HE + DGHV add/multiply SHE demos
+./zig-out/bin/abi wdbx secure demo            # int8 + Huffman + demo rANS/order-1 + autoencoder; additive HE + DGHV SHE demos
 ./zig-out/bin/abi wdbx cluster serve 8090     # networked consensus RPC node endpoint (loopback; set ABI_WDBX_CLUSTER_TOKEN for non-loopback)
 ```
 
@@ -55,7 +55,7 @@ Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_lea
 - Documentation: `CLAUDE.md`, `GEMINI.md`, and `AGENTS.md` describe the 0.17+ development lifecycle.
 - Build: `./build.sh check` builds CLI/MCP, runs module tests, connector tests, contract tests, focused feature-off contracts, feature-aware public contracts for every `-Dfeat-*` stub, linting, and validates mod/stub parity.
 - Full validation: `./build.sh full-check` executes all integration tests, benchmarks, dashboard smoke, and `agent tui` line-mode smoke.
-- GPU/modules: all feature modules keep real/stub parity; GPU status and vector operations fall back deterministically to CPU when native kernels are unavailable.
+- GPU/modules: all feature modules keep real/stub parity; on macOS, Metal fused cosine/dot/L2 parts run when native kernels initialize; otherwise GPU status and vector operations fall back deterministically to vectorized CPU.
 - Plugins: `tools/generate_plugin_registry.zig` automatically maintains `src/plugin_registry.zig` from bundled `abi-plugin.json` manifests, with multi-plugin metadata coverage for `name`, `version`, `description`, `target_feature`, and safe relative `.zig` `entry_point` paths. The generator and plugin manager accept `targetFeature` / `entryPoint` aliases and require entry files to exist under the plugin directory.
 - AI/WDBX: API callers opt into persistence with `CompletionRequest.store_result=true`; CLI/MCP completion uses WDBX stores for query/response vectors, metadata, and block-chain entries when WDBX is enabled. Scheduler-backed completion, training, and agent helpers expose live task/memory observability.
 - WDBX: contract coverage verifies ordered vector search results, block metadata round-tripping, segment/WAL recovery and compaction, temporal graph snapshot restore, and MCP hybrid ranking while disabled builds return explicit `error.FeatureDisabled` operations for key-value/vector/search/block/spatial/temporal writes.

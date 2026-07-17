@@ -227,7 +227,7 @@ WDBX currently supports in-process storage, segment/WAL persistence, hybrid retr
 
 - production multi-host distributed deployment or sharding;
 - production-ready non-loopback HTTP exposure without TLS/authz/rate-limit review;
-- native local accelerator kernel execution for CUDA/Vulkan/Metal-kernel/ANE;
+- native CUDA / Vulkan / ANE dispatch, or blanket GPU acceleration beyond the macOS Metal fused cosine/dot/L2 parts path when kernels initialize;
 - production-secure or bootstrapped full FHE;
 - production/SOTA learned compression;
 - throughput, latency, accuracy, energy, or regulatory claims without a checked-in reproducible artifact.

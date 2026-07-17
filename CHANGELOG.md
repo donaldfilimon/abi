@@ -4,6 +4,10 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ## Unreleased
 
+### Changed
+
+- docs(claims): sync north-star / external-claims / README with Metal fused cosine/dot/L2 parts (`metal_shared.zig` / `vector_ops.zig`) and list demo rANS/order-1 (`ans.zig`) beside Huffman — still not CUDA/Vulkan/ANE, SOTA compression, or GPU speedup claims.
+
 ### Fixed
 
 - fix(tui): `/diff --stat` never worked from the live REPL line (`runDiff` re-parsed a hardcoded `"/diff "` literal); `/open` leaked the transient read buffer on every successful load; malformed `--soul-alpha` was silently coerced to 0.5 instead of usage + exit 2 per the CLI numeric-arg contract.
