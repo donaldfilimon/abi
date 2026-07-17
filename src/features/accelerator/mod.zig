@@ -32,6 +32,7 @@ pub const SelectionReport = struct {
     selected_backend: Backend,
     fallback_backend: Backend,
     native_available: bool,
+    native_dispatch: bool,
     gpu_available: bool,
     gpu_accelerated: bool,
     message: []const u8,
@@ -71,6 +72,7 @@ pub fn selectBackend(workload: Workload) Selection {
 
 pub fn selectionReport(workload: Workload) SelectionReport {
     const gpu_status = gpu.detectBackend();
+    const native_kernels = gpu.nativeKernelStatus();
     if (gpu_status.available and gpu_status.accelerated) {
         const gpu_backend: Backend = switch (gpu_status.backend) {
             .simulated => .gpu_simulated,
@@ -85,10 +87,14 @@ pub fn selectionReport(workload: Workload) SelectionReport {
             .workload = workload,
             .selected_backend = gpu_backend,
             .fallback_backend = fallbackBackend(workload),
-            .native_available = true,
+            .native_available = native_kernels.linked,
+            .native_dispatch = false,
             .gpu_available = true,
             .gpu_accelerated = true,
-            .message = gpu_status.message,
+            .message = if (native_kernels.linked)
+                gpu_status.message
+            else
+                "GPU backend selected via feat-gpu; native accelerator dispatch is not linked in this module",
         };
     }
 
@@ -98,6 +104,7 @@ pub fn selectionReport(workload: Workload) SelectionReport {
             .selected_backend = .gpu_simulated,
             .fallback_backend = fallbackBackend(workload),
             .native_available = false,
+            .native_dispatch = false,
             .gpu_available = true,
             .gpu_accelerated = false,
             .message = gpu_status.message,
@@ -110,27 +117,30 @@ pub fn selectionReport(workload: Workload) SelectionReport {
             .selected_backend = .mlir,
             .fallback_backend = .cpu,
             .native_available = false,
+            .native_dispatch = false,
             .gpu_available = false,
             .gpu_accelerated = false,
-            .message = "MLIR textual lowering selected with CPU execution fallback",
+            .message = "MLIR textual lowering selected; native accelerator dispatch is not linked",
         },
         .shader_compile => .{
             .workload = workload,
             .selected_backend = .gpu_simulated,
             .fallback_backend = .cpu,
             .native_available = false,
+            .native_dispatch = false,
             .gpu_available = false,
             .gpu_accelerated = false,
-            .message = "Zig shader validation selected with deterministic GPU metadata",
+            .message = "Shader validation selected; external compiler toolchains are not linked",
         },
         .inference, .training => .{
             .workload = workload,
             .selected_backend = .gpu_simulated,
             .fallback_backend = .cpu,
             .native_available = false,
+            .native_dispatch = false,
             .gpu_available = false,
             .gpu_accelerated = false,
-            .message = "Vectorized CPU accelerator selected for deterministic execution",
+            .message = "Vectorized CPU accelerator selected; native CUDA/NPU/TPU dispatch is not linked",
         },
     };
 }
@@ -165,9 +175,30 @@ test "accelerator selection report exposes fallback and native status" {
     try std.testing.expect(backendName(report.selected_backend).len > 0);
     try std.testing.expect(backendName(report.fallback_backend).len > 0);
     try std.testing.expectEqualStrings("graph-lowering", workloadName(report.workload));
+    try std.testing.expect(!report.native_dispatch);
     if (report.native_available) {
         try std.testing.expect(isAccelerated(.{ .backend = report.selected_backend, .workload = report.workload, .message = report.message }));
     } else {
         try std.testing.expect(!report.gpu_accelerated);
     }
+}
+
+test "accelerator never claims native dispatch in this module" {
+    inline for (std.meta.fields(Workload)) |field| {
+        const workload: Workload = @enumFromInt(@intFromEnum(@field(Workload, field.name)));
+        const report = selectionReport(workload);
+        try std.testing.expect(!report.native_dispatch);
+        try std.testing.expect(report.message.len > 0);
+    }
+}
+
+test "accelerator shader and graph workloads disclose no linked toolchain when gpu fallback" {
+    const gpu_status = gpu.detectBackend();
+    if (gpu_status.available and gpu_status.accelerated) return;
+
+    const shader = selectionReport(.shader_compile);
+    try std.testing.expect(std.mem.indexOf(u8, shader.message, "not linked") != null);
+
+    const graph = selectionReport(.graph_lowering);
+    try std.testing.expect(std.mem.indexOf(u8, graph.message, "not linked") != null);
 }

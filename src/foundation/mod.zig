@@ -9,6 +9,7 @@ pub const errors = @import("errors.zig");
 pub const os = @import("os.zig");
 pub const io = @import("io/mod.zig");
 pub const credentials = @import("credentials.zig");
+pub const keychain = @import("keychain.zig");
 pub const pool_allocator = @import("pool_allocator.zig");
 pub const temp_path = @import("temp_path.zig");
 pub const http = @import("http.zig");
@@ -21,6 +22,7 @@ test {
     _ = @import("os.zig");
     _ = @import("io/mod.zig");
     _ = @import("credentials.zig");
+    _ = @import("keychain.zig");
     _ = @import("utils.zig");
     _ = @import("validation.zig");
     _ = @import("sync.zig");

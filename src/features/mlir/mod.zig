@@ -144,7 +144,11 @@ test "mlir lowering emits structured textual IR" {
     try std.testing.expect(std.mem.indexOf(u8, result.ir, "abi.name = \"matmul\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, result.ir, "abi.ops = 1") != null);
     try std.testing.expect(std.mem.indexOf(u8, result.ir, "abi.checksum = \"") != null);
-    try std.testing.expect(!toolchainStatus().available);
+    const status = toolchainStatus();
+    try std.testing.expect(!status.available);
+    try std.testing.expectEqualStrings("textual-local", status.backend);
+    try std.testing.expect(std.mem.indexOf(u8, status.message, "not linked") != null);
+    try std.testing.expectEqualStrings("textual-local", result.target_backend);
 }
 
 test "mlir lowering validates symbols and escapes operation attributes" {

@@ -337,6 +337,14 @@ test "selectBestProfile picks highest weight" {
     try std.testing.expectEqual(types.AgentProfile.abi, selectBestProfile(weights3));
 }
 
+test "selectBestProfile tie-break order is abbey then aviva then abi" {
+    const three_way = ProfileWeights{ .w_abbey = 0.34, .w_aviva = 0.33, .w_abi = 0.33 };
+    try std.testing.expectEqual(types.AgentProfile.abbey, selectBestProfile(three_way));
+
+    const aviva_abi = ProfileWeights{ .w_abbey = 0.2, .w_aviva = 0.4, .w_abi = 0.4 };
+    try std.testing.expectEqual(types.AgentProfile.aviva, selectBestProfile(aviva_abi));
+}
+
 test "routeInput returns response from selected profile" {
     const allocator = std.testing.allocator;
     const result = try routeInput(allocator, "analyze the logical structure");

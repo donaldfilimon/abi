@@ -75,6 +75,7 @@ test "feature modules expose safe runtime contracts" {
     try std.testing.expect(features.accelerator.backendName(accelerator_report.selected_backend).len > 0);
     try std.testing.expect(features.accelerator.backendName(accelerator_report.fallback_backend).len > 0);
     try std.testing.expect(accelerator_report.message.len > 0);
+    try std.testing.expect(!accelerator_report.native_dispatch);
     if (accelerator_report.native_available) {
         try std.testing.expect(features.accelerator.isAccelerated(accelerator_selection));
     } else {
@@ -82,6 +83,7 @@ test "feature modules expose safe runtime contracts" {
     }
 
     try std.testing.expect(features.shaders.compilerStatus().message.len > 0);
+    try std.testing.expect(!features.shaders.compilerStatus().available);
     try std.testing.expect(@hasDecl(features.shaders, "ValidationReport"));
     try std.testing.expect(@hasDecl(features.shaders, "validateDetailed"));
     const shader_report = try features.shaders.validateDetailed(.{ .name = "contract", .source = "fn main() void {}" });
@@ -91,6 +93,7 @@ test "feature modules expose safe runtime contracts" {
     try std.testing.expectError(error.UnbalancedShaderDelimiters, features.shaders.validate(.{ .name = "contract", .source = "fn main() void {" }));
 
     try std.testing.expect(features.mlir.toolchainStatus().message.len > 0);
+    try std.testing.expect(!features.mlir.toolchainStatus().available);
     try std.testing.expect(@hasDecl(features.mlir, "ModuleAnalysis"));
     try std.testing.expect(@hasDecl(features.mlir, "analyze"));
     const mlir_analysis = try features.mlir.analyze(.{ .name = "contract", .operations = &.{ "matmul", "relu" } });
@@ -290,6 +293,7 @@ test "disabled feature modules expose explicit degraded behavior" {
         try std.testing.expectEqual(features.accelerator.Backend.cpu, report.selected_backend);
         try std.testing.expectEqual(features.accelerator.Backend.cpu, report.fallback_backend);
         try std.testing.expect(!report.native_available);
+        try std.testing.expect(!report.native_dispatch);
         try std.testing.expect(!report.gpu_available);
         try std.testing.expect(!report.gpu_accelerated);
     }

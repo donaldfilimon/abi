@@ -140,4 +140,7 @@ test "shader stub mirrors validation before disabled artifact" {
     defer artifact.deinit(std.testing.allocator);
     try std.testing.expectEqualStrings("disabled", artifact.backend);
     try std.testing.expectEqualStrings("main", artifact.entry_point);
+    const status = compilerStatus();
+    try std.testing.expect(!status.available);
+    try std.testing.expectEqualStrings("disabled", status.backend);
 }

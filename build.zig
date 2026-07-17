@@ -102,7 +102,7 @@ pub fn build(b: *std.Build) void {
     });
     abi_mod.addImport("build_options", options_mod);
 
-    if (target.result.os.tag == .macos and feat_gpu) {
+    if (target.result.os.tag == .macos) {
         // When the macOS target is selected *explicitly* (e.g.
         // `-Dtarget=aarch64-macos`), Zig does not auto-add the host SDK search
         // paths that a native build inherits, so `objc`/frameworks fail to
@@ -114,9 +114,20 @@ pub fn build(b: *std.Build) void {
             abi_mod.addFrameworkPath(.{ .cwd_relative = b.fmt("{s}/System/Library/Frameworks", .{sdk}) });
             abi_mod.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/usr/lib", .{sdk}) });
         }
-        abi_mod.linkFramework("Metal", .{});
-        abi_mod.linkFramework("Foundation", .{});
-        abi_mod.linkSystemLibrary("objc", .{});
+
+        // OS-keychain credential backend (Security.framework SecItem C API),
+        // opt-in at runtime via ABI_CREDENTIALS_BACKEND=keychain — see
+        // src/foundation/keychain.zig. Linked unconditionally for macOS
+        // (not gated by feat_gpu): src/foundation/credentials.zig always
+        // compiles regardless of the GPU flag.
+        abi_mod.linkFramework("Security", .{});
+        abi_mod.linkFramework("CoreFoundation", .{});
+
+        if (feat_gpu) {
+            abi_mod.linkFramework("Metal", .{});
+            abi_mod.linkFramework("Foundation", .{});
+            abi_mod.linkSystemLibrary("objc", .{});
+        }
     }
 
     // Apple FoundationModels on-device connector (macOS + flag only). Links the
