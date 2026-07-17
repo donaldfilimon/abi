@@ -339,16 +339,17 @@ const MetalContext = struct {
         msg_send_void_ret_void(buffer_bb, sel_release);
     }
 
-    /// Threadgroup partial reduce on the GPU (256-wide), then host SIMD sum of
-    /// partials. Not a multi-pass full-device tree reduce.
+    /// Multi-pass threadgroup reduce on the GPU (256-wide). Each pass writes
+    /// one partial per threadgroup; passes continue until a single scalar
+    /// remains. Callers fall back to host `sumF32` if Metal dispatch fails.
     pub fn runReduceSum(self: *MetalContext, values: []const f32) !f32 {
         if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
         if (!self.initialized) return error.NotInitialized;
         if (values.len == 0) return 0;
+        if (values.len == 1) return values[0];
         if (self.reduce_sum_pipeline == null) return error.NotInitialized;
 
         const tg_size: usize = 256;
-        const num_groups = (values.len + tg_size - 1) / tg_size;
 
         const msg_send_void_ret_id = @as(MsgSendVoidRetId, @ptrCast(&objc.objc_msgSend));
         const msg_send_void_ret_void = @as(MsgSendVoidRetVoid, @ptrCast(&objc.objc_msgSend));
@@ -375,40 +376,52 @@ const MetalContext = struct {
         const sel_release = objc.sel_registerName("release");
 
         const in_bytes = values.len * @sizeOf(f32);
-        const partial_bytes = num_groups * @sizeOf(f32);
-        const buffer_in = msg_send_ptr_usize_usize_ret_id(self.device, sel_newBufferWithBytes, values.ptr, in_bytes, 0) orelse return error.BufferAllocationFailed;
-        const buffer_partials = msg_send_usize_usize_ret_id(self.device, sel_newBufferWithLength, partial_bytes, 0) orelse return error.BufferAllocationFailed;
+        var buffer_in = msg_send_ptr_usize_usize_ret_id(self.device, sel_newBufferWithBytes, values.ptr, in_bytes, 0) orelse return error.BufferAllocationFailed;
+        var current_len = values.len;
 
-        const cmd_buf = msg_send_void_ret_id(self.queue, sel_commandBuffer) orelse return error.CommandBufferCreationFailed;
-        const encoder = msg_send_void_ret_id(cmd_buf, sel_computeCommandEncoder) orelse return error.EncoderCreationFailed;
+        while (current_len > 1) {
+            const num_groups = (current_len + tg_size - 1) / tg_size;
+            const partial_bytes = num_groups * @sizeOf(f32);
+            const buffer_out = msg_send_usize_usize_ret_id(self.device, sel_newBufferWithLength, partial_bytes, 0) orelse {
+                msg_send_void_ret_void(buffer_in, sel_release);
+                return error.BufferAllocationFailed;
+            };
 
-        _ = msg_send_id_ret_id(encoder, sel_setComputePipelineState, self.reduce_sum_pipeline);
-        msg_send_id_usize_usize_ret_void(encoder, sel_setBufferOffsetAtIndex, buffer_in, 0, 0);
-        msg_send_id_usize_usize_ret_void(encoder, sel_setBufferOffsetAtIndex, buffer_partials, 0, 1);
-        var n_u32: u32 = @intCast(values.len);
-        msg_send_ptr_usize_usize_ret_void(encoder, sel_setBytes, &n_u32, @sizeOf(u32), 2);
+            const cmd_buf = msg_send_void_ret_id(self.queue, sel_commandBuffer) orelse {
+                msg_send_void_ret_void(buffer_out, sel_release);
+                msg_send_void_ret_void(buffer_in, sel_release);
+                return error.CommandBufferCreationFailed;
+            };
+            const encoder = msg_send_void_ret_id(cmd_buf, sel_computeCommandEncoder) orelse {
+                msg_send_void_ret_void(buffer_out, sel_release);
+                msg_send_void_ret_void(buffer_in, sel_release);
+                return error.EncoderCreationFailed;
+            };
 
-        const groups = MTLSize{ .width = num_groups, .height = 1, .depth = 1 };
-        const threads = MTLSize{ .width = tg_size, .height = 1, .depth = 1 };
-        msg_send_mtlsize_mtlsize_ret_void(encoder, sel_dispatch, groups, threads);
-        msg_send_void_ret_void(encoder, sel_endEncoding);
-        msg_send_void_ret_void(cmd_buf, sel_commit);
-        msg_send_void_ret_void(cmd_buf, sel_waitUntilCompleted);
+            _ = msg_send_id_ret_id(encoder, sel_setComputePipelineState, self.reduce_sum_pipeline);
+            msg_send_id_usize_usize_ret_void(encoder, sel_setBufferOffsetAtIndex, buffer_in, 0, 0);
+            msg_send_id_usize_usize_ret_void(encoder, sel_setBufferOffsetAtIndex, buffer_out, 0, 1);
+            var n_u32: u32 = @intCast(current_len);
+            msg_send_ptr_usize_usize_ret_void(encoder, sel_setBytes, &n_u32, @sizeOf(u32), 2);
 
-        const partial_ptr = msg_send_void_ret_ptr(buffer_partials, sel_contents) orelse return error.ReadBufferFailed;
-        const partials = @as([*]f32, @ptrCast(@alignCast(partial_ptr)))[0..num_groups];
+            const groups = MTLSize{ .width = num_groups, .height = 1, .depth = 1 };
+            const threads = MTLSize{ .width = tg_size, .height = 1, .depth = 1 };
+            msg_send_mtlsize_mtlsize_ret_void(encoder, sel_dispatch, groups, threads);
+            msg_send_void_ret_void(encoder, sel_endEncoding);
+            msg_send_void_ret_void(cmd_buf, sel_commit);
+            msg_send_void_ret_void(cmd_buf, sel_waitUntilCompleted);
 
-        var sum: f32 = 0;
-        var i: usize = 0;
-        const VLen = comptime std.simd.suggestVectorLength(f32) orelse 4;
-        while (i + VLen <= partials.len) : (i += VLen) {
-            const v: @Vector(VLen, f32) = partials[i..][0..VLen].*;
-            sum += @reduce(.Add, v);
+            msg_send_void_ret_void(buffer_in, sel_release);
+            buffer_in = buffer_out;
+            current_len = num_groups;
         }
-        while (i < partials.len) : (i += 1) sum += partials[i];
 
+        const out_ptr = msg_send_void_ret_ptr(buffer_in, sel_contents) orelse {
+            msg_send_void_ret_void(buffer_in, sel_release);
+            return error.ReadBufferFailed;
+        };
+        const sum = @as([*]f32, @ptrCast(@alignCast(out_ptr)))[0];
         msg_send_void_ret_void(buffer_in, sel_release);
-        msg_send_void_ret_void(buffer_partials, sel_release);
         return sum;
     }
 };
