@@ -98,17 +98,13 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
-- **Metal threadgroup reduce** — `reduce_sum_kernel` + `runReduceSum` after map kernels; multi-pass full-device reduce still Proposed.
-- **REST bearer parity** — wrong-token 401 + `WWW-Authenticate` aligned with MCP HTTP tests.
-- **abi-mega refresh** — inventory + fast gates PASS; markdown audit fix-severity counts 0; four mega skills `quick_validate` PASS; `ABI-MEGA-PLUGIN.md` validator paths updated (Codex skill-creator cache).
-- **Ops docs + Metal path** — claims sync; host SIMD `sumF32`; REST threat review; cluster mTLS ops + Phase D cutover HITL plan (#681).
-- **#678** — Metal status probe before backends/gpu/dashboard; `donald-mode`; Abbey agents; `check_skills` `>-` fold.
-- **#676 Tracks A–G** — `incremental.zig`; Metal fused cosine; Win32 credential DACL; `ans.zig` demo; FHE param honesty; cluster TLS-fronting ops; `modernized/packages/*` Phase D scaffold.
-- **#674 Feature polish** — RankedNode/SearchResult borrowed vectors; stream footers; Ctrl-R redraw; constitution `/status`; POSIX `secureZero`.
-- **#673** — Restored AGENTS.md Learned prefs/facts (continual-learning).
-- **#672 / #671 / #670 / #669** — Board sync; CLAUDE/GEMINI → AGENTS redirects; wdbx query UX; remaining-improvements (0700 Linux, live SSE, file-context v2, leaf extracts).
-- **#668** — OS-control trusted command hardening.
-- **Approach-1 A–C + modern-refactor 2–4** — complete; product reimagine = Phase D scaffold only until cutover.
+- **Claims sync (finalize)** — external-claims GPU row + reusable delta and README name `reduce_sum_kernel` threadgroup partials (host SIMD of partials); multi-pass full-device reduce stays Proposed.
+- **#683** — Metal `reduce_sum_kernel` + REST wrong-bearer 401/`WWW-Authenticate` parity; multi-pass full-device reduce still Proposed.
+- **#682** — abi-mega ops paths + inventory/board note; markdown audit fix-severity 0.
+- **#681/#680** — cluster mTLS ops + Phase D cutover HITL; host SIMD `sumF32` + REST threat review.
+- **#678/#676** — Metal status probe / Tracks A–G (`incremental.zig`, fused cosine, Win32 DACL, `ans.zig`, FHE honesty, Phase D scaffold).
+- **#675/#674/#673/#671/#670/#669** — config cleanup; streaming/RankedNode/creds polish; AGENTS Learned + thin redirects; wdbx query UX; leaf extracts.
+- **Approach-1 A–C + modern-refactor** — complete; product reimagine stays Phase D scaffold until cutover.
 
 ---
 
