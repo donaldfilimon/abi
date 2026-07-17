@@ -1,6 +1,6 @@
 ---
 name: codebase-analysis
-description: Systematic discovery of legacy patterns, technical debt, and high-value modernization targets in the ABI codebase. Use for clean-slate analysis before refactors.
+description: This skill should be used when the user asks to find legacy patterns, technical debt, or modernization targets in ABI — e.g. 'where should we start modernizing this module', 'find outdated patterns in src/', 'audit this file for tech debt' — before any refactor begins.
 ---
 
 # Codebase Analysis
@@ -34,5 +34,5 @@ Systematic techniques to discover technical debt, outdated patterns, and high-va
 
 Output should be actionable for the planner agent and strategy skill.
 
-Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/codebase-analysis
+Base directory for this skill: /Users/donaldfilimon/abi/.claude/skills/codebase-analysis
 Relative paths in this skill (e.g., references/) are relative to this base directory.

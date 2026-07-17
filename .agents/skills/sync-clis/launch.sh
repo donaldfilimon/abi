@@ -61,10 +61,16 @@ sync_skills() {
                 mkdir -p "$dst/$skill_name"
         fi
 
-        # Sync SKILL.md (text content only, not the .sh scripts)
+        # Sync SKILL.md (text content only, not the .sh scripts).
+        # Rewrite "Base directory for this skill:" to the target path (not canonical).
         if [ -f "$src/$skill_name/SKILL.md" ]; then
-            run_or_echo "would sync: $label/$skill_name/SKILL.md" "synced: $label/$skill_name/SKILL.md" \
-                cp "$src/$skill_name/SKILL.md" "$dst/$skill_name/SKILL.md"
+            if [ "$DRY_RUN" -eq 1 ]; then
+                echo "  would sync: $label/$skill_name/SKILL.md"
+            else
+                sed "s|^Base directory for this skill: .*\$|Base directory for this skill: $dst/$skill_name|" \
+                    "$src/$skill_name/SKILL.md" > "$dst/$skill_name/SKILL.md"
+                echo "  synced: $label/$skill_name/SKILL.md"
+            fi
         fi
         # Companion docs skills may load; non-destructive (overwrite/add, no delete)
         for sub in references examples; do
