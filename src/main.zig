@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const dispatch_mod = @import("cli/dispatch.zig");
-const env = @import("foundation/env.zig");
+const env = @import("abi").foundation.env;
 
 fn runCliMapped(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     return dispatch_mod.runCli(io, allocator, args) catch |err| switch (err) {

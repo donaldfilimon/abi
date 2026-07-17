@@ -1,5 +1,5 @@
 const std = @import("std");
-const abi = @import("../../root.zig");
+const abi = @import("abi");
 const usage_mod = @import("../usage.zig");
 const help = @import("agent_help.zig");
 

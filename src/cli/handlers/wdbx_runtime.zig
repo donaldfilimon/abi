@@ -1,7 +1,7 @@
 const std = @import("std");
-const features = @import("../../features/mod.zig");
-const env = @import("../../foundation/env.zig");
-const foundation_time = @import("../../foundation/time.zig");
+const features = @import("abi").features;
+const env = @import("abi").foundation.env;
+const foundation_time = @import("abi").foundation.time;
 
 const wdbx = features.wdbx;
 

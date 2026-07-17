@@ -1,8 +1,8 @@
 const std = @import("std");
 const build_options = @import("build_options");
-const features = @import("../../features/mod.zig");
-const foundation_time = @import("../../foundation/time.zig");
-const foundation_json = @import("../../foundation/json.zig");
+const features = @import("abi").features;
+const foundation_time = @import("abi").foundation.time;
+const foundation_json = @import("abi").foundation.json;
 
 const wdbx = features.wdbx;
 

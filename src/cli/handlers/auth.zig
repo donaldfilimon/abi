@@ -1,8 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const credentials = @import("../../foundation/credentials.zig");
-const io = @import("../../foundation/io/mod.zig");
-const utils = @import("../../foundation/utils.zig");
+const credentials = @import("abi").foundation.credentials;
+const io = @import("abi").foundation.io;
+const utils = @import("abi").foundation.utils;
 const usage_mod = @import("../usage.zig");
 
 /// `abi auth <signin|logout|status> [args...]`: manage stored connector

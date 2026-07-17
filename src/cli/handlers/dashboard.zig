@@ -1,8 +1,8 @@
 const std = @import("std");
-const abi = @import("../../root.zig");
+const abi = @import("abi");
 const build_options = @import("build_options");
 const dashboard_json = @import("dashboard_json.zig");
-const test_helpers = @import("../../foundation/test_helpers.zig");
+const test_helpers = @import("abi").foundation.test_helpers;
 
 const GpuSnapshot = struct {
     backend: []const u8,

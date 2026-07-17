@@ -1,12 +1,9 @@
 const std = @import("std");
 const build_options = @import("build_options");
-const memory_mod = @import("../../core/memory.zig");
-const scheduler_mod = @import("../../core/scheduler.zig");
+const memory_mod = @import("abi").memory;
+const scheduler_mod = @import("abi").scheduler;
 const usage_mod = @import("../usage.zig");
-const telemetry = if (build_options.feat_telemetry)
-    @import("../../features/telemetry/mod.zig")
-else
-    @import("../../features/telemetry/stub.zig");
+const telemetry = @import("abi").features.telemetry;
 
 /// `abi scheduler status`: print scheduler run statistics alongside memory
 /// tracker usage. Rejects any other invocation with a usage error. Returns the

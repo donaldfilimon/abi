@@ -79,7 +79,7 @@ fn streamResponse(
         try writer.writeAll(",\"model\":");
         try json.writeJsonString(writer, req.model);
         try writer.writeAll(",\"choices\":[{\"index\":0,\"delta\":{\"content\":");
-        try writeJsonString(writer, chunk_text);
+        try json.writeJsonString(writer, chunk_text);
         try writer.writeAll("}}]}\n\n");
         start = end;
     }
@@ -118,7 +118,7 @@ fn nonStreamResponse(
     try writer.writeAll(",\"model\":");
     try json.writeJsonString(writer, req.model);
     try writer.writeAll(",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":");
-    try writeJsonString(writer, response_content);
+    try json.writeJsonString(writer, response_content);
     try writer.writeAll("},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":");
     try writer.writeAll(prompt_tokens_str);
     try writer.writeAll(",\"completion_tokens\":");
@@ -161,10 +161,10 @@ test {
 
 test "parseRequest extracts model and stream flag" {
     const allocator = std.testing.allocator;
-    const json =
+    const input_json =
         \\{"model": "gpt-4", "stream": true}
     ;
-    const parsed = try parseRequest(allocator, json);
+    const parsed = try parseRequest(allocator, input_json);
     defer parsed.deinit();
     const req = parsed.value;
     try std.testing.expect(std.mem.eql(u8, req.model, "gpt-4"));

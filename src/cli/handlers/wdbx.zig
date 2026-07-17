@@ -1,11 +1,11 @@
 const std = @import("std");
 const build_options = @import("build_options");
-const features = @import("../../features/mod.zig");
+const features = @import("abi").features;
 const db_commands = @import("wdbx_db.zig");
 const runtime_commands = @import("wdbx_runtime.zig");
 const test_helpers = @import("abi").foundation.test_helpers;
 const usage_mod = @import("../usage.zig");
-const env = @import("../../foundation/env.zig");
+const env = @import("abi").foundation.env;
 
 const wdbx = features.wdbx;
 

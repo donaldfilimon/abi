@@ -8,7 +8,7 @@ const reg = @import("registry.zig");
 const usage_mod = @import("usage.zig");
 const handlers = @import("handlers/mod.zig");
 const arg = @import("arg.zig");
-const env = @import("../foundation/env.zig");
+const env = @import("abi").foundation.env;
 
 const Ctx = reg.Ctx;
 const Command = reg.Command;

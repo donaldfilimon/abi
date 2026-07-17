@@ -1,14 +1,14 @@
 const std = @import("std");
 const test_helpers = @import("abi").foundation.test_helpers;
-const features = @import("../../features/mod.zig");
-const scheduler_mod = @import("../../core/scheduler.zig");
-const memory_mod = @import("../../core/memory.zig");
+const features = @import("abi").features;
+const scheduler_mod = @import("abi").scheduler;
+const memory_mod = @import("abi").memory;
 const usage_mod = @import("../usage.zig");
-const env = @import("../../foundation/env.zig");
-const credentials = @import("../../foundation/credentials.zig");
-const anthropic = @import("../../connectors/anthropic.zig");
-const fm = @import("../../connectors/fm.zig");
-const connectors = @import("../../connectors/mod.zig");
+const env = @import("abi").foundation.env;
+const credentials = @import("abi").foundation.credentials;
+const anthropic = @import("abi").connectors.anthropic;
+const fm = @import("abi").connectors.fm;
+const connectors = @import("abi").connectors;
 const complete = @import("complete_handlers.zig");
 
 /// `abi train <input>`: run the local AI persona router over `input` and print

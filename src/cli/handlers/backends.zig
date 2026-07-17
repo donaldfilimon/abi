@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
-const features = @import("../../features/mod.zig");
+const features = @import("abi").features;
 
 /// `abi backends`: report the detected compute backends — GPU backend and
 /// native-kernel status, the accelerator training selection, and the shader

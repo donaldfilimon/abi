@@ -1,7 +1,7 @@
 const std = @import("std");
-const abi = @import("../../root.zig");
+const abi = @import("abi");
 const DashboardOptions = @import("dashboard.zig").DashboardOptions;
-const test_helpers = @import("../../foundation/test_helpers.zig");
+const test_helpers = @import("abi").foundation.test_helpers;
 
 pub fn dashboardHealth(ds: abi.features.tui.DashboardState) []const u8 {
     return abi.features.tui.dashboardHealth(ds);
