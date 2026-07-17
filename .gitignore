@@ -1,9 +1,6 @@
 # ── AI tool config directories ────────────────────────────────────────
 .grok/
 
-# ── Git worktrees ──────────────────────────────────────────────────────
-.worktrees/
-
 # ── Zig build artifacts ───────────────────────────────────────────────
 zig-cache/
 .zig-cache/
@@ -52,7 +49,6 @@ venv/
 *.test
 *.bench
 coverage/
-# Benchmark output JSON files (root-level only)
 /ai.json
 /all.json
 /conc.json
@@ -81,8 +77,6 @@ firebase-debug.log
 *.sqlite
 
 # ── Temporary and generated files ─────────────────────────────────────
-/tmp/
-/temp/
 *.tmp
 updated_site/
 abi.json
@@ -120,9 +114,6 @@ training_data.txt
 *.gguf
 *.safetensors
 *.safetensors.index.json
-mlx_model/
-/models/
-/test-models/
 train.bin
 testingllm.ckpt/
 
@@ -139,15 +130,6 @@ testingllm.ckpt/
 /unused_test
 /synthetic.bin
 /swiftly.pkg
-
-# Root-level build artifacts (stray from manual builds)
-/test.db
-/target_contract.o
-/libcontext_init.a
-
-# ── Zig package cache (downloaded by build system) ────────────────────
-zig-pkg/
-zig-pkg.lock
 
 # ── Binary executables and object files ───────────────────────────────
 *.a
@@ -166,33 +148,28 @@ zig-pkg.lock
 *.tracy
 perf.data*
 
-# ── Claude Code (track rules, skills, README, hooks — ignore the rest)
+# ── Claude Code ───────────────────────────────────────────────────────
 .claude/
 !.claude/
 !.claude/README.md
-!.claude/rules/
-!.claude/rules/**
-!.claude/skills/
-!.claude/skills/**
 !.claude/agents/
 !.claude/agents/**
 !.claude/settings.json
-# Codex skills
+!.claude/skills/
+!.claude/skills/**
+!# Codex
 .codex/
 !.codex/
-!.codex/skills/
+!.codex/agents/
+!.codex/agents/**
+.codex/skills/
 !.codex/skills/**
+!.codex/skills/**/SKILL.md
 .claude-plugin/
-# But allow plugin manifests inside zig-abi-plugin/ and modern-refactor/
-!/zig-abi-plugin/.claude-plugin/
-!/zig-abi-plugin/.claude-plugin/**
 !/modern-refactor/.claude-plugin/
 !/modern-refactor/.claude-plugin/**
 
-# ── Local task tracking (agent notes) ────────────────────────────────
-# Ignore the CONTENTS of tasks/ (not the directory itself): a `!/tasks/x`
-# negation cannot re-include a file when the parent `/tasks/` dir is excluded,
-# so `/tasks/*` is required for the todo.md/lessons.md negations to take effect.
+# ── Local task tracking ────────────────────────────────────────────────
 /tasks/*
 !/tasks/todo.md
 !/tasks/lessons.md
@@ -200,16 +177,9 @@ perf.data*
 # ── ABI runtime state ────────────────────────────────────────────────
 .abi/
 
-# ── Ralph runtime output and lock ─────────────────────────────────────
-.ralph/
-
-# ── Development checkpoints ───────────────────────────────────────────
+# ── Development checkpoints and reports ───────────────────────────────
 checkpoints/
-
-# ── Generated reports (Ralph gate, skill memory) ─────────────────────────────
 reports/
-
-# ── Backup files ────────────────────────────────────────────────────
 backups/
 *.bak
 *.backup
@@ -219,10 +189,6 @@ backups/
 /release/
 *.tar.gz
 *.zip
-
-# ── Rust build artifacts in bindings ──────────────────────────────────
-bindings/**/target/
-bindings/c/.zig-cache/
 
 # ── OS specific ─────────────────────────────────────────────────────
 Thumbs.db
@@ -236,10 +202,6 @@ tmpclaude-*
 examples/c_test
 .discord
 *.cell.out
-
-# ── Trash (cleanup staging) ─────────────────────────────────────────
-TRASH/
-TRASH-FILES.md
 
 # ── Legacy local probes/binaries (cleanup guard) ─────────────────────────────
 /dummy.txt
@@ -257,7 +219,6 @@ TRASH-FILES.md
 # ── Root-level scratch/test files (never track) ───────────────────────────────
 /hello
 /hello.zig
-# /test — conflicts with test/ directory, removed
 /test.zig
 /test_basic
 /test_basic.zig
@@ -284,103 +245,51 @@ test_imports
 test_imports2
 test_imports3
 /src_next/
-.antigravitycli/
 .zls.json
 
-# ── Cleanup policy: markdown allowlist only ─────────────────────────────
-# Ignore all markdown except explicitly allowlisted files.
-# NOTE: new docs under docs/ must be added to this allowlist.
+# ── Markdown allowlist ─────────────────────────────────────────────────
 *.md
 
-# Root-level project docs
 !/AGENTS.md
 !/README.md
 !/CHANGELOG.md
 !/CLAUDE.md
 !/GEMINI.md
 !/ABI-MEGA-PLUGIN.md
-!/SECURITY.md
-!/ONBOARDING.md
-!/ONBOARDING_INDEX.md
-!/SUMMARY.md
-!/CODEBASE_REVIEW.md
-!/GLOSSARY.md
 !/CODE_OF_CONDUCT.md
 !/walkthrough.md
 
-# Documentation tree
-!/docs/README.md
-!/docs/index.md
-!/docs/STRUCTURE.md
-!/docs/onboarding.md
-!/docs/PATTERNS.md
-!/docs/ABI_WDBX_ARCHITECTURE.md
-!/docs/ZIG_MACOS_LINKER_RESEARCH.md
-!/docs/stylesheets/
-!/docs/stylesheets/*.css
-!/docs/plans/*.md
-!/docs/api/*.md
-!/docs/guides/*.md
-!/docs/spec/*.md
-!/docs/contracts/*.md
-!/docs/review/*.md
-!/docs/superpowers/**/*.md
-!/docs/CONTRIBUTING.md
+!/docs/**/*.md
 
-# Claude project skills: keep every skill definition tracked.
-# (.claude/skills/** is un-ignored above at line ~177, but the blanket
-#  *.md rule re-ignores skill docs — this negation must come after it.)
 !.claude/skills/**/SKILL.md
 !.agents/skills/**/SKILL.md
 !.agents/skills/**/references/**
 !.agents/skills/**/references/**/*.md
+!.agents/skills/abi-doc-claims-sync/references/claim-boundaries.md
 !.claude/skills/**/references/**
 !.claude/skills/**/references/**/*.md
-!.agents/skills/abi-doc-claims-sync/references/claim-boundaries.md
 
-# Claude project agents: same story — .claude/agents/** is un-ignored above, but
-# the blanket *.md rule re-ignores the agent defs, so this rescue must come after it.
 !.claude/agents/**/*.md
 
-# modern-refactor plugin tree (skills/agents/plans) — rescue after *.md blanket
 !/modern-refactor/
 !/modern-refactor/**
 !/modern-refactor/**/*.md
 !/modern-refactor/.claude/
 !/modern-refactor/.claude/**
 
-# Pointer-only archive (no scaffold Zig; documents empty modernized/)
 !/modernized/README.md
 
-# Subsystem docs
-!/benchmarks/README.md
-!/benchmarks/STRUCTURE.md
-!/benchmarks/baselines/README.md
-!/examples/README.md
-!/lang/README.md
-
-# Task tracking
 !/tasks/todo.md
 !/tasks/lessons.md
 
-# ── .cel toolchain fork (build outputs only) ────────────────────────
-.cel/bin/
-.cel/.src/
-.cel/out/
-.cel-stage0/
-!/.cel/README.md
-!/zig-abi-plugin/**/*.md
-
 # ── Local one-off artifacts ──────────────────────────────────────────
-.zig-global-cache/
 /hashmap_check
 /hashmap_check2
 /check_mutex
 
-# ── Scratch/workaround artifacts (superseded by CEL) ────────────────
+# ── Scratch/workaround artifacts ────────────────────────────────
 *.dSYM/
 *.wasm
-bin_wrap/
 /fake_build_options.zig
 /main.c
 /test_link.c
@@ -388,20 +297,13 @@ bin_wrap/
 /patch_cmake.sh
 /patch_zig_main.sh
 /hi.cel
+parity_results.txt
 lang/swift/.build/
 
-# ── macOS SDK overlay (generated by tools/patch-sdk.sh) ──────────────
-.darwin-sdk-overlay/
-.qwen/
-parity_results.txt
-
-# Stakpak session files
-.stakpak/session*
-
-# Legacy orphaned root files (moved during 0.17 refactor)
+# ── Legacy orphaned root files ──────────────────────────────
 legacy/
 .skill-telemetry/
 
-# Sync marker files (tooling artifacts, not source)
+# ── Sync marker files ──────────────────────────────────────
 /.agents/skills/.plugins-synced-from-central
 /src/plugins/.central-synced
