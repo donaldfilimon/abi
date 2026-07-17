@@ -3,8 +3,8 @@ const builtin = @import("builtin");
 const backends = @import("backends.zig");
 const metal = @import("metal_shared.zig");
 
-/// Host-side vectorized sum used after Metal map kernels (and anywhere a dense
-/// f32 reduce is needed). Full GPU-side tree reduce remains Proposed.
+/// Host-side vectorized sum. Used as CPU fallback and for tiny buffers.
+/// Prefer `reduceSum` after Metal map kernels when Metal is initialized.
 fn sumF32(values: []const f32) f32 {
     var sum: f32 = 0;
     var i: usize = 0;
@@ -15,6 +15,16 @@ fn sumF32(values: []const f32) f32 {
     }
     while (i < values.len) : (i += 1) sum += values[i];
     return sum;
+}
+
+/// Prefer Metal threadgroup reduce (256-wide partials + host SIMD of partials)
+/// when initialized; otherwise host `sumF32`. Multi-pass full-device tree
+/// reduce remains Proposed.
+fn reduceSum(values: []const f32) f32 {
+    if (builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+        return metal.g_metal_context.runReduceSum(values) catch sumF32(values);
+    }
+    return sumF32(values);
 }
 
 pub const VectorOps = struct {
@@ -42,7 +52,7 @@ pub const VectorOps = struct {
             defer if (a.len > 4096) std.heap.page_allocator.free(res);
 
             try metal.g_metal_context.runKernel(metal.g_metal_context.dot_pipeline, a.len, a, b, res);
-            return sumF32(res);
+            return reduceSum(res);
         }
 
         var sum: f32 = 0;
@@ -70,7 +80,7 @@ pub const VectorOps = struct {
             defer if (a.len > 4096) std.heap.page_allocator.free(res);
 
             try metal.g_metal_context.runKernel(metal.g_metal_context.l2_pipeline, a.len, a, b, res);
-            return sumF32(res);
+            return reduceSum(res);
         }
 
         var sum: f32 = 0;
@@ -105,9 +115,9 @@ pub const VectorOps = struct {
             defer if (a.len > 4096) std.heap.page_allocator.free(bb_buf);
 
             try metal.g_metal_context.runCosinePartsKernel(a.len, a, b, ab, aa_buf, bb_buf);
-            const sum_ab = sumF32(ab);
-            const sum_aa = sumF32(aa_buf);
-            const sum_bb = sumF32(bb_buf);
+            const sum_ab = reduceSum(ab);
+            const sum_aa = reduceSum(aa_buf);
+            const sum_bb = reduceSum(bb_buf);
             if (sum_aa == 0 or sum_bb == 0) return 0;
             return sum_ab / @sqrt(sum_aa * sum_bb);
         }
