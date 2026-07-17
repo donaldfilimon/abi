@@ -75,3 +75,4 @@ Cross-compiles link cleanly for `x86_64-linux-gnu` / `aarch64-linux-gnu` / `wind
 - Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A–C complete; `modern-refactor/examples/` is historical, not the active board.
 - `modernized/` holds Phase D–approved package-layout pointers under `packages/`; live code remains `src/` until cutover.
 - Ambient WDBX Linux `EBADF` owner-only repair is fixed (`iterate=true`); `ABI_WDBX_PERSIST=0` is no longer required to avoid ambient-open panics on Linux.
+- `foundation/http.zig` holds shared HTTP helpers (read/write/find body, Content-Length, header parse, bearer auth, readHttpRequest/HttpReadResult) used by both MCP and WDBX REST; `foundation/json.zig` has `appendJsonString`/`escapeJsonString` used by MCP. Connector and WDBX modules with module-root isolation keep their own inline copies.
