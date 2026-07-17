@@ -286,8 +286,10 @@ test "gpu batched cosine similarity matches an independent scalar reference" {
     // Independent of both batchCosineSimilarityFallback and cosineSimilarity —
     // a scalar loop written fresh here so a shared bug in either production
     // path can't hide behind a matching test. Exercises N=5 candidates of
-    // D=17 (forces the SIMD-width tail in the CPU path and a partial final
-    // stride in the Metal threadgroup reduction, since 17 < 256).
+    // D=17 (forces the SIMD-width tail in the CPU path; the strided Metal
+    // load loop `for (i = lid; i < dim; i += 256)` runs at most once per
+    // thread at this width — see the D=1000 test below for the multi-
+    // iteration case that matters at realistic HNSW dimensions).
     const ops = vectorOps();
 
     var query: [17]f32 = undefined;
@@ -320,6 +322,56 @@ test "gpu batched cosine similarity matches an independent scalar reference" {
 
     for (expected, out) |exp, got| {
         try std.testing.expectApproxEqAbs(exp, got, 1e-4);
+    }
+}
+
+test "gpu batched cosine similarity matches an independent scalar reference at D>256 (multi-stride load)" {
+    // D=1000 (> the fixed 256-thread threadgroup) forces every thread in
+    // batch_cosine_kernel's strided load loop
+    // (`for (i = lid; i < dim; i += 256)`) to accumulate multiple elements
+    // per lane instead of at most one — the realistic-HNSW-dimension path
+    // (D=768/1536 per the scoping review) that the D=17 test above cannot
+    // exercise. Reference is an independent scalar loop, not the CPU
+    // fallback function.
+    const allocator = std.testing.allocator;
+    const d: usize = 1000;
+    const n: usize = 6;
+
+    const query = try allocator.alloc(f32, d);
+    defer allocator.free(query);
+    for (query, 0..) |*v, i| v.* = @as(f32, @floatFromInt(i % 11)) * 0.11 - 0.55;
+
+    var candidates: [n][]f32 = undefined;
+    for (&candidates, 0..) |*row, r| {
+        row.* = try allocator.alloc(f32, d);
+        for (row.*, 0..) |*v, i| {
+            v.* = @as(f32, @floatFromInt((i + r * 37) % 13)) * 0.09 - 0.6;
+        }
+    }
+    defer for (candidates) |row| allocator.free(row);
+
+    var candidate_slices: [n][]const f32 = undefined;
+    for (candidates, 0..) |row, i| candidate_slices[i] = row;
+
+    var expected: [n]f32 = undefined;
+    for (candidate_slices, 0..) |cand, r| {
+        var qc: f32 = 0;
+        var qq: f32 = 0;
+        var cc: f32 = 0;
+        for (query, cand) |qv, cv| {
+            qc += qv * cv;
+            qq += qv * qv;
+            cc += cv * cv;
+        }
+        expected[r] = if (qq == 0 or cc == 0) 0 else qc / (@sqrt(qq) * @sqrt(cc));
+    }
+
+    const ops = vectorOps();
+    var out: [n]f32 = undefined;
+    try ops.batchCosineSimilarity(query, &candidate_slices, &out);
+
+    for (expected, out) |exp, got| {
+        try std.testing.expectApproxEqAbs(exp, got, 1e-3);
     }
 }
 
