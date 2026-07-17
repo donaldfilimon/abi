@@ -176,6 +176,18 @@ test "host sumF32 matches scalar reduce across SIMD width and tail" {
     try std.testing.expectEqual(@as(f32, 0), sumF32(&.{}));
 }
 
+test "gpu vector ops: reduceSum matches host sum across multiple threadgroups" {
+    _ = vectorOps(); // ensure Metal init on macOS when available
+    var values: [520]f32 = undefined;
+    var expected: f32 = 0;
+    for (&values, 0..) |*slot, i| {
+        slot.* = @as(f32, @floatFromInt(i % 7)) * 0.125 - 0.5;
+        expected += slot.*;
+    }
+    try std.testing.expectApproxEqAbs(expected, reduceSum(&values), 1e-2);
+    try std.testing.expectEqual(@as(f32, 0), reduceSum(&.{}));
+}
+
 test "gpu vector ops provide deterministic acceleration" {
     const ops = vectorOps();
     try std.testing.expectEqual(@as(f32, 32), try ops.dot(&.{ 1, 2, 3 }, &.{ 4, 5, 6 }));
