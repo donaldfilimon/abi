@@ -64,15 +64,14 @@ Cross-compiles link cleanly for `x86_64-linux-gnu` / `aarch64-linux-gnu` / `wind
 
 ## Learned Workspace Facts
 - Org/extraction waves are largely done; TUI hub is `repl.zig` (~564) with leaves `repl_io`, `repl_complete`, `repl_pane`, `repl_commands`, `repl_git_*`, `repl_session`, `repl_types`; `dashboard.zig` + `dashboard_render.zig` are ~399 each.
-- Interactive `abi dashboard` / `abi tui` / `abi --tui` use a split layout (diagnostics + Agent Output); one-shot `--once` stays stacked — layouts diverge by design.
-- Dashboard Agent Output is a status digest, not live `agent tui` traffic; dashboard WDBX is an ephemeral CLI probe (labeled), not the durable agent store.
+- Interactive `abi dashboard` / `abi tui` / `abi --tui` use a split layout (diagnostics + Agent Output); one-shot `--once` stays stacked — layouts diverge by design. Dashboard Agent Output is a status digest, not live `agent tui` traffic; dashboard WDBX is an ephemeral CLI probe (labeled), not the durable agent store.
 - Plugin-declared slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>` for context providers).
 - REPL `/pane` split landed in `repl_pane.zig`; in-process persona streaming is iterative word/token emission (`stream=incremental` via `incremental.zig`), not a neural LM/ggml sampler.
 - WDBX `SearchResult`/`RankedNode` can attach borrowed vector dims for zero-copy search/CLI use; mutation lifetime remains a documented residual.
 - Metal `vectorOps` includes a fused cosine kernel on macOS; CUDA/Vulkan stay disclosed stubs (no native dispatch claimed).
 - Windows credential writes can apply owner-only DACL (SDDL `OW`); OS keychain and Windows runtime ACL verification still need a Windows host/CI.
 - `tasks/goals.md` is gitignored (`/tasks/*` + root `*.md`); treat committed `tasks/todo.md` as the active board (includes A–G claim-honest scoreboard).
-- Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A–C complete; `modern-refactor/examples/` is historical, not the active board.
-- `modernized/` holds Phase D–approved package-layout pointers under `packages/`; live code remains `src/` until cutover.
+- Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A–C complete; `modern-refactor/examples/` is historical, not the active board. `modernized/` holds Phase D–approved package-layout pointers under `packages/`; live code remains `src/` until cutover. Optional host override template: `modern-refactor/.claude/modern-refactor.local.md.example` → copy to repo-root `.claude/modern-refactor.local.md` (not auto-loaded from the plugin package).
 - Ambient WDBX Linux `EBADF` owner-only repair is fixed (`iterate=true`); `ABI_WDBX_PERSIST=0` is no longer required to avoid ambient-open panics on Linux.
-- `foundation/http.zig` holds shared HTTP helpers (read/write/find body, Content-Length, header parse, bearer auth, readHttpRequest/HttpReadResult) used by both MCP and WDBX REST; `foundation/json.zig` has `appendJsonString`/`escapeJsonString` used by MCP. Connector and WDBX modules with module-root isolation keep their own inline copies.
+- `foundation/http.zig` holds shared HTTP helpers (read/write/find body, Content-Length, header parse, bearer auth, readHttpRequest/HttpReadResult) used by both MCP and WDBX REST; `foundation/json.zig` has `appendJsonString`/`escapeJsonString` used by MCP. Keep connector/WDBX inline JSON copies: `connector_test_mod` is an isolated test root (no `abi`/foundation import), so sharing needs a `foundation_json` leaf module in `build.zig` — prefer keep-copies over unfinished dedup.
+- abi-skills/`sl` `skill-loop` is the external npm CLI `@stylusnexus/skill-loop-cli` (via `npx`), not an in-repo binary; when absent, use manual skill scan + `.agents/skills/sync-clis/launch.sh` (propagates SKILL.md and references/examples to Claude/grok targets).
