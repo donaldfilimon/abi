@@ -95,10 +95,49 @@ pub const VectorOps = struct {
     /// against a candidate set in one call.
     pub fn batchCosineSimilarity(self: VectorOps, query: []const f32, candidates: []const []const f32, out: []f32) !void {
         if (out.len != candidates.len) return error.DimensionMismatch;
+        for (candidates) |cand| {
+            if (cand.len != query.len) return error.DimensionMismatch;
+        }
+        if (candidates.len == 0) return;
+
+        if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            if (self.runBatchedMetal(query, candidates, out)) |_| {
+                return;
+            } else |err| {
+                std.log.warn("Metal batch cosine failed ({s}); using per-pair fallback", .{@errorName(err)});
+            }
+        }
+
+        return self.batchCosineSimilarityFallback(query, candidates, out);
+    }
+
+    /// Flattens `candidates` (non-contiguous, pointing into HNSW/caller
+    /// storage) into one contiguous host buffer of `candidates.len * query.len`
+    /// floats and dispatches the fused batched Metal kernel in a single
+    /// command buffer. The flatten is a real host-side copy — not free — but
+    /// it replaces up to `2*candidates.len + 1` synchronous per-pair GPU
+    /// round-trips (see `batchCosineSimilarityFallback`) with exactly one.
+    /// Correctness-parity proven (see tests below); no speedup claim.
+    fn runBatchedMetal(self: VectorOps, query: []const f32, candidates: []const []const f32, out: []f32) !void {
+        _ = self;
+        const allocator = std.heap.page_allocator;
+        const d = query.len;
+        const n = candidates.len;
+        const flat = try allocator.alloc(f32, n * d);
+        defer allocator.free(flat);
+        for (candidates, 0..) |cand, i| {
+            @memcpy(flat[i * d ..][0..d], cand);
+        }
+        try metal.g_metal_context.runBatchCosineFused(query, flat, n, d, out);
+    }
+
+    /// Per-pair CPU/Metal-dot fallback: identical math to the batched kernel,
+    /// used when Metal batching is unavailable or fails. Never silently wrong
+    /// — callers are warned before falling back here.
+    fn batchCosineSimilarityFallback(self: VectorOps, query: []const f32, candidates: []const []const f32, out: []f32) !void {
         const q_norm_sq = try self.dot(query, query);
         const q_norm = @sqrt(q_norm_sq);
         for (candidates, out) |cand, *slot| {
-            if (cand.len != query.len) return error.DimensionMismatch;
             const cc = try self.dot(cand, cand);
             if (q_norm == 0 or cc == 0) {
                 slot.* = 0;
@@ -241,6 +280,58 @@ test "gpu batched cosine similarity matches the pairwise result" {
 
     var bad: [1]f32 = undefined;
     try std.testing.expectError(error.DimensionMismatch, ops.batchCosineSimilarity(&query, &candidates, &bad));
+}
+
+test "gpu batched cosine similarity matches an independent scalar reference" {
+    // Independent of both batchCosineSimilarityFallback and cosineSimilarity —
+    // a scalar loop written fresh here so a shared bug in either production
+    // path can't hide behind a matching test. Exercises N=5 candidates of
+    // D=17 (forces the SIMD-width tail in the CPU path and a partial final
+    // stride in the Metal threadgroup reduction, since 17 < 256).
+    const ops = vectorOps();
+
+    var query: [17]f32 = undefined;
+    for (&query, 0..) |*v, i| v.* = @as(f32, @floatFromInt(i % 5)) * 0.3 - 0.6;
+
+    var storage: [5][17]f32 = undefined;
+    var candidates: [5][]const f32 = undefined;
+    for (&storage, 0..) |*row, r| {
+        for (row, 0..) |*v, i| {
+            v.* = @as(f32, @floatFromInt((i + r * 3) % 7)) * 0.2 - 0.7;
+        }
+        candidates[r] = row;
+    }
+
+    var expected: [5]f32 = undefined;
+    for (candidates, 0..) |cand, r| {
+        var qc: f32 = 0;
+        var qq: f32 = 0;
+        var cc: f32 = 0;
+        for (query, cand) |qv, cv| {
+            qc += qv * cv;
+            qq += qv * qv;
+            cc += cv * cv;
+        }
+        expected[r] = if (qq == 0 or cc == 0) 0 else qc / (@sqrt(qq) * @sqrt(cc));
+    }
+
+    var out: [5]f32 = undefined;
+    try ops.batchCosineSimilarity(&query, &candidates, &out);
+
+    for (expected, out) |exp, got| {
+        try std.testing.expectApproxEqAbs(exp, got, 1e-4);
+    }
+}
+
+test "gpu batched cosine similarity rejects a mismatched candidate dimension" {
+    const ops = vectorOps();
+    const query = [_]f32{ 1, 0, 0 };
+    const c0 = [_]f32{ 1, 0, 0 };
+    const bad = [_]f32{ 1, 0 }; // wrong dimension
+    const candidates = [_][]const f32{ &c0, &bad };
+
+    var out: [2]f32 = undefined;
+    try std.testing.expectError(error.DimensionMismatch, ops.batchCosineSimilarity(&query, &candidates, &out));
 }
 
 test "generic kernel status does not claim native dispatch" {
