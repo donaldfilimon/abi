@@ -47,6 +47,9 @@ pub fn handleBackends() !u8 {
     std.debug.print("\n", .{});
 
     // ── Compute backends ──
+    // Probe Metal (or CPU fallback) before reporting so status reflects a real
+    // init attempt, not a cold uninitialized context.
+    _ = features.gpu.vectorOps();
     const gpu_status = features.gpu.detectBackend();
     const native_gpu = features.gpu.nativeKernelStatus();
     const gpu_report = try features.gpu.backendStatusReport(std.heap.page_allocator);

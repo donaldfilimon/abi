@@ -319,6 +319,9 @@ pub fn secureDemo(allocator: std.mem.Allocator) anyerror!u8 {
 /// accelerated, the backend status report, and native-kernel link status.
 /// Returns the process exit code.
 pub fn gpuInfo(allocator: std.mem.Allocator) anyerror!u8 {
+    // Probe Metal (or CPU fallback) before reporting so linked/accelerated
+    // flags reflect a real init attempt on this host.
+    _ = features.gpu.vectorOps();
     const status = features.gpu.detectBackend();
     const native = features.gpu.nativeKernelStatus();
     const report = try features.gpu.backendStatusReport(allocator);

@@ -13,7 +13,7 @@ desc_of() { # file -> description value (single-line, or YAML folded '>' / '|')
     fm!=1{next}
     /^description:[ ]*/{
       v=substr($0, index($0,":")+1); sub(/^ */,"",v)
-      if (v==">"||v=="|"){fold=1; next}
+      if (v==">"||v=="|"||v==">-"||v=="|-"){fold=1; next}
       print v; exit
     }
     fold{ if($0~/^[[:space:]]/){gsub(/^[[:space:]]+/,"");print;exit} else {print "";exit} }
