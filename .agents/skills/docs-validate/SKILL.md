@@ -33,8 +33,9 @@ validation action that shells out to `npx` (network + package fetch).
   run. Offline → it fails at fetch (a tooling/env failure, not a docs failure).
 - **Mintlify config is `docs/docs.json`** — the driver `cd`s into `docs/`; run it
   from anywhere in the repo.
-- **Not wired into `./build.sh` or CI on purpose** — this is a manual gate. Run it
-  after any change under `docs/` and before pushing docs edits.
+- **Not wired into `./build.sh` on purpose** — primary Zig gate stays separate.
+  CI runs this script as job **docs (mint validate)** (Node 22) on push/PR.
+  Still run it locally after any change under `docs/` before pushing.
 - The stale-`.md` scan is a heuristic (nav/link entries ending in `.md`); treat hits
   as "verify these resolve," not hard failures — the `mint validate` result is authoritative.
 

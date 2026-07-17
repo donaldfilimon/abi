@@ -45,29 +45,36 @@ sync_skills() {
                 ;;
         esac
 
-        if [ -d "$dst/$skill_name" ]; then
-            # Sync SKILL.md (text content only, not the .sh scripts)
-            if [ -f "$src/$skill_name/SKILL.md" ]; then
+        if [ ! -d "$dst/$skill_name" ]; then
+            if [ "$DRY_RUN" -eq 1 ]; then
+                echo "  would create: $label/$skill_name/"
+            else
+                mkdir -p "$dst/$skill_name"
+                echo "  created: $label/$skill_name/"
+            fi
+        fi
+
+        # Sync SKILL.md (text content only, not the .sh scripts)
+        if [ -f "$src/$skill_name/SKILL.md" ]; then
+            if [ "$DRY_RUN" -eq 1 ]; then
+                echo "  would sync: $label/$skill_name/SKILL.md"
+            else
+                cp "$src/$skill_name/SKILL.md" "$dst/$skill_name/SKILL.md"
+                echo "  synced: $label/$skill_name/SKILL.md"
+            fi
+        fi
+        # Companion docs skills may load; non-destructive (overwrite/add, no delete)
+        for sub in references examples; do
+            if [ -d "$src/$skill_name/$sub" ]; then
                 if [ "$DRY_RUN" -eq 1 ]; then
-                    echo "  would sync: $label/$skill_name/SKILL.md"
+                    echo "  would sync: $label/$skill_name/$sub/"
                 else
-                    cp "$src/$skill_name/SKILL.md" "$dst/$skill_name/SKILL.md"
-                    echo "  synced: $label/$skill_name/SKILL.md"
+                    mkdir -p "$dst/$skill_name/$sub"
+                    cp -R "$src/$skill_name/$sub/." "$dst/$skill_name/$sub/"
+                    echo "  synced: $label/$skill_name/$sub/"
                 fi
             fi
-            # Companion docs skills may load; non-destructive (overwrite/add, no delete)
-            for sub in references examples; do
-                if [ -d "$src/$skill_name/$sub" ]; then
-                    if [ "$DRY_RUN" -eq 1 ]; then
-                        echo "  would sync: $label/$skill_name/$sub/"
-                    else
-                        mkdir -p "$dst/$skill_name/$sub"
-                        cp -R "$src/$skill_name/$sub/." "$dst/$skill_name/$sub/"
-                        echo "  synced: $label/$skill_name/$sub/"
-                    fi
-                fi
-            done
-        fi
+        done
     done
 }
 
