@@ -50,6 +50,16 @@ while IFS= read -r skill_md; do
   done < "$skill_md"
 done < <(find skills -name SKILL.md -print | sort)
 
+# Base directory footer must point at this package's skills tree (not .agents/).
+while IFS= read -r skill_md; do
+  skill_dir="$(dirname "$skill_md")"
+  expected="Base directory for this skill: $ROOT/$skill_dir"
+  if ! grep -Fq "$expected" "$skill_md"; then
+    echo "SKILL base directory mismatch: $skill_md (expected suffix $skill_dir)" >&2
+    fail=1
+  fi
+done < <(find skills -name SKILL.md -print | sort)
+
 # README must not claim in-tree PreToolUse hooks as packaged features.
 if grep -q '^\- \*\*PreToolUse hooks\*\*' README.md 2>/dev/null; then
   echo "README still advertises packaged PreToolUse hooks" >&2

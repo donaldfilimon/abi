@@ -45,5 +45,12 @@ When designing the target:
 
 Use this skill before touching code. Always run `./build.sh check` before and after.
 
+## Optional host settings
+
+For repo-local strictness (focus areas, gate list, claims discipline), copy
+`modern-refactor/.claude/modern-refactor.local.md.example` to the host project
+as `.claude/modern-refactor.local.md`. The template is not auto-loaded from
+inside the plugin package — it is an optional host-side override only.
+
 Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/refactor-strategy
 Relative paths in this skill (e.g., references/) are relative to this base directory.
