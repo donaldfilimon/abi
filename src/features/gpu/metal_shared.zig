@@ -117,8 +117,8 @@ const MetalContext = struct {
             \\    bb[id] = bv * bv;
             \\}
             \\
-            \\// One partial sum per threadgroup (256 threads). Host sums the
-            \\// partials. Not a multi-pass full-device tree reduce.
+            \\// One partial sum per threadgroup (256 threads). Zig `runReduceSum`
+            \\// re-dispatches until a single scalar remains (multi-pass).
             \\kernel void reduce_sum_kernel(
             \\    device const float* in [[buffer(0)]],
             \\    device float* partials [[buffer(1)]],
