@@ -101,6 +101,35 @@ pub fn headerValue(raw: []const u8, name: []const u8) ?[]const u8 {
     return null;
 }
 
+pub fn reasonPhrase(status: u16) []const u8 {
+    return switch (status) {
+        200 => "OK",
+        400 => "Bad Request",
+        404 => "Not Found",
+        405 => "Method Not Allowed",
+        429 => "Too Many Requests",
+        500 => "Internal Server Error",
+        else => "OK",
+    };
+}
+
+extern fn getsockname(sockfd: std.posix.fd_t, addr: *std.posix.sockaddr, addrlen: *std.posix.socklen_t) c_int;
+
+pub fn bindLoopback(io: std.Io) !struct { server: std.Io.net.Server, port: u16 } {
+    const address = try std.Io.net.IpAddress.parseIp4("127.0.0.1", 0);
+    var srv = try address.listen(io, .{ .mode = .stream, .reuse_address = true });
+    errdefer srv.deinit(io);
+
+    var addr: std.posix.sockaddr = undefined;
+    var addrlen: std.posix.socklen_t = @sizeOf(std.posix.sockaddr);
+    if (getsockname(srv.socket.handle, &addr, &addrlen) != 0) return error.GetSockNameFailed;
+    const addr_in: *const std.posix.sockaddr.in = @ptrCast(@alignCast(&addr));
+    const port = std.mem.toNative(u16, addr_in.port, .big);
+    if (port == 0) return error.PortIsZero;
+
+    return .{ .server = srv, .port = port };
+}
+
 pub fn hasBearerToken(raw: []const u8, token: []const u8) bool {
     const value = headerValue(raw, "Authorization") orelse return false;
     const prefix = "Bearer ";

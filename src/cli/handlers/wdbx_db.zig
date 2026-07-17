@@ -391,7 +391,7 @@ fn resolvePersona(store: *const wdbx.Store, cache: *const PersonaCache, id: u32)
     var key_buf: [64]u8 = undefined;
     if (std.fmt.bufPrint(&key_buf, "wdbx:profile:{d}", .{id})) |k| {
         if (store.get(k)) |label| return label;
-    } else |_| {}
+    } else |_| std.log.warn("resolvePersona bufPrint overflow for id={d}", .{id});
     return cache.get(id) orelse "unknown";
 }
 
