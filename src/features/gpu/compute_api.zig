@@ -218,7 +218,6 @@ test "compute_api: backend matrix is honest (cpu fallback always dispatches; stu
                 try testing.expect(!entry.dispatches);
                 try testing.expect(entry.reason.len > 0);
             },
-            else => {},
         }
     }
     try testing.expect(saw_cpu_fallback and saw_metal and saw_webgl2);

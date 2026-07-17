@@ -70,6 +70,23 @@ fn preferredBackendForTarget() Backend {
     return .simulated;
 }
 
+pub const PresenceProbe = struct {
+    backend: Backend,
+    declared: bool,
+    native_linked: bool,
+    note: []const u8,
+};
+
+pub fn presenceProbe(backend: Backend) PresenceProbe {
+    const caps = backendCapabilities(backend);
+    return .{
+        .backend = backend,
+        .declared = true,
+        .native_linked = caps.native_kernels,
+        .note = caps.message,
+    };
+}
+
 pub fn threadsPerGroup(backend: Backend) usize {
     return switch (backend) {
         .simulated => 4,
