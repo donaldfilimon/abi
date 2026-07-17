@@ -36,9 +36,9 @@ fn usageCode(code: u8) u8 {
         \\  benchmark [count]              Measure local insert/search timing
         \\  cluster status                 Report cluster topology (single-node default)
         \\  cluster demo [nodes]           Run in-process consensus: elect, replicate, fail over
-        \\  cluster serve <port> [node] [host]  Serve this node's networked consensus RPC (RequestVote/AppendEntries). host defaults to 127.0.0.1; non-loopback binds require ABI_WDBX_CLUSTER_TOKEN
+        \\  cluster serve <port> [node] [host]  Serve consensus RPC. host defaults to 127.0.0.1; non-loopback requires ABI_WDBX_CLUSTER_TOKEN. Optional ABI_WDBX_CLUSTER_PEERS. Front multi-host with TLS/mTLS proxy — not production sharding.
         \\  compute info                   Report CPU/GPU/NPU/TPU backends and dynamic selection
-        \\  secure demo                    Demonstrate embedding compression + homomorphic aggregation
+        \\  secure demo                    Demonstrate int8 + Huffman/rANS entropy + autoencoder + HE/FHE demos (not SOTA / not audited)
         \\  gpu info                       Report GPU backend capabilities
         \\  api serve [port]               Serve the REST API (POST /insert /query /verify, GET /health /stats)
         \\

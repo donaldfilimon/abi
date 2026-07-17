@@ -26,10 +26,10 @@ These ship real local artifacts but truthfully disclose that native/external dis
 | Item | Status | Gap to production |
 | ---- | ------ | ----------------- |
 | Native compute dispatch | ⚪ Not started | ANE/TPU/CUDA/Metal-kernel execution (vs the current local SIMD/Metal-fallback path). ANE execution is **out of scope** under the 100% Zig constraint — see Non-goals. |
-| Production/SOTA learned compression codec | ◑ Partial / disclosed | Exact order-0 Huffman entropy (`entropy.zig`), int8 embedding quantization, and the reference `neural_compress.zig` autoencoder exist; no ANS/arithmetic/context-model or production-scale learned codec is proven. |
-| Security-audited FHE | ⚪ Not started | `fhe.zig` (DGHV; chained multiplicative depth 3 tested) is reference-parameter, bounded-depth, **not** audited. |
+| Production/SOTA learned compression codec | ◑ Partial / disclosed | Exact order-0 Huffman (`entropy.zig`), demo rANS + order-1 residual coding (`ans.zig`), int8 quantization, and reference `neural_compress.zig` autoencoder exist; **not** SOTA/production. |
+| Security-audited FHE | ⚪ Not started | `fhe.zig` (DGHV; `REF_P_BITS`/`REF_NOISE_BITS`/`VERIFIED_MUL_DEPTH=3`) is reference-parameter, bounded-depth, **not** audited. |
 | Non-loopback REST hardening | ◑ Partial / disclosed | `rest.zig` remains 127.0.0.1-only and can require `Authorization: Bearer` via `ABI_WDBX_REST_TOKEN`; external exposure still needs TLS, rate limiting, authz, and threat review. |
-| Multi-host cluster | ◑ Authenticated routable bind + local multi-node RPC loop / ops story missing | `cluster_rpc.zig` runs real TCP RequestVote/AppendEntries, includes an authenticated loopback multi-node vote+append round that verifies quorum and peer logs, and `cluster serve <port> [node] [host]` can bind a routable host only when `ABI_WDBX_CLUSTER_TOKEN` is set. `ABI_WDBX_CLUSTER_PEERS` can limit accepted node ids. Multi-host production still needs TLS/mTLS or a fronting network policy, deployment controls, dynamic membership, and sharding. |
+| Multi-host cluster | ◑ Authenticated routable bind + ops docs (TLS-fronting guidance) | `cluster_rpc.zig` TCP RequestVote/AppendEntries + token/peers tests; `cluster serve` prints TLS-fronting ops note on non-loopback. Native TLS not linked; production multi-host/sharding still Proposed. |
 
 ### Feature-parity north-star (honest status vs source)
 
@@ -39,17 +39,18 @@ Target: feature parity with local inference runtimes (llama-cpp, MLX) and CLI/TU
 | ---- | ------ | ------------ |
 | Local llama-cpp / OpenAI-compat inference bridge | ◑ Landed (HTTP client) | `src/connectors/local_bridge.zig` + `complete` path: prefix models (`llama-cpp/`, `ollama/`, `vllm/`, …) hit loopback HTTP with health-check fallback to in-process persona router. Env: `ABI_LLAMA_CPP_ENDPOINT` (default `127.0.0.1:8080`). Not an embedded ggml runtime. Remaining: broader SSE/stream parity when the local server streams tokens. |
 | MLX bridge / on-device FM | ◑ Partial | MLX **HTTP bridge** via `mlx/`/`mlx-` prefixes + `ABI_MLX_ENDPOINT` (default `127.0.0.1:8081`). Apple **FoundationModels** is separate (`apple-fm` + `feat-foundationmodels`, arm64 macOS). ANE dispatch remains a disclosed non-goal. |
-| Codex/claude-code TUI feature parity | ◑ Partial | Landed: raw-mode line editor, slash-commands (`/open`, `/diff`, `/commit`, `/context`, `/features`, `/learn`, `/live`, `/save`/`/load`, `/sessions`, `/clear`, `/pane`), plugin commands + context providers, multi-turn ring history, session save/load, Ctrl-R reverse search (clear-line redraw), Alt-Enter multi-line, Emacs keys, colorized `/diff`, unified context budgets, post-turn `/pane` split, live Anthropic SSE via `/live`, turn footers label `stream=sse` vs `stream=post-hoc`, `/status` shows last constitution escore. Remaining: true token-by-token in-process generation (template model). No new top-level CLI commands (frozen surface). |
-| Streaming token-by-token completion | ◑ Partial (improved) | Local persona path: post-hoc ~4-byte chunks via `stream_callback` (honestly labeled `stream=post-hoc`). Local-bridge: OpenAI-compatible SSE. Live Anthropic: Messages SSE on `complete --live --stream` and TUI `/live`. Residual: true incremental in-process generation. |
+| Codex/claude-code TUI feature parity | ◑ Partial | Landed: raw-mode line editor, slash-commands, plugin commands + context providers, multi-turn history, session save/load, Ctrl-R, Alt-Enter, Emacs keys, colorized `/diff`, `/pane`, live Anthropic SSE, turn footers `stream=sse` vs `stream=incremental` (template iterative decode). Residual: neural LM / ggml in-process sampler (out of scope without embedding). Frozen CLI surface. |
+| Streaming token-by-token completion | ◑ Partial (improved) | Local persona path: **true incremental** word/token emission during generation via `incremental.zig` (`stream=incremental`). Not a neural LM sampler. Local-bridge + live Anthropic remain SSE baselines. |
 | File-aware agent context | ◑ Landed (v2) | `file_context.zig`: `@file` + fair-share budget, bounded workspace tree, budgeted `git diff`/`--stat`. REPL `/open` + `@file` remain. No new MCP tools (frozen 12-tool surface). |
 
 ### Candidate next slices (real remaining work)
 
 | Item | Status | Notes |
 | ---- | ------ | ----- |
-| Broader native/batched GPU acceleration | 🟡 In progress | HNSW pairwise + neighbor-expansion batch scoring route through `gpu.vectorOps()` with SIMD fallback. Remaining expansion is native kernel dispatch — deferred under the 100%-Zig constraint. |
-| Zero-copy RankedNode vector views | ✅ Done | `SearchResult.vector` + `RankedNode.vector` optional borrowed views; `retrieval.attachBorrowedVectors` + `Store.search` attach via `getVector`; pointer-alias tests; CLI prefers attached dims. Lifetime still ends at next store mutation. |
-| Windows runtime verification for cross builds | ⚪ Not started | CI cross-compiles linux-gnu/windows-gnu/aarch64-macos; Windows runtime execution remains out of scope from a macOS host. |
+| Broader native/batched GPU acceleration | ◑ Partial | Metal: fused `cosine_parts_kernel` (one dispatch for ab/aa/bb) + existing dot/l2; wider SIMD fallback via `suggestVectorLength`. CUDA/Vulkan remain disclosed stubs. Full GPU reduce / CUDA still Proposed. |
+| Zero-copy RankedNode vector views | ✅ Done | `SearchResult.vector` + `RankedNode.vector` optional borrowed views; lifetime ends at next store mutation. |
+| Windows runtime verification for cross builds | ⚪ Not started | Credential owner-only ACL via Win32 SDDL is implemented for windows-gnu builds; **runtime** verification still needs a Windows host (cross-smoke compile-only). Keychain remains disclosed gap. |
+| Phase D `modernized/` scaffold | ✅ Done (minimal) | Approved pointer + `modernized/packages/*` READMEs; live code remains `src/` until cutover. |
 
 ---
 
@@ -66,14 +67,15 @@ These are decisions, not unfinished work — do not "fix" them.
 
 ## Known test failures
 
-- None currently reproduced. Latest review gates: all `*.zig` files pass standalone `zig ast-check`; `zig build lint` passes (errors=0); `zig build check-parity` passes (exit 0); pin gate green on `0.17.0-dev.1398+cb5635714`; `./build.sh check` passes (39/39 steps, 1986 tests).
+- None currently reproduced. Latest review gates: all `*.zig` files pass standalone `zig ast-check`; `zig build lint` passes (errors=0); `zig build check-parity` passes (exit 0); pin gate green on `0.17.0-dev.1398+cb5635714`; `./build.sh check` passes (39/39 steps, 1750 tests); `./build.sh full-check` passes (47/47 steps).
 
 ---
 
 ## Recently landed (digest — full detail in git + CHANGELOG)
 
-One-line pointers only; the authoritative record is `git log` and `CHANGELOG.md`.
-- **Gitignore/config cleanup** — `.gitignore` trimmed ~100 dead entries (non-existent dirs, per-file docs/ allowlist consolidated); stale file refs in GPU skill docs fixed; `.opencode.json` removed (canonical is `opencode.json`). 22 insertions, 245 deletions. `./build.sh check` 39/39. (#675)
+One-line pointers only
+- **Tracks A–G (claim-honest)** — incremental in-process template streaming; Metal fused cosine; Windows owner-only ACL (runtime unverified); rANS+order-1 residual demo; FHE param honesty; cluster TLS-fronting ops note; Phase D modernized/packages scaffold.
+; the authoritative record is `git log` and `CHANGELOG.md`.
 - **Feature polish (streaming / RankedNode / creds / constitution)** — RankedNode+SearchResult borrowed `vector` views; TUI turn footers `stream=sse` vs `stream=post-hoc`; Ctrl-R clear-line redraw; `/status` last constitution escore; POSIX `secureZero` on credential deinit/load/save/signin buffer; north-star zero-copy row updated. Residual: true in-process token gen, Windows ACL/keychain, native GPU kernels.
 - **REPL `/pane` split** — `repl_pane.zig` post-turn composed split (chat left, `git diff --stat` / open-file summary right); reuses `dashboard_render` fit helpers; refuses <80 cols / non-tty; unit-tested layout math.
 - **REPL finalization** — `repl.zig` 1050→538 (thin dispatch hub); input loops/keys/redraw/tab/Ctrl-R → `repl_io.zig` 248; `completePrompt` + stream contexts + `resolveFileMentions` → `repl_complete.zig` 292. Fixed `/diff --stat` (hardcoded `"/diff "` re-parse), deduped `runSyncClis` into `repl_git_commands.zig`, fixed `/open` transient-buffer leak, malformed `--soul-alpha` now usage exit 2. New tests: runOpen packing round-trip/budget/leak, `--soul` arg contract, `agent os dry-run` success. Design doc §2 synced.

@@ -6,14 +6,17 @@ const router = @import("router.zig");
 const constitution = @import("constitution.zig");
 const types = @import("types.zig");
 const models = @import("models.zig");
+const incremental = @import("incremental.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const telemetry = if (build_options.feat_telemetry) @import("../telemetry/mod.zig") else @import("../telemetry/stub.zig");
+
+pub const streamModeLabel = incremental.streamModeLabel;
 
 pub fn complete(allocator: std.mem.Allocator, request: types.CompletionRequest) !types.CompletionResult {
     if (request.input.len == 0) return error.InvalidCompletionInput;
     const weights = router.analyzeSentiment(request.input);
     const selected = router.selectBestProfile(weights);
-    return completeWithSelectedProfile(allocator, request, selected);
+    return completeWithSelectedProfile(allocator, request, selected, null, null);
 }
 
 pub fn completeAdaptive(allocator: std.mem.Allocator, store: *wdbx.Store, request: types.CompletionRequest) !types.CompletionResult {
@@ -21,16 +24,34 @@ pub fn completeAdaptive(allocator: std.mem.Allocator, store: *wdbx.Store, reques
     var modulator = router.AdaptiveModulator.loadWeights(store);
     modulator.update(router.analyzeSentiment(request.input));
     const selected = router.selectBestProfile(modulator.weights());
-    return completeWithSelectedProfile(allocator, request, selected);
+    return completeWithSelectedProfile(
+        allocator,
+        request,
+        selected,
+        request.stream_callback,
+        request.stream_ctx,
+    );
 }
 
-fn completeWithSelectedProfile(allocator: std.mem.Allocator, request: types.CompletionRequest, selected: types.AgentProfile) !types.CompletionResult {
+fn completeWithSelectedProfile(
+    allocator: std.mem.Allocator,
+    request: types.CompletionRequest,
+    selected: types.AgentProfile,
+    on_chunk: ?types.StreamCallback,
+    callback_ctx: ?*anyopaque,
+) !types.CompletionResult {
     // Resolve catalog aliases (e.g. "fable-5" -> "claude-fable-5") to their
     // canonical id; unknown/freeform ids pass through unchanged. Both branches
     // yield a non-owned slice (static catalog literal or the caller's slice),
     // matching the existing borrowed-`model` lifetime — `deinit` never frees it.
     const resolved_model = models.resolve(request.model) orelse request.model;
-    const response = try router.routeToProfile(allocator, selected, request.input);
+    const response = try incremental.generateProfileIncremental(
+        allocator,
+        selected,
+        request.input,
+        on_chunk,
+        callback_ctx,
+    );
     errdefer allocator.free(response);
     const audit = constitution.Constitution.validate(response);
     // Per-turn governance telemetry: every evaluated turn is counted, and a
@@ -74,13 +95,11 @@ pub fn completeWithScheduler(
     return ctx.result orelse error.MissingCompletionResult;
 }
 
-const STREAM_CHUNK_SIZE: usize = 4;
-
-/// In-process persona/template completions return full text in one shot.
-/// When a stream callback is set, output is split into ~STREAM_CHUNK_SIZE
-/// byte deltas for progressive tty paint. This is **post-hoc chunking**, not
-/// true incremental token generation — live Anthropic SSE and local-bridge
-/// OpenAI-compatible SSE are the real incremental paths.
+/// In-process persona/template completions use iterative word/token emission
+/// when a stream callback is set (`stream=incremental`). This is true
+/// during-generation emission from the local template model — **not** a neural
+/// LM / ggml sampler. Live Anthropic SSE and local-bridge OpenAI-compatible SSE
+/// remain the network-incremental baselines.
 pub fn completeStreaming(
     allocator: std.mem.Allocator,
     request: types.CompletionRequest,
@@ -90,17 +109,7 @@ pub fn completeStreaming(
     if (request.input.len == 0) return error.InvalidCompletionInput;
     const weights = router.analyzeSentiment(request.input);
     const selected = router.selectBestProfile(weights);
-    const result = try completeWithSelectedProfile(allocator, request, selected);
-    errdefer result.deinit(allocator);
-
-    var offset: usize = 0;
-    while (offset < result.output.len) {
-        const end = @min(offset + STREAM_CHUNK_SIZE, result.output.len);
-        try on_chunk(callback_ctx, .{ .delta = result.output[offset..end], .done = false });
-        offset = end;
-    }
-    try on_chunk(callback_ctx, .{ .delta = "", .done = true });
-    return result;
+    return completeWithSelectedProfile(allocator, request, selected, on_chunk, callback_ctx);
 }
 
 pub fn completeWithSchedulerStreaming(
@@ -122,13 +131,15 @@ pub fn completeWithSchedulerStreaming(
     var result = ctx.result orelse return error.MissingCompletionResult;
     errdefer result.deinit(allocator);
 
-    var offset: usize = 0;
-    while (offset < result.output.len) {
-        const end = @min(offset + STREAM_CHUNK_SIZE, result.output.len);
-        try on_chunk(callback_ctx, .{ .delta = result.output[offset..end], .done = false });
-        offset = end;
-    }
-    try on_chunk(callback_ctx, .{ .delta = "", .done = true });
+    const streamed = try incremental.generateProfileIncremental(
+        allocator,
+        result.selected_profile,
+        request.input,
+        on_chunk,
+        callback_ctx,
+    );
+    allocator.free(result.output);
+    result.output = streamed;
     return result;
 }
 
@@ -144,24 +155,9 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
 }
 
 pub fn completeWithStoreAdaptive(allocator: std.mem.Allocator, store: *wdbx.Store, request: types.CompletionRequest) !types.CompletionResult {
+    // stream_callback on the request is honored during generateProfileIncremental.
     const result = try completeAdaptive(allocator, store, request);
     errdefer result.deinit(allocator);
-
-    // Emit chunks through the streaming callback when configured.
-    // The underyling model path returns full text, so this splits post-hoc;
-    // a future chunked backend will emit incrementally.
-    if (request.stream_callback) |cb| {
-        if (request.stream_ctx) |sc_ctx| {
-            var offset: usize = 0;
-            while (offset < result.output.len) {
-                const end = @min(offset + STREAM_CHUNK_SIZE, result.output.len);
-                try cb(sc_ctx, .{ .delta = result.output[offset..end], .done = false });
-                offset = end;
-            }
-            try cb(sc_ctx, .{ .delta = "", .done = true });
-        }
-    }
-
     return persistCompletionResult(allocator, store, request, result);
 }
 

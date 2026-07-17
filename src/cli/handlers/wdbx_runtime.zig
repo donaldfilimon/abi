@@ -206,6 +206,12 @@ pub fn clusterServe(io: std.Io, allocator: std.mem.Allocator, host: []const u8, 
         "cluster node {d} serving consensus RPC on {s}:{d} (RequestVote/AppendEntries; auth={s}; peers={s}). Ctrl-C to stop.\n",
         .{ node_id, host, port, if (config.policy.auth.enabled()) "shared-secret" else "off", if (config.policy.peers == null) "any" else "configured" },
     );
+    if (!isLoopbackHost(host)) {
+        std.debug.print(
+            "ops note: non-loopback bind is authenticated TCP only — front with TLS/mTLS (nginx/caddy/envoy) for transit encryption; native TLS is not linked. Env: {s}=shared-secret, {s}=comma-separated node ids. This is not production multi-host/sharding.\n",
+            .{ CLUSTER_TOKEN_ENV, CLUSTER_PEERS_ENV },
+        );
+    }
     try wdbx.cluster_rpc.serveLoopAuth(io, &server, &node, allocator, config.policy);
     return 0;
 }
@@ -241,6 +247,42 @@ pub fn secureDemo(allocator: std.mem.Allocator) anyerror!u8 {
     defer allocator.free(back);
     std.debug.print("compression: {d} f32 -> int8 codes, ratio={d:.2}x, max_error={d:.5}\n", .{ vec.len, q.compressionRatio(), wdbx.compression.maxError(&vec, back) });
 
+    const entropy_src = "WDBX-entropy-demo-aaaaaaaaaa-bbbbbbbbbb-cccccccccc-HELLO";
+    var huff = try wdbx.entropy.encode(allocator, entropy_src);
+    defer huff.deinit(allocator);
+    const huff_back = try wdbx.entropy.decode(allocator, huff);
+    defer allocator.free(huff_back);
+    std.debug.print("entropy Huffman: mode={s} {d}B -> serialized {d}B ratio={d:.2}x roundtrip={any}\n", .{
+        @tagName(huff.mode), entropy_src.len, huff.serializedLen(), huff.compressionRatio(), std.mem.eql(u8, entropy_src, huff_back),
+    });
+
+    var rans0 = try wdbx.ans.encode(allocator, entropy_src);
+    defer rans0.deinit(allocator);
+    const rans0_back = try wdbx.ans.decode(allocator, rans0);
+    defer allocator.free(rans0_back);
+    std.debug.print("entropy rANS0: mode={s} {d}B -> serialized {d}B ratio={d:.2}x roundtrip={any}\n", .{
+        @tagName(rans0.mode), entropy_src.len, rans0.serializedLen(), rans0.compressionRatio(), std.mem.eql(u8, entropy_src, rans0_back),
+    });
+
+    const o1_src = "the the the cat sat on the mat the the cat sat";
+    var rans1 = try wdbx.ans.encodeOrder1(allocator, o1_src);
+    defer rans1.deinit(allocator);
+    const rans1_back = try wdbx.ans.decode(allocator, rans1);
+    defer allocator.free(rans1_back);
+    std.debug.print("entropy rANS1: mode={s} {d}B -> serialized {d}B ratio={d:.2}x roundtrip={any} (demo; not SOTA)\n", .{
+        @tagName(rans1.mode), o1_src.len, rans1.serializedLen(), rans1.compressionRatio(), std.mem.eql(u8, o1_src, rans1_back),
+    });
+
+    var ae = try wdbx.neural_compress.Autoencoder.init(allocator, 8, 4, 0xC0DEC0DE);
+    defer ae.deinit();
+    var sample: [8]f32 = .{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8 };
+    _ = ae.trainStep(&sample, 0.05);
+    var latent: [4]f32 = undefined;
+    var recon: [8]f32 = undefined;
+    ae.encode(&sample, &latent);
+    ae.decode(&latent, &recon);
+    std.debug.print("neural_compress: autoencoder 8->4->8 recon[0]={d:.4} (reference demo, not SOTA)\n", .{recon[0]});
+
     const key = wdbx.crypto_he.Key.init(0xABCDEF);
     var acc = try key.encrypt(allocator, 0, 0);
     defer acc.deinit(allocator);
@@ -269,7 +311,7 @@ pub fn secureDemo(allocator: std.mem.Allocator) anyerror!u8 {
     const eval_bit = wdbx.fhe.decrypt(kp, e_eval);
     std.debug.print("homomorphic eval: enc((1 AND 1) XOR 0) decrypts to {d} (expected 1, match={any})\n", .{ eval_bit, eval_bit == 1 });
     std.debug.print("(DGHV somewhat-homomorphic scheme: real encrypted add+multiply on ciphertexts, reference parameters / bounded depth — not security-audited)\n", .{});
-    std.debug.print("north-star status: Partial — int8 + additive HE + reference DGHV SHE (not security-audited); production FHE Proposed (docs/spec/wdbx-north-star.mdx §2/§3.4)\n", .{});
+    std.debug.print("north-star status: Partial — int8 + Huffman + rANS/order-1 demos + autoencoder + additive HE + reference DGHV SHE (not audited, not SOTA); production FHE/SOTA codecs remain Proposed\n", .{});
     return 0;
 }
 
