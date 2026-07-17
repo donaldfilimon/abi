@@ -53,11 +53,11 @@ Cross-compiles link cleanly for `x86_64-linux-gnu` / `aarch64-linux-gnu` / `wind
 
 ## Learned User Preferences
 - Prefer feature branches named with the `cursor/` prefix from `origin/main`; do not commit or push directly to `main`; never force-push `main`.
-- Recurring ask: land finished work onto `main` via PR/merge rather than leaving stranded feature branches.
+- Recurring ask: land finished work onto `main` via PR/merge rather than leaving stranded feature branches; when asked to "stay on main" / "merge all into main", finish via PR merge and return checkout to `main`.
 - For AGENTS.md Learned-section-only updates, append prefs/facts onto `origin/main` rather than overwriting the compact toolchain/commands body.
 - Prefer draft PRs when the create-pull-request flow requests draft.
 - Verify interactive dashboard/TUI with `.agents/skills/run-tui/tui.sh` (tmux pty); never prepend Homebrew `/opt/homebrew/bin` ahead of the pinned Zig on PATH.
-- Prefer honest status digests and labeled demos over fake live bridges when IPC or production capability is absent.
+- Prefer honest status digests and labeled demos over fake live bridges; when asked to "do all" on deferred/non-goal tracks, ship maximum claim-honest scope only — never fake-complete honest stubs, ANE dispatch, audited FHE, SOTA compression, or production multi-host sharding.
 - For refactor/organization work, prefer scoped tracks (module extraction vs north-star features vs docs/claims) over open-ended clean-slate rewrites; confirm scope before planning.
 - When reducing Cursor context budget, disable unused `alwaysApply` plugin rules and unrelated MCP servers; do not re-inflate `CLAUDE.md`/`GEMINI.md` (they are thin redirects to `AGENTS.md`).
 - When the user invokes `/abi`, route ABI implementation through the `abi` subagent.
@@ -67,8 +67,11 @@ Cross-compiles link cleanly for `x86_64-linux-gnu` / `aarch64-linux-gnu` / `wind
 - Interactive `abi dashboard` / `abi tui` / `abi --tui` use a split layout (diagnostics + Agent Output); one-shot `--once` stays stacked — layouts diverge by design.
 - Dashboard Agent Output is a status digest, not live `agent tui` traffic; dashboard WDBX is an ephemeral CLI probe (labeled), not the durable agent store.
 - Plugin-declared slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>` for context providers).
-- REPL `/pane` split landed in `repl_pane.zig`; in-process persona streaming is iterative word/token emission (`stream=incremental` via `incremental.zig`), not a neural LM sampler.
-- `tasks/goals.md` is gitignored (`/tasks/*` + root `*.md`); treat committed `tasks/todo.md` as the active board.
+- REPL `/pane` split landed in `repl_pane.zig`; in-process persona streaming is iterative word/token emission (`stream=incremental` via `incremental.zig`), not a neural LM/ggml sampler.
+- WDBX `SearchResult`/`RankedNode` can attach borrowed vector dims for zero-copy search/CLI use; mutation lifetime remains a documented residual.
+- Metal `vectorOps` includes a fused cosine kernel on macOS; CUDA/Vulkan stay disclosed stubs (no native dispatch claimed).
+- Windows credential writes can apply owner-only DACL (SDDL `OW`); OS keychain and Windows runtime ACL verification still need a Windows host/CI.
+- `tasks/goals.md` is gitignored (`/tasks/*` + root `*.md`); treat committed `tasks/todo.md` as the active board (includes A–G claim-honest scoreboard).
 - Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A–C complete; `modern-refactor/examples/` is historical, not the active board.
 - `modernized/` holds Phase D–approved package-layout pointers under `packages/`; live code remains `src/` until cutover.
 - Ambient WDBX Linux `EBADF` owner-only repair is fixed (`iterate=true`); `ABI_WDBX_PERSIST=0` is no longer required to avoid ambient-open panics on Linux.
