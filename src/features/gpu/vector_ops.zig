@@ -4,7 +4,7 @@ const backends = @import("backends.zig");
 const metal = @import("metal_shared.zig");
 
 /// Host-side vectorized sum. Used as CPU fallback and for tiny buffers.
-/// Prefer `reduceSum` after Metal map kernels when Metal is initialized.
+/// Prefer Metal map+reduce / fused cosine when Metal is initialized.
 fn sumF32(values: []const f32) f32 {
     var sum: f32 = 0;
     var i: usize = 0;
@@ -18,11 +18,15 @@ fn sumF32(values: []const f32) f32 {
 }
 
 /// Prefer Metal multi-pass threadgroup reduce (256-wide until one scalar)
-/// when initialized; otherwise host `sumF32`. Broader kernels / CUDA remain
-/// Proposed.
+/// when initialized; otherwise host `sumF32`. On Metal failure, log and use
+/// the explicit CPU fallback — never swallow silently. Broader kernels /
+/// CUDA remain Proposed.
 fn reduceSum(values: []const f32) f32 {
     if (builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
-        return metal.g_metal_context.runReduceSum(values) catch sumF32(values);
+        return metal.g_metal_context.runReduceSum(values) catch |err| {
+            std.log.warn("Metal reduceSum failed ({s}); using vectorized CPU fallback", .{@errorName(err)});
+            return sumF32(values);
+        };
     }
     return sumF32(values);
 }
@@ -44,27 +48,13 @@ pub const VectorOps = struct {
         if (a.len == 0) return 0;
 
         if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
-            var stack_buf: [4096]f32 = undefined;
-            const res = if (a.len <= 4096)
-                stack_buf[0..a.len]
-            else
-                try std.heap.page_allocator.alloc(f32, a.len);
-            defer if (a.len > 4096) std.heap.page_allocator.free(res);
-
-            try metal.g_metal_context.runKernel(metal.g_metal_context.dot_pipeline, a.len, a, b, res);
-            return reduceSum(res);
+            return metal.g_metal_context.runMapAndReduce(metal.g_metal_context.dot_pipeline, a.len, a, b) catch |err| {
+                std.log.warn("Metal dot map+reduce failed ({s}); using vectorized CPU fallback", .{@errorName(err)});
+                return cpuDot(a, b);
+            };
         }
 
-        var sum: f32 = 0;
-        var i: usize = 0;
-        const VLen = comptime std.simd.suggestVectorLength(f32) orelse 4;
-        while (i + VLen <= a.len) : (i += VLen) {
-            const av: @Vector(VLen, f32) = a[i..][0..VLen].*;
-            const bv: @Vector(VLen, f32) = b[i..][0..VLen].*;
-            sum += @reduce(.Add, av * bv);
-        }
-        while (i < a.len) : (i += 1) sum += a[i] * b[i];
-        return sum;
+        return cpuDot(a, b);
     }
 
     pub fn squaredL2(self: VectorOps, a: []const f32, b: []const f32) !f32 {
@@ -72,31 +62,13 @@ pub const VectorOps = struct {
         if (a.len == 0) return 0;
 
         if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
-            var stack_buf: [4096]f32 = undefined;
-            const res = if (a.len <= 4096)
-                stack_buf[0..a.len]
-            else
-                try std.heap.page_allocator.alloc(f32, a.len);
-            defer if (a.len > 4096) std.heap.page_allocator.free(res);
-
-            try metal.g_metal_context.runKernel(metal.g_metal_context.l2_pipeline, a.len, a, b, res);
-            return reduceSum(res);
+            return metal.g_metal_context.runMapAndReduce(metal.g_metal_context.l2_pipeline, a.len, a, b) catch |err| {
+                std.log.warn("Metal L2 map+reduce failed ({s}); using vectorized CPU fallback", .{@errorName(err)});
+                return cpuSquaredL2(a, b);
+            };
         }
 
-        var sum: f32 = 0;
-        var i: usize = 0;
-        const VLen = comptime std.simd.suggestVectorLength(f32) orelse 4;
-        while (i + VLen <= a.len) : (i += VLen) {
-            const av: @Vector(VLen, f32) = a[i..][0..VLen].*;
-            const bv: @Vector(VLen, f32) = b[i..][0..VLen].*;
-            const diff = av - bv;
-            sum += @reduce(.Add, diff * diff);
-        }
-        while (i < a.len) : (i += 1) {
-            const diff = a[i] - b[i];
-            sum += diff * diff;
-        }
-        return sum;
+        return cpuSquaredL2(a, b);
     }
 
     pub fn cosineSimilarity(self: VectorOps, a: []const f32, b: []const f32) !f32 {
@@ -104,29 +76,15 @@ pub const VectorOps = struct {
         if (a.len == 0) return 0;
 
         if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
-            var stack_ab: [4096]f32 = undefined;
-            var stack_aa: [4096]f32 = undefined;
-            var stack_bb: [4096]f32 = undefined;
-            const ab = if (a.len <= 4096) stack_ab[0..a.len] else try std.heap.page_allocator.alloc(f32, a.len);
-            defer if (a.len > 4096) std.heap.page_allocator.free(ab);
-            const aa_buf = if (a.len <= 4096) stack_aa[0..a.len] else try std.heap.page_allocator.alloc(f32, a.len);
-            defer if (a.len > 4096) std.heap.page_allocator.free(aa_buf);
-            const bb_buf = if (a.len <= 4096) stack_bb[0..a.len] else try std.heap.page_allocator.alloc(f32, a.len);
-            defer if (a.len > 4096) std.heap.page_allocator.free(bb_buf);
-
-            try metal.g_metal_context.runCosinePartsKernel(a.len, a, b, ab, aa_buf, bb_buf);
-            const sum_ab = reduceSum(ab);
-            const sum_aa = reduceSum(aa_buf);
-            const sum_bb = reduceSum(bb_buf);
-            if (sum_aa == 0 or sum_bb == 0) return 0;
-            return sum_ab / @sqrt(sum_aa * sum_bb);
+            const sums = metal.g_metal_context.runCosineFused(a.len, a, b) catch |err| {
+                std.log.warn("Metal fused cosine failed ({s}); using vectorized CPU fallback", .{@errorName(err)});
+                return cpuCosine(self, a, b);
+            };
+            if (sums.aa == 0 or sums.bb == 0) return 0;
+            return sums.ab / @sqrt(sums.aa * sums.bb);
         }
 
-        const ab = try self.dot(a, b);
-        const aa = try self.dot(a, a);
-        const bb = try self.dot(b, b);
-        if (aa == 0 or bb == 0) return 0;
-        return ab / @sqrt(aa * bb);
+        return cpuCosine(self, a, b);
     }
 
     /// Cosine similarity of `query` against each row of `candidates`, written
@@ -151,6 +109,45 @@ pub const VectorOps = struct {
         }
     }
 };
+
+fn cpuDot(a: []const f32, b: []const f32) f32 {
+    var sum: f32 = 0;
+    var i: usize = 0;
+    const VLen = comptime std.simd.suggestVectorLength(f32) orelse 4;
+    while (i + VLen <= a.len) : (i += VLen) {
+        const av: @Vector(VLen, f32) = a[i..][0..VLen].*;
+        const bv: @Vector(VLen, f32) = b[i..][0..VLen].*;
+        sum += @reduce(.Add, av * bv);
+    }
+    while (i < a.len) : (i += 1) sum += a[i] * b[i];
+    return sum;
+}
+
+fn cpuSquaredL2(a: []const f32, b: []const f32) f32 {
+    var sum: f32 = 0;
+    var i: usize = 0;
+    const VLen = comptime std.simd.suggestVectorLength(f32) orelse 4;
+    while (i + VLen <= a.len) : (i += VLen) {
+        const av: @Vector(VLen, f32) = a[i..][0..VLen].*;
+        const bv: @Vector(VLen, f32) = b[i..][0..VLen].*;
+        const diff = av - bv;
+        sum += @reduce(.Add, diff * diff);
+    }
+    while (i < a.len) : (i += 1) {
+        const diff = a[i] - b[i];
+        sum += diff * diff;
+    }
+    return sum;
+}
+
+fn cpuCosine(self: VectorOps, a: []const f32, b: []const f32) !f32 {
+    _ = self;
+    const ab = cpuDot(a, b);
+    const aa = cpuDot(a, a);
+    const bb = cpuDot(b, b);
+    if (aa == 0 or bb == 0) return 0;
+    return ab / @sqrt(aa * bb);
+}
 
 pub fn executeKernel(spec: backends.KernelSpec) !backends.KernelResult {
     if (spec.name.len == 0) return error.InvalidKernelName;
@@ -214,6 +211,17 @@ test "gpu vector ops: active backend matches scalar reference (CPU/GPU parity)" 
 
     try std.testing.expectApproxEqAbs(ref_dot, try ops.dot(&a, &b), 1e-3);
     try std.testing.expectApproxEqAbs(ref_l2, try ops.squaredL2(&a, &b), 1e-3);
+
+    var ref_ab: f32 = 0;
+    var ref_aa: f32 = 0;
+    var ref_bb: f32 = 0;
+    for (a, b) |x, y| {
+        ref_ab += x * y;
+        ref_aa += x * x;
+        ref_bb += y * y;
+    }
+    const ref_cos = ref_ab / @sqrt(ref_aa * ref_bb);
+    try std.testing.expectApproxEqAbs(ref_cos, try ops.cosineSimilarity(&a, &b), 1e-3);
 }
 
 test "gpu batched cosine similarity matches the pairwise result" {
