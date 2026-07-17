@@ -37,9 +37,10 @@ pub const VectorOps = struct {
 
         var sum: f32 = 0;
         var i: usize = 0;
-        while (i + 4 <= a.len) : (i += 4) {
-            const av: @Vector(4, f32) = a[i..][0..4].*;
-            const bv: @Vector(4, f32) = b[i..][0..4].*;
+        const VLen = comptime std.simd.suggestVectorLength(f32) orelse 4;
+        while (i + VLen <= a.len) : (i += VLen) {
+            const av: @Vector(VLen, f32) = a[i..][0..VLen].*;
+            const bv: @Vector(VLen, f32) = b[i..][0..VLen].*;
             sum += @reduce(.Add, av * bv);
         }
         while (i < a.len) : (i += 1) sum += a[i] * b[i];
@@ -68,9 +69,10 @@ pub const VectorOps = struct {
 
         var sum: f32 = 0;
         var i: usize = 0;
-        while (i + 4 <= a.len) : (i += 4) {
-            const av: @Vector(4, f32) = a[i..][0..4].*;
-            const bv: @Vector(4, f32) = b[i..][0..4].*;
+        const VLen = comptime std.simd.suggestVectorLength(f32) orelse 4;
+        while (i + VLen <= a.len) : (i += VLen) {
+            const av: @Vector(VLen, f32) = a[i..][0..VLen].*;
+            const bv: @Vector(VLen, f32) = b[i..][0..VLen].*;
             const diff = av - bv;
             sum += @reduce(.Add, diff * diff);
         }
@@ -82,6 +84,33 @@ pub const VectorOps = struct {
     }
 
     pub fn cosineSimilarity(self: VectorOps, a: []const f32, b: []const f32) !f32 {
+        if (a.len != b.len) return error.DimensionMismatch;
+        if (a.len == 0) return 0;
+
+        if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            var stack_ab: [4096]f32 = undefined;
+            var stack_aa: [4096]f32 = undefined;
+            var stack_bb: [4096]f32 = undefined;
+            const ab = if (a.len <= 4096) stack_ab[0..a.len] else try std.heap.page_allocator.alloc(f32, a.len);
+            defer if (a.len > 4096) std.heap.page_allocator.free(ab);
+            const aa_buf = if (a.len <= 4096) stack_aa[0..a.len] else try std.heap.page_allocator.alloc(f32, a.len);
+            defer if (a.len > 4096) std.heap.page_allocator.free(aa_buf);
+            const bb_buf = if (a.len <= 4096) stack_bb[0..a.len] else try std.heap.page_allocator.alloc(f32, a.len);
+            defer if (a.len > 4096) std.heap.page_allocator.free(bb_buf);
+
+            try metal.g_metal_context.runCosinePartsKernel(a.len, a, b, ab, aa_buf, bb_buf);
+            var sum_ab: f32 = 0;
+            var sum_aa: f32 = 0;
+            var sum_bb: f32 = 0;
+            for (ab, aa_buf, bb_buf) |x, y, z| {
+                sum_ab += x;
+                sum_aa += y;
+                sum_bb += z;
+            }
+            if (sum_aa == 0 or sum_bb == 0) return 0;
+            return sum_ab / @sqrt(sum_aa * sum_bb);
+        }
+
         const ab = try self.dot(a, b);
         const aa = try self.dot(a, a);
         const bb = try self.dot(b, b);

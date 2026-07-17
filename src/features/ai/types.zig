@@ -83,10 +83,9 @@ pub const CompletionRequest = struct {
     input: []const u8,
     model: []const u8 = "claude-fable-5",
     store_result: bool = false,
-    /// Optional streaming callback. When set, `completeWithStoreAdaptive` emits
-    /// the output through this callback in ~16-byte chunks after the completion
-    /// finishes (the underlying model path returns full text; this is a bridge
-    /// toward true per-token streaming).
+    /// Optional streaming callback. When set, persona/template generation emits
+    /// word/token deltas **during** iterative generation (`stream=incremental`).
+    /// This is not a neural LM sampler; live SSE paths remain separate.
     stream_callback: ?StreamCallback = null,
     /// Opaque context passed to `stream_callback` as the first argument.
     stream_ctx: ?*anyopaque = null,

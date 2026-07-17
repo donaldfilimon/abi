@@ -23,8 +23,9 @@ pub const Credentials = struct {
     }
 };
 
-/// Securely zero an owned secret slice then free it. POSIX-safe heap hygiene;
-/// does not claim Windows ACL or OS keychain clearing.
+/// Securely zero an owned secret slice then free it. Heap hygiene on all
+/// platforms; Windows ACL owner-only is applied at write time separately.
+/// Does not claim OS keychain clearing.
 fn wipeAndFree(allocator: std.mem.Allocator, field: *?[]const u8) void {
     if (field.*) |k| {
         const mutable: []u8 = @constCast(k);
@@ -32,6 +33,12 @@ fn wipeAndFree(allocator: std.mem.Allocator, field: *?[]const u8) void {
         allocator.free(mutable);
         field.* = null;
     }
+}
+
+/// Best-effort wipe of a borrowed mutable buffer (stdin, JSON scratch).
+pub fn secureWipe(buf: []u8) void {
+    if (buf.len == 0) return;
+    std.crypto.secureZero(u8, buf);
 }
 
 pub fn replaceOwnedString(allocator: std.mem.Allocator, field: *?[]const u8, value: []const u8) !void {
@@ -165,6 +172,7 @@ fn writeCredentialsFile(path: []const u8, data: []const u8) !void {
     try file.setPermissions(io_context, file_permissions);
     try file.writeStreamingAll(io_context, data);
     try file.setPermissions(io_context, file_permissions);
+    try applyWindowsOwnerOnlyAcl(path);
 }
 
 fn setDirectoryPermissions(path: []const u8, permissions: std.Io.Dir.Permissions) !void {
@@ -173,6 +181,7 @@ fn setDirectoryPermissions(path: []const u8, permissions: std.Io.Dir.Permissions
     const dir = try std.Io.Dir.openDirAbsolute(io_context, path, .{ .iterate = true });
     defer dir.close(io_context);
     try dir.setPermissions(io_context, permissions);
+    try applyWindowsOwnerOnlyAcl(path);
 }
 
 fn restrictedPermissions(comptime mode: std.posix.mode_t) std.Io.File.Permissions {
@@ -181,6 +190,72 @@ fn restrictedPermissions(comptime mode: std.posix.mode_t) std.Io.File.Permission
     }
     return .default_file;
 }
+
+/// On Windows, set a DACL granting full access only to the owner (SDDL OW).
+/// No-op elsewhere. Runtime verification needs a Windows host (cross-smoke is
+/// compile-only). Keychain remains a disclosed gap.
+fn applyWindowsOwnerOnlyAcl(path: []const u8) !void {
+    if (comptime builtin.target.os.tag == .windows) {
+        try windows_owner_acl.apply(path);
+    }
+}
+
+const windows_owner_acl = if (builtin.target.os.tag == .windows) struct {
+    const PATH_MAX_WIDE = 32768;
+
+    extern "advapi32" fn ConvertStringSecurityDescriptorToSecurityDescriptorW(
+        StringSecurityDescriptor: [*:0]const u16,
+        StringSDRevision: u32,
+        SecurityDescriptor: *?*anyopaque,
+        SecurityDescriptorSize: ?*u32,
+    ) callconv(.winapi) i32;
+
+    extern "advapi32" fn SetNamedSecurityInfoW(
+        pObjectName: [*:0]u16,
+        ObjectType: u32,
+        SecurityInfo: u32,
+        psidOwner: ?*anyopaque,
+        psidGroup: ?*anyopaque,
+        pDacl: ?*anyopaque,
+        pSacl: ?*anyopaque,
+    ) callconv(.winapi) u32;
+
+    extern "advapi32" fn GetSecurityDescriptorDacl(
+        pSecurityDescriptor: ?*anyopaque,
+        lpbDaclPresent: *i32,
+        pDacl: *?*anyopaque,
+        lpbDaclDefaulted: *i32,
+    ) callconv(.winapi) i32;
+
+    extern "kernel32" fn LocalFree(hMem: ?*anyopaque) callconv(.winapi) ?*anyopaque;
+
+    fn apply(path: []const u8) !void {
+        const sddl_w = std.unicode.utf8ToUtf16LeStringLiteral("D:P(A;;FA;;;OW)");
+        var path_w_buf: [PATH_MAX_WIDE + 1]u16 = undefined;
+        const n = try std.unicode.utf8ToUtf16Le(path_w_buf[0..PATH_MAX_WIDE], path);
+        path_w_buf[n] = 0;
+
+        var sd: ?*anyopaque = null;
+        if (ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl_w.ptr, 1, &sd, null) == 0 or sd == null) {
+            return error.WindowsAclSetupFailed;
+        }
+        defer _ = LocalFree(sd);
+
+        var present: i32 = 0;
+        var dacl: ?*anyopaque = null;
+        var defaulted: i32 = 0;
+        if (GetSecurityDescriptorDacl(sd, &present, &dacl, &defaulted) == 0 or present == 0) {
+            return error.WindowsAclSetupFailed;
+        }
+
+        const status = SetNamedSecurityInfoW(@ptrCast(&path_w_buf), 1, 0x4, null, null, dacl, null);
+        if (status != 0) return error.WindowsAclApplyFailed;
+    }
+} else struct {
+    fn apply(path: []const u8) !void {
+        _ = path;
+    }
+};
 
 fn dupeStringField(allocator: std.mem.Allocator, root: std.json.ObjectMap, key: []const u8) !?[]const u8 {
     const value = root.get(key) orelse return null;

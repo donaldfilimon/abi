@@ -277,7 +277,12 @@ test_imports3
 !/modern-refactor/.claude/
 !/modern-refactor/.claude/**
 
-!/modernized/README.md
+!/modernized/
+!/modernized/**
+!/modernized/**/*.md
+!/modernized/packages/
+!/modernized/packages/**
+!/modernized/packages/**/*.md
 
 !/tasks/todo.md
 !/tasks/lessons.md

@@ -42,7 +42,7 @@ Canonical instruction file. If this conflicts with `build.zig`, `tools/build.sh`
 - **MemoryTracker**: track owned-and-freed scratch as `trackAllocNoTag`/`trackFreeNoTag` pairs; never track escaping buffers (search `results`, completion `response`) at the alloc site. In tests, `getTotalFreed() > 0` proves a balanced transient pair fired.
 
 ## Claims discipline
-No unproven claims (production FHE/AES/RBAC, multi-host sharding, QPS/latency/accuracy, K8s/H100, external stacks). WDBX demo modules (`compression.zig`, `entropy.zig`, `neural_compress.zig`, `crypto_he.zig`, `fhe.zig`) are reference-grade, not production. Audit: `docs/contracts/external-claims-audit.mdx`; `docs/spec/wdbx-north-star.mdx` §2.
+No unproven claims (production FHE/AES/RBAC, multi-host sharding, QPS/latency/accuracy, K8s/H100, external stacks). WDBX demo modules (`compression.zig`, `entropy.zig`, `ans.zig`, `neural_compress.zig`, `crypto_he.zig`, `fhe.zig`) are reference-grade, not production. Audit: `docs/contracts/external-claims-audit.mdx`; `docs/spec/wdbx-north-star.mdx` §2.
 
 ## Commits & CI
 - Conventional Commits. Never force-push `main`.
@@ -67,8 +67,8 @@ Cross-compiles link cleanly for `x86_64-linux-gnu` / `aarch64-linux-gnu` / `wind
 - Interactive `abi dashboard` / `abi tui` / `abi --tui` use a split layout (diagnostics + Agent Output); one-shot `--once` stays stacked — layouts diverge by design.
 - Dashboard Agent Output is a status digest, not live `agent tui` traffic; dashboard WDBX is an ephemeral CLI probe (labeled), not the durable agent store.
 - Plugin-declared slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>` for context providers).
-- REPL `/pane` split landed in `repl_pane.zig`; remaining TUI north-star residual is mainly true in-process token streaming — track in `tasks/todo.md`.
+- REPL `/pane` split landed in `repl_pane.zig`; in-process persona streaming is iterative word/token emission (`stream=incremental` via `incremental.zig`), not a neural LM sampler.
 - `tasks/goals.md` is gitignored (`/tasks/*` + root `*.md`); treat committed `tasks/todo.md` as the active board.
 - Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A–C complete; `modern-refactor/examples/` is historical, not the active board.
-- `modernized/` is pointer-only (Phase D reimagine HITL-blocked); live code remains under `src/`.
+- `modernized/` holds Phase D–approved package-layout pointers under `packages/`; live code remains `src/` until cutover.
 - Ambient WDBX Linux `EBADF` owner-only repair is fixed (`iterate=true`); `ABI_WDBX_PERSIST=0` is no longer required to avoid ambient-open panics on Linux.

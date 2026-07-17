@@ -12,20 +12,32 @@
 //! Decryption is robust to the mod-x0 reduction because x0 ≡ 0 (mod p), so the
 //! small noise m+2r is recovered exactly while it stays below p/2.
 //!
-//! HONEST SCOPE: reference parameters (~126-bit p, ~2^20 noise) chosen so
-//! correctness is exactly testable and a small multiplicative depth stays within
-//! the noise budget (depth-3 chained multiplies are verified in tests; deeper
-//! circuits eventually exceed the budget). These are NOT cryptographically
-//! secure sizes and the scheme is
-//! not bootstrapped — it demonstrates the homomorphic add+multiply capability,
-//! it is not a production cryptosystem. Correctness is proven by the tests
-//! below over many random keys and circuits.
+//! ## Reference parameters (honest, not production)
+//! | Constant | Value | Role |
+//! |----------|-------|------|
+//! | `REF_P_BITS` | 126 | Approximate secret modulus bit-length |
+//! | `REF_NOISE_BITS` | 20 | Fresh ciphertext noise (~2^20) |
+//! | `VERIFIED_MUL_DEPTH` | 3 | Chained multiplies covered by tests |
+//!
+//! HONEST SCOPE: these sizes are chosen so correctness is exactly testable and a
+//! small multiplicative depth stays within the noise budget. They are **NOT**
+//! cryptographically secure sizes, the scheme is **not** bootstrapped, and this
+//! module is **not** security-audited. Deeper circuits eventually exceed the
+//! noise budget. Demonstrates homomorphic add+multiply — not a production
+//! cryptosystem.
 
 const std = @import("std");
 
 /// Ciphertext / key integer width. Two reduced ciphertexts (< x0 ≈ 2^252) can be
 /// multiplied (< 2^504) without overflow, with comfortable headroom.
 pub const Int = i1024;
+
+/// Approximate bit-length of the secret modulus `p` in `keygen` (reference only).
+pub const REF_P_BITS: u16 = 126;
+/// Fresh encryption draws noise uniformly from `[0, 2^REF_NOISE_BITS)`.
+pub const REF_NOISE_BITS: u6 = 20;
+/// Multiplicative depth verified by tests with these reference parameters.
+pub const VERIFIED_MUL_DEPTH: u8 = 3;
 
 pub const Keypair = struct {
     /// Secret modulus (large odd).
@@ -36,15 +48,15 @@ pub const Keypair = struct {
     x0: Int,
 };
 
-const NOISE_BITS: u6 = 20;
+const NOISE_BITS: u6 = REF_NOISE_BITS;
 
 /// Generate a keypair from `rand`. Pass a seeded PRNG for deterministic keys.
 pub fn keygen(rand: std.Random) Keypair {
     var p_u: u128 = rand.int(u128);
     p_u |= 1; // p must be odd
-    p_u |= (@as(u128, 1) << 126); // ensure ~126-bit magnitude
+    p_u |= (@as(u128, 1) << (REF_P_BITS - 1)); // ensure ~REF_P_BITS magnitude
     var q0_u: u128 = rand.int(u128);
-    q0_u |= (@as(u128, 1) << 126);
+    q0_u |= (@as(u128, 1) << (REF_P_BITS - 1));
     const p: Int = @intCast(p_u);
     const q0: Int = @intCast(q0_u);
     return .{ .p = p, .q0 = q0, .x0 = p * q0 };
@@ -144,6 +156,28 @@ test "fhe: chained multiplications stay within the noise budget (depth 3)" {
         // this exercises the multiplicative-depth budget far past a single mul.
         const e = mul(kp, mul(kp, mul(kp, encrypt(kp, rand, a), encrypt(kp, rand, b)), encrypt(kp, rand, c)), encrypt(kp, rand, d));
         try testing.expectEqual(a & b & c & d, decrypt(kp, e));
+    }
+}
+
+test "fhe: reference parameter constants are honest and documented" {
+    try testing.expectEqual(@as(u16, 126), REF_P_BITS);
+    try testing.expectEqual(@as(u6, 20), REF_NOISE_BITS);
+    try testing.expectEqual(@as(u8, 3), VERIFIED_MUL_DEPTH);
+    try testing.expect(REF_NOISE_BITS < REF_P_BITS);
+}
+
+test "fhe: fresh ciphertext noise bound is respected (mod-p residue)" {
+    var prng = std.Random.DefaultPrng.init(0xA11CE5);
+    const rand = prng.random();
+    var trial: usize = 0;
+    while (trial < 64) : (trial += 1) {
+        const kp = keygen(rand);
+        const m: u1 = @intCast(rand.uintLessThan(u8, 2));
+        const c = encrypt(kp, rand, m);
+        try testing.expectEqual(m, decrypt(kp, c));
+        const noise = @mod(@mod(c, kp.x0), kp.p);
+        const bound: Int = @as(Int, 1) << (REF_NOISE_BITS + 1);
+        try testing.expect(noise < bound or noise > kp.p - bound);
     }
 }
 

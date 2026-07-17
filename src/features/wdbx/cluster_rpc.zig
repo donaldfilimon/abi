@@ -11,6 +11,13 @@
 //! hosts can reach it. Multi-host clustering is then a deployment concern (choose
 //! the bind host + reachable peer addresses); the transport code is routable.
 //!
+//! Ops / honesty:
+//! - Shared secret: `ABI_WDBX_CLUSTER_TOKEN` (required for non-loopback binds).
+//! - Peer allowlist: `ABI_WDBX_CLUSTER_PEERS` (comma-separated u32 node ids).
+//! - Transit encryption: native TLS is **not** linked — front with a TLS/mTLS
+//!   reverse proxy when exposing beyond loopback. This is **not** production
+//!   multi-host orchestration or sharding.
+//!
 //! Wire protocol (one request/response per connection, newline-framed text):
 //!   "VOTE <term> <candidate>\n"      -> "GRANTED <term>\n" | "DENIED <term>\n"
 //!   "APPEND <term> <data...>\n"      -> "ACK <term>\n"     | "NACK <term>\n"
@@ -576,6 +583,15 @@ test "cluster_rpc: peer allowlist rejects unknown candidates and leaders" {
     try testing.expect(!bad_append_reply.ack);
     try testing.expectEqual(@as(u64, 4), n2.term);
     try testing.expectEqual(@as(usize, 0), n2.log.items.len);
+}
+
+test "cluster_rpc: null peer allowlist permits any authenticated peer id" {
+    const open = ClusterPolicy{ .auth = .{ .token = "t" }, .peers = null };
+    try testing.expect(open.allowsPeer(0));
+    try testing.expect(open.allowsPeer(999));
+    const closed = ClusterPolicy{ .auth = .{ .token = "t" }, .peers = &[_]u32{ 1, 2 } };
+    try testing.expect(closed.allowsPeer(1));
+    try testing.expect(!closed.allowsPeer(99));
 }
 
 test "cluster_rpc: authenticated append requires an explicit leader id" {
