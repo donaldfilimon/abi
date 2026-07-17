@@ -11,7 +11,7 @@ This skill is backed by `launch.sh` in this directory (run via Grok skill system
 - **Canonical source:** repo `.agents/skills/<name>/`
 - **Targets (if present):** repo `.claude/skills/`, repo `.grok/`
 - **Per skill (creates the target dir if missing):**
-  - `SKILL.md`
+  - `SKILL.md` (rewrites `Base directory for this skill:` to the target path)
   - `references/` (when present at source)
   - `examples/` (when present at source)
 - **Not copied:** launcher `.sh` scripts, other skill payloads, skills on the skip list.
