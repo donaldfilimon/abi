@@ -10,11 +10,11 @@ This skill is backed by `launch.sh` in this directory (run via Grok skill system
 
 - **Canonical source:** repo `.agents/skills/<name>/`
 - **Targets (if present):** repo `.claude/skills/`, repo `.grok/`
-- **Per skill that already exists at the target:**
-  - `SKILL.md`
+- **Per skill (creates the target dir if missing):**
+  - `SKILL.md` (rewrites `Base directory for this skill:` to the target path)
   - `references/` (when present at source)
   - `examples/` (when present at source)
-- **Not copied:** launcher `.sh` scripts, other skill payloads, skills on the skip list, skills that do not already exist under the target.
+- **Not copied:** launcher `.sh` scripts, other skill payloads, skills on the skip list.
 
 Skip list (not synced by this launcher): `abi-doc-claims-sync`, `abi-goal-orchestrator`, `check-work`, `code-review`, `create-skill`, `docx`, `help`, `imagine`, `pptx`, `sl`, `sync-clis`, `xlsx`.
 

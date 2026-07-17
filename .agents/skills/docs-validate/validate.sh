@@ -14,8 +14,7 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || {
 
 # Mintlify config lives under docs/.
 if [ -f docs/docs.json ]; then cd docs
-elif [ -f docs.json ]; then :
-else echo "RESULT: FAIL (no docs.json found — is this the docs site?)"; exit 1; fi
+else echo "RESULT: FAIL (no docs/docs.json found — is this the abi repo?)"; exit 1; fi
 
 command -v npx >/dev/null 2>&1 || { echo "RESULT: FAIL (npx not on PATH — install Node/npm)"; exit 1; }
 
