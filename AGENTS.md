@@ -16,7 +16,7 @@ Canonical instruction file. If this conflicts with `build.zig`, `tools/build.sh`
 | `./build.sh test-cli`/`test-plugins`/`test-contracts`/`test-mcp-contracts`/`test-mcp-server`/`test-integration`/`test-feature-contracts` | Focused suites |
 | `./build.sh check-parity` | Verify mod/stub public-decl parity (run after any public API change) |
 | `./build.sh lint`/`fix` | Check/apply formatting |
-| `npx mint@latest validate` | Docs validation (not in CI) |
+| `.agents/skills/docs-validate/validate.sh` | Docs validation (CI job `docs (mint validate)`) |
 
 ## Feature flags
 15 flags, all default `true` (see `build.zig` lines 9–23): `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-mobile`, `feat-wdbx`, `feat-os-control`, `feat-hash`, `feat-metrics`, `feat-telemetry`, `feat-nn`, `feat-sea`, `feat-foundationmodels`. Each selects a real `mod.zig` vs a `stub.zig` (declared in `src/features/mod.zig`). **Honest stubs** (`available=false`/`native_dispatch=false` in source): `accelerator`, `shaders`, `mlir`, `mobile` — selection/report only, no linked native toolchain.

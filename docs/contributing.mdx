@@ -50,10 +50,7 @@ Prefer links to canonical contracts over repeating the frozen 13-command CLI or
 .agents/skills/docs-validate/validate.sh
 ```
 
-CI runs the same Mintlify check as job **docs (mint validate)** on every push
-and PR (Node 22 LTS). The published site is **Mintlify-hosted** from `docs/`;
-there is no separate `gh-pages` artifact. Layout and what belongs in navigation:
-[`docs/README.md`](https://github.com/donaldfilimon/abi/blob/main/docs/README.md).
+Layout, hosting, and CI: [Docs layout](./README.md).
 
 If public APIs changed, also run `zig build check-parity`. For runtime-facing
 documentation, exercise the real binaries with

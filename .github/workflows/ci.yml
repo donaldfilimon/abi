@@ -42,9 +42,7 @@ jobs:
       - name: zig build cross-smoke
         run: zig build cross-smoke
 
-  # Mintlify hosts the docs site (not gh-pages). This job is the CI gate that
-  # `./build.sh check` intentionally omits — broken docs.json/.mdx otherwise
-  # only fail after push when Mintlify builds. Node must be LTS (<25).
+  # Docs gate omitted from ./build.sh check — see .agents/skills/docs-validate/validate.sh
   docs-validate:
     name: docs (mint validate)
     runs-on: ubuntu-latest

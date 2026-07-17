@@ -29,16 +29,27 @@ TARGETS=()
 
 say() { printf '\n=== %s ===\n' "$*"; }
 
+# Print would-msg under --dry-run; otherwise run the command and print done-msg.
+run_or_echo() {
+    local would_msg="$1" done_msg="$2"
+    shift 2
+    if [ "$DRY_RUN" -eq 1 ]; then
+        echo "  $would_msg"
+    else
+        "$@"
+        echo "  $done_msg"
+    fi
+}
+
 sync_skills() {
     local src="$1" dst="$2"
-    local name label="$3"
+    local label="$3"
 
-    # Sync only ABI-specific skills (those with .sh scripts or shared by all)
+    # Skip universal skills listed below; sync the rest (create target dirs if missing).
     for skill_dir in "$src"/*/; do
         local skill_name
         skill_name=$(basename "$skill_dir")
 
-        # Skip universal/cross-platform skills that are only in .agents/
         case "$skill_name" in
             abi-doc-claims-sync|abi-goal-orchestrator|check-work|code-review|create-skill|docx|help|imagine|pptx|sl|sync-clis|xlsx)
                 continue
@@ -46,22 +57,14 @@ sync_skills() {
         esac
 
         if [ ! -d "$dst/$skill_name" ]; then
-            if [ "$DRY_RUN" -eq 1 ]; then
-                echo "  would create: $label/$skill_name/"
-            else
+            run_or_echo "would create: $label/$skill_name/" "created: $label/$skill_name/" \
                 mkdir -p "$dst/$skill_name"
-                echo "  created: $label/$skill_name/"
-            fi
         fi
 
         # Sync SKILL.md (text content only, not the .sh scripts)
         if [ -f "$src/$skill_name/SKILL.md" ]; then
-            if [ "$DRY_RUN" -eq 1 ]; then
-                echo "  would sync: $label/$skill_name/SKILL.md"
-            else
+            run_or_echo "would sync: $label/$skill_name/SKILL.md" "synced: $label/$skill_name/SKILL.md" \
                 cp "$src/$skill_name/SKILL.md" "$dst/$skill_name/SKILL.md"
-                echo "  synced: $label/$skill_name/SKILL.md"
-            fi
         fi
         # Companion docs skills may load; non-destructive (overwrite/add, no delete)
         for sub in references examples; do

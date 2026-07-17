@@ -9,8 +9,8 @@ Working and historical planning docs for agent workflows. **Not** listed in
 | [`specs/`](specs/) | Design drafts pending review or landing |
 | [`archive/`](archive/) | Superseded plans/specs — historical only |
 
-Active product board: `tasks/todo.md`. Executable truth: `src/`, `build.zig`,
-`./build.sh check`. Published claims: `docs/contracts/` + `docs/spec/`.
+Published layout and claim boundaries: [Docs layout](../README.md). Active board:
+`tasks/todo.md`.
 
 ## Adding a plan or design draft
 
