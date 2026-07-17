@@ -17,9 +17,9 @@ fn sumF32(values: []const f32) f32 {
     return sum;
 }
 
-/// Prefer Metal threadgroup reduce (256-wide partials + host SIMD of partials)
-/// when initialized; otherwise host `sumF32`. Multi-pass full-device tree
-/// reduce remains Proposed.
+/// Prefer Metal multi-pass threadgroup reduce (256-wide until one scalar)
+/// when initialized; otherwise host `sumF32`. Broader kernels / CUDA remain
+/// Proposed.
 fn reduceSum(values: []const f32) f32 {
     if (builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
         return metal.g_metal_context.runReduceSum(values) catch sumF32(values);

@@ -12,6 +12,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Changed
 
+- perf(gpu): Metal multi-pass `reduce_sum_kernel` — loop 256-wide threadgroup partials until one scalar (`runReduceSum`); host `sumF32` remains the CPU fallback. Broader kernels / CUDA remain Proposed.
 - perf(gpu): Metal `reduce_sum_kernel` (256-wide threadgroup partials) + host SIMD sum of partials after map kernels (`runReduceSum`); host `sumF32` remains the CPU fallback. Multi-pass full-device GPU tree reduce remains Proposed.
 - perf(gpu): host-side SIMD `sumF32` after Metal map kernels (dot/L2/cosine parts); full GPU-side tree reduce remains Proposed.
 - docs(claims): sync north-star / external-claims / README with Metal fused cosine/dot/L2 parts (`metal_shared.zig` / `vector_ops.zig`) and list demo rANS/order-1 (`ans.zig`) beside Huffman — still not CUDA/Vulkan/ANE, SOTA compression, or GPU speedup claims.
