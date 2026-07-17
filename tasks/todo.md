@@ -71,9 +71,9 @@ Prioritized after A–G. Do not promote to Done without source + tests + honest 
 | 2 | Broader Metal GPU path (more kernels / reduce) | ◑ Improved | Fused cosine/dot/L2 + host SIMD `sumF32` after Metal maps; **GPU-side tree reduce** still Proposed. CUDA/ANE disclosed. |
 | 3 | Windows **runtime** CI/job | 🔴 Blocked (no Windows runner) | ACL code exists for windows-gnu; execution verify blocked on host. |
 | 4 | OS keychain credential storage | ⚪ | Disclosed gap after Win32 ACL + POSIX zeroing. |
-| 5 | Phase D cutover plan (HITL) | ⚪ | Scaffold exists; no second `build.zig`; cutover needs explicit approval + package ports. |
+| 5 | Phase D cutover plan (HITL) | ◑ Plan landed | `docs/spec/phase-d-cutover-plan.mdx` — checklist only; cutover still needs explicit HITL + gates. |
 | 6 | Non-loopback REST threat review + native TLS link decision | ◑ Docs landed | `docs/spec/non-loopback-rest-threat-review.mdx` — proxy TLS preferred; native TLS deferred; not a hardened-expose claim. |
-| 7 | Cluster mTLS / membership (still not sharding) | ⚪ | Only with real TLS story; sharding stays Proposed. |
+| 7 | Cluster mTLS / membership (still not sharding) | ◑ Ops docs landed | `docs/spec/cluster-mtls-ops.mdx` — proxy mTLS preferred; dynamic membership + sharding stay Proposed. |
 
 ---
 
@@ -98,7 +98,7 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
-- **Claims + Metal path** — docs sync for Metal fused cosine/dot/L2 + demo rANS; host SIMD `sumF32` after Metal maps; non-loopback REST threat-review doc (proxy TLS, native TLS deferred).
+- **Ops docs + Metal path** — claims sync; host SIMD `sumF32`; REST threat review; cluster mTLS ops + Phase D cutover HITL plan.
 - **#678** — Metal status probe before backends/gpu/dashboard; `donald-mode`; Abbey agents; `check_skills` `>-` fold.
 - **#676 Tracks A–G** — `incremental.zig`; Metal fused cosine; Win32 credential DACL; `ans.zig` demo; FHE param honesty; cluster TLS-fronting ops; `modernized/packages/*` Phase D scaffold.
 - **#674 Feature polish** — RankedNode/SearchResult borrowed vectors; stream footers; Ctrl-R redraw; constitution `/status`; POSIX `secureZero`.
@@ -114,5 +114,7 @@ Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 - `docs/spec/wdbx-north-star.mdx` — Current/Partial/Proposed
 - `docs/contracts/external-claims-audit.mdx` — claim boundaries
 - `docs/spec/non-loopback-rest-threat-review.mdx` — REST/MCP HTTP expose ops (not hardened)
+- `docs/spec/cluster-mtls-ops.mdx` — cluster RPC mTLS/membership ops (not sharding)
+- `docs/spec/phase-d-cutover-plan.mdx` — HITL cutover checklist
 - `modernized/README.md` — Phase D scaffold rules
 - `CHANGELOG.md` — release notes

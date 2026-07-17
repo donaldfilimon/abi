@@ -7,6 +7,8 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 ### Added
 
 - docs(ops): claim-honest non-loopback REST/MCP HTTP threat review (`docs/spec/non-loopback-rest-threat-review.mdx`) — proxy TLS preferred, native TLS deferred, not a hardened-expose claim.
+- docs(ops): cluster mTLS/membership ops guidance (`docs/spec/cluster-mtls-ops.mdx`) — proxy mTLS preferred; dynamic membership and sharding stay Proposed.
+- docs(plan): Phase D cutover HITL checklist (`docs/spec/phase-d-cutover-plan.mdx`) — scaffold is not cutover.
 
 ### Changed
 

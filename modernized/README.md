@@ -48,4 +48,5 @@ under `src/`. Zig sources are not duplicated here.
 | CLI | `src/cli/`, `src/main.zig` |
 
 Tracked design: `analysis/src/REIMAGINED_ARCHITECTURE.md`,
-`docs/spec/abi-refactor-design.mdx`, `tasks/todo.md`.
+`docs/spec/abi-refactor-design.mdx`, `docs/spec/phase-d-cutover-plan.mdx`,
+`tasks/todo.md`.
