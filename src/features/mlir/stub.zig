@@ -108,6 +108,9 @@ test "mlir stub validates module shape before disabled lowering" {
     const result = try lower(std.testing.allocator, .{ .name = "train", .operations = &.{"matmul"} });
     defer result.deinit(std.testing.allocator);
     try std.testing.expectEqualStrings("disabled", result.target_backend);
+    const status = toolchainStatus();
+    try std.testing.expect(!status.available);
+    try std.testing.expectEqualStrings("disabled", status.backend);
     const analysis = try analyze(.{ .name = "train", .operations = &.{"matmul"} });
     try std.testing.expectEqual(@as(usize, 1), analysis.operation_count);
     try std.testing.expect(analysis.checksum != 0);

@@ -166,6 +166,22 @@ pub fn preferredBackend() Backend {
     return .simulated;
 }
 
+pub const PresenceProbe = struct {
+    backend: Backend,
+    declared: bool,
+    native_linked: bool,
+    note: []const u8,
+};
+
+pub fn presenceProbe(backend: Backend) PresenceProbe {
+    return .{
+        .backend = backend,
+        .declared = true,
+        .native_linked = false,
+        .note = "GPU feature is disabled; native dispatch not linked",
+    };
+}
+
 pub fn executeKernel(spec: KernelSpec) !KernelResult {
     if (spec.name.len == 0) return error.InvalidKernelName;
     return .{
@@ -193,14 +209,15 @@ pub const BackendAvailability = struct {
     reason: []const u8,
 };
 
-pub fn backendMatrix() [6]BackendAvailability {
+pub fn backendMatrix() [7]BackendAvailability {
     return .{
+        .{ .backend = .simulated, .available = true, .dispatches = true, .reason = "GPU feature disabled; vectorized CPU path" },
         .{ .backend = .metal, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
         .{ .backend = .vulkan, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
         .{ .backend = .cuda, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
-        .{ .backend = .opengl, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
         .{ .backend = .webgpu, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
-        .{ .backend = .simulated, .available = true, .dispatches = true, .reason = "GPU feature disabled; vectorized CPU path" },
+        .{ .backend = .opengl, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
+        .{ .backend = .webgl2, .available = false, .dispatches = false, .reason = "GPU feature is disabled" },
     };
 }
 

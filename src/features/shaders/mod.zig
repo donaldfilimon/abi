@@ -148,7 +148,9 @@ test "shader compiler validates source" {
     try std.testing.expect(std.mem.indexOf(u8, artifact.bytes, "shader=copy") != null);
     try std.testing.expectEqualStrings("main", artifact.entry_point);
     try std.testing.expect(std.mem.indexOf(u8, artifact.bytes, "validated-local") != null);
-    try std.testing.expect(!compilerStatus().available);
+    const status = compilerStatus();
+    try std.testing.expect(!status.available);
+    try std.testing.expect(std.mem.indexOf(u8, status.message, "not linked") != null);
 }
 
 test "shader compiler reports entry point and checksum by language" {

@@ -28,13 +28,7 @@ pub fn isAvailable() bool {
 }
 
 pub fn preferredBackend() backends.Backend {
-    if (builtin.target.os.tag == .macos) {
-        return .metal;
-    }
-    if (builtin.target.os.tag == .linux or builtin.target.os.tag == .windows) {
-        return .vulkan;
-    }
-    return .simulated;
+    return backends.preferredBackend();
 }
 
 test "gpu backend capability report covers all registered backends" {
@@ -43,8 +37,23 @@ test "gpu backend capability report covers all registered backends" {
     try std.testing.expectEqual(backends.Backend.simulated, caps[0].backend);
     const report = try backendStatusReport(std.testing.allocator);
     defer std.testing.allocator.free(report);
-    try std.testing.expect(std.mem.indexOf(u8, report, "cuda:") != null);
-    try std.testing.expect(std.mem.indexOf(u8, report, "webgpu:") != null);
+    for (.{ "cuda:", "webgpu:", "webgl2:", "vulkan:", "opengl:" }) |needle| {
+        try std.testing.expect(std.mem.indexOf(u8, report, needle) != null);
+    }
+    for (caps) |cap| {
+        switch (cap.backend) {
+            .vulkan, .cuda, .webgpu, .opengl, .webgl2 => {
+                try std.testing.expect(!cap.available);
+                try std.testing.expect(!cap.accelerated);
+                try std.testing.expect(!cap.native_kernels);
+            },
+            else => {},
+        }
+    }
+}
+
+test "preferred backend agrees with detectBackend" {
+    try std.testing.expectEqual(preferredBackend(), backends.detectBackend().backend);
 }
 
 test {

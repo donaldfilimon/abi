@@ -78,10 +78,15 @@ pub fn handleBackends() !u8 {
         if (native_gpu.linked) "\x1b[32mlinked\x1b[0m" else "\x1b[90mnot linked\x1b[0m",
         native_gpu.message,
     });
-    std.debug.print("  Accelerator     training \x1b[90m→\x1b[0m {s}  (gpu={s} native={s})\n", .{
+    std.debug.print("  Backend matrix  {d} declared backends (see capability report)\n", .{
+        features.gpu.backendMatrix().len,
+    });
+    std.debug.print("{s}\n", .{gpu_report});
+    std.debug.print("  Accelerator     training \x1b[90m→\x1b[0m {s}  (gpu={s} native={s} native_dispatch={s})\n", .{
         features.accelerator.backendName(training.selected_backend),
         if (training.gpu_available) "\x1b[32m✓\x1b[0m" else "\x1b[90m○\x1b[0m",
         if (training.native_available) "\x1b[32m✓\x1b[0m" else "\x1b[90m○\x1b[0m",
+        if (training.native_dispatch) "\x1b[32mtrue\x1b[0m" else "\x1b[90mfalse\x1b[0m",
     });
     std.debug.print("  Shaders         {s}  {s}\n", .{
         features.shaders.languageName(shader.language),
