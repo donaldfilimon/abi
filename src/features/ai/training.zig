@@ -48,7 +48,7 @@ fn trainNeuralNetOnDataset(allocator: std.mem.Allocator, config: types.TrainingC
     defer allocator.free(json);
 
     // Best-effort: ensure the confined artifact dir exists before writing.
-    std.Io.Dir.createDirPath(.cwd(), std.Options.debug_io, config.artifact_dir) catch {};
+    std.Io.Dir.createDirPath(.cwd(), std.Options.debug_io, config.artifact_dir) catch |err| std.log.warn("training mkdir: {s}", .{@errorName(err)});
 
     const weights_path = try std.fmt.allocPrint(allocator, "{s}/neural_net_{s}.json", .{ config.artifact_dir, config.profile });
     defer allocator.free(weights_path);
@@ -307,7 +307,7 @@ test "trainWithStore uses the store tracker for dataset inspection when config t
     const path = "zig-out/abi_train_store_tracker.jsonl";
     try std.Io.Dir.createDirPath(.cwd(), std.testing.io, "zig-out");
     try foundation_io.asyncWriteFile(path, "{\"input\":\"one\"}\n{\"input\":\"two\"}\n");
-    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
+    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| std.log.warn("training test cleanup: {s}", .{@errorName(err)});
 
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
@@ -337,7 +337,7 @@ test "train accounts its transient internals on config.tracker (balanced)" {
     const path = "zig-out/abi_train_config_tracker.jsonl";
     try std.Io.Dir.createDirPath(.cwd(), std.testing.io, "zig-out");
     try foundation_io.asyncWriteFile(path, "{\"input\":\"one\"}\n{\"input\":\"two\"}\n");
-    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
+    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| std.log.warn("training test cleanup: {s}", .{@errorName(err)});
 
     var tracker = memory.MemoryTracker.init(allocator);
     defer tracker.deinit();
@@ -384,10 +384,10 @@ test "train trains a real net and persists weights when a dataset is available" 
     try std.Io.Dir.createDirPath(.cwd(), std.testing.io, "zig-out");
     const path = "zig-out/abi_train_real_net.jsonl";
     try foundation_io.asyncWriteFile(path, "{\"input\":\"hello world\"}\n{\"input\":\"foo bar baz\"}\n");
-    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch {};
+    defer std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| std.log.warn("training test cleanup: {s}", .{@errorName(err)});
 
     // Artifact dir from an earlier test run may already exist; best-effort.
-    std.Io.Dir.createDirPath(.cwd(), std.testing.io, "zig-cache/agent-artifacts") catch {};
+    std.Io.Dir.createDirPath(.cwd(), std.testing.io, "zig-cache/agent-artifacts") catch |err| std.log.warn("training test setup: {s}", .{@errorName(err)});
 
     var result = try train(allocator, .{
         .profile = "abbey",

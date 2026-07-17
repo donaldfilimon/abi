@@ -33,7 +33,7 @@ fn flushStreamPaint() void {
     if (comptime @hasDecl(std.posix.system, "isatty")) {
         if (std.posix.system.isatty(std.posix.STDERR_FILENO) == 0) return;
     }
-    std.Io.File.stderr().sync(std.Options.debug_io) catch {};
+    std.Io.File.stderr().sync(std.Options.debug_io) catch |err| std.log.warn("flushStreamPaint stderr sync: {s}", .{@errorName(err)});
 }
 
 const StreamCtx = struct {

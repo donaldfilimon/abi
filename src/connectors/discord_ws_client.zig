@@ -176,7 +176,7 @@ pub const WebSocketClient = struct {
                 } else {
                     @memcpy(out, payload);
                 }
-                self.read_buf.replaceRange(allocator, 0, off + len, &[_]u8{}) catch {}; // intentional: non-critical UI/telemetry buffer, failure = degraded display only
+                self.read_buf.replaceRange(allocator, 0, off + len, &[_]u8{}) catch |err| std.log.warn("discord read_buf: {s}", .{@errorName(err)}); // intentional: non-critical UI/telemetry buffer, failure = degraded display only
                 switch (opcode) {
                     0x8 => { // close
                         allocator.free(out);
@@ -217,7 +217,7 @@ pub const WebSocketClient = struct {
     /// Send a close frame and tear down the socket.
     pub fn close(self: *WebSocketClient) void {
         if (self.closed) return;
-        self.writeFrame(0x8, &[_]u8{}) catch {}; // intentional: non-critical UI/telemetry buffer, failure = degraded display only
+        self.writeFrame(0x8, &[_]u8{}) catch |err| std.log.warn("discord close frame: {s}", .{@errorName(err)}); // intentional: non-critical UI/telemetry buffer, failure = degraded display only
         self.stream.close(self.io);
         self.closed = true;
     }

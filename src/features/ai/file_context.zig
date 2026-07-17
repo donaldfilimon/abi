@@ -392,7 +392,7 @@ pub fn readGitDiffBudgeted(
         try output.appendSlice(allocator, buf[0..n]);
         if (output.items.len >= max_bytes) break;
     }
-    _ = child.wait(io) catch {};
+    _ = child.wait(io) catch |err| std.log.warn("file_context child wait: {s}", .{@errorName(err)});
 
     return try truncateToBudget(allocator, output.items, max_bytes);
 }
