@@ -62,6 +62,28 @@ pub fn escapeJsonStringRaw(allocator: std.mem.Allocator, value: []const u8) ![]u
     return try out.toOwnedSlice(allocator);
 }
 
+pub fn writeJsonString(writer: anytype, text: []const u8) !void {
+    try writer.writeAll("\"");
+    const hex = "0123456789abcdef";
+    for (text) |byte| {
+        switch (byte) {
+            '"' => try writer.writeAll("\\\""),
+            '\\' => try writer.writeAll("\\\\"),
+            '\n' => try writer.writeAll("\\n"),
+            '\r' => try writer.writeAll("\\r"),
+            '\t' => try writer.writeAll("\\t"),
+            0x08 => try writer.writeAll("\\b"),
+            0x0c => try writer.writeAll("\\f"),
+            0x00...0x07, 0x0b, 0x0e...0x1f => {
+                const escaped = [_]u8{ '\\', 'u', '0', '0', hex[byte >> 4], hex[byte & 0x0f] };
+                try writer.writeAll(&escaped);
+            },
+            else => try writer.writeAll(&.{byte}),
+        }
+    }
+    try writer.writeAll("\"");
+}
+
 test "appendJsonString escapes metacharacters and control chars" {
     const allocator = std.testing.allocator;
 

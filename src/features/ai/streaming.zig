@@ -1,5 +1,6 @@
 const std = @import("std");
 const time = @import("../../foundation/time.zig");
+const json = @import("../../foundation/json.zig");
 
 pub const OpenAIRequest = struct {
     model: []const u8,
@@ -76,7 +77,7 @@ fn streamResponse(
         defer allocator.free(created_str);
         try writer.writeAll(created_str);
         try writer.writeAll(",\"model\":");
-        try writeJsonString(writer, req.model);
+        try json.writeJsonString(writer, req.model);
         try writer.writeAll(",\"choices\":[{\"index\":0,\"delta\":{\"content\":");
         try writeJsonString(writer, chunk_text);
         try writer.writeAll("}}]}\n\n");
@@ -90,7 +91,7 @@ fn streamResponse(
     defer allocator.free(final_created_str);
     try writer.writeAll(final_created_str);
     try writer.writeAll(",\"model\":");
-    try writeJsonString(writer, req.model);
+    try json.writeJsonString(writer, req.model);
     try writer.writeAll(",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n");
     try writer.writeAll("data: [DONE]\n\n");
 }
@@ -115,7 +116,7 @@ fn nonStreamResponse(
     try writer.writeAll("{\"id\":\"chatcmpl-abi-nonstream\",\"object\":\"chat.completion\",\"created\":");
     try writer.writeAll(created_str);
     try writer.writeAll(",\"model\":");
-    try writeJsonString(writer, req.model);
+    try json.writeJsonString(writer, req.model);
     try writer.writeAll(",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":");
     try writeJsonString(writer, response_content);
     try writer.writeAll("},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":");
@@ -129,28 +130,6 @@ fn nonStreamResponse(
 
 fn buildLocalResponse(allocator: std.mem.Allocator, req: OpenAIRequest) ![]u8 {
     return try std.fmt.allocPrint(allocator, "ABI local response: {s}", .{lastUserMessage(req)});
-}
-
-fn writeJsonString(writer: anytype, text: []const u8) !void {
-    const hex = "0123456789abcdef";
-    try writer.writeAll("\"");
-    for (text) |byte| {
-        switch (byte) {
-            '"' => try writer.writeAll("\\\""),
-            '\\' => try writer.writeAll("\\\\"),
-            '\n' => try writer.writeAll("\\n"),
-            '\r' => try writer.writeAll("\\r"),
-            '\t' => try writer.writeAll("\\t"),
-            0x08 => try writer.writeAll("\\b"),
-            0x0c => try writer.writeAll("\\f"),
-            0x00...0x07, 0x0b, 0x0e...0x1f => {
-                const escaped = [_]u8{ '\\', 'u', '0', '0', hex[byte >> 4], hex[byte & 0x0f] };
-                try writer.writeAll(&escaped);
-            },
-            else => try writer.writeAll(&.{byte}),
-        }
-    }
-    try writer.writeAll("\"");
 }
 
 fn lastUserMessage(req: OpenAIRequest) []const u8 {
