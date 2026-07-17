@@ -319,6 +319,49 @@ test "rest: HTTP transport requires bearer token when configured" {
     var resp_buf: [2048]u8 = undefined;
     const resp = try readHttpResponse(io, client, &resp_buf);
     try std.testing.expect(std.mem.indexOf(u8, resp, "401 Unauthorized") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "WWW-Authenticate: Bearer") != null);
+
+    var q = try route(allocator, &store, "POST", "/query", "{\"key\":\"agent:abi\"}");
+    defer q.deinit(allocator);
+    try std.testing.expectEqual(@as(u16, 404), q.status);
+}
+
+test "rest: HTTP transport rejects the wrong bearer token" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    const body = "{\"key\":\"agent:abi\",\"value\":\"blocked\"}";
+    const request = try std.fmt.allocPrint(
+        allocator,
+        "POST /insert HTTP/1.1\r\nAuthorization: Bearer wrong-token\r\nContent-Length: {d}\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+    defer allocator.free(request);
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [512]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+
+    const conn = try bound.server.accept(io);
+    try handleConnectionWithAuth(allocator, io, &store, conn, .{ .bearer_token = "local-token" }, null);
+
+    var resp_buf: [2048]u8 = undefined;
+    const resp = try readHttpResponse(io, client, &resp_buf);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "401 Unauthorized") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "WWW-Authenticate: Bearer") != null);
 
     var q = try route(allocator, &store, "POST", "/query", "{\"key\":\"agent:abi\"}");
     defer q.deinit(allocator);

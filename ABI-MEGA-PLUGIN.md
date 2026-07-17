@@ -1,17 +1,19 @@
 # ABI Mega Plugin
 
-This repository now has a local Codex personal plugin that consolidates ABI goals,
-roadmaps, specs, skills, and validation workflows.
+This repository documents a **local Codex personal plugin** (outside the git tree)
+that consolidates ABI goals, roadmaps, specs, skills, and validation workflows.
+It is **not** stranded branch work and does **not** ship inside `abi` releases.
 
 ## Location
 
-- Plugin: `/Users/donaldfilimon/plugins/abi-mega`
+- Plugin: `/Users/donaldfilimon/plugins/abi-mega` (live dependency for `/sync-clis`; do not archive)
 - Marketplace: `/Users/donaldfilimon/.agents/plugins/marketplace.json`
 - Generated inventory: `/Users/donaldfilimon/plugins/abi-mega/assets/abi-current-inventory.md`
 
 The plugin is an operator-local Codex artifact. It does not replace repository
 source, tests, or docs. When the plugin and repo disagree, trust `build.zig`,
 `tools/`, `src/`, contract tests, and the current Markdown sources in this repo.
+Zig pin for repo gates remains `.zigversion` (`0.17.0-dev.1398+cb5635714`).
 
 ## Included Skills
 

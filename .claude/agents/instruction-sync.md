@@ -4,13 +4,13 @@ description: Read-only reviewer that checks the three sibling instruction files 
 tools: Read, Grep
 ---
 
-You audit consistency across the abi repo's three root instruction files, which by design restate the same repository conventions for different assistants:
+You audit consistency across the abi repo's three root instruction files. **Canonical source is `AGENTS.md`**; `CLAUDE.md` and `GEMINI.md` are thin redirects that must stay in sync with it (not independent SOTs):
 
-- `CLAUDE.md`  — for Claude Code (source of truth for tone/structure)
-- `AGENTS.md`  — for Codex (a richer companion)
-- `GEMINI.md`  — for Gemini
+- `AGENTS.md`  — canonical agent instructions (commands, contracts, Zig patterns)
+- `CLAUDE.md`  — thin redirect to `AGENTS.md`
+- `GEMINI.md`  — thin redirect to `AGENTS.md`
 
-`CLAUDE.md` states: "When you change a durable convention here (commands, contracts, feature flags, Zig patterns), propagate it to both so the three stay consistent." Your job is to verify that invariant held.
+When a durable convention changes, update `AGENTS.md` and confirm the siblings still redirect (or restate the same facts if they grow content again). Your job is to verify that invariant held.
 
 ## What to check
 
@@ -19,7 +19,7 @@ Compare the three files on every **durable convention**, not prose style. Concre
 1. **CLI contracts** — the frozen top-level command list (`help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`, plus `abi --tui`), subcommand sets (`agent`, `wdbx`, `nn`), and the legacy names that must NOT be dispatched (`version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, `serve`).
 2. **MCP tool surface** — the tool count and the exact tool names (currently 12: `ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`), the 64 KB request cap, HTTP/SSE details, and the `ABI_MCP_HTTP_*` / `ABI_WDBX_REST_TOKEN` env vars.
 3. **Feature flags** — the `-Dfeat-*` set, which default on/off, and any comptime gating (e.g. `feat-foundationmodels` arm64-macOS gating).
-4. **Build & validation commands** — `./build.sh check`, `full-check`, `cli`, `mcp`, `check-parity`, `cross-smoke`, the Zig pin (`0.17.0-dev.1252+e4b325c19`), and the note that `build.sh` does not enforce the pin.
+4. **Build & validation commands** — `./build.sh check`, `full-check`, `cli`, `mcp`, `check-parity`, `cross-smoke`, the Zig pin (`0.17.0-dev.1398+cb5635714` from `.zigversion`; `build.zig.zon` minimum may be older), and the note that `build.sh` does not enforce the pin.
 5. **Zig 0.17 patterns** — the entry signature, `ArrayListUnmanaged(T).empty`, the `std.mem.trimEnd` (vs deprecated `trimRight`) and `splitScalar`/`splitAny`/`splitSequence` (vs deprecated `split`) std.mem utilities, `foundation.time.unixMs()` (vs the deprecated `std.time.milliTimestamp`), naming conventions, etc.
 6. **Generated / do-not-edit files** — `src/plugin_registry.zig`, mod/stub parity rules, import rules.
 

@@ -15,7 +15,7 @@ Landed on `main` via [#676](https://github.com/donaldfilimon/abi/pull/676) (`cur
 | Track | Ask | Status | Source of truth | Residual (do NOT fake-complete) |
 | ----- | --- | ------ | --------------- | ------------------------------- |
 | **A** | In-process streaming — real incremental local generator | ◑ Done for template path | `src/features/ai/incremental.zig`; TUI `stream=incremental` | Neural LM / ggml in-process sampler (needs embedded runtime). Post-hoc path remains labeled where used. |
-| **B** | Metal native kernels for `vectorOps` hot paths (Zig+Metal only) | ◑ Partial | Metal fused `cosine_parts_kernel`; wider SIMD fallback | Full GPU reduce; CUDA/Vulkan kernels. **ANE dispatch = non-goal** (100% Zig). |
+| **B** | Metal native kernels for `vectorOps` hot paths (Zig+Metal only) | ◑ Partial | Metal fused cosine/dot/L2 + `reduce_sum_kernel` threadgroup partials | Multi-pass full-device GPU reduce; CUDA/Vulkan. **ANE = non-goal**. |
 | **C** | Windows credential ACL + secret zeroing; runtime verify CI-blocked | ◑ Partial | Win32 SDDL owner-only DACL on credential write; POSIX `secureZero` / `secureWipe` | OS keychain. **Windows runtime verification** needs a Windows host/runner (cross-smoke = compile-only). |
 | **D** | Lossless ANS/order-1 demo next to Huffman — not SOTA | ✅ Demo landed | `src/features/wdbx/ans.zig` + `abi wdbx secure demo` | Production/SOTA learned codec (ANS/arithmetic/context-model at scale). |
 | **E** | FHE deepen reference tests/docs — not audited | ✅ Reference deepened | `fhe.zig` (`REF_P_BITS` / `REF_NOISE_BITS` / `VERIFIED_MUL_DEPTH`) | External security audit + bootstrapped FHE. |
@@ -39,7 +39,7 @@ Landed on `main` via [#676](https://github.com/donaldfilimon/abi/pull/676) (`cur
 
 | Item | Status | Gap to production |
 | ---- | ------ | ----------------- |
-| Native compute beyond Metal cosine | ◑ Partial | Metal fused cosine + SIMD for HNSW/`vectorOps`; CUDA/Vulkan/full reduce not linked. ANE execution **out of scope**. |
+| Native compute beyond Metal cosine | ◑ Partial | Metal fused cosine/dot/L2 + threadgroup reduce partials for HNSW/`vectorOps`; CUDA/Vulkan/multi-pass full-device reduce not linked. ANE **out of scope**. |
 | Production/SOTA learned compression | ◑ Partial / disclosed | Huffman (`entropy.zig`) + demo rANS/order-1 (`ans.zig`) + int8 + reference autoencoder — **not** SOTA. |
 | Security-audited FHE | ⚪ Not started (reference only) | DGHV reference params deepened; **not** audited. |
 | Non-loopback REST hardening | ◑ Partial / disclosed | Loopback + bearer + rate-limit + TLS env validation; native TLS not linked; needs threat review for external expose. |
@@ -68,7 +68,7 @@ Prioritized after A–G. Do not promote to Done without source + tests + honest 
 | Priority | Item | Status | Notes |
 | -------- | ---- | ------ | ----- |
 | 1 | Neural / ggml in-process sampler (or keep Partial forever) | ⚪ / disclosed | Only if embedding a real chunked local backend; otherwise leave A residual labeled. |
-| 2 | Broader Metal GPU path (more kernels / reduce) | ◑ Improved | Fused cosine/dot/L2 + host SIMD `sumF32` after Metal maps; **GPU-side tree reduce** still Proposed. CUDA/ANE disclosed. |
+| 2 | Broader Metal GPU path (more kernels / reduce) | ◑ Improved | Fused cosine/dot/L2 + `reduce_sum_kernel` (threadgroup partials + host SIMD of partials); **multi-pass full-device tree reduce** still Proposed. CUDA/ANE disclosed. |
 | 3 | Windows **runtime** CI/job | 🔴 Blocked (no Windows runner) | ACL code exists for windows-gnu; execution verify blocked on host. |
 | 4 | OS keychain credential storage | ⚪ | Disclosed gap after Win32 ACL + POSIX zeroing. |
 | 5 | Phase D cutover plan (HITL) | ◑ Plan landed | `docs/spec/phase-d-cutover-plan.mdx` — checklist only; cutover still needs explicit HITL + gates. |
@@ -98,6 +98,8 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
+- **Metal threadgroup reduce** — `reduce_sum_kernel` + `runReduceSum` after map kernels; multi-pass full-device reduce still Proposed.
+- **REST bearer parity** — wrong-token 401 + `WWW-Authenticate` aligned with MCP HTTP tests.
 - **abi-mega refresh** — inventory + fast gates PASS; markdown audit fix-severity counts 0; four mega skills `quick_validate` PASS; `ABI-MEGA-PLUGIN.md` validator paths updated (Codex skill-creator cache).
 - **Ops docs + Metal path** — claims sync; host SIMD `sumF32`; REST threat review; cluster mTLS ops + Phase D cutover HITL plan (#681).
 - **#678** — Metal status probe before backends/gpu/dashboard; `donald-mode`; Abbey agents; `check_skills` `>-` fold.
