@@ -6,7 +6,7 @@ const RateLimiter = @import("rate_limiter.zig").RateLimiter;
 const TlsConfig = @import("tls_config.zig").TlsConfig;
 const http_io = @import("../../foundation/http.zig");
 
-pub const MAX_REQUEST_SIZE: usize = 64 * 1024;
+pub const MAX_REQUEST_SIZE = http_io.MAX_REQUEST_SIZE;
 
 pub const Response = parse.Response;
 pub const json = parse.json;
@@ -91,14 +91,7 @@ fn handleConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, store: *wd
 
     if (auth.bearer_token) |token| {
         if (!hasBearerToken(raw, token)) {
-            const body_unauthorized = "{\"error\":\"unauthorized\"}";
-            const err_resp = try std.fmt.allocPrint(
-                allocator,
-                "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nWWW-Authenticate: Bearer\r\nConnection: close\r\n\r\n{s}",
-                .{ body_unauthorized.len, body_unauthorized },
-            );
-            defer allocator.free(err_resp);
-            try http_io.writeHttpAll(io, conn, err_resp);
+            try http_io.writeUnauthorized(io, conn, "unauthorized");
             return;
         }
     }

@@ -2,6 +2,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const features = @import("../../features/mod.zig");
 const foundation_time = @import("../../foundation/time.zig");
+const foundation_json = @import("../../foundation/json.zig");
 
 const wdbx = features.wdbx;
 
@@ -302,14 +303,7 @@ fn queryWithText(allocator: std.mem.Allocator, store: *wdbx.Store, opts: QueryOp
     }
     return 0;
 }
-
-fn jsonStringAlloc(allocator: std.mem.Allocator, s: []const u8) ![]u8 {
-    var out: std.Io.Writer.Allocating = .init(allocator);
-    defer out.deinit();
-    var stringify = std.json.Stringify{ .writer = &out.writer, .options = .{ .whitespace = .minified } };
-    try stringify.write(s);
-    return try allocator.dupe(u8, out.written());
-}
+const jsonStringAlloc = foundation_json.jsonStringAlloc;
 
 fn printQueryJson(
     allocator: std.mem.Allocator,

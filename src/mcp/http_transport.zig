@@ -117,7 +117,7 @@ fn handleHttpConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, conn: 
 
     if (bearer_token) |token| {
         if (!parse.hasBearerToken(raw_request, token)) {
-            try writeUnauthorized(io, conn);
+            try foundation_http.writeUnauthorized(io, conn, "unauthorized");
             return;
         }
     }
@@ -161,17 +161,6 @@ fn handleHttpConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, conn: 
     }
 
     const resp = "HTTP/1.1 405 Method Not Allowed\r\nConnection: close\r\n\r\n";
-    try foundation_http.writeHttpAll(io, conn, resp);
-}
-
-fn writeUnauthorized(io: std.Io, conn: std.Io.net.Stream) !void {
-    const body = "{\"error\":\"unauthorized\"}";
-    var buffer: [256]u8 = undefined;
-    const resp = try std.fmt.bufPrint(
-        &buffer,
-        "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nWWW-Authenticate: Bearer\r\nConnection: close\r\n\r\n{s}",
-        .{ body.len, body },
-    );
     try foundation_http.writeHttpAll(io, conn, resp);
 }
 

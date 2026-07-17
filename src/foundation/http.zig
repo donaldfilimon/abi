@@ -1,5 +1,7 @@
 const std = @import("std");
 
+pub const MAX_REQUEST_SIZE: usize = 64 * 1024;
+
 pub fn readHttpResponse(io: std.Io, conn: std.Io.net.Stream, buf: []u8) ![]const u8 {
     var total: usize = 0;
     while (total < buf.len) {
@@ -17,6 +19,16 @@ pub fn writeHttpAll(io: std.Io, conn: std.Io.net.Stream, bytes: []const u8) !voi
     const writer = &stream_writer.interface;
     try writer.writeAll(bytes);
     try writer.flush();
+}
+
+pub fn writeUnauthorized(io: std.Io, conn: std.Io.net.Stream, error_msg: []const u8) !void {
+    var buffer: [256]u8 = undefined;
+    const resp = try std.fmt.bufPrint(
+        &buffer,
+        "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nWWW-Authenticate: Bearer\r\nConnection: close\r\n\r\n{{\"error\":\"{s}\"}}",
+        .{ error_msg.len, error_msg },
+    );
+    try writeHttpAll(io, conn, resp);
 }
 
 pub fn findHttpBody(raw: []const u8) ?[]const u8 {
@@ -178,4 +190,8 @@ test "Authorization bearer parser" {
 
 test {
     std.testing.refAllDecls(@This());
+}
+
+test "MAX_REQUEST_SIZE constant" {
+    try std.testing.expectEqual(@as(usize, 64 * 1024), MAX_REQUEST_SIZE);
 }

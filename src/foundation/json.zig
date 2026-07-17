@@ -34,6 +34,13 @@ pub fn escapeJsonString(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
     return try out.toOwnedSlice(allocator);
 }
 
+pub fn jsonStringAlloc(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer out.deinit(allocator);
+    try appendJsonString(&out, allocator, value);
+    return try out.toOwnedSlice(allocator);
+}
+
 test "appendJsonString escapes metacharacters and control chars" {
     const allocator = std.testing.allocator;
 

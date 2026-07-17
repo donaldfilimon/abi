@@ -3,13 +3,7 @@ const std = @import("std");
 const foundation_json = @import("abi").foundation.json;
 
 pub const appendJsonString = foundation_json.appendJsonString;
-
-pub fn jsonStringAlloc(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
-    var out: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer out.deinit(allocator);
-    try appendJsonString(&out, allocator, value);
-    return out.toOwnedSlice(allocator);
-}
+pub const jsonStringAlloc = foundation_json.jsonStringAlloc;
 
 pub fn valueToJson(value: std.json.Value, allocator: std.mem.Allocator) ![]u8 {
     return switch (value) {
