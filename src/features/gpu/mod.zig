@@ -24,6 +24,9 @@ pub const backendCapabilitiesList = backends.backendCapabilitiesList;
 pub const detectBackend = backends.detectBackend;
 pub const nativeKernelStatus = backends.nativeKernelStatus;
 pub const threadsPerGroup = backends.threadsPerGroup;
+pub const preferredBackend = backends.preferredBackend;
+pub const PresenceProbe = backends.PresenceProbe;
+pub const presenceProbe = backends.presenceProbe;
 
 // ---- Function re-exports from vector_ops ----
 pub const VectorOps = vector_ops.VectorOps;
@@ -33,7 +36,6 @@ pub const vectorOps = vector_ops.vectorOps;
 // ---- Function re-exports from reporting ----
 pub const backendStatusReport = reporting.backendStatusReport;
 pub const isAvailable = reporting.isAvailable;
-pub const preferredBackend = reporting.preferredBackend;
 
 // Parent GPU compute API: one backend-agnostic facade (Metal-real + CPU
 // fallback) with an honest per-backend availability matrix.
