@@ -72,14 +72,10 @@ pub fn valueToJson(value: std.json.Value, allocator: std.mem.Allocator) ![]u8 {
 test "json_helpers: jsonStringAlloc escapes metacharacters and control chars" {
     const allocator = std.testing.allocator;
 
-    // Happy path: quote, backslash, newline and tab are escaped; the result is
-    // wrapped in quotes.
     const out = try jsonStringAlloc(allocator, "a\"b\\c\n\t");
     defer allocator.free(out);
     try std.testing.expectEqualStrings("\"a\\\"b\\\\c\\n\\t\"", out);
 
-    // Edge case: a raw control byte below 0x20 becomes a \uXXXX escape rather
-    // than passing through to produce invalid JSON.
     const ctrl = try jsonStringAlloc(allocator, "\x01");
     defer allocator.free(ctrl);
     try std.testing.expectEqualStrings("\"\\u0001\"", ctrl);
@@ -95,8 +91,6 @@ test "json_helpers: valueToJson serializes a value that re-parses cleanly" {
     const out = try valueToJson(parsed.value, allocator);
     defer allocator.free(out);
 
-    // The serialized form must itself be valid JSON and preserve the escaped
-    // string element through a round trip.
     const reparsed = try std.json.parseFromSlice(std.json.Value, allocator, out, .{});
     defer reparsed.deinit();
     const arr = reparsed.value.object.get("k").?.array;

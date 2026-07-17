@@ -4,6 +4,7 @@ const handlers = @import("handlers.zig");
 const rpc = @import("rpc.zig");
 const shutdown = @import("shutdown.zig");
 const parse = @import("http_parse.zig");
+const foundation_http = @import("abi").foundation.http;
 
 const MAX_REQUEST_SIZE = protocol.MAX_REQUEST_SIZE;
 const isShutdownRequested = shutdown.isRequested;
@@ -13,11 +14,6 @@ const DEFAULT_HTTP_PORT: u16 = 8080;
 pub const HTTP_PORT_ENV = "ABI_MCP_HTTP_PORT";
 pub const HTTP_TOKEN_ENV = "ABI_MCP_HTTP_TOKEN";
 
-// Resolved HTTP listen port. The MCP executable's `main` reads the
-// `ABI_MCP_HTTP_PORT` value from the captured process environment (which lives
-// in the `abi` module, reachable from `main` but not from this transport file
-// under the repo import rules) and pushes it here via `setHttpPort`. Defaults
-// to `DEFAULT_HTTP_PORT` when unset/invalid.
 var configured_http_port: u16 = DEFAULT_HTTP_PORT;
 var configured_http_token: ?[]const u8 = null;
 
@@ -30,82 +26,65 @@ pub fn runHttpServer(allocator: std.mem.Allocator, io: std.Io) void {
         std.log.warn("failed to parse HTTP listen address", .{});
         return;
     };
-    var tcp_server = address.listen(io, .{
-        .reuse_address = true,
-    }) catch |err| {
-        std.log.warn("failed to bind HTTP server on port {d}: {s}; set {s} to choose another loopback port", .{ port, @errorName(err), HTTP_PORT_ENV });
+
+    var server = address.listen(io, .{ .reuse_address = true }) catch |err| {
+        std.log.warn("failed to listen on {d}: {s}", .{ port, @errorName(err) });
         return;
     };
-    defer tcp_server.deinit(io);
+    defer server.deinit(io);
 
-    std.log.info("MCP HTTP/SSE server listening on http://127.0.0.1:{d}, auth={s}", .{ port, if (configuredHttpToken() == null) "off" else "bearer" });
+    std.log.info("MCP HTTP+SSE transport listening on http://127.0.0.1:{d}/sse and /message", .{port});
 
-    while (!isShutdownRequested()) {
-        const conn = tcp_server.accept(io) catch |err| {
+    while (true) {
+        if (isShutdownRequested()) {
+            std.log.info("MCP HTTP transport: shutdown requested, stopping accept loop", .{});
+            break;
+        }
+
+        const conn = server.accept(io) catch |err| {
             if (isShutdownRequested()) break;
-            std.log.warn("HTTP accept error: {s}", .{@errorName(err)});
+            std.log.warn("MCP HTTP accept failed: {s}", .{@errorName(err)});
             continue;
         };
-        handleHttpConnectionWithAuth(allocator, io, conn, configuredHttpToken()) catch |err| {
-            std.log.warn("HTTP connection error: {s}", .{@errorName(err)});
-        };
+
+        const bearer_token = configured_http_token;
+
+        if (bearer_token) |token| {
+            handleHttpConnectionWithAuth(allocator, io, conn, token) catch |err| {
+                std.log.warn("MCP HTTP request failed: {s}", .{@errorName(err)});
+            };
+        } else {
+            handleHttpConnection(allocator, io, conn) catch |err| {
+                std.log.warn("MCP HTTP request failed: {s}", .{@errorName(err)});
+            };
+        }
     }
 }
 
-pub fn wakeHttpServer(io: std.Io) void {
-    const net = std.Io.net;
-    const address = net.IpAddress.parseIp4("127.0.0.1", configuredHttpPort()) catch return;
-    const stream = address.connect(io, .{ .mode = .stream }) catch return;
-    defer stream.close(io);
-}
-
-/// Set the HTTP listen port from a raw env value (typically
-/// `ABI_MCP_HTTP_PORT`). Empty/invalid/out-of-range/zero falls back to the
-/// default. Called once at MCP startup before the server thread spawns.
 pub fn setHttpPort(raw: ?[]const u8) void {
     configured_http_port = if (raw) |r| (parse.parseHttpPort(r) orelse DEFAULT_HTTP_PORT) else DEFAULT_HTTP_PORT;
 }
 
-pub fn configuredHttpPort() u16 {
-    return configured_http_port;
-}
-
-/// Set optional bearer-token auth for HTTP/SSE from a raw env value (typically
-/// `ABI_MCP_HTTP_TOKEN`). Empty/whitespace disables HTTP auth; stdio is never
-/// affected.
 pub fn setHttpToken(raw: ?[]const u8) void {
     configured_http_token = if (raw) |r| parse.parseHttpToken(r) else null;
 }
 
-pub fn configuredHttpToken() ?[]const u8 {
-    return configured_http_token;
+fn configuredHttpPort() u16 {
+    return configured_http_port;
 }
 
-/// Outcome of reading a full HTTP request off the connection.
+// --- HTTP Request Parsing (loopback-only HTTP/1.1, not a general-purpose parser) ---
+
 const HttpReadResult = union(enum) {
-    /// Bytes received, framed by `\r\n\r\n` (and Content-Length when present).
     request: []const u8,
-    /// The peer closed before any bytes arrived.
     empty,
-    /// The request exceeded MAX_REQUEST_SIZE before completing.
     too_large,
 };
 
-/// Read a complete HTTP request into `buf`, reassembling across TCP segments.
-///
-/// The request can span multiple reads: clients routinely flush headers before
-/// the body, so a single `conn.read` may return only part of the request. This
-/// first accumulates until the `\r\n\r\n` header terminator, parses any
-/// `Content-Length`, then continues reading until the declared body has arrived.
-///
-/// Termination is bounded three ways so the loop can never hang or grow without
-/// limit: `buf` is a fixed MAX_REQUEST_SIZE-sized array (a full buffer yields
-/// `.too_large`), a 0-length read (EOF) stops the loop, and the body target is
-/// capped at the buffer length.
 fn readHttpRequest(io: std.Io, conn: std.Io.net.Stream, buf: []u8) HttpReadResult {
     var total: usize = 0;
-    var header_end: ?usize = null; // index just past "\r\n\r\n"
-    var want_total: ?usize = null; // header_end + Content-Length, when known
+    var header_end: ?usize = null;
+    var want_total: ?usize = null;
 
     while (true) {
         if (header_end == null) {
@@ -122,14 +101,12 @@ fn readHttpRequest(io: std.Io, conn: std.Io.net.Stream, buf: []u8) HttpReadResul
         }
 
         if (total >= buf.len) {
-            // Buffer full before the request completed: either the headers alone
-            // overflow, or the declared/streamed body exceeds the cap.
             return .too_large;
         }
 
         var rv: [1][]u8 = .{buf[total..]};
         const n = conn.read(io, &rv) catch break;
-        if (n == 0) break; // EOF / peer closed
+        if (n == 0) break;
         total += n;
     }
 
@@ -149,7 +126,7 @@ fn handleHttpConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, conn: 
         .empty => return,
         .too_large => {
             const err_resp = "HTTP/1.1 413 Payload Too Large\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"request too large\"}";
-            try writeHttpAll(io, conn, err_resp);
+            try foundation_http.writeHttpAll(io, conn, err_resp);
             return;
         },
         .request => |req| req,
@@ -174,20 +151,20 @@ fn handleHttpConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, conn: 
         const sse_response =
             "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n" ++
             "event: endpoint\r\ndata: /message\r\n\r\n";
-        try writeHttpAll(io, conn, sse_response);
+        try foundation_http.writeHttpAll(io, conn, sse_response);
         return;
     }
 
     if (std.mem.eql(u8, http_method, "POST") and std.mem.eql(u8, path, "/message")) {
-        const body = findHttpBody(raw_request) orelse {
+        const body = foundation_http.findHttpBody(raw_request) orelse {
             const err_resp = "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"no body\"}";
-            try writeHttpAll(io, conn, err_resp);
+            try foundation_http.writeHttpAll(io, conn, err_resp);
             return;
         };
 
         if (body.len > MAX_REQUEST_SIZE) {
             const err_resp = "HTTP/1.1 413 Payload Too Large\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"request too large\"}";
-            try writeHttpAll(io, conn, err_resp);
+            try foundation_http.writeHttpAll(io, conn, err_resp);
             return;
         }
 
@@ -197,19 +174,19 @@ fn handleHttpConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, conn: 
         const result_json = processJsonRpc(arena.allocator(), body) catch |err| {
             const err_body = try std.fmt.allocPrint(arena.allocator(), "{{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{{\"code\":-32603,\"message\":\"{s}\"}}}}", .{handlers.errorMessage(err)});
             const header = try std.fmt.allocPrint(arena.allocator(), "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n", .{err_body.len});
-            try writeHttpAll(io, conn, header);
-            try writeHttpAll(io, conn, err_body);
+            try foundation_http.writeHttpAll(io, conn, header);
+            try foundation_http.writeHttpAll(io, conn, err_body);
             return;
         };
 
         const header = try std.fmt.allocPrint(arena.allocator(), "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n", .{result_json.len});
-        try writeHttpAll(io, conn, header);
-        try writeHttpAll(io, conn, result_json);
+        try foundation_http.writeHttpAll(io, conn, header);
+        try foundation_http.writeHttpAll(io, conn, result_json);
         return;
     }
 
     const resp = "HTTP/1.1 405 Method Not Allowed\r\nConnection: close\r\n\r\n";
-    try writeHttpAll(io, conn, resp);
+    try foundation_http.writeHttpAll(io, conn, resp);
 }
 
 fn writeUnauthorized(io: std.Io, conn: std.Io.net.Stream) !void {
@@ -220,29 +197,11 @@ fn writeUnauthorized(io: std.Io, conn: std.Io.net.Stream) !void {
         "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nWWW-Authenticate: Bearer\r\nConnection: close\r\n\r\n{s}",
         .{ body.len, body },
     );
-    try writeHttpAll(io, conn, resp);
-}
-
-fn writeHttpAll(io: std.Io, conn: std.Io.net.Stream, bytes: []const u8) !void {
-    var buffer: [4096]u8 = undefined;
-    var stream_writer = conn.writer(io, &buffer);
-    const writer = &stream_writer.interface;
-    try writer.writeAll(bytes);
-    try writer.flush();
-}
-
-fn findHttpBody(raw: []const u8) ?[]const u8 {
-    const needle = "\r\n\r\n";
-    const idx = std.mem.indexOf(u8, raw, needle) orelse return null;
-    const body_start = idx + needle.len;
-    if (body_start >= raw.len) return null;
-    return raw[body_start..];
+    try foundation_http.writeHttpAll(io, conn, resp);
 }
 
 extern fn getsockname(sockfd: std.posix.fd_t, addr: *std.posix.sockaddr, addrlen: *std.posix.socklen_t) c_int;
 
-// Bind a 127.0.0.1 listener on an ephemeral port and return both it and the
-// kernel-assigned port (mirrors src/testing/test_helpers.zig's loopback helper).
 fn bindLoopback(io: std.Io) !struct { server: std.Io.net.Server, port: u16 } {
     const address = try std.Io.net.IpAddress.parseIp4("127.0.0.1", 0);
     var srv = try address.listen(io, .{ .mode = .stream, .reuse_address = true });
@@ -258,16 +217,7 @@ fn bindLoopback(io: std.Io) !struct { server: std.Io.net.Server, port: u16 } {
     return .{ .server = srv, .port = port };
 }
 
-fn readHttpResponse(io: std.Io, conn: std.Io.net.Stream, buf: []u8) ![]const u8 {
-    var total: usize = 0;
-    while (total < buf.len) {
-        var rv: [1][]u8 = .{buf[total..]};
-        const n = conn.read(io, &rv) catch break;
-        if (n == 0) break;
-        total += n;
-    }
-    return buf[0..total];
-}
+const readHttpResponse = foundation_http.readHttpResponse;
 
 // Regression: a POST whose headers and body arrive in separate TCP segments must
 // still be parsed in full. Before the read loop, handleHttpConnection performed a
@@ -280,8 +230,6 @@ test "MCP HTTP transport reassembles a multi-segment request body" {
     var bound = try bindLoopback(io);
     defer bound.server.deinit(io);
 
-    // A well-formed JSON-RPC ping whose body is intentionally split from its
-    // headers across two writes.
     const body = "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"ping\"}";
     const headers = try std.fmt.allocPrint(
         allocator,
@@ -294,7 +242,6 @@ test "MCP HTTP transport reassembles a multi-segment request body" {
     const client = try caddr.connect(io, .{ .mode = .stream });
     defer client.close(io);
 
-    // Segment 1: headers only (flushed), then segment 2: body only.
     {
         var wb: [512]u8 = undefined;
         var sw = client.writer(io, &wb);
@@ -310,8 +257,7 @@ test "MCP HTTP transport reassembles a multi-segment request body" {
     var resp_buf: [2048]u8 = undefined;
     const resp = try readHttpResponse(io, client, &resp_buf);
 
-    const resp_body = findHttpBody(resp) orelse return error.NoResponseBody;
-    // ping returns an empty-object result, never a parse error.
+    const resp_body = foundation_http.findHttpBody(resp) orelse return error.NoResponseBody;
     try std.testing.expect(std.mem.indexOf(u8, resp_body, "\"result\":{}") != null);
     try std.testing.expect(std.mem.indexOf(u8, resp_body, "\"id\":7") != null);
     try std.testing.expect(std.mem.indexOf(u8, resp_body, "error") == null);
@@ -350,7 +296,7 @@ test "MCP HTTP transport handles a single-write request" {
     var resp_buf: [2048]u8 = undefined;
     const resp = try readHttpResponse(io, client, &resp_buf);
 
-    const resp_body = findHttpBody(resp) orelse return error.NoResponseBody;
+    const resp_body = foundation_http.findHttpBody(resp) orelse return error.NoResponseBody;
     try std.testing.expect(std.mem.indexOf(u8, resp_body, "\"result\":{}") != null);
     try std.testing.expect(std.mem.indexOf(u8, resp_body, "\"id\":1") != null);
 }
@@ -489,7 +435,7 @@ test "MCP HTTP transport accepts configured bearer token" {
 
     var resp_buf: [2048]u8 = undefined;
     const resp = try readHttpResponse(io, client, &resp_buf);
-    const resp_body = findHttpBody(resp) orelse return error.NoResponseBody;
+    const resp_body = foundation_http.findHttpBody(resp) orelse return error.NoResponseBody;
     try std.testing.expect(std.mem.indexOf(u8, resp_body, "\"result\":{}") != null);
     try std.testing.expect(std.mem.indexOf(u8, resp_body, "\"id\":1") != null);
 }

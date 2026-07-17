@@ -11,6 +11,7 @@ pub const io = @import("io/mod.zig");
 pub const credentials = @import("credentials.zig");
 pub const pool_allocator = @import("pool_allocator.zig");
 pub const temp_path = @import("temp_path.zig");
+pub const http = @import("http.zig");
 
 test {
     const std = @import("std");
@@ -27,5 +28,6 @@ test {
     _ = @import("env.zig");
     _ = @import("plugin_validator.zig");
     _ = @import("temp_path.zig");
+    _ = @import("http.zig");
     std.testing.refAllDecls(@This());
 }

@@ -316,9 +316,9 @@ test "durable_store: store parent directory defaults to owner-only mode on POSIX
         deleteIfExists(base);
         deleteIfExists("zig-out/g5-owner-only/store.jsonl.wal");
         deleteIfExists("zig-out/g5-owner-only/store.jsonl.manifest");
-        std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch {};
+        std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch |err| std.log.warn("durable_store cleanup: {s}", .{@errorName(err)});
     }
-    std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch {};
+    std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch |err| std.log.warn("durable_store cleanup: {s}", .{@errorName(err)});
 
     {
         var session = try Session.openAt(testing.io, testing.allocator, base);
@@ -345,9 +345,9 @@ test "durable_store: ensureOwnerOnlyDir repairs pre-existing world-writable pare
         deleteIfExists(base);
         deleteIfExists("zig-out/g5-owner-only-repair/store.jsonl.wal");
         deleteIfExists("zig-out/g5-owner-only-repair/store.jsonl.manifest");
-        std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch {};
+        std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch |err| std.log.warn("durable_store cleanup: {s}", .{@errorName(err)});
     }
-    std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch {};
+    std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch |err| std.log.warn("durable_store cleanup: {s}", .{@errorName(err)});
 
     // Pre-create a world-writable parent so createDirPathStatus is a no-op and
     // the repair path (open + setPermissions) must do the work.

@@ -312,16 +312,16 @@ test "confineTrainingPath rejects symlink escape when present" {
     defer allocator.free(root);
     // tempFilePath returns a file-shaped name; create it as a directory root.
     std.Io.Dir.createDirPath(.cwd(), std.Options.debug_io, root) catch {
-        std.Io.Dir.deleteFileAbsolute(std.Options.debug_io, root) catch {};
+        std.Io.Dir.deleteFileAbsolute(std.Options.debug_io, root) catch |err| std.log.warn("training_support setup: {s}", .{@errorName(err)});
         try std.Io.Dir.createDirPath(.cwd(), std.Options.debug_io, root);
     };
-    defer std.Io.Dir.deleteTree(.cwd(), std.Options.debug_io, root) catch {};
+    defer std.Io.Dir.deleteTree(.cwd(), std.Options.debug_io, root) catch |err| std.log.warn("training_support cleanup: {s}", .{@errorName(err)});
 
     const link_path = try std.fmt.allocPrint(allocator, "{s}/escape", .{root});
     defer allocator.free(link_path);
     // Point a symlink at a location outside the root.
     std.Io.Dir.symLinkAbsolute(std.Options.debug_io, "/etc", link_path, .{}) catch return;
-    defer std.Io.Dir.deleteFileAbsolute(std.Options.debug_io, link_path) catch {};
+    defer std.Io.Dir.deleteFileAbsolute(std.Options.debug_io, link_path) catch |err| std.log.warn("training_support test cleanup: {s}", .{@errorName(err)});
 
     try std.testing.expectError(error.PathOutsideRoot, confineTrainingPath(allocator, "escape", root));
     // Direct child name under root (non-symlink) is fine when missing or present.
@@ -358,7 +358,7 @@ test "datasetToPoints parses jsonl/text/csv records into points" {
 
     const jsonl = try temp_path.tempFilePath(allocator, "abi_ds_jsonl", "jsonl");
     defer allocator.free(jsonl);
-    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, jsonl) catch {};
+    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, jsonl) catch |err| std.log.warn("training_support test cleanup: {s}", .{@errorName(err)});
     try foundation_io.asyncWriteFile(jsonl, "{\"input\":\"hello world\"}\n{\"input\":\"foo bar\"}\n");
     const jp = (try datasetToPoints(allocator, .{ .path = jsonl, .format = .jsonl })).?;
     defer allocator.free(jp);
@@ -366,7 +366,7 @@ test "datasetToPoints parses jsonl/text/csv records into points" {
 
     const text = try temp_path.tempFilePath(allocator, "abi_ds_text", "txt");
     defer allocator.free(text);
-    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, text) catch {};
+    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, text) catch |err| std.log.warn("training_support test cleanup: {s}", .{@errorName(err)});
     try foundation_io.asyncWriteFile(text, "alpha\nbeta\ngamma\n");
     const tp = (try datasetToPoints(allocator, .{ .path = text, .format = .text })).?;
     defer allocator.free(tp);
@@ -374,7 +374,7 @@ test "datasetToPoints parses jsonl/text/csv records into points" {
 
     const csv = try temp_path.tempFilePath(allocator, "abi_ds_csv", "csv");
     defer allocator.free(csv);
-    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, csv) catch {};
+    defer std.Io.Dir.deleteFileAbsolute(std.testing.io, csv) catch |err| std.log.warn("training_support test cleanup: {s}", .{@errorName(err)});
     try foundation_io.asyncWriteFile(csv, "text\nred\ngreen\n");
     const cp = (try datasetToPoints(allocator, .{ .path = csv, .format = .csv })).?;
     defer allocator.free(cp);

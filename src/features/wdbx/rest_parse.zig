@@ -1,11 +1,12 @@
 const std = @import("std");
 const env = @import("../../foundation/env.zig");
+const foundation = @import("../../foundation/http.zig");
 
 pub const REST_TOKEN_ENV = "ABI_WDBX_REST_TOKEN";
 
 pub const Response = struct {
     status: u16,
-    body: []u8, // owned by the caller
+    body: []u8,
 
     pub fn deinit(self: *Response, allocator: std.mem.Allocator) void {
         allocator.free(self.body);
@@ -128,92 +129,16 @@ pub fn readHttpRequest(io: std.Io, conn: std.Io.net.Stream, buf: []u8) HttpReadR
     return .{ .request = buf[0..total] };
 }
 
-fn requestTargetWithinBuffer(header_end: usize, declared_body_len: usize, capacity: usize) ?usize {
-    if (header_end > capacity) return null;
-    const remaining = capacity - header_end;
-    if (declared_body_len > remaining) return null;
-    return header_end + declared_body_len;
-}
-
-pub fn parseContentLength(header_block: []const u8) ?usize {
-    var lines = std.mem.splitSequence(u8, header_block, "\r\n");
-    _ = lines.next();
-    while (lines.next()) |line| {
-        if (line.len == 0) break;
-        const colon = std.mem.indexOfScalar(u8, line, ':') orelse continue;
-        const key = std.mem.trim(u8, line[0..colon], " \t");
-        if (!std.ascii.eqlIgnoreCase(key, "Content-Length")) continue;
-        const value = std.mem.trim(u8, line[colon + 1 ..], " \t");
-        return std.fmt.parseInt(usize, value, 10) catch null;
-    }
-    return null;
-}
-
-pub fn headerValue(raw: []const u8, name: []const u8) ?[]const u8 {
-    const header_block = if (std.mem.indexOf(u8, raw, "\r\n\r\n")) |idx| raw[0..idx] else raw;
-    var lines = std.mem.splitSequence(u8, header_block, "\r\n");
-    _ = lines.next();
-    while (lines.next()) |line| {
-        if (line.len == 0) break;
-        const colon = std.mem.indexOfScalar(u8, line, ':') orelse continue;
-        const key = std.mem.trim(u8, line[0..colon], " \t");
-        if (!std.ascii.eqlIgnoreCase(key, name)) continue;
-        return std.mem.trim(u8, line[colon + 1 ..], " \t");
-    }
-    return null;
-}
-
-pub fn hasBearerToken(raw: []const u8, token: []const u8) bool {
-    const value = headerValue(raw, "Authorization") orelse return false;
-    const prefix = "Bearer ";
-    if (!std.mem.startsWith(u8, value, prefix)) return false;
-    return std.mem.eql(u8, value[prefix.len..], token);
-}
+pub const requestTargetWithinBuffer = foundation.requestTargetWithinBuffer;
+pub const parseContentLength = foundation.parseContentLength;
+pub const headerValue = foundation.headerValue;
+pub const hasBearerToken = foundation.hasBearerToken;
 
 pub fn loadBearerToken() ?[]const u8 {
     const raw = env.get(REST_TOKEN_ENV) orelse return null;
     const token = std.mem.trim(u8, raw, " \t\r\n");
     if (token.len == 0) return null;
     return token;
-}
-
-test "rest: Content-Length header parser" {
-    try std.testing.expectEqual(
-        @as(?usize, 42),
-        parseContentLength("POST /insert HTTP/1.1\r\nContent-Length: 42\r\n\r\n"),
-    );
-    try std.testing.expectEqual(
-        @as(?usize, 7),
-        parseContentLength("POST /insert HTTP/1.1\r\nHost: x\r\ncontent-length:   7  \r\n\r\n"),
-    );
-    try std.testing.expectEqual(
-        @as(?usize, null),
-        parseContentLength("POST /insert HTTP/1.1\r\nHost: x\r\n\r\n"),
-    );
-    try std.testing.expectEqual(
-        @as(?usize, null),
-        parseContentLength("POST /insert HTTP/1.1\r\nContent-Length: abc\r\n\r\n"),
-    );
-}
-
-test "rest: request target rejects oversized Content-Length without overflow" {
-    try std.testing.expectEqual(@as(?usize, 48), requestTargetWithinBuffer(40, 8, 64));
-    try std.testing.expectEqual(@as(?usize, null), requestTargetWithinBuffer(40, 25, 64));
-    try std.testing.expectEqual(@as(?usize, null), requestTargetWithinBuffer(40, std.math.maxInt(usize), 64));
-    try std.testing.expectEqual(@as(?usize, null), requestTargetWithinBuffer(65, 0, 64));
-}
-
-test "rest: Authorization bearer parser" {
-    const raw =
-        "POST /insert HTTP/1.1\r\n" ++
-        "Host: 127.0.0.1\r\n" ++
-        "authorization:   Bearer local-token  \r\n" ++
-        "Content-Length: 2\r\n\r\n{}";
-
-    try std.testing.expect(hasBearerToken(raw, "local-token"));
-    try std.testing.expect(!hasBearerToken(raw, "wrong-token"));
-    try std.testing.expect(!hasBearerToken("POST /insert HTTP/1.1\r\n\r\n{}", "local-token"));
-    try std.testing.expect(!hasBearerToken("POST /insert HTTP/1.1\r\nAuthorization: Basic nope\r\n\r\n{}", "local-token"));
 }
 
 test {

@@ -289,7 +289,7 @@ test "parseSseStream accumulates Anthropic multi-token SSE" {
         fn call(ctx: *anyopaque, chunk: StreamChunk) ConnectorError!void {
             if (chunk.delta.len == 0) return;
             const list: *std.ArrayListUnmanaged(u8) = @ptrCast(@alignCast(ctx));
-            list.appendSlice(std.testing.allocator, chunk.delta) catch {};
+            try list.appendSlice(std.testing.allocator, chunk.delta);
         }
     }.call;
     const body =
