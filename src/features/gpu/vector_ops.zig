@@ -3,6 +3,20 @@ const builtin = @import("builtin");
 const backends = @import("backends.zig");
 const metal = @import("metal_shared.zig");
 
+/// Host-side vectorized sum used after Metal map kernels (and anywhere a dense
+/// f32 reduce is needed). Full GPU-side tree reduce remains Proposed.
+fn sumF32(values: []const f32) f32 {
+    var sum: f32 = 0;
+    var i: usize = 0;
+    const VLen = comptime std.simd.suggestVectorLength(f32) orelse 4;
+    while (i + VLen <= values.len) : (i += VLen) {
+        const v: @Vector(VLen, f32) = values[i..][0..VLen].*;
+        sum += @reduce(.Add, v);
+    }
+    while (i < values.len) : (i += 1) sum += values[i];
+    return sum;
+}
+
 pub const VectorOps = struct {
     backend: backends.BackendStatus,
 
@@ -28,11 +42,7 @@ pub const VectorOps = struct {
             defer if (a.len > 4096) std.heap.page_allocator.free(res);
 
             try metal.g_metal_context.runKernel(metal.g_metal_context.dot_pipeline, a.len, a, b, res);
-            var sum: f32 = 0;
-            for (res) |val| {
-                sum += val;
-            }
-            return sum;
+            return sumF32(res);
         }
 
         var sum: f32 = 0;
@@ -60,11 +70,7 @@ pub const VectorOps = struct {
             defer if (a.len > 4096) std.heap.page_allocator.free(res);
 
             try metal.g_metal_context.runKernel(metal.g_metal_context.l2_pipeline, a.len, a, b, res);
-            var sum: f32 = 0;
-            for (res) |val| {
-                sum += val;
-            }
-            return sum;
+            return sumF32(res);
         }
 
         var sum: f32 = 0;
@@ -99,14 +105,9 @@ pub const VectorOps = struct {
             defer if (a.len > 4096) std.heap.page_allocator.free(bb_buf);
 
             try metal.g_metal_context.runCosinePartsKernel(a.len, a, b, ab, aa_buf, bb_buf);
-            var sum_ab: f32 = 0;
-            var sum_aa: f32 = 0;
-            var sum_bb: f32 = 0;
-            for (ab, aa_buf, bb_buf) |x, y, z| {
-                sum_ab += x;
-                sum_aa += y;
-                sum_bb += z;
-            }
+            const sum_ab = sumF32(ab);
+            const sum_aa = sumF32(aa_buf);
+            const sum_bb = sumF32(bb_buf);
             if (sum_aa == 0 or sum_bb == 0) return 0;
             return sum_ab / @sqrt(sum_aa * sum_bb);
         }
@@ -154,6 +155,15 @@ pub fn executeKernel(spec: backends.KernelSpec) !backends.KernelResult {
 
 pub fn vectorOps() VectorOps {
     return VectorOps.init();
+}
+
+test "host sumF32 matches scalar reduce across SIMD width and tail" {
+    // Length 10 forces both the vectorized loop and the scalar remainder.
+    const values = [_]f32{ 0.5, -1.0, 2.25, 3.0, -0.75, 1.5, 0.0, 4.0, -2.0, 0.125 };
+    var expected: f32 = 0;
+    for (values) |v| expected += v;
+    try std.testing.expectApproxEqAbs(expected, sumF32(&values), 1e-6);
+    try std.testing.expectEqual(@as(f32, 0), sumF32(&.{}));
 }
 
 test "gpu vector ops provide deterministic acceleration" {

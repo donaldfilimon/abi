@@ -4,8 +4,13 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ## Unreleased
 
+### Added
+
+- docs(ops): claim-honest non-loopback REST/MCP HTTP threat review (`docs/spec/non-loopback-rest-threat-review.mdx`) — proxy TLS preferred, native TLS deferred, not a hardened-expose claim.
+
 ### Changed
 
+- perf(gpu): host-side SIMD `sumF32` after Metal map kernels (dot/L2/cosine parts); full GPU-side tree reduce remains Proposed.
 - docs(claims): sync north-star / external-claims / README with Metal fused cosine/dot/L2 parts (`metal_shared.zig` / `vector_ops.zig`) and list demo rANS/order-1 (`ans.zig`) beside Huffman — still not CUDA/Vulkan/ANE, SOTA compression, or GPU speedup claims.
 
 ### Fixed

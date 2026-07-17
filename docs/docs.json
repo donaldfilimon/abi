@@ -19,7 +19,8 @@
           "spec/abi-refactor-design",
           "spec/agent-wdbx-architecture",
           "spec/multi-persona-technical",
-          "spec/wdbx-north-star"
+          "spec/wdbx-north-star",
+          "spec/non-loopback-rest-threat-review"
         ]
       },
       {
