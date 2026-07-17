@@ -98,6 +98,7 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
+- **#691** — Env var names centralized in `foundation/env.zig` (15 constants); `escapeJsonString` delegated to `foundation/json.zig` from `rest_parse.zig`; connectors keep inline `appendJsonString` (module isolation). 99%+ tests pass (1 pre-existing flaky).
 - **#690** — `MAX_REQUEST_SIZE`/`writeUnauthorized`/`jsonStringAlloc` consolidated to `foundation`; `writeUnauthorized` comptime concat bug fixed.
 - **#689** — `reasonPhrase`/`strField`/`bindLoopback` extracted to `foundation`; silent `else |_| {}` fixed in `wdbx_db.zig`.
 - **#688/#687** — `readHttpRequest`/`HttpReadResult` extracted to `foundation/http.zig` (was duplicated in MCP and WDBX REST); `foundation/json.zig` created with `appendJsonString`/`escapeJsonString`; MCP `json_helpers.zig` delegates to foundation; 20+ silent `catch {}` fixed; `wakeHttpServer`/config accessors restored.
