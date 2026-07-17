@@ -1,6 +1,6 @@
 ---
 name: modern-patterns
-description: Concrete before/after modern idioms for errors, types, modularity, and Zig 0.17 patterns in ABI. Use to apply clean modern patterns during refactors.
+description: This skill should be used when the user asks what a modern idiom looks like for error handling, types, or modularity in Zig — e.g. 'show me the modern way to do this', 'what's the idiomatic Zig 0.17 pattern here' — while implementing a refactor.
 ---
 
 # Modern Patterns
@@ -34,5 +34,5 @@ See references for catalog of before/after in Zig context.
 - `references/patterns-catalog.md`
 - `examples/before-after-zig.md`
 
-Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/modern-patterns
+Base directory for this skill: /Users/donaldfilimon/abi/.claude/skills/modern-patterns
 Relative paths in this skill (e.g., references/) are relative to this base directory.

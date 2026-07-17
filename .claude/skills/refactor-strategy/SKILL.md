@@ -1,6 +1,6 @@
 ---
 name: refactor-strategy
-description: Clean-slate planning, strategy selection (direct / phased / parallel), risk assessment for ABI refactors. Use at start of any significant modernization.
+description: This skill should be used when the user asks how to approach a modernization — e.g. 'should we rewrite or do this incrementally', 'plan a refactor of X', 'what's the risk here' — at the start of significant work.
 ---
 
 # Refactor Strategy
@@ -52,5 +52,5 @@ For repo-local strictness (focus areas, gate list, claims discipline), copy
 as `.claude/modern-refactor.local.md`. The template is not auto-loaded from
 inside the plugin package — it is an optional host-side override only.
 
-Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/refactor-strategy
+Base directory for this skill: /Users/donaldfilimon/abi/.claude/skills/refactor-strategy
 Relative paths in this skill (e.g., references/) are relative to this base directory.

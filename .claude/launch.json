@@ -5,7 +5,8 @@
       "name": "abi-mcp",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "./build.sh mcp && ./mcp/launcher.sh stdio"],
-      "port": 8080
+      "port": 8080,
+      "autoPort": true
     }
   ]
 }
