@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const types = @import("types.zig");
+const test_helpers = @import("../../foundation/test_helpers.zig");
 
 pub const ScreenState = types.ScreenState;
 
@@ -184,20 +185,7 @@ test "writer render functions are testable" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(std.testing.allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-
-        pub fn print(self: *@This(), comptime fmt: []const u8, args: anytype) !void {
-            try self.buffer.print(self.allocator, fmt, args);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
 
     try renderWriter(&writer, .{ .width = 80, .height = 24 });
     try std.testing.expect(std.mem.indexOf(u8, buf.items, "80x24") != null);
@@ -234,16 +222,7 @@ test "alternate screen writer helpers are paired" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(std.testing.allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
     try initScreenWriter(&writer);
     try deinitScreenWriter(&writer);
     try std.testing.expectEqualStrings("\x1b[?1049h\x1b[H\x1b[?1049l", buf.items);
@@ -253,16 +232,7 @@ test "redraw writer helpers emit home and clear-to-end controls" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(std.testing.allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
     try homeScreenWriter(&writer);
     try clearToEndWriter(&writer);
     try std.testing.expectEqualStrings("\x1b[H\x1b[0J", buf.items);

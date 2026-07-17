@@ -2,6 +2,7 @@ const std = @import("std");
 const abi = @import("../../root.zig");
 const build_options = @import("build_options");
 const dashboard_json = @import("dashboard_json.zig");
+const test_helpers = @import("../../foundation/test_helpers.zig");
 
 const GpuSnapshot = struct {
     backend: []const u8,
@@ -340,16 +341,7 @@ test "dashboard frame writer omits redraw controls without screen control" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &buf };
     try renderFrameWriter(
         &writer,
         allocator,
@@ -390,16 +382,7 @@ test "dashboard frame writer wraps screen-controlled redraw" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &buf };
     try renderFrameWriter(
         &writer,
         allocator,
@@ -440,16 +423,7 @@ test "dashboard frame writer can render plain diagnostics without style escapes"
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &buf };
     try renderFrameWriter(
         &writer,
         allocator,
@@ -490,16 +464,7 @@ test "dashboard frame writer can render compact selected pane only" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &buf };
     try renderFrameWriter(
         &writer,
         allocator,

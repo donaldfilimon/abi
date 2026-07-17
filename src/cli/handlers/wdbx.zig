@@ -3,7 +3,7 @@ const build_options = @import("build_options");
 const features = @import("../../features/mod.zig");
 const db_commands = @import("wdbx_db.zig");
 const runtime_commands = @import("wdbx_runtime.zig");
-const test_helpers = @import("../../testing/test_helpers.zig");
+const test_helpers = @import("abi").foundation.test_helpers;
 const usage_mod = @import("../usage.zig");
 const env = @import("../../foundation/env.zig");
 

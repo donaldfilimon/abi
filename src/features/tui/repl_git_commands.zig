@@ -13,7 +13,7 @@ const cmds = @import("repl_commands.zig");
 const repl_types = @import("repl_types.zig");
 const repl_session = @import("repl_session.zig");
 const file_context = @import("../ai/file_context.zig");
-const test_helpers = @import("../../testing/test_helpers.zig");
+const test_helpers = @import("abi").foundation.test_helpers;
 
 /// `/sync-clis`: execute the central sync-clis launcher. Prefers the in-repo
 /// canonical launcher, then the synced `.claude` copy, then the operator's
