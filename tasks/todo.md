@@ -98,7 +98,8 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
-- **Ops docs + Metal path** — claims sync; host SIMD `sumF32`; REST threat review; cluster mTLS ops + Phase D cutover HITL plan.
+- **abi-mega refresh** — inventory + fast gates PASS; markdown audit fix-severity counts 0; four mega skills `quick_validate` PASS; `ABI-MEGA-PLUGIN.md` validator paths updated (Codex skill-creator cache).
+- **Ops docs + Metal path** — claims sync; host SIMD `sumF32`; REST threat review; cluster mTLS ops + Phase D cutover HITL plan (#681).
 - **#678** — Metal status probe before backends/gpu/dashboard; `donald-mode`; Abbey agents; `check_skills` `>-` fold.
 - **#676 Tracks A–G** — `incremental.zig`; Metal fused cosine; Win32 credential DACL; `ans.zig` demo; FHE param honesty; cluster TLS-fronting ops; `modernized/packages/*` Phase D scaffold.
 - **#674 Feature polish** — RankedNode/SearchResult borrowed vectors; stream footers; Ctrl-R redraw; constitution `/status`; POSIX `secureZero`.
@@ -117,4 +118,5 @@ Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 - `docs/spec/cluster-mtls-ops.mdx` — cluster RPC mTLS/membership ops (not sharding)
 - `docs/spec/phase-d-cutover-plan.mdx` — HITL cutover checklist
 - `modernized/README.md` — Phase D scaffold rules
+- `ABI-MEGA-PLUGIN.md` — local Codex `~/plugins/abi-mega` operator plugin (inventory/gates/audit)
 - `CHANGELOG.md` — release notes
