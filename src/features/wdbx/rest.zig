@@ -284,10 +284,13 @@ test "rest: HTTP transport handles a single-write request" {
     try std.testing.expect(std.mem.indexOf(u8, resp, "200 OK") != null);
 }
 
-test "rest: HTTP transport requires bearer token when configured" {
-    const io = std.testing.io;
-    const allocator = std.testing.allocator;
-
+/// Shared fixture for missing-token vs wrong-bearer 401 insert probes.
+/// `authorization_line` is null (omit header) or e.g. `"Authorization: Bearer wrong-token\r\n"`.
+fn expectUnauthorizedInsert(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    authorization_line: ?[]const u8,
+) !void {
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
 
@@ -297,8 +300,8 @@ test "rest: HTTP transport requires bearer token when configured" {
     const body = "{\"key\":\"agent:abi\",\"value\":\"blocked\"}";
     const request = try std.fmt.allocPrint(
         allocator,
-        "POST /insert HTTP/1.1\r\nContent-Length: {d}\r\n\r\n{s}",
-        .{ body.len, body },
+        "POST /insert HTTP/1.1\r\n{s}Content-Length: {d}\r\n\r\n{s}",
+        .{ authorization_line orelse "", body.len, body },
     );
     defer allocator.free(request);
 
@@ -326,46 +329,12 @@ test "rest: HTTP transport requires bearer token when configured" {
     try std.testing.expectEqual(@as(u16, 404), q.status);
 }
 
+test "rest: HTTP transport requires bearer token when configured" {
+    try expectUnauthorizedInsert(std.testing.allocator, std.testing.io, null);
+}
+
 test "rest: HTTP transport rejects the wrong bearer token" {
-    const io = std.testing.io;
-    const allocator = std.testing.allocator;
-
-    var store = wdbx.Store.init(allocator);
-    defer store.deinit();
-
-    var bound = try bindLoopback(io);
-    defer bound.server.deinit(io);
-
-    const body = "{\"key\":\"agent:abi\",\"value\":\"blocked\"}";
-    const request = try std.fmt.allocPrint(
-        allocator,
-        "POST /insert HTTP/1.1\r\nAuthorization: Bearer wrong-token\r\nContent-Length: {d}\r\n\r\n{s}",
-        .{ body.len, body },
-    );
-    defer allocator.free(request);
-
-    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
-    const client = try caddr.connect(io, .{ .mode = .stream });
-    defer client.close(io);
-
-    {
-        var wb: [512]u8 = undefined;
-        var sw = client.writer(io, &wb);
-        try sw.interface.writeAll(request);
-        try sw.interface.flush();
-    }
-
-    const conn = try bound.server.accept(io);
-    try handleConnectionWithAuth(allocator, io, &store, conn, .{ .bearer_token = "local-token" }, null);
-
-    var resp_buf: [2048]u8 = undefined;
-    const resp = try readHttpResponse(io, client, &resp_buf);
-    try std.testing.expect(std.mem.indexOf(u8, resp, "401 Unauthorized") != null);
-    try std.testing.expect(std.mem.indexOf(u8, resp, "WWW-Authenticate: Bearer") != null);
-
-    var q = try route(allocator, &store, "POST", "/query", "{\"key\":\"agent:abi\"}");
-    defer q.deinit(allocator);
-    try std.testing.expectEqual(@as(u16, 404), q.status);
+    try expectUnauthorizedInsert(std.testing.allocator, std.testing.io, "Authorization: Bearer wrong-token\r\n");
 }
 
 test "rest: HTTP transport accepts configured bearer token" {
