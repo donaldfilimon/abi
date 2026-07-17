@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 const sanitize = @import("sanitize.zig");
 const terminal = @import("terminal.zig");
 const types = @import("types.zig");
+const test_helpers = @import("../../foundation/test_helpers.zig");
 
 pub const repl = @import("repl.zig");
 pub const repl_types = @import("repl_types.zig");
@@ -128,21 +129,7 @@ test "writer render functions are testable" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(std.testing.allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-
-        pub fn print(self: *@This(), comptime fmt: []const u8, args: anytype) !void {
-            try self.buffer.print(self.allocator, fmt, args);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
-
+    const writer = test_helpers.TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
     try renderWriter(&writer, .{ .width = 80, .height = 24 });
     try std.testing.expect(std.mem.indexOf(u8, buf.items, "80x24") != null);
 }

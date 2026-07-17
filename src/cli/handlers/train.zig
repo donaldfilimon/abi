@@ -1,5 +1,5 @@
 const std = @import("std");
-const test_helpers = @import("../../testing/test_helpers.zig");
+const test_helpers = @import("abi").foundation.test_helpers;
 const features = @import("../../features/mod.zig");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const memory_mod = @import("../../core/memory.zig");
