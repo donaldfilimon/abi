@@ -20,6 +20,13 @@ pub fn appendJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.All
     try out.append(allocator, '"');
 }
 
+pub fn strField(v: std.json.Value) ?[]const u8 {
+    return switch (v) {
+        .string => |s| s,
+        else => null,
+    };
+}
+
 pub fn escapeJsonString(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
     var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);

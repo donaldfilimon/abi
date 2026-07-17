@@ -1,6 +1,7 @@
 const std = @import("std");
 const env = @import("../../foundation/env.zig");
 const foundation = @import("../../foundation/http.zig");
+const foundation_json = @import("../../foundation/json.zig");
 
 pub const REST_TOKEN_ENV = "ABI_WDBX_REST_TOKEN";
 
@@ -65,24 +66,8 @@ pub fn escapeJsonString(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
     return out.toOwnedSlice(allocator);
 }
 
-pub fn strField(v: std.json.Value) ?[]const u8 {
-    return switch (v) {
-        .string => |s| s,
-        else => null,
-    };
-}
-
-pub fn reasonPhrase(status: u16) []const u8 {
-    return switch (status) {
-        200 => "OK",
-        400 => "Bad Request",
-        404 => "Not Found",
-        405 => "Method Not Allowed",
-        429 => "Too Many Requests",
-        500 => "Internal Server Error",
-        else => "OK",
-    };
-}
+pub const strField = foundation_json.strField;
+pub const reasonPhrase = foundation.reasonPhrase;
 
 pub fn findBody(raw: []const u8) []const u8 {
     if (std.mem.indexOf(u8, raw, "\r\n\r\n")) |i| return raw[i + 4 ..];
