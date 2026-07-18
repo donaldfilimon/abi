@@ -36,7 +36,7 @@ Canonical instruction file. If this conflicts with `build.zig`, `tools/build.sh`
 - `pub fn main(init: std.process.Init) !void`; `ArrayListUnmanaged(T).empty`; `std.mem.trimEnd`/`splitScalar`/`splitAny`/`splitSequence`; `foundation.time.unixMs()`.
 - Tests: inline `test {}`, end modules with `std.testing.refAllDecls(@This())`.
 - No silent `catch {}` in data/inference/persistence paths. `build_options.feat_*` for conditional compilation. Explicit `std.mem.Allocator` (no global).
-- MemoryTracker: track owned-and-freed scratch as `trackAllocNoTag`/`trackFreeNoTag` pairs; never track escaping buffers at the alloc site. `getTotalFreed() > 0` proves a balanced transient pair fired.
+- **MemoryTracker**: track owned-and-freed scratch as `trackAllocNoTag`/`trackFreeNoTag` pairs; never track escaping buffers at the alloc site. `getTotalFreed() > 0` proves a balanced transient pair fired.
 
 ## Claims discipline
 No unproven claims (production FHE/AES/RBAC, multi-host sharding, QPS/latency/accuracy, K8s/H100, external stacks). WDBX demo modules (`compression`, `entropy`, `ans`, `neural_compress`, `crypto_he`, `fhe`) are reference-grade, not production. Audit: `docs/contracts/external-claims-audit.mdx`.
