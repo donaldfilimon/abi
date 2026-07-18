@@ -31,7 +31,7 @@ expected markers, prints `pass=N fail=N`, and writes a full transcript.
 Expected tail on success (exit 0):
 
 ```
-=== summary: pass=16 fail=0 ===
+=== summary: pass=18 fail=0 ===
 transcript: <repo>/zig-out/run-abi-smoke.txt
 SMOKE OK
 ```
@@ -118,9 +118,11 @@ use the dashboard one-shot smoke (`abi dashboard < /dev/null`) or the tmux-based
   fallback. Use a pty (tmux `send-keys`/`capture-pane`) to drive the live loop.
 - **CLI and MCP plugin lists should match.** Both surfaces load the 16 bundled
   plugin manifests; drift means the shared plugin manager/registry wiring changed.
-- **`accelerated=false` is normal.** `backends` reports `metal: available=true
-  accelerated=false` — Metal is linked at build time but native kernels aren't,
-  so it runs the deterministic vectorized CPU fallback. Not a failure.
+- **Both Metal runtime states are valid.** `backends` reports whether the linked
+  Metal kernels initialized successfully. `accelerated=true` means native Metal
+  kernels are active; `accelerated=false` means initialization was unavailable or
+  failed and the deterministic vectorized CPU fallback is active. Neither state
+  should be inferred from framework linkage alone.
 - **`./build.sh` does not honor `.zigversion`.** It runs whatever `zig` is on
   `PATH`. If a build fails with std API errors, check `zig version` first.
 - **`complete` (no `--live`) is fully local** — it routes to the local model and

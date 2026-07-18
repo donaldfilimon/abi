@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
+const validation = @import("../../foundation/validation.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
 
 pub const Platform = enum {
@@ -56,6 +57,9 @@ pub const DeviceProfile = struct {
     mode: RuntimeMode,
     native_dispatch: bool,
     simulated: bool,
+    /// Reflects the selected GPU backend on this target. This does not imply
+    /// native mobile runtime dispatch; `native_dispatch` is the authority for
+    /// that capability.
     accelerated: bool,
     width: u32,
     height: u32,
@@ -182,8 +186,8 @@ pub fn layoutSummary(device_profile: DeviceProfile) !DeviceProfile {
 }
 
 fn validateLabel(value: []const u8, err: anyerror) !void {
-    if (value.len == 0) return err;
-    if (std.mem.indexOfScalar(u8, value, 0) != null) return err;
+    validation.validateNonEmptySlice(value) catch return err;
+    validation.validateNoNullBytes(value) catch return err;
 }
 
 pub fn renderMobileView(allocator: std.mem.Allocator, title: []const u8, items: []const []const u8) ![]u8 {

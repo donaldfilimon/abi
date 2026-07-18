@@ -113,13 +113,7 @@ pub const Cluster = struct {
 
         for (self.nodes) |*peer| {
             if (peer.id == candidate_id or !peer.alive) continue;
-            // A peer grants its vote if it has not already voted in this term.
-            if (peer.term < new_term or peer.voted_for == null) {
-                peer.term = new_term;
-                peer.voted_for = candidate_id;
-                peer.role = .follower;
-                votes += 1;
-            }
+            if (applyVote(peer, new_term, candidate_id)) votes += 1;
         }
 
         if (votes >= self.quorum()) {

@@ -1,13 +1,12 @@
 //! Remote accelerator dispatch (Compute/Transport Layer).
 //!
-//! The honest realization of the north-star "remote TPU execution" backend: a
-//! pure-Zig TCP transport that ships a compute op (a vector dot product) to a
-//! configured remote endpoint and returns its result, with a deterministic CPU
-//! fallback when no endpoint is set or it is unreachable. This is the DISPATCH
-//! MECHANISM — the operator points `ABI_REMOTE_COMPUTE_ENDPOINT` at their own
-//! TPU/GPU inference service; no accelerator is bundled or claimed. It mirrors
-//! the `cluster_rpc` socket pattern and is exercised over a 127.0.0.1 loopback
-//! reference server in tests.
+//! Reference building blocks for the north-star "remote TPU execution" backend:
+//! a pure-Zig TCP transport that can ship one vector dot-product request to an
+//! explicit host/port and return its result. `ABI_REMOTE_COMPUTE_ENDPOINT` is
+//! currently report-only configuration metadata; backend selection and
+//! production compute paths do not call `dialDot` or wire a remote fallback.
+//! The transport mirrors the `cluster_rpc` socket pattern and is exercised over
+//! a 127.0.0.1 loopback reference server in tests.
 //!
 //! Wire protocol (one request/response per connection, newline-framed text):
 //!   "DOT <n> <a0> .. <a(n-1)> <b0> .. <b(n-1)>\n"  ->  "<dot>\n"
@@ -24,8 +23,9 @@ pub const MAX_MSG = 64 * 1024;
 
 pub const RemoteError = error{ MalformedRequest, MalformedResponse, DimensionMismatch };
 
-/// Local reference dot product (also the CPU fallback and the value a correct
-/// remote endpoint must reproduce).
+/// Local reference dot product and the value a correct reference endpoint must
+/// reproduce. Production compute paths do not currently call this as a remote
+/// fallback.
 pub fn localDot(a: []const f32, b: []const f32) !f32 {
     if (a.len != b.len) return error.DimensionMismatch;
     var sum: f32 = 0;
@@ -33,8 +33,7 @@ pub fn localDot(a: []const f32, b: []const f32) !f32 {
     return sum;
 }
 
-/// The configured remote endpoint ("host:port"), or null when unset — the honest
-/// signal that ops run on the local CPU fallback.
+/// Report-only remote endpoint metadata ("host:port"), or null when unset.
 pub fn endpoint() ?[]const u8 {
     return env.get(ENDPOINT_ENV);
 }

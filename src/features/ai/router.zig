@@ -136,11 +136,18 @@ pub const AdaptiveModulator = struct {
         );
     }
 
-    /// Deserialize weights from a stored string.
+    /// Deserialize weights from a stored string. Falls back to
+    /// `AdaptiveModulator.init()` defaults if the persisted state fails
+    /// validation (malformed fields, non-finite/negative weights, invalid
+    /// totals/counts, or alpha outside `[0,1]`).
     pub fn deserialize(data: []const u8) AdaptiveModulator {
         return deserializeValidated(data) orelse AdaptiveModulator.init();
     }
 
+    /// Parses and validates the CSV-encoded persisted state. Returns `null`
+    /// (rather than a partially-defaulted value) if any field is malformed,
+    /// a weight is non-finite/negative, the weight total is invalid, alpha is
+    /// outside `[0,1]`, or the field count doesn't match exactly.
     fn deserializeValidated(data: []const u8) ?AdaptiveModulator {
         var it = std.mem.splitScalar(u8, data, ',');
         const abbey_text = it.next() orelse return null;
@@ -262,28 +269,42 @@ pub fn routeInputWithSoul(
     input: []const u8,
 ) ![]u8 {
     const keyword_weights = analyzeSentiment(input);
-    var neural_weights: ProfileWeights = .{
-        .w_abbey = 0.33,
-        .w_aviva = 0.33,
-        .w_abi = 0.34,
-    };
+    // Start from the keyword decision so a missing network or rejected output
+    // shape/value preserves the documented fallback regardless of blend_alpha.
+    var neural_weights = keyword_weights;
 
     if (net) |n| {
         if (n.layers.len > 0 and n.layers[n.layers.len - 1].output_size == 3) {
             const point = point_neural_net.Point.fromText(input);
             const output = try n.forward(&point.toArray());
             defer allocator.free(output);
-            // Softmax the 3 outputs
-            var exps: [3]f32 = undefined;
-            var sum: f32 = 0;
-            for (output, 0..) |o, i| {
-                exps[i] = @exp(o);
-                sum += exps[i];
-            }
-            if (sum > 0) {
-                neural_weights.w_abbey = exps[0] / sum;
-                neural_weights.w_aviva = exps[1] / sum;
-                neural_weights.w_abi = exps[2] / sum;
+            if (output.len == 3) {
+                // Stable softmax: subtracting the largest finite logit avoids
+                // overflow while non-finite output preserves keyword fallback.
+                var logits_are_finite = true;
+                var max_logit = output[0];
+                for (output[1..]) |o| {
+                    if (!std.math.isFinite(o)) {
+                        logits_are_finite = false;
+                        break;
+                    }
+                    max_logit = @max(max_logit, o);
+                }
+                if (!std.math.isFinite(max_logit)) logits_are_finite = false;
+
+                if (logits_are_finite) {
+                    var exps: [3]f32 = undefined;
+                    var sum: f32 = 0;
+                    for (output, 0..) |o, i| {
+                        exps[i] = @exp(o - max_logit);
+                        sum += exps[i];
+                    }
+                    if (sum > 0 and std.math.isFinite(sum)) {
+                        neural_weights.w_abbey = exps[0] / sum;
+                        neural_weights.w_aviva = exps[1] / sum;
+                        neural_weights.w_abi = exps[2] / sum;
+                    }
+                }
             }
         }
     }
@@ -373,11 +394,26 @@ test "selectBestProfile picks highest weight" {
 }
 
 test "selectBestProfile tie-break order is abbey then aviva then abi" {
-    const three_way = ProfileWeights{ .w_abbey = 0.34, .w_aviva = 0.33, .w_abi = 0.33 };
+    const three_way = ProfileWeights{ .w_abbey = 0.33, .w_aviva = 0.33, .w_abi = 0.33 };
     try std.testing.expectEqual(types.AgentProfile.abbey, selectBestProfile(three_way));
 
     const aviva_abi = ProfileWeights{ .w_abbey = 0.2, .w_aviva = 0.4, .w_abi = 0.4 };
     try std.testing.expectEqual(types.AgentProfile.aviva, selectBestProfile(aviva_abi));
+
+    // Neutral sentiment uses a deliberately non-tied baseline favoring Abi.
+    try std.testing.expectEqual(types.AgentProfile.abi, selectBestProfile(analyzeSentiment("zzzqqq")));
+}
+
+test "routeInputWithSoul preserves keyword routing without a network" {
+    const allocator = std.testing.allocator;
+    const input = "analyze the logical structure";
+
+    const expected = try routeInput(allocator, input);
+    defer allocator.free(expected);
+    const actual = try routeInputWithSoul(allocator, null, 1.0, input);
+    defer allocator.free(actual);
+
+    try std.testing.expectEqualStrings(expected, actual);
 }
 
 test "routeInput returns response from selected profile" {
