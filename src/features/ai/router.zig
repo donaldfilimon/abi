@@ -136,11 +136,16 @@ pub const AdaptiveModulator = struct {
         );
     }
 
-    /// Deserialize weights from a stored string.
+    /// Deserialize weights from a stored string. Falls back to
+    /// `AdaptiveModulator.init()` defaults if the persisted state fails
+    /// validation (malformed, NaN/infinite, negative, or out-of-range).
     pub fn deserialize(data: []const u8) AdaptiveModulator {
         return deserializeValidated(data) orelse AdaptiveModulator.init();
     }
 
+    /// Parses and validates the CSV-encoded persisted state. Returns `null`
+    /// (rather than a partially-defaulted value) if any field is malformed,
+    /// non-finite, out of range, or the field count doesn't match exactly.
     fn deserializeValidated(data: []const u8) ?AdaptiveModulator {
         var it = std.mem.splitScalar(u8, data, ',');
         const abbey_text = it.next() orelse return null;
