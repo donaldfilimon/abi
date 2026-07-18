@@ -3,8 +3,8 @@ name: CI
 # Primary gate + cross-compilation smoke for the ABI framework.
 # Runs on macOS (the project's primary platform — Apple frameworks available for
 # the native build) and cross-compiles the CLI for the supported non-native
-# targets. Keep the pinned Zig version below in sync with .zigversion and
-# build.zig.zon (the check_zigversion.sh hook flags edits to that pin).
+# targets. Keep the pinned Zig version below in sync with .zigversion
+# (tools/check_zigversion.sh runs inside `zig build check`).
 
 on:
   push:
