@@ -4,11 +4,8 @@
 set -euo pipefail
 
 INSTALL_DIR="${GITHUB_RUNNER_DIR:-${HOME}/actions-runner}"
-EXPECTED_ZIG="${EXPECTED_ZIG:-}"
+REPO="${GITHUB_RUNNER_REPO:-donaldfilimon/abi}"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-if [[ -z "${EXPECTED_ZIG}" && -f "${REPO_ROOT}/.zigversion" ]]; then
-  EXPECTED_ZIG="$(tr -d '[:space:]' <"${REPO_ROOT}/.zigversion")"
-fi
 
 failures=0
 warns=0
@@ -27,16 +24,11 @@ else
 fi
 
 echo "==> Zig toolchain"
-if ! command -v zig >/dev/null 2>&1; then
-  fail "zig not on PATH"
+zig_out=""
+if zig_out="$("${REPO_ROOT}/tools/check_zigversion.sh" 2>&1)"; then
+  ok "${zig_out}"
 else
-  actual="$(zig version)"
-  ok "zig on PATH: ${actual}"
-  if [[ -n "${EXPECTED_ZIG}" && "${actual}" != "${EXPECTED_ZIG}" ]]; then
-    fail "zig version ${actual} != pin ${EXPECTED_ZIG}"
-  elif [[ -n "${EXPECTED_ZIG}" ]]; then
-    ok "matches pin ${EXPECTED_ZIG}"
-  fi
+  fail "${zig_out:-zig pin check failed}"
 fi
 
 echo "==> Runner install (${INSTALL_DIR})"
@@ -59,12 +51,13 @@ fi
 
 echo "==> LaunchAgent / service"
 if [[ -x "${INSTALL_DIR}/svc.sh" ]]; then
-  if (cd "${INSTALL_DIR}" && ./svc.sh status) >/tmp/abi-runner-svc.status 2>&1; then
-    if grep -q 'Started:' /tmp/abi-runner-svc.status 2>/dev/null; then
+  status_out=""
+  if status_out="$(cd "${INSTALL_DIR}" && ./svc.sh status 2>&1)"; then
+    if grep -q 'Started:' <<<"${status_out}"; then
       ok "svc.sh reports Started"
     else
-      warn "svc.sh status did not show Started — see /tmp/abi-runner-svc.status"
-      cat /tmp/abi-runner-svc.status || true
+      warn "svc.sh status did not show Started"
+      printf '%s\n' "${status_out}"
     fi
   else
     warn "svc.sh status failed (runner may be run via ./run.sh instead)"
@@ -85,7 +78,7 @@ fi
 
 echo "==> GitHub visibility reminder"
 if command -v gh >/dev/null 2>&1; then
-  vis="$(gh api repos/donaldfilimon/abi --jq .visibility 2>/dev/null || echo unknown)"
+  vis="$(gh api "repos/${REPO}" --jq .visibility 2>/dev/null || echo unknown)"
   if [[ "${vis}" == "public" ]]; then
     warn "repo is public — keep job-level same-repo gates; prefer dedicated host"
   elif [[ "${vis}" == "private" ]]; then
@@ -93,9 +86,9 @@ if command -v gh >/dev/null 2>&1; then
   else
     warn "could not determine repo visibility (${vis})"
   fi
-  online="$(gh api repos/donaldfilimon/abi/actions/runners --jq '[.runners[]|select(.status=="online")]|length' 2>/dev/null || echo 0)"
+  online="$(gh api "repos/${REPO}/actions/runners" --jq '[.runners[]|select(.status=="online")]|length' 2>/dev/null || echo 0)"
   if [[ "${online}" == "0" ]]; then
-    fail "no online self-hosted runners registered for donaldfilimon/abi"
+    fail "no online self-hosted runners registered for ${REPO}"
   else
     ok "${online} online runner(s) on GitHub"
   fi

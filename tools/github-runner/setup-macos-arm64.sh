@@ -22,21 +22,17 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "==> Resolving latest actions/runner osx-arm64 release"
-TAG="$(gh api repos/actions/runner/releases/latest --jq .tag_name)"
-VERSION="${TAG#v}"
-ASSET="actions-runner-osx-arm64-${VERSION}.tar.gz"
-URL="https://github.com/actions/runner/releases/download/${TAG}/${ASSET}"
-
 mkdir -p "${INSTALL_DIR}"
 cd "${INSTALL_DIR}"
 
 if [[ -f .runner ]]; then
-  echo "==> Existing runner config in ${INSTALL_DIR}"
-  if [[ "${GITHUB_RUNNER_REPLACE:-1}" == "1" ]]; then
-    echo "    Will reconfigure with --replace"
-  fi
+  echo "==> Existing runner config in ${INSTALL_DIR}; will reconfigure with --replace"
 else
+  echo "==> Resolving latest actions/runner osx-arm64 release"
+  TAG="$(gh api repos/actions/runner/releases/latest --jq .tag_name)"
+  VERSION="${TAG#v}"
+  ASSET="actions-runner-osx-arm64-${VERSION}.tar.gz"
+  URL="https://github.com/actions/runner/releases/download/${TAG}/${ASSET}"
   echo "==> Downloading ${URL}"
   curl -fsSL -o "${ASSET}" "${URL}"
   tar xzf "${ASSET}"

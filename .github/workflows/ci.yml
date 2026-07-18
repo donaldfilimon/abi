@@ -1,11 +1,10 @@
 name: CI
 
-# Primary gate + cross-compilation smoke for the ABI framework.
 # Trusted same-repo events run on the macOS arm64 self-hosted runner.
 # Fork PRs (and any untrusted head) stay on GitHub-hosted runners only —
 # never schedule untrusted code on the self-hosted machine.
-# Keep the pinned Zig version below in sync with .zigversion and
-# build.zig.zon (the check_zigversion.sh hook flags edits to that pin).
+# Keep env.ZIG_VERSION in sync with .zigversion (tools/check_zigversion.sh
+# asserts both after checkout; build.zig.zon minimum is a separate lower bound).
 #
 # Runner ops / security: .github/self-hosted-runner.md
 
@@ -27,11 +26,9 @@ permissions:
 env:
   ZIG_VERSION: 0.17.0-dev.1398+cb5635714
 
-# Same-repo only: push, workflow_dispatch, or PR whose head is this repository.
-# Fork PRs fail this predicate and must use the hosted jobs below.
 jobs:
   check:
-    name: check (build + tests + lint + parity)
+    name: ${{ matrix.target }} (self-hosted)
     if: >
       github.repository == 'donaldfilimon/abi' &&
       (github.event_name == 'push' ||
@@ -39,78 +36,30 @@ jobs:
        (github.event_name == 'pull_request' &&
         github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: [self-hosted, macOS, ARM64, abi]
+    strategy:
+      matrix:
+        target: [check, cross-smoke]
     steps:
       - uses: actions/checkout@v4
       - name: Verify pinned Zig on runner PATH
-        run: |
-          set -euo pipefail
-          expected="${ZIG_VERSION}"
-          if ! command -v zig >/dev/null 2>&1; then
-            echo "::error::zig not on PATH for self-hosted runner. Install pin ${expected} (zvm/zigup) and restart the runner service."
-            exit 1
-          fi
-          actual="$(zig version)"
-          if [ "${actual}" != "${expected}" ]; then
-            echo "::error::PATH zig is ${actual}, expected pin ${expected}. Update the runner toolchain and restart the service."
-            exit 1
-          fi
-          echo "Using zig ${actual}"
-      - name: zig build check
-        run: zig build check
-
-  cross-smoke:
-    name: cross-compile smoke (linux/windows/macos)
-    if: >
-      github.repository == 'donaldfilimon/abi' &&
-      (github.event_name == 'push' ||
-       github.event_name == 'workflow_dispatch' ||
-       (github.event_name == 'pull_request' &&
-        github.event.pull_request.head.repo.full_name == github.repository))
-    runs-on: [self-hosted, macOS, ARM64, abi]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify pinned Zig on runner PATH
-        run: |
-          set -euo pipefail
-          expected="${ZIG_VERSION}"
-          if ! command -v zig >/dev/null 2>&1; then
-            echo "::error::zig not on PATH for self-hosted runner. Install pin ${expected} (zvm/zigup) and restart the runner service."
-            exit 1
-          fi
-          actual="$(zig version)"
-          if [ "${actual}" != "${expected}" ]; then
-            echo "::error::PATH zig is ${actual}, expected pin ${expected}. Update the runner toolchain and restart the service."
-            exit 1
-          fi
-          echo "Using zig ${actual}"
-      - name: zig build cross-smoke
-        run: zig build cross-smoke
+        run: ./tools/check_zigversion.sh --github-actions
+      - name: zig build ${{ matrix.target }}
+        run: zig build ${{ matrix.target }}
 
   # Hosted fallback: fork PRs only (untrusted code never touches self-hosted).
   check-hosted:
-    name: check (GitHub-hosted, fork PRs)
+    name: ${{ matrix.target }} (GitHub-hosted, fork PRs)
     if: >
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name != github.repository
     runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [check, cross-smoke]
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
-      - name: zig build check
-        run: zig build check
-
-  cross-smoke-hosted:
-    name: cross-compile smoke (GitHub-hosted, fork PRs)
-    if: >
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v2
-        with:
-          version: ${{ env.ZIG_VERSION }}
-      - name: zig build cross-smoke
-        run: zig build cross-smoke
+      - name: zig build ${{ matrix.target }}
+        run: zig build ${{ matrix.target }}
