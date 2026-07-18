@@ -30,10 +30,11 @@ const LineOutcome = repl_types.LineOutcome;
 /// Best-effort flush so stream deltas appear as they arrive on a tty.
 /// Non-tty degrades silently (keeps OS buffering); sync errors are ignored.
 fn flushStreamPaint() void {
+    const stderr = std.Io.File.stderr();
     if (comptime @hasDecl(std.posix.system, "isatty")) {
-        if (std.posix.system.isatty(std.posix.STDERR_FILENO) == 0) return;
+        if (std.posix.system.isatty(stderr.handle) == 0) return;
     }
-    std.Io.File.stderr().sync(std.Options.debug_io) catch |err| std.log.warn("flushStreamPaint stderr sync: {s}", .{@errorName(err)});
+    stderr.sync(std.Options.debug_io) catch |err| std.log.warn("flushStreamPaint stderr sync: {s}", .{@errorName(err)});
 }
 
 const StreamCtx = struct {
