@@ -6,12 +6,14 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- feat(gpu): bounded Metal softmax (`softmax_kernel` + `softmax_norm_kernel`) with host-side max/partition-sum, CPU fallback, and CPU/GPU parity tests — demo-grade; CUDA/Vulkan/ANE remain non-goals.
 - docs(ops): claim-honest non-loopback REST/MCP HTTP threat review (`docs/spec/non-loopback-rest-threat-review.mdx`) — proxy TLS preferred, native TLS deferred, not a hardened-expose claim.
 - docs(ops): cluster mTLS/membership ops guidance (`docs/spec/cluster-mtls-ops.mdx`) — proxy mTLS preferred; dynamic membership and sharding stay Proposed.
 - docs(plan): Phase D cutover HITL checklist (`docs/spec/phase-d-cutover-plan.mdx`) — scaffold is not cutover.
 
 ### Changed
 
+- docs(claims): sync north-star / external-claims / README / public-api / claim-boundaries with demo-grade Metal softmax alongside fused cosine/dot/L2 + multi-pass reduce.
 - perf(gpu): Metal dispatch CQ — shared `MetalDispatch` helper; map+reduce and fused cosine chain multi-pass `reduce_sum` in one command buffer (no host re-upload thrash); Metal failures log then explicit CPU fallback. Broader kernels / CUDA / ANE remain Proposed.
 - refactor(wdbx): dedupe REST missing-token vs wrong-bearer 401 insert fixture (`expectUnauthorizedInsert`).
 - perf(gpu): Metal multi-pass `reduce_sum_kernel` — loop 256-wide threadgroup partials until one scalar (`runReduceSum`); host `sumF32` remains the CPU / failure fallback. Broader kernels / CUDA / ANE remain Proposed.
@@ -19,6 +21,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Fixed
 
+- fix(gpu): remove redundant Metal buffer releases in `runSoftmax` error paths that double-freed buffers already covered by `defer`.
 - test(wdbx): REST wrong-bearer path returns 401 + `WWW-Authenticate` (parity with MCP HTTP); assert challenge header on missing-token too.
 - fix(tui): `/diff --stat` never worked from the live REPL line (`runDiff` re-parsed a hardcoded `"/diff "` literal); `/open` leaked the transient read buffer on every successful load; malformed `--soul-alpha` was silently coerced to 0.5 instead of usage + exit 2 per the CLI numeric-arg contract.
 

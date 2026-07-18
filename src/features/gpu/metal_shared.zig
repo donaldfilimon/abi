@@ -840,22 +840,16 @@ const MetalContext = struct {
             return error.BufferAllocationFailed;
         defer d.release(buffer_in);
         // exp(x-max) lands here; owned by runSoftmax for the whole dispatch.
-        const buffer_exp = d.msg_len(self.device, d.sel_new_length, byte_len, 0) orelse {
-            d.release(buffer_in);
+        const buffer_exp = d.msg_len(self.device, d.sel_new_length, byte_len, 0) orelse
             return error.BufferAllocationFailed;
-        };
         defer d.release(buffer_exp);
 
         // Scalar uniform buffers for the kernel's `constant float&` params.
-        const buffer_max = d.msg_bytes(self.device, d.sel_new_bytes, &max_val, @sizeOf(f32), 0) orelse {
-            d.release(buffer_in);
-            d.release(buffer_exp);
+        const buffer_max = d.msg_bytes(self.device, d.sel_new_bytes, &max_val, @sizeOf(f32), 0) orelse
             return error.BufferAllocationFailed;
-        };
         defer d.release(buffer_max);
-        const buffer_sum = d.msg_bytes(self.device, d.sel_new_bytes, &sum, @sizeOf(f32), 0) orelse {
+        const buffer_sum = d.msg_bytes(self.device, d.sel_new_bytes, &sum, @sizeOf(f32), 0) orelse
             return error.BufferAllocationFailed;
-        };
         defer d.release(buffer_sum);
 
         const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse
