@@ -3,9 +3,11 @@
 **Scope**: `src/features/accelerator/`, `src/features/shaders/`, `src/features/mlir/`,
 `src/features/mobile/`.
 
-**Type**: Planning only. No Zig code changes in this pass.
+**Status**: Planning strategy plus the bounded Milestone 0 housekeeping
+implemented alongside this document. Capability-expansion milestones remain
+unimplemented.
 
-**Skill applied**: `refactor-strategy` (`.claude/skills/refactor-strategy/SKILL.md`),
+**Skill applied**: `refactor-strategy` (`.agents/skills/refactor-strategy/SKILL.md`),
 Recommended Process steps 1–6.
 
 **Hard constraint carried through this whole plan**: none of the four milestones below
@@ -36,12 +38,12 @@ must expose the identical **public declaration set** — this is enforced two wa
   line 287) that calls into each feature through `abi.features.*` and asserts specific
   field values, not just that the symbol exists.
 
-Both mod and stub already report the honest state today (`available=false` /
-`native_dispatch=false` / `accelerated=false` as applicable), and the contract tests
-already assert that dishonesty (e.g. `!accelerator_report.native_dispatch`,
-`!shader_status.available`) — so the current success criteria for "don't regress
-honesty" are already codified as tests, not just prose. Any future work must keep
-these specific assertions green:
+The capability-authority fields already report the honest state:
+`accelerator.native_dispatch=false`, shader/MLIR `available=false`, and mobile
+`native_dispatch=false`. Other fields are contextual—mobile `available` is true
+for its profile/reporting feature, and `accelerated` can mirror the selected GPU
+backend—so they must not be read as native mobile dispatch. Contract and inline
+tests pin these representative honesty fields:
 
 - `feature_modules.zig:78` `!accelerator_report.native_dispatch`
 - `feature_modules.zig:85-86` `shaders.compilerStatus().message.len > 0` / `!available`
@@ -54,7 +56,7 @@ these specific assertions green:
 
 ### 1.2 Per-feature current state (verified by reading source, not todo.md)
 
-**`accelerator`** (`src/features/accelerator/mod.zig`, 204 lines):
+**`accelerator`** (`src/features/accelerator/mod.zig`):
 - `Backend` enum (cpu, gpu_simulated, gpu_metal/vulkan/cuda/webgpu/opengl/webgl2, mlir),
   `Workload` enum (inference, training, shader_compile, graph_lowering).
 - `selectionReport(workload)` delegates to `gpu.detectBackend()` +
@@ -74,7 +76,7 @@ these specific assertions green:
 - Depends on `foundation/validation.zig`? **No** — accelerator has no user-string
   inputs to validate (only enum-typed `Workload`).
 
-**`shaders`** (`src/features/shaders/mod.zig`, 167 lines):
+**`shaders`** (`src/features/shaders/mod.zig`):
 - `Language` enum (zig_kernel, wgsl, msl, spirv_text). `validateDetailed` does
   structural checks only: non-empty name/source, no null bytes, balanced
   `{}/()/[]` delimiters, and a per-language regex-free "entry point" substring probe
@@ -85,9 +87,10 @@ these specific assertions green:
 - `compilerStatus().backend = "validated-local"`, `available = false`, explicit "not
   linked" message.
 - Depends on `foundation/validation.zig` for the non-empty/no-null-byte checks
-  (consistent with `mlir`, unlike `accelerator`/`mobile`).
+  (consistent with `mlir` and the now-shared mobile label checks; `accelerator`
+  has no user-string inputs).
 
-**`mlir`** (`src/features/mlir/mod.zig`, 165 lines):
+**`mlir`** (`src/features/mlir/mod.zig`):
 - `Dialect` enum (affine, linalg, tensor, gpu). `analyze()` validates the module name
   is a valid symbol (`[a-zA-Z0-9_.-]+`), each operation string is non-empty/no-null,
   and computes a Wyhash checksum over name+dialect+ops.
@@ -99,7 +102,7 @@ these specific assertions green:
   linked" message.
 - Depends on `foundation/validation.zig`.
 
-**`mobile`** (`src/features/mobile/mod.zig`, 295 lines — the largest of the four):
+**`mobile`** (`src/features/mobile/mod.zig` — the largest of the four):
 - `Platform` enum (ios, android, unknown). `detectPlatform()` uses
   `builtin.target.os.tag` at **comptime** (compile-target based, not runtime device
   probing) to report iOS/Android as "detected" with `available=true` but
@@ -114,23 +117,21 @@ these specific assertions green:
   (viewport dims per platform, a text "rendered view", a fake "task execution"
   string). All fabricated locally; no UIKit/Android SDK/mobile runtime linkage
   anywhere.
-- Has its own private `validateLabel()` doing an inline non-empty/no-null-byte check
-  — this duplicates the same two checks `foundation/validation.zig` already
-  centralizes for `shaders`/`mlir`. Minor inconsistency, not a honesty problem.
+- `validateLabel()` delegates to the shared non-empty/no-null-byte checks in
+  `foundation/validation.zig`, mapping failures back to the existing mobile
+  errors. This removes validation drift without changing caller-visible behavior.
 - `native_dispatch` is hardcoded `false` unconditionally in `profile()` regardless of
   platform — accurate today since there is no mobile runtime link at all.
 
 ### 1.3 Claims-audit anchoring
 
-`docs/contracts/external-claims-audit.mdx` line 25 explicitly covers shaders+mlir
-("Do not claim real shader compilation or MLIR/LLVM lowering") and line 24 covers GPU
+`docs/contracts/external-claims-audit.mdx` explicitly covers shaders+mlir
+("Do not claim real shader compilation or MLIR/LLVM lowering") and the GPU row
 ("Do not claim general GPU speedup, CUDA/Vulkan dispatch, or ANE execution" — this is
 the umbrella `accelerator`'s CUDA/Vulkan enum variants fall under, since accelerator
-itself only ever selects them in principle, never dispatches). `mobile` is not named
-explicitly in the audit table but is covered by the same "no unproven native
-runtime/hardware dispatch" spirit and by its own honest `native_dispatch=false` in
-source — this plan does not propose adding a new audit-table row unless a milestone
-below actually changes claimable behavior (none currently do).
+itself only ever selects them in principle, never dispatches). The audit also has
+an explicit mobile row: compile-target/profile reporting and synthetic text
+rendering only, with no UIKit/Android runtime or native dispatch.
 
 ---
 
@@ -231,9 +232,10 @@ so mod/stub parity and the existing contract tests keep working:
 - Same function signatures (`selectionReport`, `validateDetailed`, `analyze`,
   `detectPlatform`, etc.) — only their *internal* implementation would change to call
   a real backend instead of returning a synthetic report.
-- The stub side (`stub.zig`) never needs to change at all for any of these
-  milestones — a real backend link only ever changes `mod.zig`; `stub.zig` remains
-  the permanently-honest "feature is disabled" path.
+- If an implementation milestone preserves the existing public declaration and
+  type shapes, the stub behavior can remain unchanged as the permanently-honest
+  "feature is disabled" path. Any public API evolution still requires the
+  corresponding `stub.zig` update and `zig build check-parity`.
 
 ---
 
@@ -246,14 +248,11 @@ so mod/stub parity and the existing contract tests keep working:
 | `mlir` | Textual invented pseudo-IR + symbol/op validation | Real MLIR/LLVM textual lowering via `mlir-opt`/`libMLIR` | **Very large** | No existing LLVM/MLIR build infra in repo; large, fragile, version-sensitive toolchain |
 | `mobile` | Comptime target-tag detection + mock view-rendering profile | Real iOS/Android UI runtime with native API dispatch | **Very large, different in kind** | Requires packaged mobile app targets + device/emulator test pipeline, not a library link |
 
-Secondary (non-honesty) gaps worth noting, all small and low-risk if ever picked up:
-- `mobile/mod.zig`'s private `validateLabel` duplicates `foundation/validation.zig`'s
-  non-empty/no-null-byte checks that `shaders`/`mlir` already use — a small
-  consistency cleanup, not a capability change.
-- `mobile`'s `accelerated` field borrows `gpu.detectBackend().accelerated` (a Metal
-  GPU-acceleration flag) to describe "mobile acceleration," which is a conceptual
-  mismatch (desktop Metal acceleration is not mobile acceleration) — worth a comment
-  or field rename in a future low-risk pass, not a behavior change.
+Secondary (non-honesty) notes:
+- Mobile label validation now delegates to `foundation/validation.zig`.
+- `mobile.DeviceProfile.accelerated` now documents that it reflects the selected
+  GPU backend, not native mobile dispatch; the field stays unchanged for
+  mod/stub and caller compatibility.
 - `accelerator`'s `Backend` enum declares `gpu_vulkan`/`gpu_cuda`/`gpu_webgpu`/
   `gpu_opengl`/`gpu_webgl2` variants that can never actually be selected today (only
   `.metal`/`.simulated` are reachable via `gpu.detectBackend()` on this codebase's
@@ -264,18 +263,17 @@ Secondary (non-honesty) gaps worth noting, all small and low-risk if ever picked
 
 ## 4. Strategy per feature
 
-Using the Strategy Selection Matrix (`references/strategy-guide.md`): all four are
-"legacy with poor tests" is **not** the right bucket — tests are actually good
-(current behavior is fully pinned by contract + own-module tests). The real
-discriminator here is **external dependency risk and disclosed non-goal status**,
-not code quality.
+Using the Strategy Selection Matrix (`references/strategy-guide.md`), "legacy
+with poor tests" is not the right bucket: representative behavior and
+capability-authority fields have contract and inline coverage. The real
+discriminator is external-dependency risk and disclosed/scheduled status.
 
 | Feature | Strategy | Rationale |
 |---|---|---|
-| `accelerator` | **Non-goal — do not pursue toolchain linkage.** If ever revisited, phased/strangler-fig (new flag, new FFI module beside existing `mod.zig`, dispatch flips only under flag+probe). | CUDA/NPU/TPU hardware and vendor SDKs are outside this project's environment and stated non-goals (ANE is an explicit non-goal per `AGENTS.md`; CUDA/Vulkan carry the same "not linked" claims-audit language). No safe direct-rewrite path exists because there is nothing to link against. |
-| `shaders` | **Conditional / phased, MSL-only, and only with an explicit decision to add an external dependency.** Not a "small direct rewrite" — it requires a toolchain adoption decision first. | MSL compilation via Xcode's bundled `metal`/`metallib` CLI is the cheapest of the three shading languages (toolchain already present on macOS dev/CI hosts) but still requires a new build step, a new flag, and new claims-audit wording. WGSL/SPIR-V stay non-goals unless a third-party dependency is explicitly approved. |
-| `mlir` | **Non-goal for now.** If ever revisited: phased, subprocess-shellout first (cheaper/safer than linking `libMLIR`), never linking `libLLVM` C++ ABI directly in a small-risk pass. | No existing LLVM/MLIR build infra; adopting it is a major, version-fragile dependency with no current product requirement pulling it in (nothing in the CLI/MCP frozen surface needs real MLIR lowering). |
-| `mobile` | **Non-goal.** Explicitly out of scope — real dispatch requires a second application target (packaged iOS/Android app) and device/emulator CI, categorically different from this repo's CLI+library shape. | Matches the existing ANE non-goal precedent: detection/profile-reporting only, by design, not a gap to close. |
+| `accelerator` | **Not implemented or currently scheduled; keep disclosed.** If revisited, use a phased path (new flag, FFI module, dispatch flips only under flag+probe). | ANE is an explicit non-goal. CUDA/NPU/TPU hardware and vendor SDKs are absent from the current environment; that makes them Proposed, not a permanent product decision. |
+| `shaders` | **Conditional / phased, MSL-only, and only with an explicit decision to add an external dependency.** Not a "small direct rewrite" — it requires a toolchain adoption decision first. | MSL compilation via Xcode's bundled `metal`/`metallib` CLI is the cheapest sub-lift, but still requires a build step, flag, and claims-audit update. WGSL/SPIR-V remain disclosed and unscheduled unless a dependency is explicitly approved. |
+| `mlir` | **Not implemented or currently scheduled; keep disclosed.** If revisited: phased, subprocess-shellout first, never linking `libLLVM` C++ ABI in a small-risk pass. | No existing LLVM/MLIR build infrastructure or current CLI/MCP requirement. |
+| `mobile` | **Not implemented or currently scheduled; keep disclosed.** | Real dispatch requires packaged app targets and device/emulator CI, which is a separate product/build decision rather than an established permanent non-goal. |
 
 None of the four qualify as "small/low-risk direct rewrite" in the sense of flipping
 `available`/`native_dispatch` to `true` — every one requires an external toolchain or
@@ -319,17 +317,16 @@ Applies uniformly to any future work on these four modules:
 
 ### Milestone 0 — Housekeeping (small, low-risk, worth pursuing; no honesty change)
 
-Optional, independent of the toolchain question. Can be picked up any time without
-design sign-off since it changes no reported values.
+Completed alongside this strategy; independent of the toolchain question and
+changes no reported values.
 
-- **DoD**: `mobile/mod.zig`'s `validateLabel` delegates to
+- **Done**: `mobile/mod.zig`'s `validateLabel` delegates to
   `foundation/validation.zig`'s existing non-empty/no-null-byte helpers (matching
-  `shaders`/`mlir`); `mobile`'s `accelerated` field either gets a doc-comment
-  clarifying it reflects desktop Metal GPU acceleration (not mobile hardware
-  acceleration) or is renamed with a parity-safe mod/stub pair update. `./build.sh
-  check` green, `zig build check-parity` green, no test assertions change (same
-  behavior, internal-only cleanup).
-- **Recommendation**: worth pursuing opportunistically, low priority.
+  `shaders`/`mlir`); `DeviceProfile.accelerated` now has a doc comment clarifying
+  that it reflects the selected GPU backend signal, not native mobile dispatch.
+  No public field was renamed and no caller-visible behavior changed.
+- **Validation**: focused mobile tests and `check-parity` pass; the full gate is
+  part of the branch-level completion ladder.
 
 ### Milestone 1 — `shaders` MSL real-compile decision gate (large; keep disclosed unless approved)
 
@@ -340,31 +337,32 @@ design sign-off since it changes no reported values.
   explicitly approved by a human before any `build.zig`/`mod.zig` change begins.
 - **Recommendation**: **worth pursuing only if there is an actual product need** for
   compiled Metal shader kernels beyond what `src/features/gpu/` already does via its
-  existing Metal FFI. Absent such a need, **keep disclosed as a non-goal** — do not
+  existing Metal FFI. Absent such a need, **keep disclosed and unscheduled** — do not
   schedule speculative toolchain work.
 
-### Milestone 2 — `mlir` real lowering (very large; keep disclosed as non-goal)
+### Milestone 2 — `mlir` real lowering (very large; keep disclosed and unscheduled)
 
 - **DoD**: N/A unless explicitly re-scoped by a human with a stated product
   requirement; no design doc should be started speculatively.
-- **Recommendation**: **keep disclosed as non-goal.** No current CLI/MCP frozen
+- **Recommendation**: **keep disclosed and unscheduled.** No current CLI/MCP frozen
   surface requires real MLIR/LLVM lowering; the toolchain adoption cost is high and
   open-ended (version pinning, C++ ABI fragility, no existing repo infra).
 
-### Milestone 3 — `accelerator` real CUDA/NPU/TPU dispatch (very large; keep disclosed as non-goal)
+### Milestone 3 — `accelerator` real CUDA/NPU/TPU dispatch (very large; keep disclosed and unscheduled)
 
-- **DoD**: N/A — explicitly matches this project's existing ANE non-goal precedent.
-- **Recommendation**: **keep disclosed as non-goal.** No CUDA/NPU/TPU hardware in
+- **DoD**: N/A without a product decision, linked toolchain, and appropriate CI.
+- **Recommendation**: **keep disclosed and unscheduled.** No CUDA/NPU/TPU hardware in
   this project's dev/CI environment; would require a categorically new CI runner
   class. The honest report-only behavior already correctly serves the CLI `backends`
   command's purpose (show what *would* be selected, not dispatch).
 
-### Milestone 4 — `mobile` real iOS/Android dispatch (very large, different in kind; keep disclosed as non-goal)
+### Milestone 4 — `mobile` real iOS/Android dispatch (very large, different in kind; keep disclosed and unscheduled)
 
 - **DoD**: N/A — this is not a library-linkage gap but a second application-target
   gap (packaged app + device/emulator CI), outside this repo's current product shape
   (CLI + MCP server + library).
-- **Recommendation**: **keep disclosed as non-goal**, same category as ANE.
+- **Recommendation**: **keep disclosed and unscheduled** pending an explicit
+  packaged-app/device-CI product decision.
 
 ---
 
@@ -372,15 +370,15 @@ design sign-off since it changes no reported values.
 
 | Feature | Pursue now? | If ever pursued, entry point |
 |---|---|---|
-| `accelerator` | No — non-goal | New `-Dfeat-cuda`-style flag + FFI module beside `mod.zig`, gated dispatch flip |
-| `shaders` | Conditional — only with explicit product need + human sign-off | MSL via Xcode `metal`/`metallib` CLI (cheapest sub-lift); WGSL/SPIR-V stay non-goals |
-| `mlir` | No — non-goal | Subprocess shellout to `mlir-opt`/`mlir-translate` (safer than linking `libMLIR`) |
-| `mobile` | No — non-goal | Second packaged-app target + device/emulator CI, not a library link |
-| Housekeeping (validation delegation, field clarity) | Yes — small, no honesty change | Direct rewrite, no design doc needed |
+| `accelerator` | No — unscheduled/disclosed | New `-Dfeat-cuda`-style flag + FFI module beside `mod.zig`, gated dispatch flip |
+| `shaders` | Conditional — only with explicit product need + human sign-off | MSL via Xcode `metal`/`metallib` CLI (cheapest sub-lift); WGSL/SPIR-V stay disclosed/unscheduled |
+| `mlir` | No — unscheduled/disclosed | Subprocess shellout to `mlir-opt`/`mlir-translate` (safer than linking `libMLIR`) |
+| `mobile` | No — unscheduled/disclosed | Second packaged-app target + device/emulator CI, not a library link |
+| Housekeeping (validation delegation, field clarity) | Done — no honesty change | Shared validation + field documentation |
 
 This plan intentionally recommends **no new toolchain-linking milestones** for three
 of the four features and a **conditional, gated** one for `shaders`/MSL only — in
-line with the existing ANE/CUDA/MLIR-LLVM non-goal decisions already recorded in
-`AGENTS.md`/`CLAUDE.md` and `docs/contracts/external-claims-audit.mdx`. No milestone
+line with the explicit ANE non-goal and the other disclosed Proposed paths in
+`AGENTS.md` and `docs/contracts/external-claims-audit.mdx`. No milestone
 in this plan flips any `available`/`native_dispatch` field to `true` without a real
 linked toolchain and a runtime probe backing it.

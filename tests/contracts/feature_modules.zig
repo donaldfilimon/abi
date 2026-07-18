@@ -275,6 +275,48 @@ test "feature modules expose safe runtime contracts" {
     try std.testing.expect(@hasDecl(features.ai, "runCustomMultiAgentWithScheduler"));
     try std.testing.expect(@hasDecl(features.ai, "submitAgentsBackground"));
 
+    inline for (.{
+        "EvidenceItem",
+        "EvidenceContext",
+        "gatherEvidence",
+        "gatherEvidenceWithPlan",
+        "augmentPrompt",
+        "QueryPlan",
+        "TaskType",
+        "inferQueryPlan",
+        "MemoryKind",
+        "Authority",
+        "SeaSignals",
+        "SeaWeights",
+        "SeaCandidate",
+        "SeaOptions",
+        "SeaSelection",
+        "DEFAULT_SEA_WEIGHTS",
+        "seaScore",
+        "adjustWeightsForTask",
+        "selectSeaCandidates",
+        "contextPack",
+        "LearnLoopConfig",
+        "LearnLoopResult",
+        "runLearnLoop",
+    }) |decl_name| {
+        try std.testing.expect(@hasDecl(features.sea, decl_name));
+    }
+
+    const sea_score = features.sea.seaScore(.{ .semantic = 1.0 }, features.sea.DEFAULT_SEA_WEIGHTS);
+    if (build_options.feat_sea) {
+        try std.testing.expect(sea_score > 0);
+    } else {
+        try std.testing.expectEqual(@as(f32, 0), sea_score);
+    }
+
+    const empty_selection = try features.sea.selectSeaCandidates(std.testing.allocator, &.{}, .{});
+    defer std.testing.allocator.free(empty_selection.selected_ids);
+    defer std.testing.allocator.free(empty_selection.rejected_ids);
+    try std.testing.expectEqual(@as(usize, 0), empty_selection.selected_ids.len);
+    try std.testing.expectEqual(@as(usize, 0), empty_selection.rejected_ids.len);
+    try std.testing.expect(empty_selection.reason.len > 0);
+
     var completion = try features.ai.complete(std.testing.allocator, .{ .input = "contract surface", .model = "abi-contract" });
     defer completion.deinit(std.testing.allocator);
     try std.testing.expectEqualStrings("abi-contract", completion.model);

@@ -33,7 +33,8 @@ Output includes:
 - CPU: scalar, AVX2, AVX-512, NEON (host-detected via `std.simd.suggestVectorLength`)
 - GPU: CUDA, Metal, Vulkan (capability reporting only — no native kernels linked)
 - NPU: ANE hardware presence (truthful detection, no execution)
-- TPU: Remote endpoint (`ABI_REMOTE_COMPUTE_ENDPOINT`)
+- TPU: Report-only endpoint metadata (`ABI_REMOTE_COMPUTE_ENDPOINT`) plus a
+  separately tested reference TCP transport
 
 ### select
 Select and initialize a backend:
@@ -50,7 +51,7 @@ Get details for a specific backend:
 ```
 
 ### remote
-Configure/show remote TPU dispatch:
+Show or plan remote TPU reference transport configuration:
 ```
 /abi-superpower-wdbx-compute remote --endpoint http://tpu-server:8080
 ```
@@ -64,7 +65,7 @@ Configure/show remote TPU dispatch:
 | CUDA | Never | ❌ No | Capability reported, not linked |
 | Vulkan | Never | ❌ No | Needs loader/ICD + SPIR-V; not linked |
 | ANE (NPU) | On Apple Silicon | ❌ No | `compute.aneHardwarePresent()` truthfully detects; needs CoreML/ObjC |
-| TPU (remote) | If configured | ⚠️ TCP transport | `remote_compute.zig` dispatches to operator's endpoint |
+| TPU (remote) | Reference only | ❌ Not production-wired | `remote_compute.zig` has a loopback-tested DOT transport; the environment endpoint is report-only |
 
 ## Implementation
 
@@ -74,7 +75,7 @@ Configure/show remote TPU dispatch:
 | CPU SIMD | `src/features/wdbx/hnsw_distance.zig` | `@Vector` cosine, `std.simd.suggestVectorLength` |
 | GPU | `src/features/gpu/vector_ops.zig` + `compute_api.zig` | `cosineSimilarity()` via Metal, CPU fallback |
 | NPU Detection | `src/features/wdbx/compute.zig` | `aneHardwarePresent()` — truthful |
-| Remote TPU | `src/features/wdbx/remote_compute.zig` | TCP dispatch to `ABI_REMOTE_COMPUTE_ENDPOINT` |
+| Remote TPU | `src/features/wdbx/remote_compute.zig` | Reference DOT transport; no production caller wires `ABI_REMOTE_COMPUTE_ENDPOINT` |
 | Parity Test | `src/features/gpu/compute_api.zig` | CPU/GPU dot-product parity |
 
 ## CLI Access
