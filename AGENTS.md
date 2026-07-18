@@ -102,7 +102,7 @@ Cross-compiles link cleanly for `x86_64-linux-gnu` / `aarch64-linux-gnu` / `wind
 
 ## Learned User Preferences
 - Prefer feature branches named with the `cursor/` prefix from `origin/main`; do not commit or push directly to `main`; never force-push `main`.
-- Recurring ask: land finished work onto `main` via PR/merge rather than leaving stranded feature branches; when asked to "stay on main" / "merge all into main", finish via PR merge and return checkout to `main`.
+- Recurring ask: land finished work onto `main` via PR/merge rather than leaving stranded feature branches; when asked to "stay on main" / "merge all into main", finish via PR merge (prefer `gh pr merge --squash` when a PR exists) and return checkout to `main`; when asked to delete other branches after landing, remove merged local `cursor/*` branches (and remotes when safe).
 - For AGENTS.md Learned-section-only updates, append prefs/facts onto `origin/main` rather than overwriting the compact toolchain/commands body.
 - Prefer draft PRs when the create-pull-request flow requests draft.
 - Verify interactive dashboard/TUI with `.agents/skills/run-tui/tui.sh` (tmux pty); never prepend Homebrew `/opt/homebrew/bin` ahead of the pinned Zig on PATH.
@@ -121,6 +121,6 @@ Cross-compiles link cleanly for `x86_64-linux-gnu` / `aarch64-linux-gnu` / `wind
 - Windows credential writes can apply owner-only DACL (SDDL `OW`); OS keychain and Windows runtime ACL verification still need a Windows host/CI.
 - `tasks/goals.md` is gitignored (`/tasks/*` + root `*.md`); treat committed `tasks/todo.md` as the active board (includes A–G claim-honest scoreboard).
 - Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A–C complete; `modern-refactor/examples/` is historical, not the active board. `modernized/` holds Phase D–approved package-layout pointers under `packages/`; live code remains `src/` until cutover. Optional host override template: `modern-refactor/.claude/modern-refactor.local.md.example` → copy to repo-root `.claude/modern-refactor.local.md` (not auto-loaded from the plugin package).
-- Ambient WDBX Linux `EBADF` owner-only repair is fixed (`iterate=true`); `ABI_WDBX_PERSIST=0` is no longer required to avoid ambient-open panics on Linux.
+- `tools/check_zigversion.sh` runs as part of `zig build check` / `./build.sh check` and fails when `.zigversion` and `.github/workflows/ci.yml` `ZIG_VERSION` diverge (also warns if active `zig version` ≠ pin).
 - `foundation/http.zig` holds shared HTTP helpers (read/write/find body, Content-Length, header parse, bearer auth, readHttpRequest/HttpReadResult) used by both MCP and WDBX REST; `foundation/json.zig` has `appendJsonString`/`escapeJsonString` used by MCP. Keep connector/WDBX inline JSON copies: `connector_test_mod` is an isolated test root (no `abi`/foundation import), so sharing needs a `foundation_json` leaf module in `build.zig` — prefer keep-copies over unfinished dedup.
-- abi-skills/`sl` `skill-loop` is the external npm CLI `@stylusnexus/skill-loop-cli` (via `npx`), not an in-repo binary; when absent, use manual skill scan + `.agents/skills/sync-clis/launch.sh` (propagates SKILL.md and references/examples to Claude/grok targets).
+- abi-skills/`sl` `skill-loop` is the external npm CLI `@stylusnexus/skill-loop-cli` (pin `@0.3.3` via `npx`), not an in-repo binary; useful cmds: `init`/`status`/`inspect`/`log` (no `scan`). When absent, use manual skill scan + `.agents/skills/sync-clis/launch.sh` (propagates SKILL.md and references/examples to Claude/grok targets).
