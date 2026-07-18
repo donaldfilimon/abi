@@ -386,6 +386,63 @@ test "gpu batched cosine similarity rejects a mismatched candidate dimension" {
     try std.testing.expectError(error.DimensionMismatch, ops.batchCosineSimilarity(&query, &candidates, &out));
 }
 
+test "cpu dot product with known vectors" {
+    const a = [_]f32{ 1, 0, 0 };
+    const b = [_]f32{ 0, 1, 0 };
+    try std.testing.expectEqual(@as(f32, 0), cpuDot(&a, &b));
+
+    const c = [_]f32{ 2, 3, 4 };
+    const d = [_]f32{ 5, 6, 7 };
+    // 2*5 + 3*6 + 4*7 = 10 + 18 + 28 = 56
+    try std.testing.expectEqual(@as(f32, 56), cpuDot(&c, &d));
+}
+
+test "cpu squaredL2 with known vectors" {
+    const a = [_]f32{ 1, 2, 3 };
+    const b = [_]f32{ 4, 6, 3 };
+    // (1-4)^2 + (2-6)^2 + (3-3)^2 = 9 + 16 + 0 = 25
+    try std.testing.expectEqual(@as(f32, 25), cpuSquaredL2(&a, &b));
+
+    const c = [_]f32{ 1, 0, 0 };
+    const d = [_]f32{ 1, 0, 0 };
+    try std.testing.expectEqual(@as(f32, 0), cpuSquaredL2(&c, &d));
+}
+
+test "cpu cosine similarity: parallel = 1.0, orthogonal = 0.0" {
+    const ops = vectorOps();
+    const x = [_]f32{ 1, 0, 0 };
+    const y = [_]f32{ 0, 1, 0 };
+    const z = [_]f32{ 3, 0, 0 };
+
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), try ops.cosineSimilarity(&x, &z), 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), try ops.cosineSimilarity(&x, &y), 1e-6);
+}
+
+test "cpu cosine similarity: zero vector returns 0" {
+    const ops = vectorOps();
+    const zero = [_]f32{ 0, 0, 0 };
+    const v = [_]f32{ 1, 2, 3 };
+    try std.testing.expectEqual(@as(f32, 0), try ops.cosineSimilarity(&zero, &v));
+    try std.testing.expectEqual(@as(f32, 0), try ops.cosineSimilarity(&v, &zero));
+}
+
+test "cpu dot with negative values" {
+    const a = [_]f32{ -1, 2, -3 };
+    const b = [_]f32{ 4, -5, 6 };
+    // -4 + -10 + -18 = -32
+    try std.testing.expectEqual(@as(f32, -32), cpuDot(&a, &b));
+}
+
+test "reduceSum CPU fallback matches scalar reference" {
+    var values: [256]f32 = undefined;
+    var expected: f32 = 0;
+    for (&values, 0..) |*slot, i| {
+        slot.* = @as(f32, @floatFromInt(i)) * 0.5 - 64.0;
+        expected += slot.*;
+    }
+    try std.testing.expectApproxEqAbs(expected, reduceSum(&values), 1e-2);
+}
+
 test "generic kernel status does not claim native dispatch" {
     _ = vectorOps();
     const result = try executeKernel(.{ .name = "test.metadata_only", .work_items = 4 });
