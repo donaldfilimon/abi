@@ -1,5 +1,6 @@
 # ── AI tool config directories ────────────────────────────────────────
 .grok/
+.serena/
 
 # ── Zig build artifacts ───────────────────────────────────────────────
 zig-cache/
