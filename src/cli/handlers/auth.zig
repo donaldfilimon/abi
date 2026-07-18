@@ -168,7 +168,7 @@ fn authSigninHelp() u8 {
 /// restore). Non-TTY / non-POSIX / unavailable termios returns null and the
 /// secret is still read with echo unchanged (disclosed Windows/non-TTY gap).
 fn disableEchoIfTty(fd: std.posix.fd_t) ?std.posix.termios {
-    if (builtin.target.os.tag == .windows) return null;
+    if (comptime builtin.target.os.tag == .windows) return null;
     if (@hasDecl(std.posix.system, "isatty") and std.posix.system.isatty(fd) == 0) return null;
     const original = std.posix.tcgetattr(fd) catch return null;
     var raw = original;
@@ -178,6 +178,7 @@ fn disableEchoIfTty(fd: std.posix.fd_t) ?std.posix.termios {
 }
 
 fn restoreEcho(fd: std.posix.fd_t, original: std.posix.termios) void {
+    if (comptime builtin.target.os.tag == .windows) return;
     std.posix.tcsetattr(fd, .FLUSH, original) catch |err| {
         std.log.warn("auth: failed to restore terminal echo: {s}", .{@errorName(err)});
     };
