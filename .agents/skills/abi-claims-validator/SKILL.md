@@ -1,27 +1,25 @@
 ---
 name: abi-claims-validator
-description: ABI external claims validator. Validates docs/collateral against repo source, tests, and external-claims-audit.mdx. Prevents unsupported claims in public artifacts.
+description: Validate ABI docs and external collateral against repo evidence and docs/contracts/external-claims-audit.mdx. Use when auditing claims, scanning docs for unsupported QPS/sharding/FHE/AES language, checking one claim before publish, or re-confirming the external-claims audit. Agent procedure only — not a CLI or slash command. Pair with abi-doc-claims-sync when editing docs.
 ---
 
 # ABI Claims Validator
 
-Validates documentation, collateral, and public claims against the repository source of truth (`build.zig`, `src/`, contract tests, `docs/contracts/external-claims-audit.mdx`). Use before publishing any external artifact.
+Agent-side procedure to validate documentation, collateral, and public claims
+against the repository source of truth (`build.zig`, `src/`, contract tests,
+`docs/contracts/external-claims-audit.mdx`). Use before publishing any external
+artifact. There is **no** `/abi-claims-validator` binary or slash command — follow
+the steps below (or dispatch the `external-claims-auditor` subagent).
 
-## Usage
+For *editing* docs to stay claim-honest, prefer `abi-doc-claims-sync`.
 
-```
-/abi-claims-validator scan [--path docs/] [--strict]
-/abi-claims-validator check-claim "<claim text>"
-/abi-claims-validator audit [--output claims-audit.md]
-```
-
-## Actions
+## Procedure (agent actions)
 
 ### scan
-Scan Markdown/MDX files for claim patterns and cross-reference with repo evidence:
-```
-/abi-claims-validator scan --path docs/
-```
+1. Open the target tree (default `docs/`, plus README/AGENTS/CHANGELOG/walkthrough as needed).
+2. Search for claim patterns (table below) with ripgrep or equivalent.
+3. For each hit, cross-reference source/tests/`external-claims-audit.mdx`.
+4. In `--strict` mode, treat any unproven number or deployment claim as a fail.
 
 Detects:
 - Performance numbers (QPS, latency, throughput, accuracy)
@@ -33,18 +31,13 @@ Detects:
 - Energy/GPU speedup claims
 
 ### check-claim
-Validate a specific claim against repo evidence:
-```
-/abi-claims-validator check-claim "WDBX achieves 12,000 QPS"
-```
-
-Returns: `SUPPORTED` | `UNSUPPORTED` | `PARTIAL` + evidence path
+Given one claim string, return `SUPPORTED` | `UNSUPPORTED` | `PARTIAL` plus the
+evidence path (source, test, or audit section). Prefer executable evidence over prose.
 
 ### audit
-Generate full claims audit report:
-```
-/abi-claims-validator audit --output claims-audit.md
-```
+Produce a short markdown report of flagged claims vs evidence. The durable
+ledger lives in `docs/contracts/external-claims-audit.mdx` — update that file
+when the audit changes reality, do not invent a parallel truth source.
 
 ## Source of Truth Hierarchy
 
@@ -76,14 +69,11 @@ From `docs/contracts/external-claims-audit.mdx` §Reusable Delta:
 
 ## Integration
 
-Run as pre-publish gate:
+Pre-publish gate (agent runs the scan procedure after code gates):
 ```bash
-# In CI or local
-zig build check-parity --summary all
+./build.sh check-parity
 ./build.sh check
-/abi-claims-validator scan --path docs/ --strict
+# then: scan docs/ + collateral per Procedure above (--strict)
 ```
 
-## Feature Gates
-
-No feature gates — runs as standalone validation tool against source.
+No feature gates — procedural validation against source.

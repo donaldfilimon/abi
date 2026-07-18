@@ -1,6 +1,6 @@
 ---
 name: abi-superpower-tui
-description: TUI/dashboard superpower. Launch interactive REPL, dashboard panes, split views, and slash commands.
+description: TUI/dashboard superpower. Launch interactive agent REPL, diagnostics dashboard panes, and slash commands via real abi CLI paths. Use when working on abi tui / dashboard / agent tui. There is no /abi-superpower-tui binary.
 superpower:
   command: "execute"
   parameters:
@@ -18,30 +18,48 @@ superpower:
 
 # ABI Superpower: TUI
 
-Exposes the interactive TUI and dashboard as a superpower.
+Exposes the interactive TUI and dashboard as a superpower. There is **no**
+`/abi-superpower-tui` binary or slash command — map actions to the real CLI
+paths below (or the `run-tui` / `dashboard-smoke` drivers).
 
 ## Actions
 
 ### repl
-Launch agent REPL with slash commands:
-```
-/abi-superpower-tui repl
+Launch the agent REPL (slash commands live here):
+```bash
+./zig-out/bin/abi agent tui
 ```
 
 ### dashboard
-Show diagnostics dashboard:
+Show the diagnostics dashboard (`abi tui` is an alias of `abi dashboard`):
+```bash
+./zig-out/bin/abi dashboard --pane system
+./zig-out/bin/abi dashboard --pane plugins --once --json
+./zig-out/bin/abi tui --compact --pane scheduler
 ```
-/abi-superpower-tui dashboard --pane system
-/abi-superpower-tui dashboard --pane plugins --once --json
+
+Interactive pty smoke (tmux driver):
+```bash
+.agents/skills/run-tui/tui.sh              # drives `abi dashboard`
+.agents/skills/run-tui/tui.sh tui          # drives `abi tui`
+```
+
+Headless one-shot smoke:
+```bash
+.agents/skills/dashboard-smoke/dashboard.sh
 ```
 
 ### pane
-Switch focus between split panes (Tab key in interactive):
-```
-/abi-superpower-tui pane --focus agent_output
+Select the initial diagnostics pane with `--pane` (system, plugins, storage/wdbx,
+scheduler, memory, or 1–5). In the interactive refresh loop, switch panes with
+hotkeys / Tab — there is no separate `pane --focus` CLI.
+
+```bash
+./zig-out/bin/abi dashboard --list-panes
+./zig-out/bin/abi dashboard --pane memory
 ```
 
-## Slash Commands (in REPL)
+## Slash Commands (in `abi agent tui` REPL)
 
 - `/open <path>` - Load file into context
 - `/diff` - Git diff
@@ -57,9 +75,11 @@ Switch focus between split panes (Tab key in interactive):
 ## Implementation
 
 Maps to:
-- `src/features/tui/repl.zig` - REPL with line editor
-- `src/features/tui/dashboard.zig` - Split-pane dashboard
+- `src/features/tui/repl.zig` - REPL with line editor (`abi agent tui`)
+- `src/features/tui/dashboard.zig` - Split-pane dashboard (`abi tui` / `abi dashboard`)
 - `src/features/tui/line_editor.zig` - CSI decode, cursor, history
+- `.agents/skills/run-tui/tui.sh` - Interactive pty driver
+- `.agents/skills/dashboard-smoke/dashboard.sh` - Headless one-shot smoke
 
 ## Feature Gate
 
