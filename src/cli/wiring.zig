@@ -8,6 +8,7 @@ const reg = @import("registry.zig");
 const usage_mod = @import("usage.zig");
 const handlers = @import("handlers/mod.zig");
 const arg = @import("arg.zig");
+const env = @import("abi").foundation.env;
 
 const Ctx = reg.Ctx;
 const Command = reg.Command;
@@ -121,14 +122,28 @@ pub const wdbx_subcommands = [_]Command{
     .{ .name = "compute", .summary = "Report CPU/GPU/NPU/TPU backend selection and fallback state.", .usage = "abi wdbx compute info" },
     .{ .name = "secure", .summary = "Demonstrate local compression plus reference homomorphic aggregation; not security-audited FHE.", .usage = "abi wdbx secure demo" },
     .{ .name = "gpu", .summary = "Report GPU backend capability and native-kernel status.", .usage = "abi wdbx gpu info" },
-    .{ .name = "api", .summary = "Serve the loopback WDBX REST API; bearer token via ABI_WDBX_REST_TOKEN; TLS via ABI_WDBX_TLS_CERT/KEY (proxy-terminated).", .usage = "abi wdbx api serve [port]" },
+    .{ .name = "api", .summary = "Serve the loopback WDBX REST API; bearer token via " ++ env.WDBX_REST_TOKEN_ENV ++ "; TLS via ABI_WDBX_TLS_CERT/KEY (proxy-terminated).", .usage = "abi wdbx api serve [port]" },
 };
 
 // --- Typed handlers ----------------------------------------------------------
 // Thin adapters that forward parsed arguments to the existing handler functions.
 // Handler output text is preserved verbatim (never re-authored).
 
+/// Parse and validate a `--soul-alpha` token at the CLI edge. Returns null for
+/// a malformed number or a value outside the documented 0.0-1.0 blend range;
+/// callers surface null as a usage error (exit 2) per the malformed-numeric-arg
+/// contract instead of silently substituting the default.
+pub fn parseSoulAlpha(token: []const u8) ?f32 {
+    const alpha = std.fmt.parseFloat(f32, token) catch return null;
+    if (std.math.isNan(alpha) or alpha < 0.0 or alpha > 1.0) return null;
+    return alpha;
+}
+
 pub fn completeHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
+    const soul_alpha: f32 = if (parsed.value("soul-alpha")) |s|
+        parseSoulAlpha(s) orelse return usage_mod.usageError("--soul-alpha must be a number between 0.0 and 1.0")
+    else
+        0.5;
     return handlers.handleComplete(
         ctx.io,
         ctx.allocator,
@@ -140,7 +155,7 @@ pub fn completeHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
             .learn = parsed.flag("learn"),
             .stream = parsed.flag("stream"),
             .soul = parsed.value("soul"),
-            .soul_alpha = if (parsed.value("soul-alpha")) |s| std.fmt.parseFloat(f32, s) catch 0.5 else 0.5,
+            .soul_alpha = soul_alpha,
         },
     );
 }
@@ -273,6 +288,21 @@ pub fn nnHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
     }
 
     return usage_mod.usageError("usage: abi nn <command> ...");
+}
+
+test "parseSoulAlpha accepts in-range blend weights" {
+    try std.testing.expectEqual(@as(f32, 0.0), parseSoulAlpha("0.0").?);
+    try std.testing.expectEqual(@as(f32, 0.5), parseSoulAlpha("0.5").?);
+    try std.testing.expectEqual(@as(f32, 1.0), parseSoulAlpha("1").?);
+}
+
+test "parseSoulAlpha rejects malformed and out-of-range tokens" {
+    try std.testing.expect(parseSoulAlpha("abc") == null);
+    try std.testing.expect(parseSoulAlpha("") == null);
+    try std.testing.expect(parseSoulAlpha("nan") == null);
+    try std.testing.expect(parseSoulAlpha("inf") == null);
+    try std.testing.expect(parseSoulAlpha("-0.1") == null);
+    try std.testing.expect(parseSoulAlpha("1.5") == null);
 }
 
 test {

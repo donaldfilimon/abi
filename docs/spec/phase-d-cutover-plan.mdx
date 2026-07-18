@@ -1,0 +1,51 @@
+---
+title: "Phase D cutover plan (HITL)"
+description: "Human-gated cutover checklist from modernized/ package pointers to live src/. Scaffold exists; no second build.zig; cutover is not started."
+---
+
+# Phase D cutover plan (HITL)
+
+**Status:** Plan only. Scaffold approved under `modernized/`; **live code remains `src/`**. This document does **not** authorize cutover by itself.
+
+**Evidence:** `modernized/README.md`, `docs/spec/abi-refactor-design.mdx`, `tasks/todo.md`, `./build.sh check` gating `src/`.
+
+## Current state
+
+| Item | State |
+| ---- | ----- |
+| `modernized/packages/*` READMEs | Pointers to ownership + current `src/` paths |
+| Second `build.zig` / dual build root | **Absent** (intentional) |
+| Feature parity claim for `modernized/` | **Forbidden** until cutover proves it |
+| Primary gate | `./build.sh check` on `src/` |
+
+## Cutover is blocked until all HITL checks pass
+
+Do **not** move the build root, delete `src/` packages, or claim cutover complete unless a human explicitly approves each gate below after evidence is attached.
+
+| # | Gate | Evidence required |
+| - | ---- | ----------------- |
+| 1 | Package DAG agreed | Written map: `modernized/packages/*` ↔ `src/` modules; no frozen CLI/MCP surface expansion |
+| 2 | Port plan per package | Ordered list of modules to move; mod/stub pairs called out |
+| 3 | Dual-build or switch strategy | Either temporary dual root with parity tests, or single switch with rollback tag |
+| 4 | Contract suite green | `./build.sh check` (and `full-check` if TUI/integration touched) on the cutover candidate |
+| 5 | Claims rewrite | External-claims + north-star wording updated; no “modernized is production” without proof |
+| 6 | Explicit HITL approval | Dated approval in PR / issue (not agent self-approval) |
+
+## Recommended sequence (when approved)
+
+1. Keep `modernized/` as documentation pointers only.
+2. Extract one leaf package at a time **inside `src/`** (or a tracked `packages/` under the existing build) with parity tests — prefer Approach-1 style extraction over a clean-slate tree.
+3. Only after several packages prove green, decide whether `modernized/` becomes the build root or remains historical.
+4. Delete or archive unused pointer READMEs after cutover; never force-push `main`.
+
+## Non-goals
+
+- Shipping a second competing `build.zig` “just in case.”
+- Claiming Phase D complete because the scaffold directory exists.
+- Using cutover as cover for resurrecting legacy CLI names or expanding the 12 MCP tools without contracts.
+
+## Related
+
+- Scaffold rules: `modernized/README.md`
+- Architecture: `docs/spec/abi-refactor-design.mdx`
+- Active board: `tasks/todo.md` priority 5

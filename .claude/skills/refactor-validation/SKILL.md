@@ -1,6 +1,6 @@
 ---
 name: refactor-validation
-description: Parity, modern quality criteria, and validation checklists for ABI refactors. Use as final step to ensure clean-slate changes meet standards.
+description: This skill should be used when the user asks to verify a refactor is done correctly — e.g. 'did I break anything', 'is this refactor complete', 'validate this change meets modern standards' — as the final gate.
 ---
 
 # Refactor Validation
@@ -19,5 +19,5 @@ Validation layers for modernization: behavioral parity, modern quality, structur
 
 Run the validation skill + modern-refactorer agent review as final step.
 
-Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/refactor-validation
+Base directory for this skill: /Users/donaldfilimon/abi/.claude/skills/refactor-validation
 Relative paths in this skill (e.g., references/) are relative to this base directory.

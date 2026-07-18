@@ -19,5 +19,5 @@ Validation layers for modernization: behavioral parity, modern quality, structur
 
 Run the validation skill + modern-refactorer agent review as final step.
 
-Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/refactor-validation
+Base directory for this skill: /Users/donaldfilimon/abi/modern-refactor/skills/refactor-validation
 Relative paths in this skill (e.g., references/) are relative to this base directory.

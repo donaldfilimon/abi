@@ -5,7 +5,29 @@
       "name": "abi-mcp",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "./build.sh mcp && ./mcp/launcher.sh stdio"],
-      "port": 8080
+      "port": 8080,
+      "autoPort": true
+    },
+    {
+      "name": "wdbx-api",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "./build.sh cli && ./zig-out/bin/abi wdbx api serve $PORT"],
+      "port": 8091,
+      "autoPort": true
+    },
+    {
+      "name": "wdbx-cluster",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "./build.sh cli && ./zig-out/bin/abi wdbx cluster serve $PORT"],
+      "port": 8092,
+      "autoPort": true
+    },
+    {
+      "name": "docs",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd docs && npx mint dev --port $PORT"],
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }

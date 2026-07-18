@@ -1,7 +1,7 @@
 const std = @import("std");
 const wdbx_mod = @import("mod.zig");
 const parser = @import("persistence_parse.zig");
-const test_helpers = @import("../../testing/test_helpers.zig");
+const test_helpers = @import("../../foundation/test_helpers.zig");
 
 pub const HEADER = "# ABI-WDBX v1";
 pub const CHECKSUM_PREFIX = "# checksum:";
@@ -63,8 +63,12 @@ pub fn serialize(allocator: std.mem.Allocator, store: *const wdbx_mod.Store) ![]
         try out.writer.writeAll("\n");
     }
 
-    var chain_it = store.chain.iterator();
-    defer store.chain.releaseIterator();
+    // Serialize blocks under a length-bounded snapshot so concurrent appends
+    // that race after the read lock is taken cannot extend this checkpoint view.
+    const chain_ptr = @constCast(&store.chain);
+    const snapshot = chain_ptr.getSnapshot();
+    defer chain_ptr.releaseSnapshot();
+    var chain_it = snapshot.iterator();
     while (chain_it.next()) |node| {
         var w = std.json.Stringify{ .writer = &out.writer, .options = .{ .whitespace = .minified } };
         try w.beginObject();

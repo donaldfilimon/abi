@@ -1,6 +1,7 @@
 const std = @import("std");
 const types = @import("types.zig");
 const point_neural_net = @import("point_neural_net.zig");
+const incremental = @import("incremental.zig");
 
 pub const ProfileWeights = struct {
     w_abbey: f32,
@@ -200,13 +201,11 @@ pub fn selectBestProfile(weights_val: ProfileWeights) types.AgentProfile {
     }
 }
 
-/// Helper function to route to the appropriate profile based on profile selector
+/// Helper function to route to the appropriate profile based on profile selector.
+/// Uses the same iterative template generator as streaming completions (without
+/// a callback) so one-shot and incremental paths stay string-identical.
 pub fn routeToProfile(allocator: std.mem.Allocator, profile_sel: types.AgentProfile, input: []const u8) ![]u8 {
-    return switch (profile_sel) {
-        .abbey => abbey.processInput(allocator, input),
-        .aviva => aviva.processInput(allocator, input),
-        .abi => abi_profile.processInput(allocator, input),
-    };
+    return incremental.generateProfileIncremental(allocator, profile_sel, input, null, null);
 }
 
 pub fn routeInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
@@ -336,6 +335,14 @@ test "selectBestProfile picks highest weight" {
 
     const weights3 = ProfileWeights{ .w_abbey = 0.2, .w_aviva = 0.2, .w_abi = 0.6 };
     try std.testing.expectEqual(types.AgentProfile.abi, selectBestProfile(weights3));
+}
+
+test "selectBestProfile tie-break order is abbey then aviva then abi" {
+    const three_way = ProfileWeights{ .w_abbey = 0.34, .w_aviva = 0.33, .w_abi = 0.33 };
+    try std.testing.expectEqual(types.AgentProfile.abbey, selectBestProfile(three_way));
+
+    const aviva_abi = ProfileWeights{ .w_abbey = 0.2, .w_aviva = 0.4, .w_abi = 0.4 };
+    try std.testing.expectEqual(types.AgentProfile.aviva, selectBestProfile(aviva_abi));
 }
 
 test "routeInput returns response from selected profile" {

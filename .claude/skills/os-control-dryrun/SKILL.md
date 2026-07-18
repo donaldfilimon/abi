@@ -10,12 +10,14 @@ Read-only-effect CLI check — evidence is the `RESULT:` line. **Nothing is exec
 
 ## Run (agent path)
 ```bash
-.agents/skills/os-control-dryrun/dryrun.sh                       # default plan
-.agents/skills/os-control-dryrun/dryrun.sh "restart the cache"   # custom plan text
+.agents/skills/os-control-dryrun/dryrun.sh                 # defaults to: pwd
+.agents/skills/os-control-dryrun/dryrun.sh ls -la           # approved option argv
 ```
-Builds the CLI, runs `abi agent os dry-run "<plan>"` (asserts the `dry-run:`
+Builds the CLI, runs `abi agent os dry-run <command> [args...]` (asserts the `dry-run:`
 marker), then asserts `abi agent os execute` **without** `--confirm` is refused
-with usage (exit 2). Prints `RESULT: PASS` (exit 0) or a FAIL count.
+with usage (exit 2). The allow-list accepts command argv, not narrative text;
+`ls` permits approved read-only options but no filesystem operands. Prints
+`RESULT: PASS` (exit 0) or a FAIL count.
 
 Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — dry-run emits
 the plan; execute-without-confirm returns exit 2.

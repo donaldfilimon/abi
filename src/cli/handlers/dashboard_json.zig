@@ -1,6 +1,7 @@
 const std = @import("std");
-const abi = @import("../../root.zig");
+const abi = @import("abi");
 const DashboardOptions = @import("dashboard.zig").DashboardOptions;
+const test_helpers = @import("abi").foundation.test_helpers;
 
 pub fn dashboardHealth(ds: abi.features.tui.DashboardState) []const u8 {
     return abi.features.tui.dashboardHealth(ds);
@@ -213,16 +214,7 @@ test "dashboard json writer emits parseable snapshot" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &buf };
     try renderJsonWriter(&writer, allocator, state, .{ .refresh_interval_ms = 250, .format = .json });
 
     const parsed = try std.json.parseFromSlice(std.json.Value, allocator, buf.items, .{});
@@ -270,16 +262,7 @@ test "dashboard json writer reports compact layout pane visibility" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &buf };
     try renderJsonWriter(&writer, allocator, state, .{ .color = false, .compact = true, .format = .json });
 
     const parsed = try std.json.parseFromSlice(std.json.Value, allocator, buf.items, .{});
@@ -301,31 +284,16 @@ test "dashboard json writer reports compact layout pane visibility" {
 test "dashboard pane list writer emits text and json metadata" {
     const allocator = std.testing.allocator;
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-
-        pub fn print(self: *@This(), comptime format: []const u8, args: anytype) !void {
-            const rendered = try std.fmt.allocPrint(self.allocator, format, args);
-            defer self.allocator.free(rendered);
-            try self.buffer.appendSlice(self.allocator, rendered);
-        }
-    };
-
     var text_buf = std.ArrayListUnmanaged(u8).empty;
     defer text_buf.deinit(allocator);
-    var text_writer = TestWriter{ .allocator = allocator, .buffer = &text_buf };
+    var text_writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &text_buf };
     try renderPaneListWriter(&text_writer, allocator, .{ .initial_pane = 3 });
     try std.testing.expect(std.mem.indexOf(u8, text_buf.items, "Dashboard panes:") != null);
     try std.testing.expect(std.mem.indexOf(u8, text_buf.items, "* scheduler (Scheduler) hotkey=4") != null);
 
     var json_buf = std.ArrayListUnmanaged(u8).empty;
     defer json_buf.deinit(allocator);
-    var json_writer = TestWriter{ .allocator = allocator, .buffer = &json_buf };
+    var json_writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &json_buf };
     try renderPaneListWriter(&json_writer, allocator, .{ .initial_pane = 4, .format = .json });
 
     const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json_buf.items, .{});

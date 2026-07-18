@@ -24,8 +24,8 @@ const env = @import("../../foundation/env.zig");
 /// Home-dir env var name, Windows-aware (USERPROFILE vs HOME).
 const HOME_VAR = if (builtin.target.os.tag == .windows) "USERPROFILE" else "HOME";
 
-pub const PATH_ENV = "ABI_WDBX_PATH";
-pub const PERSIST_ENV = "ABI_WDBX_PERSIST";
+pub const PATH_ENV = env.WDBX_PATH_ENV;
+pub const PERSIST_ENV = env.WDBX_PERSIST_ENV;
 pub const MEMORY_SENTINEL = ":memory:";
 pub const DEFAULT_SUBPATH = ".abi/wdbx";
 
@@ -87,11 +87,16 @@ fn ensureOwnerOnlyDir(io: std.Io, path: []const u8) !void {
     _ = try std.Io.Dir.createDirPathStatus(.cwd(), io, path, perms);
     // Existing dirs keep prior mode across createDirPath; repair to 0700.
     // `path` may be relative (CLI/test) or absolute (HOME-resolved ambient path).
+    //
+    // Open with `iterate = true` so Linux does not use O_PATH. Zig's Dir docs
+    // require iterate for setPermissions; an O_PATH fd makes fchmod return
+    // EBADF and panic as a "programmer bug" (ambient `abi complete` / mcp).
     if (comptime std.Io.File.Permissions.has_executable_bit) {
+        const open_opts: std.Io.Dir.OpenOptions = .{ .iterate = true };
         const dir = if (std.fs.path.isAbsolute(path))
-            try std.Io.Dir.openDirAbsolute(io, path, .{})
+            try std.Io.Dir.openDirAbsolute(io, path, open_opts)
         else
-            try std.Io.Dir.cwd().openDir(io, path, .{});
+            try std.Io.Dir.cwd().openDir(io, path, open_opts);
         defer dir.close(io);
         try dir.setPermissions(io, perms);
     }
@@ -311,9 +316,9 @@ test "durable_store: store parent directory defaults to owner-only mode on POSIX
         deleteIfExists(base);
         deleteIfExists("zig-out/g5-owner-only/store.jsonl.wal");
         deleteIfExists("zig-out/g5-owner-only/store.jsonl.manifest");
-        std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch {};
+        std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch |err| std.log.warn("durable_store cleanup: {s}", .{@errorName(err)});
     }
-    std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch {};
+    std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch |err| std.log.warn("durable_store cleanup: {s}", .{@errorName(err)});
 
     {
         var session = try Session.openAt(testing.io, testing.allocator, base);
@@ -321,7 +326,40 @@ test "durable_store: store parent directory defaults to owner-only mode on POSIX
         try testing.expect(session.isPersistent());
     }
 
-    const dir = try std.Io.Dir.cwd().openDir(testing.io, parent, .{});
+    // Repair path opens with iterate=true (non-O_PATH); verify mode via same
+    // open style so Linux hosts exercise the fchmod-capable fd path.
+    const dir = try std.Io.Dir.cwd().openDir(testing.io, parent, .{ .iterate = true });
+    defer dir.close(testing.io);
+    const stat = try dir.stat(testing.io);
+    const mode = stat.permissions.toMode() & 0o777;
+    try testing.expectEqual(@as(std.posix.mode_t, 0o700), mode);
+}
+
+test "durable_store: ensureOwnerOnlyDir repairs pre-existing world-writable parent" {
+    if (builtin.target.os.tag == .windows) return;
+    if (!comptime std.Io.File.Permissions.has_executable_bit) return;
+
+    const parent = "zig-out/g5-owner-only-repair";
+    const base = "zig-out/g5-owner-only-repair/store.jsonl";
+    defer {
+        deleteIfExists(base);
+        deleteIfExists("zig-out/g5-owner-only-repair/store.jsonl.wal");
+        deleteIfExists("zig-out/g5-owner-only-repair/store.jsonl.manifest");
+        std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch |err| std.log.warn("durable_store cleanup: {s}", .{@errorName(err)});
+    }
+    std.Io.Dir.deleteTree(.cwd(), testing.io, parent) catch |err| std.log.warn("durable_store cleanup: {s}", .{@errorName(err)});
+
+    // Pre-create a world-writable parent so createDirPathStatus is a no-op and
+    // the repair path (open + setPermissions) must do the work.
+    _ = try std.Io.Dir.createDirPathStatus(.cwd(), testing.io, parent, std.Io.File.Permissions.fromMode(0o777));
+
+    {
+        var session = try Session.openAt(testing.io, testing.allocator, base);
+        defer session.deinit();
+        try testing.expect(session.isPersistent());
+    }
+
+    const dir = try std.Io.Dir.cwd().openDir(testing.io, parent, .{ .iterate = true });
     defer dir.close(testing.io);
     const stat = try dir.stat(testing.io);
     const mode = stat.permissions.toMode() & 0o777;

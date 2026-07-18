@@ -6,14 +6,17 @@ const router = @import("router.zig");
 const constitution = @import("constitution.zig");
 const types = @import("types.zig");
 const models = @import("models.zig");
+const incremental = @import("incremental.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
 const telemetry = if (build_options.feat_telemetry) @import("../telemetry/mod.zig") else @import("../telemetry/stub.zig");
+
+pub const streamModeLabel = incremental.streamModeLabel;
 
 pub fn complete(allocator: std.mem.Allocator, request: types.CompletionRequest) !types.CompletionResult {
     if (request.input.len == 0) return error.InvalidCompletionInput;
     const weights = router.analyzeSentiment(request.input);
     const selected = router.selectBestProfile(weights);
-    return completeWithSelectedProfile(allocator, request, selected);
+    return completeWithSelectedProfile(allocator, request, selected, null, null);
 }
 
 pub fn completeAdaptive(allocator: std.mem.Allocator, store: *wdbx.Store, request: types.CompletionRequest) !types.CompletionResult {
@@ -21,16 +24,34 @@ pub fn completeAdaptive(allocator: std.mem.Allocator, store: *wdbx.Store, reques
     var modulator = router.AdaptiveModulator.loadWeights(store);
     modulator.update(router.analyzeSentiment(request.input));
     const selected = router.selectBestProfile(modulator.weights());
-    return completeWithSelectedProfile(allocator, request, selected);
+    return completeWithSelectedProfile(
+        allocator,
+        request,
+        selected,
+        request.stream_callback,
+        request.stream_ctx,
+    );
 }
 
-fn completeWithSelectedProfile(allocator: std.mem.Allocator, request: types.CompletionRequest, selected: types.AgentProfile) !types.CompletionResult {
+fn completeWithSelectedProfile(
+    allocator: std.mem.Allocator,
+    request: types.CompletionRequest,
+    selected: types.AgentProfile,
+    on_chunk: ?types.StreamCallback,
+    callback_ctx: ?*anyopaque,
+) !types.CompletionResult {
     // Resolve catalog aliases (e.g. "fable-5" -> "claude-fable-5") to their
     // canonical id; unknown/freeform ids pass through unchanged. Both branches
     // yield a non-owned slice (static catalog literal or the caller's slice),
     // matching the existing borrowed-`model` lifetime — `deinit` never frees it.
     const resolved_model = models.resolve(request.model) orelse request.model;
-    const response = try router.routeToProfile(allocator, selected, request.input);
+    const response = try incremental.generateProfileIncremental(
+        allocator,
+        selected,
+        request.input,
+        on_chunk,
+        callback_ctx,
+    );
     errdefer allocator.free(response);
     const audit = constitution.Constitution.validate(response);
     // Per-turn governance telemetry: every evaluated turn is counted, and a
@@ -74,8 +95,11 @@ pub fn completeWithScheduler(
     return ctx.result orelse error.MissingCompletionResult;
 }
 
-const STREAM_CHUNK_SIZE: usize = 4;
-
+/// In-process persona/template completions use iterative word/token emission
+/// when a stream callback is set (`stream=incremental`). This is true
+/// during-generation emission from the local template model — **not** a neural
+/// LM / ggml sampler. Live Anthropic SSE and local-bridge OpenAI-compatible SSE
+/// remain the network-incremental baselines.
 pub fn completeStreaming(
     allocator: std.mem.Allocator,
     request: types.CompletionRequest,
@@ -85,17 +109,7 @@ pub fn completeStreaming(
     if (request.input.len == 0) return error.InvalidCompletionInput;
     const weights = router.analyzeSentiment(request.input);
     const selected = router.selectBestProfile(weights);
-    const result = try completeWithSelectedProfile(allocator, request, selected);
-    errdefer result.deinit(allocator);
-
-    var offset: usize = 0;
-    while (offset < result.output.len) {
-        const end = @min(offset + STREAM_CHUNK_SIZE, result.output.len);
-        try on_chunk(callback_ctx, .{ .delta = result.output[offset..end], .done = false });
-        offset = end;
-    }
-    try on_chunk(callback_ctx, .{ .delta = "", .done = true });
-    return result;
+    return completeWithSelectedProfile(allocator, request, selected, on_chunk, callback_ctx);
 }
 
 pub fn completeWithSchedulerStreaming(
@@ -117,13 +131,15 @@ pub fn completeWithSchedulerStreaming(
     var result = ctx.result orelse return error.MissingCompletionResult;
     errdefer result.deinit(allocator);
 
-    var offset: usize = 0;
-    while (offset < result.output.len) {
-        const end = @min(offset + STREAM_CHUNK_SIZE, result.output.len);
-        try on_chunk(callback_ctx, .{ .delta = result.output[offset..end], .done = false });
-        offset = end;
-    }
-    try on_chunk(callback_ctx, .{ .delta = "", .done = true });
+    const streamed = try incremental.generateProfileIncremental(
+        allocator,
+        result.selected_profile,
+        request.input,
+        on_chunk,
+        callback_ctx,
+    );
+    allocator.free(result.output);
+    result.output = streamed;
     return result;
 }
 
@@ -139,24 +155,9 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
 }
 
 pub fn completeWithStoreAdaptive(allocator: std.mem.Allocator, store: *wdbx.Store, request: types.CompletionRequest) !types.CompletionResult {
+    // stream_callback on the request is honored during generateProfileIncremental.
     const result = try completeAdaptive(allocator, store, request);
     errdefer result.deinit(allocator);
-
-    // Emit chunks through the streaming callback when configured.
-    // The underyling model path returns full text, so this splits post-hoc;
-    // a future chunked backend will emit incrementally.
-    if (request.stream_callback) |cb| {
-        if (request.stream_ctx) |sc_ctx| {
-            var offset: usize = 0;
-            while (offset < result.output.len) {
-                const end = @min(offset + STREAM_CHUNK_SIZE, result.output.len);
-                try cb(sc_ctx, .{ .delta = result.output[offset..end], .done = false });
-                offset = end;
-            }
-            try cb(sc_ctx, .{ .delta = "", .done = true });
-        }
-    }
-
     return persistCompletionResult(allocator, store, request, result);
 }
 
@@ -214,7 +215,7 @@ fn completionMetadataJson(
     errdefer out.deinit(allocator);
 
     try out.appendSlice(allocator, "{\"kind\":\"completion\",\"model\":");
-    try appendMetadataJsonString(&out, allocator, request.model);
+    try appendMetadataJsonString(&out, allocator, result.model);
     try out.appendSlice(allocator, ",\"profile\":");
     try appendMetadataJsonString(&out, allocator, result.selected_profile.label());
     const audit_passed = if (result.audit.passed) "true" else "false";
@@ -308,17 +309,40 @@ test "metadata JSON includes the escore and veto fields" {
 
 test "metadata JSON escapes model and profile fields" {
     var result = types.CompletionResult{
-        .model = "m",
+        .model = "m\"x",
         .selected_profile = .abbey,
         .output = try std.testing.allocator.dupe(u8, "out"),
         .audit = constitution.AuditResult.init(),
     };
     defer result.deinit(std.testing.allocator);
 
-    const metadata = try completionMetadataJson(std.testing.allocator, .{ .input = "in", .model = "m\"x" }, result, 1, 2);
+    const metadata = try completionMetadataJson(std.testing.allocator, .{ .input = "in", .model = "ignored-alias" }, result, 1, 2);
     defer std.testing.allocator.free(metadata);
     try std.testing.expect(std.mem.indexOf(u8, metadata, "\"model\":\"m\\\"x\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, metadata, "\"profile\":\"abbey\"") != null);
+}
+
+test "complete persists canonical model id in result and metadata" {
+    if (!build_options.feat_wdbx) return;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    const result = try completeWithStore(allocator, &store, .{
+        .input = "catalog alias smoke",
+        .model = "fable-5",
+        .store_result = true,
+    });
+    defer result.deinit(allocator);
+
+    try std.testing.expectEqualStrings(models.fable5, result.model);
+    try std.testing.expect(result.query_vector_id != null);
+
+    const key = try completionMetadataKey(allocator, result.query_vector_id.?);
+    defer allocator.free(key);
+    const metadata = store.get(key) orelse return error.TestUnexpectedResult;
+    try std.testing.expect(std.mem.indexOf(u8, metadata, "\"model\":\"claude-fable-5\"") != null);
 }
 
 test "completeWithStore tracks transient persistence memory and frees it" {

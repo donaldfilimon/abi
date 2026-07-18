@@ -1,7 +1,7 @@
 const std = @import("std");
-const Registry = @import("../../core/registry.zig").Registry;
+const Registry = @import("abi").registry.Registry;
 const usage_mod = @import("../usage.zig");
-const abi = @import("../../root.zig");
+const abi = @import("abi");
 
 /// `abi plugin list | run <name> [input]`: list the registered plugins or run a
 /// named bundled plugin against optional input. `run` loads the shared bundled

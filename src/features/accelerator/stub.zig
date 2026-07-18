@@ -28,6 +28,7 @@ pub const SelectionReport = struct {
     selected_backend: Backend,
     fallback_backend: Backend,
     native_available: bool,
+    native_dispatch: bool,
     gpu_available: bool,
     gpu_accelerated: bool,
     message: []const u8,
@@ -71,9 +72,10 @@ pub fn selectionReport(workload: Workload) SelectionReport {
         .selected_backend = .cpu,
         .fallback_backend = .cpu,
         .native_available = false,
+        .native_dispatch = false,
         .gpu_available = false,
         .gpu_accelerated = false,
-        .message = "accelerator feature is disabled; using CPU",
+        .message = "accelerator feature is disabled; native_dispatch=false; using CPU",
     };
 }
 
@@ -93,7 +95,9 @@ test "accelerator stub reports explicit disabled fallback" {
     try std.testing.expectEqual(Backend.cpu, report.selected_backend);
     try std.testing.expectEqual(Backend.cpu, report.fallback_backend);
     try std.testing.expect(!report.native_available);
+    try std.testing.expect(!report.native_dispatch);
     try std.testing.expect(!report.gpu_available);
     try std.testing.expect(!report.gpu_accelerated);
     try std.testing.expectEqualStrings("training", workloadName(report.workload));
+    try std.testing.expect(std.mem.indexOf(u8, report.message, "native_dispatch=false") != null);
 }

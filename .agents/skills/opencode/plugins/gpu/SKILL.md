@@ -55,9 +55,9 @@ System hardware report:
 ## Implementation
 
 Maps to:
-- `src/features/gpu/status.zig` - Metal/CUDA/Vulkan detection
+- `src/features/gpu/reporting.zig` - Metal/CUDA/Vulkan detection
 - `src/features/gpu/vector_ops.zig` - HNSW search acceleration
-- `src/features/gpu/compute.zig` - SIMD/Metal kernels
+- `src/features/gpu/compute_api.zig` - SIMD/Metal kernels
 
 ## Feature Gate
 

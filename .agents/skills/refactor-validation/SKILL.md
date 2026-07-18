@@ -1,6 +1,6 @@
 ---
 name: refactor-validation
-description: Parity, modern quality criteria, and validation checklists for ABI refactors. Use as final step to ensure clean-slate changes meet standards.
+description: This skill should be used when the user asks to verify a refactor is done correctly — e.g. 'did I break anything', 'is this refactor complete', 'validate this change meets modern standards' — as the final gate.
 ---
 
 # Refactor Validation

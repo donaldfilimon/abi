@@ -1,6 +1,6 @@
 const std = @import("std");
 const build_options = @import("build_options");
-const features = @import("../../features/mod.zig");
+const features = @import("abi").features;
 const usage_mod = @import("../usage.zig");
 
 const nn = features.nn;

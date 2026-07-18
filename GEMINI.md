@@ -1,4 +1,4 @@
-# GEMINI.md — ABI Framework
+# GEMINI.md — abi
 
 Quick reference for Google Gemini and compatible agents. Trust executable config and source over prose when they disagree. `AGENTS.md` is the canonical instruction file; `tasks/lessons.md` is the session checklist, `tasks/todo.md` tracks active work, and `tasks/goals.md` holds long-horizon direction.
 
@@ -133,3 +133,6 @@ No unproven claims (distributed sharding, production FHE/AES/RBAC, non-loopback 
 ## OpenCode Setup
 
 `opencode.json` auto-loaded (instructions: `AGENTS.md`, `tasks/lessons.md`, `tasks/todo.md`). `.opencode/skills/` is a symlink to `.agents/skills/`. MCP servers: `abi-mcp`, `skill-loop`. Sync canonical skills: `.agents/skills/sync-clis/launch.sh`. Modern-refactor skills (codebase-analysis etc.) in `.agents/skills/` — use for refactors; follow with `./build.sh check`. Superpower + operational skills are enumerated in the system prompt's `available_skills`; don't maintain a parallel list here.
+Canonical instruction file is `AGENTS.md`. Read that first and follow its
+conventions. If they disagree, `AGENTS.md` wins; if either conflicts with
+executable source (`build.zig`, `tools/build.sh`, `src/`), trust the source.

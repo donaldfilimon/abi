@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(./build.sh *)",
-      "Bash(zig build *)"
+      "Bash(zig build *)",
+      "Bash(zig test *)",
+      "Bash(npx tsc)",
+      "Bash(swift build *)",
+      "Bash(swift test *)",
+      "Bash(npm run build)",
+      "mcp__Claude_Browser__read_console_messages"
     ]
   },
   "hooks": {

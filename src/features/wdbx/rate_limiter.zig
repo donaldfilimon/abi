@@ -26,8 +26,8 @@ const Lock = struct {
     }
 };
 
-pub const RATE_LIMIT_CAPACITY_ENV = "ABI_WDBX_RATE_LIMIT_CAPACITY";
-pub const RATE_LIMIT_REFILL_ENV = "ABI_WDBX_RATE_LIMIT_REFILL";
+pub const RATE_LIMIT_CAPACITY_ENV = env.WDBX_RATE_LIMIT_CAPACITY_ENV;
+pub const RATE_LIMIT_REFILL_ENV = env.WDBX_RATE_LIMIT_REFILL_ENV;
 
 /// Token-bucket rate limiter.
 ///

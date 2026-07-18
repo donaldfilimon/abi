@@ -1,8 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const credentials = @import("../../foundation/credentials.zig");
-const io = @import("../../foundation/io/mod.zig");
-const utils = @import("../../foundation/utils.zig");
+const credentials = @import("abi").foundation.credentials;
+const io = @import("abi").foundation.io;
+const utils = @import("abi").foundation.utils;
 const usage_mod = @import("../usage.zig");
 
 /// `abi auth <signin|logout|status> [args...]`: manage stored connector
@@ -47,10 +47,24 @@ pub fn handleAuthStatus(allocator: std.mem.Allocator) !u8 {
 pub fn handleAuthLogout(allocator: std.mem.Allocator) !u8 {
     const path = try credentials.getCredentialsPath(allocator);
     defer allocator.free(path);
+
+    var cleared_something = false;
     if (io.fileExists(path)) {
         var threaded: std.Io.Threaded = .init(std.heap.page_allocator, .{});
         defer threaded.deinit();
         try std.Io.Dir.deleteFileAbsolute(threaded.io(), path);
+        cleared_something = true;
+    }
+
+    // The plaintext file and the keychain are independent stores; clear
+    // keychain-held secrets too when that backend is active, or "logout
+    // clears credentials" would be false while secrets persist there.
+    if (credentials.credentialsBackendIsKeychain()) {
+        try credentials.clearKeychainCredentials();
+        cleared_something = true;
+    }
+
+    if (cleared_something) {
         std.debug.print("Logged out. Credentials cleared.\n", .{});
     } else {
         std.debug.print("No credentials found.\n", .{});
@@ -70,6 +84,7 @@ pub fn handleAuthSignin(io_mod: std.Io, allocator: std.mem.Allocator, service: [
     defer creds.deinit(allocator);
 
     var buf: [1024]u8 = undefined;
+    defer std.crypto.secureZero(u8, &buf);
     var stdin_reader = std.Io.File.stdin().reader(io_mod, &buf);
 
     if (std.mem.eql(u8, service, "openai")) {
@@ -134,8 +149,15 @@ fn authSigninHelp() u8 {
         \\
         \\Prompt for a credential and persist it in the local ABI credential file.
         \\On POSIX TTYs, secret entry disables terminal echo (restored after read).
+        \\Secret bytes are securely zeroed in memory after use (heap + stdin buffer).
         \\Windows: no echo-suppress path yet (disclosed gap; use a private console).
-        \\Credentials remain plaintext JSON; Windows ACL/keychain not implemented.
+        \\Default backend: plaintext JSON, owner-only permissions (POSIX 0600 /
+        \\dir 0700; Windows owner-only ACL).
+        \\Optional macOS backend: set ABI_CREDENTIALS_BACKEND=keychain to store
+        \\credentials in the login keychain via Security.framework instead of
+        \\the JSON file. Not hardware-backed (no Secure Enclave/biometric),
+        \\not audited, and not dual-written with the JSON file. Windows
+        \\Credential Manager and Linux Secret Service are not implemented.
         \\
     , .{});
     return 0;

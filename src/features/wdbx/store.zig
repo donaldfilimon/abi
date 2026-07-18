@@ -233,6 +233,11 @@ pub const Store = struct {
         const results = try self.index.search(padded_query, limit);
         self.paddedFree(padded_query);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
+        // Thread zero-copy borrowed views through SearchResult while the store
+        // is quiescent — aliases getVector (trimmed active dims).
+        for (results) |*r| {
+            r.vector = self.getVector(r.id);
+        }
         self.acceleration = try runtime.runAccelerationKernel("wdbx.search", query.len * self.index.count());
         return results;
     }
@@ -406,6 +411,25 @@ test "getVector is a zero-copy view aliasing the backing buffer" {
     // storage slice — no allocation or copy was made to satisfy the read.
     const raw = store_obj.index.storage.get(id) orelse return error.MissingVector;
     try std.testing.expectEqual(raw.ptr, view.ptr);
+}
+
+test "getVector after search remains a zero-copy alias (query path lifetime)" {
+    var store_obj = Store.init(std.testing.allocator);
+    defer store_obj.deinit();
+
+    const id = try store_obj.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+    _ = try store_obj.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+
+    const results = try store_obj.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 2);
+    defer std.testing.allocator.free(results);
+    try std.testing.expect(results.len >= 1);
+
+    // After search returns (HNSW read-lock released), getVector still aliases the
+    // backing buffer — the CLI/JSON query path may borrow dims without copying.
+    const view = store_obj.getVector(results[0].id) orelse return error.MissingVector;
+    const raw = store_obj.index.storage.get(results[0].id) orelse return error.MissingVector;
+    try std.testing.expectEqual(raw.ptr, view.ptr);
+    try std.testing.expectEqual(id, results[0].id);
 }
 
 test "Store rejects mismatched vector dimensions" {

@@ -21,7 +21,7 @@ Traditional refactors often patch on top of legacy decisions. This toolkit helps
 **Packaging notes:**
 
 - PreToolUse hooks live in host config (e.g. root `.claude/` / `.codex/`), not under `modern-refactor/`
-- Optional host settings template: `.claude/modern-refactor.local.md.example` (copy into the host project; not auto-loaded from the plugin package)
+- Optional host settings template: `modern-refactor/.claude/modern-refactor.local.md.example` (copy into the host project; not auto-loaded from the plugin package)
 
 ## Installation (local testing)
 
@@ -50,7 +50,7 @@ Or point your agent host at this directory / copy skills into your skills path.
 
 ### Optional host settings
 
-See `.claude/modern-refactor.local.md.example`. Copy to the host project path your agent supports (for example `.claude/modern-refactor.local.md`) and add `*.local.md` to project `.gitignore` if those files hold local preferences.
+See `modern-refactor/.claude/modern-refactor.local.md.example`. Copy to the host project path your agent supports (for example `.claude/modern-refactor.local.md` at the repo root) and add `*.local.md` to project `.gitignore` if those files hold local preferences.
 
 ## Component Overview
 

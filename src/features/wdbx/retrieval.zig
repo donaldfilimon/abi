@@ -15,9 +15,19 @@ const temporal = @import("temporal.zig");
 pub const RankedNode = temporal.RankedNode;
 pub const PersonaWeightFn = *const fn (*const anyopaque, u32) f32;
 
+/// Attach zero-copy borrowed vector views to each ranked node via
+/// `Store.getVector`. Slices alias store index backing and remain valid until
+/// the next mutation that grows/frees that buffer. Safe to call repeatedly.
+pub fn attachBorrowedVectors(store: *const wdbx_mod.Store, ranked: []temporal.RankedNode) void {
+    for (ranked) |*r| {
+        r.vector = store.getVector(r.id);
+    }
+}
+
 /// Semantic search + temporal/causal/persona re-ranking, highest combined score
 /// first. `allocator` must be the Store's allocator (it owns/frees the search
-/// results). Returns owned `RankedNode`s the caller frees.
+/// results). Returns owned `RankedNode`s the caller frees; each node carries a
+/// borrowed `vector` view when the id is present in the store.
 pub fn hybridSearch(
     allocator: std.mem.Allocator,
     store: *wdbx_mod.Store,
@@ -36,7 +46,9 @@ pub fn hybridSearch(
     for (results, 0..) |r, i| {
         cands[i] = .{ .id = r.id, .semantic = std.math.clamp(r.score, 0.0, 1.0) };
     }
-    return scorer.rank(allocator, graph, focus_id, cands, personaFor);
+    const ranked = try scorer.rank(allocator, graph, focus_id, cands, personaFor);
+    attachBorrowedVectors(store, ranked);
+    return ranked;
 }
 
 /// Semantic search + hybrid re-ranking using a context-aware persona callback.
@@ -67,6 +79,7 @@ pub fn hybridSearchWithPersonaContext(
             return a.score > b.score;
         }
     }.lessThan);
+    attachBorrowedVectors(store, out);
     return out;
 }
 
@@ -114,9 +127,14 @@ pub fn hybridSearchScoped(
     }
 
     const ranked = try scorer.rank(allocator, graph, focus_id, cands.items, scopedPersona);
-    if (ranked.len <= limit) return ranked;
+    if (ranked.len <= limit) {
+        attachBorrowedVectors(store, ranked);
+        return ranked;
+    }
     defer allocator.free(ranked);
-    return allocator.dupe(temporal.RankedNode, ranked[0..limit]);
+    const trimmed = try allocator.dupe(temporal.RankedNode, ranked[0..limit]);
+    attachBorrowedVectors(store, trimmed);
+    return trimmed;
 }
 
 const testing = std.testing;
@@ -188,6 +206,45 @@ test "hybridSearch re-ranks equal-semantic candidates by recency + causality" {
     // are actually applied on top of HNSW similarity.
     try testing.expectEqual(id_new, ranked[0].id);
     try testing.expect(ranked[0].score >= ranked[1].score);
+}
+
+test "hybridSearch attaches zero-copy borrowed vector views" {
+    const allocator = testing.allocator;
+    var store = wdbx_mod.Store.init(allocator);
+    defer store.deinit();
+
+    const id = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+    var graph = temporal.TemporalCausalGraph.init(allocator);
+    defer graph.deinit();
+    try graph.addNode(id, 1000);
+
+    const scorer = temporal.HybridScorer{ .now_ms = 1000, .half_life_ms = 1000 };
+    const ranked = try hybridSearch(allocator, &store, &.{ 1.0, 0.0, 0.0, 0.0 }, 5, &graph, scorer, id, personaEqual);
+    defer allocator.free(ranked);
+
+    try testing.expect(ranked.len >= 1);
+    const view = ranked[0].vector orelse return error.MissingBorrowedVector;
+    const direct = store.getVector(ranked[0].id) orelse return error.MissingDirectVector;
+    try testing.expectEqual(direct.len, view.len);
+    // Pointer alias: same backing buffer, no copy.
+    try testing.expect(view.ptr == direct.ptr);
+}
+
+test "Store.search SearchResult carries borrowed vector view" {
+    const allocator = testing.allocator;
+    var store = wdbx_mod.Store.init(allocator);
+    defer store.deinit();
+
+    const id = try store.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+    const results = try store.search(&.{ 0.0, 1.0, 0.0, 0.0 }, 5);
+    defer allocator.free(results);
+
+    try testing.expect(results.len >= 1);
+    try testing.expectEqual(id, results[0].id);
+    const view = results[0].vector orelse return error.MissingBorrowedVector;
+    const direct = store.getVector(id) orelse return error.MissingDirectVector;
+    try testing.expect(view.ptr == direct.ptr);
+    try testing.expectEqual(direct.len, view.len);
 }
 
 const PersonaContext = struct {

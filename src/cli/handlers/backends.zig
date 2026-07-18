@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
-const features = @import("../../features/mod.zig");
+const features = @import("abi").features;
 
 /// `abi backends`: report the detected compute backends — GPU backend and
 /// native-kernel status, the accelerator training selection, and the shader
@@ -47,6 +47,9 @@ pub fn handleBackends() !u8 {
     std.debug.print("\n", .{});
 
     // ── Compute backends ──
+    // Probe Metal (or CPU fallback) before reporting so status reflects a real
+    // init attempt, not a cold uninitialized context.
+    _ = features.gpu.vectorOps();
     const gpu_status = features.gpu.detectBackend();
     const native_gpu = features.gpu.nativeKernelStatus();
     const gpu_report = try features.gpu.backendStatusReport(std.heap.page_allocator);
@@ -75,10 +78,15 @@ pub fn handleBackends() !u8 {
         if (native_gpu.linked) "\x1b[32mlinked\x1b[0m" else "\x1b[90mnot linked\x1b[0m",
         native_gpu.message,
     });
-    std.debug.print("  Accelerator     training \x1b[90m→\x1b[0m {s}  (gpu={s} native={s})\n", .{
+    std.debug.print("  Backend matrix  {d} declared backends (see capability report)\n", .{
+        features.gpu.backendMatrix().len,
+    });
+    std.debug.print("{s}\n", .{gpu_report});
+    std.debug.print("  Accelerator     training \x1b[90m→\x1b[0m {s}  (gpu={s} native={s} native_dispatch={s})\n", .{
         features.accelerator.backendName(training.selected_backend),
         if (training.gpu_available) "\x1b[32m✓\x1b[0m" else "\x1b[90m○\x1b[0m",
         if (training.native_available) "\x1b[32m✓\x1b[0m" else "\x1b[90m○\x1b[0m",
+        if (training.native_dispatch) "\x1b[32mtrue\x1b[0m" else "\x1b[90mfalse\x1b[0m",
     });
     std.debug.print("  Shaders         {s}  {s}\n", .{
         features.shaders.languageName(shader.language),

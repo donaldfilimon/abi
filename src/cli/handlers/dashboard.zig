@@ -1,7 +1,8 @@
 const std = @import("std");
-const abi = @import("../../root.zig");
+const abi = @import("abi");
 const build_options = @import("build_options");
 const dashboard_json = @import("dashboard_json.zig");
+const test_helpers = @import("abi").foundation.test_helpers;
 
 const GpuSnapshot = struct {
     backend: []const u8,
@@ -65,6 +66,9 @@ pub fn handleDashboardWithOptions(allocator: std.mem.Allocator, options: Dashboa
         return 0;
     }
 
+    // Probe Metal (or CPU fallback) before the snapshot so System pane flags
+    // match abi backends / wdbx gpu info after a real init attempt.
+    _ = abi.features.gpu.vectorOps();
     const gpu_status = abi.features.gpu.detectBackend();
     const native_gpu = abi.features.gpu.nativeKernelStatus();
     const gpu_snapshot = GpuSnapshot{
@@ -337,16 +341,7 @@ test "dashboard frame writer omits redraw controls without screen control" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &buf };
     try renderFrameWriter(
         &writer,
         allocator,
@@ -387,16 +382,7 @@ test "dashboard frame writer wraps screen-controlled redraw" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &buf };
     try renderFrameWriter(
         &writer,
         allocator,
@@ -437,16 +423,7 @@ test "dashboard frame writer can render plain diagnostics without style escapes"
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &buf };
     try renderFrameWriter(
         &writer,
         allocator,
@@ -487,16 +464,7 @@ test "dashboard frame writer can render compact selected pane only" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = allocator, .buffer = &buf };
     try renderFrameWriter(
         &writer,
         allocator,

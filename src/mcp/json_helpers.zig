@@ -1,31 +1,9 @@
 const std = @import("std");
 
-pub fn appendJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
-    try out.append(allocator, '"');
-    for (value) |byte| {
-        switch (byte) {
-            '"' => try out.appendSlice(allocator, "\\\""),
-            '\\' => try out.appendSlice(allocator, "\\\\"),
-            '\n' => try out.appendSlice(allocator, "\\n"),
-            '\r' => try out.appendSlice(allocator, "\\r"),
-            '\t' => try out.appendSlice(allocator, "\\t"),
-            0x00...0x07 => try out.print(allocator, "\\u{X:0>4}", .{byte}),
-            0x08 => try out.appendSlice(allocator, "\\b"),
-            0x0c => try out.appendSlice(allocator, "\\f"),
-            0x0b => try out.print(allocator, "\\u{X:0>4}", .{byte}),
-            0x0e...0x1f => try out.print(allocator, "\\u{X:0>4}", .{byte}),
-            else => try out.append(allocator, byte),
-        }
-    }
-    try out.append(allocator, '"');
-}
+const foundation_json = @import("abi").foundation.json;
 
-pub fn jsonStringAlloc(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
-    var out: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer out.deinit(allocator);
-    try appendJsonString(&out, allocator, value);
-    return out.toOwnedSlice(allocator);
-}
+pub const appendJsonString = foundation_json.appendJsonString;
+pub const jsonStringAlloc = foundation_json.jsonStringAlloc;
 
 pub fn valueToJson(value: std.json.Value, allocator: std.mem.Allocator) ![]u8 {
     return switch (value) {
@@ -72,14 +50,10 @@ pub fn valueToJson(value: std.json.Value, allocator: std.mem.Allocator) ![]u8 {
 test "json_helpers: jsonStringAlloc escapes metacharacters and control chars" {
     const allocator = std.testing.allocator;
 
-    // Happy path: quote, backslash, newline and tab are escaped; the result is
-    // wrapped in quotes.
     const out = try jsonStringAlloc(allocator, "a\"b\\c\n\t");
     defer allocator.free(out);
     try std.testing.expectEqualStrings("\"a\\\"b\\\\c\\n\\t\"", out);
 
-    // Edge case: a raw control byte below 0x20 becomes a \uXXXX escape rather
-    // than passing through to produce invalid JSON.
     const ctrl = try jsonStringAlloc(allocator, "\x01");
     defer allocator.free(ctrl);
     try std.testing.expectEqualStrings("\"\\u0001\"", ctrl);
@@ -95,8 +69,6 @@ test "json_helpers: valueToJson serializes a value that re-parses cleanly" {
     const out = try valueToJson(parsed.value, allocator);
     defer allocator.free(out);
 
-    // The serialized form must itself be valid JSON and preserve the escaped
-    // string element through a round trip.
     const reparsed = try std.json.parseFromSlice(std.json.Value, allocator, out, .{});
     defer reparsed.deinit();
     const arr = reparsed.value.object.get("k").?.array;

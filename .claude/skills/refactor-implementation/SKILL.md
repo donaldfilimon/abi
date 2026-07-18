@@ -1,6 +1,6 @@
 ---
 name: refactor-implementation
-description: Safe transformation techniques and implementation playbooks for clean-slate refactors in ABI. Use when executing modernization plans.
+description: This skill should be used when the user is ready to execute a refactor plan and asks how to apply it safely — e.g. 'implement this modernization plan', 'extract this safely', 'how do I cut over without breaking things'.
 ---
 
 # Refactor Implementation
@@ -21,5 +21,5 @@ Safe transformation techniques for applying modern designs while preserving beha
 
 Pair with `modern-refactorer` agent for larger modules.
 
-Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/refactor-implementation
+Base directory for this skill: /Users/donaldfilimon/abi/.claude/skills/refactor-implementation
 Relative paths in this skill (e.g., references/) are relative to this base directory.

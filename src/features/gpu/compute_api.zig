@@ -50,53 +50,24 @@ pub const BackendAvailability = struct {
 };
 
 /// Per-backend availability matrix — the truthful answer to "what actually runs
-/// here". Order is preference-descending for the native accelerators.
-pub fn backendMatrix() [6]BackendAvailability {
-    const on_macos = builtin.target.os.tag == .macos;
-    const metal_live = on_macos and metal.g_metal_context.initialized;
-    return .{
-        .{
-            .backend = .metal,
-            .available = on_macos,
-            .dispatches = metal_live,
-            .reason = if (metal_live)
-                "Metal compute pipelines initialized; dispatching on the GPU"
-            else if (on_macos)
-                "macOS detected; Metal context not yet initialized (call GpuCompute.init)"
-            else
-                "not macOS; Metal unavailable",
-        },
-        .{
-            .backend = .vulkan,
-            .available = false,
-            .dispatches = false,
-            .reason = "Vulkan needs a loader/ICD (e.g. MoltenVK on macOS) and SPIR-V shaders; not linked",
-        },
-        .{
-            .backend = .cuda,
-            .available = false,
-            .dispatches = false,
-            .reason = "CUDA needs the NVIDIA toolkit + an NVIDIA GPU; not linked",
-        },
-        .{
-            .backend = .opengl,
-            .available = false,
-            .dispatches = false,
-            .reason = "OpenGL compute needs >=4.3; macOS caps at 4.1 (no compute shaders); not linked",
-        },
-        .{
-            .backend = .webgpu,
-            .available = false,
-            .dispatches = false,
-            .reason = "WebGPU needs a wgpu/Dawn runtime; not linked",
-        },
-        .{
-            .backend = .simulated,
-            .available = true,
-            .dispatches = true,
-            .reason = "vectorized (@Vector) CPU path; always available",
-        },
-    };
+/// here". Order matches `backendCapabilitiesList()` for consistent reporting.
+pub fn backendMatrix() [7]BackendAvailability {
+    const caps = backends.backendCapabilitiesList();
+    var matrix: [7]BackendAvailability = undefined;
+    for (caps, 0..) |cap, i| {
+        const dispatches = switch (cap.backend) {
+            .simulated => true,
+            .metal => cap.native_kernels,
+            else => false,
+        };
+        matrix[i] = .{
+            .backend = cap.backend,
+            .available = cap.available,
+            .dispatches = dispatches,
+            .reason = cap.message,
+        };
+    }
+    return matrix;
 }
 
 /// Backend-agnostic compute handle. `init` selects the best backend that truly
@@ -215,10 +186,12 @@ pub const GpuCompute = struct {
 
 const testing = std.testing;
 
-test "compute_api: backend matrix is honest (cpu fallback always dispatches; vulkan/opengl gated)" {
+test "compute_api: backend matrix is honest (cpu fallback always dispatches; stubs gated)" {
     const m = backendMatrix();
+    try testing.expectEqual(@as(usize, 7), m.len);
     var saw_cpu_fallback = false;
     var saw_metal = false;
+    var saw_webgl2 = false;
     for (m) |entry| {
         switch (entry.backend) {
             .simulated => {
@@ -228,17 +201,26 @@ test "compute_api: backend matrix is honest (cpu fallback always dispatches; vul
             .metal => {
                 saw_metal = true;
                 // Metal only "dispatches" when actually initialized on macOS.
-                if (builtin.target.os.tag != .macos) try testing.expect(!entry.dispatches);
+                if (builtin.target.os.tag != .macos) {
+                    try testing.expect(!entry.available);
+                    try testing.expect(!entry.dispatches);
+                }
             },
-            .vulkan, .opengl, .cuda, .webgpu => {
-                // Declared but not dispatching here — must not claim execution.
+            .webgl2 => {
+                saw_webgl2 = true;
+                try testing.expect(!entry.available);
                 try testing.expect(!entry.dispatches);
                 try testing.expect(entry.reason.len > 0);
             },
-            else => {},
+            .vulkan, .opengl, .cuda, .webgpu => {
+                // Declared but not dispatching here — must not claim execution.
+                try testing.expect(!entry.available);
+                try testing.expect(!entry.dispatches);
+                try testing.expect(entry.reason.len > 0);
+            },
         }
     }
-    try testing.expect(saw_cpu_fallback and saw_metal);
+    try testing.expect(saw_cpu_fallback and saw_metal and saw_webgl2);
 }
 
 test "compute_api: reduce matches scalar reference on the active backend" {

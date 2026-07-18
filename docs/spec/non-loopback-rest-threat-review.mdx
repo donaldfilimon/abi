@@ -1,0 +1,53 @@
+---
+title: "Non-loopback REST / MCP HTTP threat review"
+description: "Claim-honest threat review of exposing WDBX REST or MCP HTTP beyond loopback. Docs/ops decision record — not a hardened-exposure claim."
+---
+
+# Non-loopback REST / MCP HTTP threat review
+
+**Status:** Partial / disclosed ops guidance. This document is **not** authorization to expose ABI HTTP surfaces on the public internet, and it does **not** claim native TLS or production hardening.
+
+**Evidence:** `src/features/wdbx/rest.zig`, `src/features/wdbx/rate_limiter.zig`, `src/mcp/http_transport.zig`, `docs/contracts/external-claims-audit.mdx`, `docs/spec/wdbx-north-star.mdx` §3.6.
+
+## Current controls (what exists today)
+
+| Control | WDBX REST | MCP HTTP |
+| ------- | --------- | -------- |
+| Default bind | `127.0.0.1` loopback | Loopback only |
+| Bearer auth | Optional `ABI_WDBX_REST_TOKEN` | Optional `ABI_MCP_HTTP_TOKEN` |
+| Rate limit | Env-configured token bucket | Request size / JSON depth caps (stdio/HTTP share protocol bounds) |
+| TLS | `ABI_WDBX_TLS_CERT` / `ABI_WDBX_TLS_KEY` **validate files and log proxy intent**; native TLS termination **not linked** | No native TLS in-process |
+| Body / parse bounds | HTTP request handling + store ops | 64 KB request cap, JSON depth 32 |
+
+## Threat model (non-loopback)
+
+If an operator binds beyond loopback (or ports a reverse proxy to a public NIC) without additional controls, primary risks include:
+
+1. **Unauthenticated or weakly authenticated access** to insert/query/verify (and MCP tool dispatch) when bearer tokens are unset or leaked.
+2. **Cleartext credentials and payloads** on the wire when traffic is not terminated by an external TLS proxy.
+3. **Resource exhaustion** despite rate limits (amplification via large vectors, many clients, or shared-token abuse).
+4. **Confused-deputy / SSRF-style** use of local connectors if live credentials are present and an attacker can reach the loopback-adjacent host.
+5. **Integrity / confidentiality of WDBX stores** on disk — HTTP auth does not replace filesystem ACLs or keychain storage (Windows ACL Partial; OS keychain still Proposed).
+
+## Decisions (claim-honest)
+
+| Decision | Outcome |
+| -------- | ------- |
+| Native TLS link in ABI | **Deferred.** Prefer TLS-terminating reverse proxy (nginx / Caddy / Envoy). Do not claim in-process TLS until linked and tested. |
+| Non-loopback as supported product mode | **Not supported** without explicit threat acceptance + proxy TLS + required bearer + rate limits + deployment review. |
+| Default recommendation | Keep binds on `127.0.0.1`. For controlled LAN exposure, terminate TLS at the proxy, require bearer tokens, keep rate limits on, and do not advertise “hardened public API.” |
+
+## Residual Proposed work
+
+- Optional native TLS (or mTLS) linked and contract-tested.
+- Stronger authz than shared bearer (per-client identities, scopes).
+- External expose runbook + automated refusal tests for unsafe binds.
+- Cluster mTLS / membership remains separate (`tasks/todo.md` priority 7); sharding stays Proposed.
+
+## Operator checklist (when deliberately fronting with a proxy)
+
+1. Require `ABI_WDBX_REST_TOKEN` / `ABI_MCP_HTTP_TOKEN` (non-empty, rotated).
+2. Terminate TLS at the reverse proxy; point ABI at loopback only.
+3. Keep rate limits enabled; monitor 429 / dropped events.
+4. Do not place live connector credentials on hosts reachable beyond the trusted network without additional policy.
+5. Never publish QPS/latency/accuracy or “production secure REST” claims from this surface alone.

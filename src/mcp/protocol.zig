@@ -1,6 +1,7 @@
 const std = @import("std");
+const foundation_http = @import("abi").foundation.http;
 
-pub const MAX_REQUEST_SIZE = 64 * 1024; // 64KB request limit
+pub const MAX_REQUEST_SIZE = foundation_http.MAX_REQUEST_SIZE;
 /// Maximum nesting depth of `{`/`[` containers accepted by JSON-RPC parse paths.
 /// Bounds CPU/stack pressure from adversarial deeply-nested payloads (TM-008).
 pub const MAX_JSON_DEPTH: usize = 32;

@@ -36,6 +36,11 @@ pub const RankedNode = struct {
     id: u32,
     score: f32,
     components: ScoreComponents,
+    /// Optional zero-copy borrowed view of the stored vector (active dims).
+    /// Aliases the store index backing buffer — no allocation/copy. Valid until
+    /// the next store mutation that grows or frees that buffer. Null when not
+    /// attached via `retrieval.attachBorrowedVectors` or when the id is absent.
+    vector: ?[]const f32 = null,
 };
 
 /// A semantic candidate to be re-ranked: an id plus its semantic similarity.

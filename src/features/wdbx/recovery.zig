@@ -21,7 +21,7 @@ const wdbx_mod = @import("mod.zig");
 const persistence = @import("persistence.zig");
 const segments = @import("segments.zig");
 const wal = @import("wal.zig");
-const test_helpers = @import("../../testing/test_helpers.zig");
+const test_helpers = @import("../../foundation/test_helpers.zig");
 
 /// Which durable source the recovered Store was reconstructed from. `.merged`
 /// means a checkpoint plus a folded-in WAL delta. `.wal` is retained for

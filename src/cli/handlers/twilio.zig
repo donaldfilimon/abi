@@ -1,6 +1,6 @@
 const std = @import("std");
-const ai = @import("../../features/ai/mod.zig");
-const twilio_conn = @import("../../connectors/twilio.zig");
+const ai = @import("abi").features.ai;
+const twilio_conn = @import("abi").connectors.twilio;
 const usage_mod = @import("../usage.zig");
 
 /// `abi twilio simulate <input>`: run the AI agent over `input` and render the

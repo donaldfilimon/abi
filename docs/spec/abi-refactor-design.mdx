@@ -70,6 +70,10 @@ src/
 │   │   ├── orchestration.zig # Custom worker specs, background scheduler batch, browser plan (local dry-run)
 │   │   ├── streaming.zig # Local OpenAI-compatible SSE server
 │   │   ├── models.zig # Model catalog, alias routing, provider labels
+│   │   ├── file_context.zig # `@file` mention parsing, path sandboxing, context budget
+│   │   ├── pipeline_telemetry.zig # Per-turn pipeline telemetry snapshot (ethics scores, provider metadata)
+│   │   ├── point_neural_net.zig # Tiny trainable MLP with backprop/SGD, topology optimization, pruning
+│   │   ├── soul_layout.zig # SoulLayout prompt layout + labeled value records for persona grounding
 │   │   ├── iot_monitor.zig # IoT monitoring helper
 │   │   └── multimodal_fusion.zig # Multimodal input fusion helper
 │   ├── sea/           # Sparse Evidence Attention self-learning pass (mod/stub)
@@ -111,6 +115,8 @@ src/
 │   │   ├── compute.zig # CPU/GPU/NPU/TPU backend selector w/ deterministic CPU fallback (native dispatch not linked)
 │   │   ├── remote_compute.zig # bounded local remote-compute protocol helpers
 │   │   ├── rest.zig / rest_handlers.zig / rest_parse.zig # Loopback REST listener + pure route/parser helpers
+│   │   ├── rate_limiter.zig # Token-bucket rate limiter for the REST API (env-configured capacity/refill)
+│   │   ├── tls_config.zig # TLS cert/key env config for REST (validated only; native TLS not linked — disclosed partial)
 │   │   └── spatial_3d.zig # In-memory 3D spatial index
 │   ├── accelerator/   # Backend selection metadata (mod/stub)
 │   ├── shaders/       # Local shader validation (mod/stub)
@@ -120,15 +126,23 @@ src/
 │   ├── telemetry/     # Fixed-capacity process-wide event/counter hooks (mod/stub, enabled by default)
 │   ├── tui/           # Operational diagnostics dashboard + live terminal redraw helpers (mod/stub, enabled by default)
 │   │   ├── mod.zig / stub.zig
-│   │   ├── dashboard.zig # Diagnostics dashboard render loop
-│   │   ├── repl.zig      # Interactive REPL loop (raw-mode + line-mode)
+│   │   ├── dashboard.zig # Diagnostics dashboard orchestration loop
+│   │   ├── dashboard_render.zig # Split-layout frame rendering + layout constants
+│   │   ├── dashboard_widgets.zig # Box/label/value widget formatting helpers
+│   │   ├── dashboard_panes.zig # Per-pane body/color rendering (pure)
+│   │   ├── repl.zig      # Interactive REPL dispatch hub (thin; slash-command routing)
 │   │   ├── repl_commands.zig # Slash-command parsing, completion, status formatting (pure)
+│   │   ├── repl_io.zig   # Terminal input loops (raw-mode + line-mode stdin)
+│   │   ├── repl_complete.zig # Prompt-completion path for ordinary REPL input
+│   │   ├── repl_git_commands.zig # Git + session slash-command handlers
+│   │   ├── repl_session.zig # Session save/load (~/.abi/sessions/<name>.json)
+│   │   ├── repl_types.zig # Shared REPL state types leaf (avoids circular imports)
 │   │   ├── line_editor.zig  # Bounded raw-mode line editor (CSI decode, cursor, history)
 │   │   ├── terminal.zig     # Interactive terminal raw-mode wrapper
 │   │   ├── sanitize.zig     # Control-byte sanitizer for render-safe output
 │   │   └── types.zig        # TUI shared types
 │   ├── mobile/        # Mobile runtime profile surface (mod/stub, enabled by default)
-│   └── os_control/    # Safe OS command policy controls (mod/stub)
+│   └── os_control/    # Safe OS command policy controls (mod/stub); policy hardening (trusted absolute executables, handle-bound workspace/cwd authorization) lives in os_control/mod.zig with the CLI dry-run/execute gate in cli/handlers/agent.zig
 ├── connectors/        # External service connectors
 │   ├── mod.zig        # Re-exports and connector registration
 │   ├── connector.zig  # ConnectorError, TransportMode, Response
@@ -137,8 +151,13 @@ src/
 │   ├── openai.zig     # OpenAI connector
 │   ├── anthropic.zig  # Anthropic connector
 │   ├── discord.zig    # Discord connector with credential/snowflake-like/message validation
+│   ├── discord_gateway.zig # Discord gateway bot loop (WebSocket in, REST reply out)
+│   ├── discord_ws_client.zig # Minimal WebSocket client (upgrade handshake, frame masking)
+│   ├── discord_routing.zig # Pure command parsing/reply/truncation helpers for the gateway
 │   ├── twilio.zig     # Twilio ConversationRelay simulator with SID/token/base-url/timeout validation
+│   ├── twilio_relay.zig # ConversationRelay event/escalation types and handling
 │   ├── grok.zig       # Grok/xAI connector (local deterministic + .live opt-in)
+│   ├── local_bridge.zig # Loopback HTTP bridge to a user-run local OpenAI-compatible server (no engine bundled)
 │   ├── fm.zig         # Apple FoundationModels connector (arm64 macOS)
 │   └── tests.zig      # Connector contract and live-boundary tests imported by mod.zig
 ├── cli/           # CLI dispatch, handlers, usage
@@ -303,7 +322,7 @@ The namespace also exercises forward-looking WDBX modules that are deliberately 
 
 - `cluster status|demo|serve` (`cluster.zig`, `cluster_rpc.zig`) — an in-process Raft-style core (leader election, majority-quorum replication, failover) plus a networked RequestVote/AppendEntries RPC server. `cluster status` reports the real consensus state machine's view (a single node that elects itself leader); `cluster serve <port> [node] [host]` serves that node's consensus RPC on loopback by default and refuses non-loopback binds unless `ABI_WDBX_CLUSTER_TOKEN` is set. `cluster_rpc.zig` also has a deterministic authenticated loopback multi-node round that requests votes, appends one entry, verifies quorum, and checks peer logs. Production multi-host orchestration, TLS/mTLS or equivalent network policy, deployment controls, dynamic membership, and sharding remain Proposed.
 - `compute info` (`compute.zig`) — a CPU/GPU/NPU/TPU backend selector that always degrades to the deterministic CPU SIMD path; native accelerator dispatch is not linked.
-- `secure demo` (`compression.zig`, `entropy.zig`, `neural_compress.zig`, `crypto_he.zig`, `fhe.zig`) — int8 embedding quantization, exact order-0 Huffman entropy coding, a reference autoencoder codec, additive single-key homomorphic aggregation, and DGHV-style somewhat-homomorphic add/multiply at reference parameters. This is not a production/SOTA learned codec and not production-secure or bootstrapped full FHE.
+- `secure demo` (`compression.zig`, `entropy.zig`, `ans.zig`, `neural_compress.zig`, `crypto_he.zig`, `fhe.zig`) — int8 embedding quantization, exact order-0 Huffman, demo rANS + order-1 residual coding, a reference autoencoder codec, additive single-key homomorphic aggregation, and DGHV-style somewhat-homomorphic add/multiply at reference parameters. This is not a production/SOTA learned codec and not production-secure or bootstrapped full FHE.
 - `api serve [port]` (`rest.zig`) — a loopback-only REST listener (`POST /insert /query /verify`, `GET /health /stats`, default port 8081) built on a pure, unit-tested routing core.
 
 All of these preserve mod/stub parity: `mod.zig` exports `wal`, `temporal`, `retrieval`, `recovery`, `segments`, `cluster`, `compression`, `crypto_he`, `compute`, and `rest`, while `stub.zig` carries matching empty parity markers so `zig build check-parity` holds with `-Dfeat-wdbx=false`.

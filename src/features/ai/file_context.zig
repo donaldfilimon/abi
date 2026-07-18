@@ -249,6 +249,248 @@ test "resolveAndInject passes through when no mentions" {
     try std.testing.expectEqualStrings("no mentions here", result);
 }
 
+/// Caps for bounded workspace tree listings (cwd-sandboxed).
+pub const TREE_MAX_DEPTH: usize = 3;
+pub const TREE_MAX_ENTRIES: usize = 64;
+pub const TREE_DEFAULT_BUDGET_BYTES: usize = 2048;
+pub const GIT_DIFF_DEFAULT_BUDGET_BYTES: usize = 2048;
+
+/// Priority buckets for multi-source context. Higher-priority sources consume
+/// first; leftovers may be used by lower tiers when a tier underspends.
+pub const BudgetShares = struct {
+    open_bytes: usize,
+    at_file_bytes: usize,
+    tree_bytes: usize,
+    git_bytes: usize,
+
+    /// Split `total` with priority open > @file > tree > git (40/35/15/10).
+    pub fn fairShare(total: usize) BudgetShares {
+        if (total == 0) return .{ .open_bytes = 0, .at_file_bytes = 0, .tree_bytes = 0, .git_bytes = 0 };
+        const open = (total * 40) / 100;
+        const at_file = (total * 35) / 100;
+        const tree = (total * 15) / 100;
+        const git = total - open - at_file - tree;
+        return .{ .open_bytes = open, .at_file_bytes = at_file, .tree_bytes = tree, .git_bytes = git };
+    }
+};
+
+fn shouldSkipTreeName(name: []const u8) bool {
+    if (name.len == 0 or name[0] == '.') return true;
+    if (std.mem.eql(u8, name, "zig-cache") or std.mem.eql(u8, name, ".zig-cache")) return true;
+    if (std.mem.eql(u8, name, "zig-out") or std.mem.eql(u8, name, "node_modules")) return true;
+    return false;
+}
+
+/// Recursively list files under `root` (relative paths), capped by depth and
+/// entry count. Paths are cwd-sandboxed (no `..` / absolute escape). Returns an
+/// owned multi-line listing; caller frees.
+pub fn listWorkspaceTree(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    root: []const u8,
+    max_depth: usize,
+    max_entries: usize,
+) ![]u8 {
+    var out = std.ArrayListUnmanaged(u8).empty;
+    errdefer out.deinit(allocator);
+    var count: usize = 0;
+    try walkTree(io, allocator, root, "", 0, max_depth, max_entries, &count, &out);
+    if (out.items.len == 0) {
+        try out.appendSlice(allocator, "(empty tree)\n");
+    }
+    return try out.toOwnedSlice(allocator);
+}
+
+fn walkTree(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    root: []const u8,
+    rel: []const u8,
+    depth: usize,
+    max_depth: usize,
+    max_entries: usize,
+    count: *usize,
+    out: *std.ArrayListUnmanaged(u8),
+) !void {
+    if (depth > max_depth or count.* >= max_entries) return;
+
+    // `rel` is a cwd-relative path (includes `root` after the first level).
+    const open_path = if (rel.len == 0) root else rel;
+    var dir = try std.Io.Dir.cwd().openDir(io, open_path, .{ .iterate = true });
+    defer dir.close(io);
+
+    var it = dir.iterate();
+    while (try it.next(io)) |entry| {
+        if (count.* >= max_entries) break;
+        if (shouldSkipTreeName(entry.name)) continue;
+
+        const child_rel = if (rel.len == 0)
+            (if (std.mem.eql(u8, root, "."))
+                try allocator.dupe(u8, entry.name)
+            else
+                try std.fmt.allocPrint(allocator, "{s}/{s}", .{ root, entry.name }))
+        else
+            try std.fmt.allocPrint(allocator, "{s}/{s}", .{ rel, entry.name });
+        defer allocator.free(child_rel);
+
+        try validateMentionPath(child_rel, ".");
+
+        switch (entry.kind) {
+            .directory => {
+                if (depth >= max_depth) continue;
+                try walkTree(io, allocator, root, child_rel, depth + 1, max_depth, max_entries, count, out);
+            },
+            .file => {
+                try out.appendSlice(allocator, child_rel);
+                try out.append(allocator, '\n');
+                count.* += 1;
+            },
+            else => {},
+        }
+    }
+}
+
+/// Truncate `text` to `max_bytes`, preferring a trailing newline boundary.
+fn truncateToBudget(allocator: std.mem.Allocator, text: []const u8, max_bytes: usize) ![]u8 {
+    if (text.len <= max_bytes) return try allocator.dupe(u8, text);
+    var cut = max_bytes;
+    while (cut > 0 and text[cut - 1] != '\n') cut -= 1;
+    if (cut == 0) cut = max_bytes;
+    return try allocator.dupe(u8, text[0..cut]);
+}
+
+/// Run `git diff --stat` (or full `git diff --color=never`) and return owned
+/// stdout truncated to `max_bytes`. Missing git / non-repo → empty string.
+pub fn readGitDiffBudgeted(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    max_bytes: usize,
+    stat_only: bool,
+) ![]u8 {
+    if (max_bytes == 0) return try allocator.dupe(u8, "");
+
+    const argv: []const []const u8 = if (stat_only)
+        &.{ "git", "diff", "--stat" }
+    else
+        &.{ "git", "diff", "--color=never" };
+
+    var child = std.process.spawn(io, .{
+        .argv = argv,
+        .cwd = .inherit,
+        .stdin = .ignore,
+        .stdout = .pipe,
+        .stderr = .ignore,
+    }) catch return try allocator.dupe(u8, "");
+    defer child.kill(io);
+
+    var output = std.ArrayListUnmanaged(u8).empty;
+    defer output.deinit(allocator);
+    var buf: [4096]u8 = undefined;
+    while (true) {
+        const n = std.Io.File.readStreaming(child.stdout.?, io, &.{&buf}) catch break;
+        if (n == 0) break;
+        try output.appendSlice(allocator, buf[0..n]);
+        if (output.items.len >= max_bytes) break;
+    }
+    _ = child.wait(io) catch |err| std.log.warn("file_context child wait: {s}", .{@errorName(err)});
+
+    return try truncateToBudget(allocator, output.items, max_bytes);
+}
+
+pub const AgentContextOptions = struct {
+    include_tree: bool = true,
+    include_git_diff: bool = true,
+    git_stat_only: bool = true,
+    open_path: []const u8 = "",
+    open_content: []const u8 = "",
+    tree_max_depth: usize = TREE_MAX_DEPTH,
+    tree_max_entries: usize = TREE_MAX_ENTRIES,
+};
+
+/// Build a budgeted agent context: open file (priority) + `@file` mentions +
+/// optional workspace tree + optional git diff/--stat. Returns owned text.
+pub fn buildAgentContext(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    input: []const u8,
+    root: []const u8,
+    total_budget: usize,
+    opts: AgentContextOptions,
+) ![]u8 {
+    const shares = BudgetShares.fairShare(total_budget);
+    var out = std.ArrayListUnmanaged(u8).empty;
+    errdefer out.deinit(allocator);
+
+    // 1. Open file (highest priority)
+    var open_used: usize = 0;
+    if (opts.open_path.len > 0 and opts.open_content.len > 0 and shares.open_bytes > 0) {
+        const body = try truncateToBudget(allocator, opts.open_content, shares.open_bytes);
+        defer allocator.free(body);
+        const header = try std.fmt.allocPrint(allocator, "[open: {s}]\n", .{opts.open_path});
+        defer allocator.free(header);
+        try out.appendSlice(allocator, header);
+        try out.appendSlice(allocator, body);
+        try out.append(allocator, '\n');
+        open_used = header.len + body.len + 1;
+    }
+
+    // 2. @file mentions
+    var at_budget = ContextBudget.init(shares.at_file_bytes + (shares.open_bytes -| open_used));
+    const injected = try resolveAndInject(io, allocator, input, root, &at_budget);
+    defer allocator.free(injected);
+    try out.appendSlice(allocator, injected);
+
+    // 3. Workspace tree
+    if (opts.include_tree and shares.tree_bytes > 0) {
+        const tree = listWorkspaceTree(io, allocator, root, opts.tree_max_depth, opts.tree_max_entries) catch null;
+        if (tree) |listing| {
+            defer allocator.free(listing);
+            const clipped = try truncateToBudget(allocator, listing, shares.tree_bytes);
+            defer allocator.free(clipped);
+            try out.appendSlice(allocator, "[workspace-tree]\n");
+            try out.appendSlice(allocator, clipped);
+            if (clipped.len == 0 or clipped[clipped.len - 1] != '\n') try out.append(allocator, '\n');
+        }
+    }
+
+    // 4. Git diff / --stat
+    if (opts.include_git_diff and shares.git_bytes > 0) {
+        const diff = try readGitDiffBudgeted(io, allocator, shares.git_bytes, opts.git_stat_only);
+        defer allocator.free(diff);
+        if (diff.len > 0) {
+            try out.appendSlice(allocator, if (opts.git_stat_only) "[git-diff-stat]\n" else "[git-diff]\n");
+            try out.appendSlice(allocator, diff);
+            if (diff[diff.len - 1] != '\n') try out.append(allocator, '\n');
+        }
+    }
+
+    return try out.toOwnedSlice(allocator);
+}
+
+test "BudgetShares.fairShare partitions total with open priority" {
+    const s = BudgetShares.fairShare(1000);
+    try std.testing.expectEqual(@as(usize, 400), s.open_bytes);
+    try std.testing.expectEqual(@as(usize, 350), s.at_file_bytes);
+    try std.testing.expectEqual(@as(usize, 150), s.tree_bytes);
+    try std.testing.expectEqual(@as(usize, 100), s.git_bytes);
+    try std.testing.expectEqual(@as(usize, 1000), s.open_bytes + s.at_file_bytes + s.tree_bytes + s.git_bytes);
+}
+
+test "listWorkspaceTree returns sandboxed relative paths" {
+    const allocator = std.testing.allocator;
+    const listing = try listWorkspaceTree(std.testing.io, allocator, "src/features/ai", 1, 8);
+    defer allocator.free(listing);
+    try std.testing.expect(listing.len > 0);
+    try std.testing.expect(std.mem.indexOf(u8, listing, "..") == null);
+}
+
+test "truncateToBudget respects max bytes" {
+    const allocator = std.testing.allocator;
+    const clipped = try truncateToBudget(allocator, "aaa\nbbb\nccc\n", 8);
+    defer allocator.free(clipped);
+    try std.testing.expect(clipped.len <= 8);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

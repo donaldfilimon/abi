@@ -14,25 +14,28 @@
         "pages": ["index", "contributing"]
       },
       {
-        "group": "Architecture",
-        "pages": [
-          "spec/abi-refactor-design",
-          "spec/agent-wdbx-architecture",
-          "spec/multi-persona-technical",
-          "spec/wdbx-north-star"
-        ]
-      },
-      {
-        "group": "Specs (partial extracts)",
-        "pages": [
-          "spec/sea-design-extract"
-        ]
-      },
-      {
         "group": "Contracts",
         "pages": [
           "contracts/public-api",
           "contracts/external-claims-audit"
+        ]
+      },
+      {
+        "group": "Architecture",
+        "pages": [
+          "spec/wdbx-north-star",
+          "spec/agent-wdbx-architecture",
+          "spec/abi-refactor-design",
+          "spec/multi-persona-technical",
+          "spec/non-loopback-rest-threat-review",
+          "spec/cluster-mtls-ops",
+          "spec/phase-d-cutover-plan"
+        ]
+      },
+      {
+        "group": "Design extracts (partial)",
+        "pages": [
+          "spec/sea-design-extract"
         ]
       }
     ]

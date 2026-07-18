@@ -2,11 +2,15 @@ const builtin = @import("builtin");
 const std = @import("std");
 const sync = @import("../../foundation/sync.zig");
 
-const objc = struct {
+// The objc runtime symbols only exist on macOS. Declare the externs only when
+// targeting macOS so cross-compiles (Linux/Windows) don't emit undefined
+// symbols at link time. Off-macOS this is an empty struct and the objc-using
+// function bodies are comptime-dead (see the `comptime` early returns below).
+const objc = if (builtin.target.os.tag == .macos) struct {
     extern fn objc_getClass(name: [*c]const u8) ?*anyopaque;
     extern fn sel_registerName(name: [*c]const u8) ?*anyopaque;
     extern fn objc_msgSend() void;
-};
+} else struct {};
 
 const MTLCreateSystemDefaultDeviceFn = fn () callconv(.c) ?*anyopaque;
 const MTLCreateSystemDefaultDevice: ?*const MTLCreateSystemDefaultDeviceFn = if (builtin.target.os.tag == .macos)
@@ -28,12 +32,152 @@ const MsgSendIdRetId = *const fn (?*anyopaque, ?*anyopaque, ?*anyopaque) callcon
 const MsgSendIdErrRetId = *const fn (?*anyopaque, ?*anyopaque, ?*anyopaque, ?*anyopaque) callconv(.c) ?*anyopaque;
 const MsgSendIdIdErrRetId = *const fn (?*anyopaque, ?*anyopaque, ?*anyopaque, ?*anyopaque, ?*anyopaque) callconv(.c) ?*anyopaque;
 const MsgSendPtrUsizeUsizeRetId = *const fn (?*anyopaque, ?*anyopaque, ?*const anyopaque, usize, usize) callconv(.c) ?*anyopaque;
+const MsgSendUsizeUsizeRetId = *const fn (?*anyopaque, ?*anyopaque, usize, usize) callconv(.c) ?*anyopaque;
 const MsgSendVoidRetPtr = *const fn (?*anyopaque, ?*anyopaque) callconv(.c) ?*anyopaque;
 const MsgSendIdUsizeUsizeRetVoid = *const fn (?*anyopaque, ?*anyopaque, ?*anyopaque, usize, usize) callconv(.c) void;
+const MsgSendPtrUsizeUsizeRetVoid = *const fn (?*anyopaque, ?*anyopaque, ?*const anyopaque, usize, usize) callconv(.c) void;
 const MsgSendMtlSizeMtlSizeRetVoid = *const fn (?*anyopaque, ?*anyopaque, MTLSize, MTLSize) callconv(.c) void;
 
+/// Shared ObjC msgSend casts + Metal selectors used by every dispatch path.
+/// Constructed once per call site via `load()` so kernels share one helper path
+/// instead of duplicating cast/selector boilerplate.
+const MetalDispatch = struct {
+    msg_void_id: MsgSendVoidRetId,
+    msg_void_void: MsgSendVoidRetVoid,
+    msg_id_id: MsgSendIdRetId,
+    msg_bytes: MsgSendPtrUsizeUsizeRetId,
+    msg_len: MsgSendUsizeUsizeRetId,
+    msg_set_buf: MsgSendIdUsizeUsizeRetVoid,
+    msg_set_bytes: MsgSendPtrUsizeUsizeRetVoid,
+    msg_dispatch: MsgSendMtlSizeMtlSizeRetVoid,
+    msg_contents: MsgSendVoidRetPtr,
+
+    sel_command_buffer: ?*anyopaque,
+    sel_encoder: ?*anyopaque,
+    sel_set_pipeline: ?*anyopaque,
+    sel_new_bytes: ?*anyopaque,
+    sel_new_length: ?*anyopaque,
+    sel_set_buffer: ?*anyopaque,
+    sel_set_bytes: ?*anyopaque,
+    sel_dispatch_threads: ?*anyopaque,
+    sel_dispatch_groups: ?*anyopaque,
+    sel_end: ?*anyopaque,
+    sel_commit: ?*anyopaque,
+    sel_wait: ?*anyopaque,
+    sel_contents: ?*anyopaque,
+    sel_release: ?*anyopaque,
+
+    fn load() MetalDispatch {
+        if (comptime builtin.target.os.tag != .macos) {
+            return undefined;
+        }
+        return .{
+            .msg_void_id = @ptrCast(&objc.objc_msgSend),
+            .msg_void_void = @ptrCast(&objc.objc_msgSend),
+            .msg_id_id = @ptrCast(&objc.objc_msgSend),
+            .msg_bytes = @ptrCast(&objc.objc_msgSend),
+            .msg_len = @ptrCast(&objc.objc_msgSend),
+            .msg_set_buf = @ptrCast(&objc.objc_msgSend),
+            .msg_set_bytes = @ptrCast(&objc.objc_msgSend),
+            .msg_dispatch = @ptrCast(&objc.objc_msgSend),
+            .msg_contents = @ptrCast(&objc.objc_msgSend),
+            .sel_command_buffer = objc.sel_registerName("commandBuffer"),
+            .sel_encoder = objc.sel_registerName("computeCommandEncoder"),
+            .sel_set_pipeline = objc.sel_registerName("setComputePipelineState:"),
+            .sel_new_bytes = objc.sel_registerName("newBufferWithBytes:length:options:"),
+            .sel_new_length = objc.sel_registerName("newBufferWithLength:options:"),
+            .sel_set_buffer = objc.sel_registerName("setBuffer:offset:atIndex:"),
+            .sel_set_bytes = objc.sel_registerName("setBytes:length:atIndex:"),
+            .sel_dispatch_threads = objc.sel_registerName("dispatchThreads:threadsPerThreadgroup:"),
+            .sel_dispatch_groups = objc.sel_registerName("dispatchThreadgroups:threadsPerThreadgroup:"),
+            .sel_end = objc.sel_registerName("endEncoding"),
+            .sel_commit = objc.sel_registerName("commit"),
+            .sel_wait = objc.sel_registerName("waitUntilCompleted"),
+            .sel_contents = objc.sel_registerName("contents"),
+            .sel_release = objc.sel_registerName("release"),
+        };
+    }
+
+    fn release(self: MetalDispatch, obj: ?*anyopaque) void {
+        self.msg_void_void(obj, self.sel_release);
+    }
+
+    fn commitAndWait(self: MetalDispatch, cmd_buf: ?*anyopaque) void {
+        self.msg_void_void(cmd_buf, self.sel_commit);
+        self.msg_void_void(cmd_buf, self.sel_wait);
+    }
+
+    fn readF32(self: MetalDispatch, buffer: ?*anyopaque) !f32 {
+        const ptr = self.msg_contents(buffer, self.sel_contents) orelse return error.ReadBufferFailed;
+        return @as([*]f32, @ptrCast(@alignCast(ptr)))[0];
+    }
+
+    fn copyBufferToHost(self: MetalDispatch, buffer: ?*anyopaque, dest: []f32) !void {
+        const ptr = self.msg_contents(buffer, self.sel_contents) orelse return error.ReadBufferFailed;
+        @memcpy(dest, @as([*]f32, @ptrCast(@alignCast(ptr)))[0..dest.len]);
+    }
+
+    /// Encode one 256-wide reduce pass into an existing command buffer.
+    /// Returns the newly allocated partials buffer (caller owns) and its length.
+    fn encodeReducePass(
+        self: MetalDispatch,
+        device: ?*anyopaque,
+        pipeline: ?*anyopaque,
+        cmd_buf: ?*anyopaque,
+        buffer_in: ?*anyopaque,
+        current_len: usize,
+    ) !struct { buffer: ?*anyopaque, len: usize } {
+        const tg_size: usize = 256;
+        const num_groups = (current_len + tg_size - 1) / tg_size;
+        const partial_bytes = num_groups * @sizeOf(f32);
+        const buffer_out = self.msg_len(device, self.sel_new_length, partial_bytes, 0) orelse
+            return error.BufferAllocationFailed;
+
+        const encoder = self.msg_void_id(cmd_buf, self.sel_encoder) orelse {
+            self.release(buffer_out);
+            return error.EncoderCreationFailed;
+        };
+
+        _ = self.msg_id_id(encoder, self.sel_set_pipeline, pipeline);
+        self.msg_set_buf(encoder, self.sel_set_buffer, buffer_in, 0, 0);
+        self.msg_set_buf(encoder, self.sel_set_buffer, buffer_out, 0, 1);
+        var n_u32: u32 = @intCast(current_len);
+        self.msg_set_bytes(encoder, self.sel_set_bytes, &n_u32, @sizeOf(u32), 2);
+
+        const groups = MTLSize{ .width = num_groups, .height = 1, .depth = 1 };
+        const threads = MTLSize{ .width = tg_size, .height = 1, .depth = 1 };
+        self.msg_dispatch(encoder, self.sel_dispatch_groups, groups, threads);
+        self.msg_void_void(encoder, self.sel_end);
+
+        return .{ .buffer = buffer_out, .len = num_groups };
+    }
+
+    /// Multi-pass reduce encoded into `cmd_buf` (no commit/wait). Returns the
+    /// final single-element buffer; releases intermediate inputs.
+    fn encodeReduceToScalar(
+        self: MetalDispatch,
+        device: ?*anyopaque,
+        pipeline: ?*anyopaque,
+        cmd_buf: ?*anyopaque,
+        buffer_in_owned: ?*anyopaque,
+        start_len: usize,
+    ) !?*anyopaque {
+        var buffer_in = buffer_in_owned;
+        var current_len = start_len;
+        errdefer self.release(buffer_in);
+
+        while (current_len > 1) {
+            const pass = try self.encodeReducePass(device, pipeline, cmd_buf, buffer_in, current_len);
+            self.release(buffer_in);
+            buffer_in = pass.buffer;
+            current_len = pass.len;
+        }
+        return buffer_in;
+    }
+};
+
 fn createNSString(allocator: std.mem.Allocator, str: []const u8) !?*anyopaque {
-    if (builtin.target.os.tag != .macos) return null;
+    if (comptime builtin.target.os.tag != .macos) return null;
     const class_nsstring = objc.objc_getClass("NSString");
     const sel_string_with_utf8 = objc.sel_registerName("stringWithUTF8String:");
     const MsgSendCstrRetId = *const fn (?*anyopaque, ?*anyopaque, [*c]const u8) callconv(.c) ?*anyopaque;
@@ -52,6 +196,9 @@ const MetalContext = struct {
     queue: ?*anyopaque = null,
     dot_pipeline: ?*anyopaque = null,
     l2_pipeline: ?*anyopaque = null,
+    cosine_parts_pipeline: ?*anyopaque = null,
+    batch_cosine_pipeline: ?*anyopaque = null,
+    reduce_sum_pipeline: ?*anyopaque = null,
     initialized: bool = false,
     mutex: sync.SpinLock = .{},
 
@@ -60,7 +207,7 @@ const MetalContext = struct {
         defer self.mutex.unlock();
         if (self.initialized) return;
 
-        if (builtin.target.os.tag != .macos) {
+        if (comptime builtin.target.os.tag != .macos) {
             return error.NotSupported;
         }
 
@@ -92,6 +239,89 @@ const MetalContext = struct {
             \\) {
             \\    float diff = a[id] - b[id];
             \\    result[id] = diff * diff;
+            \\}
+            \\
+            \\kernel void cosine_parts_kernel(
+            \\    device const float* a [[buffer(0)]],
+            \\    device const float* b [[buffer(1)]],
+            \\    device float* ab [[buffer(2)]],
+            \\    device float* aa [[buffer(3)]],
+            \\    device float* bb [[buffer(4)]],
+            \\    uint id [[thread_position_in_grid]]
+            \\) {
+            \\    float av = a[id];
+            \\    float bv = b[id];
+            \\    ab[id] = av * bv;
+            \\    aa[id] = av * av;
+            \\    bb[id] = bv * bv;
+            \\}
+            \\
+            \\// One threadgroup per candidate row (candidate `dim`-length vectors
+            \\// are laid out contiguously in `candidates`). Threads stride over
+            \\// the dimension accumulating partial qc/cc sums, then a shared-memory
+            \\// tree reduction (same pattern as reduce_sum_kernel) collapses to one
+            \\// value per threadgroup; thread 0 divides by the precomputed query
+            \\// norm and writes the cosine similarity for that candidate.
+            \\kernel void batch_cosine_kernel(
+            \\    device const float* query [[buffer(0)]],
+            \\    device const float* candidates [[buffer(1)]],
+            \\    device float* out [[buffer(2)]],
+            \\    constant uint& dim [[buffer(3)]],
+            \\    constant float& q_norm [[buffer(4)]],
+            \\    uint lid [[thread_position_in_threadgroup]],
+            \\    uint tgid [[threadgroup_position_in_grid]]
+            \\) {
+            \\    threadgroup float shared_qc[256];
+            \\    threadgroup float shared_cc[256];
+            \\    const uint lsize = 256u;
+            \\    const uint base = tgid * dim;
+            \\    float qc_part = 0.0f;
+            \\    float cc_part = 0.0f;
+            \\    for (uint i = lid; i < dim; i += lsize) {
+            \\        float qv = query[i];
+            \\        float cv = candidates[base + i];
+            \\        qc_part += qv * cv;
+            \\        cc_part += cv * cv;
+            \\    }
+            \\    shared_qc[lid] = qc_part;
+            \\    shared_cc[lid] = cc_part;
+            \\    threadgroup_barrier(mem_flags::mem_threadgroup);
+            \\    for (uint stride = lsize / 2u; stride > 0u; stride >>= 1u) {
+            \\        if (lid < stride) {
+            \\            shared_qc[lid] += shared_qc[lid + stride];
+            \\            shared_cc[lid] += shared_cc[lid + stride];
+            \\        }
+            \\        threadgroup_barrier(mem_flags::mem_threadgroup);
+            \\    }
+            \\    if (lid == 0u) {
+            \\        float cc = shared_cc[0];
+            \\        if (q_norm == 0.0f || cc == 0.0f) {
+            \\            out[tgid] = 0.0f;
+            \\        } else {
+            \\            out[tgid] = shared_qc[0] / (q_norm * sqrt(cc));
+            \\        }
+            \\    }
+            \\}
+            \\
+            \\// One partial sum per threadgroup (256 threads). Zig encodeReduce*
+            \\// re-dispatches until a single scalar remains (multi-pass).
+            \\kernel void reduce_sum_kernel(
+            \\    device const float* in [[buffer(0)]],
+            \\    device float* partials [[buffer(1)]],
+            \\    constant uint& n [[buffer(2)]],
+            \\    uint lid [[thread_position_in_threadgroup]],
+            \\    uint tgid [[threadgroup_position_in_grid]]
+            \\) {
+            \\    threadgroup float shared[256];
+            \\    const uint lsize = 256u;
+            \\    uint i = tgid * lsize + lid;
+            \\    shared[lid] = (i < n) ? in[i] : 0.0f;
+            \\    threadgroup_barrier(mem_flags::mem_threadgroup);
+            \\    for (uint stride = lsize / 2u; stride > 0u; stride >>= 1u) {
+            \\        if (lid < stride) shared[lid] += shared[lid + stride];
+            \\        threadgroup_barrier(mem_flags::mem_threadgroup);
+            \\    }
+            \\    if (lid == 0u) partials[tgid] = shared[0];
             \\}
         ;
 
@@ -126,6 +356,15 @@ const MetalContext = struct {
         const l2_func_name = try createNSString(allocator, "l2_kernel") orelse return error.CreateStringFailed;
         const l2_func = msg_send_id_ret_id(library, sel_newFunctionWithName, l2_func_name) orelse return error.FunctionNotFound;
 
+        const cosine_func_name = try createNSString(allocator, "cosine_parts_kernel") orelse return error.CreateStringFailed;
+        const cosine_func = msg_send_id_ret_id(library, sel_newFunctionWithName, cosine_func_name) orelse return error.FunctionNotFound;
+
+        const batch_cosine_func_name = try createNSString(allocator, "batch_cosine_kernel") orelse return error.CreateStringFailed;
+        const batch_cosine_func = msg_send_id_ret_id(library, sel_newFunctionWithName, batch_cosine_func_name) orelse return error.FunctionNotFound;
+
+        const reduce_func_name = try createNSString(allocator, "reduce_sum_kernel") orelse return error.CreateStringFailed;
+        const reduce_func = msg_send_id_ret_id(library, sel_newFunctionWithName, reduce_func_name) orelse return error.FunctionNotFound;
+
         const sel_newComputePipelineState = objc.sel_registerName("newComputePipelineStateWithFunction:error:");
         const msg_send_id_err_ret_id = @as(MsgSendIdErrRetId, @ptrCast(&objc.objc_msgSend));
 
@@ -137,71 +376,391 @@ const MetalContext = struct {
         self.l2_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, l2_func, @ptrCast(&err));
         if (self.l2_pipeline == null) return error.CreatePipelineStateFailed;
 
+        err = null;
+        self.cosine_parts_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, cosine_func, @ptrCast(&err));
+        if (self.cosine_parts_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
+        self.batch_cosine_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, batch_cosine_func, @ptrCast(&err));
+        if (self.batch_cosine_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
+        self.reduce_sum_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, reduce_func, @ptrCast(&err));
+        if (self.reduce_sum_pipeline == null) return error.CreatePipelineStateFailed;
+
         // Release one-time init temporaries; the pipeline states and queue stay retained.
         const sel_release = objc.sel_registerName("release");
         const msg_send_void_ret_void = @as(MsgSendVoidRetVoid, @ptrCast(&objc.objc_msgSend));
         msg_send_void_ret_void(dot_func, sel_release);
         msg_send_void_ret_void(l2_func, sel_release);
+        msg_send_void_ret_void(cosine_func, sel_release);
+        msg_send_void_ret_void(batch_cosine_func, sel_release);
+        msg_send_void_ret_void(reduce_func, sel_release);
         msg_send_void_ret_void(library, sel_release);
         msg_send_void_ret_void(dot_func_name, sel_release);
         msg_send_void_ret_void(l2_func_name, sel_release);
+        msg_send_void_ret_void(cosine_func_name, sel_release);
+        msg_send_void_ret_void(batch_cosine_func_name, sel_release);
+        msg_send_void_ret_void(reduce_func_name, sel_release);
         msg_send_void_ret_void(source_nsstring, sel_release);
 
         self.initialized = true;
     }
 
-    pub fn runKernel(self: *MetalContext, pipeline: ?*anyopaque, len: usize, a: []const f32, b: []const f32, res: []f32) !void {
-        if (!self.initialized) return error.NotInitialized;
-
-        const msg_send_void_ret_id = @as(MsgSendVoidRetId, @ptrCast(&objc.objc_msgSend));
-        const msg_send_void_ret_void = @as(MsgSendVoidRetVoid, @ptrCast(&objc.objc_msgSend));
-        const msg_send_id_ret_id = @as(MsgSendIdRetId, @ptrCast(&objc.objc_msgSend));
-        const msg_send_ptr_usize_usize_ret_id = @as(MsgSendPtrUsizeUsizeRetId, @ptrCast(&objc.objc_msgSend));
-        const msg_send_id_usize_usize_ret_void = @as(MsgSendIdUsizeUsizeRetVoid, @ptrCast(&objc.objc_msgSend));
-        const msg_send_mtlsize_mtlsize_ret_void = @as(MsgSendMtlSizeMtlSizeRetVoid, @ptrCast(&objc.objc_msgSend));
-        const msg_send_void_ret_ptr = @as(MsgSendVoidRetPtr, @ptrCast(&objc.objc_msgSend));
-
-        const sel_commandBuffer = objc.sel_registerName("commandBuffer");
-        const sel_computeCommandEncoder = objc.sel_registerName("computeCommandEncoder");
-        const sel_setComputePipelineState = objc.sel_registerName("setComputePipelineState:");
-        const sel_newBufferWithBytes = objc.sel_registerName("newBufferWithBytes:length:options:");
-        const sel_setBufferOffsetAtIndex = objc.sel_registerName("setBuffer:offset:atIndex:");
-        const sel_dispatch = objc.sel_registerName("dispatchThreads:threadsPerThreadgroup:");
-        const sel_endEncoding = objc.sel_registerName("endEncoding");
-        const sel_commit = objc.sel_registerName("commit");
-        const sel_waitUntilCompleted = objc.sel_registerName("waitUntilCompleted");
-        const sel_contents = objc.sel_registerName("contents");
-
-        const byte_len = len * @sizeOf(f32);
-        const buffer_a = msg_send_ptr_usize_usize_ret_id(self.device, sel_newBufferWithBytes, a.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
-        const buffer_b = msg_send_ptr_usize_usize_ret_id(self.device, sel_newBufferWithBytes, b.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
-        const buffer_res = msg_send_ptr_usize_usize_ret_id(self.device, sel_newBufferWithBytes, res.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
-
-        const cmd_buf = msg_send_void_ret_id(self.queue, sel_commandBuffer) orelse return error.CommandBufferCreationFailed;
-        const encoder = msg_send_void_ret_id(cmd_buf, sel_computeCommandEncoder) orelse return error.EncoderCreationFailed;
-
-        _ = msg_send_id_ret_id(encoder, sel_setComputePipelineState, pipeline);
-        msg_send_id_usize_usize_ret_void(encoder, sel_setBufferOffsetAtIndex, buffer_a, 0, 0);
-        msg_send_id_usize_usize_ret_void(encoder, sel_setBufferOffsetAtIndex, buffer_b, 0, 1);
-        msg_send_id_usize_usize_ret_void(encoder, sel_setBufferOffsetAtIndex, buffer_res, 0, 2);
+    fn encodeMapKernel(
+        d: MetalDispatch,
+        pipeline: ?*anyopaque,
+        cmd_buf: ?*anyopaque,
+        buffer_a: ?*anyopaque,
+        buffer_b: ?*anyopaque,
+        buffer_res: ?*anyopaque,
+        len: usize,
+    ) !void {
+        const encoder = d.msg_void_id(cmd_buf, d.sel_encoder) orelse return error.EncoderCreationFailed;
+        _ = d.msg_id_id(encoder, d.sel_set_pipeline, pipeline);
+        d.msg_set_buf(encoder, d.sel_set_buffer, buffer_a, 0, 0);
+        d.msg_set_buf(encoder, d.sel_set_buffer, buffer_b, 0, 1);
+        d.msg_set_buf(encoder, d.sel_set_buffer, buffer_res, 0, 2);
 
         const local_size = @min(len, 256);
         const threadgroups = MTLSize{ .width = len, .height = 1, .depth = 1 };
         const threads_per_threadgroup = MTLSize{ .width = local_size, .height = 1, .depth = 1 };
+        d.msg_dispatch(encoder, d.sel_dispatch_threads, threadgroups, threads_per_threadgroup);
+        d.msg_void_void(encoder, d.sel_end);
+    }
 
-        msg_send_mtlsize_mtlsize_ret_void(encoder, sel_dispatch, threadgroups, threads_per_threadgroup);
-        msg_send_void_ret_void(encoder, sel_endEncoding);
-        msg_send_void_ret_void(cmd_buf, sel_commit);
-        msg_send_void_ret_void(cmd_buf, sel_waitUntilCompleted);
+    /// Map kernel then multi-pass reduce on-GPU in one command buffer.
+    /// Avoids host copy + re-upload between map and reduce.
+    pub fn runMapAndReduce(
+        self: *MetalContext,
+        pipeline: ?*anyopaque,
+        len: usize,
+        a: []const f32,
+        b: []const f32,
+    ) !f32 {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (self.reduce_sum_pipeline == null) return error.NotInitialized;
+        if (len == 0) return 0;
 
-        const res_ptr = msg_send_void_ret_ptr(buffer_res, sel_contents) orelse return error.ReadBufferFailed;
-        const res_slice = @as([*]f32, @ptrCast(@alignCast(res_ptr)))[0..len];
-        @memcpy(res, res_slice);
+        const d = MetalDispatch.load();
+        const byte_len = len * @sizeOf(f32);
 
-        const sel_release = objc.sel_registerName("release");
-        msg_send_void_ret_void(buffer_a, sel_release);
-        msg_send_void_ret_void(buffer_b, sel_release);
-        msg_send_void_ret_void(buffer_res, sel_release);
+        const buffer_a = d.msg_bytes(self.device, d.sel_new_bytes, a.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_a);
+        const buffer_b = d.msg_bytes(self.device, d.sel_new_bytes, b.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_b);
+        // Ownership of buffer_res transfers to encodeReduceToScalar (no defer).
+        const buffer_res = d.msg_len(self.device, d.sel_new_length, byte_len, 0) orelse return error.BufferAllocationFailed;
+
+        const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse {
+            d.release(buffer_res);
+            return error.CommandBufferCreationFailed;
+        };
+        encodeMapKernel(d, pipeline, cmd_buf, buffer_a, buffer_b, buffer_res, len) catch |e| {
+            d.release(buffer_res);
+            return e;
+        };
+
+        const scalar_buf = try d.encodeReduceToScalar(
+            self.device,
+            self.reduce_sum_pipeline,
+            cmd_buf,
+            buffer_res,
+            len,
+        );
+
+        d.commitAndWait(cmd_buf);
+        const sum = d.readF32(scalar_buf) catch |e| {
+            d.release(scalar_buf);
+            return e;
+        };
+        d.release(scalar_buf);
+        return sum;
+    }
+
+    pub fn runKernel(self: *MetalContext, pipeline: ?*anyopaque, len: usize, a: []const f32, b: []const f32, res: []f32) !void {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+
+        const d = MetalDispatch.load();
+        const byte_len = len * @sizeOf(f32);
+
+        const buffer_a = d.msg_bytes(self.device, d.sel_new_bytes, a.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_a);
+        const buffer_b = d.msg_bytes(self.device, d.sel_new_bytes, b.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_b);
+        const buffer_res = d.msg_bytes(self.device, d.sel_new_bytes, res.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_res);
+
+        const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse return error.CommandBufferCreationFailed;
+        try encodeMapKernel(d, pipeline, cmd_buf, buffer_a, buffer_b, buffer_res, len);
+        d.commitAndWait(cmd_buf);
+        try d.copyBufferToHost(buffer_res, res[0..len]);
+    }
+
+    pub fn runCosinePartsKernel(
+        self: *MetalContext,
+        len: usize,
+        a: []const f32,
+        b: []const f32,
+        ab: []f32,
+        aa: []f32,
+        bb: []f32,
+    ) !void {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (ab.len < len or aa.len < len or bb.len < len) return error.BufferTooSmall;
+
+        const d = MetalDispatch.load();
+        const byte_len = len * @sizeOf(f32);
+
+        const buffer_a = d.msg_bytes(self.device, d.sel_new_bytes, a.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_a);
+        const buffer_b = d.msg_bytes(self.device, d.sel_new_bytes, b.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_b);
+        const buffer_ab = d.msg_bytes(self.device, d.sel_new_bytes, ab.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_ab);
+        const buffer_aa = d.msg_bytes(self.device, d.sel_new_bytes, aa.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_aa);
+        const buffer_bb = d.msg_bytes(self.device, d.sel_new_bytes, bb.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_bb);
+
+        const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse return error.CommandBufferCreationFailed;
+        const encoder = d.msg_void_id(cmd_buf, d.sel_encoder) orelse return error.EncoderCreationFailed;
+
+        _ = d.msg_id_id(encoder, d.sel_set_pipeline, self.cosine_parts_pipeline);
+        d.msg_set_buf(encoder, d.sel_set_buffer, buffer_a, 0, 0);
+        d.msg_set_buf(encoder, d.sel_set_buffer, buffer_b, 0, 1);
+        d.msg_set_buf(encoder, d.sel_set_buffer, buffer_ab, 0, 2);
+        d.msg_set_buf(encoder, d.sel_set_buffer, buffer_aa, 0, 3);
+        d.msg_set_buf(encoder, d.sel_set_buffer, buffer_bb, 0, 4);
+
+        const local_size = @min(len, 256);
+        const threadgroups = MTLSize{ .width = len, .height = 1, .depth = 1 };
+        const threads_per_threadgroup = MTLSize{ .width = local_size, .height = 1, .depth = 1 };
+        d.msg_dispatch(encoder, d.sel_dispatch_threads, threadgroups, threads_per_threadgroup);
+        d.msg_void_void(encoder, d.sel_end);
+        d.commitAndWait(cmd_buf);
+
+        try d.copyBufferToHost(buffer_ab, ab[0..len]);
+        try d.copyBufferToHost(buffer_aa, aa[0..len]);
+        try d.copyBufferToHost(buffer_bb, bb[0..len]);
+    }
+
+    pub const CosineSums = struct {
+        ab: f32,
+        aa: f32,
+        bb: f32,
+    };
+
+    /// Fused cosine parts + three on-GPU reduces in one command buffer.
+    /// Returns three scalars only — no full-array host round-trips.
+    pub fn runCosineFused(self: *MetalContext, len: usize, a: []const f32, b: []const f32) !CosineSums {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (self.cosine_parts_pipeline == null or self.reduce_sum_pipeline == null) return error.NotInitialized;
+        if (len == 0) return .{ .ab = 0, .aa = 0, .bb = 0 };
+
+        const d = MetalDispatch.load();
+        const byte_len = len * @sizeOf(f32);
+
+        const buffer_a = d.msg_bytes(self.device, d.sel_new_bytes, a.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_a);
+        const buffer_b = d.msg_bytes(self.device, d.sel_new_bytes, b.ptr, byte_len, 0) orelse return error.BufferAllocationFailed;
+        defer d.release(buffer_b);
+
+        const buffer_ab = d.msg_len(self.device, d.sel_new_length, byte_len, 0) orelse return error.BufferAllocationFailed;
+        const buffer_aa = d.msg_len(self.device, d.sel_new_length, byte_len, 0) orelse {
+            d.release(buffer_ab);
+            return error.BufferAllocationFailed;
+        };
+        const buffer_bb = d.msg_len(self.device, d.sel_new_length, byte_len, 0) orelse {
+            d.release(buffer_ab);
+            d.release(buffer_aa);
+            return error.BufferAllocationFailed;
+        };
+
+        const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse {
+            d.release(buffer_ab);
+            d.release(buffer_aa);
+            d.release(buffer_bb);
+            return error.CommandBufferCreationFailed;
+        };
+
+        {
+            const encoder = d.msg_void_id(cmd_buf, d.sel_encoder) orelse {
+                d.release(buffer_ab);
+                d.release(buffer_aa);
+                d.release(buffer_bb);
+                return error.EncoderCreationFailed;
+            };
+            _ = d.msg_id_id(encoder, d.sel_set_pipeline, self.cosine_parts_pipeline);
+            d.msg_set_buf(encoder, d.sel_set_buffer, buffer_a, 0, 0);
+            d.msg_set_buf(encoder, d.sel_set_buffer, buffer_b, 0, 1);
+            d.msg_set_buf(encoder, d.sel_set_buffer, buffer_ab, 0, 2);
+            d.msg_set_buf(encoder, d.sel_set_buffer, buffer_aa, 0, 3);
+            d.msg_set_buf(encoder, d.sel_set_buffer, buffer_bb, 0, 4);
+            const local_size = @min(len, 256);
+            const threadgroups = MTLSize{ .width = len, .height = 1, .depth = 1 };
+            const threads_per_threadgroup = MTLSize{ .width = local_size, .height = 1, .depth = 1 };
+            d.msg_dispatch(encoder, d.sel_dispatch_threads, threadgroups, threads_per_threadgroup);
+            d.msg_void_void(encoder, d.sel_end);
+        }
+
+        // Each encodeReduceToScalar takes ownership of its input buffer.
+        const ab_scalar = d.encodeReduceToScalar(self.device, self.reduce_sum_pipeline, cmd_buf, buffer_ab, len) catch |e| {
+            d.release(buffer_aa);
+            d.release(buffer_bb);
+            return e;
+        };
+        const aa_scalar = d.encodeReduceToScalar(self.device, self.reduce_sum_pipeline, cmd_buf, buffer_aa, len) catch |e| {
+            d.release(ab_scalar);
+            d.release(buffer_bb);
+            return e;
+        };
+        const bb_scalar = d.encodeReduceToScalar(self.device, self.reduce_sum_pipeline, cmd_buf, buffer_bb, len) catch |e| {
+            d.release(ab_scalar);
+            d.release(aa_scalar);
+            return e;
+        };
+
+        d.commitAndWait(cmd_buf);
+        const sums = CosineSums{
+            .ab = d.readF32(ab_scalar) catch |e| {
+                d.release(ab_scalar);
+                d.release(aa_scalar);
+                d.release(bb_scalar);
+                return e;
+            },
+            .aa = d.readF32(aa_scalar) catch |e| {
+                d.release(ab_scalar);
+                d.release(aa_scalar);
+                d.release(bb_scalar);
+                return e;
+            },
+            .bb = d.readF32(bb_scalar) catch |e| {
+                d.release(ab_scalar);
+                d.release(aa_scalar);
+                d.release(bb_scalar);
+                return e;
+            },
+        };
+        d.release(ab_scalar);
+        d.release(aa_scalar);
+        d.release(bb_scalar);
+        return sums;
+    }
+
+    /// Batched cosine similarity: one command buffer, one dispatch, N
+    /// threadgroups (one per candidate row). `candidates_flat` must be a
+    /// contiguous row-major buffer of `n * d` floats (caller flattens; see
+    /// vector_ops.batchCosineSimilarity, which owns that host-side copy).
+    /// `out` receives the `n` cosine similarities. Correctness-parity proven
+    /// against an independent scalar reference (see vector_ops.zig tests) —
+    /// no speedup claim; dispatch-count reduction vs. the per-pair
+    /// `runCosineFused` loop is unmeasured.
+    pub fn runBatchCosineFused(
+        self: *MetalContext,
+        query: []const f32,
+        candidates_flat: []const f32,
+        n: usize,
+        d: usize,
+        out: []f32,
+    ) !void {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (self.batch_cosine_pipeline == null) return error.NotInitialized;
+        if (query.len != d) return error.DimensionMismatch;
+        if (candidates_flat.len != n * d) return error.DimensionMismatch;
+        if (out.len != n) return error.DimensionMismatch;
+        if (n == 0 or d == 0) return;
+
+        // Query norm computed once, host-side, and passed to every threadgroup
+        // as a kernel constant — avoids re-deriving it per candidate.
+        var q_norm_sq: f32 = 0;
+        for (query) |v| q_norm_sq += v * v;
+        const q_norm = @sqrt(q_norm_sq);
+
+        const disp = MetalDispatch.load();
+        const query_bytes = d * @sizeOf(f32);
+        const candidates_bytes = n * d * @sizeOf(f32);
+        const out_bytes = n * @sizeOf(f32);
+
+        const buffer_query = disp.msg_bytes(self.device, disp.sel_new_bytes, query.ptr, query_bytes, 0) orelse
+            return error.BufferAllocationFailed;
+        defer disp.release(buffer_query);
+        const buffer_candidates = disp.msg_bytes(self.device, disp.sel_new_bytes, candidates_flat.ptr, candidates_bytes, 0) orelse
+            return error.BufferAllocationFailed;
+        defer disp.release(buffer_candidates);
+        const buffer_out = disp.msg_len(self.device, disp.sel_new_length, out_bytes, 0) orelse
+            return error.BufferAllocationFailed;
+        defer disp.release(buffer_out);
+
+        const cmd_buf = disp.msg_void_id(self.queue, disp.sel_command_buffer) orelse
+            return error.CommandBufferCreationFailed;
+
+        const encoder = disp.msg_void_id(cmd_buf, disp.sel_encoder) orelse return error.EncoderCreationFailed;
+        _ = disp.msg_id_id(encoder, disp.sel_set_pipeline, self.batch_cosine_pipeline);
+        disp.msg_set_buf(encoder, disp.sel_set_buffer, buffer_query, 0, 0);
+        disp.msg_set_buf(encoder, disp.sel_set_buffer, buffer_candidates, 0, 1);
+        disp.msg_set_buf(encoder, disp.sel_set_buffer, buffer_out, 0, 2);
+        var dim_u32: u32 = @intCast(d);
+        disp.msg_set_bytes(encoder, disp.sel_set_bytes, &dim_u32, @sizeOf(u32), 3);
+        var q_norm_var: f32 = q_norm;
+        disp.msg_set_bytes(encoder, disp.sel_set_bytes, &q_norm_var, @sizeOf(f32), 4);
+
+        // One threadgroup per candidate row; 256 threads/group matches the
+        // fixed shared-memory arrays declared in batch_cosine_kernel.
+        const groups = MTLSize{ .width = n, .height = 1, .depth = 1 };
+        const threads = MTLSize{ .width = 256, .height = 1, .depth = 1 };
+        disp.msg_dispatch(encoder, disp.sel_dispatch_groups, groups, threads);
+        disp.msg_void_void(encoder, disp.sel_end);
+
+        disp.commitAndWait(cmd_buf);
+        try disp.copyBufferToHost(buffer_out, out[0..n]);
+    }
+
+    /// Multi-pass threadgroup reduce on the GPU (256-wide). All passes encode
+    /// into one command buffer; a single waitUntilCompleted at the end.
+    /// Callers fall back to host `sumF32` if Metal dispatch fails.
+    pub fn runReduceSum(self: *MetalContext, values: []const f32) !f32 {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (values.len == 0) return 0;
+        if (values.len == 1) return values[0];
+        if (self.reduce_sum_pipeline == null) return error.NotInitialized;
+
+        const d = MetalDispatch.load();
+        const in_bytes = values.len * @sizeOf(f32);
+        const buffer_in = d.msg_bytes(self.device, d.sel_new_bytes, values.ptr, in_bytes, 0) orelse
+            return error.BufferAllocationFailed;
+
+        const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse {
+            d.release(buffer_in);
+            return error.CommandBufferCreationFailed;
+        };
+
+        const scalar_buf = d.encodeReduceToScalar(
+            self.device,
+            self.reduce_sum_pipeline,
+            cmd_buf,
+            buffer_in,
+            values.len,
+        ) catch |e| {
+            // encodeReduceToScalar errdefer releases buffer_in on failure mid-chain;
+            // if the failure is before any pass, buffer_in is still owned.
+            // encodeReduceToScalar's errdefer handles it.
+            return e;
+        };
+
+        d.commitAndWait(cmd_buf);
+        const sum = d.readF32(scalar_buf) catch |e| {
+            d.release(scalar_buf);
+            return e;
+        };
+        d.release(scalar_buf);
+        return sum;
     }
 };
 

@@ -42,6 +42,15 @@ Design and north-star docs for agents, WDBX, and multi-persona routing.
   <Card title="Multi-Persona Technical Overview" href="spec/multi-persona-technical">
     Multi-persona routing and technical overview.
   </Card>
+  <Card title="Non-loopback REST Threat Review" href="spec/non-loopback-rest-threat-review">
+    Ops guidance for exposing REST/MCP HTTP beyond loopback — not a hardened-expose claim.
+  </Card>
+  <Card title="Cluster mTLS Ops" href="spec/cluster-mtls-ops">
+    Cluster RPC transit encryption and membership — proxy mTLS preferred; not sharding.
+  </Card>
+  <Card title="Phase D Cutover Plan (HITL)" href="spec/phase-d-cutover-plan">
+    Human-gated checklist before any modernized/ → src/ cutover.
+  </Card>
 </CardGroup>
 
 ## Partial design extracts
@@ -70,8 +79,10 @@ On macOS/Darwin, prefer `./build.sh ...` for project validation even when plain 
 - [GEMINI.md](../GEMINI.md) — Gemini-oriented conventions
 - [CHANGELOG.md](../CHANGELOG.md) — release notes
 
+Published vs working drafts: [Docs layout](./README.md). Plans under
+[`superpowers/`](./superpowers/README.md) stay out of Mintlify navigation.
+
 ## Historical / archived
 
-Superpowers-era plans and the master spec live under `superpowers/archive/` for context only. They are **not** listed in Mintlify `docs.json` navigation and are not sources of truth. Prefer `docs/spec/*.mdx`, `docs/contracts/*.mdx`, and executable sources.
-
-See the [archive index](superpowers/archive/README.md).
+See the [archive index](superpowers/archive/README.md) — historical only, not
+sources of truth. Prefer `docs/spec/*.mdx`, `docs/contracts/*.mdx`, and executable sources.

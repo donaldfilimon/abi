@@ -7,6 +7,11 @@ name: CI
 # asserts both after checkout; build.zig.zon minimum is a separate lower bound).
 #
 # Runner ops / security: .github/self-hosted-runner.md
+# Primary gate + cross-compilation smoke for the ABI framework.
+# Runs on macOS (the project's primary platform — Apple frameworks available for
+# the native build) and cross-compiles the CLI for the supported non-native
+# targets. Keep the pinned Zig version below in sync with .zigversion
+# (tools/check_zigversion.sh runs inside `zig build check`).
 
 on:
   push:
@@ -63,3 +68,17 @@ jobs:
           version: ${{ env.ZIG_VERSION }}
       - name: zig build ${{ matrix.target }}
         run: zig build ${{ matrix.target }}
+      - name: zig build cross-smoke
+        run: zig build cross-smoke
+
+  # Docs gate omitted from ./build.sh check — see .agents/skills/docs-validate/validate.sh
+  docs-validate:
+    name: docs (mint validate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Mintlify docs validate
+        run: .agents/skills/docs-validate/validate.sh

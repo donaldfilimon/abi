@@ -1,4 +1,4 @@
-# CLAUDE.md
+# CLAUDE.md — abi
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -135,3 +135,6 @@ No unproven claims (distributed sharding, production FHE/AES/RBAC, non-loopback 
 ## OpenCode Setup
 
 `opencode.json` auto-loaded (instructions: `AGENTS.md`, `tasks/lessons.md`, `tasks/todo.md`). `.opencode/skills/` is a symlink to `.agents/skills/`. MCP servers: `abi-mcp`, `skill-loop`. Sync canonical skills: `.agents/skills/sync-clis/launch.sh`. Modern-refactor skills (codebase-analysis etc.) in `.agents/skills/` — use for refactors; follow with `./build.sh check`. Superpower + operational skills are enumerated in the system prompt's `available_skills`; don't maintain a parallel list here.
+Canonical instruction file is `AGENTS.md`. Read that first and follow its
+conventions. If they disagree, `AGENTS.md` wins; if either conflicts with
+executable source (`build.zig`, `tools/build.sh`, `src/`), trust the source.

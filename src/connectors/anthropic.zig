@@ -82,6 +82,8 @@ pub const Client = struct {
         };
     }
 
+    /// Non-streaming live POST that still requests `stream:true` in the body
+    /// and returns the raw SSE payload as `Response.body` (legacy shape).
     pub fn streamMessageLive(
         self: *Client,
         io: std.Io,
@@ -94,6 +96,28 @@ pub const Client = struct {
         const body = try json.buildAnthropicBody(allocator, model, prompt, max_tokens, true);
         defer allocator.free(body);
         return http.httpPostJson(io, allocator, self.config, "/v1/messages", body, &.{
+            .{ .name = "x-api-key", .value = self.config.api_key },
+            .{ .name = "anthropic-version", .value = "2023-06-01" },
+        });
+    }
+
+    /// Live Anthropic Messages SSE: invokes `on_chunk` for each text delta and
+    /// returns the concatenated token text (owned). Same callback shape as the
+    /// local-bridge OpenAI SSE path.
+    pub fn streamMessageLiveIncremental(
+        self: *Client,
+        io: std.Io,
+        allocator: std.mem.Allocator,
+        model: []const u8,
+        prompt: []const u8,
+        max_tokens: u32,
+        on_chunk: http.StreamCallback,
+        callback_ctx: *anyopaque,
+    ) ConnectorError![]const u8 {
+        try validateConnectorConfig(self.config);
+        const body = try json.buildAnthropicBody(allocator, model, prompt, max_tokens, true);
+        defer allocator.free(body);
+        return http.httpPostJsonStreamingIncremental(io, allocator, self.config, "/v1/messages", body, on_chunk, callback_ctx, &.{
             .{ .name = "x-api-key", .value = self.config.api_key },
             .{ .name = "anthropic-version", .value = "2023-06-01" },
         });

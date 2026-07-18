@@ -4,6 +4,7 @@ const io = @import("io/mod.zig");
 const utils = @import("utils.zig");
 const env = @import("env.zig");
 const temp_path = @import("temp_path.zig");
+const keychain = @import("keychain.zig");
 
 pub const Credentials = struct {
     openai_api_key: ?[]const u8 = null,
@@ -14,18 +15,39 @@ pub const Credentials = struct {
     twilio_auth_token: ?[]const u8 = null,
 
     pub fn deinit(self: *Credentials, allocator: std.mem.Allocator) void {
-        if (self.openai_api_key) |k| allocator.free(k);
-        if (self.anthropic_api_key) |k| allocator.free(k);
-        if (self.discord_token) |k| allocator.free(k);
-        if (self.grok_api_key) |k| allocator.free(k);
-        if (self.twilio_account_sid) |k| allocator.free(k);
-        if (self.twilio_auth_token) |k| allocator.free(k);
+        wipeAndFree(allocator, &self.openai_api_key);
+        wipeAndFree(allocator, &self.anthropic_api_key);
+        wipeAndFree(allocator, &self.discord_token);
+        wipeAndFree(allocator, &self.grok_api_key);
+        wipeAndFree(allocator, &self.twilio_account_sid);
+        wipeAndFree(allocator, &self.twilio_auth_token);
     }
 };
 
+/// Securely zero an owned secret slice then free it. Heap hygiene on all
+/// platforms; Windows ACL owner-only is applied at write time separately.
+/// When the keychain backend is active (`ABI_CREDENTIALS_BACKEND=keychain`,
+/// macOS only), keychain-stored secrets are cleared via `keychainDelete` in
+/// `clearKeychainCredentials`/`saveCredentialsToKeychain`, not by this
+/// in-process heap wipe — this only wipes the caller's in-memory copy.
+fn wipeAndFree(allocator: std.mem.Allocator, field: *?[]const u8) void {
+    if (field.*) |k| {
+        const mutable: []u8 = @constCast(k);
+        std.crypto.secureZero(u8, mutable);
+        allocator.free(mutable);
+        field.* = null;
+    }
+}
+
+/// Best-effort wipe of a borrowed mutable buffer (stdin, JSON scratch).
+pub fn secureWipe(buf: []u8) void {
+    if (buf.len == 0) return;
+    std.crypto.secureZero(u8, buf);
+}
+
 pub fn replaceOwnedString(allocator: std.mem.Allocator, field: *?[]const u8, value: []const u8) !void {
     const replacement = try allocator.dupe(u8, value);
-    if (field.*) |old| allocator.free(old);
+    wipeAndFree(allocator, field);
     field.* = replacement;
 }
 
@@ -46,18 +68,57 @@ pub fn getCredentialsPath(allocator: std.mem.Allocator) ![]const u8 {
     return try utils.pathJoin(home, ".abi/credentials.json", allocator);
 }
 
+/// Service name under which all credential fields are stored in the OS
+/// keychain when the keychain backend is active. Each field's `account` is
+/// its struct field name (e.g. "openai_api_key").
+const keychain_service = "abi-credentials";
+
+/// True when `ABI_CREDENTIALS_BACKEND=keychain` is set. Any other value
+/// (including unset) keeps the default file-based backend — no silent
+/// migration of existing `~/.abi/credentials.json` users.
+fn useKeychainBackend() bool {
+    const v = env.get("ABI_CREDENTIALS_BACKEND") orelse return false;
+    return std.mem.eql(u8, v, "keychain");
+}
+
+/// Whether the keychain backend is currently selected. Exposed so callers
+/// like `auth logout` can clear keychain-stored secrets in addition to (or
+/// instead of) the plaintext credential file.
+pub fn credentialsBackendIsKeychain() bool {
+    return useKeychainBackend();
+}
+
 pub fn loadCredentials(allocator: std.mem.Allocator) !Credentials {
+    if (useKeychainBackend()) return try loadCredentialsFromKeychain(allocator);
+
     const path = try getCredentialsPath(allocator);
     defer allocator.free(path);
 
     return try loadCredentialsFromPath(allocator, path);
 }
 
+fn loadCredentialsFromKeychain(allocator: std.mem.Allocator) !Credentials {
+    var creds = Credentials{};
+    errdefer creds.deinit(allocator);
+
+    creds.openai_api_key = try keychain.keychainLoad(allocator, keychain_service, "openai_api_key");
+    creds.anthropic_api_key = try keychain.keychainLoad(allocator, keychain_service, "anthropic_api_key");
+    creds.discord_token = try keychain.keychainLoad(allocator, keychain_service, "discord_token");
+    creds.grok_api_key = try keychain.keychainLoad(allocator, keychain_service, "grok_api_key");
+    creds.twilio_account_sid = try keychain.keychainLoad(allocator, keychain_service, "twilio_account_sid");
+    creds.twilio_auth_token = try keychain.keychainLoad(allocator, keychain_service, "twilio_auth_token");
+    return creds;
+}
+
 fn loadCredentialsFromPath(allocator: std.mem.Allocator, path: []const u8) !Credentials {
     if (!io.fileExists(path)) return Credentials{};
 
     const content = try io.asyncReadFile(allocator, path);
-    defer allocator.free(content);
+    defer {
+        // File bytes may contain secrets — wipe before free.
+        std.crypto.secureZero(u8, content);
+        allocator.free(content);
+    }
 
     const tree = try std.json.parseFromSlice(std.json.Value, allocator, content, .{});
     defer tree.deinit();
@@ -78,6 +139,8 @@ fn loadCredentialsFromPath(allocator: std.mem.Allocator, path: []const u8) !Cred
 }
 
 pub fn saveCredentials(allocator: std.mem.Allocator, creds: Credentials) !void {
+    if (useKeychainBackend()) return try saveCredentialsToKeychain(creds);
+
     const path = try getCredentialsPath(allocator);
     defer allocator.free(path);
 
@@ -87,9 +150,41 @@ pub fn saveCredentials(allocator: std.mem.Allocator, creds: Credentials) !void {
     try saveCredentialsToPath(allocator, path, creds);
 }
 
+/// Mirror `creds` into the OS keychain: present fields are stored/overwritten,
+/// absent (null) fields are actively deleted so a cleared field does not
+/// leave a stale secret behind. No dual-write: when this backend is active,
+/// secrets never also land in plaintext `credentials.json`.
+fn saveCredentialsToKeychain(creds: Credentials) !void {
+    try saveKeychainField("openai_api_key", creds.openai_api_key);
+    try saveKeychainField("anthropic_api_key", creds.anthropic_api_key);
+    try saveKeychainField("discord_token", creds.discord_token);
+    try saveKeychainField("grok_api_key", creds.grok_api_key);
+    try saveKeychainField("twilio_account_sid", creds.twilio_account_sid);
+    try saveKeychainField("twilio_auth_token", creds.twilio_auth_token);
+}
+
+fn saveKeychainField(account: []const u8, value: ?[]const u8) !void {
+    if (value) |v| {
+        try keychain.keychainStore(keychain_service, account, v);
+    } else {
+        try keychain.keychainDelete(keychain_service, account);
+    }
+}
+
+/// Delete every keychain-stored credential field, regardless of which are
+/// currently present. Used by `auth logout` when the keychain backend is
+/// active, so logout clears keychain secrets the same way it clears the
+/// plaintext file.
+pub fn clearKeychainCredentials() !void {
+    try saveCredentialsToKeychain(Credentials{});
+}
+
 fn saveCredentialsToPath(allocator: std.mem.Allocator, path: []const u8, creds: Credentials) !void {
     var out: std.Io.Writer.Allocating = .init(allocator);
-    defer out.deinit();
+    defer {
+        std.crypto.secureZero(u8, out.written());
+        out.deinit();
+    }
 
     var writer = std.json.Stringify{
         .writer = &out.writer,
@@ -147,13 +242,16 @@ fn writeCredentialsFile(path: []const u8, data: []const u8) !void {
     try file.setPermissions(io_context, file_permissions);
     try file.writeStreamingAll(io_context, data);
     try file.setPermissions(io_context, file_permissions);
+    try applyWindowsOwnerOnlyAcl(path);
 }
 
 fn setDirectoryPermissions(path: []const u8, permissions: std.Io.Dir.Permissions) !void {
     const io_context = std.Options.debug_io;
-    const dir = try std.Io.Dir.openDirAbsolute(io_context, path, .{});
+    // `iterate = true` avoids Linux O_PATH fds that make fchmod return EBADF.
+    const dir = try std.Io.Dir.openDirAbsolute(io_context, path, .{ .iterate = true });
     defer dir.close(io_context);
     try dir.setPermissions(io_context, permissions);
+    try applyWindowsOwnerOnlyAcl(path);
 }
 
 fn restrictedPermissions(comptime mode: std.posix.mode_t) std.Io.File.Permissions {
@@ -162,6 +260,72 @@ fn restrictedPermissions(comptime mode: std.posix.mode_t) std.Io.File.Permission
     }
     return .default_file;
 }
+
+/// On Windows, set a DACL granting full access only to the owner (SDDL OW).
+/// No-op elsewhere. Runtime verification needs a Windows host (cross-smoke is
+/// compile-only). Keychain remains a disclosed gap.
+fn applyWindowsOwnerOnlyAcl(path: []const u8) !void {
+    if (comptime builtin.target.os.tag == .windows) {
+        try windows_owner_acl.apply(path);
+    }
+}
+
+const windows_owner_acl = if (builtin.target.os.tag == .windows) struct {
+    const PATH_MAX_WIDE = 32768;
+
+    extern "advapi32" fn ConvertStringSecurityDescriptorToSecurityDescriptorW(
+        StringSecurityDescriptor: [*:0]const u16,
+        StringSDRevision: u32,
+        SecurityDescriptor: *?*anyopaque,
+        SecurityDescriptorSize: ?*u32,
+    ) callconv(.winapi) i32;
+
+    extern "advapi32" fn SetNamedSecurityInfoW(
+        pObjectName: [*:0]u16,
+        ObjectType: u32,
+        SecurityInfo: u32,
+        psidOwner: ?*anyopaque,
+        psidGroup: ?*anyopaque,
+        pDacl: ?*anyopaque,
+        pSacl: ?*anyopaque,
+    ) callconv(.winapi) u32;
+
+    extern "advapi32" fn GetSecurityDescriptorDacl(
+        pSecurityDescriptor: ?*anyopaque,
+        lpbDaclPresent: *i32,
+        pDacl: *?*anyopaque,
+        lpbDaclDefaulted: *i32,
+    ) callconv(.winapi) i32;
+
+    extern "kernel32" fn LocalFree(hMem: ?*anyopaque) callconv(.winapi) ?*anyopaque;
+
+    fn apply(path: []const u8) !void {
+        const sddl_w = std.unicode.utf8ToUtf16LeStringLiteral("D:P(A;;FA;;;OW)");
+        var path_w_buf: [PATH_MAX_WIDE + 1]u16 = undefined;
+        const n = try std.unicode.utf8ToUtf16Le(path_w_buf[0..PATH_MAX_WIDE], path);
+        path_w_buf[n] = 0;
+
+        var sd: ?*anyopaque = null;
+        if (ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl_w.ptr, 1, &sd, null) == 0 or sd == null) {
+            return error.WindowsAclSetupFailed;
+        }
+        defer _ = LocalFree(sd);
+
+        var present: i32 = 0;
+        var dacl: ?*anyopaque = null;
+        var defaulted: i32 = 0;
+        if (GetSecurityDescriptorDacl(sd, &present, &dacl, &defaulted) == 0 or present == 0) {
+            return error.WindowsAclSetupFailed;
+        }
+
+        const status = SetNamedSecurityInfoW(@ptrCast(&path_w_buf), 1, 0x4, null, null, dacl, null);
+        if (status != 0) return error.WindowsAclApplyFailed;
+    }
+} else struct {
+    fn apply(path: []const u8) !void {
+        _ = path;
+    }
+};
 
 fn dupeStringField(allocator: std.mem.Allocator, root: std.json.ObjectMap, key: []const u8) !?[]const u8 {
     const value = root.get(key) orelse return null;
@@ -318,8 +482,108 @@ test "replaceOwnedString preserves old value on allocation failure" {
     var failing = std.testing.FailingAllocator.init(std.testing.allocator, .{ .fail_index = 0 });
     const allocator = std.testing.allocator;
     var field: ?[]const u8 = try allocator.dupe(u8, "old-value");
-    defer if (field) |value| allocator.free(value);
+    defer wipeAndFree(allocator, &field);
 
     try std.testing.expectError(error.OutOfMemory, replaceOwnedString(failing.allocator(), &field, "new-value"));
     try std.testing.expectEqualStrings("old-value", field orelse return error.MissingOldValue);
+}
+
+test "Credentials deinit clears secret field; secureZero clears in place" {
+    const allocator = std.testing.allocator;
+    var creds = Credentials{};
+    try replaceOwnedString(allocator, &creds.openai_api_key, "sk-secret-test-key");
+    creds.deinit(allocator);
+    try std.testing.expect(creds.openai_api_key == null);
+
+    const buf = try allocator.dupe(u8, "still-secret");
+    defer allocator.free(buf);
+    std.crypto.secureZero(u8, buf);
+    for (buf) |b| try std.testing.expectEqual(@as(u8, 0), b);
+}
+
+test "credentialsBackendIsKeychain reads ABI_CREDENTIALS_BACKEND, default stays file-based" {
+    // Pure env-parsing logic; does not touch the real OS keychain.
+    try std.testing.expect(!credentialsBackendIsKeychain());
+
+    var environ = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ.deinit();
+    try environ.put("ABI_CREDENTIALS_BACKEND", "keychain");
+    env.install(&environ);
+    defer env.resetForTesting();
+
+    try std.testing.expect(credentialsBackendIsKeychain());
+}
+
+test "credentialsBackendIsKeychain rejects unrecognized backend values" {
+    var environ = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ.deinit();
+    try environ.put("ABI_CREDENTIALS_BACKEND", "vault");
+    env.install(&environ);
+    defer env.resetForTesting();
+
+    // No silent migration to an unknown backend: anything but exactly
+    // "keychain" keeps the default file-based path.
+    try std.testing.expect(!credentialsBackendIsKeychain());
+}
+
+test "keychain backend save/load/clear round trip through the public API (opt-in, hits real keychain)" {
+    // Exercises loadCredentials/saveCredentials/clearKeychainCredentials
+    // end-to-end against the real macOS login keychain, including the "a
+    // cleared field must delete the stale keychain entry, not just skip
+    // writing it" requirement. Same real-keychain / trust-prompt caution as
+    // keychain.zig's own round-trip test, so it needs the same opt-in.
+    //
+    // `zig build test` never calls `env.install()`, so `env.get` always
+    // reports "unset" for the *real* process environment inside a test
+    // binary. This outer gate therefore reads libc `getenv` directly (a
+    // narrow, test-only, macOS-only exception — see keychain.zig for the
+    // full rationale). The inner `ABI_CREDENTIALS_BACKEND=keychain` value is
+    // intentionally simulated via `env.install`, same as the pure-logic
+    // backend-selection tests above.
+    if (comptime builtin.target.os.tag != .macos) return error.SkipZigTest;
+    if (std.c.getenv("ABI_KEYCHAIN_TEST") == null) return error.SkipZigTest;
+
+    const allocator = std.testing.allocator;
+
+    var environ = std.process.Environ.Map.init(allocator);
+    defer environ.deinit();
+    try environ.put("ABI_CREDENTIALS_BACKEND", "keychain");
+    env.install(&environ);
+    defer env.resetForTesting();
+
+    defer clearKeychainCredentials() catch |err| {
+        std.log.warn("keychain backend test cleanup failed: {s}", .{@errorName(err)});
+    };
+
+    var creds = Credentials{
+        .openai_api_key = try allocator.dupe(u8, "sk-keychain-test"),
+        .discord_token = try allocator.dupe(u8, "discord-keychain-test"),
+    };
+    defer creds.deinit(allocator);
+    try saveCredentials(allocator, creds);
+
+    var loaded = try loadCredentials(allocator);
+    defer loaded.deinit(allocator);
+    try std.testing.expectEqualStrings("sk-keychain-test", loaded.openai_api_key orelse return error.MissingOpenAiKey);
+    try std.testing.expectEqualStrings("discord-keychain-test", loaded.discord_token orelse return error.MissingDiscordToken);
+    try std.testing.expect(loaded.anthropic_api_key == null);
+
+    // Save again with discord_token absent: the stale keychain entry must be
+    // deleted, not merely left un-overwritten.
+    var updated = Credentials{
+        .openai_api_key = try allocator.dupe(u8, "sk-keychain-test"),
+    };
+    defer updated.deinit(allocator);
+    try saveCredentials(allocator, updated);
+
+    var reloaded = try loadCredentials(allocator);
+    defer reloaded.deinit(allocator);
+    try std.testing.expectEqualStrings("sk-keychain-test", reloaded.openai_api_key orelse return error.MissingOpenAiKeyAfterUpdate);
+    try std.testing.expect(reloaded.discord_token == null);
+
+    try clearKeychainCredentials();
+    var cleared = try loadCredentials(allocator);
+    defer cleared.deinit(allocator);
+    try std.testing.expect(cleared.openai_api_key == null);
+    try std.testing.expect(cleared.discord_token == null);
 }

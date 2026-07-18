@@ -168,10 +168,10 @@ pub const commands = [_]Command{
         .usage = "abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api> ...",
         .summary = "Operate WDBX storage, WAL, blocks, stats, and demos",
         .category = .data,
-        .details = "Subcommands: db init|verify|compact, block insert|get, query, benchmark, cluster status|demo|serve, compute info, secure demo, gpu info, api serve.",
+        .details = "Subcommands: db init|verify|compact, block insert|get, query [--limit/--json/--text/--persona], benchmark, cluster status|demo|serve, compute info, secure demo, gpu info, api serve. Query runs hybrid semantic×temporal×causal×persona ranking over a recovered store.",
         .examples = &.{
             "abi wdbx db verify",
-            "abi wdbx query \"local memory\"",
+            "abi wdbx query ./store.jsonl \"local memory\" --limit 5 --json",
         },
     },
     .{

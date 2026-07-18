@@ -78,6 +78,7 @@ pub const ReplConfig = struct {
     plugin_dispatch: ?PluginDispatchFn = null,
     context_snippets: []const u8 = "",
     learn_mode: bool = false,
+    live_mode: bool = false,
 };
 
 pub const ReplState = struct {
@@ -126,9 +127,11 @@ pub const ReplLoop = struct {
 pub const repl_types = struct {};
 pub const repl_session = struct {};
 pub const repl_git_commands = struct {};
+pub const repl_io = struct {};
+pub const repl_complete = struct {};
 
 pub const repl = struct {
-    pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, save, load, sessions, clear, unknown };
+    pub const SpecialCommand = enum { quit, reset, help, model, profile, status, history, context, syncclis, open, diff, commit, features, learn, live, save, load, sessions, clear, pane, unknown };
 
     pub fn parseSpecialCommand(line: []const u8) SpecialCommand {
         _ = line;

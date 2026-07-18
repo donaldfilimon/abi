@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # docs-validate — validate the Mintlify docs site (docs/docs.json + docs/**/*.mdx).
 #
-# This is the one surface `./build.sh check` and CI do NOT cover: broken docs.json
-# or .mdx pages only surface on push (Mintlify builds via its GitHub app). Run this
-# as a pre-push gate after touching docs/. Requires network (npx fetches mint).
+# This is the one surface `./build.sh check` intentionally omits; CI covers it
+# via the docs-validate job (Node 22). Broken docs.json/.mdx still only break the
+# Mintlify-hosted site if both local and CI gates are skipped. Run this as a
+# pre-push gate after touching docs/. Requires network (npx fetches mint).
 set -uo pipefail
 
 SCRIPT_PATH=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/$(basename -- "${BASH_SOURCE[0]}")
@@ -13,8 +14,7 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || {
 
 # Mintlify config lives under docs/.
 if [ -f docs/docs.json ]; then cd docs
-elif [ -f docs.json ]; then :
-else echo "RESULT: FAIL (no docs.json found — is this the docs site?)"; exit 1; fi
+else echo "RESULT: FAIL (no docs/docs.json found — is this the abi repo?)"; exit 1; fi
 
 command -v npx >/dev/null 2>&1 || { echo "RESULT: FAIL (npx not on PATH — install Node/npm)"; exit 1; }
 

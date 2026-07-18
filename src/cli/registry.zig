@@ -14,6 +14,8 @@ const usage_mod = @import("usage.zig");
 const handlers = @import("handlers/mod.zig");
 const arg = @import("arg.zig");
 const wiring = @import("wiring.zig");
+const foundation = @import("abi").foundation;
+const test_helpers = foundation.test_helpers;
 
 pub const completion = @import("completion.zig");
 pub const help_json = @import("help_json.zig");
@@ -246,16 +248,7 @@ test "registry help json emits parseable command metadata" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(std.testing.allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
     try std.testing.expect(try writeHelpJson(&writer, std.testing.allocator, null, null));
 
     const parsed = try std.json.parseFromSlice(std.json.Value, std.testing.allocator, buf.items, .{});
@@ -284,16 +277,7 @@ test "registry help json emits focused subcommand metadata" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(std.testing.allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
     try std.testing.expect(try writeHelpJson(&writer, std.testing.allocator, "wdbx", "cluster"));
 
     const parsed = try std.json.parseFromSlice(std.json.Value, std.testing.allocator, buf.items, .{});
@@ -309,16 +293,7 @@ test "registry help json resolves and reports command shortcuts" {
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(std.testing.allocator);
 
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
-    var writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
+    const writer = test_helpers.TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
     try std.testing.expect(try writeHelpJson(&writer, std.testing.allocator, "--tui", null));
 
     const parsed = try std.json.parseFromSlice(std.json.Value, std.testing.allocator, buf.items, .{});
@@ -332,18 +307,9 @@ test "registry help json resolves and reports command shortcuts" {
 }
 
 test "registry shell completions expose commands shortcuts and typed flags" {
-    const TestWriter = struct {
-        allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
-
-        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
-            try self.buffer.appendSlice(self.allocator, bytes);
-        }
-    };
-
     var bash_buf = std.ArrayListUnmanaged(u8).empty;
     defer bash_buf.deinit(std.testing.allocator);
-    var bash_writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &bash_buf };
+    var bash_writer = test_helpers.TestWriter{ .allocator = std.testing.allocator, .buffer = &bash_buf };
     try writeShellCompletion(&bash_writer, std.testing.allocator, .bash);
     try std.testing.expect(std.mem.indexOf(u8, bash_buf.items, "_abi_complete") != null);
     try std.testing.expect(std.mem.indexOf(u8, bash_buf.items, "help complete train agent backends") != null);
@@ -355,7 +321,7 @@ test "registry shell completions expose commands shortcuts and typed flags" {
 
     var zsh_buf = std.ArrayListUnmanaged(u8).empty;
     defer zsh_buf.deinit(std.testing.allocator);
-    var zsh_writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &zsh_buf };
+    var zsh_writer = test_helpers.TestWriter{ .allocator = std.testing.allocator, .buffer = &zsh_buf };
     try writeShellCompletion(&zsh_writer, std.testing.allocator, .zsh);
     try std.testing.expect(std.mem.indexOf(u8, zsh_buf.items, "#compdef abi") != null);
     try std.testing.expect(std.mem.indexOf(u8, zsh_buf.items, "compadd -- --pane") != null);
@@ -365,7 +331,7 @@ test "registry shell completions expose commands shortcuts and typed flags" {
 
     var fish_buf = std.ArrayListUnmanaged(u8).empty;
     defer fish_buf.deinit(std.testing.allocator);
-    var fish_writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &fish_buf };
+    var fish_writer = test_helpers.TestWriter{ .allocator = std.testing.allocator, .buffer = &fish_buf };
     try writeShellCompletion(&fish_writer, std.testing.allocator, .fish);
     try std.testing.expect(std.mem.indexOf(u8, fish_buf.items, "complete -c abi -f") != null);
     try std.testing.expect(std.mem.indexOf(u8, fish_buf.items, "__fish_seen_subcommand_from tui --tui") != null);

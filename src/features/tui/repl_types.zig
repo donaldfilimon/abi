@@ -8,6 +8,11 @@ const cmds = @import("repl_commands.zig");
 
 pub const MODEL_STORAGE_BYTES = cmds.MODEL_STORAGE_BYTES;
 
+/// Outcome of dispatching one input line. Lets the raw-mode and line-mode
+/// loops (`repl_io.zig`) and the completion path (`repl_complete.zig`) share
+/// identical handling and quit semantics.
+pub const LineOutcome = enum { keep_going, quit };
+
 /// Callback type for dispatching a plugin slash-command. Takes the plugin name,
 /// command name, and argument text; returns the output to display. `null` means
 /// plugin dispatch is unavailable (e.g. TUI feature disabled at build time).
@@ -29,9 +34,23 @@ pub const ReplConfig = struct {
     /// Whether SEA self-learning mode is active. When true, completions route
     /// through `runLearnLoop` for evidence-augmented output.
     learn_mode: bool = false,
+    /// When true and the active model is an Anthropic catalog id, completions
+    /// use live `streamMessageLiveIncremental` (SSE) with stored credentials.
+    /// Opt-in via `/live` — default stays the in-process persona router.
+    live_mode: bool = false,
 };
 
 pub const MAX_TURN_HISTORY: usize = 10;
+
+/// Snapshot of the last in-process constitution audit for `/status` observability.
+/// Live/bridge SSE paths leave this unset (no in-process AuditResult).
+pub const LastConstitution = struct {
+    escore: f32 = 1.0,
+    passed: bool = true,
+    vetoed: bool = false,
+    /// True once at least one in-process completion recorded an audit.
+    recorded: bool = false,
+};
 
 /// Maximum bytes for file context loaded via '/open' (was 64 KiB, now unified).
 pub const OPEN_FILE_BUDGET_BYTES: usize = 32 * 1024;
@@ -62,16 +81,33 @@ pub const ReplState = struct {
     open_content: []const u8 = "",
     /// Backing allocation for file context strings; freed on next `/open` or reset.
     file_context_buf: ?[]u8 = null,
+    /// `/pane` split view: when true, each completed turn renders as a
+    /// two-column block (chat left, `git diff --stat` right) instead of the
+    /// plain streamed print. `pane_cols` is the terminal width captured at
+    /// toggle time; a later resize takes effect on the next `/pane`.
+    pane_mode: bool = false,
+    pane_cols: usize = 0,
     /// Ring buffer of recent (input, response) pairs for multi-turn context.
     turn_history: [MAX_TURN_HISTORY]TurnEntry = @splat(TurnEntry{ .input = "", .response = "" }),
     turn_history_count: usize = 0,
     turn_history_head: usize = 0,
+    /// Last in-process constitution audit (updated by persona/SEA completion paths).
+    last_constitution: LastConstitution = .{},
 
     pub fn init(config: ReplConfig) ReplState {
         return .{
             .config = config,
             .turn_count = 0,
             .session_id = time.unixMs(),
+        };
+    }
+
+    pub fn recordConstitution(self: *ReplState, escore: f32, passed: bool, vetoed: bool) void {
+        self.last_constitution = .{
+            .escore = escore,
+            .passed = passed,
+            .vetoed = vetoed,
+            .recorded = true,
         };
     }
 

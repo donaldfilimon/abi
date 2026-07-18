@@ -319,6 +319,16 @@ test "parse worker specs without hints frees safely" {
     try std.testing.expectEqual(@as(usize, 0), specs[0].tool_hints.len);
 }
 
+test "parse worker specs rejects fan-out above max_worker_count" {
+    var segments: std.ArrayListUnmanaged(u8) = .empty;
+    defer segments.deinit(std.testing.allocator);
+    for (0..max_worker_count + 1) |i| {
+        if (i > 0) try segments.append(std.testing.allocator, ';');
+        try segments.print(std.testing.allocator, "w{d}|instructions", .{i});
+    }
+    try std.testing.expectError(error.InvalidWorkerSpec, parseWorkerSpecs(std.testing.allocator, segments.items));
+}
+
 test "browser orchestration stays dry-run honest" {
     var plan = try planBrowserOrchestration(std.testing.allocator, "open docs", "https://example.com", false);
     defer plan.deinit(std.testing.allocator);

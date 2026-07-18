@@ -1,17 +1,19 @@
 # ABI Mega Plugin
 
-This repository now has a local Codex personal plugin that consolidates ABI goals,
-roadmaps, specs, skills, and validation workflows.
+This repository documents a **local Codex personal plugin** (outside the git tree)
+that consolidates ABI goals, roadmaps, specs, skills, and validation workflows.
+It is **not** stranded branch work and does **not** ship inside `abi` releases.
 
 ## Location
 
-- Plugin: `/Users/donaldfilimon/plugins/abi-mega`
+- Plugin: `/Users/donaldfilimon/plugins/abi-mega` (live dependency for `/sync-clis`; do not archive)
 - Marketplace: `/Users/donaldfilimon/.agents/plugins/marketplace.json`
 - Generated inventory: `/Users/donaldfilimon/plugins/abi-mega/assets/abi-current-inventory.md`
 
 The plugin is an operator-local Codex artifact. It does not replace repository
 source, tests, or docs. When the plugin and repo disagree, trust `build.zig`,
 `tools/`, `src/`, contract tests, and the current Markdown sources in this repo.
+Zig pin for repo gates remains `.zigversion` (`0.17.0-dev.1398+cb5635714`).
 
 ## Included Skills
 
@@ -66,18 +68,21 @@ Audit Markdown and old plan files:
   /Users/donaldfilimon/plugins/abi-mega/assets/abi-markdown-audit.md
 ```
 
-Validate the plugin and skills:
+Validate the four plugin skills (Codex `skill-creator` cache path; install
+PyYAML into `/tmp/codex-pyyaml` if needed):
 
 ```bash
-PYTHONPATH=/tmp/codex-pyyaml python3 /Users/donaldfilimon/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py /Users/donaldfilimon/plugins/abi-mega
-PYTHONPATH=/tmp/codex-pyyaml python3 /Users/donaldfilimon/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/donaldfilimon/plugins/abi-mega/skills/abi-goal-orchestrator
-PYTHONPATH=/tmp/codex-pyyaml python3 /Users/donaldfilimon/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/donaldfilimon/plugins/abi-mega/skills/abi-doc-claims-sync
-PYTHONPATH=/tmp/codex-pyyaml python3 /Users/donaldfilimon/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/donaldfilimon/plugins/abi-mega/skills/abi-surface-validator
-PYTHONPATH=/tmp/codex-pyyaml python3 /Users/donaldfilimon/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/donaldfilimon/plugins/abi-mega/skills/abi-markdown-auditor
+python3 -m pip install --target /tmp/codex-pyyaml pyyaml
+VALIDATE="$HOME/.codex/plugins/cache/claude-plugins-official/skill-creator/local/skills/skill-creator/scripts/quick_validate.py"
+for s in abi-goal-orchestrator abi-doc-claims-sync abi-surface-validator abi-markdown-auditor; do
+  PYTHONPATH=/tmp/codex-pyyaml python3 "$VALIDATE" \
+    "$HOME/plugins/abi-mega/skills/$s"
+done
 ```
 
-`PYTHONPATH=/tmp/codex-pyyaml` is only needed on hosts where the validator
-Python lacks `PyYAML`.
+There is no separate `validate_plugin.py` on this host; skill-level
+`quick_validate.py` is the supported check. Marketplace entry:
+`~/.agents/plugins/marketplace.json` → local `~/plugins/abi-mega`.
 
 ## Maintenance Rules
 

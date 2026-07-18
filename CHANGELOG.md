@@ -6,6 +6,32 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- docs(ops): claim-honest non-loopback REST/MCP HTTP threat review (`docs/spec/non-loopback-rest-threat-review.mdx`) — proxy TLS preferred, native TLS deferred, not a hardened-expose claim.
+- docs(ops): cluster mTLS/membership ops guidance (`docs/spec/cluster-mtls-ops.mdx`) — proxy mTLS preferred; dynamic membership and sharding stay Proposed.
+- docs(plan): Phase D cutover HITL checklist (`docs/spec/phase-d-cutover-plan.mdx`) — scaffold is not cutover.
+
+### Changed
+
+- perf(gpu): Metal dispatch CQ — shared `MetalDispatch` helper; map+reduce and fused cosine chain multi-pass `reduce_sum` in one command buffer (no host re-upload thrash); Metal failures log then explicit CPU fallback. Broader kernels / CUDA / ANE remain Proposed.
+- refactor(wdbx): dedupe REST missing-token vs wrong-bearer 401 insert fixture (`expectUnauthorizedInsert`).
+- perf(gpu): Metal multi-pass `reduce_sum_kernel` — loop 256-wide threadgroup partials until one scalar (`runReduceSum`); host `sumF32` remains the CPU / failure fallback. Broader kernels / CUDA / ANE remain Proposed.
+- docs(claims): sync north-star / external-claims / README / public-api with Metal fused cosine/dot/L2 + multi-pass reduce; list demo rANS/order-1 (`ans.zig`) beside Huffman — still not CUDA/Vulkan/ANE, SOTA compression, or GPU speedup claims.
+
+### Fixed
+
+- test(wdbx): REST wrong-bearer path returns 401 + `WWW-Authenticate` (parity with MCP HTTP); assert challenge header on missing-token too.
+- fix(tui): `/diff --stat` never worked from the live REPL line (`runDiff` re-parsed a hardcoded `"/diff "` literal); `/open` leaked the transient read buffer on every successful load; malformed `--soul-alpha` was silently coerced to 0.5 instead of usage + exit 2 per the CLI numeric-arg contract.
+
+### Changed
+
+- refactor: leaf-extraction wave across connectors/core/CLI/MCP — SSE streaming types + parsing from `connectors/http.zig` into `sse_stream.zig` (314); os_control policy types/validation from `os_control/mod.zig` into `policy.zig` (181); `Task` types from `core/scheduler.zig` into `core/task.zig`; completion handlers from `cli/handlers/train.zig` into `complete_handlers.zig` (287); connector test monolith `connectors/tests.zig` (651) split into per-connector `*_tests.zig` leaves (anthropic/discord/grok/http/json/openai/twilio); MCP HTTP request parsing into `mcp/http_parse.zig` (118). Public APIs unchanged; parity green.
+- refactor(tui): final REPL organization split — `repl.zig` 1050→538 as a thin dispatch hub; raw/line input loops, key decode, redraw, tab completion, and Ctrl-R reverse search extracted to `repl_io.zig` (248); `completePrompt`, stream callback contexts, and `resolveFileMentions` extracted to `repl_complete.zig` (292); duplicated `runSyncClis` consolidated in `repl_git_commands.zig`. Public TUI API unchanged (parity green). `docs/spec/abi-refactor-design.mdx` §2 synced with the current module tree.
+
+### Added
+
+- feat(tui): `/pane` toggle for a post-turn split view (chat left, `git diff --stat` or open-file summary right) in `repl_pane.zig`; reuses `dashboard_render` visible-column fit helpers; stays unsplit below 80 cols or when terminal width is unknown; layout math unit-tested.
+- test(tui,cli): `runOpen` packed-context round-trip/budget/leak coverage, `--soul`/`--soul-alpha` usage-contract tests (+ `wiring.parseSoulAlpha`), and an `agent os dry-run` handler success-path test.
+- docs(skills): complete the 8 referenced-but-empty skills (opencode, ai-plan, gpu, mcp, sea, tui, wdbx, agent-status-reporter) with honest-stub framing; add tools/check_skills.sh frontmatter validator; remove 6 dead repo-root abi-superpower-* orphans.
 - **TUI feature-parity improvements** — Ctrl-R reverse history search, Alt-Enter multi-line input, Ctrl-K/U/W/L Emacs keys, `/sessions` list command, `/clear` screen command, colorized `/diff` (green +/red -/cyan hunks), `/diff --stat`, unified file context budgets (32 KiB `/open`, 16 KiB `@file`), `estimateTokens()` helper.
 + **SoulLayout neural routing wired into CLI** — `src/features/ai/router.zig` adds `routeInputWithSoul()` (keyword-sentiment + 3-output neural softmax blend via `blend_alpha`), `blendWeights()`, and `src/cli/handlers/train.zig` adds `handleSoulComplete` path behind `abi complete --soul <file.json> [--soul-alpha <0.0-1.0>]`. `SoulLayout.fromJson` + `bootstrap` now exercised end-to-end; point_neural_net parity maintained in stub.
 - **9 superpower skills from docs/specs** — `abi-superpower-agent-orchestration` (multi/spawn/browser local orchestration), `abi-superpower-constitution` (6-principle constitutional audit), `abi-superpower-wdbx-cluster` (Raft + RPC), `abi-superpower-wdbx-compute` (CPU/GPU/NPU/TPU selector), `abi-superpower-wdbx-secure` (compression + HE demos), `abi-claims-validator` (external-claims audit), `abi-wdbx-persistence` (WAL + segments + recovery), `abi-mcp-transport` (JSON-RPC stdio + HTTP/SSE), `abi-plugin-system` (manifest + registry). All in `.agents/skills/` (symlinked to `.opencode/skills/`). All include honest claim boundaries per `docs/contracts/external-claims-audit.mdx`. AGENTS.md/CLAUDE.md/GEMINI.md updated with skill references.

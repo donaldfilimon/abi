@@ -13,6 +13,7 @@ pub const cluster_rpc = @import("cluster_rpc.zig");
 pub const compression = @import("compression.zig");
 pub const neural_compress = @import("neural_compress.zig");
 pub const entropy = @import("entropy.zig");
+pub const ans = @import("ans.zig");
 pub const crypto_he = @import("crypto_he.zig");
 pub const fhe = @import("fhe.zig");
 pub const compute = @import("compute.zig");
@@ -51,6 +52,7 @@ test {
     _ = @import("remote_compute.zig");
     _ = @import("compression.zig");
     _ = @import("entropy.zig");
+    _ = @import("ans.zig");
     _ = @import("crypto_he.zig");
     _ = @import("compute.zig");
     _ = @import("rest.zig");

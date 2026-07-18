@@ -15,7 +15,7 @@ const std = @import("std");
 const wdbx_mod = @import("mod.zig");
 const persistence = @import("persistence.zig");
 const persistence_parse = @import("persistence_parse.zig");
-const test_helpers = @import("../../testing/test_helpers.zig");
+const test_helpers = @import("../../foundation/test_helpers.zig");
 
 /// Header line prefix. A WAL written after a checkpoint additionally carries a
 /// ` base_epoch=N` token naming the checkpoint epoch it is a delta from; legacy
