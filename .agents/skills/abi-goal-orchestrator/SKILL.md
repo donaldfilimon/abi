@@ -25,7 +25,7 @@ Use this skill to turn ABI's active board and long-horizon specs into a concrete
 - Treat `tasks/todo.md` as the active board and `docs/spec/wdbx-north-star.mdx` as the Current/Partial/Proposed map. Leave coarse user intentions in `tasks/goals.md` (via the `goals` skill).
 - Do not convert disclosed stubs into fake completions. Native dispatch, production clustering, production FHE, and learned-compression claims need real source/tests/artifacts.
 - Do not add legacy CLI names. Preserve the frozen top-level command set and MCP 12-tool contract.
-- When changing public feature APIs, update real and stub modules and run `zig build check-parity`.
+- When changing public feature APIs, update real and stub modules and run `./build.sh check-parity`.
 - When changing docs, run `.agents/skills/docs-validate/validate.sh` in addition to code gates.
 
 ## Useful Commands
@@ -33,7 +33,7 @@ Use this skill to turn ABI's active board and long-horizon specs into a concrete
 ```bash
 abi_inventory.py --repo /Users/donaldfilimon/abi   # optional; codex abi-mega plugin only
 zig version
-zig build check-parity --summary all
+./build.sh check-parity
 ./build.sh check
 ```
 
