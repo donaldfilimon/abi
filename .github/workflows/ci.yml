@@ -72,8 +72,30 @@ jobs:
         run: zig build cross-smoke
 
   # Docs gate omitted from ./build.sh check — see .agents/skills/docs-validate/validate.sh
+  # Same-repo only on self-hosted (avoids GitHub-hosted minutes / billing lock).
+  # Fork PRs use the hosted job below — never run untrusted heads on self-hosted.
   docs-validate:
     name: docs (mint validate)
+    if: >
+      github.repository == 'donaldfilimon/abi' &&
+      (github.event_name == 'push' ||
+       github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: [self-hosted, macOS, ARM64, abi]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Mintlify docs validate
+        run: .agents/skills/docs-validate/validate.sh
+
+  docs-validate-hosted:
+    name: docs (mint validate, fork PRs)
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
