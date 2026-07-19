@@ -230,7 +230,7 @@ pub fn computeInfo() anyerror!u8 {
     std.debug.print("dynamic selection: best_cpu={s}; request npu-ane -> effective={s} ({s})\n", .{ best.name(), sel.effective.name(), sel.message });
     std.debug.print("apple neural engine: hardware_present={any} native_dispatch=false (CoreML/ANE path requires Apple frameworks, not linked; CPU fallback)\n", .{wdbx.compute.aneHardwarePresent()});
     const remote_ep = wdbx.remote_compute.endpoint();
-    std.debug.print("remote compute dispatch: endpoint={s} (set {s}=host:port to route ops to a remote TPU/GPU service; CPU fallback otherwise)\n", .{ remote_ep orelse "none", wdbx.remote_compute.ENDPOINT_ENV });
+    std.debug.print("remote compute reference: endpoint={s} ({s} is report-only; production ops remain on the selected local CPU/GPU path)\n", .{ remote_ep orelse "none", wdbx.remote_compute.ENDPOINT_ENV });
     return 0;
 }
 

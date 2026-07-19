@@ -91,6 +91,26 @@ pub const VectorOps = struct {
             slot.* = try self.cosineSimilarity(query, cand);
         }
     }
+
+    pub fn softmax(self: VectorOps, values: []const f32, out: []f32) !void {
+        _ = self;
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+        var max_val: f32 = values[0];
+        for (values[1..]) |v| {
+            if (v > max_val) max_val = v;
+        }
+        var sum: f32 = 0;
+        for (values, out) |v, *slot| {
+            slot.* = @exp(v - max_val);
+            sum += slot.*;
+        }
+        if (sum == 0) {
+            @memset(out, 0);
+            return;
+        }
+        for (out) |*slot| slot.* /= sum;
+    }
 };
 
 pub fn backendName(backend: Backend) []const u8 {

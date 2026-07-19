@@ -7,9 +7,9 @@
 //! in-process array. Both bind and dial are host-aware (`listenAddr` /
 //! `dialVoteAddr` / `dialAppendAddr` take an explicit IPv4/IPv6 host, with
 //! `listen`/`dialVote`/`dialAppend` as loopback convenience wrappers), so a node
-//! can bind a routable address ("0.0.0.0" or a specific NIC) and peers on other
-//! hosts can reach it. Multi-host clustering is then a deployment concern (choose
-//! the bind host + reachable peer addresses); the transport code is routable.
+//! can bind a routable address ("0.0.0.0" or a specific NIC). Tests exercise
+//! loopback plus same-host dialing through an all-interface listener; cross-host
+//! deployment, interoperability, and operations remain unproven.
 //!
 //! Ops / honesty:
 //! - Shared secret: `ABI_WDBX_CLUSTER_TOKEN` (required for non-loopback binds).
@@ -132,11 +132,10 @@ fn parseRequest(line: []const u8, auth_supplied: *?[]const u8) !ParsedRequest {
     return .unknown;
 }
 
-/// Bind a node endpoint on an explicit host address — the routable-cluster entry
-/// point. `host` accepts loopback ("127.0.0.1"), all-interfaces ("0.0.0.0" /
-/// "::"), or a specific routable IPv4/IPv6 address, so a node can be reached by
-/// peers on other hosts. Multi-host clustering is then purely a deployment
-/// concern (choose the bind host + reachable peer addresses).
+/// Bind a node endpoint on an explicit host address. `host` accepts loopback
+/// ("127.0.0.1"), all-interfaces ("0.0.0.0" / "::"), or a specific routable
+/// IPv4/IPv6 address. Same-host routable-bind behavior is tested; cross-host
+/// deployment, interoperability, and operations remain unproven.
 pub fn listenAddr(io: std.Io, host: []const u8, port: u16) !Server {
     var address = try net_line.resolveHost(host, port);
     return address.listen(io, .{ .reuse_address = true });
@@ -212,8 +211,9 @@ pub fn dialVote(io: std.Io, port: u16, term: u64, candidate: u32) !?Stream {
     return dialVoteAddr(io, "127.0.0.1", port, term, candidate);
 }
 
-/// Routable RequestVote: dial a peer at an explicit `host` (loopback or any
-/// reachable IPv4/IPv6) for multi-host clusters.
+/// Host-aware RequestVote dialer for an explicit IPv4/IPv6 address. Current
+/// integration coverage is same-host; this API alone does not prove a
+/// production multi-host cluster.
 pub fn dialVoteAddr(io: std.Io, host: []const u8, port: u16, term: u64, candidate: u32) !?Stream {
     return dialVoteAddrAuth(io, host, port, term, candidate, null);
 }
@@ -235,8 +235,8 @@ pub fn dialAppend(io: std.Io, port: u16, term: u64, data: []const u8) !?Stream {
     return dialAppendAddr(io, "127.0.0.1", port, term, data);
 }
 
-/// Routable AppendEntries: dial a peer at an explicit `host` for multi-host
-/// clusters.
+/// Host-aware AppendEntries dialer for an explicit address. Current integration
+/// coverage is same-host; cross-host behavior remains unproven.
 pub fn dialAppendAddr(io: std.Io, host: []const u8, port: u16, term: u64, data: []const u8) !?Stream {
     return dialAppendAddrAuth(io, host, port, term, null, data, null);
 }

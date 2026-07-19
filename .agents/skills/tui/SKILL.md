@@ -14,13 +14,17 @@ Routes:
 | Non-interactive one-shot `abi dashboard` smoke (CI/headless) | `dashboard-smoke` |
 | Deep-dive the TUI superpower (panes, slash commands) | `abi-superpower-tui` |
 
-## Slash commands backed by skills (`.opencode.json` `slash_commands`)
-`/open`→file-context-loader, `/diff`→git-diff-integration,
-`/commit`→git-commit-integration, `/context`→context-state-reporter,
-`/features`→feature-flag-display, `/learn`→sea-learning-controller,
-`/save`→session-persister, `/load`→session-restorer,
-`/status`→agent-status-reporter, `/reset`→context-resetter. Plugin-provided
-commands come from `abi-plugin.json` `commands`.
+## REPL slash commands (agent TUI, not OpenCode config)
+
+Implemented in `src/features/tui/repl*.zig` (see `abi-superpower-tui`). Companion
+skills document the agent-side helpers: `/open`→file-context-loader,
+`/diff`→git-diff-integration, `/commit`→git-commit-integration,
+`/context`→context-state-reporter, `/features`→feature-flag-display,
+`/learn`→sea-learning-controller, `/save`→session-persister,
+`/load`→session-restorer, `/status`→agent-status-reporter,
+`/reset`→context-resetter. Plugin-provided commands come from
+`abi-plugin.json` `commands`. Repo OpenCode config is `opencode.json` (no
+`slash_commands` key).
 
 ## Gotchas
 - `dashboard-smoke` reads stdin from `/dev/null` to force the non-interactive

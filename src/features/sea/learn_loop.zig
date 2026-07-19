@@ -195,6 +195,45 @@ test "runLearnLoop uses saved adaptive weights for later learned completions" {
     try std.testing.expect(std.mem.indexOf(u8, result.completion.output, "Aviva creative exploration") != null);
 }
 
+test "runLearnLoop treats corrupted persisted weights identically to no persisted weights" {
+    if (!build_options.feat_wdbx or !build_options.feat_ai) return;
+    const allocator = std.testing.allocator;
+    const input = "analyze the logical structure";
+
+    // Baseline: fresh store, no `modulator:weights` key at all.
+    var empty_store = wdbx.Store.init(allocator);
+    defer empty_store.deinit();
+    var baseline = try runLearnLoop(allocator, &empty_store, input, "abi-local", .{
+        .persist = false,
+        .adapt_router = false,
+    });
+    defer baseline.deinit(allocator);
+
+    // Corrupted: a well-formed-looking but semantically invalid value (NaN
+    // weight) written directly under the modulator's store key, bypassing
+    // `AdaptiveModulator.serialize` entirely (simulates on-disk corruption or
+    // a manual edit of the persisted state). This parses successfully as five
+    // comma-separated fields, so it reaches the `isFinite` rejection added by
+    // the deserialize hardening rather than being rejected earlier on field
+    // count or parse failure.
+    var corrupt_store = wdbx.Store.init(allocator);
+    defer corrupt_store.deinit();
+    try corrupt_store.store("modulator:weights", "nan,0.3,0.4,1,0.3");
+    var corrupted = try runLearnLoop(allocator, &corrupt_store, input, "abi-local", .{
+        .persist = false,
+        .adapt_router = false,
+    });
+    defer corrupted.deinit(allocator);
+
+    // `loadWeights` -> `deserialize` funnels both "missing key" and "rejected
+    // non-finite value" through `AdaptiveModulator.init()` defaults (see
+    // router.zig's `deserializeValidated` hardening), so a corrupted
+    // persisted value must route identically to no persisted value at all —
+    // not crash, and not skew routing on a NaN-poisoned weight.
+    try std.testing.expectEqual(baseline.completion.selected_profile, corrupted.completion.selected_profile);
+    try std.testing.expectEqualStrings(baseline.completion.output, corrupted.completion.output);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
