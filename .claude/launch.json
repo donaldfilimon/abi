@@ -29,5 +29,6 @@
       "port": 3000,
       "autoPort": true
     }
-  ]
+  ],
+  "autoVerify": false
 }

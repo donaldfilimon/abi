@@ -34,6 +34,7 @@ pub const ans = struct {};
 pub const crypto_he = struct {};
 pub const fhe = struct {};
 pub const compute = struct {};
+pub const multiway = struct {};
 pub const remote_compute = struct {};
 pub const rest = struct {};
 

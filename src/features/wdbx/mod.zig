@@ -22,6 +22,7 @@ pub const rest = @import("rest.zig");
 pub const rate_limiter = @import("rate_limiter.zig");
 pub const tls_config = @import("tls_config.zig");
 pub const RateLimiter = rate_limiter.RateLimiter;
+pub const multiway = @import("multiway.zig");
 pub const recovery = @import("recovery.zig");
 pub const retrieval = @import("retrieval.zig");
 pub const segments = @import("segments.zig");
@@ -55,6 +56,8 @@ test {
     _ = @import("ans.zig");
     _ = @import("crypto_he.zig");
     _ = @import("compute.zig");
+    _ = @import("multiway.zig");
+    _ = @import("multiway_regression.zig");
     _ = @import("rest.zig");
     _ = @import("rate_limiter.zig");
     _ = @import("tls_config.zig");
