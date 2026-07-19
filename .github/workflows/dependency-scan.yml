@@ -1,0 +1,37 @@
+name: Dependency Scan (skeleton)
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+  id-token: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run OSSF Scorecard (read-only)
+        uses: ossf/scorecard-action@v2
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-scan-results
+          path: |
+            results.sarif
+            tools/security/
+
+# Non-blocking scaffold. Configure preferred scanning tools and secrets as needed.
