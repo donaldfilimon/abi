@@ -51,13 +51,27 @@ No unproven claims (production FHE/AES/RBAC, multi-host sharding, QPS/latency/ac
 ## Linux / non-macOS note
 Cross-compiles link cleanly for `x86_64-linux-gnu` / `aarch64-linux-gnu` / `windows-gnu` (exe + all test modules set `link_libc=true`; `metal_shared.zig` gates objc externs to macOS via `comptime`). Ambient WDBX persist EBADF is **fixed** (`ensureOwnerOnlyDir` opens with `iterate=true` so Linux `fchmod` works). Execution of cross binaries still needs a Linux/Windows host (CI `cross-smoke`); this macOS host cannot run them. Green native suites on macOS: full `./build.sh check`. Feature-stub smoke in `check` overwrites `zig-out/bin/abi` — re-run `./build.sh cli` to restore it.
 
-## Cross-platform
-- macOS is primary (full `./build.sh check` green). Linux: `test-integration`, `test-cli`, `test-mcp-server` need libc linking; prefer unit tests, `test-plugins`, `test-{contracts,mcp-contracts,feature-contracts}`.
-- Feature-stub smoke in `check` overwrites `zig-out/bin/abi` — re-run `./build.sh cli` to restore full-featured binary.
+## Learned User Preferences
+- Prefer feature branches named with the `cursor/` prefix from `origin/main`; do not commit or push directly to `main`; never force-push `main`.
+- Recurring ask: land finished work onto `main` via PR/merge rather than leaving stranded feature branches; when asked to "stay on main" / "merge all into main", finish via PR merge (prefer `gh pr merge --squash` when a PR exists) and return checkout to `main`; when asked to delete other branches after landing, remove merged local `cursor/*` branches (and remotes when safe).
+- For AGENTS.md Learned-section-only updates, append prefs/facts onto `origin/main` rather than overwriting the compact toolchain/commands body.
+- Prefer draft PRs when the create-pull-request flow requests draft.
+- Verify interactive dashboard/TUI with `.agents/skills/run-tui/tui.sh` (tmux pty); never prepend Homebrew `/opt/homebrew/bin` ahead of the pinned Zig on PATH.
+- Prefer honest status digests and labeled demos over fake live bridges; when asked to "do all" on deferred/non-goal tracks, ship maximum claim-honest scope only — never fake-complete honest stubs, ANE dispatch, audited FHE, SOTA compression, or production multi-host sharding.
+- For refactor/organization work, prefer scoped tracks (module extraction vs north-star features vs docs/claims) over open-ended clean-slate rewrites; confirm scope before planning.
+- When reducing Cursor context budget, disable unused `alwaysApply` plugin rules and unrelated MCP servers; do not re-inflate `CLAUDE.md`/`GEMINI.md` (they are thin redirects to `AGENTS.md`).
+- When the user invokes `/abi`, route ABI implementation through the `abi` subagent.
 
-## Learned preferences
-- Feature branches: `cursor/` prefix from `origin/main`. Land via PR merge (`gh pr merge --squash`). Delete merged local `cursor/*` branches. Prefer draft PRs.
-- For AGENTS.md Learned-section-only updates, append to `origin/main`.
-- Verify interactive TUI with `.agents/skills/run-tui/tui.sh` (tmux pty).
-- Prefer honest status digests and labeled demos over fake live bridges.
-- For refactor/organization work, prefer scoped tracks over open-ended clean-slate rewrites.
+## Learned Workspace Facts
+- Org/extraction waves are largely done; TUI hub is `repl.zig` (~564) with leaves `repl_io`, `repl_complete`, `repl_pane`, `repl_commands`, `repl_git_*`, `repl_session`, `repl_types`; `dashboard.zig` + `dashboard_render.zig` are ~399 each.
+- Interactive `abi dashboard` / `abi tui` / `abi --tui` use a split layout (diagnostics + Agent Output); one-shot `--once` stays stacked — layouts diverge by design. Dashboard Agent Output is a status digest, not live `agent tui` traffic; dashboard WDBX is an ephemeral CLI probe (labeled), not the durable agent store.
+- Plugin-declared slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>` for context providers).
+- REPL `/pane` split landed in `repl_pane.zig`; in-process persona streaming is iterative word/token emission (`stream=incremental` via `incremental.zig`), not a neural LM/ggml sampler.
+- WDBX `SearchResult`/`RankedNode` can attach borrowed vector dims for zero-copy search/CLI use; mutation lifetime remains a documented residual.
+- Metal `vectorOps` includes a fused cosine kernel on macOS; CUDA/Vulkan stay disclosed stubs (no native dispatch claimed).
+- Windows credential writes can apply owner-only DACL (SDDL `OW`); OS keychain and Windows runtime ACL verification still need a Windows host/CI.
+- `tasks/goals.md` is gitignored (`/tasks/*` + root `*.md`); treat committed `tasks/todo.md` as the active board (includes A–G claim-honest scoreboard).
+- Canonical refactor layout/status: `docs/spec/abi-refactor-design.mdx`; Approach-1 waves A–C complete; `modern-refactor/examples/` is historical, not the active board. `modernized/` holds Phase D–approved package-layout pointers under `packages/`; live code remains `src/` until cutover. Optional host override template: `modern-refactor/.claude/modern-refactor.local.md.example` → copy to repo-root `.claude/modern-refactor.local.md` (not auto-loaded from the plugin package).
+- `tools/check_zigversion.sh` runs as part of `zig build check` / `./build.sh check` and fails when `.zigversion` and `.github/workflows/ci.yml` `ZIG_VERSION` diverge (also warns if active `zig version` ≠ pin).
+- `foundation/http.zig` holds shared HTTP helpers (read/write/find body, Content-Length, header parse, bearer auth, readHttpRequest/HttpReadResult) used by both MCP and WDBX REST; `foundation/json.zig` has `appendJsonString`/`escapeJsonString` used by MCP. Keep connector/WDBX inline JSON copies: `connector_test_mod` is an isolated test root (no `abi`/foundation import), so sharing needs a `foundation_json` leaf module in `build.zig` — prefer keep-copies over unfinished dedup.
+- abi-skills/`sl` `skill-loop` is the external npm CLI `@stylusnexus/skill-loop-cli` (pin `@0.3.3` via `npx`), not an in-repo binary; useful cmds: `init`/`status`/`inspect`/`log` (no `scan`). When absent, use manual skill scan + `.agents/skills/sync-clis/launch.sh` (propagates SKILL.md and references/examples to Claude/grok targets).
