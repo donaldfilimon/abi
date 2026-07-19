@@ -111,6 +111,24 @@ pub const VectorOps = struct {
         return self.batchCosineSimilarityFallback(query, candidates, out);
     }
 
+    /// Numerically-stable softmax over `values`, written into `out` (len must
+    /// equal values.len). Routes through the Metal kernel when initialized on
+    /// macOS, otherwise a host reference implementation. Demo-grade; CUDA/
+    /// Vulkan/ANE remain non-goals per the external-claims audit.
+    pub fn softmax(self: VectorOps, values: []const f32, out: []f32) !void {
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+
+        if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runSoftmax(values, out) catch |err| {
+                std.log.warn("Metal softmax failed ({s}); using CPU fallback", .{@errorName(err)});
+                cpuSoftmax(values, out);
+            };
+        }
+
+        cpuSoftmax(values, out);
+    }
+
     /// Flattens `candidates` (non-contiguous, pointing into HNSW/caller
     /// storage) into one contiguous host buffer of `candidates.len * query.len`
     /// floats and dispatches the fused batched Metal kernel in a single
@@ -186,6 +204,24 @@ fn cpuCosine(self: VectorOps, a: []const f32, b: []const f32) !f32 {
     const bb = cpuDot(b, b);
     if (aa == 0 or bb == 0) return 0;
     return ab / @sqrt(aa * bb);
+}
+
+fn cpuSoftmax(values: []const f32, out: []f32) void {
+    var max_val: f32 = values[0];
+    for (values[1..]) |v| {
+        if (v > max_val) max_val = v;
+    }
+
+    var sum: f32 = 0;
+    for (values, out) |v, *slot| {
+        slot.* = @exp(v - max_val);
+        sum += slot.*;
+    }
+    if (sum == 0) {
+        @memset(out, 0);
+        return;
+    }
+    for (out) |*slot| slot.* /= sum;
 }
 
 pub fn executeKernel(spec: backends.KernelSpec) !backends.KernelResult {
@@ -431,6 +467,44 @@ test "cpu dot with negative values" {
     const b = [_]f32{ 4, -5, 6 };
     // -4 + -10 + -18 = -32
     try std.testing.expectEqual(@as(f32, -32), cpuDot(&a, &b));
+}
+
+test "gpu softmax matches independent scalar reference (CPU/GPU parity)" {
+    // Whatever backend init() selected (Metal when initialized on macOS,
+    // otherwise vectorized CPU fallback) must agree with an independent
+    // scalar softmax. This is the mandated CPU/GPU parity check.
+    const ops = vectorOps();
+    const values = [_]f32{ 1.0, 2.0, 3.0, 0.5, -1.0, 2.5 };
+
+    // Independent scalar reference (numerically stable).
+    var max_val: f32 = values[0];
+    for (values[1..]) |v| {
+        if (v > max_val) max_val = v;
+    }
+    var expected: [values.len]f32 = undefined;
+    var sum: f32 = 0;
+    for (values, 0..) |v, i| {
+        expected[i] = @exp(v - max_val);
+        sum += expected[i];
+    }
+    for (&expected) |*slot| slot.* /= sum;
+
+    var out: [values.len]f32 = undefined;
+    try ops.softmax(&values, &out);
+    for (expected, out) |exp, got| {
+        try std.testing.expectApproxEqAbs(exp, got, 1e-4);
+    }
+    // Probabilities sum to 1.
+    var total: f32 = 0;
+    for (out) |v| total += v;
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), total, 1e-4);
+}
+
+test "gpu softmax rejects mismatched output length" {
+    const ops = vectorOps();
+    const values = [_]f32{ 1.0, 2.0, 3.0 };
+    var out: [2]f32 = undefined;
+    try std.testing.expectError(error.DimensionMismatch, ops.softmax(&values, &out));
 }
 
 test "reduceSum CPU fallback matches scalar reference" {

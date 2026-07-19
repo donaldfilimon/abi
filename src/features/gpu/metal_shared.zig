@@ -199,6 +199,8 @@ const MetalContext = struct {
     cosine_parts_pipeline: ?*anyopaque = null,
     batch_cosine_pipeline: ?*anyopaque = null,
     reduce_sum_pipeline: ?*anyopaque = null,
+    softmax_pipeline: ?*anyopaque = null,
+    softmax_norm_pipeline: ?*anyopaque = null,
     initialized: bool = false,
     mutex: sync.SpinLock = .{},
 
@@ -323,6 +325,29 @@ const MetalContext = struct {
             \\    }
             \\    if (lid == 0u) partials[tgid] = shared[0];
             \\}
+            \\
+            \\// exp(x - max) into `result`. `max_val` is the row max, passed as a
+            \\// kernel constant so every lane subtracts the same shift (numerically
+            \\// stable softmax). A separate reduce_sum_kernel pass sums `result`,
+            \\// then softmax_norm_kernel divides each element by that sum.
+            \\kernel void softmax_kernel(
+            \\    device const float* in [[buffer(0)]],
+            \\    constant float& max_val [[buffer(1)]],
+            \\    device float* out [[buffer(2)]],
+            \\    uint id [[thread_position_in_grid]]
+            \\) {
+            \\    out[id] = exp(in[id] - max_val);
+            \\}
+            \\
+            \\// out[id] = in[id] / norm (the normalization step of softmax).
+            \\kernel void softmax_norm_kernel(
+            \\    const device float* in [[buffer(0)]],
+            \\    constant float& norm [[buffer(1)]],
+            \\    device float* out [[buffer(2)]],
+            \\    uint id [[thread_position_in_grid]]
+            \\) {
+            \\    out[id] = in[id] / norm;
+            \\}
         ;
 
         const source_nsstring = try createNSString(allocator, source) orelse return error.CreateStringFailed;
@@ -388,6 +413,20 @@ const MetalContext = struct {
         self.reduce_sum_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, reduce_func, @ptrCast(&err));
         if (self.reduce_sum_pipeline == null) return error.CreatePipelineStateFailed;
 
+        const softmax_func_name = try createNSString(allocator, "softmax_kernel") orelse return error.CreateStringFailed;
+        const softmax_func = msg_send_id_ret_id(library, sel_newFunctionWithName, softmax_func_name) orelse return error.FunctionNotFound;
+
+        const softmax_norm_func_name = try createNSString(allocator, "softmax_norm_kernel") orelse return error.CreateStringFailed;
+        const softmax_norm_func = msg_send_id_ret_id(library, sel_newFunctionWithName, softmax_norm_func_name) orelse return error.FunctionNotFound;
+
+        err = null;
+        self.softmax_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, softmax_func, @ptrCast(&err));
+        if (self.softmax_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
+        self.softmax_norm_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, softmax_norm_func, @ptrCast(&err));
+        if (self.softmax_norm_pipeline == null) return error.CreatePipelineStateFailed;
+
         // Release one-time init temporaries; the pipeline states and queue stay retained.
         const sel_release = objc.sel_registerName("release");
         const msg_send_void_ret_void = @as(MsgSendVoidRetVoid, @ptrCast(&objc.objc_msgSend));
@@ -396,6 +435,8 @@ const MetalContext = struct {
         msg_send_void_ret_void(cosine_func, sel_release);
         msg_send_void_ret_void(batch_cosine_func, sel_release);
         msg_send_void_ret_void(reduce_func, sel_release);
+        msg_send_void_ret_void(softmax_func, sel_release);
+        msg_send_void_ret_void(softmax_norm_func, sel_release);
         msg_send_void_ret_void(library, sel_release);
         msg_send_void_ret_void(dot_func_name, sel_release);
         msg_send_void_ret_void(l2_func_name, sel_release);
@@ -761,6 +802,73 @@ const MetalContext = struct {
         };
         d.release(scalar_buf);
         return sum;
+    }
+
+    /// Softmax over `values`, written into `out` (len must equal values.len).
+    /// Numerically stable: the row max is subtracted before exp (computed
+    /// host-side — demo-grade, not a performance path). GPU does the exp map
+    /// (softmax_kernel) and the per-element divide (softmax_norm_kernel); the
+    /// partition-function sum is folded on the host since `values` is already
+    /// resident there (cheap, honest for a demo kernel). Falls back to the host
+    /// implementation in vector_ops.zig if Metal dispatch fails. Demo-grade;
+    /// CUDA/Vulkan/ANE remain non-goals.
+    pub fn runSoftmax(self: *MetalContext, values: []const f32, out: []f32) !void {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (self.softmax_pipeline == null or self.softmax_norm_pipeline == null) return error.NotInitialized;
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+
+        // Row max (host-side) for numerical stability.
+        var max_val: f32 = values[0];
+        for (values[1..]) |v| {
+            if (v > max_val) max_val = v;
+        }
+
+        // Partition-function sum on the host (values already resident here).
+        var sum: f32 = 0;
+        for (values) |v| sum += @exp(v - max_val);
+        if (sum == 0) {
+            @memset(out, 0);
+            return;
+        }
+
+        const d = MetalDispatch.load();
+        const byte_len = values.len * @sizeOf(f32);
+
+        const buffer_in = d.msg_bytes(self.device, d.sel_new_bytes, values.ptr, byte_len, 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_in);
+        // exp(x-max) lands here; owned by runSoftmax for the whole dispatch.
+        const buffer_exp = d.msg_len(self.device, d.sel_new_length, byte_len, 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_exp);
+
+        // Scalar uniform buffers for the kernel's `constant float&` params.
+        const buffer_max = d.msg_bytes(self.device, d.sel_new_bytes, &max_val, @sizeOf(f32), 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_max);
+        const buffer_sum = d.msg_bytes(self.device, d.sel_new_bytes, &sum, @sizeOf(f32), 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_sum);
+
+        const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse
+            return error.CommandBufferCreationFailed;
+        // softmax_kernel: in=values, max=uniform(max_val), out=exp(x-max)
+        encodeMapKernel(d, self.softmax_pipeline, cmd_buf, buffer_in, buffer_max, buffer_exp, values.len) catch |e| {
+            return e;
+        };
+
+        // softmax_norm_kernel: in=exp(x-max), norm=uniform(sum), out=softmax
+        const buffer_out = d.msg_bytes(self.device, d.sel_new_bytes, out.ptr, byte_len, 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_out);
+        encodeMapKernel(d, self.softmax_norm_pipeline, cmd_buf, buffer_exp, buffer_sum, buffer_out, values.len) catch |e| {
+            return e;
+        };
+
+        d.commitAndWait(cmd_buf);
+        try d.copyBufferToHost(buffer_out, out[0..values.len]);
     }
 };
 
