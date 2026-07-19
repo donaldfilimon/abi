@@ -535,7 +535,7 @@ test "simulate dry-run validates and reports the plan" {
     if (!build_options.feat_wdbx) return;
     const allocator = std.testing.allocator;
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{
-        "abi",      "wdbx", "simulate", "--initial", "A",         "--rule", "A->AB",
+        "abi",       "wdbx", "simulate", "--initial", "A", "--rule", "A->AB",
         "--dry-run",
     }));
 }
@@ -569,14 +569,14 @@ test "simulate runs the reference experiment and writes canonical JSON" {
     defer cleanupArtifacts(&.{out_path});
 
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{
-        "abi",     "wdbx",         "simulate",
-        "--initial", "A",
-        "--rule",  "A->AB",        "--rule",
-        "A->BA",   "--rule",       "BB->A",
-        "--depth", "5",            "--max-states",
-        "500",     "--max-events", "5000",
-        "--format", "json",        "--output",
-        out_path,  "--quiet",
+        "abi",          "wdbx",         "simulate",
+        "--initial",    "A",            "--rule",
+        "A->AB",        "--rule",       "A->BA",
+        "--rule",       "BB->A",        "--depth",
+        "5",            "--max-states", "500",
+        "--max-events", "5000",         "--format",
+        "json",         "--output",     out_path,
+        "--quiet",
     }));
 
     const content = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, out_path, allocator, .limited(16 * 1024 * 1024));
@@ -597,9 +597,8 @@ test "simulate DOT export and rules-file input" {
 
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = rules_path, .data = "# reference rules\nA->AB\nA->BA\nBB->A\n" });
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{
-        "abi",          "wdbx",   "simulate", "--initial", "A", "--rules-file", rules_path,
-        "--depth",      "3",      "--format", "dot",       "--output", dot_path,
-        "--quiet",
+        "abi",     "wdbx", "simulate", "--initial", "A",        "--rules-file", rules_path,
+        "--depth", "3",    "--format", "dot",       "--output", dot_path,       "--quiet",
     }));
     const dot = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, dot_path, allocator, .limited(1024 * 1024));
     defer allocator.free(dot);
@@ -619,13 +618,13 @@ test "simulate config file + WDBX persistence + resume round-trip" {
     defer cleanupStore(store_path);
 
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = config_path, .data =
-    \\{"initial":["A"],"rules":["A->AB","A->BA","BB->A"],"max_depth":3,"max_states":500,"max_events":5000,"max_payload":64}
+        \\{"initial":["A"],"rules":["A->AB","A->BA","BB->A"],"max_depth":3,"max_states":500,"max_events":5000,"max_payload":64}
     });
 
     // Bounded run persisted to WDBX, canonical export written to a file.
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{
-        "abi",     "wdbx",     "simulate", "--config", config_path, "--format", "json",
-        "--output", export_path, "--store", store_path, "--quiet",
+        "abi",      "wdbx",      "simulate", "--config", config_path, "--format", "json",
+        "--output", export_path, "--store",  store_path, "--quiet",
     }));
 
     // Resume from the JSON export with deeper limits.
@@ -636,9 +635,8 @@ test "simulate config file + WDBX persistence + resume round-trip" {
 
     // Resume from the WDBX checkpoint too.
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{
-        "abi",           "wdbx",     "simulate", "--config", config_path, "--depth", "5",
-        "--resume-wdbx", store_path, "--format", "json",     "--output",  export2_path,
-        "--quiet",
+        "abi",           "wdbx",     "simulate", "--config", config_path, "--depth",    "5",
+        "--resume-wdbx", store_path, "--format", "json",     "--output",  export2_path, "--quiet",
     }));
 
     // The resumed-run export must equal a direct depth-5 run's export.
@@ -646,8 +644,8 @@ test "simulate config file + WDBX persistence + resume round-trip" {
     cleanupArtifacts(&.{direct_path});
     defer cleanupArtifacts(&.{direct_path});
     try std.testing.expectEqual(@as(u8, 0), try handleWdbx(std.testing.io, allocator, &.{
-        "abi",      "wdbx",      "simulate", "--config", config_path, "--depth", "5",
-        "--format", "json",      "--output", direct_path, "--quiet",
+        "abi",      "wdbx", "simulate", "--config",  config_path, "--depth", "5",
+        "--format", "json", "--output", direct_path, "--quiet",
     }));
     const resumed = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, export2_path, allocator, .limited(16 * 1024 * 1024));
     defer allocator.free(resumed);
