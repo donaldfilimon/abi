@@ -21,10 +21,11 @@ sources are still `build.zig`, `src/`, `tests/contracts/`,
 - Cluster RPC is a real RequestVote/AppendEntries TCP transport with shared
   secret and optional peer allowlist controls, but remains reference-scoped.
 - GPU/backend support is capability reporting plus vector operations that use
-  linked Metal `dot` / `squaredL2` / fused `cosine_parts` kernels plus multi-pass
-  `reduce_sum_kernel` (256-wide until one scalar) on macOS when the runtime
-  reports initialized native kernels, and otherwise deterministically fall back
-  to vectorized CPU.
+  linked Metal `dot` / `squaredL2` / fused `cosine_parts` kernels, multi-pass
+  `reduce_sum_kernel` (256-wide until one scalar), and demo-grade softmax
+  (`softmax_kernel` + `softmax_norm_kernel`, host-side max/sum) on macOS when
+  the runtime reports initialized native kernels, and otherwise deterministically
+  fall back to vectorized CPU.
 - Compression demos include int8 quantization, exact order-0 Huffman, demo rANS
   + order-1 residual coding (`ans.zig`), and a reference autoencoder — not SOTA.
 - FHE surfaces are reference/demo scoped unless audited production artifacts
@@ -36,8 +37,8 @@ sources are still `build.zig`, `src/`, `tests/contracts/`,
 - Production-ready non-loopback MCP/WDBX HTTP exposure without TLS, authz,
   rate limiting, and deployment review.
 - Native CUDA / Vulkan / ANE / TPU dispatch, or general GPU acceleration /
-  speedup beyond the macOS Metal fused cosine/dot/L2 + multi-pass reduce path
-  when kernels initialize.
+  speedup beyond the macOS Metal fused cosine/dot/L2 + multi-pass reduce +
+  demo-grade softmax path when kernels initialize.
 - Production/SOTA learned compression.
 - Production-secure or bootstrapped full FHE.
 - AES/RBAC WDBX storage.

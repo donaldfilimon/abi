@@ -13,7 +13,7 @@ Read-only CLI capture — evidence is the `RESULT:` line + the backend tables.
 .agents/skills/backend-diagnostics/diag.sh
 ```
 Builds the CLI, then captures `abi backends`, `abi wdbx compute info`, and
-`abi wdbx gpu info`; asserts the markers `GPU backend report` and
+`abi wdbx gpu info`; asserts the markers `Compute Backends:` and
 `compute backends`. Prints `RESULT: PASS` (exit 0) or a FAIL count.
 
 Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — Metal linked,
@@ -29,4 +29,4 @@ Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — Metal link
 | Symptom | Fix |
 |---|---|
 | `build` FAIL | `/zig-build-doctor` or `./build.sh check`. |
-| missing `GPU backend report` | CLI grammar drift — check `src/cli/handlers/backends.zig`. |
+| missing `Compute Backends:` | CLI grammar drift — check `src/cli/handlers/backends.zig`. |

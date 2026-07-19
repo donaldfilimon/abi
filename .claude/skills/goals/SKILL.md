@@ -51,7 +51,7 @@ to the bottom or mark `done`.
 - Do not add legacy CLI names. Preserve the frozen top-level command set and the
   MCP 12-tool contract.
 - When changing public feature APIs, update both the real and stub modules and run
-  `zig build check-parity`.
+  `./build.sh check-parity`.
 - When changing docs, run `.agents/skills/docs-validate/validate.sh` in addition to
   code gates.
 - Goals are user intentions, not tasks — keep `tasks/goals.md` coarse and let
@@ -63,9 +63,10 @@ Prove the slice with the narrow command first, then broaden when the blast radiu
 justifies it:
 
 ```bash
-zig build check-parity --summary all
+./build.sh check-parity
 ./build.sh check
 ```
+
 
 Feature-off parity (each must compile cleanly):
 

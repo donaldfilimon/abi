@@ -16,7 +16,8 @@ Entry point for abi's SEA self-learning loop (`src/features/ai/`). Routes:
 
 ## Facts that constrain any SEA plan
 - SEA = evidence-augmented self-learning completion with an 8-signal scorer +
-  budgeted greedy selection; task-aware (7 task types shift signal weights).
+  budgeted greedy selection. It classifies 7 task types; 3 currently apply
+  non-baseline signal-weight deltas and 4 retain the baseline weights.
 - `AdaptiveModulator` weights (EMA, `alpha=0.3`, key `modulator:weights`)
   persist in WDBX **only on the `--learn`/SEA path**. Plain `complete` re-runs
   sentiment each turn with no EMA persistence.
@@ -24,8 +25,8 @@ Entry point for abi's SEA self-learning loop (`src/features/ai/`). Routes:
   sets `audit_passed` / `audit_vetoed` / `escore`, `std.log.warn`s on violation,
   but `complete` / `run` still return the response. Safety+privacy hard-veto
   only when either < 0.5.
-- `routeInputAdaptive` in `router.zig` is unreferenced; the live EMA path is
-  `completeAdaptive` / `completeWithStoreAdaptive` via `runLearnLoop` only.
+- The live EMA path is `completeAdaptive` / `completeWithStoreAdaptive` via
+  `runLearnLoop` only; there is no separate `routeInputAdaptive` wrapper.
 
 ## Honest boundary
 No accuracy / energy / learning-gain claims without a repo benchmark.

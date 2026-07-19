@@ -19,7 +19,7 @@ say "build cli"
 ./build.sh cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
 [ -x "$ABI" ] || { echo "[FAIL] no binary"; exit 1; }
 
-check "backends report"  "GPU backend report"  "$ABI" backends
+check "backends report"  "Compute Backends:"    "$ABI" backends
 check "compute matrix"   "compute backends"    "$ABI" wdbx compute info
 check "gpu info"         "GPU backend"          "$ABI" wdbx gpu info
 

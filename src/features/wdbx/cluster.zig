@@ -113,13 +113,7 @@ pub const Cluster = struct {
 
         for (self.nodes) |*peer| {
             if (peer.id == candidate_id or !peer.alive) continue;
-            // A peer grants its vote if it has not already voted in this term.
-            if (peer.term < new_term or peer.voted_for == null) {
-                peer.term = new_term;
-                peer.voted_for = candidate_id;
-                peer.role = .follower;
-                votes += 1;
-            }
+            if (applyVote(peer, new_term, candidate_id)) votes += 1;
         }
 
         if (votes >= self.quorum()) {
@@ -289,6 +283,55 @@ test "cluster: loses availability without a quorum" {
     try std.testing.expect(!try c.startElection(2));
     try std.testing.expect(c.leader() == null);
     try std.testing.expectError(error.NoLeader, c.replicate("c"));
+}
+
+test "cluster: startElection/replicate match applyVote/applyAppend driven directly" {
+    const allocator = std.testing.allocator;
+
+    // Cluster A: driven entirely through the public API under test.
+    var via_api = try Cluster.init(allocator, 3);
+    defer via_api.deinit();
+    try std.testing.expect(try via_api.startElection(0));
+    _ = try via_api.replicate("hello");
+
+    // Cluster B: identical topology, driven by calling the shared free
+    // functions directly in the same order startElection/replicate use
+    // internally. Divergence from Cluster A indicates a behavior change in
+    // the shared helper path.
+    var via_primitives = try Cluster.init(allocator, 3);
+    defer via_primitives.deinit();
+
+    const cand = &via_primitives.nodes[0];
+    cand.term = 1;
+    cand.role = .candidate;
+    cand.voted_for = 0;
+    var votes: usize = 1; // candidate votes for itself
+    for (via_primitives.nodes[1..]) |*peer| {
+        if (applyVote(peer, 1, 0)) votes += 1;
+    }
+    try std.testing.expect(votes >= via_primitives.quorum());
+    cand.role = .leader;
+
+    // The leader appends its own entry directly, not via applyAppend:
+    // applyAppend unconditionally sets role = .follower, so the leader's own
+    // write stays distinct from the follower path.
+    const owned = try allocator.dupe(u8, "hello");
+    try cand.log.append(allocator, .{ .term = 1, .data = owned });
+
+    for (via_primitives.nodes[1..]) |*peer| {
+        _ = try applyAppend(peer, allocator, 1, "hello");
+    }
+
+    for (via_api.nodes, via_primitives.nodes) |a, b| {
+        try std.testing.expectEqual(a.term, b.term);
+        try std.testing.expectEqual(a.voted_for, b.voted_for);
+        try std.testing.expectEqual(a.role, b.role);
+        try std.testing.expectEqual(a.log.items.len, b.log.items.len);
+        for (a.log.items, b.log.items) |a_entry, b_entry| {
+            try std.testing.expectEqual(a_entry.term, b_entry.term);
+            try std.testing.expectEqualStrings(a_entry.data, b_entry.data);
+        }
+    }
 }
 
 test {

@@ -1,5 +1,12 @@
 name: CI
 
+# Trusted same-repo events run on the macOS arm64 self-hosted runner.
+# Fork PRs (and any untrusted head) stay on GitHub-hosted runners only —
+# never schedule untrusted code on the self-hosted machine.
+# Keep env.ZIG_VERSION in sync with .zigversion (tools/check_zigversion.sh
+# asserts both after checkout; build.zig.zon minimum is a separate lower bound).
+#
+# Runner ops / security: .github/self-hosted-runner.md
 # Primary gate + cross-compilation smoke for the ABI framework.
 # Runs on macOS (the project's primary platform — Apple frameworks available for
 # the native build) and cross-compiles the CLI for the supported non-native
@@ -10,41 +17,85 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 # Cancel superseded runs on the same ref.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+# Least privilege for GITHUB_TOKEN (no write scopes by default).
+permissions:
+  contents: read
 
 env:
   ZIG_VERSION: 0.17.0-dev.1398+cb5635714
 
 jobs:
   check:
-    name: check (build + tests + lint + parity)
-    runs-on: macos-latest
+    name: ${{ matrix.target }} (self-hosted)
+    if: >
+      github.repository == 'donaldfilimon/abi' &&
+      (github.event_name == 'push' ||
+       github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: [self-hosted, macOS, ARM64, abi]
+    strategy:
+      matrix:
+        target: [check, cross-smoke]
     steps:
       - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v2
-        with:
-          version: ${{ env.ZIG_VERSION }}
-      - name: zig build check
-        run: zig build check
+      - name: Verify pinned Zig on runner PATH
+        run: ./tools/check_zigversion.sh --github-actions
+      - name: zig build ${{ matrix.target }}
+        run: zig build ${{ matrix.target }}
 
-  cross-smoke:
-    name: cross-compile smoke (linux/windows/macos)
+  # Hosted fallback: fork PRs only (untrusted code never touches self-hosted).
+  check-hosted:
+    name: ${{ matrix.target }} (GitHub-hosted, fork PRs)
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [check, cross-smoke]
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
+      - name: zig build ${{ matrix.target }}
+        run: zig build ${{ matrix.target }}
       - name: zig build cross-smoke
         run: zig build cross-smoke
 
   # Docs gate omitted from ./build.sh check — see .agents/skills/docs-validate/validate.sh
+  # Same-repo only on self-hosted (avoids GitHub-hosted minutes / billing lock).
+  # Fork PRs use the hosted job below — never run untrusted heads on self-hosted.
   docs-validate:
     name: docs (mint validate)
+    if: >
+      github.repository == 'donaldfilimon/abi' &&
+      (github.event_name == 'push' ||
+       github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: [self-hosted, macOS, ARM64, abi]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Mintlify docs validate
+        run: .agents/skills/docs-validate/validate.sh
+
+  docs-validate-hosted:
+    name: docs (mint validate, fork PRs)
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

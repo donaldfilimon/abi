@@ -119,7 +119,7 @@ pub const AdaptiveModulator = struct {
         self.w_ema.w_aviva = a * observed.w_aviva + b * self.w_ema.w_aviva;
         self.w_ema.w_abi = a * observed.w_abi + b * self.w_ema.w_abi;
         self.w_ema.normalize();
-        self.update_count += 1;
+        self.update_count +|= 1;
     }
 
     /// Get the current smoothed weights.
@@ -136,15 +136,57 @@ pub const AdaptiveModulator = struct {
         );
     }
 
-    /// Deserialize weights from a stored string.
+    /// Deserialize weights from a stored string. Falls back to
+    /// `AdaptiveModulator.init()` defaults if the persisted state fails
+    /// validation (malformed fields, non-finite/negative weights, invalid
+    /// totals/counts, or alpha outside `[0,1]`).
     pub fn deserialize(data: []const u8) AdaptiveModulator {
-        var mod = AdaptiveModulator.init();
+        return deserializeValidated(data) orelse AdaptiveModulator.init();
+    }
+
+    /// Parses and validates the CSV-encoded persisted state. Returns `null`
+    /// (rather than a partially-defaulted value) if any field is malformed,
+    /// a weight is non-finite/negative, the weight total is invalid, alpha is
+    /// outside `[0,1]`, or the field count doesn't match exactly.
+    fn deserializeValidated(data: []const u8) ?AdaptiveModulator {
         var it = std.mem.splitScalar(u8, data, ',');
-        if (it.next()) |s| mod.w_ema.w_abbey = std.fmt.parseFloat(f32, s) catch 0.33;
-        if (it.next()) |s| mod.w_ema.w_aviva = std.fmt.parseFloat(f32, s) catch 0.33;
-        if (it.next()) |s| mod.w_ema.w_abi = std.fmt.parseFloat(f32, s) catch 0.34;
-        if (it.next()) |s| mod.update_count = std.fmt.parseInt(u32, s, 10) catch 0;
-        if (it.next()) |s| mod.alpha = std.fmt.parseFloat(f32, s) catch DEFAULT_ALPHA;
+        const abbey_text = it.next() orelse return null;
+        const aviva_text = it.next() orelse return null;
+        const abi_text = it.next() orelse return null;
+        const update_count_text = it.next() orelse return null;
+        const alpha_text = it.next() orelse return null;
+        if (it.next() != null) return null;
+
+        const abbey_weight = std.fmt.parseFloat(f32, abbey_text) catch return null;
+        const aviva_weight = std.fmt.parseFloat(f32, aviva_text) catch return null;
+        const abi_weight = std.fmt.parseFloat(f32, abi_text) catch return null;
+        const update_count = std.fmt.parseInt(u32, update_count_text, 10) catch return null;
+        const alpha = std.fmt.parseFloat(f32, alpha_text) catch return null;
+
+        if (!std.math.isFinite(abbey_weight) or
+            !std.math.isFinite(aviva_weight) or
+            !std.math.isFinite(abi_weight) or
+            abbey_weight < 0 or
+            aviva_weight < 0 or
+            abi_weight < 0)
+        {
+            return null;
+        }
+
+        const total = abbey_weight + aviva_weight + abi_weight;
+        if (!std.math.isFinite(total) or total <= 0) return null;
+        if (!std.math.isFinite(alpha) or alpha < 0 or alpha > 1) return null;
+
+        var mod = AdaptiveModulator{
+            .w_ema = .{
+                .w_abbey = abbey_weight,
+                .w_aviva = aviva_weight,
+                .w_abi = abi_weight,
+            },
+            .alpha = alpha,
+            .update_count = update_count,
+        };
+        mod.w_ema.normalize();
         return mod;
     }
 
@@ -227,28 +269,42 @@ pub fn routeInputWithSoul(
     input: []const u8,
 ) ![]u8 {
     const keyword_weights = analyzeSentiment(input);
-    var neural_weights: ProfileWeights = .{
-        .w_abbey = 0.33,
-        .w_aviva = 0.33,
-        .w_abi = 0.34,
-    };
+    // Start from the keyword decision so a missing network or rejected output
+    // shape/value preserves the documented fallback regardless of blend_alpha.
+    var neural_weights = keyword_weights;
 
     if (net) |n| {
         if (n.layers.len > 0 and n.layers[n.layers.len - 1].output_size == 3) {
             const point = point_neural_net.Point.fromText(input);
             const output = try n.forward(&point.toArray());
             defer allocator.free(output);
-            // Softmax the 3 outputs
-            var exps: [3]f32 = undefined;
-            var sum: f32 = 0;
-            for (output, 0..) |o, i| {
-                exps[i] = @exp(o);
-                sum += exps[i];
-            }
-            if (sum > 0) {
-                neural_weights.w_abbey = exps[0] / sum;
-                neural_weights.w_aviva = exps[1] / sum;
-                neural_weights.w_abi = exps[2] / sum;
+            if (output.len == 3) {
+                // Stable softmax: subtracting the largest finite logit avoids
+                // overflow while non-finite output preserves keyword fallback.
+                var logits_are_finite = true;
+                var max_logit = output[0];
+                for (output[1..]) |o| {
+                    if (!std.math.isFinite(o)) {
+                        logits_are_finite = false;
+                        break;
+                    }
+                    max_logit = @max(max_logit, o);
+                }
+                if (!std.math.isFinite(max_logit)) logits_are_finite = false;
+
+                if (logits_are_finite) {
+                    var exps: [3]f32 = undefined;
+                    var sum: f32 = 0;
+                    for (output, 0..) |o, i| {
+                        exps[i] = @exp(o - max_logit);
+                        sum += exps[i];
+                    }
+                    if (sum > 0 and std.math.isFinite(sum)) {
+                        neural_weights.w_abbey = exps[0] / sum;
+                        neural_weights.w_aviva = exps[1] / sum;
+                        neural_weights.w_abi = exps[2] / sum;
+                    }
+                }
             }
         }
     }
@@ -338,11 +394,26 @@ test "selectBestProfile picks highest weight" {
 }
 
 test "selectBestProfile tie-break order is abbey then aviva then abi" {
-    const three_way = ProfileWeights{ .w_abbey = 0.34, .w_aviva = 0.33, .w_abi = 0.33 };
+    const three_way = ProfileWeights{ .w_abbey = 0.33, .w_aviva = 0.33, .w_abi = 0.33 };
     try std.testing.expectEqual(types.AgentProfile.abbey, selectBestProfile(three_way));
 
     const aviva_abi = ProfileWeights{ .w_abbey = 0.2, .w_aviva = 0.4, .w_abi = 0.4 };
     try std.testing.expectEqual(types.AgentProfile.aviva, selectBestProfile(aviva_abi));
+
+    // Neutral sentiment uses a deliberately non-tied baseline favoring Abi.
+    try std.testing.expectEqual(types.AgentProfile.abi, selectBestProfile(analyzeSentiment("zzzqqq")));
+}
+
+test "routeInputWithSoul preserves keyword routing without a network" {
+    const allocator = std.testing.allocator;
+    const input = "analyze the logical structure";
+
+    const expected = try routeInput(allocator, input);
+    defer allocator.free(expected);
+    const actual = try routeInputWithSoul(allocator, null, 1.0, input);
+    defer allocator.free(actual);
+
+    try std.testing.expectEqualStrings(expected, actual);
 }
 
 test "routeInput returns response from selected profile" {
@@ -387,6 +458,66 @@ test "AdaptiveModulator default deserialization on missing key" {
     const mod = AdaptiveModulator.deserialize("");
     try std.testing.expectApproxEqAbs(@as(f32, 0.33), mod.w_ema.w_abbey, 0.01);
     try std.testing.expectEqual(@as(u32, 0), mod.update_count);
+}
+
+test "AdaptiveModulator rejects invalid persisted state deterministically" {
+    const invalid_states = [_][]const u8{
+        "nan,0.3,0.4,1,0.3",
+        "inf,0.3,0.4,1,0.3",
+        "-inf,0.3,0.4,1,0.3",
+        "-0.1,0.3,0.8,1,0.3",
+        "0,0,0,1,0.3",
+        "3.4028235e38,3.4028235e38,3.4028235e38,1,0.3",
+        "0.3,0.3,0.4,1,nan",
+        "0.3,0.3,0.4,1,inf",
+        "0.3,0.3,0.4,1,-0.1",
+        "0.3,0.3,0.4,1,1.1",
+        "malformed,0.3,0.4,1,0.3",
+        "0.3,,0.4,1,0.3",
+        "0.3,0.3,0.4,not-a-count,0.3",
+        "0.3,0.3,0.4,4294967296,0.3",
+        "0.3,0.3,0.4,1",
+        "0.3,0.3,0.4,1,0.3,",
+        "0.3,0.3,0.4,1,0.3,extra",
+    };
+
+    for (invalid_states) |state| {
+        const restored = AdaptiveModulator.deserialize(state);
+        try std.testing.expectApproxEqAbs(@as(f32, 0.33), restored.w_ema.w_abbey, 0.0001);
+        try std.testing.expectApproxEqAbs(@as(f32, 0.33), restored.w_ema.w_aviva, 0.0001);
+        try std.testing.expectApproxEqAbs(@as(f32, 0.34), restored.w_ema.w_abi, 0.0001);
+        try std.testing.expectEqual(@as(u32, 0), restored.update_count);
+        try std.testing.expectApproxEqAbs(@as(f32, 0.3), restored.alpha, 0.0001);
+    }
+}
+
+test "AdaptiveModulator normalizes valid persisted weights" {
+    const restored = AdaptiveModulator.deserialize("2,3,5,42,0.75");
+    try std.testing.expectApproxEqAbs(@as(f32, 0.2), restored.w_ema.w_abbey, 0.0001);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.3), restored.w_ema.w_aviva, 0.0001);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), restored.w_ema.w_abi, 0.0001);
+    try std.testing.expectEqual(@as(u32, 42), restored.update_count);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.75), restored.alpha, 0.0001);
+}
+
+test "AdaptiveModulator accepts persisted alpha boundaries" {
+    const zero_alpha = AdaptiveModulator.deserialize("2,3,5,7,0");
+    try std.testing.expectEqual(@as(u32, 7), zero_alpha.update_count);
+    try std.testing.expectEqual(@as(f32, 0), zero_alpha.alpha);
+
+    const one_alpha = AdaptiveModulator.deserialize("2,3,5,9,1");
+    try std.testing.expectEqual(@as(u32, 9), one_alpha.update_count);
+    try std.testing.expectEqual(@as(f32, 1), one_alpha.alpha);
+}
+
+test "AdaptiveModulator saturates a persisted maximum update count" {
+    var restored = AdaptiveModulator.deserialize("0.2,0.3,0.5,4294967295,0.5");
+    const observed = ProfileWeights{ .w_abbey = 1.0, .w_aviva = 0.0, .w_abi = 0.0 };
+    restored.update(observed);
+
+    try std.testing.expectEqual(std.math.maxInt(u32), restored.update_count);
+    const total = restored.w_ema.w_abbey + restored.w_ema.w_aviva + restored.w_ema.w_abi;
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), total, 0.0001);
 }
 
 test "abbey processInput" {
