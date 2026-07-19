@@ -16,8 +16,8 @@ Safe transformation techniques for applying modern designs while preserving beha
 
 ## Additional Resources
 
-- `references/implementation-playbook.md`
-- `examples/parallel-extract-outline.md`
+- `.agents/skills/refactor-implementation/references/implementation-playbook.md`
+- `.agents/skills/refactor-implementation/examples/parallel-extract-outline.md`
 
 Pair with `modern-refactorer` agent for larger modules.
 

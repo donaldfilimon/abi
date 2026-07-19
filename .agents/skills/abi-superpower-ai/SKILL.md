@@ -36,7 +36,7 @@ Run completion with optional streaming:
 ### train
 Train agent profiles against WDBX:
 ```
-/abi-superpower-ai train --profile abbey --dataset ./training.jsonl
+/abi-superpower-ai train --profile abbey --dataset /path/to/dataset.jsonl
 ```
 
 ### learn

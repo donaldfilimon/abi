@@ -6,7 +6,7 @@ description: Report current agent/session status and system health — skill-loo
 # agent-status-reporter
 
 Backs the `/status` slash command in the `agent tui` REPL
-(`.opencode.json` `slash_commands.status`). Reports a compact, read-only
+(`opencode.json` slash-command entry `status`). Reports a compact, read-only
 snapshot:
 
 ## What to report

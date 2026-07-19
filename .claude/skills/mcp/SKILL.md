@@ -18,9 +18,9 @@ Entry point for the abi MCP server (`src/mcp/`). Routes to specialists:
   `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`,
   `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`.
 - `protocol.MAX_REQUEST_SIZE` = 64 KB; `MAX_JSON_DEPTH` = 32; per-field 16 KB
-  cap in `middleware.zig` (declarative validation before dispatch).
-- Frozen enums: `connector_test.service` ∈ {openai, anthropic, discord,
-  twilio, grok}; `ai_train.format` ∈ {jsonl, csv, text}.
+  cap in `src/mcp/middleware.zig` (declarative validation before dispatch).
+- Frozen enums: `connector_test` tool arg `service` ∈ {openai, anthropic, discord,
+  twilio, grok}; `ai_train` tool arg `format` ∈ {jsonl, csv, text}.
 
 ## Honest boundary
 Stdio exits on stdin EOF (not a long-lived daemon). Optional HTTP/SSE is

@@ -75,7 +75,7 @@ Create JSONL snapshot (compatibility mirror):
               ▼               ▼               ▼
        ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
        │  WAL        │ │  Segments   │ │  Snapshot   │
-       │  (wal.zig)  │ │ (segments.zig)│ (persistence)│
+       │  (wal)      │ │ (segments)  │ │ (persist)   │
        │             │ │             │ │  (mirror)    │
        │ CRC32 frames│ │ Manifest +  │ │  JSONL +    │
        │ Append-only │ │ epoch files │ │  SHA-256    │
@@ -88,8 +88,8 @@ Create JSONL snapshot (compatibility mirror):
                               ▼
                     ┌─────────────────────┐
                     │  Recovery           │
-                    │  (recovery.zig,     │
-                    │   durable_store.zig)│
+                    │  (recovery +        │
+                    │   durable_store)    │
                     │                     │
                     │  1. Load latest     │
                     │     segment epoch   │
@@ -102,13 +102,13 @@ Create JSONL snapshot (compatibility mirror):
 
 ## File Formats
 
-### WAL (`wal.zig`)
+### WAL (`src/features/wdbx/wal.zig`)
 - CRC32-framed append-only records
 - Supports: `putVector`, `putBlock`, `putSpatial`, `putTemporalNode`, `putTemporalEdge`, `deleteVector`
 - Replay reconstructs state deterministically (reuses `persistence.deserialize`)
 - Corruption detection: flipped-byte CRC rejection, bad-header rejection
 
-### Segments (`segments.zig`)
+### Segments (`src/features/wdbx/segments.zig`)
 - Manifest: `<base>.manifest` — lists epoch checkpoints in order
 - Checkpoints: `<base>.seg.<epoch>.jsonl` — immutable epoch snapshots
 - `loadLatest()` — loads newest epoch
@@ -116,7 +116,7 @@ Create JSONL snapshot (compatibility mirror):
 - `reclaimEpochs()` — removes old epochs
 - `compactRetainingLatest(keep)` — retains newest N checkpoints
 
-### Snapshot (`persistence.zig` + `persistence_parse.zig`)
+### Snapshot (`src/features/wdbx/persistence.zig` + `src/features/wdbx/persistence_parse.zig`)
 - Header: `# ABI-WDBX v1`
 - Records: minified JSON per record (`kv`, `vector`, `block`, `spatial`, `temporal_node`, `temporal_edge`)
 - Trailer: `# checksum:<sha256-hex>` covering record body
@@ -126,7 +126,7 @@ Create JSONL snapshot (compatibility mirror):
 - Vector ID monotonic restore → `CorruptVectorId` on mismatch
 - Block timestamp restore → SHA-256 chain reproduces exactly
 
-## Recovery Flow (`recovery.zig` + `durable_store.zig`)
+## Recovery Flow (`src/features/wdbx/recovery.zig` + `src/features/wdbx/durable_store.zig`)
 
 1. **Load latest segment checkpoint** (default runtime baseline)
 2. **Replay sidecar WAL** delta forward
@@ -153,13 +153,13 @@ CLI commands (`wdbx db *`) recover WAL-ahead state before read/write:
 
 | Invariant | Enforced By |
 |-----------|-------------|
-| Append-only WAL | `wal.zig` single-writer, CRC frames |
-| Checkpoint immutability | `segments.zig` epoch files never modified |
+| Append-only WAL | `src/features/wdbx/wal.zig` single-writer, CRC frames |
+| Checkpoint immutability | `src/features/wdbx/segments.zig` epoch files never modified |
 | Snapshot integrity | SHA-256 trailer, `ChecksumMismatch` on load |
 | Block chain integrity | SHA-256 link, `verifyBlocks()` |
 | Epoch ordering | Manifest lists epochs sequentially |
 | Vector ID monotonicity | `CorruptVectorId` on restore mismatch |
-| WAL-ahead recovery | `recovery.zig` prefers segment + WAL delta |
+| WAL-ahead recovery | `src/features/wdbx/recovery.zig` prefers segment + WAL delta |
 
 ## CLI Access
 
