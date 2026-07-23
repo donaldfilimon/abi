@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const credentials = @import("abi").foundation.credentials;
+const env = @import("abi").foundation.env;
 const io = @import("abi").foundation.io;
 const utils = @import("abi").foundation.utils;
 const usage_mod = @import("../usage.zig");
@@ -36,12 +37,27 @@ pub fn handleAuthStatus(allocator: std.mem.Allocator) !u8 {
     defer creds.deinit(allocator);
 
     std.debug.print("Authentication Status:\n", .{});
+    std.debug.print("  Backend:   {s}\n", .{credentialBackendLabel()});
     std.debug.print("  OpenAI:    {s}\n", .{if (creds.openai_api_key != null) "configured" else "not configured"});
     std.debug.print("  Anthropic: {s}\n", .{if (creds.anthropic_api_key != null) "configured" else "not configured"});
     std.debug.print("  Discord:   {s}\n", .{if (creds.discord_token != null) "configured" else "not configured"});
     std.debug.print("  Grok:      {s}\n", .{if (creds.grok_api_key != null) "configured" else "not configured"});
     std.debug.print("  Twilio:    {s}\n", .{if (creds.twilio_account_sid != null and creds.twilio_auth_token != null) "configured" else "not configured"});
     return 0;
+}
+
+/// Claim-honest one-line label for the active credential backend, mirroring
+/// `credentials.credentialsBackendIsKeychain()` semantics. The keychain branch
+/// is macOS-only and opt-in (`ABI_CREDENTIALS_BACKEND=keychain`); it stores in
+/// the login keychain with OS at-rest protection but is NOT hardware-backed
+/// (no Secure Enclave / biometric), NOT audited, and NOT verified under
+/// headless CI. Windows Credential Manager / Linux Secret Service remain
+/// Proposed and are not surfaced here.
+fn credentialBackendLabel() []const u8 {
+    if (credentials.credentialsBackendIsKeychain()) {
+        return "keychain (macOS login keychain, opt-in)";
+    }
+    return "file (~/.abi/credentials.json)";
 }
 
 pub fn handleAuthLogout(allocator: std.mem.Allocator) !u8 {
@@ -259,6 +275,28 @@ test "secret entry disables echo on POSIX and discloses Windows gap" {
     } else {
         try std.testing.expect(secretEntryDisablesEcho());
     }
+}
+
+test "credential backend label maps ABI_CREDENTIALS_BACKEND=keychain to keychain" {
+    // Default (unset) -> file label.
+    env.resetForTesting();
+    try std.testing.expectEqualStrings("file (~/.abi/credentials.json)", credentialBackendLabel());
+
+    var environ = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ.deinit();
+    try environ.put("ABI_CREDENTIALS_BACKEND", "keychain");
+    env.install(&environ);
+    defer env.resetForTesting();
+    try std.testing.expectEqualStrings("keychain (macOS login keychain, opt-in)", credentialBackendLabel());
+}
+
+test "credential backend label keeps file for unrecognized backend values" {
+    var environ = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ.deinit();
+    try environ.put("ABI_CREDENTIALS_BACKEND", "vault");
+    env.install(&environ);
+    defer env.resetForTesting();
+    try std.testing.expectEqualStrings("file (~/.abi/credentials.json)", credentialBackendLabel());
 }
 
 test {
