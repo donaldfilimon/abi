@@ -1,6 +1,6 @@
 # WDBX 3D-Spatial + Hybrid-Retrieval Hardening Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (` - [x] `) syntax for tracking.
 
 **Goal:** Close the 3 real gaps found in `src/features/wdbx/` against the WDBX 3D-spatial/hybrid-retrieval spec (real spatial index structure, combined semantic+3D query, runnable example + cross-compile docs) without touching anything that already satisfies it.
 
@@ -30,7 +30,7 @@
 - Consumes: nothing new — pure internal change.
 - Produces: `SpatialIndex3D`'s public API is **unchanged** (`init`, `initWithPool`, `deinit`, `insert`, `count`, `radiusSearch`, `nearestNeighbors` — same signatures). `store.zig` and `stub.zig` (its only callers, confirmed via `grep -rln "SpatialIndex3D" src/`) need zero edits. Later tasks do not depend on any new symbol from this task.
 
-- [ ] **Step 1: Write the failing oracle-comparison test**
+ - [x]  **Step 1: Write the failing oracle-comparison test**
 
 Add this test at the end of `src/features/wdbx/spatial_3d.zig`, immediately before the final `test { std.testing.refAllDecls(@This()); }` block:
 
@@ -144,12 +144,12 @@ fn expectSameIds(oracle: []const SpatialSearchResult, actual: []const SpatialSea
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+ - [x]  **Step 2: Run test to verify it fails**
 
 Run: `~/.zvm/0.17.0-dev.1442+972627084/zig build test --test-filter "octree matches linear-scan oracle"`
 Expected: FAIL with a compile error — `linearRadiusSearch`/`linearNearestNeighbors`/`assertOracleMatch`/`expectSameIds` reference `index.records` correctly (that field already exists) but the test itself will currently PASS trivially since `radiusSearch`/`nearestNeighbors` are still pure linear scan (this test's purpose is to catch a *future* regression once the octree path exists, so it also serves as the correctness spec). Confirm it compiles and passes against the current (pre-octree) implementation first — this is the "still green" baseline; then proceed and re-run after Step 3 to confirm it stays green with the octree path active.
 
-- [ ] **Step 3: Implement the octree**
+ - [x]  **Step 3: Implement the octree**
 
 Insert the following **before** the `pub const SpatialIndex3D = struct {` line (i.e. right after the existing `calculateDistance` function, before line 63 in the original file):
 
@@ -547,7 +547,7 @@ to:
 
 The `@constCast(self)` pattern for lazily mutating cache state through a `*const` receiver already exists in this exact module's caller, `store.zig`'s `searchSpatial3D`/`searchSpatialRadius3D` (`const self_mut = @constCast(self); self_mut.acceleration = ...`) — this task follows the same established convention, not a new one.
 
-- [ ] **Step 4: Run test to verify it passes**
+ - [x]  **Step 4: Run test to verify it passes**
 
 Run: `~/.zvm/0.17.0-dev.1442+972627084/zig build test --test-filter "octree matches linear-scan oracle"`
 Expected: PASS — for every size in `{10, 63, 64, 65, 200, 500}` (below and above `OCTREE_MIN_POINTS = 64`) and both uniform and clustered distributions, octree-path and linear-scan-oracle results match exactly.
@@ -556,7 +556,7 @@ Also run the two pre-existing tests in this file to confirm no regression:
 Run: `~/.zvm/0.17.0-dev.1442+972627084/zig build test --test-filter "SpatialIndex3D"`
 Expected: PASS (both `"SpatialIndex3D insert and searches"` and `"SpatialIndex3D distance metrics"`).
 
-- [ ] **Step 5: Commit**
+ - [x]  **Step 5: Commit**
 
 ```bash
 git add src/features/wdbx/spatial_3d.zig
@@ -582,7 +582,7 @@ is unchanged -- store.zig and stub.zig need no edits."
 
 First, confirm the wdbx stub doesn't re-export `retrieval` (so no `stub.zig` edit is needed): run `grep -n "retrieval" src/features/wdbx/stub.zig` — expect no output. If it does exist, add the matching stub export/signature before proceeding and note this in your report.
 
-- [ ] **Step 1: Write the failing tests**
+ - [x]  **Step 1: Write the failing tests**
 
 Add at the end of `src/features/wdbx/retrieval.zig`, immediately before the final `test { testing.refAllDecls(@This()); }` block:
 
@@ -655,12 +655,12 @@ test "hybridSpatialSearch skips candidates with no attached vector" {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+ - [x]  **Step 2: Run test to verify it fails**
 
 Run: `~/.zvm/0.17.0-dev.1442+972627084/zig build test --test-filter "hybridSpatialSearch"`
 Expected: FAIL with a compile error — `hybridSpatialSearch` and `RankedSpatialResult` are not defined yet.
 
-- [ ] **Step 3: Implement `hybridSpatialSearch`**
+ - [x]  **Step 3: Implement `hybridSpatialSearch`**
 
 Add near the top of `retrieval.zig`, alongside the existing `const temporal = @import("temporal.zig");` line:
 
@@ -745,7 +745,7 @@ pub fn hybridSpatialSearch(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+ - [x]  **Step 4: Run test to verify it passes**
 
 Run: `~/.zvm/0.17.0-dev.1442+972627084/zig build test --test-filter "hybridSpatialSearch"`
 Expected: PASS — all 3 new tests green.
@@ -754,7 +754,7 @@ Also run the full retrieval.zig test set to confirm no regression:
 Run: `~/.zvm/0.17.0-dev.1442+972627084/zig build test --test-filter "hybridSearch"`
 Expected: PASS (all pre-existing `hybridSearch*` tests still pass).
 
-- [ ] **Step 5: Commit**
+ - [x]  **Step 5: Commit**
 
 ```bash
 git add src/features/wdbx/retrieval.zig
@@ -779,7 +779,7 @@ covered by tests."
 - Consumes: `abi.features.wdbx.Store` (`store.zig`), `abi.features.wdbx.spatial_3d.Point3D`, `abi.features.wdbx.retrieval.hybridSpatialSearch` + `RankedSpatialResult` (Task 2).
 - Produces: `zig build run-example-3d-hybrid` — a step later tasks (Task 4) cross-compile-check.
 
-- [ ] **Step 1: Write `demo.zig`**
+ - [x]  **Step 1: Write `demo.zig`**
 
 Create `examples/wdbx_3d_hybrid/demo.zig`:
 
@@ -855,7 +855,7 @@ pub fn main(init: std.process.Init) !void {
 }
 ```
 
-- [ ] **Step 2: Wire `build.zig`**
+ - [x]  **Step 2: Wire `build.zig`**
 
 Insert this immediately after the existing `bench_step` block (after the line `bench_step.dependOn(&run_benchmarks.step);`, before the `const cli_usage_mod = ...` line):
 
@@ -897,12 +897,12 @@ to:
     full_check_step.dependOn(&tui_smoke.step);
 ```
 
-- [ ] **Step 3: Run it and verify exit 0 with expected output shape**
+ - [x]  **Step 3: Run it and verify exit 0 with expected output shape**
 
 Run: `~/.zvm/0.17.0-dev.1442+972627084/zig build run-example-3d-hybrid`
 Expected: exit 0, stdout starts with `hybridSpatialSearch: top 10 of 200 points (semantic+spatial, 0.5/0.5 blend)` followed by 10 numbered result lines.
 
-- [ ] **Step 4: Write `examples/wdbx_3d_hybrid/README.md`**
+ - [x]  **Step 4: Write `examples/wdbx_3d_hybrid/README.md`**
 
 Create `examples/wdbx_3d_hybrid/README.md`, following the same format as `examples/multiway/README.md`:
 
@@ -939,7 +939,7 @@ hybridSpatialSearch: top 10 of 200 points (semantic+spatial, 0.5/0.5 blend)
 changed -- it's fixed at `42` for reproducible output.)
 ```
 
-- [ ] **Step 5: Commit**
+ - [x]  **Step 5: Commit**
 
 ```bash
 git add examples/wdbx_3d_hybrid/demo.zig examples/wdbx_3d_hybrid/README.md build.zig
@@ -962,18 +962,18 @@ smoke test (exit 0), same pattern as dashboard-smoke."
 - Consumes: `tools/cross_smoke.sh`'s existing `TARGETS=(x86_64-linux-gnu x86_64-windows-gnu aarch64-macos)` default and its `"$ZIG_BIN" build cli -Dtarget="$t"` pattern (line 26).
 - Produces: nothing consumed by later tasks (this is the last task).
 
-- [ ] **Step 1: Extend `tools/cross_smoke.sh` to also cross-compile the example**
+ - [x]  **Step 1: Extend `tools/cross_smoke.sh` to also cross-compile the example**
 
 Read the current loop body around line 26 (`if "$ZIG_BIN" build cli -Dtarget="$t"; then`). Add a second build invocation for the example executable's compile target (not its run step, since a cross-compiled binary can't execute on the host) immediately after the existing `cli` build check inside the same loop iteration, following whatever pattern the existing `if` block uses for reporting pass/fail per target (read the full existing loop body — lines ~24-40 — before editing, and match its exact success/failure bookkeeping so the added check reports through the same summary the script already prints).
 
-- [ ] **Step 2: Run the extended cross-compile smoke script**
+ - [x]  **Step 2: Run the extended cross-compile smoke script**
 
 Run: `bash tools/cross_smoke.sh`
 Expected: all 3 targets (`x86_64-linux-gnu`, `x86_64-windows-gnu`, `aarch64-macos`) report success for both `cli` and the new example build.
 
 If any target fails specifically on the new example (not on `cli`, which was already passing before this plan), diagnose and fix `examples/wdbx_3d_hybrid/demo.zig` — do not weaken the check or skip the failing target silently.
 
-- [ ] **Step 3: Add the README section**
+ - [x]  **Step 3: Add the README section**
 
 Add a new section to `README.md` (place it near existing build/run instructions — search for where `zig build check` or similar is first documented, and add immediately after that block):
 
@@ -996,12 +996,12 @@ support -- run it locally after any change touching platform-specific code
 paths (networking, credentials, GPU backend selection).
 ```
 
-- [ ] **Step 4: Verify the doc claim against the actual script one more time**
+ - [x]  **Step 4: Verify the doc claim against the actual script one more time**
 
 Run: `bash tools/cross_smoke.sh`
 Expected: same pass result as Step 2 — confirms the README text matches current, actually-tested behavior (not aspirational).
 
-- [ ] **Step 5: Commit**
+ - [x]  **Step 5: Commit**
 
 ```bash
 git add README.md tools/cross_smoke.sh
