@@ -1,17 +1,23 @@
 //! Additively homomorphic encryption (Security Layer).
 //!
-//! A real partially-homomorphic scheme over a prime field: ciphertexts can be
-//! summed without decryption, and the sum decrypts to the sum of plaintexts.
-//! It is a keyed additive masking scheme (one-time-pad in GF(p)): for a secret
-//! key k and nonce r, Enc(m) = (m + PRF(k, r)) mod p, carrying r. Addition
-//! merges the nonce sets and adds the masked values; decryption subtracts the
-//! sum of the per-nonce masks.
+//! An additive masking scheme over a prime field, shaped like a one-time-pad:
+//! ciphertexts can be summed without decryption, and the sum decrypts to the
+//! sum of plaintexts. For a secret key k and nonce r, Enc(m) = (m + F(k, r))
+//! mod p, carrying r. Addition merges the nonce sets and adds the masked
+//! values; decryption subtracts the sum of the per-nonce masks.
 //!
-//! Honest scope: this provides the *additive* homomorphism needed for
-//! encrypted aggregation under a single trusted key. It is NOT a fully
-//! homomorphic scheme (no multiplication) and not multi-key. Full FHE remains a
-//! research-horizon item; this is the working additive primitive that supports
-//! it incrementally.
+//! HONEST SCOPE: this provides the *additive* homomorphism needed for
+//! encrypted aggregation under a single trusted key. It is **NOT** a fully
+//! homomorphic scheme (no multiplication), not multi-key, and — unlike a real
+//! OTP — **not cryptographically secure**: the masking function `prf()` below
+//! is `std.hash.Wyhash`, a fast non-cryptographic hash, not a security-reviewed
+//! PRF, so it carries no indistinguishability guarantee. The masking property
+//! also depends entirely on the caller never reusing a nonce under the same
+//! key — `encrypt()`'s nonce is caller-supplied and not checked for
+//! uniqueness; a reused nonce lets an observer recover `m1 - m2` from two
+//! ciphertexts. This module is **not security-audited** and is reference/demo
+//! scope only, matching `fhe.zig`. Full FHE remains a research-horizon item;
+//! this is the working additive primitive that supports it incrementally.
 
 const std = @import("std");
 
@@ -65,6 +71,10 @@ pub const Key = struct {
     }
 
     /// Encrypt a field element `m` (0 <= m < P) under nonce `nonce`.
+    ///
+    /// Caller must never reuse a nonce under the same key: reuse breaks the
+    /// masking property (two ciphertexts under the same nonce leak `m1 - m2`).
+    /// Nonce uniqueness is not enforced here.
     pub fn encrypt(self: Key, allocator: std.mem.Allocator, m: u64, nonce: u64) !Cipher {
         if (m >= P) return error.PlaintextTooLarge;
         var nonces: std.ArrayListUnmanaged(u64) = .empty;

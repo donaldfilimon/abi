@@ -221,6 +221,15 @@ pub fn decode(allocator: std.mem.Allocator, enc: Encoded) ![]u8 {
     if (enc.original_len == 0) return allocator.alloc(u8, 0);
     if (enc.mode == .stored) return allocator.dupe(u8, enc.data);
 
+    // `code_lengths[s]` is a plain u8 that indexes fixed-size `[MAX_LEN+1]`
+    // tables below; `encode()` never produces a length above MAX_LEN, but an
+    // `Encoded` built from untrusted/corrupted bytes could claim one, so this
+    // must be checked before the first out-of-bounds-capable use rather than
+    // trusted implicitly.
+    for (enc.code_lengths) |l| {
+        if (l > MAX_LEN) return error.CorruptEntropyStream;
+    }
+
     var bl_count: [MAX_LEN + 1]usize = @splat(0);
     for (enc.code_lengths) |l| {
         if (l > 0) bl_count[l] += 1;
@@ -359,6 +368,24 @@ test "entropy: deterministic — same input yields the same encoding" {
     try testing.expectEqual(a.bit_len, b.bit_len);
     try testing.expectEqualSlices(u8, a.data, b.data);
     try testing.expectEqualSlices(u8, &a.code_lengths, &b.code_lengths);
+}
+
+test "entropy: decode rejects a code_lengths entry above MAX_LEN instead of indexing out of bounds" {
+    var enc = Encoded{
+        .mode = .huffman,
+        .data = &.{},
+        .bit_len = 0,
+        .original_len = 1,
+        .code_lengths = @splat(0),
+    };
+    // A corrupted/hostile Encoded could claim any u8 length; only 0..MAX_LEN
+    // are ever produced by `encode`, so anything above that must be rejected
+    // up front rather than trusted as an index into the MAX_LEN+1 tables.
+    enc.code_lengths[0] = MAX_LEN + 1;
+    try testing.expectError(error.CorruptEntropyStream, decode(testing.allocator, enc));
+
+    enc.code_lengths[0] = 255;
+    try testing.expectError(error.CorruptEntropyStream, decode(testing.allocator, enc));
 }
 
 test {

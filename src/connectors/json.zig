@@ -76,6 +76,15 @@ pub fn buildDiscordMessageBody(allocator: std.mem.Allocator, content: []const u8
     return try out.toOwnedSlice(allocator);
 }
 
+pub fn buildDiscordIdentifyBody(allocator: std.mem.Allocator, token: []const u8, intents: u32) ConnectorError![]u8 {
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer out.deinit(allocator);
+    try out.appendSlice(allocator, "{\"op\":2,\"d\":{\"token\":");
+    try appendJsonString(&out, allocator, token);
+    try out.print(allocator, ",\"intents\":{d},\"properties\":{{\"os\":\"abi\",\"browser\":\"abi\",\"device\":\"abi\"}}}}}}", .{intents});
+    return try out.toOwnedSlice(allocator);
+}
+
 pub fn openAiLocalResponse(allocator: std.mem.Allocator, model: []const u8, messages: []const u8, body_len: usize) ![]u8 {
     const text = try std.fmt.allocPrint(
         allocator,

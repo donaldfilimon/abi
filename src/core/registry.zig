@@ -59,9 +59,41 @@ pub const Registry = struct {
         });
     }
 
+    /// Two plugins may not declare the same slash-command name/alias or the
+    /// same context-provider name — dispatch (`Registry.findPluginCommand`,
+    /// the TUI's `matchPluginCommandToken`) resolves by first match, so an
+    /// undetected collision would silently shadow one plugin's command with
+    /// another's instead of surfacing the conflict. Checking here, once, at
+    /// registration time, is what makes "first match" a safe dispatch
+    /// strategy everywhere else — the alternative is duplicating this check
+    /// in every consumer instead of guaranteeing the invariant at the source.
+    fn checkNoCollision(self: *const Registry, descriptor: PluginDescriptor) error{ DuplicateCommand, DuplicateContextProvider }!void {
+        var it = self.modules.iterator();
+        while (it.next()) |entry| {
+            if (std.mem.eql(u8, entry.key_ptr.*, descriptor.name)) continue; // re-registering the same plugin overwrites, not a collision
+            const existing = entry.value_ptr.*;
+
+            for (descriptor.commands) |new_cmd| {
+                for (existing.commands) |old_cmd| {
+                    if (commandTokenMatches(old_cmd, new_cmd.name)) return error.DuplicateCommand;
+                    for (new_cmd.aliases) |alias| {
+                        if (commandTokenMatches(old_cmd, alias)) return error.DuplicateCommand;
+                    }
+                }
+            }
+            for (descriptor.context_providers) |new_ctx| {
+                for (existing.context_providers) |old_ctx| {
+                    if (std.mem.eql(u8, old_ctx.name, new_ctx.name)) return error.DuplicateContextProvider;
+                }
+            }
+        }
+    }
+
     pub fn registerPlugin(self: *Registry, descriptor: PluginDescriptor) !void {
         self.lock.lockWrite();
         defer self.lock.unlockWrite();
+
+        try self.checkNoCollision(descriptor);
 
         const owned_name = try self.allocator.dupe(u8, descriptor.name);
         errdefer self.allocator.free(owned_name);
@@ -166,10 +198,7 @@ pub const Registry = struct {
         var it = self.modules.iterator();
         while (it.next()) |entry| {
             for (entry.value_ptr.commands) |cmd| {
-                if (std.mem.eql(u8, cmd.name, name)) return .{ .plugin = entry.key_ptr.*, .command = cmd };
-                for (cmd.aliases) |alias| {
-                    if (std.mem.eql(u8, alias, name)) return .{ .plugin = entry.key_ptr.*, .command = cmd };
-                }
+                if (commandTokenMatches(cmd, name)) return .{ .plugin = entry.key_ptr.*, .command = cmd };
             }
         }
         return null;
@@ -198,6 +227,15 @@ pub const Registry = struct {
         return try out.toOwnedSlice(allocator);
     }
 };
+
+/// True if `token` names `cmd` — either its primary name or one of its aliases.
+fn commandTokenMatches(cmd: PluginCommand, token: []const u8) bool {
+    if (std.mem.eql(u8, cmd.name, token)) return true;
+    for (cmd.aliases) |alias| {
+        if (std.mem.eql(u8, alias, token)) return true;
+    }
+    return false;
+}
 
 fn dupeDescriptor(allocator: std.mem.Allocator, descriptor: PluginDescriptor) !PluginDescriptor {
     const name = try allocator.dupe(u8, descriptor.name);
@@ -374,4 +412,86 @@ test "Registry formats plugin list with metadata" {
     defer testing.allocator.free(rendered);
     try testing.expect(std.mem.indexOf(u8, rendered, "Installed Plugins (1):") != null);
     try testing.expect(std.mem.indexOf(u8, rendered, "example v1.2.3 [ai] (mod.zig)") != null);
+}
+
+test "Registry rejects a command name collision between two different plugins" {
+    const testing = std.testing;
+
+    var registry = Registry.init(testing.allocator);
+    defer registry.deinit();
+
+    try registry.registerPlugin(.{
+        .name = "plugin-a",
+        .description = "first",
+        .commands = &.{.{ .name = "status", .summary = "a's status" }},
+    });
+
+    try testing.expectError(error.DuplicateCommand, registry.registerPlugin(.{
+        .name = "plugin-b",
+        .description = "second",
+        .commands = &.{.{ .name = "status", .summary = "b's status" }},
+    }));
+    try testing.expectEqual(@as(usize, 1), registry.pluginCount());
+}
+
+test "Registry rejects a command alias colliding with another plugin's command" {
+    const testing = std.testing;
+
+    var registry = Registry.init(testing.allocator);
+    defer registry.deinit();
+
+    try registry.registerPlugin(.{
+        .name = "plugin-a",
+        .description = "first",
+        .commands = &.{.{ .name = "status", .aliases = &.{"st"} }},
+    });
+
+    try testing.expectError(error.DuplicateCommand, registry.registerPlugin(.{
+        .name = "plugin-b",
+        .description = "second",
+        .commands = &.{.{ .name = "st" }}, // collides with plugin-a's alias
+    }));
+}
+
+test "Registry rejects a context-provider name collision between two different plugins" {
+    const testing = std.testing;
+
+    var registry = Registry.init(testing.allocator);
+    defer registry.deinit();
+
+    try registry.registerPlugin(.{
+        .name = "plugin-a",
+        .description = "first",
+        .context_providers = &.{.{ .name = "system-info" }},
+    });
+
+    try testing.expectError(error.DuplicateContextProvider, registry.registerPlugin(.{
+        .name = "plugin-b",
+        .description = "second",
+        .context_providers = &.{.{ .name = "system-info" }},
+    }));
+}
+
+test "Registry allows re-registering the same plugin name with the same commands" {
+    const testing = std.testing;
+
+    var registry = Registry.init(testing.allocator);
+    defer registry.deinit();
+
+    const descriptor = PluginDescriptor{
+        .name = "plugin-a",
+        .description = "v1",
+        .commands = &.{.{ .name = "status" }},
+    };
+    try registry.registerPlugin(descriptor);
+    // Re-registering the same plugin name (e.g. an updated descriptor) is an
+    // intentional overwrite, not a collision against itself.
+    try registry.registerPlugin(.{
+        .name = "plugin-a",
+        .description = "v2",
+        .commands = &.{.{ .name = "status" }},
+    });
+    try testing.expectEqual(@as(usize, 1), registry.pluginCount());
+    const updated = registry.getPlugin("plugin-a") orelse return error.MissingPlugin;
+    try testing.expectEqualStrings("v2", updated.description);
 }
