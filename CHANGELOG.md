@@ -6,6 +6,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- feat(gpu): Metal `reduce_min_kernel` (`runReduceMin`) plus public `reduceMin` API on `GpuCompute` and `VectorOps`, mirroring `reduceMax` — CPU fallback and CPU/GPU parity tests — still not a general GPU speedup / CUDA / ANE claim.
 - feat(gpu): Public `reduceMax` API on `GpuCompute` and `VectorOps` — exposes the existing Metal `reduce_max_kernel` through the public surface with CPU fallback and CPU/GPU parity tests — still not a general GPU speedup / CUDA / ANE claim.
 - feat(cluster): `ClusterPolicy.withPeers` — runtime peer-allowlist reload for the cluster RPC serve path (loopback-tested); first step toward dynamic membership, still NOT a wire-level join/leave protocol, NOT sharding.
 - feat(gpu): Metal `div_kernel` via `compute_api.map(.div)` / `reduce(.div)` (+ stub parity) — still not a general GPU speedup / CUDA / ANE claim.

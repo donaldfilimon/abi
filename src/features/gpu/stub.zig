@@ -122,6 +122,16 @@ pub const VectorOps = struct {
         return best;
     }
 
+    pub fn reduceMin(self: VectorOps, values: []const f32) !f32 {
+        _ = self;
+        if (values.len == 0) return error.EmptyInput;
+        var best: f32 = values[0];
+        for (values[1..]) |v| {
+            if (v < best) best = v;
+        }
+        return best;
+    }
+
     pub fn scale(self: VectorOps, values: []const f32, factor: f32, out: []f32) !void {
         _ = self;
         if (values.len == 0) return;
@@ -288,6 +298,16 @@ pub const GpuCompute = struct {
         var best: f32 = values[0];
         for (values[1..]) |v| {
             if (v > best) best = v;
+        }
+        return best;
+    }
+
+    pub fn reduceMin(self: GpuCompute, values: []const f32) !f32 {
+        _ = self;
+        if (values.len == 0) return error.EmptyInput;
+        var best: f32 = values[0];
+        for (values[1..]) |v| {
+            if (v < best) best = v;
         }
         return best;
     }

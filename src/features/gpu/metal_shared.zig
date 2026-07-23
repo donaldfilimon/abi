@@ -41,6 +41,17 @@ test "metal reduceMax matches scalar reference" {
     try std.testing.expectApproxEqAbs(expected, got, 1e-4);
 }
 
+test "metal reduceMin matches scalar reference" {
+    if (!ensureMetalInitialized()) return;
+    const values = [_]f32{ 0.5, -1.0, 2.25, 3.0, -0.75, 1.5, 0.0, 4.0, -2.0, 0.125, 1.0, -3.0 };
+    var expected: f32 = values[0];
+    for (values[1..]) |v| {
+        if (v < expected) expected = v;
+    }
+    const got = try g_metal_context.runReduceMin(&values);
+    try std.testing.expectApproxEqAbs(expected, got, 1e-4);
+}
+
 test "metal map+reduce dot matches scalar reference" {
     if (!ensureMetalInitialized()) return;
     const a = [_]f32{ 1.0, 2.0, -0.5, 0.25, 4.0, -1.0, 3.0, 0.5, 1.25, -3.0 };

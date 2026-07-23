@@ -32,6 +32,7 @@ pub const MetalContext = struct {
     batch_cosine_pipeline: ?*anyopaque = null,
     reduce_sum_pipeline: ?*anyopaque = null,
     reduce_max_pipeline: ?*anyopaque = null,
+    reduce_min_pipeline: ?*anyopaque = null,
     softmax_pipeline: ?*anyopaque = null,
     softmax_norm_pipeline: ?*anyopaque = null,
     initialized: bool = false,
@@ -244,6 +245,28 @@ pub const MetalContext = struct {
             \\    if (lid == 0u) partials[tgid] = shared[0];
             \\}
             \\
+            \\// One partial min per threadgroup (256 threads). Empty lanes use
+            \\// +INFINITY so they do not win the tree reduction. Zig encodeReduce*
+            \\// re-dispatches until a single scalar remains (multi-pass).
+            \\kernel void reduce_min_kernel(
+            \\    device const float* in [[buffer(0)]],
+            \\    device float* partials [[buffer(1)]],
+            \\    constant uint& n [[buffer(2)]],
+            \\    uint lid [[thread_position_in_threadgroup]],
+            \\    uint tgid [[threadgroup_position_in_grid]]
+            \\) {
+            \\    threadgroup float shared[256];
+            \\    const uint lsize = 256u;
+            \\    uint i = tgid * lsize + lid;
+            \\    shared[lid] = (i < n) ? in[i] : INFINITY;
+            \\    threadgroup_barrier(mem_flags::mem_threadgroup);
+            \\    for (uint stride = lsize / 2u; stride > 0u; stride >>= 1u) {
+            \\        if (lid < stride) shared[lid] = min(shared[lid], shared[lid + stride]);
+            \\        threadgroup_barrier(mem_flags::mem_threadgroup);
+            \\    }
+            \\    if (lid == 0u) partials[tgid] = shared[0];
+            \\}
+            \\
             \\// exp(x - max) into `result`. `max_val` is the row max, passed as a
             \\// kernel constant so every lane subtracts the same shift (numerically
             \\// stable softmax). A separate reduce_sum_kernel pass sums `result`,
@@ -332,6 +355,9 @@ pub const MetalContext = struct {
         const reduce_max_func_name = try createNSString(allocator, "reduce_max_kernel") orelse return error.CreateStringFailed;
         const reduce_max_func = msg_send_id_ret_id(library, sel_newFunctionWithName, reduce_max_func_name) orelse return error.FunctionNotFound;
 
+        const reduce_min_func_name = try createNSString(allocator, "reduce_min_kernel") orelse return error.CreateStringFailed;
+        const reduce_min_func = msg_send_id_ret_id(library, sel_newFunctionWithName, reduce_min_func_name) orelse return error.FunctionNotFound;
+
         const sel_newComputePipelineState = objc.sel_registerName("newComputePipelineStateWithFunction:error:");
         const msg_send_id_err_ret_id = @as(MsgSendIdErrRetId, @ptrCast(&objc.objc_msgSend));
 
@@ -387,6 +413,10 @@ pub const MetalContext = struct {
         self.reduce_max_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, reduce_max_func, @ptrCast(&err));
         if (self.reduce_max_pipeline == null) return error.CreatePipelineStateFailed;
 
+        err = null;
+        self.reduce_min_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, reduce_min_func, @ptrCast(&err));
+        if (self.reduce_min_pipeline == null) return error.CreatePipelineStateFailed;
+
         const softmax_func_name = try createNSString(allocator, "softmax_kernel") orelse return error.CreateStringFailed;
         const softmax_func = msg_send_id_ret_id(library, sel_newFunctionWithName, softmax_func_name) orelse return error.FunctionNotFound;
 
@@ -417,6 +447,7 @@ pub const MetalContext = struct {
         msg_send_void_ret_void(batch_cosine_func, sel_release);
         msg_send_void_ret_void(reduce_func, sel_release);
         msg_send_void_ret_void(reduce_max_func, sel_release);
+        msg_send_void_ret_void(reduce_min_func, sel_release);
         msg_send_void_ret_void(softmax_func, sel_release);
         msg_send_void_ret_void(softmax_norm_func, sel_release);
         msg_send_void_ret_void(library, sel_release);
@@ -433,6 +464,7 @@ pub const MetalContext = struct {
         msg_send_void_ret_void(batch_cosine_func_name, sel_release);
         msg_send_void_ret_void(reduce_func_name, sel_release);
         msg_send_void_ret_void(reduce_max_func_name, sel_release);
+        msg_send_void_ret_void(reduce_min_func_name, sel_release);
         msg_send_void_ret_void(softmax_func_name, sel_release);
         msg_send_void_ret_void(softmax_norm_func_name, sel_release);
         msg_send_void_ret_void(source_nsstring, sel_release);
@@ -854,6 +886,45 @@ pub const MetalContext = struct {
         };
         d.release(scalar_buf);
         return max_val;
+    }
+
+    /// Multi-pass threadgroup reduce-min on the GPU (256-wide). Same dispatch
+    /// pattern as `runReduceMax`; empty lanes use +INFINITY in MSL. Callers fall
+    /// back to a host min if Metal dispatch fails.
+    pub fn runReduceMin(self: *MetalContext, values: []const f32) !f32 {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (values.len == 0) return error.EmptyInput;
+        if (values.len == 1) return values[0];
+        if (self.reduce_min_pipeline == null) return error.NotInitialized;
+
+        const d = MetalDispatch.load();
+        const in_bytes = values.len * @sizeOf(f32);
+        const buffer_in = d.msg_bytes(self.device, d.sel_new_bytes, values.ptr, in_bytes, 0) orelse
+            return error.BufferAllocationFailed;
+
+        const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse {
+            d.release(buffer_in);
+            return error.CommandBufferCreationFailed;
+        };
+
+        const scalar_buf = d.encodeReduceToScalar(
+            self.device,
+            self.reduce_min_pipeline,
+            cmd_buf,
+            buffer_in,
+            values.len,
+        ) catch |e| {
+            return e;
+        };
+
+        d.commitAndWait(cmd_buf);
+        const min_val = d.readF32(scalar_buf) catch |e| {
+            d.release(scalar_buf);
+            return e;
+        };
+        d.release(scalar_buf);
+        return min_val;
     }
 
     /// `out[i] = values[i] * scale`. Unary map with a scalar constant buffer.

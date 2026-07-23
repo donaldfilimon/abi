@@ -145,6 +145,22 @@ pub const VectorOps = struct {
         return cpuReduceMax(values);
     }
 
+    /// Reduce-min of `values`: returns the minimum element. Routes through the
+    /// Metal `reduce_min_kernel` when initialized on macOS, otherwise a host
+    /// loop. No speedup claim; CUDA/Vulkan/ANE remain Proposed.
+    pub fn reduceMin(self: VectorOps, values: []const f32) !f32 {
+        if (values.len == 0) return error.EmptyInput;
+        if (values.len == 1) return values[0];
+
+        if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runReduceMin(values) catch |err| {
+                std.log.warn("Metal reduceMin failed ({s}); using CPU fallback", .{@errorName(err)});
+                return cpuReduceMin(values);
+            };
+        }
+        return cpuReduceMin(values);
+    }
+
     /// `out[i] = values[i] * factor`. Metal `scale_kernel` when initialized;
     /// otherwise host loop. No speedup claim.
     pub fn scale(self: VectorOps, values: []const f32, factor: f32, out: []f32) !void {
@@ -276,6 +292,14 @@ fn cpuReduceMax(values: []const f32) f32 {
     var best: f32 = values[0];
     for (values[1..]) |v| {
         if (v > best) best = v;
+    }
+    return best;
+}
+
+fn cpuReduceMin(values: []const f32) f32 {
+    var best: f32 = values[0];
+    for (values[1..]) |v| {
+        if (v < best) best = v;
     }
     return best;
 }
@@ -580,6 +604,17 @@ test "gpu reduceMax matches independent scalar reference (CPU/GPU parity)" {
     }
     try std.testing.expectApproxEqAbs(ref_max, try ops.reduceMax(&values), 1e-4);
     try std.testing.expectError(error.EmptyInput, ops.reduceMax(&.{}));
+}
+
+test "gpu reduceMin matches independent scalar reference (CPU/GPU parity)" {
+    const ops = vectorOps();
+    const values = [_]f32{ 0.5, -1.0, 2.25, 3.0, -0.75, 1.5, 0.0, 4.0, -2.0, 0.125 };
+    var ref_min: f32 = values[0];
+    for (values[1..]) |v| {
+        if (v < ref_min) ref_min = v;
+    }
+    try std.testing.expectApproxEqAbs(ref_min, try ops.reduceMin(&values), 1e-4);
+    try std.testing.expectError(error.EmptyInput, ops.reduceMin(&.{}));
 }
 
 test "gpu scale matches independent scalar reference (CPU/GPU parity)" {

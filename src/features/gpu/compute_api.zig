@@ -204,6 +204,22 @@ pub const GpuCompute = struct {
         return cpuReduceMax(values);
     }
 
+    /// Reduce-min of `values`: returns the minimum element. Routes through the
+    /// Metal `reduce_min_kernel` when accelerated on macOS, otherwise a host
+    /// loop. No speedup claim; CUDA/Vulkan/ANE remain Proposed.
+    pub fn reduceMin(self: GpuCompute, values: []const f32) !f32 {
+        if (values.len == 0) return error.EmptyInput;
+        if (values.len == 1) return values[0];
+
+        if (self.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runReduceMin(values) catch |err| {
+                std.log.warn("Metal reduceMin failed ({s}); using CPU fallback", .{@errorName(err)});
+                return cpuReduceMin(values);
+            };
+        }
+        return cpuReduceMin(values);
+    }
+
     fn cpuReduce(kernel: Kernel, a: []const f32, b: []const f32) f32 {
         var sum: f32 = 0;
         var i: usize = 0;
@@ -262,6 +278,14 @@ fn cpuReduceMax(values: []const f32) f32 {
     var best: f32 = values[0];
     for (values[1..]) |v| {
         if (v > best) best = v;
+    }
+    return best;
+}
+
+fn cpuReduceMin(values: []const f32) f32 {
+    var best: f32 = values[0];
+    for (values[1..]) |v| {
+        if (v < best) best = v;
     }
     return best;
 }
@@ -375,6 +399,17 @@ test "compute_api: reduceMax matches scalar reference on the active backend" {
     }
     try testing.expectApproxEqAbs(ref_max, try gc.reduceMax(&values), 1e-4);
     try testing.expectError(error.EmptyInput, gc.reduceMax(&.{}));
+}
+
+test "compute_api: reduceMin matches scalar reference on the active backend" {
+    const gc = GpuCompute.init();
+    const values = [_]f32{ 0.5, -1.0, 2.25, 3.0, -0.75, 1.5, 0.0, 4.0, -2.0, 0.125 };
+    var ref_min: f32 = values[0];
+    for (values[1..]) |v| {
+        if (v < ref_min) ref_min = v;
+    }
+    try testing.expectApproxEqAbs(ref_min, try gc.reduceMin(&values), 1e-4);
+    try testing.expectError(error.EmptyInput, gc.reduceMin(&.{}));
 }
 
 test "compute_api: empty input is a no-op / zero reduce" {
