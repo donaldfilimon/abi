@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Fail on silent error-discard patterns (`catch {}` / `catch { }` / `catch |_| {}`)
-# in Zig sources. Wired into `zig build check` so swallowed errors cannot land
-# unnoticed on persistence/inference/connector/data paths (see AGENTS.md).
+# Fail on silent error-discard patterns (`catch {}` / `catch { }` / `catch |_| {}`,
+# including forms split across lines) in Zig sources. Wired into `zig build check`
+# so swallowed errors cannot land unnoticed on persistence/inference/connector/
+# data paths (see AGENTS.md).
 #
 # Allowlist: tools/silent_catch_allow.txt (optional) — one substring per line
 # (e.g. `src/foo.zig:42` or any `file:line-pattern` fragment); blank lines and
@@ -11,17 +12,21 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ALLOW_FILE="$ROOT/tools/silent_catch_allow.txt"
-PATTERN='catch[[:space:]]*(\|[[:space:]]*_[[:space:]]*\|[[:space:]]*)?\{[[:space:]]*\}'
 
 cd "$ROOT"
 
-SRC_HITS="$(grep -rnE --include='*.zig' "$PATTERN" src tests 2>/dev/null || true)"
-TOOL_HITS="$(grep -nE "$PATTERN" tools/*.zig 2>/dev/null || true)"
-
-ALL="$SRC_HITS"
-if [[ -n "$TOOL_HITS" ]]; then
-  ALL="${ALL:+$ALL$'\n'}$TOOL_HITS"
-fi
+# Slurp-mode scan (perl -0777): \s matches newlines, so brace-split forms like
+# `catch |_| {` ... `}` with a whitespace-only body are caught, not just
+# single-line `catch {}`. Reports file:line:normalized-match per hit.
+ALL="$({ find src tests -name '*.zig' -print0 2>/dev/null
+         find tools -maxdepth 1 -name '*.zig' -print0 2>/dev/null; } |
+  xargs -0 perl -0777 -ne '
+  while (/catch\s*(?:\|\s*_\s*\|\s*)?\{\s*\}/g) {
+    my $line = 1 + (substr($_, 0, $-[0]) =~ tr/\n//);
+    my $text = substr($_, $-[0], $+[0] - $-[0]);
+    $text =~ s/\s+/ /g;
+    print "$ARGV:$line:$text\n";
+  }' 2>/dev/null || true)"
 
 if [[ -z "$ALL" ]]; then
   exit 0
