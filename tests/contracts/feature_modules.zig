@@ -42,6 +42,13 @@ test "feature modules expose safe runtime contracts" {
     try std.testing.expectEqual(@as(f32, 32), try ops.dot(&.{ 1, 2, 3 }, &.{ 4, 5, 6 }));
     try std.testing.expectError(error.DimensionMismatch, ops.dot(&.{1}, &.{ 1, 2 }));
     try std.testing.expect(@hasDecl(features.gpu.VectorOps, "batchCosineSimilarity"));
+    try std.testing.expect(@hasDecl(features.gpu.VectorOps, "abs"));
+    try std.testing.expect(@hasDecl(features.gpu.VectorOps, "negate"));
+    try std.testing.expect(@hasDecl(features.gpu.VectorOps, "mul"));
+    try std.testing.expect(@hasDecl(features.gpu.VectorOps, "reduceMax"));
+    try std.testing.expect(@hasDecl(features.gpu.VectorOps, "reduceMin"));
+    try std.testing.expect(@hasDecl(features.gpu.GpuCompute, "map"));
+    try std.testing.expect(@hasDecl(features.gpu.GpuCompute, "reduce"));
 
     // Exercise the distance primitive used by HNSW/WDBX. VectorOps.dot /
     // squaredL2 / cosineSimilarity / batchCosineSimilarity select the native GPU
