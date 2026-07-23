@@ -344,6 +344,11 @@ pub fn build(b: *std.Build) void {
     const example_3d_hybrid_step = b.step("run-example-3d-hybrid", "Run the WDBX 3D point cloud + embedding hybrid retrieval example");
     example_3d_hybrid_step.dependOn(&run_example_3d_hybrid.step);
 
+    // Compile-only variant so tools/cross_smoke.sh can verify the example
+    // links for non-native targets (a cross binary cannot execute on host).
+    const example_3d_hybrid_build_step = b.step("example-3d-hybrid", "Build (compile+link only) the WDBX 3D hybrid example");
+    example_3d_hybrid_build_step.dependOn(&example_3d_hybrid.step);
+
     const cli_usage_mod = b.createModule(.{
         .root_source_file = b.path("src/cli/usage.zig"),
         .target = target,

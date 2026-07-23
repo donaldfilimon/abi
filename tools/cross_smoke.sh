@@ -29,6 +29,13 @@ for t in "${TARGETS[@]}"; do
         printf '   FAIL: %s\n' "$t"
         fail=1
     fi
+    printf '== cross example-3d-hybrid: %s ==\n' "$t"
+    if "$ZIG_BIN" build example-3d-hybrid -Dtarget="$t"; then
+        printf '   OK: %s\n' "$t"
+    else
+        printf '   FAIL: %s\n' "$t"
+        fail=1
+    fi
 done
 
 if [ "$fail" -ne 0 ]; then
