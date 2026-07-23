@@ -74,6 +74,7 @@ Prioritized after A–G. Do not promote to Done without source + tests + honest 
 | 5 | Phase D cutover plan (HITL) | ◑ Plan landed | `docs/spec/phase-d-cutover-plan.mdx` — checklist only; cutover still needs explicit HITL + gates. |
 | 6 | Non-loopback REST threat review + native TLS link decision | ◑ Docs landed | `docs/spec/non-loopback-rest-threat-review.mdx` — proxy TLS preferred; native TLS deferred; not a hardened-expose claim. |
 | 7 | Cluster mTLS / membership (still not sharding) | ◑ Ops docs landed | `docs/spec/cluster-mtls-ops.mdx` — proxy mTLS preferred; dynamic membership + sharding stay Proposed. |
+| 8 | Mark `check-parity` as a required status check (branch protection) | 🔴 Blocked (Actions billing lock) | Explicit `check-parity` / `check-parity-hosted` jobs added to `.github/workflows/ci.yml`; jobs currently die in ~2s under the account billing lock — do not trigger CI; flip branch protection once billing is unblocked. |
 
 ---
 
