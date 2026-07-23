@@ -187,6 +187,67 @@ pub fn HnswIndex(comptime D: usize) type {
             }
         }
 
+        /// Undo the most recent `insert` when it matches `id` (graph index = last
+        /// node). Used by `Store.putVector` after a WAL append failure so the
+        /// undurable vector is not searchable. No-op when the last node is a
+        /// different id (defensive).
+        pub fn rollbackLastInsert(self: *Self, id: u32) void {
+            self.lock.lockWrite();
+            defer self.lock.unlockWrite();
+            if (self.nodes.items.len == 0) return;
+            const last_idx = self.nodes.items.len - 1;
+            var node = &self.nodes.items[last_idx];
+            if (node.id != id) return;
+
+            // Drop inbound edges that point at the rolled-back node index.
+            for (self.nodes.items[0..last_idx]) |*other| {
+                var layer: usize = 0;
+                while (layer < MAX_LAYERS) : (layer += 1) {
+                    const edges = &other.edges[layer];
+                    var i: usize = 0;
+                    while (i < edges.items.len) {
+                        if (edges.items[i] == last_idx) {
+                            _ = edges.swapRemove(i);
+                        } else {
+                            i += 1;
+                        }
+                    }
+                }
+            }
+
+            if (self.tracker) |t| {
+                // Match the insert-time trackAllocNoTag((level+1)*M*sizeof(u32)).
+                t.trackFreeNoTag((node.level + 1) * M * @sizeOf(u32));
+            }
+            node.deinit(self.allocator);
+            _ = self.nodes.pop();
+            _ = self.storage.present.remove(id);
+
+            if (self.nodes.items.len == 0) {
+                self.entry_node = null;
+                self.max_level = 0;
+                return;
+            }
+
+            if (self.entry_node) |entry| {
+                if (entry == last_idx) {
+                    // Promoted entry was the rolled-back node — pick the highest
+                    // remaining level as the new entry (deterministic scan).
+                    var best_idx: u32 = 0;
+                    var best_level: usize = self.nodes.items[0].level;
+                    var i: usize = 1;
+                    while (i < self.nodes.items.len) : (i += 1) {
+                        if (self.nodes.items[i].level > best_level) {
+                            best_level = self.nodes.items[i].level;
+                            best_idx = @intCast(i);
+                        }
+                    }
+                    self.entry_node = best_idx;
+                    self.max_level = best_level;
+                }
+            }
+        }
+
         fn connectNodes(self: *Self, from: usize, to: usize, level: usize) !void {
             const from_edges = &self.nodes.items[from].edges[level];
             for (from_edges.items) |existing| {
@@ -309,6 +370,29 @@ pub fn HnswIndex(comptime D: usize) type {
             return self.nodes.items.len;
         }
     };
+}
+
+test "HnswIndex rollbackLastInsert removes last node and presence" {
+    const Index = HnswIndex(4);
+    var index = Index.init(std.testing.allocator);
+    defer index.deinit();
+
+    try index.insert(1, &.{ 1.0, 0.0, 0.0, 0.0 });
+    try index.insert(2, &.{ 0.0, 1.0, 0.0, 0.0 });
+    try std.testing.expectEqual(@as(usize, 2), index.count());
+
+    index.rollbackLastInsert(2);
+    try std.testing.expectEqual(@as(usize, 1), index.count());
+    try std.testing.expect(!index.storage.contains(2));
+    try std.testing.expect(index.storage.contains(1));
+
+    // Rolling back a non-last id is a no-op.
+    index.rollbackLastInsert(99);
+    try std.testing.expectEqual(@as(usize, 1), index.count());
+
+    index.rollbackLastInsert(1);
+    try std.testing.expectEqual(@as(usize, 0), index.count());
+    try std.testing.expect(index.entry_node == null);
 }
 
 test "HnswIndex insert and search" {

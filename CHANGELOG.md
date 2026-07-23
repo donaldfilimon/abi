@@ -9,6 +9,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 - feat(gpu): Metal `div_kernel` via `compute_api.map(.div)` / `reduce(.div)` (+ stub parity) — still not a general GPU speedup / CUDA / ANE claim.
 - feat(gpu): Metal unary `scale_kernel` / `relu_kernel` via `vectorOps.scale` / `vectorOps.relu` with CPU/GPU parity tests — still not a general GPU speedup / CUDA / ANE claim.
 - feat(gpu): Metal multi-pass `reduce_max_kernel` (`runReduceMax`); demo-grade softmax prefers on-GPU max (host partition-sum remains) — still not a perf claim.
+- feat(env): `ABI_WDBX_ALLOW_MEMORY_FALLBACK` — opt-in empty in-memory MCP store when durable open fails (default fail-closed).
 - feat(gpu): Metal elementwise `max_kernel` / `min_kernel` via `compute_api.map(.max|.min)` (+ stub parity) — still not a general GPU speedup / CUDA / ANE claim.
 - feat(gpu): Metal elementwise `sub_kernel` wired through `compute_api.map(.sub)` / `reduce(.sub)` (+ stub parity) — still not a general GPU speedup / CUDA / ANE claim.
 - feat(gpu): Metal elementwise `add_kernel` wired through `compute_api.map(.add)` / `reduce(.add)` with CPU fallback and parity tests — still not a general GPU speedup / CUDA / ANE claim.
@@ -19,6 +20,15 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Changed
 
+- fix(http): reject incomplete HTTP requests (Content-Length not fully read / truncated headers) with `.incomplete` → 400 on MCP HTTP and WDBX REST; do not dispatch partial bodies.
+- fix(http): bearer token compare uses fixed-work equality (same approach as cluster RPC) instead of `std.mem.eql`.
+- fix(wdbx): WAL append `fsync` after write; torn incomplete last frame is skipped so verified prefix still replays; mid-log shape/CRC failures stay `WalCorruption`.
+- fix(wdbx): best-effort parent-directory sync after WAL create/append on POSIX (`Io.File.sync` on the dir fd) so the directory entry is durable; no-op on Windows — not a multi-host claim.
+- fix(wdbx): `putVector` burns the reserved vector id when WAL append fails so retries cannot insert a duplicate HNSW node id.
+- fix(wdbx): `putVector` rolls back the last HNSW insert on WAL failure so the undurable vector is not searchable (then burns the id).
+- fix(wdbx): REST rate-limits before bearer auth so failed-auth attempts consume tokens and cannot bypass the bucket.
+- fix(mcp): durable WDBX open failures no longer silently fall back to an empty RAM store unless `ABI_WDBX_ALLOW_MEMORY_FALLBACK` is set; tools return `WdbxUnavailable`.
+- fix(scheduler): on task failure, leave `error_msg` null when `dupe` OOMs instead of storing a string literal that `deinit` would free.
 - docs(auth): `abi auth` help text discloses off-macOS keychain→file fallback (Windows/Linux Proposed).
 - fix(auth): non-macOS `ABI_CREDENTIALS_BACKEND=keychain` falls back to the file store for load/save; `abi auth status` discloses the request (`using file — Windows/Linux Proposed`); keychain clear is a no-op off-macOS.
 - fix(auth): `abi auth status` discloses non-macOS `ABI_CREDENTIALS_BACKEND=keychain` as unsupported (Windows/Linux Proposed) instead of implying an active macOS keychain; Backend line prints before credential load so `KeychainUnsupported` no longer hides the disclosure.

@@ -99,6 +99,7 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
+- **Production hardening wave** — incomplete HTTP reject; constant-time bearer; WAL fsync + torn-tail skip + parent-dir sync; putVector HNSW rollback + id-burn on WAL fail; REST rate-limit before auth; MCP durable fail-closed (`ABI_WDBX_ALLOW_MEMORY_FALLBACK`); scheduler OOM-safe error_msg.
 - **Metal div/scale/relu + reduce_max** — `compute_api.div`, `vectorOps.scale`/`relu`, softmax prefers on-GPU max; claims/docs keychain honesty sync (macOS Partial / Win+Linux Proposed).
 - **#734** — Metal `sub_kernel` + macOS-gated keychain file fallback off-macOS.
 - **#733** — Metal `add_kernel` + honest non-macOS keychain status label; stub `.add` parity; Backend before load.

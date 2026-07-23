@@ -73,6 +73,11 @@ fn handleConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, store: *wd
     var read_buf: [MAX_REQUEST_SIZE]u8 = undefined;
     const raw = switch (readHttpRequest(io, conn, &read_buf)) {
         .empty => return,
+        .incomplete => {
+            const err_resp = "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"incomplete request\"}";
+            try http_io.writeHttpAll(io, conn, err_resp);
+            return;
+        },
         .too_large => {
             const err_resp = "HTTP/1.1 413 Payload Too Large\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"request too large\"}";
             try http_io.writeHttpAll(io, conn, err_resp);
@@ -89,13 +94,7 @@ fn handleConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, store: *wd
     const path = it.next() orelse return;
     const body = findBody(raw);
 
-    if (auth.bearer_token) |token| {
-        if (!hasBearerToken(raw, token)) {
-            try http_io.writeUnauthorized(io, conn, "unauthorized");
-            return;
-        }
-    }
-
+    // Rate-limit before auth so failed bearer attempts cannot bypass the bucket.
     if (rate_limiter) |rl| {
         if (!rl.acquire()) {
             const retry_after: u64 = 1;
@@ -107,6 +106,13 @@ fn handleConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, store: *wd
             );
             defer allocator.free(err_resp);
             try http_io.writeHttpAll(io, conn, err_resp);
+            return;
+        }
+    }
+
+    if (auth.bearer_token) |token| {
+        if (!hasBearerToken(raw, token)) {
+            try http_io.writeUnauthorized(io, conn, "unauthorized");
             return;
         }
     }
@@ -362,6 +368,57 @@ test "rest: rate limiter returns 429 when tokens exhausted" {
         try std.testing.expect(std.mem.indexOf(u8, resp, "429") != null);
         try std.testing.expect(std.mem.indexOf(u8, resp, "Retry-After") != null);
         try std.testing.expect(std.mem.indexOf(u8, resp, "too many requests") != null);
+    }
+}
+
+test "rest: failed bearer auth consumes rate-limit tokens" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    var rl = RateLimiter.init(1, 10);
+
+    // Wrong bearer — must still take the only token.
+    {
+        var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+        const client = try caddr.connect(io, .{ .mode = .stream });
+        defer client.close(io);
+        {
+            var wb: [512]u8 = undefined;
+            var sw = client.writer(io, &wb);
+            try sw.interface.writeAll("GET /health HTTP/1.1\r\nAuthorization: Bearer wrong\r\n\r\n");
+            try sw.interface.flush();
+        }
+        const conn = try bound.server.accept(io);
+        try handleConnectionWithAuth(allocator, io, &store, conn, .{ .bearer_token = "secret" }, &rl);
+
+        var rb: [2048]u8 = undefined;
+        const resp = try http_io.readHttpResponse(io, client, &rb);
+        try std.testing.expect(std.mem.indexOf(u8, resp, "401") != null);
+    }
+
+    // Next request (even with correct token) is rate-limited.
+    {
+        var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+        const client = try caddr.connect(io, .{ .mode = .stream });
+        defer client.close(io);
+        {
+            var wb: [512]u8 = undefined;
+            var sw = client.writer(io, &wb);
+            try sw.interface.writeAll("GET /health HTTP/1.1\r\nAuthorization: Bearer secret\r\n\r\n");
+            try sw.interface.flush();
+        }
+        const conn = try bound.server.accept(io);
+        try handleConnectionWithAuth(allocator, io, &store, conn, .{ .bearer_token = "secret" }, &rl);
+
+        var resp_buf: [2048]u8 = undefined;
+        const resp = try http_io.readHttpResponse(io, client, &resp_buf);
+        try std.testing.expect(std.mem.indexOf(u8, resp, "429") != null);
     }
 }
 

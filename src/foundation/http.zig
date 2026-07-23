@@ -43,6 +43,9 @@ pub const HttpReadResult = union(enum) {
     request: []const u8,
     empty,
     too_large,
+    /// Headers declared a Content-Length but the connection ended before that
+    /// many body bytes arrived. Callers must not dispatch the partial payload.
+    incomplete,
 };
 
 pub fn readHttpRequest(io: std.Io, conn: std.Io.net.Stream, buf: []u8) HttpReadResult {
@@ -75,6 +78,11 @@ pub fn readHttpRequest(io: std.Io, conn: std.Io.net.Stream, buf: []u8) HttpReadR
     }
 
     if (total == 0) return .empty;
+    if (want_total) |want| {
+        if (total < want) return .incomplete;
+    }
+    // Headers never arrived (connection closed mid-header) — not a dispatchable request.
+    if (header_end == null) return .incomplete;
     return .{ .request = buf[0..total] };
 }
 
@@ -146,7 +154,22 @@ pub fn hasBearerToken(raw: []const u8, token: []const u8) bool {
     const value = headerValue(raw, "Authorization") orelse return false;
     const prefix = "Bearer ";
     if (!std.mem.startsWith(u8, value, prefix)) return false;
-    return std.mem.eql(u8, value[prefix.len..], token);
+    return fixedWorkEql(value[prefix.len..], token);
+}
+
+/// Length-independent equality used for bearer / shared-secret compares.
+/// Same algorithm as `cluster_rpc.fixedWorkEql` (kept local so foundation
+/// does not import WDBX).
+fn fixedWorkEql(a: []const u8, b: []const u8) bool {
+    const max_len = @max(a.len, b.len);
+    var diff: usize = a.len ^ b.len;
+    var i: usize = 0;
+    while (i < max_len) : (i += 1) {
+        const av: u8 = if (i < a.len) a[i] else 0;
+        const bv: u8 = if (i < b.len) b[i] else 0;
+        diff |= av ^ bv;
+    }
+    return diff == 0;
 }
 
 test "Content-Length header parser" {
@@ -175,6 +198,15 @@ test "request target rejects oversized Content-Length without overflow" {
     try std.testing.expectEqual(@as(?usize, null), requestTargetWithinBuffer(65, 0, 64));
 }
 
+test "HttpReadResult incomplete is distinct from empty and too_large" {
+    // Exhaustiveness guard: MCP/REST switches must handle `.incomplete` or they
+    // fail to compile. Keep the tag present and named for contract clarity.
+    const tag = HttpReadResult.incomplete;
+    try std.testing.expect(tag == .incomplete);
+    try std.testing.expect(tag != .empty);
+    try std.testing.expect(tag != .too_large);
+}
+
 test "Authorization bearer parser" {
     const raw =
         "POST / HTTP/1.1\r\n" ++
@@ -186,6 +218,16 @@ test "Authorization bearer parser" {
     try std.testing.expect(!hasBearerToken(raw, "wrong-token"));
     try std.testing.expect(!hasBearerToken("POST / HTTP/1.1\r\n\r\n{}", "local-token"));
     try std.testing.expect(!hasBearerToken("POST / HTTP/1.1\r\nAuthorization: Basic nope\r\n\r\n{}", "local-token"));
+    // Length mismatch must still reject (fixedWorkEql path).
+    try std.testing.expect(!hasBearerToken(raw, "local-tok"));
+    try std.testing.expect(!hasBearerToken(raw, "local-token-extra"));
+}
+
+test "fixedWorkEql matches equal and rejects unequal" {
+    try std.testing.expect(fixedWorkEql("abc", "abc"));
+    try std.testing.expect(!fixedWorkEql("abc", "abd"));
+    try std.testing.expect(!fixedWorkEql("abc", "ab"));
+    try std.testing.expect(fixedWorkEql("", ""));
 }
 
 test {

@@ -55,6 +55,11 @@ pub fn deinitScheduler() void {
     g_scheduler_initialized.store(false, .release);
 }
 
+fn envTruthy(key: []const u8) bool {
+    const v = abi.foundation.env.get(key) orelse return false;
+    return std.ascii.eqlIgnoreCase(v, "1") or std.ascii.eqlIgnoreCase(v, "true") or std.ascii.eqlIgnoreCase(v, "yes");
+}
+
 fn ensureWdbxStore() void {
     if (g_wdbx_initialized.load(.acquire)) return;
     g_wdbx_init_lock.lock();
@@ -63,8 +68,14 @@ fn ensureWdbxStore() void {
     const durable = abi.features.wdbx.durable_store;
     g_mcp_session = if (g_io) |io|
         durable.Session.open(io, std.heap.page_allocator) catch |err| blk: {
-            std.log.warn("durable WDBX open failed ({s}); using in-memory store", .{@errorName(err)});
-            break :blk durable.Session.openInMemory(std.heap.page_allocator);
+            if (envTruthy(abi.foundation.env.WDBX_ALLOW_MEMORY_FALLBACK_ENV)) {
+                std.log.warn("durable WDBX open failed ({s}); ABI_WDBX_ALLOW_MEMORY_FALLBACK set — using empty in-memory store", .{@errorName(err)});
+                break :blk durable.Session.openInMemory(std.heap.page_allocator);
+            }
+            // Fail closed: leave uninitialized so tools surface the open error
+            // instead of silently serving an empty RAM store over a corrupt disk.
+            std.log.err("durable WDBX open failed ({s}); refusing in-memory fallback (set ABI_WDBX_ALLOW_MEMORY_FALLBACK=1 to override)", .{@errorName(err)});
+            return;
         }
     else
         durable.Session.openInMemory(std.heap.page_allocator);
@@ -72,9 +83,10 @@ fn ensureWdbxStore() void {
     g_wdbx_initialized.store(true, .release);
 }
 
-pub fn getWdbxStore() *abi.features.wdbx.Store {
+pub fn getWdbxStore() !*abi.features.wdbx.Store {
     ensureWdbxStore();
-    return g_mcp_session.?.storePtr();
+    if (g_mcp_session) |*session| return session.storePtr();
+    return error.WdbxUnavailable;
 }
 
 pub fn lockWdbxStore() void {
@@ -98,6 +110,13 @@ pub fn deinitWdbxStore() void {
 test "stat delta saturates at zero" {
     try std.testing.expectEqual(@as(usize, 3), statDelta(5, 2));
     try std.testing.expectEqual(@as(usize, 0), statDelta(2, 5));
+}
+
+test "getWdbxStore available without setIo uses in-memory" {
+    deinitWdbxStore();
+    const store = try getWdbxStore();
+    try std.testing.expectEqual(@as(usize, 0), store.vectorCount());
+    deinitWdbxStore();
 }
 
 test {

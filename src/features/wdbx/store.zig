@@ -199,13 +199,17 @@ pub const Store = struct {
         // WAL on the next successful putVector). On error the errdefer above
         // still owns padded_values, so this also avoids a double free.
         self.acceleration = try runtime.runAccelerationKernel("wdbx.putVector", values.len);
-        // Durably log the vector BEFORE committing the id counter or freeing the
-        // padded buffer. appendVector does fallible IO; on failure the errdefer
-        // above must stay the sole owner of padded_values (no prior explicit free →
-        // no double free) and the id must stay uncommitted (no burned, non-contiguous
-        // WAL id). Recovery folds the WAL delta on top of the checkpoint, so an
-        // absolute id in a post-checkpoint delta replays cleanly.
-        if (self.wal_binding) |w| try wal.appendVector(w.io, self.allocator, w.path, id, values);
+        // Durably log before freeing the padded scratch. On WAL failure roll back
+        // the just-inserted HNSW node (last insert) and burn the id so a retry
+        // cannot re-insert the same id. Callers must treat the error as "not
+        // durably logged"; the vector is not searchable after rollback.
+        if (self.wal_binding) |w| {
+            wal.appendVector(w.io, self.allocator, w.path, id, values) catch |err| {
+                self.index.rollbackLastInsert(id);
+                self.next_vector_id = id + 1;
+                return err;
+            };
+        }
         self.next_vector_id += 1;
         self.paddedFree(padded_values);
         if (self.tracker) |t| t.trackFreeNoTag(padded_size);
@@ -439,6 +443,25 @@ test "Store rejects mismatched vector dimensions" {
     _ = try store_obj.putVector(&.{ 1, 0, 0, 0 });
     try std.testing.expectError(error.DimensionMismatch, store_obj.putVector(&.{ 1, 0 }));
     try std.testing.expectError(error.DimensionMismatch, store_obj.search(&.{ 1, 0 }, 1));
+}
+
+test "Store.putVector burns vector id when WAL append fails" {
+    var store_obj = Store.init(std.testing.allocator);
+    defer store_obj.deinit();
+
+    // Parent directory does not exist → appendRecord cannot create/open the WAL.
+    const bad_wal = "zig-out/no-such-wdbx-parent/burn-id.wal";
+    store_obj.attachWal(std.testing.io, bad_wal);
+
+    try std.testing.expectError(error.FileNotFound, store_obj.putVector(&.{ 1, 0, 0, 0 }));
+    // Id 1 was reserved then rolled back from HNSW; burn it so a retry cannot
+    // re-insert id 1. vectorCount returns to 0 (rollback removed the node).
+    try std.testing.expectEqual(@as(u32, 2), store_obj.next_vector_id);
+    try std.testing.expectEqual(@as(usize, 0), store_obj.vectorCount());
+
+    try std.testing.expectError(error.FileNotFound, store_obj.putVector(&.{ 0, 1, 0, 0 }));
+    try std.testing.expectEqual(@as(u32, 3), store_obj.next_vector_id);
+    try std.testing.expectEqual(@as(usize, 0), store_obj.vectorCount());
 }
 
 // An allocator wrapper that passes everything through to a backing allocator
