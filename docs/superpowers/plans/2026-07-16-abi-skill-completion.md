@@ -6,11 +6,11 @@
 
 **Architecture:** Canonical skills live in `.agents/skills/` (opencode reads them via the `.opencode/skills` symlink; the `sync-clis/launch.sh` syncer copies `SKILL.md` into `.claude/skills/` + `.grok/` for dirs that already exist there). Eight referenced skills are empty/stubbed (`opencode` has no file; `ai-plan`/`gpu`/`mcp`/`sea`/`tui`/`wdbx` have `name:`-only frontmatter + over-claiming bodies; `agent-status-reporter` has frontmatter only). We add a `tools/check_skills.sh` validator as the TDD anchor (it fails on the stubs today), author each skill so the validator goes green, delete the six repo-root orphans, then sync + run `./build.sh check`.
 
-**Tech Stack:** Bash validator; Markdown `SKILL.md` with YAML frontmatter (`name` + `description`); abi companion smoke scripts (`*.sh`) where a skill drives a binary; `sync-clis/launch.sh` rsync-of-SKILL.md; Zig 0.17.0-dev.1398+cb5635714 for the final `./build.sh check`.
+**Tech Stack:** Bash validator; Markdown `SKILL.md` with YAML frontmatter (`name` + `description`); abi companion smoke scripts (`*.sh`) where a skill drives a binary; `sync-clis/launch.sh` rsync-of-SKILL.md; Zig 0.17.0-dev.1442+972627084 for the final `./build.sh check`.
 
 ## Global Constraints
 
-- Zig pinned by `.zigversion` to `0.17.0-dev.1398+cb5635714`; `build.sh` does NOT enforce the pin — select it with zvm/zigup first. Build from inside the repo: `./build.sh check`.
+- Zig pinned by `.zigversion` to `0.17.0-dev.1442+972627084`; `build.sh` does NOT enforce the pin — select it with zvm/zigup first. Build from inside the repo: `./build.sh check`.
 - Skill frontmatter: `name:` must equal the dir basename (kebab-case); `description:` must be non-empty, ≥20 chars, and include trigger phrases. No `TBD`/`TODO`/placeholder text anywhere.
 - Honest-stub rule (verbatim from `docs/contracts/external-claims-audit.mdx`): shaders/MLIR "report `available=false`: no external shader compiler or MLIR/LLVM toolchain is linked. Do not claim real shader compilation or MLIR/LLVM lowering." WDBX demos must be "Present … honestly — **not** production multi-host distributed deployment or data sharding, **not** native local-accelerator (CUDA/Vulkan/Metal-kernel/ANE) execution, **not** a production/learned-SOTA compression codec, **not** production-secure or bootstrapped full FHE, and **not** production-ready non-loopback MCP/WDBX HTTP without TLS/authz/rate-limit review." "Do not claim WDBX encryption/RBAC." Trust `available`/`native_dispatch` flags in each `src/features/*/mod.zig` over any prose.
 - Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore(build):` …). Never force-push `main`.

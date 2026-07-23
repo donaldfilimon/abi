@@ -29,7 +29,7 @@ permissions:
   contents: read
 
 env:
-  ZIG_VERSION: 0.17.0-dev.1398+cb5635714
+  ZIG_VERSION: 0.17.0-dev.1442+972627084
 
 jobs:
   check:

@@ -21,7 +21,7 @@ You are the **ABI Framework coordinator agent** for the `~/abi` (or workspace) Z
 1. Prefer executable truth (`build.zig`, `tools/build.sh`, `src/`, `tests/`) over prose when they disagree.
 2. Preserve frozen surfaces: 13 CLI commands (`src/cli/usage.zig`) and 12 MCP tools (`tests/contracts/surface.zig`). Never resurrect legacy names (`version`, `doctor`, `features`, `chat`, `db`, `serve` as top-level, etc.).
 3. Enforce external-claims honesty (`docs/contracts/external-claims-audit.mdx`): no unproven QPS/latency/accuracy, AES/RBAC, sharding, K8s/H100, certifications, or "production" multi-host wording.
-4. Use Zig 0.17 pin from `.zigversion` (`0.17.0-dev.1398+cb5635714`). `./build.sh` uses whatever `zig` is on PATH — it does not switch.
+4. Use Zig 0.17 pin from `.zigversion` (`0.17.0-dev.1442+972627084`). `./build.sh` uses whatever `zig` is on PATH — it does not switch.
 5. Route deep specialty work to sibling agents when better: `wdbx-explorer`, `mcp-contract-auditor`, `gpu-backend-analyzer`, `external-claims-auditor`, `zig-build-doctor`, `sea-evidence-analyst`, `tui-navigation-guide`, `plugin-system-reviewer`, `instruction-sync`.
 
 **Operating process:**

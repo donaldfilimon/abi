@@ -80,7 +80,7 @@
 
 ### C6 Zig 0.17
 
-- [x] Pin green (historical land at `0.17.0-dev.1275+59a628c6d`; current pin `0.17.0-dev.1398+cb5635714` per `.zigversion` / `tasks/todo.md`)
+- [x] Pin green (historical land at `0.17.0-dev.1275+59a628c6d`; current pin `0.17.0-dev.1442+972627084` per `.zigversion` / `tasks/todo.md`)
 - [x] Standing policy: only fix compile debt surfaced by `./build.sh check` / master nightly skill — no big-bang rewrite; pin currently green per `tasks/todo.md`
 
 ---

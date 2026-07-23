@@ -91,7 +91,7 @@ Do not schedule these as “complete”:
 
 ## Known test failures
 
-- None currently reproduced. Pin: `0.17.0-dev.1398+cb5635714`. Prefer `./build.sh check` (macOS) as the primary gate.
+- None currently reproduced. Pin: `0.17.0-dev.1442+972627084`. Prefer `./build.sh check` (macOS) as the primary gate.
 
 ---
 

@@ -37,7 +37,7 @@ pub const Logger = struct {
     }
 
     pub fn log(self: *Logger, level: Level, module: []const u8, comptime fmt: []const u8, args: anytype) void {
-        if (@intFromEnum(level) < @intFromEnum(self.level)) return;
+        if (@backingInt(level) < @backingInt(self.level)) return;
 
         const module_copy = self.allocator.dupe(u8, module) catch return;
         errdefer self.allocator.free(module_copy);

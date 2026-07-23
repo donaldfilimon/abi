@@ -65,7 +65,7 @@ pub const Scheduler = struct {
     }
 
     fn compareTasks(_: void, a: Task, b: Task) std.math.Order {
-        return std.math.order(@intFromEnum(b.priority), @intFromEnum(a.priority));
+        return std.math.order(@backingInt(b.priority), @backingInt(a.priority));
     }
 
     pub fn submit(self: *Scheduler, name: []const u8, priority: TaskPriority, fn_ptr: TaskFn, ctx: ?*anyopaque) !u64 {

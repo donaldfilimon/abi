@@ -184,7 +184,7 @@ pub const AuditResult = struct {
 
         var vetoed = false;
         for (SAFETY_CLASS) |p| {
-            if (self.scores[@intFromEnum(p)] < SAFETY_VETO_THRESHOLD) vetoed = true;
+            if (self.scores[@backingInt(p)] < SAFETY_VETO_THRESHOLD) vetoed = true;
         }
         self.vetoed = vetoed;
         if (vetoed) self.passed = false;
@@ -197,15 +197,15 @@ pub const Constitution = struct {
 
         if (response.len == 0) {
             result.passed = false;
-            result.violations.set(@intFromEnum(Principle.truthfulness));
-            result.scores[@intFromEnum(Principle.truthfulness)] = 0.0;
+            result.violations.set(@backingInt(Principle.truthfulness));
+            result.scores[@backingInt(Principle.truthfulness)] = 0.0;
             result.finalize();
             return result;
         }
 
         for (PRINCIPLE_CHECKS) |check| {
             const found = utils.containsIgnoreCase(response, check.pattern);
-            const idx = @intFromEnum(check.principle);
+            const idx = @backingInt(check.principle);
 
             if (found) {
                 if (check.is_negative) {
@@ -228,15 +228,15 @@ pub const Constitution = struct {
         if (response.len == 0) {
             result.passed = false;
             for (principles) |p| {
-                result.violations.set(@intFromEnum(p));
-                result.scores[@intFromEnum(p)] = 0.0;
+                result.violations.set(@backingInt(p));
+                result.scores[@backingInt(p)] = 0.0;
             }
             result.finalize();
             return result;
         }
 
         for (principles) |principle| {
-            const idx = @intFromEnum(principle);
+            const idx = @backingInt(principle);
             const score = scorePrinciple(response, principle);
             result.scores[idx] = score;
             if (score < 0.5) {
@@ -274,7 +274,7 @@ test {
 test "constitution validate empty response fails" {
     const result = Constitution.validate("");
     try std.testing.expect(!result.passed);
-    try std.testing.expect(result.violations.isSet(@intFromEnum(Principle.truthfulness)));
+    try std.testing.expect(result.violations.isSet(@backingInt(Principle.truthfulness)));
 }
 
 test "constitution validate non-empty response passes by default" {
@@ -285,21 +285,21 @@ test "constitution validate non-empty response passes by default" {
 test "constitution validate detects harm violation" {
     const result = Constitution.validate("this could cause harm to users");
     try std.testing.expect(!result.passed);
-    try std.testing.expect(result.violations.isSet(@intFromEnum(Principle.safety)));
+    try std.testing.expect(result.violations.isSet(@backingInt(Principle.safety)));
 }
 
 test "constitution evaluateResponse scores principles" {
     const principles = [_]Principle{ .truthfulness, .safety, .helpfulness };
     const result = Constitution.evaluateResponse("here is how to do it safely", &principles);
-    try std.testing.expect(result.scores[@intFromEnum(Principle.helpfulness)] > 0.7);
+    try std.testing.expect(result.scores[@backingInt(Principle.helpfulness)] > 0.7);
 }
 
 test "constitution evaluateResponse empty response fails all" {
     const principles = [_]Principle{ .truthfulness, .safety };
     const result = Constitution.evaluateResponse("", &principles);
     try std.testing.expect(!result.passed);
-    try std.testing.expect(result.violations.isSet(@intFromEnum(Principle.truthfulness)));
-    try std.testing.expect(result.violations.isSet(@intFromEnum(Principle.safety)));
+    try std.testing.expect(result.violations.isSet(@backingInt(Principle.truthfulness)));
+    try std.testing.expect(result.violations.isSet(@backingInt(Principle.safety)));
 }
 
 test "constitution principle labels include master spec aliases" {
