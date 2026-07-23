@@ -520,10 +520,15 @@ pub fn build(b: *std.Build) void {
     // dependency here -- the script invokes `zig build benchmarks` itself.
     const bench_regress = b.addSystemCommand(&.{ "bash", "tools/bench_regress.sh" });
 
-    const full_check_step = b.step("full-check", "Run check, integration tests, bench regression gate, dashboard smoke, example smoke, and agent TUI smoke");
+    // Phase D scaffold honesty: fail full-check when modernized/ Markdown
+    // points at src/ paths that no longer exist (not a second build root).
+    const modernized_refs = b.addSystemCommand(&.{ "bash", "tools/check_modernized_refs.sh" });
+
+    const full_check_step = b.step("full-check", "Run check, integration tests, bench regression gate, modernized scaffold ref scan, dashboard smoke, example smoke, and agent TUI smoke");
     full_check_step.dependOn(check_step);
     full_check_step.dependOn(test_integration_step);
     full_check_step.dependOn(&bench_regress.step);
+    full_check_step.dependOn(&modernized_refs.step);
     full_check_step.dependOn(example_3d_hybrid_step);
     full_check_step.dependOn(&tui_smoke.step);
 
