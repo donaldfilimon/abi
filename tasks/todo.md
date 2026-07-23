@@ -99,6 +99,7 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
+- **Phase 0 redesign baseline** — `./build.sh check` green 2026-07-23 on pin `0.17.0-dev.1442+972627084` (`cursor/phase0-redesign-baseline`); evidence in `docs/spec/phase-d-cutover-plan.mdx` §Current state. Cutover still HITL-gated.
 - **WDBX 3D-spatial + hybrid** — Octree-backed `SpatialIndex3D` (euclidean/manhattan >=64 pts, linear fallback) + `retrieval.hybridSpatialSearch` (blend semantic+proximity) + runnable `examples/wdbx_3d_hybrid` + `tools/cross_smoke.sh` extended + plan+tests+cross verified. 
 - **Docs-plans wave-1** — `abi complete --neural` (char-LM + persist/sampleStreaming); multiway token-lineage causal graph export; constitution safety hard-veto replaces output; `remote_compute.dotOrLocal` wired + compute info probe. Residual: ggml, Phase D HITL, native TLS, Win runtime CI.
 - **Public `reduceMin`** — `GpuCompute.reduceMin` / `VectorOps.reduceMin` add a Metal `reduce_min_kernel` (multi-pass threadgroup, mirrors `reduce_max_kernel`) with CPU fallback and CPU/GPU parity tests, symmetric to the existing `reduceMax` public API. Source: src/features/gpu/{metal_kernels,metal_shared,vector_ops,compute_api,stub}.zig, docs/{contracts/public-api.mdx,contracts/external-claims-audit.mdx,spec/wdbx-north-star.mdx}, README.md, CHANGELOG.md.
