@@ -78,7 +78,10 @@ test "keychain env on non-macOS falls back to file load/save without KeychainUns
     defer {
         var threaded: std.Io.Threaded = .init(std.heap.page_allocator, .{});
         defer threaded.deinit();
-        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch {};
+        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch |err| switch (err) {
+            error.FileNotFound => {},
+            else => std.log.warn("cleanup failed: {s}", .{@errorName(err)}),
+        };
     }
 
     var environ = std.process.Environ.Map.init(allocator);
