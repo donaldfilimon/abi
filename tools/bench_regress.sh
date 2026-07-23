@@ -163,7 +163,7 @@ fi
 
 if [[ "$UPDATE_BASELINE" -eq 1 ]]; then
   python3 - "$ARTIFACT" "$BASELINE" <<'PY'
-import json, platform, subprocess, sys
+import json, platform, re, subprocess, sys
 artifact_path, baseline_path = sys.argv[1], sys.argv[2]
 with open(artifact_path) as f:
     art = json.load(f)
@@ -175,14 +175,23 @@ try:
     commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
 except Exception:
     pass
+# Record which metric selected the kept record during best-of-N aggregation,
+# so compares can refuse a mismatched ABI_BENCH_METRIC (comparing p50 numbers
+# out of min-selected records measures aggregation skew, not regressions).
+selection_metric = None
+m = re.match(r"best (\w+) of ", art.get("aggregation", ""))
+if m:
+    selection_metric = m.group(1)
 baseline = {
     "schema": "abi-bench-baseline/v1",
     "source_schema": art["schema"],
     "iterations": art.get("iterations"),
     "runs_aggregated": art.get("runs_aggregated", 1),
     "aggregation": art.get("aggregation", "single run"),
+    "selection_metric": selection_metric,
     "host": platform.platform(),
     "machine": platform.machine(),
+    "system": platform.system(),
     "commit": commit,
     "benchmarks": art["benchmarks"],
 }
@@ -202,7 +211,7 @@ fi
 
 # --- compare current artifact vs baseline ---
 python3 - "$ARTIFACT" "$BASELINE" "$THRESHOLD_PCT" "$METRIC" <<'PY'
-import json, sys
+import json, os, platform, re, sys
 artifact_path, baseline_path, threshold_pct, metric = sys.argv[1], sys.argv[2], float(sys.argv[3]), sys.argv[4]
 with open(artifact_path) as f:
     art = json.load(f)
@@ -212,8 +221,45 @@ if art.get("schema") != "abi-bench/v2":
     sys.exit(f"error: unexpected artifact schema {art.get('schema')!r} (expected abi-bench/v2); "
              "update tools/bench_regress.sh for the new format")
 
+# Timing deltas across different hardware measure the machine, not the code.
+# Refuse cross-host compares unless explicitly overridden.
+cur_machine, cur_system = platform.machine(), platform.system()
+base_machine = base.get("machine", "")
+# Older baselines lack "system"; fall back to the OS prefix of "host"
+# (platform.platform() output like "macOS-27.0-arm64").
+base_system = base.get("system") or base.get("host", "").split("-")[0]
+system_alias = {"macOS": "Darwin", "Darwin": "Darwin"}
+same_system = system_alias.get(base_system, base_system) == system_alias.get(cur_system, cur_system)
+if (base_machine and base_machine != cur_machine) or (base_system and not same_system):
+    msg = (f"error: baseline host mismatch: baseline is {base_system}/{base_machine} "
+           f"(host {base.get('host', '?')}), current is {cur_system}/{cur_machine}.\n"
+           "       Cross-host timing deltas reflect hardware, not regressions.\n"
+           "       Regenerate a local baseline (--update-baseline) or set "
+           "ABI_BENCH_ALLOW_CROSS_HOST=1 to override.")
+    if os.environ.get("ABI_BENCH_ALLOW_CROSS_HOST") == "1":
+        print("warning: comparing across hosts (ABI_BENCH_ALLOW_CROSS_HOST=1); "
+              "deltas include hardware differences", file=sys.stderr)
+    else:
+        sys.exit(msg)
+
+# The baseline's records were selected by one metric during best-of-N
+# aggregation; comparing a different field against them measures aggregation
+# skew. Refuse the mismatch instead of producing a misleading verdict.
+base_sel = base.get("selection_metric")
+if base_sel is None:
+    m = re.match(r"best (\w+) of ", base.get("aggregation", ""))
+    if m:
+        base_sel = m.group(1)
+if base_sel and base_sel != metric:
+    sys.exit(f"error: baseline records were selected by {base_sel!r} but ABI_BENCH_METRIC={metric!r}.\n"
+             f"       Regenerate the baseline under this metric "
+             f"(ABI_BENCH_METRIC={metric} tools/bench_regress.sh --update-baseline) "
+             f"or compare with ABI_BENCH_METRIC={base_sel}.")
+
 base_by_label = {b["label"]: b for b in base.get("benchmarks", [])}
 cur_by_label = {b["label"]: b for b in art.get("benchmarks", [])}
+if not cur_by_label:
+    sys.exit("error: current artifact contains zero benchmarks; refusing to PASS an empty run.")
 
 regressions = []
 worst = None  # (delta_pct, label)
@@ -239,18 +285,28 @@ for label, cur in cur_by_label.items():
     print(f"  {status:<8} {label}: baseline {ref_v:.4f} ms -> current {cur_v:.4f} ms "
           f"({delta_pct:+.1f}%)")
 
-for label in base_by_label:
-    if label not in cur_by_label:
-        print(f"  MISSING  {label}: in baseline but absent from current run "
-              "(renamed or removed benchmark?)")
+missing = [label for label in base_by_label if label not in cur_by_label]
+for label in missing:
+    print(f"  MISSING  {label}: in baseline but absent from current run "
+          "(renamed or removed benchmark?)")
 
 print(f"-- {len(cur_by_label)} benchmarks compared; "
       f"max delta {worst[0]:+.1f}% ({worst[1]})" if worst else "-- no comparable benchmarks")
+failed = False
 if regressions:
+    failed = True
     print(f"\nFAIL: {len(regressions)} benchmark(s) more than {threshold_pct:g}% slower than baseline:")
     for label, ref_v, cur_v, delta_pct in regressions:
         print(f"  - {label}: {ref_v:.4f} ms -> {cur_v:.4f} ms ({delta_pct:+.1f}%)")
     print("If this slowdown is expected/intentional, rerun with --update-baseline.")
+if missing:
+    # A vanished benchmark silently shrinks the gate; renames/removals must be
+    # acknowledged by refreshing the baseline, not waved through.
+    failed = True
+    print(f"\nFAIL: {len(missing)} baseline benchmark(s) missing from the current run: "
+          + ", ".join(missing))
+    print("If the rename/removal is intentional, rerun with --update-baseline.")
+if failed:
     sys.exit(1)
 print("PASS: no benchmark regressions beyond threshold.")
 PY
