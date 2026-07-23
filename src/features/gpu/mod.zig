@@ -48,6 +48,8 @@ pub const backendMatrix = compute_api.backendMatrix;
 test {
     std.testing.refAllDecls(@This());
     _ = compute_api;
+    _ = @import("metal_shared.zig");
+    _ = @import("metal_objc.zig");
 }
 
 test "gpu module reexports safe vector operations" {
