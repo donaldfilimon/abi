@@ -45,7 +45,15 @@ If the MCP server is not connected, tell the user to add this to their `.mcp.jso
 }
 ```
 
-Note: npx-based MCPs may fail handshake in some envs (see startup diagnostics). Alternatives or local installs can be configured in `.mcp.json`. After editing MCP config, restart the Grok session/TUI. Use `skill-loop` to scan/review/fix skill health across all folders.
+Note: npx-based MCPs may fail handshake in some envs (see startup diagnostics). Alternatives or local installs can be configured in `.mcp.json`. After editing MCP config, restart the Grok session/TUI.
+
+**CLI vs MCP:** There is no in-repo `skill-loop` binary. The CLI ships as
+`@stylusnexus/skill-loop-cli` (repo pins `@0.3.3` in `.mcp.json`). Bare
+`skill-loop` on `PATH` is optional — use
+`npx -y -p @stylusnexus/skill-loop-cli@0.3.3 skill-loop <cmd>` or
+`npm i -g @stylusnexus/skill-loop-cli@0.3.3`. CLI subcommands differ from the
+MCP `/sl` actions above: rescan is `init` (not `scan`); analysis is `inspect`;
+logging is `skill-loop log <skill-name> <outcome>`.
 
 ## Maintenance
 During 2026-07-06 "do all" / hygiene pass, used skill-loop MCP directly for review + amend + apply_fixes on registered skills (fixed broken file refs in sl and abbey-assistant). Full-check now passes (45/45). Added cross-refs in other skills. Re-scan after adding new SKILL.md. See ~/CLEANUP-2026-07-06.md.

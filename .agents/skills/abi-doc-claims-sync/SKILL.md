@@ -9,7 +9,7 @@ Use this skill to update ABI documentation without drifting from source, tests, 
 
 ## Workflow
 
-1. Read `references/claim-boundaries.md`.
+1. Read `.agents/skills/abi-doc-claims-sync/references/claim-boundaries.md`.
 2. Inspect the specific docs being changed plus the source/test paths they claim to describe.
 3. Treat `build.zig`, `src/`, tests, and runnable scripts as authoritative over prose.
 4. Keep `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` synchronized when changing durable conventions: commands, MCP tools, feature flags, build gates, Zig idioms, generated-file rules, listener/auth behavior.
@@ -24,4 +24,4 @@ Use this skill to update ABI documentation without drifting from source, tests, 
 - WDBX cluster RPC is real TCP consensus transport, but production distributed deployment and sharding remain unproven.
 - Compression and FHE demos are reference-scoped unless audited production parameters and artifacts exist.
 
-Use `references/claim-boundaries.md` as the quick denylist and safe wording source.
+Use `.agents/skills/abi-doc-claims-sync/references/claim-boundaries.md` as the quick denylist and safe wording source.
