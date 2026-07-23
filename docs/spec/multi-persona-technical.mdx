@@ -9,9 +9,15 @@ This document describes the current ABI multi-persona assistant implementation a
 
 ABI is a Zig 0.17 local AI orchestration framework with three deterministic assistant profiles:
 
-- **Abbey**: analytical/supportive profile for structured explanation and safety-oriented review.
-- **Aviva**: creative/exploratory profile for idea generation and alternative perspectives.
-- **Abi**: concise/action-oriented profile for execution-focused responses.
+- **Abbey**: the primary empathetic-polymath profile, balancing warmth,
+  creativity, explanation, and technical discipline.
+- **Aviva**: the direct expert mode for concise, candid, action-oriented work.
+- **ABI**: the adaptive orchestration/governance profile for intent, risk,
+  context, policy, and response-mode evaluation.
+
+The canonical product contract and its Current/Partial/Proposed evidence map are
+in `docs/spec/abbey-core-identity.mdx`. Profile responses here remain local
+deterministic templates; this role alignment is not a model-quality claim.
 
 The current implementation provides:
 
@@ -60,13 +66,18 @@ graph TD
 
 ## 3. Persona Routing
 
-Routing is deterministic and local. `src/features/ai/router.zig` starts with default normalized weights and adjusts them when keyword patterns are found in the input.
+Routing is deterministic and local. `src/features/ai/router.zig` starts with an
+Abbey-primary prior (`0.50 / 0.25 / 0.25`) and adjusts it when keyword patterns
+are found in the input. A neutral input therefore selects Abbey.
 
 Current examples from the router keyword table include:
 
-- Abbey-oriented terms: `analyze`, `structure`, `logical`, `compare`, `safe`, `risk`, `pattern`.
-- Aviva-oriented terms: `creative`, `imagine`, `explore`, `brainstorm`, `what if`, `design`.
-- Abi-oriented terms: `run`, `execute`, `deploy`, `build`, `fix`, `quick`.
+- Abbey-oriented terms include analytical, explanatory, creative, empathetic,
+  learning, safety, and design cues.
+- Aviva-oriented terms include `direct`, `concise`, `run`, `execute`, `deploy`,
+  `build`, `fix`, and `quick`.
+- ABI-oriented terms include `orchestrate`, `routing`, `governance`, `policy`,
+  and `profile`.
 
 The highest normalized score selects the profile:
 
@@ -100,6 +111,12 @@ Profile responses are currently deterministic local strings, not live network mo
 2. a response vector;
 3. JSON completion metadata under `completion:<query_vector_id>`;
 4. a linked conversation block with the selected profile label and vector IDs.
+
+The metadata labels generated completions as `authority=inferred` and
+`epistemic_status=generated_output`, records that persistence came from the
+explicit `store_result` switch, and omits raw prompt/response text. SEA recall
+uses explicit authority as a trust-weighted ranking signal and defaults missing
+or unknown authority to `inferred` rather than promoting it.
 
 When WDBX is disabled, storage paths return explicit disabled-feature behavior rather than fabricating persistence success.
 

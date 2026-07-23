@@ -26,6 +26,7 @@
           "spec/wdbx-north-star",
           "spec/agent-wdbx-architecture",
           "spec/abi-refactor-design",
+          "spec/abbey-core-identity",
           "spec/multi-persona-technical",
           "spec/non-loopback-rest-threat-review",
           "spec/cluster-mtls-ops",

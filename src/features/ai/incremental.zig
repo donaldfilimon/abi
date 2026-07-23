@@ -34,14 +34,17 @@ const ProfileParts = struct {
 
 fn partsFor(profile: types.AgentProfile) ProfileParts {
     return switch (profile) {
-        .abbey => .{ .prefix = "Abbey analyzed: ", .suffix = "" },
+        .abbey => .{
+            .prefix = "Abbey: ",
+            .suffix = "\n\nI’ll approach this with warmth, creativity, and technical care while keeping uncertainty explicit.",
+        },
         .aviva => .{
-            .prefix = "Aviva creative exploration: ",
-            .suffix = "\n\nExploring multiple perspectives and creative angles for this topic...",
+            .prefix = "Aviva direct expert: ",
+            .suffix = "\n\nLeading with the concrete answer, assumptions, and next action.",
         },
         .abi => .{
-            .prefix = "Abi action: ",
-            .suffix = "\n\nExecuting requested operation with minimal overhead.",
+            .prefix = "ABI orchestration review: ",
+            .suffix = "\n\nEvaluating intent, risk, context, and the appropriate response mode.",
         },
     };
 }
@@ -114,9 +117,9 @@ pub fn generateProfileIncremental(
 test "incremental generation matches one-shot persona strings" {
     const allocator = std.testing.allocator;
     const cases = [_]struct { types.AgentProfile, []const u8, []const u8 }{
-        .{ .abbey, "hello world", "Abbey analyzed: hello world" },
-        .{ .aviva, "ideas", "Aviva creative exploration: ideas\n\nExploring multiple perspectives and creative angles for this topic..." },
-        .{ .abi, "deploy", "Abi action: deploy\n\nExecuting requested operation with minimal overhead." },
+        .{ .abbey, "hello world", "Abbey: hello world\n\nI’ll approach this with warmth, creativity, and technical care while keeping uncertainty explicit." },
+        .{ .aviva, "execute", "Aviva direct expert: execute\n\nLeading with the concrete answer, assumptions, and next action." },
+        .{ .abi, "route", "ABI orchestration review: route\n\nEvaluating intent, risk, context, and the appropriate response mode." },
     };
     for (cases) |c| {
         const got = try generateProfileIncremental(allocator, c[0], c[1], null, null);
@@ -148,7 +151,10 @@ test "incremental callback fires during generation with real per-step deltas" {
     // prefix tokens + "alpha" + space + "beta" => multiple steps, not one post-hoc dump
     try std.testing.expect(ctx.chunks >= 4);
     try std.testing.expect(ctx.saw_done);
-    try std.testing.expectEqualStrings("Abbey analyzed: alpha beta", got);
+    try std.testing.expectEqualStrings(
+        "Abbey: alpha beta\n\nI’ll approach this with warmth, creativity, and technical care while keeping uncertainty explicit.",
+        got,
+    );
 }
 
 test {

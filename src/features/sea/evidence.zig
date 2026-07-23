@@ -4,6 +4,7 @@ const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @impor
 const helpers = @import("../ai/helpers.zig");
 const query_plan = @import("query_plan.zig");
 const ai_types = @import("../ai/types.zig");
+const sea_types = @import("types.zig");
 
 /// When a `QueryPlan` requests `exact_recall`, the recalled hit's semantic
 /// similarity is blended with lexical (keyword) overlap so exact-wording matches
@@ -26,6 +27,7 @@ pub const MAX_PROMPT_BYTES: usize = 4096;
 pub const EvidenceItem = struct {
     vector_id: u32,
     profile_label: []const u8,
+    authority: sea_types.Authority,
     snippet: []u8,
     score: f32,
 
@@ -64,6 +66,18 @@ fn staticProfileLabel(metadata: []const u8) []const u8 {
         if (std.mem.indexOf(u8, metadata, needle) != null) return label;
     }
     return unknown_profile_label;
+}
+
+/// Resolve persisted provenance onto the SEA trust ladder. Missing or unknown
+/// authority is treated as inferred, the least-trusted rung, rather than being
+/// silently promoted.
+fn staticAuthority(metadata: []const u8) sea_types.Authority {
+    for (std.meta.tags(sea_types.Authority)) |authority| {
+        var needle_buf: [48]u8 = undefined;
+        const needle = std.fmt.bufPrint(&needle_buf, "\"authority\":\"{s}\"", .{authority.text()}) catch continue;
+        if (std.mem.indexOf(u8, metadata, needle) != null) return authority;
+    }
+    return .inferred;
 }
 
 /// Gather evidence relevant to `input` from a durable store.
@@ -134,15 +148,21 @@ pub fn gatherEvidenceWithPlan(
         // Under exact_recall, blend the semantic score with lexical overlap so
         // exact-wording matches are favored; otherwise keep the pure semantic
         // score and the store's existing ordering.
-        const score = if (plan.exact_recall)
+        const authority = staticAuthority(metadata);
+        const relevance = if (plan.exact_recall)
             (1.0 - EXACT_RECALL_KEYWORD_WEIGHT) * hit.score +
                 EXACT_RECALL_KEYWORD_WEIGHT * keywordOverlap(input, metadata)
         else
             hit.score;
+        // Provenance participates in ranking. Unlabeled/generated records stay
+        // on the least-trusted rung; tool/file/system evidence is promoted only
+        // when its metadata explicitly carries that authority.
+        const score = relevance * authority.score();
 
         try items.append(allocator, .{
             .vector_id = hit.id,
             .profile_label = staticProfileLabel(metadata),
+            .authority = authority,
             .snippet = snippet,
             .score = score,
         });
@@ -199,7 +219,7 @@ pub fn augmentPrompt(allocator: std.mem.Allocator, input: []const u8, ctx: *cons
         // Stop appending preamble once the cap is reached; the original input is
         // always appended afterward so the prompt is never truncated mid-input.
         if (out.items.len >= MAX_PROMPT_BYTES) break;
-        try out.print(allocator, "- (vec {d}, {s}): {s}\n", .{ item.vector_id, item.profile_label, item.snippet });
+        try out.print(allocator, "- (vec {d}, {s}, authority={s}): {s}\n", .{ item.vector_id, item.profile_label, item.authority.text(), item.snippet });
         if (out.items.len > MAX_PROMPT_BYTES) {
             out.shrinkRetainingCapacity(MAX_PROMPT_BYTES);
             break;
@@ -237,6 +257,7 @@ test "augmentPrompt caps the preamble at MAX_PROMPT_BYTES" {
         item.* = .{
             .vector_id = @intCast(i),
             .profile_label = "abbey",
+            .authority = .inferred,
             .snippet = snippet,
             .score = 1.0,
         };
@@ -263,14 +284,15 @@ test "gatherEvidence recalls a stored completion with its resolved persona label
     const id = try store.putVector(&embedding);
     const key = try std.fmt.allocPrint(allocator, ai_types.COMPLETION_KEY_FMT, .{id});
     defer allocator.free(key);
-    try store.store(key, "{\"profile\":\"aviva\",\"text\":\"hello there\"}");
+    try store.store(key, "{\"profile\":\"aviva\",\"authority\":\"user_stated\",\"text\":\"hello there\"}");
 
     var ctx = try gatherEvidence(allocator, &store, "hello", 5);
     defer ctx.deinit();
 
     try std.testing.expectEqual(@as(usize, 1), ctx.items.len);
     try std.testing.expectEqualStrings("aviva", ctx.items[0].profile_label);
-    try std.testing.expectEqualStrings("{\"profile\":\"aviva\",\"text\":\"hello there\"}", ctx.items[0].snippet);
+    try std.testing.expectEqual(sea_types.Authority.user_stated, ctx.items[0].authority);
+    try std.testing.expectEqualStrings("{\"profile\":\"aviva\",\"authority\":\"user_stated\",\"text\":\"hello there\"}", ctx.items[0].snippet);
 }
 
 test "gatherEvidence maps an unrecognized profile to the unknown label" {
@@ -289,6 +311,39 @@ test "gatherEvidence maps an unrecognized profile to the unknown label" {
     defer ctx.deinit();
     try std.testing.expectEqual(@as(usize, 1), ctx.items.len);
     try std.testing.expectEqualStrings("unknown", ctx.items[0].profile_label);
+    try std.testing.expectEqual(sea_types.Authority.inferred, ctx.items[0].authority);
+}
+
+test "gatherEvidence weights explicit provenance without promoting unlabeled records" {
+    if (!build_options.feat_wdbx or !build_options.feat_ai) return;
+    const allocator = std.testing.allocator;
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    const low_embedding = helpers.textEmbedding("same provenance query");
+    const low_id = try store.putVector(&low_embedding);
+    const low_key = try std.fmt.allocPrint(allocator, ai_types.COMPLETION_KEY_FMT, .{low_id});
+    defer allocator.free(low_key);
+    try store.store(low_key, "{\"profile\":\"abbey\",\"text\":\"same provenance query\"}");
+
+    const high_embedding = helpers.textEmbedding("same provenance query");
+    const high_id = try store.putVector(&high_embedding);
+    const high_key = try std.fmt.allocPrint(allocator, ai_types.COMPLETION_KEY_FMT, .{high_id});
+    defer allocator.free(high_key);
+    try store.store(high_key, "{\"profile\":\"abbey\",\"authority\":\"file_verified\",\"text\":\"same provenance query\"}");
+
+    var ctx = try gatherEvidence(allocator, &store, "same provenance query", 5);
+    defer ctx.deinit();
+    try std.testing.expect(ctx.items.len >= 2);
+
+    var low_score: ?f32 = null;
+    var high_score: ?f32 = null;
+    for (ctx.items) |item| {
+        if (item.vector_id == low_id) low_score = item.score;
+        if (item.vector_id == high_id) high_score = item.score;
+    }
+    try std.testing.expect(low_score != null and high_score != null);
+    try std.testing.expect(high_score.? > low_score.?);
 }
 
 test "keywordOverlap counts significant query tokens present in text" {

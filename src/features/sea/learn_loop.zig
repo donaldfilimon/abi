@@ -192,7 +192,7 @@ test "runLearnLoop uses saved adaptive weights for later learned completions" {
     defer result.deinit(allocator);
 
     try std.testing.expectEqual(ai.AgentProfile.aviva, result.completion.selected_profile);
-    try std.testing.expect(std.mem.indexOf(u8, result.completion.output, "Aviva creative exploration") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result.completion.output, "Aviva direct expert") != null);
 }
 
 test "runLearnLoop treats corrupted persisted weights identically to no persisted weights" {

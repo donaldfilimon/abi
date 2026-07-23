@@ -82,7 +82,7 @@ test "MCP ai_run tool contract" {
         \\{"name":"ai_run","arguments":{"input":"execute deploy quickly"}}
     ;
     if (build_options.feat_ai) {
-        try expectToolJsonContains(allocator, call, "Abi action");
+        try expectToolJsonContains(allocator, call, "Aviva direct expert");
     } else {
         try expectToolJsonContains(allocator, call, "AI feature is disabled");
     }

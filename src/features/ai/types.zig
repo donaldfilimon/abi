@@ -82,6 +82,10 @@ pub const StreamCallback = *const fn (ctx: *anyopaque, chunk: StreamChunk) anyer
 pub const CompletionRequest = struct {
     input: []const u8,
     model: []const u8 = "claude-fable-5",
+    /// Explicit consent switch for local completion persistence. When false,
+    /// completion does not mutate WDBX. When true, ABI stores derived vectors,
+    /// minimal provenance/audit metadata, and a linked block — not raw prompt or
+    /// response text in the completion metadata record.
     store_result: bool = false,
     /// Optional streaming callback. When set, persona/template generation emits
     /// word/token deltas **during** iterative generation (`stream=incremental`).

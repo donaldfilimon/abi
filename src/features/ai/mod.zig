@@ -13,6 +13,7 @@ const types = @import("types.zig");
 const completion = @import("completion.zig");
 const training = @import("training.zig");
 pub const point_neural_net = @import("point_neural_net.zig");
+pub const identity = @import("identity.zig");
 
 const router = @import("router.zig");
 pub const abbey = router.abbey;

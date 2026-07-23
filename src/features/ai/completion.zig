@@ -214,7 +214,10 @@ fn completionMetadataJson(
     var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
 
-    try out.appendSlice(allocator, "{\"kind\":\"completion\",\"model\":");
+    // `store_result=true` is the caller's explicit persistence choice. Keep the
+    // durable record minimal: derived vector ids, routing/audit fields, byte
+    // counts, and provenance. Raw input/output text is intentionally omitted.
+    try out.appendSlice(allocator, "{\"kind\":\"completion\",\"persistence\":\"explicit_store_result\",\"authority\":\"inferred\",\"epistemic_status\":\"generated_output\",\"model\":");
     try appendMetadataJsonString(&out, allocator, result.model);
     try out.appendSlice(allocator, ",\"profile\":");
     try appendMetadataJsonString(&out, allocator, result.selected_profile.label());
@@ -305,6 +308,29 @@ test "metadata JSON includes the escore and veto fields" {
     defer std.testing.allocator.free(metadata);
     try std.testing.expect(std.mem.indexOf(u8, metadata, "\"escore\":1.000") != null);
     try std.testing.expect(std.mem.indexOf(u8, metadata, "\"audit_vetoed\":false") != null);
+    try std.testing.expect(std.mem.indexOf(u8, metadata, "\"persistence\":\"explicit_store_result\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, metadata, "\"authority\":\"inferred\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, metadata, "\"epistemic_status\":\"generated_output\"") != null);
+}
+
+test "completion metadata minimizes retained content" {
+    const private_input = "private-user-detail-9f3d";
+    const private_output = "private-generated-detail-7a2c";
+    var result = types.CompletionResult{
+        .model = "m",
+        .selected_profile = .abbey,
+        .output = try std.testing.allocator.dupe(u8, private_output),
+        .audit = constitution.AuditResult.init(),
+    };
+    defer result.deinit(std.testing.allocator);
+
+    const metadata = try completionMetadataJson(std.testing.allocator, .{ .input = private_input, .model = "m", .store_result = true }, result, 1, 2);
+    defer std.testing.allocator.free(metadata);
+
+    try std.testing.expect(std.mem.indexOf(u8, metadata, private_input) == null);
+    try std.testing.expect(std.mem.indexOf(u8, metadata, private_output) == null);
+    try std.testing.expect(std.mem.indexOf(u8, metadata, "\"input_bytes\":") != null);
+    try std.testing.expect(std.mem.indexOf(u8, metadata, "\"output_bytes\":") != null);
 }
 
 test "metadata JSON escapes model and profile fields" {

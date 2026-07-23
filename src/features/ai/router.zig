@@ -2,6 +2,7 @@ const std = @import("std");
 const types = @import("types.zig");
 const point_neural_net = @import("point_neural_net.zig");
 const incremental = @import("incremental.zig");
+const identity = @import("identity.zig");
 
 pub const ProfileWeights = struct {
     w_abbey: f32,
@@ -26,33 +27,52 @@ pub const SentimentKeyword = struct {
 };
 
 pub const SENTIMENT_KEYWORDS = [_]SentimentKeyword{
-    .{ .word = "analyze", .abbey_score = 0.8, .aviva_score = 0.2, .abi_score = 0.3 },
-    .{ .word = "structure", .abbey_score = 0.9, .aviva_score = 0.1, .abi_score = 0.2 },
-    .{ .word = "logical", .abbey_score = 0.85, .aviva_score = 0.15, .abi_score = 0.2 },
-    .{ .word = "compare", .abbey_score = 0.7, .aviva_score = 0.4, .abi_score = 0.3 },
-    .{ .word = "explain", .abbey_score = 0.6, .aviva_score = 0.5, .abi_score = 0.3 },
-    .{ .word = "creative", .abbey_score = 0.2, .aviva_score = 0.9, .abi_score = 0.1 },
-    .{ .word = "imagine", .abbey_score = 0.1, .aviva_score = 0.95, .abi_score = 0.1 },
-    .{ .word = "explore", .abbey_score = 0.3, .aviva_score = 0.85, .abi_score = 0.2 },
-    .{ .word = "brainstorm", .abbey_score = 0.2, .aviva_score = 0.9, .abi_score = 0.15 },
+    // Abbey is the broad, primary personality: analytical, creative,
+    // empathetic, explanatory, and collaborative cues all strengthen Abbey.
+    .{ .word = "analyze", .abbey_score = 0.9, .aviva_score = 0.5, .abi_score = 0.2 },
+    .{ .word = "structure", .abbey_score = 0.9, .aviva_score = 0.6, .abi_score = 0.2 },
+    .{ .word = "logical", .abbey_score = 0.85, .aviva_score = 0.7, .abi_score = 0.2 },
+    .{ .word = "compare", .abbey_score = 0.8, .aviva_score = 0.7, .abi_score = 0.2 },
+    .{ .word = "explain", .abbey_score = 0.95, .aviva_score = 0.4, .abi_score = 0.2 },
+    .{ .word = "creative", .abbey_score = 0.95, .aviva_score = 0.3, .abi_score = 0.1 },
+    .{ .word = "imagine", .abbey_score = 0.95, .aviva_score = 0.3, .abi_score = 0.1 },
+    .{ .word = "explore", .abbey_score = 0.9, .aviva_score = 0.4, .abi_score = 0.2 },
+    .{ .word = "brainstorm", .abbey_score = 0.95, .aviva_score = 0.3, .abi_score = 0.1 },
+    .{ .word = "help", .abbey_score = 0.95, .aviva_score = 0.4, .abi_score = 0.2 },
+    .{ .word = "learn", .abbey_score = 0.95, .aviva_score = 0.3, .abi_score = 0.2 },
+    .{ .word = "frustrated", .abbey_score = 0.95, .aviva_score = 0.2, .abi_score = 0.1 },
     // Keywords are matched per whitespace-split token (see analyzeSentiment), so
     // every entry must be a single word — multi-word phrases can never match.
-    .{ .word = "run", .abbey_score = 0.2, .aviva_score = 0.1, .abi_score = 0.9 },
-    .{ .word = "execute", .abbey_score = 0.3, .aviva_score = 0.1, .abi_score = 0.95 },
-    .{ .word = "deploy", .abbey_score = 0.2, .aviva_score = 0.1, .abi_score = 0.9 },
-    .{ .word = "build", .abbey_score = 0.4, .aviva_score = 0.3, .abi_score = 0.8 },
-    .{ .word = "fix", .abbey_score = 0.5, .aviva_score = 0.1, .abi_score = 0.85 },
-    .{ .word = "quick", .abbey_score = 0.2, .aviva_score = 0.2, .abi_score = 0.8 },
-    .{ .word = "safe", .abbey_score = 0.7, .aviva_score = 0.3, .abi_score = 0.4 },
-    .{ .word = "risk", .abbey_score = 0.75, .aviva_score = 0.4, .abi_score = 0.5 },
-    .{ .word = "design", .abbey_score = 0.5, .aviva_score = 0.7, .abi_score = 0.3 },
-    .{ .word = "pattern", .abbey_score = 0.8, .aviva_score = 0.3, .abi_score = 0.2 },
+    // Aviva is the direct expert mode for urgent, terse execution cues.
+    .{ .word = "run", .abbey_score = 0.3, .aviva_score = 0.95, .abi_score = 0.2 },
+    .{ .word = "execute", .abbey_score = 0.3, .aviva_score = 0.95, .abi_score = 0.2 },
+    .{ .word = "deploy", .abbey_score = 0.3, .aviva_score = 0.95, .abi_score = 0.2 },
+    .{ .word = "build", .abbey_score = 0.5, .aviva_score = 0.9, .abi_score = 0.2 },
+    .{ .word = "fix", .abbey_score = 0.5, .aviva_score = 0.95, .abi_score = 0.2 },
+    .{ .word = "quick", .abbey_score = 0.3, .aviva_score = 0.95, .abi_score = 0.1 },
+    .{ .word = "direct", .abbey_score = 0.3, .aviva_score = 0.95, .abi_score = 0.1 },
+    .{ .word = "concise", .abbey_score = 0.3, .aviva_score = 0.95, .abi_score = 0.1 },
+    // ABI is selected for explicit orchestration/governance work rather than
+    // ordinary user-facing execution.
+    .{ .word = "orchestrate", .abbey_score = 0.2, .aviva_score = 0.2, .abi_score = 0.95 },
+    .{ .word = "routing", .abbey_score = 0.2, .aviva_score = 0.2, .abi_score = 0.95 },
+    .{ .word = "governance", .abbey_score = 0.3, .aviva_score = 0.3, .abi_score = 0.95 },
+    .{ .word = "policy", .abbey_score = 0.3, .aviva_score = 0.4, .abi_score = 0.9 },
+    .{ .word = "profile", .abbey_score = 0.3, .aviva_score = 0.3, .abi_score = 0.9 },
+    .{ .word = "safe", .abbey_score = 0.8, .aviva_score = 0.5, .abi_score = 0.5 },
+    .{ .word = "risk", .abbey_score = 0.8, .aviva_score = 0.6, .abi_score = 0.6 },
+    .{ .word = "design", .abbey_score = 0.9, .aviva_score = 0.5, .abi_score = 0.3 },
+    .{ .word = "pattern", .abbey_score = 0.85, .aviva_score = 0.5, .abi_score = 0.3 },
 };
 
 pub const abbey = struct {
     pub fn processInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
         std.log.info("Abbey processing: {s}", .{input});
-        return try std.fmt.allocPrint(allocator, "Abbey analyzed: {s}", .{input});
+        return try std.fmt.allocPrint(
+            allocator,
+            "Abbey: {s}\n\nI’ll approach this with warmth, creativity, and technical care while keeping uncertainty explicit.",
+            .{input},
+        );
     }
 };
 
@@ -60,7 +80,7 @@ pub const aviva = struct {
     pub fn processInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
         return try std.fmt.allocPrint(
             allocator,
-            "Aviva creative exploration: {s}\n\nExploring multiple perspectives and creative angles for this topic...",
+            "Aviva direct expert: {s}\n\nLeading with the concrete answer, assumptions, and next action.",
             .{input},
         );
     }
@@ -70,7 +90,7 @@ pub const abi_profile = struct {
     pub fn processInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
         return try std.fmt.allocPrint(
             allocator,
-            "Abi action: {s}\n\nExecuting requested operation with minimal overhead.",
+            "ABI orchestration review: {s}\n\nEvaluating intent, risk, context, and the appropriate response mode.",
             .{input},
         );
     }
@@ -89,9 +109,9 @@ pub const AdaptiveModulator = struct {
     pub fn init() AdaptiveModulator {
         return .{
             .w_ema = ProfileWeights{
-                .w_abbey = 0.33,
-                .w_aviva = 0.33,
-                .w_abi = 0.34,
+                .w_abbey = identity.DEFAULT_ABBEY_WEIGHT,
+                .w_aviva = identity.DEFAULT_AVIVA_WEIGHT,
+                .w_abi = identity.DEFAULT_ABI_WEIGHT,
             },
             .alpha = DEFAULT_ALPHA,
             .update_count = 0,
@@ -101,9 +121,9 @@ pub const AdaptiveModulator = struct {
     pub fn initWithAlpha(alpha: f32) AdaptiveModulator {
         return .{
             .w_ema = ProfileWeights{
-                .w_abbey = 0.33,
-                .w_aviva = 0.33,
-                .w_abi = 0.34,
+                .w_abbey = identity.DEFAULT_ABBEY_WEIGHT,
+                .w_aviva = identity.DEFAULT_AVIVA_WEIGHT,
+                .w_abi = identity.DEFAULT_ABI_WEIGHT,
             },
             .alpha = alpha,
             .update_count = 0,
@@ -206,9 +226,9 @@ pub const AdaptiveModulator = struct {
 
 pub fn analyzeSentiment(input: []const u8) ProfileWeights {
     var weights_val = ProfileWeights{
-        .w_abbey = 0.33,
-        .w_aviva = 0.33,
-        .w_abi = 0.34,
+        .w_abbey = identity.DEFAULT_ABBEY_WEIGHT,
+        .w_aviva = identity.DEFAULT_AVIVA_WEIGHT,
+        .w_abi = identity.DEFAULT_ABI_WEIGHT,
     };
 
     // Match the raw input directly: startsWithIgnoreCase is already
@@ -340,11 +360,11 @@ test "analyzeSentiment ignores suffix false positives but keeps prefix stems" {
     }
 
     // Intended prefix stems still match: "quickly"->"quick" and "running"->"run"
-    // both bias abi, the dominant weight for those keywords.
+    // both bias Aviva, the direct expert mode for execution cues.
     const quickly = analyzeSentiment("quickly");
-    try std.testing.expect(quickly.w_abi > quickly.w_abbey and quickly.w_abi > quickly.w_aviva);
+    try std.testing.expect(quickly.w_aviva > quickly.w_abbey and quickly.w_aviva > quickly.w_abi);
     const running = analyzeSentiment("running");
-    try std.testing.expect(running.w_abi > running.w_abbey and running.w_abi > running.w_aviva);
+    try std.testing.expect(running.w_aviva > running.w_abbey and running.w_aviva > running.w_abi);
 
     // A whole-word keyword still routes as before; removing the "what if" bigram
     // entry is neutral (it never matched a single-token split).
@@ -364,16 +384,27 @@ test "analyzeSentiment returns normalized weights" {
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), total, 0.01);
 }
 
-test "analyzeSentiment favors aviva for creative input" {
+test "analyzeSentiment keeps creative input with primary Abbey profile" {
     const weights_val = analyzeSentiment("imagine creative possibilities and explore new ideas");
+    try std.testing.expect(weights_val.w_abbey > weights_val.w_aviva);
+    try std.testing.expect(weights_val.w_abbey > weights_val.w_abi);
+}
+
+test "analyzeSentiment favors direct Aviva mode for action input" {
+    const weights_val = analyzeSentiment("execute deploy run the build quickly");
     try std.testing.expect(weights_val.w_aviva > weights_val.w_abbey);
     try std.testing.expect(weights_val.w_aviva > weights_val.w_abi);
 }
 
-test "analyzeSentiment favors abi for action input" {
-    const weights_val = analyzeSentiment("execute deploy run the build quickly");
+test "analyzeSentiment favors ABI only for orchestration and governance input" {
+    const weights_val = analyzeSentiment("orchestrate routing governance policy profile");
     try std.testing.expect(weights_val.w_abi > weights_val.w_abbey);
     try std.testing.expect(weights_val.w_abi > weights_val.w_aviva);
+}
+
+test "neutral input defaults to primary Abbey profile" {
+    const weights_val = analyzeSentiment("hello there");
+    try std.testing.expectEqual(types.AgentProfile.abbey, selectBestProfile(weights_val));
 }
 
 test "analyzeSentiment is case-insensitive" {
@@ -400,8 +431,8 @@ test "selectBestProfile tie-break order is abbey then aviva then abi" {
     const aviva_abi = ProfileWeights{ .w_abbey = 0.2, .w_aviva = 0.4, .w_abi = 0.4 };
     try std.testing.expectEqual(types.AgentProfile.aviva, selectBestProfile(aviva_abi));
 
-    // Neutral sentiment uses a deliberately non-tied baseline favoring Abi.
-    try std.testing.expectEqual(types.AgentProfile.abi, selectBestProfile(analyzeSentiment("zzzqqq")));
+    // Neutral sentiment uses the canonical product prior favoring Abbey.
+    try std.testing.expectEqual(types.AgentProfile.abbey, selectBestProfile(analyzeSentiment("zzzqqq")));
 }
 
 test "routeInputWithSoul preserves keyword routing without a network" {
@@ -456,7 +487,7 @@ test "AdaptiveModulator serialize/deserialize roundtrip" {
 
 test "AdaptiveModulator default deserialization on missing key" {
     const mod = AdaptiveModulator.deserialize("");
-    try std.testing.expectApproxEqAbs(@as(f32, 0.33), mod.w_ema.w_abbey, 0.01);
+    try std.testing.expectApproxEqAbs(identity.DEFAULT_ABBEY_WEIGHT, mod.w_ema.w_abbey, 0.01);
     try std.testing.expectEqual(@as(u32, 0), mod.update_count);
 }
 
@@ -483,9 +514,9 @@ test "AdaptiveModulator rejects invalid persisted state deterministically" {
 
     for (invalid_states) |state| {
         const restored = AdaptiveModulator.deserialize(state);
-        try std.testing.expectApproxEqAbs(@as(f32, 0.33), restored.w_ema.w_abbey, 0.0001);
-        try std.testing.expectApproxEqAbs(@as(f32, 0.33), restored.w_ema.w_aviva, 0.0001);
-        try std.testing.expectApproxEqAbs(@as(f32, 0.34), restored.w_ema.w_abi, 0.0001);
+        try std.testing.expectApproxEqAbs(identity.DEFAULT_ABBEY_WEIGHT, restored.w_ema.w_abbey, 0.0001);
+        try std.testing.expectApproxEqAbs(identity.DEFAULT_AVIVA_WEIGHT, restored.w_ema.w_aviva, 0.0001);
+        try std.testing.expectApproxEqAbs(identity.DEFAULT_ABI_WEIGHT, restored.w_ema.w_abi, 0.0001);
         try std.testing.expectEqual(@as(u32, 0), restored.update_count);
         try std.testing.expectApproxEqAbs(@as(f32, 0.3), restored.alpha, 0.0001);
     }
@@ -524,21 +555,22 @@ test "abbey processInput" {
     const allocator = std.testing.allocator;
     const result = try abbey.processInput(allocator, "test");
     defer allocator.free(result);
-    try std.testing.expect(std.mem.indexOf(u8, result, "Abbey analyzed") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "Abbey:") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "warmth, creativity, and technical care") != null);
 }
 
-test "aviva processInput returns creative response" {
+test "aviva processInput returns direct expert response" {
     const allocator = std.testing.allocator;
     const result = try aviva.processInput(allocator, "what is consciousness?");
     defer allocator.free(result);
-    try std.testing.expect(std.mem.indexOf(u8, result, "Aviva creative exploration") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "creative") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "Aviva direct expert") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "concrete answer") != null);
 }
 
-test "abi_profile processInput returns concise response" {
+test "abi_profile processInput returns orchestration response" {
     const allocator = std.testing.allocator;
     const result = try abi_profile.processInput(allocator, "deploy to production");
     defer allocator.free(result);
-    try std.testing.expect(std.mem.indexOf(u8, result, "Abi action") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "Executing") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "ABI orchestration review") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "intent, risk, context") != null);
 }
