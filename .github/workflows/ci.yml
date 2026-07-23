@@ -46,6 +46,12 @@ jobs:
         target: [check, cross-smoke]
     steps:
       - uses: actions/checkout@v4
+      - name: Select pinned Zig
+        # The self-hosted runner's ambient PATH is not guaranteed to point at
+        # the pin (zvm's mutable "master" channel can and does drift ahead of
+        # it — see AGENTS.md). Prepend the pinned install explicitly instead
+        # of trusting whatever `zig` the runner's shell profile resolves.
+        run: echo "$HOME/.zvm/${{ env.ZIG_VERSION }}" >> "$GITHUB_PATH"
       - name: Verify pinned Zig on runner PATH
         run: ./tools/check_zigversion.sh --github-actions
       - name: zig build ${{ matrix.target }}
