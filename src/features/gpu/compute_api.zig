@@ -30,12 +30,15 @@ const metal = @import("metal_shared.zig");
 pub const Backend = backends.Backend;
 
 /// Elementwise binary kernels. `map` writes per-element results; `reduce` sums
-/// them (so `.mul` reduce = dot product, `.l2diff` reduce = squared L2).
+/// them (so `.mul` reduce = dot product, `.l2diff` reduce = squared L2,
+/// `.add` reduce = sum of pairwise sums).
 pub const Kernel = enum {
     /// out[i] = a[i] * b[i]
     mul,
     /// out[i] = (a[i] - b[i])^2
     l2diff,
+    /// out[i] = a[i] + b[i]
+    add,
 };
 
 /// Honest status of one backend on this build.
@@ -100,6 +103,7 @@ pub const GpuCompute = struct {
         return switch (kernel) {
             .mul => metal.g_metal_context.dot_pipeline,
             .l2diff => metal.g_metal_context.l2_pipeline,
+            .add => metal.g_metal_context.add_pipeline,
         };
     }
 
@@ -111,6 +115,9 @@ pub const GpuCompute = struct {
             .l2diff => for (a, b, out) |x, y, *o| {
                 const d = x - y;
                 o.* = d * d;
+            },
+            .add => for (a, b, out) |x, y, *o| {
+                o.* = x + y;
             },
         }
     }
@@ -179,6 +186,14 @@ pub const GpuCompute = struct {
                     sum += d * d;
                 }
             },
+            .add => {
+                while (i + 4 <= a.len) : (i += 4) {
+                    const av: @Vector(4, f32) = a[i..][0..4].*;
+                    const bv: @Vector(4, f32) = b[i..][0..4].*;
+                    sum += @reduce(.Add, av + bv);
+                }
+                while (i < a.len) : (i += 1) sum += a[i] + b[i];
+            },
         }
         return sum;
     }
@@ -231,12 +246,15 @@ test "compute_api: reduce matches scalar reference on the active backend" {
     const b = [_]f32{ 1.0, 2.0, -0.5, 0.25, 4.0, -1.0, 3.0, 0.5, 1.25, -3.0 };
     var ref_dot: f32 = 0;
     var ref_l2: f32 = 0;
+    var ref_add: f32 = 0;
     for (a, b) |x, y| {
         ref_dot += x * y;
         ref_l2 += (x - y) * (x - y);
+        ref_add += x + y;
     }
     try testing.expectApproxEqAbs(ref_dot, try gc.reduce(.mul, &a, &b), 1e-3);
     try testing.expectApproxEqAbs(ref_l2, try gc.reduce(.l2diff, &a, &b), 1e-3);
+    try testing.expectApproxEqAbs(ref_add, try gc.reduce(.add, &a, &b), 1e-3);
 }
 
 test "compute_api: map writes correct elementwise results and checks dims" {
@@ -249,6 +267,9 @@ test "compute_api: map writes correct elementwise results and checks dims" {
     try testing.expectApproxEqAbs(@as(f32, 32), out[3], 1e-4);
     try gc.map(.l2diff, &a, &b, &out);
     try testing.expectApproxEqAbs(@as(f32, 16), out[0], 1e-4); // (1-5)^2
+    try gc.map(.add, &a, &b, &out);
+    try testing.expectApproxEqAbs(@as(f32, 6), out[0], 1e-4);
+    try testing.expectApproxEqAbs(@as(f32, 12), out[3], 1e-4);
 
     var bad: [3]f32 = undefined;
     try testing.expectError(error.DimensionMismatch, gc.map(.mul, &a, &b, &bad));

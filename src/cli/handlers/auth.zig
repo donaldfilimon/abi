@@ -51,10 +51,14 @@ pub fn handleAuthStatus(allocator: std.mem.Allocator) !u8 {
 /// is macOS-only and opt-in (`ABI_CREDENTIALS_BACKEND=keychain`); it stores in
 /// the login keychain with OS at-rest protection but is NOT hardware-backed
 /// (no Secure Enclave / biometric), NOT audited, and NOT verified under
-/// headless CI. Windows Credential Manager / Linux Secret Service remain
-/// Proposed and are not surfaced here.
+/// headless CI. On non-macOS hosts, requesting keychain via env is disclosed as
+/// unsupported (Windows Credential Manager / Linux Secret Service remain
+/// Proposed) — the label never pretends those backends are active.
 fn credentialBackendLabel() []const u8 {
     if (credentials.credentialsBackendIsKeychain()) {
+        if (comptime builtin.os.tag != .macos) {
+            return "keychain requested (unsupported on this OS; Windows/Linux Proposed — not active)";
+        }
         return "keychain (macOS login keychain, opt-in)";
     }
     return "file (~/.abi/credentials.json)";
@@ -287,7 +291,14 @@ test "credential backend label maps ABI_CREDENTIALS_BACKEND=keychain to keychain
     try environ.put("ABI_CREDENTIALS_BACKEND", "keychain");
     env.install(&environ);
     defer env.resetForTesting();
-    try std.testing.expectEqualStrings("keychain (macOS login keychain, opt-in)", credentialBackendLabel());
+    if (comptime builtin.os.tag == .macos) {
+        try std.testing.expectEqualStrings("keychain (macOS login keychain, opt-in)", credentialBackendLabel());
+    } else {
+        try std.testing.expectEqualStrings(
+            "keychain requested (unsupported on this OS; Windows/Linux Proposed — not active)",
+            credentialBackendLabel(),
+        );
+    }
 }
 
 test "credential backend label keeps file for unrecognized backend values" {
