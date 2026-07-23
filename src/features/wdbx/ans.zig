@@ -216,6 +216,10 @@ fn encodeBytes(allocator: std.mem.Allocator, input: []const u8, mode: Mode) !Enc
 
 fn decodeBytes(allocator: std.mem.Allocator, blob: []const u8) !struct { mode: Mode, bytes: []u8 } {
     if (blob.len < 1) return error.TruncatedAnsStream;
+    // `Mode` is an exhaustive enum over {0,1,2}; blob[0] is an untrusted byte
+    // that can be any of 256 values, so an unchecked `@enumFromInt` hits
+    // safety-checked illegal-enum-value UB on a corrupted/malicious blob.
+    if (blob[0] > @intFromEnum(Mode.rans1)) return error.InvalidAnsMode;
     const mode: Mode = @enumFromInt(blob[0]);
     var off: usize = 1;
     const original_len = try readU32(blob, &off);
@@ -309,6 +313,21 @@ test "ans empty round-trips" {
     const out = try decode(allocator, enc);
     defer allocator.free(out);
     try std.testing.expectEqualStrings("", out);
+}
+
+test "ans decode rejects an out-of-range mode byte instead of hitting illegal-enum UB" {
+    const allocator = std.testing.allocator;
+    var enc = try encode(allocator, "hello world");
+    defer enc.deinit(allocator);
+
+    // `Mode` is exhaustive over {0,1,2}; a corrupted blob's leading mode byte
+    // can be any of 256 values and must be rejected explicitly rather than
+    // trusted as an enum tag.
+    enc.data[0] = 3;
+    try std.testing.expectError(error.InvalidAnsMode, decode(allocator, enc));
+
+    enc.data[0] = 255;
+    try std.testing.expectError(error.InvalidAnsMode, decode(allocator, enc));
 }
 
 test {

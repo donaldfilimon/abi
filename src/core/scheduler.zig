@@ -180,14 +180,21 @@ pub const Scheduler = struct {
         return task_id;
     }
 
+    /// Drain the queue, running every pending task to completion. A failing
+    /// task never aborts the batch — `runNext` already records `.failed` +
+    /// `error_msg` on the task itself before surfacing the error, so the
+    /// batch keeps draining and the first failure (if any) is returned once
+    /// the queue is empty, rather than stranding whatever was queued after it.
     pub fn runAll(self: *Scheduler) !void {
+        var first_err: ?anyerror = null;
         while (true) {
             const result = self.runNext() catch |err| {
-                if (err == errors.AbiError.InvalidState or err == errors.AbiError.NotFound) continue;
-                return err;
+                if (first_err == null) first_err = err;
+                continue;
             };
             if (result == null) break;
         }
+        if (first_err) |err| return err;
     }
 
     /// Returns a snapshot copy of the task with `task_id`, or null if absent.
@@ -409,6 +416,23 @@ test "Scheduler runAll" {
     try scheduler.runAll();
     try std.testing.expectEqual(@as(usize, 0), scheduler.getPendingCount());
     try std.testing.expectEqual(@as(usize, 3), scheduler.getCompletedCount());
+}
+
+test "Scheduler runAll drains every task even when one fails" {
+    var scheduler = Scheduler.init(std.testing.allocator);
+    defer scheduler.deinit();
+
+    _ = try scheduler.submit("before", .normal, dummyTask, null);
+    _ = try scheduler.submit("failing", .normal, failingTask, null);
+    _ = try scheduler.submit("after", .normal, dummyTask, null);
+
+    // The batch surfaces the failure...
+    try std.testing.expectError(error.TestFailure, scheduler.runAll());
+    // ...but does not strand the task queued after the failing one: the
+    // queue drains completely rather than aborting at the first error.
+    try std.testing.expectEqual(@as(usize, 0), scheduler.getPendingCount());
+    try std.testing.expectEqual(@as(usize, 2), scheduler.getCompletedCount());
+    try std.testing.expectEqual(@as(usize, 1), scheduler.getFailedCount());
 }
 
 test "Scheduler failed task tracking" {

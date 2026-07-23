@@ -20,7 +20,7 @@ Canonical instruction file. If this conflicts with `build.zig`, `tools/build.sh`
 
 ## Architecture
 - Entrypoints: `src/main.zig` (CLI), `src/mcp/main.zig` (MCP server). Public API: `src/root.zig` (`@import("abi")`).
-- **MCP module-root isolation**: only `src/mcp/` handler group (`main.zig`, `handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) may `@import("abi")`; everything else under `src/` uses relative `.zig` imports. Don't unify MCP HTTP with WDBX REST — duplication is intentional.
+- **MCP module-root isolation**: `src/mcp/` is its own Zig module (`build.zig` compiles it as a separate `Module`, depending on `abi_mod` only via the named `"abi"` import) — `@import("../foundation/...")`-style relative imports can't reach across that module boundary, so any `src/mcp/*.zig` file that needs a `foundation.*` leaf (`http`, `env`, `json` — currently `protocol.zig`, `http_parse.zig`, `http_transport.zig`, `json_helpers.zig`, plus the core handler group `main.zig`/`handlers.zig`/`ai_tools.zig`/`connector_tools.zig`/`plugin_tools.zig`/`state.zig`) reaches it via `@import("abi").foundation.*`. The isolation property that matters is narrower than "which files import abi": no `src/mcp/*.zig` file reaches into `abi.features`/`ai`/`wdbx` internals, and nothing outside `src/mcp/` imports MCP internals. Everything else under `src/` (non-mcp) uses relative `.zig` imports. Don't unify MCP HTTP with WDBX REST — duplication is intentional.
 - **Generated**: `src/plugin_registry.zig` is regenerated from `src/plugins/*/abi-plugin.json` at build time — never hand-edit.
 - Repo-root `mcp/` is launcher scripts, **not** the Zig implementation.
 

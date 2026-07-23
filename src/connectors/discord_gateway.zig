@@ -27,6 +27,7 @@ const std = @import("std");
 const connector = @import("connector.zig");
 const http = @import("http.zig");
 const json = @import("json.zig");
+const discord = @import("discord.zig");
 const ws_client = @import("discord_ws_client.zig");
 const routing = @import("discord_routing.zig");
 
@@ -230,11 +231,12 @@ fn extractMessageCreate(allocator: std.mem.Allocator, msg: []const u8) !?Message
 }
 
 fn buildIdentify(allocator: std.mem.Allocator, config: GatewayConfig) ![]u8 {
-    return std.fmt.allocPrint(
-        allocator,
-        "{{\"op\":2,\"d\":{{\"token\":\"{s}\",\"intents\":{d},\"properties\":{{\"os\":\"abi\",\"browser\":\"abi\",\"device\":\"abi\"}}}}}}",
-        .{ config.token, config.intents },
-    );
+    try discord.validateToken(config.token);
+    // Route through the canonical JSON-string escaper (json.zig) rather than
+    // interpolating the token raw: validateToken accepts printable-non-
+    // whitespace bytes, which still includes `"` and `\` — unescaped, either
+    // would corrupt this payload.
+    return json.buildDiscordIdentifyBody(allocator, config.token, config.intents);
 }
 
 fn buildHeartbeat(allocator: std.mem.Allocator, seq: ?i64) ![]u8 {
@@ -329,6 +331,12 @@ pub const WebSocketTransport = struct {
     }
 
     pub fn sendReply(self: *WebSocketTransport, allocator: std.mem.Allocator, channel_id: []const u8, content: []const u8) !void {
+        // `channel_id` originates from parsed (attacker-influenceable) gateway
+        // JSON and is interpolated straight into the REST path below; reject
+        // anything that isn't a plain snowflake ID before it reaches the URL,
+        // mirroring the same gate `discord.zig`'s own send paths apply.
+        try discord.validateDiscordId(channel_id);
+        try discord.validateMessageContent(content);
         const body = try json.buildDiscordMessageBody(allocator, content);
         defer allocator.free(body);
         const authorization = try http.botHeader(allocator, self.config.token);
@@ -433,4 +441,43 @@ test "gateway loop honors max_message_events bound" {
     // Only the first 2 messages (Hello + !help) are processed before the bound.
     const stats = try gw.run(allocator, &transport, 2);
     try std.testing.expectEqual(@as(usize, 2), stats.message_events);
+}
+
+test "gateway identify escapes a token containing JSON-breaking characters" {
+    const allocator = std.testing.allocator;
+    var transport = FakeTransport.init(allocator);
+    defer transport.deinit();
+
+    try transport.enqueue(
+        \\{"op":10,"d":{"heartbeat_interval":45000},"s":null,"t":null}
+    );
+
+    // A token containing a quote and a backslash must not corrupt the
+    // Identify frame — it must come through escaped, not interpolated raw.
+    const gw = Gateway.init(.{ .token = "weird\"token\\value", .token_configured = true });
+    const stats = try gw.run(allocator, &transport, 1);
+    try std.testing.expect(stats.identified);
+
+    const identify = transport.outgoing.items[0];
+    // The whole frame must still parse as valid JSON (proves the token was
+    // escaped rather than breaking the surrounding structure)...
+    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, identify, .{});
+    defer parsed.deinit();
+    // ...and the token must round-trip to its original, unescaped value.
+    const token = parsed.value.object.get("d").?.object.get("token").?.string;
+    try std.testing.expectEqualStrings("weird\"token\\value", token);
+}
+
+test "gateway run rejects an empty token before sending anything" {
+    const allocator = std.testing.allocator;
+    var transport = FakeTransport.init(allocator);
+    defer transport.deinit();
+
+    try transport.enqueue(
+        \\{"op":10,"d":{"heartbeat_interval":45000},"s":null,"t":null}
+    );
+
+    const gw = Gateway.init(.{ .token = "", .token_configured = false });
+    try std.testing.expectError(error.AuthenticationError, gw.run(allocator, &transport, null));
+    try std.testing.expectEqual(@as(usize, 0), transport.outgoing.items.len);
 }

@@ -118,7 +118,7 @@ pub fn validateMessageContent(content: []const u8) ConnectorError!void {
     if (content.len == 0 or content.len > DISCORD_MAX_MESSAGE_BYTES) return ConnectorError.InvalidResponse;
 }
 
-fn validateToken(token: []const u8) ConnectorError!void {
+pub fn validateToken(token: []const u8) ConnectorError!void {
     if (token.len == 0) return ConnectorError.AuthenticationError;
     for (token) |byte| {
         if (std.ascii.isWhitespace(byte) or byte < 0x21 or byte > 0x7e) return ConnectorError.AuthenticationError;
