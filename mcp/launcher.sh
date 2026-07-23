@@ -25,4 +25,7 @@ if [[ ! -x "$BIN" ]]; then
 fi
 
 # Default transport is stdio when no args (MCP host convention).
+# abi-mcp is linked with a relative @rpath into .zig-cache (libabi_fm_shim.dylib),
+# so the process must start with cwd = repo root for dyld to resolve the dylib.
+cd -- "$ROOT_DIR"
 exec "$BIN" "${@:-stdio}"

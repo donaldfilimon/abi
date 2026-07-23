@@ -19,7 +19,8 @@ Session-start checklist and conventions for agents working on this repo.
 - Enum variants: `snake_case`
 
 ### Import Rules
-- **Within `src/`**: Relative imports ONLY, except the MCP executable + handler module graph (`src/mcp/main.zig` plus the `handlers.zig` group: `handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) that intentionally imports the public `abi` module for tool dispatch.
+- **Library modules** (`src/features/`, `src/core/`, `src/foundation/`): relative imports ONLY.
+- **Executables** may `@import("abi")`: CLI (`src/main.zig` + `src/cli/**`) and the whole MCP module (`src/mcp/**` — own Zig module root). MCP reaches `foundation.*` via `@import("abi").foundation.*` only; no MCP file reaches `abi.features`/`ai`/`wdbx` internals.
 - **From outside `src/`**: Use `@import("abi")` and `@import("build_options")`.
 - Always include `.zig` extension on path imports.
 
@@ -99,7 +100,7 @@ All skills include honest claim boundaries per `docs/contracts/external-claims-a
 
 ## Common Pitfalls to Avoid
 
-1. **Circular imports**: Avoid `@import("abi")` from within `src/` except the MCP executable + handler module graph (`src/mcp/main.zig` + the `handlers.zig` group); use relative paths elsewhere.
+1. **Circular imports**: `@import("abi")` only from executables (CLI `src/main.zig`+`src/cli/**`, MCP `src/mcp/**`). Relative imports in `src/features/`, `src/core/`, `src/foundation/`.
 2. **Missing `.zig` extension**: All path imports must include the extension.
 3. **Empty catch blocks**: Always log or propagate errors; never silently swallow them.
 4. **Wrong ArrayList init**: Use `ArrayListUnmanaged(T).empty`, not `.init(allocator)`.
@@ -109,6 +110,7 @@ All skills include honest claim boundaries per `docs/contracts/external-claims-a
 8. **macOS build entrypoint**: Prefer `./build.sh ...` on macOS — the documented Darwin workflow sets up Metal linking and project conventions; raw `zig build` works with a compatible local toolchain but bypasses the wrapper.
 9. **Missing refAllDecls**: Every module test block must include `std.testing.refAllDecls(@This())`.
 10. **Feature flag imports**: Use `build_options.feat_*` for conditional compilation, not runtime checks.
+11. **MCP launcher rpath**: Run via `mcp/launcher.sh` (or from repo root) — bare `zig-out/bin/abi-mcp` from another cwd fails dyld `@rpath` for `libabi_fm_shim.dylib`.
 
 ## MemoryTracker Wiring (learned this session)
 
