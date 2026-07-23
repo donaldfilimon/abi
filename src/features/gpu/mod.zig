@@ -50,6 +50,7 @@ test {
     _ = compute_api;
     _ = @import("metal_shared.zig");
     _ = @import("metal_objc.zig");
+    _ = @import("metal_kernels.zig");
 }
 
 test "gpu module reexports safe vector operations" {

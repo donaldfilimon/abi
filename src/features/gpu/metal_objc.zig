@@ -1,5 +1,5 @@
 //! Metal Objective-C runtime FFI helpers (macOS-gated).
-//! Package-private building blocks for metal_shared.zig.
+//! Package-private building blocks for metal_kernels.zig / metal_shared.zig.
 const builtin = @import("builtin");
 const std = @import("std");
 
