@@ -19,10 +19,18 @@ Use the narrowest executable source for each claim:
 - Public feature APIs: paired `mod.zig` / `stub.zig` modules and
   `zig build check-parity`
 - Current, Partial, and Proposed capability wording:
-  `contracts/external-claims-audit.mdx` and `spec/wdbx-north-star.mdx`
+  `contracts/external-claims-audit.mdx`, `spec/wdbx-north-star.mdx`, and
+  `spec/abbey-core-identity.mdx` (with executable mirror
+  `src/features/ai/identity.zig`)
+- Abbey / Aviva / ABI / WDBX roles and operating protocol:
+  `spec/abbey-core-identity.mdx`, `spec/multi-persona-technical.mdx`,
+  `src/features/ai/identity.zig`, `src/features/ai/router.zig`
 
 When prose disagrees with these sources, update the prose to match the
 executable behavior. Do not change code merely to preserve stale documentation.
+Do not promote Primary Declaration aspirational wording (distributed AI, embedded
+visual generation, perfect WDBX memory, unpublished benchmarks) to Current without
+source + tests.
 
 ## Claim-safe writing
 

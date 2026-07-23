@@ -3,13 +3,22 @@ title: "ABI Framework Documentation Hub"
 description: "Welcome to the ABI framework documentation. This hub provides central access to architecture, onboarding, and development guides for the ABI multi-AI…"
 ---
 
-Welcome to the ABI multi-AI orchestration framework documentation. ABI is implemented in Zig 0.17; this hub points at contracts, architecture specs, and build guides without re-stating frozen CLI or MCP surfaces.
+Welcome to the ABI multi-AI orchestration framework documentation. ABI is
+implemented in Zig 0.17; this hub points at contracts, architecture specs, and
+build guides without re-stating frozen CLI or MCP surfaces.
+
+**Primary identity:** Abbey (empathetic polymath), with Aviva (direct expert),
+ABI (orchestration), and WDBX (knowledge/memory substrate). See the
+[Abbey Core Identity](spec/abbey-core-identity) contract for product direction
+and the claim-honest Current / Partial / Proposed evidence map.
 
 <Note type="warning">
   **Source wins.** When docs disagree with `build.zig`, `src/cli/usage.zig`,
   `src/mcp/handlers.zig`, or `tests/contracts/`, trust the executable sources
   and `./build.sh check`. Claim boundaries:
-  [External Claims Audit](contracts/external-claims-audit).
+  [External Claims Audit](contracts/external-claims-audit). Local persona
+  output is deterministic template generation, not a model-quality or
+  distributed-AI claim.
 </Note>
 
 ## Contracts
@@ -27,9 +36,16 @@ Frozen public surfaces and honest external wording. Prefer these over re-listing
 
 ## Architecture / roadmap
 
-Design and north-star docs for agents, WDBX, and multi-persona routing.
+Design and north-star docs for Abbey identity, agents, WDBX, and multi-persona
+routing.
 
 <CardGroup cols={2}>
+  <Card title="Abbey Core Identity" href="spec/abbey-core-identity">
+    Canonical Abbey / Aviva / ABI / WDBX identity, operating protocol, and evidence map.
+  </Card>
+  <Card title="Multi-Persona Technical Overview" href="spec/multi-persona-technical">
+    Deterministic local routing, templates, and runtime wiring.
+  </Card>
   <Card title="WDBX North-Star" href="spec/wdbx-north-star">
     Vision and roadmap — Current vs. Proposed.
   </Card>
@@ -39,8 +55,8 @@ Design and north-star docs for agents, WDBX, and multi-persona routing.
   <Card title="ABI Refactor Design" href="spec/abi-refactor-design">
     Refactor design and module boundaries.
   </Card>
-  <Card title="Multi-Persona Technical Overview" href="spec/multi-persona-technical">
-    Multi-persona routing and technical overview.
+  <Card title="WDBX Multiway" href="spec/wdbx-multiway">
+    Multiway experiment surface and claim boundaries.
   </Card>
   <Card title="Non-loopback REST Threat Review" href="spec/non-loopback-rest-threat-review">
     Ops guidance for exposing REST/MCP HTTP beyond loopback — not a hardened-expose claim.
