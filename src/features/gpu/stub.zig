@@ -220,7 +220,7 @@ pub fn vectorOps() VectorOps {
 // honestly reported unavailable. Keeps name/shape parity with the real module.
 pub const compute_api = @This();
 
-pub const Kernel = enum { mul, l2diff, add, sub };
+pub const Kernel = enum { mul, l2diff, add, sub, max, min };
 
 pub const BackendAvailability = struct {
     backend: Backend,
@@ -275,6 +275,12 @@ pub const GpuCompute = struct {
             .sub => for (a, b, out) |x, y, *o| {
                 o.* = x - y;
             },
+            .max => for (a, b, out) |x, y, *o| {
+                o.* = @max(x, y);
+            },
+            .min => for (a, b, out) |x, y, *o| {
+                o.* = @min(x, y);
+            },
         }
     }
 
@@ -295,6 +301,12 @@ pub const GpuCompute = struct {
             },
             .sub => for (a, b) |x, y| {
                 sum += x - y;
+            },
+            .max => for (a, b) |x, y| {
+                sum += @max(x, y);
+            },
+            .min => for (a, b) |x, y| {
+                sum += @min(x, y);
             },
         }
         return sum;

@@ -152,7 +152,8 @@ fn authStatusHelp() u8 {
     std.debug.print(
         \\usage: abi auth status
         \\
-        \\Show which local connector credentials are configured.
+        \\Show which local connector credentials are configured and which
+        \\credential backend is active (file vs macOS keychain).
         \\
     , .{});
     return 0;
@@ -162,7 +163,8 @@ fn authLogoutHelp() u8 {
     std.debug.print(
         \\usage: abi auth logout
         \\
-        \\Remove the local ABI credential file when present.
+        \\Remove the local ABI credential file when present. On macOS with
+        \\ABI_CREDENTIALS_BACKEND=keychain, also clears keychain-held secrets.
         \\
     , .{});
     return 0;
@@ -181,8 +183,10 @@ fn authSigninHelp() u8 {
         \\Optional macOS backend: set ABI_CREDENTIALS_BACKEND=keychain to store
         \\credentials in the login keychain via Security.framework instead of
         \\the JSON file. Not hardware-backed (no Secure Enclave/biometric),
-        \\not audited, and not dual-written with the JSON file. Windows
-        \\Credential Manager and Linux Secret Service are not implemented.
+        \\not audited, and not dual-written with the JSON file. Off-macOS, the
+        \\same env value is disclosed by `abi auth status` and load/save fall
+        \\back to the file store — Windows Credential Manager and Linux Secret
+        \\Service remain Proposed (not implemented).
         \\
     , .{});
     return 0;
