@@ -228,6 +228,42 @@ test "rest: HTTP transport handles a single-write request" {
     try std.testing.expect(std.mem.indexOf(u8, resp, "200 OK") != null);
 }
 
+test "rest: HTTP transport returns 413 for oversized request" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    const request = try std.fmt.allocPrint(
+        allocator,
+        "POST /insert HTTP/1.1\r\nContent-Length: {d}\r\n\r\n",
+        .{MAX_REQUEST_SIZE + 1},
+    );
+    defer allocator.free(request);
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [256]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+
+    const conn = try bound.server.accept(io);
+    try handleConnection(allocator, io, &store, conn);
+
+    var resp_buf: [512]u8 = undefined;
+    const resp = try http_io.readHttpResponse(io, client, &resp_buf);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "413 Payload Too Large") != null);
+}
+
 fn expectUnauthorizedInsert(
     allocator: std.mem.Allocator,
     io: std.Io,
