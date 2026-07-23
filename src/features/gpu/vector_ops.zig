@@ -209,6 +209,38 @@ pub const VectorOps = struct {
         cpuAbs(values, out);
     }
 
+    /// `out[i] = a[i] * b[i]`. Uses existing dot_pipeline path on Metal (as in compute_api);
+    /// otherwise host loop. No speedup claim.
+    pub fn mul(self: VectorOps, a: []const f32, b: []const f32, out: []f32) !void {
+        if (a.len != b.len or a.len != out.len) return error.DimensionMismatch;
+        if (a.len == 0) return;
+
+        if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runKernel(metal.g_metal_context.dot_pipeline, a.len, a, b, out) catch |err| {
+                std.log.warn("Metal mul failed ({s}); using CPU fallback", .{@errorName(err)});
+                cpuMul(a, b, out);
+            };
+        }
+
+        cpuMul(a, b, out);
+    }
+
+    /// `out[i] = -values[i]`. Metal `negate_kernel` when initialized;
+    /// otherwise host loop. No speedup claim.
+    pub fn negate(self: VectorOps, values: []const f32, out: []f32) !void {
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+
+        if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runNegate(values, out) catch |err| {
+                std.log.warn("Metal negate failed ({s}); using CPU fallback", .{@errorName(err)});
+                cpuNegate(values, out);
+            };
+        }
+
+        cpuNegate(values, out);
+    }
+
     /// Flattens `candidates` (non-contiguous, pointing into HNSW/caller
     /// storage) into one contiguous host buffer of `candidates.len * query.len`
     /// floats and dispatches the fused batched Metal kernel in a single
@@ -330,6 +362,14 @@ fn cpuRelu(values: []const f32, out: []f32) void {
 
 fn cpuAbs(values: []const f32, out: []f32) void {
     for (values, out) |v, *slot| slot.* = @abs(v);
+}
+
+fn cpuMul(a: []const f32, b: []const f32, out: []f32) void {
+    for (a, b, out) |x, y, *slot| slot.* = x * y;
+}
+
+fn cpuNegate(values: []const f32, out: []f32) void {
+    for (values, out) |v, *slot| slot.* = -v;
 }
 
 pub fn executeKernel(spec: backends.KernelSpec) !backends.KernelResult {
@@ -669,6 +709,31 @@ test "gpu abs matches independent scalar reference (CPU/GPU parity)" {
     for (values, &expected) |v, *slot| slot.* = @abs(v);
     var out: [values.len]f32 = undefined;
     try ops.abs(&values, &out);
+    for (expected, out) |exp, got| {
+        try std.testing.expectApproxEqAbs(exp, got, 1e-4);
+    }
+}
+
+test "gpu mul matches independent scalar reference (CPU/GPU parity)" {
+    const ops = vectorOps();
+    const a = [_]f32{ 1.0, -2.0, 0.5, 4.0, -0.25 };
+    const b = [_]f32{ 2.0, 3.0, 0.0, -1.0, 4.0 };
+    var expected: [a.len]f32 = undefined;
+    for (a, b, 0..) |x, y, i| expected[i] = x * y;
+    var out: [a.len]f32 = undefined;
+    try ops.mul(&a, &b, &out);
+    for (expected, out) |exp, got| {
+        try std.testing.expectApproxEqAbs(exp, got, 1e-4);
+    }
+}
+
+test "gpu negate matches independent scalar reference (CPU/GPU parity)" {
+    const ops = vectorOps();
+    const values = [_]f32{ 1.0, -2.0, 0.0, 4.0, -0.25, 0.5 };
+    var expected: [values.len]f32 = undefined;
+    for (values, &expected) |v, *slot| slot.* = -v;
+    var out: [values.len]f32 = undefined;
+    try ops.negate(&values, &out);
     for (expected, out) |exp, got| {
         try std.testing.expectApproxEqAbs(exp, got, 1e-4);
     }
