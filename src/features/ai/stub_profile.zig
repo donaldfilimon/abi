@@ -39,6 +39,25 @@ pub const abbey = DisabledProfile;
 pub const aviva = DisabledProfile;
 pub const abi_profile = DisabledProfile;
 
+pub fn explicitProfileSelector(input: []const u8) ?types.AgentProfile {
+    var remaining = std.mem.trim(u8, input, " \t\r\n");
+    if (remaining.len > 0 and remaining[0] == '@') remaining = remaining[1..];
+
+    var name_end: usize = 0;
+    while (name_end < remaining.len and std.ascii.isAlphabetic(remaining[name_end])) : (name_end += 1) {}
+    if (name_end == 0) return null;
+    if (name_end < remaining.len) {
+        const separator = remaining[name_end];
+        if (!std.ascii.isWhitespace(separator) and separator != ',' and separator != ':' and separator != '-') return null;
+    }
+
+    const name = remaining[0..name_end];
+    if (std.ascii.eqlIgnoreCase(name, "abbey")) return .abbey;
+    if (std.ascii.eqlIgnoreCase(name, "aviva")) return .aviva;
+    if (std.ascii.eqlIgnoreCase(name, "abi")) return .abi;
+    return null;
+}
+
 pub fn analyzeSentiment(input: []const u8) ProfileWeights {
     _ = input;
     return .{};
@@ -92,7 +111,11 @@ pub const AdaptiveModulator = struct {
 
     pub fn serialize(self: *const AdaptiveModulator, allocator: std.mem.Allocator) ![]u8 {
         _ = self;
-        return try allocator.dupe(u8, "0.40,0.30,0.30,0,0.3");
+        return try std.fmt.allocPrint(
+            allocator,
+            "{d:.6},{d:.6},{d:.6},0,0.300000",
+            .{ identity.DEFAULT_ABBEY_WEIGHT, identity.DEFAULT_AVIVA_WEIGHT, identity.DEFAULT_ABI_WEIGHT },
+        );
     }
 
     pub fn deserialize(data: []const u8) AdaptiveModulator {

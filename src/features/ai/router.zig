@@ -65,6 +65,37 @@ pub const SENTIMENT_KEYWORDS = [_]SentimentKeyword{
     .{ .word = "pattern", .abbey_score = 0.85, .aviva_score = 0.5, .abi_score = 0.3 },
 };
 
+/// Recognize an explicit leading persona address such as `Aviva, be direct.`
+/// or `ABI: orchestrate this.`. Only an exact ASCII name token at the beginning
+/// of the request is accepted; profile names embedded inside larger words or
+/// mentioned later in prose do not become selectors.
+pub fn explicitProfileSelector(input: []const u8) ?types.AgentProfile {
+    var remaining = std.mem.trim(u8, input, " \t\r\n");
+    if (remaining.len > 0 and remaining[0] == '@') remaining = remaining[1..];
+
+    var name_end: usize = 0;
+    while (name_end < remaining.len and std.ascii.isAlphabetic(remaining[name_end])) : (name_end += 1) {}
+    if (name_end == 0) return null;
+    if (name_end < remaining.len) {
+        const separator = remaining[name_end];
+        if (!std.ascii.isWhitespace(separator) and separator != ',' and separator != ':' and separator != '-') return null;
+    }
+
+    const name = remaining[0..name_end];
+    if (std.ascii.eqlIgnoreCase(name, "abbey")) return .abbey;
+    if (std.ascii.eqlIgnoreCase(name, "aviva")) return .aviva;
+    if (std.ascii.eqlIgnoreCase(name, "abi")) return .abi;
+    return null;
+}
+
+fn explicitProfileWeights(profile: types.AgentProfile) ProfileWeights {
+    return switch (profile) {
+        .abbey => .{ .w_abbey = 1, .w_aviva = 0, .w_abi = 0 },
+        .aviva => .{ .w_abbey = 0, .w_aviva = 1, .w_abi = 0 },
+        .abi => .{ .w_abbey = 0, .w_aviva = 0, .w_abi = 1 },
+    };
+}
+
 pub const abbey = struct {
     pub fn processInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
         std.log.info("Abbey processing: {s}", .{input});
@@ -228,6 +259,8 @@ pub const AdaptiveModulator = struct {
 };
 
 pub fn analyzeSentiment(input: []const u8) ProfileWeights {
+    if (explicitProfileSelector(input)) |profile| return explicitProfileWeights(profile);
+
     var weights_val = ProfileWeights{
         .w_abbey = identity.DEFAULT_ABBEY_WEIGHT,
         .w_aviva = identity.DEFAULT_AVIVA_WEIGHT,
@@ -291,6 +324,10 @@ pub fn routeInputWithSoul(
     blend_alpha: f32,
     input: []const u8,
 ) ![]u8 {
+    if (explicitProfileSelector(input)) |profile| {
+        return routeToProfile(allocator, profile, input);
+    }
+
     const keyword_weights = analyzeSentiment(input);
     // Start from the keyword decision so a missing network or rejected output
     // shape/value preserves the documented fallback regardless of blend_alpha.
@@ -404,6 +441,35 @@ test "analyzeSentiment favors ABI only for orchestration and governance input" {
     const weights_val = analyzeSentiment("orchestrate routing governance policy profile");
     try std.testing.expect(weights_val.w_abi > weights_val.w_abbey);
     try std.testing.expect(weights_val.w_abi > weights_val.w_aviva);
+}
+
+test "explicit leading profile requests override heuristic routing" {
+    try std.testing.expectEqual(types.AgentProfile.aviva, explicitProfileSelector("Aviva, be direct.").?);
+    try std.testing.expectEqual(types.AgentProfile.abi, explicitProfileSelector("ABI, orchestrate this.").?);
+    try std.testing.expectEqual(types.AgentProfile.abbey, explicitProfileSelector("  @Abbey: explain this warmly.").?);
+
+    try std.testing.expectEqual(types.AgentProfile.aviva, selectBestProfile(analyzeSentiment("Aviva, explain this creatively.")));
+    try std.testing.expectEqual(types.AgentProfile.abi, selectBestProfile(analyzeSentiment("ABI, help me brainstorm.")));
+}
+
+test "explicit profile requests override one-shot and soul routing" {
+    const allocator = std.testing.allocator;
+
+    const aviva_result = try routeInput(allocator, "Aviva, be direct.");
+    defer allocator.free(aviva_result);
+    try std.testing.expect(std.mem.startsWith(u8, aviva_result, identity.profileContract(.aviva).response_prefix));
+
+    const abi_result = try routeInputWithSoul(allocator, null, 1.0, "ABI, orchestrate this.");
+    defer allocator.free(abi_result);
+    try std.testing.expect(std.mem.startsWith(u8, abi_result, identity.profileContract(.abi).response_prefix));
+}
+
+test "explicit profile selector rejects embedded and incidental names" {
+    try std.testing.expect(explicitProfileSelector("habitual orchestration") == null);
+    try std.testing.expect(explicitProfileSelector("stability review") == null);
+    try std.testing.expect(explicitProfileSelector("avivacious idea") == null);
+    try std.testing.expect(explicitProfileSelector("Please ask Aviva to review this") == null);
+    try std.testing.expect(explicitProfileSelector("ABI2, orchestrate this") == null);
 }
 
 test "neutral input defaults to primary Abbey profile" {

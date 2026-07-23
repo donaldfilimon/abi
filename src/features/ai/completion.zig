@@ -21,9 +21,12 @@ pub fn complete(allocator: std.mem.Allocator, request: types.CompletionRequest) 
 
 pub fn completeAdaptive(allocator: std.mem.Allocator, store: *wdbx.Store, request: types.CompletionRequest) !types.CompletionResult {
     if (request.input.len == 0) return error.InvalidCompletionInput;
+    // Persona routing uses the raw user utterance when callers (SEA learn-loop)
+    // pass evidence-augmented text as `input`. Generation still sees `input`.
+    const route_text = request.routing_input orelse request.input;
     var modulator = router.AdaptiveModulator.loadWeights(store);
-    modulator.update(router.analyzeSentiment(request.input));
-    const selected = router.selectBestProfile(modulator.weights());
+    modulator.update(router.analyzeSentiment(route_text));
+    const selected = router.explicitProfileSelector(route_text) orelse router.selectBestProfile(modulator.weights());
     return completeWithSelectedProfile(
         allocator,
         request,
@@ -293,6 +296,41 @@ test "complete surfaces the weighted E-score and emits per-turn governance telem
     try std.testing.expect(result.audit.escore >= 0.0 and result.audit.escore <= 1.0);
     // The turn was counted exactly once through the existing telemetry path.
     try std.testing.expectEqual(before + 1, telemetry.counterValue("ai.constitution.evaluated"));
+}
+
+test "adaptive completion honors explicit profile selector over persisted EMA" {
+    if (!build_options.feat_wdbx) return;
+    const allocator = std.testing.allocator;
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    try store.store("modulator:weights", "0.990000,0.005000,0.005000,42,0.300000");
+    var result = try completeAdaptive(allocator, &store, .{ .input = "Aviva, be direct." });
+    defer result.deinit(allocator);
+
+    try std.testing.expectEqual(types.AgentProfile.aviva, result.selected_profile);
+}
+
+test "adaptive completion routes on routing_input when input is SEA-augmented" {
+    if (!build_options.feat_wdbx) return;
+    const allocator = std.testing.allocator;
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    try store.store("modulator:weights", "0.990000,0.005000,0.005000,42,0.300000");
+    const augmented =
+        \\[SEA evidence]
+        \\- (vec 1, abbey, authority=inferred): {"kind":"completion"}
+        \\[query]
+        \\Aviva, be direct.
+    ;
+    var result = try completeAdaptive(allocator, &store, .{
+        .input = augmented,
+        .routing_input = "Aviva, be direct.",
+    });
+    defer result.deinit(allocator);
+
+    try std.testing.expectEqual(types.AgentProfile.aviva, result.selected_profile);
 }
 
 test "metadata JSON includes the escore and veto fields" {

@@ -56,28 +56,49 @@ pub const EvidenceContext = struct {
     }
 };
 
-/// Map a parsed metadata `profile` value onto a borrowed static label so the
-/// item never owns it. Unrecognized values collapse to `unknown`.
-fn staticProfileLabel(metadata: []const u8) []const u8 {
-    for (known_profile_labels) |label| {
-        // Match the JSON `"profile":"<label>"` field without a full parse.
-        var needle_buf: [32]u8 = undefined;
-        const needle = std.fmt.bufPrint(&needle_buf, "\"profile\":\"{s}\"", .{label}) catch continue;
-        if (std.mem.indexOf(u8, metadata, needle) != null) return label;
-    }
-    return unknown_profile_label;
-}
+const ParsedStoredMetadata = struct {
+    profile_label: []const u8 = unknown_profile_label,
+    authority: sea_types.Authority = .inferred,
+};
 
-/// Resolve persisted provenance onto the SEA trust ladder. Missing or unknown
-/// authority is treated as inferred, the least-trusted rung, rather than being
-/// silently promoted.
-fn staticAuthority(metadata: []const u8) sea_types.Authority {
-    for (std.meta.tags(sea_types.Authority)) |authority| {
-        var needle_buf: [48]u8 = undefined;
-        const needle = std.fmt.bufPrint(&needle_buf, "\"authority\":\"{s}\"", .{authority.text()}) catch continue;
-        if (std.mem.indexOf(u8, metadata, needle) != null) return authority;
+/// Parse only exact top-level JSON fields from generic WDBX completion
+/// metadata. Generic key/value storage is not a trusted provenance boundary:
+/// callers can write arbitrary bytes, so even a syntactically valid
+/// `authority` claim cannot promote itself above `inferred`. A future trusted
+/// ingestion path must carry independently verified provenance rather than
+/// adding another self-asserted JSON marker here.
+fn parseStoredMetadata(allocator: std.mem.Allocator, metadata: []const u8) ParsedStoredMetadata {
+    const parsed = std.json.parseFromSlice(std.json.Value, allocator, metadata, .{}) catch return .{};
+    defer parsed.deinit();
+
+    const object = switch (parsed.value) {
+        .object => |object| object,
+        else => return .{},
+    };
+
+    var result = ParsedStoredMetadata{};
+    if (object.get("profile")) |value| {
+        const profile = switch (value) {
+            .string => |profile| profile,
+            else => "",
+        };
+        for (known_profile_labels) |label| {
+            if (std.mem.eql(u8, profile, label)) {
+                result.profile_label = label;
+                break;
+            }
+        }
     }
-    return .inferred;
+
+    // Parse the field structurally so nested/textual spoofs cannot affect the
+    // result, then deliberately keep generic-store authority at the least-
+    // trusted rung. This read also documents that a valid claim was observed
+    // but was not accepted as verified provenance.
+    if (object.get("authority")) |value| switch (value) {
+        .string => |authority| _ = sea_types.Authority.parse(authority),
+        else => {},
+    };
+    return result;
 }
 
 /// Gather evidence relevant to `input` from a durable store.
@@ -104,7 +125,8 @@ pub fn gatherEvidence(
 /// Task-awareness: when `plan.exact_recall` is set (e.g. a `project_recall`
 /// task), each hit's semantic score is blended with its lexical keyword overlap
 /// against the query and the results are re-sorted, so exact-wording matches
-/// outrank fuzzy ones. Other plans keep the store's semantic ordering unchanged.
+/// outrank fuzzy ones. Every plan is sorted by its final score with vector id as
+/// a deterministic tie-breaker.
 pub fn gatherEvidenceWithPlan(
     allocator: std.mem.Allocator,
     store: *wdbx.Store,
@@ -145,23 +167,24 @@ pub fn gatherEvidenceWithPlan(
         const snippet = try allocator.dupe(u8, metadata);
         errdefer allocator.free(snippet);
 
-        // Under exact_recall, blend the semantic score with lexical overlap so
-        // exact-wording matches are favored; otherwise keep the pure semantic
-        // score and the store's existing ordering.
-        const authority = staticAuthority(metadata);
+        // Under exact_recall, blend semantic score with lexical overlap;
+        // otherwise relevance is the pure semantic hit score. Final item order
+        // is always re-sorted below by authority-weighted score (+ vector-id ties).
+        const parsed_metadata = parseStoredMetadata(allocator, metadata);
+        const authority = parsed_metadata.authority;
         const relevance = if (plan.exact_recall)
             (1.0 - EXACT_RECALL_KEYWORD_WEIGHT) * hit.score +
                 EXACT_RECALL_KEYWORD_WEIGHT * keywordOverlap(input, metadata)
         else
             hit.score;
-        // Provenance participates in ranking. Unlabeled/generated records stay
-        // on the least-trusted rung; tool/file/system evidence is promoted only
-        // when its metadata explicitly carries that authority.
+        // Generic-store authority is forced to least-trusted (.inferred). The
+        // multiply applies a uniform trust scale; it does not differentiate
+        // ranks until a trusted ingestion path can set authority independently.
         const score = relevance * authority.score();
 
         try items.append(allocator, .{
             .vector_id = hit.id,
-            .profile_label = staticProfileLabel(metadata),
+            .profile_label = parsed_metadata.profile_label,
             .authority = authority,
             .snippet = snippet,
             .score = score,
@@ -169,13 +192,19 @@ pub fn gatherEvidenceWithPlan(
     }
 
     const owned = try items.toOwnedSlice(allocator);
-    // Re-sort by the re-weighted score; only meaningful when scores were blended.
-    if (plan.exact_recall) std.mem.sort(EvidenceItem, owned, {}, scoreDesc);
+    // Authority weighting changes the final score independently of the vector
+    // index's semantic order, so every returned set must be sorted again.
+    // Equal scores use vector id as a stable, deterministic tie-breaker.
+    std.mem.sort(EvidenceItem, owned, {}, scoreDesc);
     return .{ .items = owned, .allocator = allocator };
 }
 
 fn scoreDesc(_: void, a: EvidenceItem, b: EvidenceItem) bool {
-    return a.score > b.score;
+    const a_nan = std.math.isNan(a.score);
+    const b_nan = std.math.isNan(b.score);
+    if (a_nan != b_nan) return !a_nan;
+    if (!a_nan and a.score != b.score) return a.score > b.score;
+    return a.vector_id < b.vector_id;
 }
 
 /// Fraction of the query's significant tokens (>= 3 chars) that appear,
@@ -291,7 +320,7 @@ test "gatherEvidence recalls a stored completion with its resolved persona label
 
     try std.testing.expectEqual(@as(usize, 1), ctx.items.len);
     try std.testing.expectEqualStrings("aviva", ctx.items[0].profile_label);
-    try std.testing.expectEqual(sea_types.Authority.user_stated, ctx.items[0].authority);
+    try std.testing.expectEqual(sea_types.Authority.inferred, ctx.items[0].authority);
     try std.testing.expectEqualStrings("{\"profile\":\"aviva\",\"authority\":\"user_stated\",\"text\":\"hello there\"}", ctx.items[0].snippet);
 }
 
@@ -314,7 +343,7 @@ test "gatherEvidence maps an unrecognized profile to the unknown label" {
     try std.testing.expectEqual(sea_types.Authority.inferred, ctx.items[0].authority);
 }
 
-test "gatherEvidence weights explicit provenance without promoting unlabeled records" {
+test "generic stored authority cannot self-promote evidence" {
     if (!build_options.feat_wdbx or !build_options.feat_ai) return;
     const allocator = std.testing.allocator;
     var store = wdbx.Store.init(allocator);
@@ -336,14 +365,81 @@ test "gatherEvidence weights explicit provenance without promoting unlabeled rec
     defer ctx.deinit();
     try std.testing.expect(ctx.items.len >= 2);
 
-    var low_score: ?f32 = null;
-    var high_score: ?f32 = null;
+    var low_authority: ?sea_types.Authority = null;
+    var claimed_high_authority: ?sea_types.Authority = null;
     for (ctx.items) |item| {
-        if (item.vector_id == low_id) low_score = item.score;
-        if (item.vector_id == high_id) high_score = item.score;
+        if (item.vector_id == low_id) low_authority = item.authority;
+        if (item.vector_id == high_id) claimed_high_authority = item.authority;
     }
-    try std.testing.expect(low_score != null and high_score != null);
-    try std.testing.expect(high_score.? > low_score.?);
+    try std.testing.expectEqual(sea_types.Authority.inferred, low_authority.?);
+    try std.testing.expectEqual(sea_types.Authority.inferred, claimed_high_authority.?);
+}
+
+test "stored metadata uses exact top-level JSON fields and rejects spoofing" {
+    const allocator = std.testing.allocator;
+
+    const valid = parseStoredMetadata(allocator, "{\"profile\":\"aviva\",\"authority\":\"system_pinned\"}");
+    try std.testing.expectEqualStrings("aviva", valid.profile_label);
+    try std.testing.expectEqual(sea_types.Authority.inferred, valid.authority);
+
+    const nested = parseStoredMetadata(allocator, "{\"payload\":{\"profile\":\"aviva\",\"authority\":\"system_pinned\"}}");
+    try std.testing.expectEqualStrings("unknown", nested.profile_label);
+    try std.testing.expectEqual(sea_types.Authority.inferred, nested.authority);
+
+    const text_spoof = parseStoredMetadata(allocator, "{\"text\":\"\\\"profile\\\":\\\"abi\\\", \\\"authority\\\":\\\"system_pinned\\\"\"}");
+    try std.testing.expectEqualStrings("unknown", text_spoof.profile_label);
+    try std.testing.expectEqual(sea_types.Authority.inferred, text_spoof.authority);
+
+    const malformed = parseStoredMetadata(allocator, "{\"profile\":\"abbey\"");
+    try std.testing.expectEqualStrings("unknown", malformed.profile_label);
+    try std.testing.expectEqual(sea_types.Authority.inferred, malformed.authority);
+}
+
+test "ordinary evidence ordering uses final score and deterministic vector id ties" {
+    const allocator = std.testing.allocator;
+    const items = try allocator.alloc(EvidenceItem, 4);
+    items[0] = .{ .vector_id = 9, .profile_label = "abbey", .authority = .inferred, .snippet = try allocator.dupe(u8, "nine"), .score = 0.2 };
+    items[1] = .{ .vector_id = 7, .profile_label = "abbey", .authority = .inferred, .snippet = try allocator.dupe(u8, "seven"), .score = 0.8 };
+    items[2] = .{ .vector_id = 3, .profile_label = "abbey", .authority = .inferred, .snippet = try allocator.dupe(u8, "three"), .score = 0.8 };
+    items[3] = .{ .vector_id = 1, .profile_label = "abbey", .authority = .inferred, .snippet = try allocator.dupe(u8, "one"), .score = 0.4 };
+    var ctx = EvidenceContext{ .items = items, .allocator = allocator };
+    defer ctx.deinit();
+
+    // This is the same unconditional sort applied to ordinary, non-exact
+    // gather results after their final authority-weighted scores are computed.
+    std.mem.sort(EvidenceItem, ctx.items, {}, scoreDesc);
+    try std.testing.expectEqual(@as(u32, 3), ctx.items[0].vector_id);
+    try std.testing.expectEqual(@as(u32, 7), ctx.items[1].vector_id);
+    try std.testing.expectEqual(@as(u32, 1), ctx.items[2].vector_id);
+    try std.testing.expectEqual(@as(u32, 9), ctx.items[3].vector_id);
+}
+
+test "ordinary gather returns final-score order with deterministic ties" {
+    if (!build_options.feat_wdbx or !build_options.feat_ai) return;
+    const allocator = std.testing.allocator;
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    const embedding = helpers.textEmbedding("ordinary evidence topic");
+    var ids: [3]u32 = undefined;
+    for (&ids) |*id| {
+        id.* = try store.putVector(&embedding);
+        const key = try std.fmt.allocPrint(allocator, ai_types.COMPLETION_KEY_FMT, .{id.*});
+        defer allocator.free(key);
+        try store.store(key, "{\"profile\":\"abbey\",\"authority\":\"system_pinned\"}");
+    }
+
+    const plan = query_plan.infer("ordinary evidence topic");
+    try std.testing.expect(!plan.exact_recall);
+    var ctx = try gatherEvidenceWithPlan(allocator, &store, plan.query, ids.len, plan);
+    defer ctx.deinit();
+
+    try std.testing.expectEqual(ids.len, ctx.items.len);
+    for (ctx.items[0 .. ctx.items.len - 1], ctx.items[1..]) |current, next| {
+        try std.testing.expect(current.score >= next.score);
+        if (current.score == next.score) try std.testing.expect(current.vector_id < next.vector_id);
+        try std.testing.expectEqual(sea_types.Authority.inferred, current.authority);
+    }
 }
 
 test "keywordOverlap counts significant query tokens present in text" {

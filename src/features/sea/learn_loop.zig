@@ -75,6 +75,9 @@ pub fn runLearnLoop(
 
     var completion = try ai.completeWithStoreAdaptive(allocator, store, .{
         .input = augmented,
+        // Route on the raw user text so explicit "Aviva, ..." / "ABI, ..." and
+        // keyword sentiment are not blocked by the SEA evidence preamble.
+        .routing_input = input,
         .model = model,
         .store_result = config.persist,
         .stream_callback = config.stream_callback,
