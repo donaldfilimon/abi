@@ -23,6 +23,8 @@ pub const MetalContext = struct {
     l2_pipeline: ?*anyopaque = null,
     add_pipeline: ?*anyopaque = null,
     sub_pipeline: ?*anyopaque = null,
+    max_pipeline: ?*anyopaque = null,
+    min_pipeline: ?*anyopaque = null,
     cosine_parts_pipeline: ?*anyopaque = null,
     batch_cosine_pipeline: ?*anyopaque = null,
     reduce_sum_pipeline: ?*anyopaque = null,
@@ -86,6 +88,24 @@ pub const MetalContext = struct {
             \\    uint id [[thread_position_in_grid]]
             \\) {
             \\    result[id] = a[id] - b[id];
+            \\}
+            \\
+            \\kernel void max_kernel(
+            \\    device const float* a [[buffer(0)]],
+            \\    device const float* b [[buffer(1)]],
+            \\    device float* result [[buffer(2)]],
+            \\    uint id [[thread_position_in_grid]]
+            \\) {
+            \\    result[id] = max(a[id], b[id]);
+            \\}
+            \\
+            \\kernel void min_kernel(
+            \\    device const float* a [[buffer(0)]],
+            \\    device const float* b [[buffer(1)]],
+            \\    device float* result [[buffer(2)]],
+            \\    uint id [[thread_position_in_grid]]
+            \\) {
+            \\    result[id] = min(a[id], b[id]);
             \\}
             \\
             \\kernel void cosine_parts_kernel(
@@ -232,6 +252,12 @@ pub const MetalContext = struct {
         const sub_func_name = try createNSString(allocator, "sub_kernel") orelse return error.CreateStringFailed;
         const sub_func = msg_send_id_ret_id(library, sel_newFunctionWithName, sub_func_name) orelse return error.FunctionNotFound;
 
+        const max_func_name = try createNSString(allocator, "max_kernel") orelse return error.CreateStringFailed;
+        const max_func = msg_send_id_ret_id(library, sel_newFunctionWithName, max_func_name) orelse return error.FunctionNotFound;
+
+        const min_func_name = try createNSString(allocator, "min_kernel") orelse return error.CreateStringFailed;
+        const min_func = msg_send_id_ret_id(library, sel_newFunctionWithName, min_func_name) orelse return error.FunctionNotFound;
+
         const cosine_func_name = try createNSString(allocator, "cosine_parts_kernel") orelse return error.CreateStringFailed;
         const cosine_func = msg_send_id_ret_id(library, sel_newFunctionWithName, cosine_func_name) orelse return error.FunctionNotFound;
 
@@ -259,6 +285,14 @@ pub const MetalContext = struct {
         err = null;
         self.sub_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, sub_func, @ptrCast(&err));
         if (self.sub_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
+        self.max_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, max_func, @ptrCast(&err));
+        if (self.max_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
+        self.min_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, min_func, @ptrCast(&err));
+        if (self.min_pipeline == null) return error.CreatePipelineStateFailed;
 
         err = null;
         self.cosine_parts_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, cosine_func, @ptrCast(&err));
@@ -293,6 +327,8 @@ pub const MetalContext = struct {
         msg_send_void_ret_void(l2_func, sel_release);
         msg_send_void_ret_void(add_func, sel_release);
         msg_send_void_ret_void(sub_func, sel_release);
+        msg_send_void_ret_void(max_func, sel_release);
+        msg_send_void_ret_void(min_func, sel_release);
         msg_send_void_ret_void(cosine_func, sel_release);
         msg_send_void_ret_void(batch_cosine_func, sel_release);
         msg_send_void_ret_void(reduce_func, sel_release);
@@ -303,6 +339,8 @@ pub const MetalContext = struct {
         msg_send_void_ret_void(l2_func_name, sel_release);
         msg_send_void_ret_void(add_func_name, sel_release);
         msg_send_void_ret_void(sub_func_name, sel_release);
+        msg_send_void_ret_void(max_func_name, sel_release);
+        msg_send_void_ret_void(min_func_name, sel_release);
         msg_send_void_ret_void(cosine_func_name, sel_release);
         msg_send_void_ret_void(batch_cosine_func_name, sel_release);
         msg_send_void_ret_void(reduce_func_name, sel_release);

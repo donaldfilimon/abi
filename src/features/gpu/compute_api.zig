@@ -31,7 +31,9 @@ pub const Backend = backends.Backend;
 
 /// Elementwise binary kernels. `map` writes per-element results; `reduce` sums
 /// them (so `.mul` reduce = dot product, `.l2diff` reduce = squared L2,
-/// `.add` / `.sub` reduce = sum of pairwise sums / differences).
+/// `.add` / `.sub` reduce = sum of pairwise sums / differences,
+/// `.max` / `.min` reduce = sum of pairwise max/min — useful for parity tests,
+/// not a claimed reduction primitive beyond that).
 pub const Kernel = enum {
     /// out[i] = a[i] * b[i]
     mul,
@@ -41,6 +43,10 @@ pub const Kernel = enum {
     add,
     /// out[i] = a[i] - b[i]
     sub,
+    /// out[i] = max(a[i], b[i])
+    max,
+    /// out[i] = min(a[i], b[i])
+    min,
 };
 
 /// Honest status of one backend on this build.
@@ -107,6 +113,8 @@ pub const GpuCompute = struct {
             .l2diff => metal.g_metal_context.l2_pipeline,
             .add => metal.g_metal_context.add_pipeline,
             .sub => metal.g_metal_context.sub_pipeline,
+            .max => metal.g_metal_context.max_pipeline,
+            .min => metal.g_metal_context.min_pipeline,
         };
     }
 
@@ -124,6 +132,12 @@ pub const GpuCompute = struct {
             },
             .sub => for (a, b, out) |x, y, *o| {
                 o.* = x - y;
+            },
+            .max => for (a, b, out) |x, y, *o| {
+                o.* = @max(x, y);
+            },
+            .min => for (a, b, out) |x, y, *o| {
+                o.* = @min(x, y);
             },
         }
     }
@@ -208,6 +222,12 @@ pub const GpuCompute = struct {
                 }
                 while (i < a.len) : (i += 1) sum += a[i] - b[i];
             },
+            .max => {
+                while (i < a.len) : (i += 1) sum += @max(a[i], b[i]);
+            },
+            .min => {
+                while (i < a.len) : (i += 1) sum += @min(a[i], b[i]);
+            },
         }
         return sum;
     }
@@ -262,16 +282,22 @@ test "compute_api: reduce matches scalar reference on the active backend" {
     var ref_l2: f32 = 0;
     var ref_add: f32 = 0;
     var ref_sub: f32 = 0;
+    var ref_max: f32 = 0;
+    var ref_min: f32 = 0;
     for (a, b) |x, y| {
         ref_dot += x * y;
         ref_l2 += (x - y) * (x - y);
         ref_add += x + y;
         ref_sub += x - y;
+        ref_max += @max(x, y);
+        ref_min += @min(x, y);
     }
     try testing.expectApproxEqAbs(ref_dot, try gc.reduce(.mul, &a, &b), 1e-3);
     try testing.expectApproxEqAbs(ref_l2, try gc.reduce(.l2diff, &a, &b), 1e-3);
     try testing.expectApproxEqAbs(ref_add, try gc.reduce(.add, &a, &b), 1e-3);
     try testing.expectApproxEqAbs(ref_sub, try gc.reduce(.sub, &a, &b), 1e-3);
+    try testing.expectApproxEqAbs(ref_max, try gc.reduce(.max, &a, &b), 1e-3);
+    try testing.expectApproxEqAbs(ref_min, try gc.reduce(.min, &a, &b), 1e-3);
 }
 
 test "compute_api: map writes correct elementwise results and checks dims" {
@@ -290,6 +316,12 @@ test "compute_api: map writes correct elementwise results and checks dims" {
     try gc.map(.sub, &a, &b, &out);
     try testing.expectApproxEqAbs(@as(f32, -4), out[0], 1e-4);
     try testing.expectApproxEqAbs(@as(f32, -4), out[3], 1e-4);
+    try gc.map(.max, &a, &b, &out);
+    try testing.expectApproxEqAbs(@as(f32, 5), out[0], 1e-4);
+    try testing.expectApproxEqAbs(@as(f32, 8), out[3], 1e-4);
+    try gc.map(.min, &a, &b, &out);
+    try testing.expectApproxEqAbs(@as(f32, 1), out[0], 1e-4);
+    try testing.expectApproxEqAbs(@as(f32, 4), out[3], 1e-4);
 
     var bad: [3]f32 = undefined;
     try testing.expectError(error.DimensionMismatch, gc.map(.mul, &a, &b, &bad));
