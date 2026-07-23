@@ -22,7 +22,7 @@ Entry point for abi's SEA self-learning loop (`src/features/ai/`). Routes:
   persist in WDBX **only on the `--learn`/SEA path**. Plain `complete` re-runs
   sentiment each turn with no EMA persistence.
 - Constitution audit (6 principles) is **observability-only, not a gate** —
-  sets `audit_passed` / `audit_vetoed` / `escore`, `std.log.warn`s on violation,
+  sets `audit_passed` / `audit_vetoed` / `escore`, warns via std.log on violation,
   but `complete` / `run` still return the response. Safety+privacy hard-veto
   only when either < 0.5.
 - The live EMA path is `completeAdaptive` / `completeWithStoreAdaptive` via

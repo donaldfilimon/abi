@@ -21,6 +21,10 @@ pub fn validateJsonValue(allocator: std.mem.Allocator, input: []const u8, expect
     }
 }
 
+// Intentionally duplicated from `foundation/json.zig`: connectors are also
+// compiled as an isolated module root in connector tests, so importing the
+// foundation module here would violate that build boundary. Keep the escape
+// table synchronized with `foundation.json.appendJsonString`.
 pub fn appendJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
     try out.append(allocator, '"');
     for (value) |byte| {

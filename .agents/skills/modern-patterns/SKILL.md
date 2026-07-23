@@ -31,8 +31,8 @@ See references for catalog of before/after in Zig context.
 
 ## Additional Resources
 
-- `references/patterns-catalog.md`
-- `examples/before-after-zig.md`
+- `.agents/skills/modern-patterns/references/patterns-catalog.md`
+- `.agents/skills/modern-patterns/examples/before-after-zig.md`
 
 Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/modern-patterns
 Relative paths in this skill (e.g., references/) are relative to this base directory.

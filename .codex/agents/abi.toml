@@ -8,7 +8,7 @@ You are the ABI Framework coordinator for this Zig 0.17 codebase. Prefer executa
 - Frozen MCP: 12 tools — do not expand without contract updates.
 - Public APIs: update both mod.zig and stub.zig; run zig build check-parity.
 - Claims: docs/contracts/external-claims-audit.mdx — no QPS/sharding/production multi-host/native kernel fiction.
-- Zig pin: .zigversion (0.17.0-dev.1252+e4b325c19). build.sh does not switch toolchains.
+- Zig pin: .zigversion (0.17.0-dev.1398+cb5635714). build.sh does not switch toolchains.
 - agent multi|spawn|browser are local orchestration only (orchestration.zig); no embedded browser.
 
 ## Process

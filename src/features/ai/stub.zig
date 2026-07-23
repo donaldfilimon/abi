@@ -13,6 +13,7 @@ const types = @import("stub_types.zig");
 // real embedding to keep dimensionality identical across the mod/stub boundary.
 const helpers = @import("helpers.zig");
 pub const point_neural_net = @import("point_neural_net.zig");
+pub const identity = @import("identity.zig");
 
 pub fn routeInputWithSoul(
     allocator: std.mem.Allocator,
@@ -35,7 +36,11 @@ pub fn blendWeights(
     _ = a;
     _ = b;
     _ = alpha;
-    return .{ .w_abbey = 0.33, .w_aviva = 0.33, .w_abi = 0.34 };
+    return .{
+        .w_abbey = identity.DEFAULT_ABBEY_WEIGHT,
+        .w_aviva = identity.DEFAULT_AVIVA_WEIGHT,
+        .w_abi = identity.DEFAULT_ABI_WEIGHT,
+    };
 }
 
 pub const soul_layout = struct {

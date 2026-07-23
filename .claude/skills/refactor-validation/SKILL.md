@@ -15,7 +15,7 @@ Validation layers for modernization: behavioral parity, modern quality, structur
 
 ## Additional Resources
 
-- `references/validation-checklist.md`
+- `.agents/skills/refactor-validation/references/validation-checklist.md`
 
 Run the validation skill + modern-refactorer agent review as final step.
 

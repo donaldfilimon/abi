@@ -22,8 +22,8 @@ skills document the agent-side helpers: `/open`→file-context-loader,
 `/context`→context-state-reporter, `/features`→feature-flag-display,
 `/learn`→sea-learning-controller, `/save`→session-persister,
 `/load`→session-restorer, `/status`→agent-status-reporter,
-`/reset`→context-resetter. Plugin-provided commands come from
-`abi-plugin.json` `commands`. Repo OpenCode config is `opencode.json` (no
+`/reset`→context-resetter. Plugin-provided commands come from each plugin's
+`src/plugins/*/abi-plugin.json` `commands` field. Repo OpenCode config is `opencode.json` (no
 `slash_commands` key).
 
 ## Gotchas
@@ -31,4 +31,4 @@ skills document the agent-side helpers: `/open`→file-context-loader,
   fallback; the only surface that needs a real terminal is the interactive
   refresh loop (`run-tui` uses tmux).
 - `@file` mentions are sandboxed to cwd (8 KB budget; rejects `..` / absolute /
-  symlink escape) via `file_context.zig`.
+  symlink escape) via `src/features/ai/file_context.zig`.

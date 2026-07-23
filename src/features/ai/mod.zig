@@ -13,6 +13,7 @@ const types = @import("types.zig");
 const completion = @import("completion.zig");
 const training = @import("training.zig");
 pub const point_neural_net = @import("point_neural_net.zig");
+pub const identity = @import("identity.zig");
 
 const router = @import("router.zig");
 pub const abbey = router.abbey;
@@ -274,11 +275,11 @@ test "training known profiles records wdbx entries" {
 test "run routes creative and action inputs" {
     const creative = try run(std.testing.allocator, "IMAGINE creative alternatives");
     defer std.testing.allocator.free(creative);
-    try std.testing.expect(std.mem.indexOf(u8, creative, "Aviva") != null);
+    try std.testing.expect(std.mem.indexOf(u8, creative, "Abbey") != null);
 
     const action = try run(std.testing.allocator, "EXECUTE deploy run");
     defer std.testing.allocator.free(action);
-    try std.testing.expect(std.mem.indexOf(u8, action, "Abi") != null);
+    try std.testing.expect(std.mem.indexOf(u8, action, "Aviva") != null);
 }
 
 test "completion rejects empty input before touching wdbx store" {

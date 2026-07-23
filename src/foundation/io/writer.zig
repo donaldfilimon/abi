@@ -6,7 +6,7 @@ pub const IOStats = io_stats.IOStats;
 
 pub const BufferedWriter = struct {
     file: std.Io.File,
-    allocator: std.mem.Allocator = std.heap.page_allocator,
+    allocator: std.mem.Allocator,
     buffer: std.ArrayListUnmanaged(u8) = std.ArrayListUnmanaged(u8).empty,
     pos: usize = 0,
     offset: u64 = 0,

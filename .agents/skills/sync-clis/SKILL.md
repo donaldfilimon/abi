@@ -1,12 +1,12 @@
 ---
 name: sync-clis
-description: Sync canonical skills from abi `.agents/skills/` to in-repo CLI skill dirs (`.claude/skills`, `.grok`). Idempotent. Launch with /sync-clis or launch.sh. Distinct from home `~/.grok/scripts/sync-clis.py`.
+description: Sync canonical skills from abi `.agents/skills/` to in-repo CLI skill dirs (`.claude/skills`, `.grok`). Idempotent. Launch with /sync-clis or `.agents/skills/sync-clis/launch.sh`. Distinct from home `~/.grok/scripts/sync-clis.py`.
 ---
 # /sync-clis
 
-This skill is backed by `launch.sh` in this directory (run via Grok skill system or directly).
+This skill is backed by `.agents/skills/sync-clis/launch.sh` (run via Grok skill system or directly).
 
-## What abi `launch.sh` copies today
+## What abi `.agents/skills/sync-clis/launch.sh` copies today
 
 - **Canonical source:** repo `.agents/skills/<name>/`
 - **Targets (if present):** repo `.claude/skills/`, repo `.grok/`

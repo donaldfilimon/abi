@@ -1,12 +1,13 @@
 const std = @import("std");
 const types = @import("stub_types.zig");
+const identity = @import("identity.zig");
 
 const disabled_response = "AI feature is disabled";
 
 pub const ProfileWeights = struct {
-    w_abbey: f32 = 0.33,
-    w_aviva: f32 = 0.33,
-    w_abi: f32 = 0.34,
+    w_abbey: f32 = identity.DEFAULT_ABBEY_WEIGHT,
+    w_aviva: f32 = identity.DEFAULT_AVIVA_WEIGHT,
+    w_abi: f32 = identity.DEFAULT_ABI_WEIGHT,
 
     pub fn normalize(self: *ProfileWeights) void {
         const total = self.w_abbey + self.w_aviva + self.w_abi;
@@ -91,7 +92,7 @@ pub const AdaptiveModulator = struct {
 
     pub fn serialize(self: *const AdaptiveModulator, allocator: std.mem.Allocator) ![]u8 {
         _ = self;
-        return try allocator.dupe(u8, "0.33,0.33,0.34,0,0.3");
+        return try allocator.dupe(u8, "0.40,0.30,0.30,0,0.3");
     }
 
     pub fn deserialize(data: []const u8) AdaptiveModulator {

@@ -29,7 +29,7 @@ Systematic techniques to discover technical debt, outdated patterns, and high-va
 
 ## Additional Resources
 
-- `references/analysis-checklist.md` — structured scan + prioritization table
+- `.agents/skills/codebase-analysis/references/analysis-checklist.md` — structured scan + prioritization table
 - Use Grep + Glob heavily for pattern hunting.
 
 Output should be actionable for the planner agent and strategy skill.

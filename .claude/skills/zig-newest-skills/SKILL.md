@@ -1,6 +1,6 @@
 ---
 name: zig-newest-skills
-description: "This skill should be used when the user asks to \"test abi on Zig master\", \"build on newest Zig\", \"upgrade to Zig nightly\", \"check forward compatibility with Zig master\", \"validate toolchain drift past .zigversion\", or run zig-master-check / zvm master against the abi tree. Switches the active toolchain to current Zig master via zvm, builds CLI + MCP, and proves the tree still compiles and runs against bleeding-edge std."
+description: "This skill should be used when the user asks to \"test abi on Zig master\", \"build on newest Zig\", \"upgrade to Zig nightly\", \"check forward compatibility with Zig master\", \"validate toolchain drift past .zigversion\", or run the zig-newest-skills master-check script / zvm master against the abi tree. Switches the active toolchain to current Zig master via zvm, builds CLI + MCP, and proves the tree still compiles and runs against bleeding-edge std."
 ---
 
 # zig-newest-skills
@@ -13,7 +13,7 @@ pin would hide.
 
 **Canonical package:** `.agents/skills/zig-newest-skills/`  
 **Claude mirror:** `.claude/skills/zig-newest-skills/` (keep in sync)  
-**Driver:** `zig-master-check.sh` (repo-root relative; resolves path from `$0`)
+**Driver:** `.agents/skills/zig-newest-skills/zig-master-check.sh` (repo-root relative; resolves path from `$0`)
 
 ## When to run
 
@@ -100,7 +100,7 @@ RESULT: PASS — abi builds + runs on the newest Zig master.
 
 - **`references/gotchas.md`** — zvm/nightly battle scars (ANSI list, non-re-downloadable pins, no macOS `timeout`)
 - **`references/src-touchpoints.md`** — abi `src/` areas sensitive to Zig 0.17 / `std` churn
-- **Driver:** `zig-master-check.sh` — primary executable; prefer over ad-hoc `zvm` + build sequences
+- **Driver:** `.agents/skills/zig-newest-skills/zig-master-check.sh` — primary executable; prefer over ad-hoc `zvm` + build sequences
 
 ## Claims boundary
 

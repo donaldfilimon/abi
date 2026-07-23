@@ -40,8 +40,8 @@ When designing the target:
 
 ## Additional Resources
 
-- `references/strategy-guide.md` — detailed decision trees and examples of each strategy.
-- `examples/sample-plan-outline.md` — real plan outlines from previous modernizations.
+- `.agents/skills/refactor-strategy/references/strategy-guide.md` — detailed decision trees and examples of each strategy.
+- `.agents/skills/refactor-strategy/examples/sample-plan-outline.md` — real plan outlines from previous modernizations.
 
 Use this skill before touching code. Always run `./build.sh check` before and after.
 
@@ -49,7 +49,8 @@ Use this skill before touching code. Always run `./build.sh check` before and af
 
 For repo-local strictness (focus areas, gate list, claims discipline), copy
 `modern-refactor/.claude/modern-refactor.local.md.example` to the host project
-as `.claude/modern-refactor.local.md`. The template is not auto-loaded from
+as an optional Claude-side local override file (host-side only; not
+required for this skill). The template is not auto-loaded from
 inside the plugin package — it is an optional host-side override only.
 
 Base directory for this skill: /Users/donaldfilimon/abi/.claude/skills/refactor-strategy

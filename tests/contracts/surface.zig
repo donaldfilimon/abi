@@ -198,6 +198,22 @@ test "nested feature public surfaces are frozen across feature flags" {
     try std.testing.expect(@hasDecl(ai.profile.ProfileWeights, "normalize"));
     try std.testing.expect(@hasDecl(ai.profile, "SentimentKeyword"));
     try std.testing.expect(@hasDecl(ai.profile, "SENTIMENT_KEYWORDS"));
+    try std.testing.expect(@hasDecl(ai, "identity"));
+    try std.testing.expect(@hasDecl(ai.identity, "primary_declaration"));
+    try std.testing.expect(@hasDecl(ai.identity, "capability_claims"));
+    try std.testing.expect(@hasDecl(ai.identity, "CREATOR"));
+    try std.testing.expect(@hasDecl(ai.identity, "ORGANIZATION"));
+    try std.testing.expect(@hasDecl(ai.identity, "profiles"));
+    try std.testing.expect(@hasDecl(ai.identity, "substrates"));
+    try std.testing.expect(@hasDecl(ai.identity, "operating_protocol"));
+    try std.testing.expect(@hasDecl(ai.identity, "privacy_principles"));
+    try std.testing.expect(@hasDecl(ai.identity, "capability_domains"));
+    try std.testing.expectEqualStrings("Donald Filimon", ai.identity.CREATOR);
+    try std.testing.expectEqualStrings("The Donald Company", ai.identity.ORGANIZATION);
+    try std.testing.expect(std.mem.indexOf(u8, ai.identity.primary_declaration, "I am Abbey.") != null);
+    try std.testing.expectEqual(@as(usize, 3), ai.identity.profiles.len);
+    try std.testing.expectEqual(@as(usize, 1), ai.identity.substrates.len);
+    try std.testing.expectEqual(@as(usize, 10), ai.identity.operating_protocol.len);
 
     const wdbx = abi.features.wdbx;
     try std.testing.expect(@hasDecl(wdbx.spatial_3d, "SpatialIndex3D"));

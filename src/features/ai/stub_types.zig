@@ -144,6 +144,8 @@ pub const StreamCallback = *const fn (ctx: *anyopaque, chunk: StreamChunk) anyer
 pub const CompletionRequest = struct {
     input: []const u8,
     model: []const u8 = "claude-fable-5",
+    /// Mirrors the real explicit-consent persistence switch. Disabled AI never
+    /// persists a completion regardless of this value.
     store_result: bool = false,
     stream_callback: ?StreamCallback = null,
     stream_ctx: ?*anyopaque = null,

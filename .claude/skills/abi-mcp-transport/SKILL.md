@@ -93,12 +93,12 @@ Sets `ABI_MCP_HTTP_TOKEN` and `ABI_WDBX_REST_TOKEN` for current session.
                    ┌─────────────────────┐
                    │  JSON-RPC 2.0       │
                    │  Protocol Engine    │
-                   │  (protocol.zig)     │
+                   │  (src/mcp/protocol) │
                    └──────────┬──────────┘
                               ▼
                    ┌─────────────────────┐
                    │  Middleware Chain   │
-                   │  (middleware.zig)   │
+                   │  (mcp/middleware)   │
                    │  - Size limits      │
                    │  - JSON depth       │
                    │  - Arg validation   │
@@ -107,18 +107,18 @@ Sets `ABI_MCP_HTTP_TOKEN` and `ABI_WDBX_REST_TOKEN` for current session.
                               ▼
                    ┌─────────────────────┐
                    │  Tool Dispatch      │
-                   │  (handlers.zig)     │
+                   │  (src/mcp/handlers) │
                    └─────────────────────┘
 ```
 
-## Protocol Limits (Enforced in `middleware.zig` + `protocol.zig`)
+## Protocol Limits (Enforced in `src/mcp/middleware.zig` + `src/mcp/protocol.zig`)
 
 | Limit | Value | Source |
 |-------|-------|--------|
 | Max request size | 64 KB | `protocol.MAX_REQUEST_SIZE` |
 | Max JSON depth | 32 | `protocol.MAX_JSON_DEPTH` |
-| Max field size | 16 KB | `middleware.zig` per-field cap |
-| Stdio exit | EOF/read fail | `stdio_transport.zig` |
+| Max field size | 16 KB | `src/mcp/middleware.zig` per-field cap |
+| Stdio exit | EOF/read fail | `src/mcp/stdio_transport.zig` |
 
 ## Authentication
 
