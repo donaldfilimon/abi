@@ -127,6 +127,12 @@ test "canonical resolves aliases and passes freeform ids through" {
     try std.testing.expectEqualStrings("gpt-5-mystery", canonical("gpt-5-mystery"));
 }
 
+test "fable-5 alias routes identically to claude-fable-5" {
+    try std.testing.expectEqualStrings(canonical(fable5), canonical("fable-5"));
+    try std.testing.expectEqual(providerOf(fable5), providerOf("fable-5"));
+    try std.testing.expectEqual(Provider.anthropic, providerOf("fable-5"));
+}
+
 test "apple-fm is recognized and routes to the on-device fm provider" {
     try std.testing.expect(isKnown("apple-fm"));
     try std.testing.expectEqualStrings("apple-fm", resolve("fm").?);

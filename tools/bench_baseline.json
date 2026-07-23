@@ -1,0 +1,152 @@
+{
+  "schema": "abi-bench-baseline/v1",
+  "source_schema": "abi-bench/v2",
+  "iterations": 10,
+  "runs_aggregated": 3,
+  "aggregation": "best min_ms of 3 suite runs",
+  "host": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "commit": "ea0bafc",
+  "benchmarks": [
+    {
+      "label": "vector dot product",
+      "avg_ms": 0.3555,
+      "min_ms": 0.1423,
+      "max_ms": 0.7711,
+      "p50_ms": 0.2202,
+      "p95_ms": 0.7711,
+      "p99_ms": 0.7711,
+      "iterations": 10
+    },
+    {
+      "label": "HNSW insert",
+      "avg_ms": 142.8885,
+      "min_ms": 133.9934,
+      "max_ms": 170.5167,
+      "p50_ms": 139.0651,
+      "p95_ms": 170.5167,
+      "p99_ms": 170.5167,
+      "iterations": 10
+    },
+    {
+      "label": "HNSW search",
+      "avg_ms": 1.7226,
+      "min_ms": 1.5975,
+      "max_ms": 2.0951,
+      "p50_ms": 1.6224,
+      "p95_ms": 2.0951,
+      "p99_ms": 2.0951,
+      "iterations": 10
+    },
+    {
+      "label": "block chain append",
+      "avg_ms": 14.7448,
+      "min_ms": 14.4731,
+      "max_ms": 14.9018,
+      "p50_ms": 14.7758,
+      "p95_ms": 14.9018,
+      "p99_ms": 14.9018,
+      "iterations": 10
+    },
+    {
+      "label": "profile routing",
+      "avg_ms": 0.0072,
+      "min_ms": 0.0068,
+      "max_ms": 0.0094,
+      "p50_ms": 0.0069,
+      "p95_ms": 0.0094,
+      "p99_ms": 0.0094,
+      "iterations": 10
+    },
+    {
+      "label": "constitution check",
+      "avg_ms": 0.0237,
+      "min_ms": 0.0231,
+      "max_ms": 0.0257,
+      "p50_ms": 0.0233,
+      "p95_ms": 0.0257,
+      "p99_ms": 0.0257,
+      "iterations": 10
+    },
+    {
+      "label": "wdbx store put/get",
+      "avg_ms": 21.7336,
+      "min_ms": 21.3114,
+      "max_ms": 22.737,
+      "p50_ms": 21.4735,
+      "p95_ms": 22.737,
+      "p99_ms": 22.737,
+      "iterations": 10
+    },
+    {
+      "label": "multiway successor generation (branching, d6)",
+      "avg_ms": 13.6614,
+      "min_ms": 13.4233,
+      "max_ms": 13.8731,
+      "p50_ms": 13.6837,
+      "p95_ms": 13.8731,
+      "p99_ms": 13.8731,
+      "iterations": 10
+    },
+    {
+      "label": "multiway frontier expansion (growing, d8)",
+      "avg_ms": 3.8689,
+      "min_ms": 3.7861,
+      "max_ms": 4.0521,
+      "p50_ms": 3.8223,
+      "p95_ms": 4.0521,
+      "p99_ms": 4.0521,
+      "iterations": 10
+    },
+    {
+      "label": "multiway hashing + dedup (convergent, d6)",
+      "avg_ms": 21.052,
+      "min_ms": 19.7195,
+      "max_ms": 25.1627,
+      "p50_ms": 20.5297,
+      "p95_ms": 25.1627,
+      "p99_ms": 25.1627,
+      "iterations": 10
+    },
+    {
+      "label": "multiway cyclic expansion (d32)",
+      "avg_ms": 0.6901,
+      "min_ms": 0.6669,
+      "max_ms": 0.7472,
+      "p50_ms": 0.6759,
+      "p95_ms": 0.7472,
+      "p99_ms": 0.7472,
+      "iterations": 10
+    },
+    {
+      "label": "multiway canonical export (branching, d5)",
+      "avg_ms": 18.6171,
+      "min_ms": 17.3362,
+      "max_ms": 23.7072,
+      "p50_ms": 17.6833,
+      "p95_ms": 23.7072,
+      "p99_ms": 23.7072,
+      "iterations": 10
+    },
+    {
+      "label": "multiway wdbx persistence (branching, d4)",
+      "avg_ms": 22.2834,
+      "min_ms": 17.0113,
+      "max_ms": 27.8534,
+      "p50_ms": 21.5062,
+      "p95_ms": 27.8534,
+      "p99_ms": 27.8534,
+      "iterations": 10
+    },
+    {
+      "label": "multiway resume load (branching, d4)",
+      "avg_ms": 23.7433,
+      "min_ms": 23.5838,
+      "max_ms": 23.9183,
+      "p50_ms": 23.7629,
+      "p95_ms": 23.9183,
+      "p99_ms": 23.9183,
+      "iterations": 10
+    }
+  ]
+}

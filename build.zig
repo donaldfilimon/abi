@@ -453,6 +453,8 @@ pub fn build(b: *std.Build) void {
 
     const zigversion_check = b.addSystemCommand(&.{ "bash", "tools/check_zigversion.sh" });
 
+    const silent_catch_check = b.addSystemCommand(&.{ "bash", "tools/check_silent_catch.sh" });
+
     const tui_smoke = b.addSystemCommand(&.{ "bash", "tools/run_tui_smoke.sh" });
     tui_smoke.step.dependOn(b.getInstallStep());
 
@@ -486,6 +488,7 @@ pub fn build(b: *std.Build) void {
     check_step.dependOn(&run_contract_cli.step);
     check_step.dependOn(&feature_stub_check.step);
     check_step.dependOn(&zigversion_check.step);
+    check_step.dependOn(&silent_catch_check.step);
     check_step.dependOn(&fmt_check.step);
     check_step.dependOn(&parity_check.step);
 

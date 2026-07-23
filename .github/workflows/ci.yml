@@ -77,6 +77,40 @@ jobs:
       - name: zig build cross-smoke
         run: zig build cross-smoke
 
+  # Explicit mod/stub parity status. Parity already runs inside `zig build
+  # check`, but a named job lets branch protection require it directly.
+  check-parity:
+    name: check-parity (self-hosted)
+    if: >
+      github.repository == 'donaldfilimon/abi' &&
+      (github.event_name == 'push' ||
+       github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: [self-hosted, macOS, ARM64, abi]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select pinned Zig
+        run: echo "$HOME/.zvm/${{ env.ZIG_VERSION }}" >> "$GITHUB_PATH"
+      - name: Verify pinned Zig on runner PATH
+        run: ./tools/check_zigversion.sh --github-actions
+      - name: zig build check-parity
+        run: zig build check-parity
+
+  check-parity-hosted:
+    name: check-parity (GitHub-hosted, fork PRs)
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - name: zig build check-parity
+        run: zig build check-parity
+
   # Docs gate omitted from ./build.sh check — see .agents/skills/docs-validate/validate.sh
   # Same-repo only on self-hosted (avoids GitHub-hosted minutes / billing lock).
   # Fork PRs use the hosted job below — never run untrusted heads on self-hosted.
