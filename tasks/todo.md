@@ -99,7 +99,7 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
-- **Production hardening wave** — incomplete HTTP reject; constant-time bearer; WAL fsync + torn-tail skip; putVector id-burn on WAL fail; MCP durable fail-closed (`ABI_WDBX_ALLOW_MEMORY_FALLBACK`); scheduler OOM-safe error_msg.
+- **Production hardening wave** — incomplete HTTP reject; constant-time bearer; WAL fsync + torn-tail skip + parent-dir sync; putVector HNSW rollback + id-burn on WAL fail; REST rate-limit before auth; MCP durable fail-closed (`ABI_WDBX_ALLOW_MEMORY_FALLBACK`); scheduler OOM-safe error_msg.
 - **#734** — Metal `sub_kernel` + macOS-gated keychain file fallback off-macOS.
 - **#733** — Metal `add_kernel` + honest non-macOS keychain status label; stub `.add` parity; Backend before load.
 - **#732** — Parallel strangler extracts: AI router leaves, CLI agent hub+dispatch leaves, Metal `metal_kernels.zig`, credentials file/keychain leaves.

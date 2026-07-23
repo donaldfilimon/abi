@@ -20,7 +20,10 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 - fix(http): reject incomplete HTTP requests (Content-Length not fully read / truncated headers) with `.incomplete` → 400 on MCP HTTP and WDBX REST; do not dispatch partial bodies.
 - fix(http): bearer token compare uses fixed-work equality (same approach as cluster RPC) instead of `std.mem.eql`.
 - fix(wdbx): WAL append `fsync` after write; torn incomplete last frame is skipped so verified prefix still replays; mid-log shape/CRC failures stay `WalCorruption`.
+- fix(wdbx): best-effort parent-directory sync after WAL create/append on POSIX (`Io.File.sync` on the dir fd) so the directory entry is durable; no-op on Windows — not a multi-host claim.
 - fix(wdbx): `putVector` burns the reserved vector id when WAL append fails so retries cannot insert a duplicate HNSW node id.
+- fix(wdbx): `putVector` rolls back the last HNSW insert on WAL failure so the undurable vector is not searchable (then burns the id).
+- fix(wdbx): REST rate-limits before bearer auth so failed-auth attempts consume tokens and cannot bypass the bucket.
 - fix(mcp): durable WDBX open failures no longer silently fall back to an empty RAM store unless `ABI_WDBX_ALLOW_MEMORY_FALLBACK` is set; tools return `WdbxUnavailable`.
 - fix(scheduler): on task failure, leave `error_msg` null when `dupe` OOMs instead of storing a string literal that `deinit` would free.
 - docs(auth): `abi auth` help text discloses off-macOS keychain→file fallback (Windows/Linux Proposed).

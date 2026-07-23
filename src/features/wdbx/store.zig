@@ -199,15 +199,13 @@ pub const Store = struct {
         // WAL on the next successful putVector). On error the errdefer above
         // still owns padded_values, so this also avoids a double free.
         self.acceleration = try runtime.runAccelerationKernel("wdbx.putVector", values.len);
-        // Durably log the vector BEFORE committing the id counter or freeing the
-        // padded buffer. appendVector does fallible IO; on failure the errdefer
-        // above must stay the sole owner of padded_values (no prior explicit free →
-        // no double free). The HNSW node is already inserted: burn the id so a
-        // retry cannot insert a second graph node with the same id (duplicate
-        // inflate of vectorCount). The in-memory vector remains until checkpoint
-        // or process exit — callers must treat the error as "not durably logged".
+        // Durably log before freeing the padded scratch. On WAL failure roll back
+        // the just-inserted HNSW node (last insert) and burn the id so a retry
+        // cannot re-insert the same id. Callers must treat the error as "not
+        // durably logged"; the vector is not searchable after rollback.
         if (self.wal_binding) |w| {
             wal.appendVector(w.io, self.allocator, w.path, id, values) catch |err| {
+                self.index.rollbackLastInsert(id);
                 self.next_vector_id = id + 1;
                 return err;
             };
@@ -456,13 +454,14 @@ test "Store.putVector burns vector id when WAL append fails" {
     store_obj.attachWal(std.testing.io, bad_wal);
 
     try std.testing.expectError(error.FileNotFound, store_obj.putVector(&.{ 1, 0, 0, 0 }));
-    // Id 1 was reserved in the HNSW graph; burn it so a retry cannot insert id 1 again.
+    // Id 1 was reserved then rolled back from HNSW; burn it so a retry cannot
+    // re-insert id 1. vectorCount returns to 0 (rollback removed the node).
     try std.testing.expectEqual(@as(u32, 2), store_obj.next_vector_id);
-    try std.testing.expectEqual(@as(usize, 1), store_obj.vectorCount());
+    try std.testing.expectEqual(@as(usize, 0), store_obj.vectorCount());
 
     try std.testing.expectError(error.FileNotFound, store_obj.putVector(&.{ 0, 1, 0, 0 }));
     try std.testing.expectEqual(@as(u32, 3), store_obj.next_vector_id);
-    try std.testing.expectEqual(@as(usize, 2), store_obj.vectorCount());
+    try std.testing.expectEqual(@as(usize, 0), store_obj.vectorCount());
 }
 
 // An allocator wrapper that passes everything through to a backing allocator

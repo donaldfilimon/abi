@@ -14,6 +14,7 @@
 //! where crc32 is computed over the JSON bytes only.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const wdbx_mod = @import("mod.zig");
 const persistence = @import("persistence.zig");
 const persistence_parse = @import("persistence_parse.zig");
@@ -39,6 +40,23 @@ fn crc32Hex(bytes: []const u8) [8]u8 {
         @field(std.hash.crc, "CRC-32/ISO-HDLC");
     const sum = Crc32.hash(bytes);
     return std.fmt.bytesToHex(std.mem.toBytes(std.mem.nativeToBig(u32, sum)), .lower);
+}
+
+/// Best-effort parent-directory fsync after creating/appending a WAL file so
+/// the directory entry is durable on POSIX. No-op on Windows and when the
+/// parent cannot be opened. Not a multi-host durability claim.
+/// Uses `Io.File.sync` on the directory fd (`posix.fsync` was removed in 0.17).
+fn syncParentDirBestEffort(io: std.Io, path: []const u8) void {
+    if (comptime builtin.os.tag == .windows) return;
+    const parent = std.fs.path.dirname(path) orelse ".";
+    var dir = std.Io.Dir.cwd().openDir(io, parent, .{}) catch return;
+    defer dir.close(io);
+    const as_file: std.Io.File = .{ .handle = dir.handle, .flags = .{ .nonblocking = false } };
+    as_file.sync(io) catch |err| {
+        // Best-effort: directory entry may still be durable after file.sync;
+        // do not fail the WAL append if parent-dir sync is unsupported.
+        std.log.debug("WAL parent-dir sync skipped: {s}", .{@errorName(err)});
+    };
 }
 
 /// Append one already-encoded JSON record to the WAL at `path`. O(1): an
@@ -70,6 +88,7 @@ pub fn appendRecord(io: std.Io, allocator: std.mem.Allocator, path: []const u8, 
             var created = try cwd.openFile(io, path, .{ .mode = .read_write });
             defer created.close(io);
             try created.sync(io);
+            syncParentDirBestEffort(io, path);
             return;
         },
         else => return err,
@@ -90,9 +109,9 @@ pub fn appendRecord(io: std.Io, allocator: std.mem.Allocator, path: []const u8, 
     try frame.writer.writeAll("\n");
     try file.writePositionalAll(io, frame.written(), end);
     // Durability: flush data to stable storage before treating the append as
-    // committed. Parent-directory fsync is not performed here (rename-based
-    // creates use writeFile); this covers the common append path.
+    // committed, then best-effort parent-dir fsync for the directory entry.
     try file.sync(io);
+    syncParentDirBestEffort(io, path);
 }
 
 /// Append a key/value mutation record.
