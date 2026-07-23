@@ -17,7 +17,34 @@ description: "Human-gated cutover checklist from modernized/ package pointers to
 | Second `build.zig` / dual build root | **Absent** (intentional) |
 | Feature parity claim for `modernized/` | **Forbidden** until cutover proves it |
 | Primary gate | `./build.sh check` on `src/` |
-| Phase 0 redesign baseline | `./build.sh check` **passed** 2026-07-23 on pin `0.17.0-dev.1442+972627084` (strangler baseline only — **not** cutover) |
+| Clean-slate strangler | Approach-1 extracts inside `src/` along `modernized/packages/*` DAG (Cursor plan `abi_clean-slate_redesign`). **Not** a dual build root. |
+| Phase 0 redesign baseline | `./build.sh check` **passed** 2026-07-23 on pin `0.17.0-dev.1442+972627084` (strangler baseline only — **not** cutover). Docs wording verified: scaffold only / live = `src/`. |
+
+## Strangler evidence (2026-07-23)
+
+Approach-1 leaf extracts landed on `cursor/strangler-redesign-phases` (PR #743). **Build root remains `src/`**. `modernized/` stays pointer READMEs only — **cutover not authorized**.
+
+| Phase | Extract / audit | Evidence |
+| ----- | --------------- | -------- |
+| 0 | Baseline pin + board | `./build.sh check` green; `tasks/todo.md` priority 5 notes strangler |
+| 1 | `src/foundation/http/{io,headers,auth,bind,mod}.zig` | Stable `foundation.http.*`; REST imports updated to `http/mod.zig` |
+| 2 | `src/features/wdbx/cluster_policy.zig` | `ClusterAuth` / `ClusterPolicy` / `withPeers` leaf; mod+stub parity |
+| 3 | `src/features/ai/browser_plan.zig` | Local dry-run browser plan only (`embedded_browser=false`); not a browser product |
+| 4 | MCP isolation audit | No `src/mcp` → `features/ai|wdbx|sea` path imports; foundation via `@import("abi").foundation.*`; features via `@import("abi").features` public surface only |
+| Gate run | Contracts + parity | `./build.sh check` 41/41 steps; `check_parity` success after phases 1–3 |
+
+### HITL gate fill (1–6)
+
+| # | Gate | Status | Notes |
+| - | ---- | ------ | ----- |
+| 1 | Package DAG agreed | Evidence attached | `modernized/packages/*` ↔ live `src/` paths unchanged; frozen CLI/MCP not expanded |
+| 2 | Port plan per package | Evidence attached | Ordered extracts: foundation/http → wdbx/cluster_policy → ai/browser_plan; mod/stub touched for `cluster_policy` |
+| 3 | Dual-build or switch strategy | **Decision: keep single `src/` root** | No second `build.zig`; strangler-in-place; rollback = revert PR commits |
+| 4 | Contract suite green | Evidence attached | `./build.sh check` green on strangler branch tip |
+| 5 | Claims rewrite | No change required | No “modernized is production” claim; cluster/browser honesty unchanged |
+| 6 | Explicit HITL approval | **Pending human** | Do not cut over or archive `modernized/` until dated human approval in PR/issue |
+
+**Default outcome until gate 6:** keep `src/` as build root; leave `modernized/` as historical pointers.
 
 ## Cutover is blocked until all HITL checks pass
 

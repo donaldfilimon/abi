@@ -31,6 +31,7 @@
 const std = @import("std");
 const cluster = @import("cluster.zig");
 const net_line = @import("net_line.zig");
+const cluster_policy = @import("cluster_policy.zig");
 
 pub const VoteReply = cluster.VoteReply;
 pub const AppendReply = cluster.AppendReply;
@@ -40,36 +41,8 @@ const Server = std.Io.net.Server;
 
 pub const RpcError = error{ MalformedRequest, MalformedResponse };
 
-pub const ClusterAuth = struct {
-    token: ?[]const u8 = null,
-
-    pub fn enabled(self: ClusterAuth) bool {
-        return self.token != null;
-    }
-};
-
-pub const ClusterPolicy = struct {
-    auth: ClusterAuth = .{},
-    peers: ?[]const u32 = null,
-
-    fn allowsPeer(self: ClusterPolicy, id: u32) bool {
-        const peers = self.peers orelse return true;
-        for (peers) |peer| {
-            if (peer == id) return true;
-        }
-        return false;
-    }
-
-    /// Return a new policy with an updated peer allowlist. This is the
-    /// membership-reload primitive: a server loop can call `withPeers` on a
-    /// fresh peer list and pass the new policy to the next `serveOnceAuth`,
-    /// so a node admitted or rejected at startup can be reconfigured without
-    /// restarting the listener. Single-host / loopback-tested; NOT production
-    /// dynamic membership, NOT sharding, NOT mTLS.
-    pub fn withPeers(self: ClusterPolicy, new_peers: ?[]const u32) ClusterPolicy {
-        return .{ .auth = self.auth, .peers = new_peers };
-    }
-};
+pub const ClusterAuth = cluster_policy.ClusterAuth;
+pub const ClusterPolicy = cluster_policy.ClusterPolicy;
 
 const ParsedRequest = union(enum) {
     vote: struct { term: u64, candidate: u32 },
@@ -77,23 +50,8 @@ const ParsedRequest = union(enum) {
     unknown,
 };
 
-fn fixedWorkEql(a: []const u8, b: []const u8) bool {
-    const max_len = @max(a.len, b.len);
-    var diff: usize = a.len ^ b.len;
-    var i: usize = 0;
-    while (i < max_len) : (i += 1) {
-        const av: u8 = if (i < a.len) a[i] else 0;
-        const bv: u8 = if (i < b.len) b[i] else 0;
-        diff |= av ^ bv;
-    }
-    return diff == 0;
-}
-
-fn authMatches(auth: ClusterAuth, supplied: ?[]const u8) bool {
-    const expected = auth.token orelse return supplied == null;
-    const got = supplied orelse return false;
-    return fixedWorkEql(expected, got);
-}
+const fixedWorkEql = cluster_policy.fixedWorkEql;
+const authMatches = cluster_policy.authMatches;
 
 fn parseVote(rest: []const u8) !ParsedRequest {
     const sp = std.mem.indexOfScalar(u8, rest, ' ') orelse return error.MalformedRequest;
