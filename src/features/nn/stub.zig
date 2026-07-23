@@ -72,6 +72,61 @@ pub fn trainOnJsonl(allocator: std.mem.Allocator, path: []const u8, field: []con
     return error.FeatureDisabled;
 }
 
+pub const DEFAULT_CHECKPOINT_PATH = "assets/nn/persona-checkpoint.bin";
+pub const BUNDLED_CORPUS = "";
+pub const MAX_OUTPUT_CHARS = @as(usize, 300);
+
+pub fn saveModelAlloc(allocator: std.mem.Allocator, model: *const Model) ![]u8 {
+    _ = allocator;
+    _ = model;
+    return error.FeatureDisabled;
+}
+
+pub fn loadModelBytes(allocator: std.mem.Allocator, bytes: []const u8) !Model {
+    _ = allocator;
+    _ = bytes;
+    return error.FeatureDisabled;
+}
+
+pub fn saveModelPath(io: std.Io, allocator: std.mem.Allocator, model: *const Model, path: []const u8) !void {
+    _ = io;
+    _ = allocator;
+    _ = model;
+    _ = path;
+    return error.FeatureDisabled;
+}
+
+pub fn loadModelPath(io: std.Io, allocator: std.mem.Allocator, path: []const u8) (NnError || error{OutOfMemory})!Model {
+    _ = io;
+    _ = allocator;
+    _ = path;
+    return error.FeatureDisabled;
+}
+
+pub fn trainBundled(allocator: std.mem.Allocator) !Model {
+    _ = allocator;
+    return error.FeatureDisabled;
+}
+
+pub fn sampleStreaming(
+    allocator: std.mem.Allocator,
+    model: *const Model,
+    seed_char: u8,
+    max_chars: usize,
+    chunk: usize,
+    on_chunk: *const fn (*anyopaque, []const u8) anyerror!void,
+    ctx: *anyopaque,
+) ![]u8 {
+    _ = allocator;
+    _ = model;
+    _ = seed_char;
+    _ = max_chars;
+    _ = chunk;
+    _ = on_chunk;
+    _ = ctx;
+    return error.FeatureDisabled;
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

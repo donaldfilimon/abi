@@ -64,14 +64,15 @@ pub const commands = [_]Command{
     },
     .{
         .name = "complete",
-        .usage = "abi complete [--live] [--confirm] [--learn] [--stream] [--model <id>] <input>",
-        .summary = "Run completion through local ABI agent pipeline; --model selects catalog id, --live enables explicit live transport",
+        .usage = "abi complete [--live] [--confirm] [--learn] [--stream] [--neural] [--model <id>] <input>",
+        .summary = "Run completion through local ABI agent pipeline; --model selects catalog id, --live enables explicit live transport, --neural is in-process char-LM demo",
         .category = .ai,
-        .details = "--model selects a catalog id, --live enables explicit live transport, --learn runs the SEA self-learning loop, and apple-fm requires --confirm. Use `--` before a prompt that starts with `-`.",
+        .details = "--model selects a catalog id, --live enables explicit live transport, --learn runs the SEA self-learning loop, --neural selects the in-process character-level demo LM (mutually exclusive with --model; not a production LLM), and apple-fm requires --confirm. Use `--` before a prompt that starts with `-`.",
         .examples = &.{
             "abi complete \"summarize repository status\"",
             "abi complete -- --literal-leading-dash",
             "abi complete --learn --model claude-fable-5 \"plan next repair\"",
+            "abi complete --neural \"hello\"",
         },
     },
     .{

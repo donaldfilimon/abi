@@ -5,7 +5,7 @@ require_substring "$complete_out" "persisted="
 require_substring "$complete_out" "wdbx kv_entries="
 
 complete_help_out="$("$ABI" complete --help 2>&1)"
-require_substring "$complete_help_out" "abi complete [--live] [--confirm] [--learn] [--stream] [--model <id>] <input>"
+require_substring "$complete_help_out" "abi complete [--live] [--confirm] [--learn] [--stream] [--neural] [--model <id>] <input>"
 require_substring "$complete_help_out" "Arguments:"
 require_substring "$complete_help_out" "--model <value>"
 if grep -Fq -- "model=claude-fable-5" <<<"$complete_help_out"; then

@@ -285,3 +285,65 @@ pub fn handleLocalBridgeComplete(io: std.Io, allocator: std.mem.Allocator, input
     std.debug.print("[model={s} | bridge={s} | local=true]\n", .{ model, endpoint });
     return 0;
 }
+
+/// `abi complete --neural`: in-process character-level demo LM (not a production LLM).
+/// Loads `assets/nn/persona-checkpoint.bin` when present; otherwise trains the bundled
+/// corpus in-memory (honest demo path, no silent template fallback).
+pub fn handleNeuralComplete(io: std.Io, allocator: std.mem.Allocator, input: []const u8, stream: bool) !u8 {
+    if (!features.nn.isEnabled()) {
+        std.debug.print("error: nn feature disabled (rebuild with -Dfeat-nn=true)\n", .{});
+        return 1;
+    }
+
+    var model = features.nn.loadModelPath(io, allocator, features.nn.DEFAULT_CHECKPOINT_PATH) catch |err| blk: {
+        if (err == error.NeuralCheckpointMissing) {
+            std.debug.print(
+                "note: checkpoint missing at {s}; training bundled demo corpus in-process (char-LM, not a production LLM)\n",
+                .{features.nn.DEFAULT_CHECKPOINT_PATH},
+            );
+            break :blk features.nn.trainBundled(allocator) catch |train_err| {
+                std.debug.print("error: neural train failed: {s}\n", .{@errorName(train_err)});
+                return 1;
+            };
+        }
+        std.debug.print("error: neural checkpoint load failed: {s}\n", .{@errorName(err)});
+        return 1;
+    };
+    defer model.deinit();
+
+    const seed: u8 = if (input.len > 0) input[0] else 'a';
+    if (stream) {
+        const StreamCtx = struct {
+            fn callback(_: *anyopaque, chunk: []const u8) anyerror!void {
+                if (chunk.len > 0) std.debug.print("{s}", .{chunk});
+            }
+        };
+        var dummy: u8 = 0;
+        const out = features.nn.sampleStreaming(
+            allocator,
+            &model,
+            seed,
+            features.nn.MAX_OUTPUT_CHARS,
+            8,
+            StreamCtx.callback,
+            @ptrCast(&dummy),
+        ) catch |err| {
+            std.debug.print("error: neural sample failed: {s}\n", .{@errorName(err)});
+            return 1;
+        };
+        defer allocator.free(out);
+        std.debug.print("\n", .{});
+    } else {
+        const out = features.nn.sample(allocator, &model, seed, features.nn.MAX_OUTPUT_CHARS) catch |err| {
+            std.debug.print("error: neural sample failed: {s}\n", .{@errorName(err)});
+            return 1;
+        };
+        defer allocator.free(out);
+        std.debug.print("{s}\n", .{out});
+    }
+    std.debug.print(
+        "[model=nn-char-lm | neural=true | stream={s} | note=in-process character-level demo model, trained on ABI's own docs — not a production LLM]\n",
+        .{if (stream) "chunked" else "batch"},
+    );
+    return 0;
+}

@@ -65,6 +65,22 @@ fn completeWithSelectedProfile(
     telemetry.record("ai.constitution.evaluated");
     if (audit.vetoed) telemetry.record("ai.constitution.vetoed");
     if (!audit.passed) std.log.warn("Constitutional violation!", .{});
+
+    // Hard gate: safety-class veto replaces the model text so callers never
+    // emit a vetoed body (audit metadata still reports vetoed=true).
+    if (audit.vetoed) {
+        allocator.free(response);
+        const refusal = try allocator.dupe(
+            u8,
+            "I cannot provide that response because it violates the safety constitution (hard veto).",
+        );
+        return .{
+            .model = resolved_model,
+            .selected_profile = selected,
+            .output = refusal,
+            .audit = audit,
+        };
+    }
     return .{
         .model = resolved_model,
         .selected_profile = selected,

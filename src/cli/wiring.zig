@@ -24,6 +24,7 @@ pub const complete_args = [_]Arg{
     .{ .name = "soul", .kind = .value, .help = "soul layout JSON file for neural routing" },
     .{ .name = "soul-alpha", .kind = .value, .help = "blend weight for soul neural routing (0.0-1.0)" },
     .{ .name = "stream", .kind = .flag, .help = "stream completion tokens to stdout" },
+    .{ .name = "neural", .kind = .flag, .help = "in-process char-LM demo (not a production LLM); mutually exclusive with --model" },
     .{ .name = "model", .kind = .value, .help = "select a catalog model id (e.g. claude-fable-5)" },
     .{ .name = "input", .kind = .positional, .required = true, .help = "completion prompt" },
 };
@@ -155,6 +156,7 @@ pub fn completeHandler(ctx: Ctx, parsed: Parsed) anyerror!u8 {
             .confirmed = parsed.flag("confirm"),
             .learn = parsed.flag("learn"),
             .stream = parsed.flag("stream"),
+            .neural = parsed.flag("neural"),
             .soul = parsed.value("soul"),
             .soul_alpha = soul_alpha,
         },

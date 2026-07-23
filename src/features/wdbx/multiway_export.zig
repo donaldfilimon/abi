@@ -7,9 +7,73 @@ const metrics_mod = @import("multiway_metrics.zig");
 
 const Config = types.Config;
 const Result = types.Result;
+const CausalEdge = types.CausalEdge;
 const FORMAT_VERSION = types.FORMAT_VERSION;
 const hashPayload = types.hashPayload;
 const Metrics = metrics_mod.Metrics;
+
+/// Derive rigorous event→event causal edges from token lineage.
+/// For each event, parents are distinct producer-events of the matched LHS
+/// bytes on the source state's reconstructed lineage.
+pub fn buildCausalEdges(allocator: std.mem.Allocator, config: Config, result: *const Result) ![]CausalEdge {
+    const n_states = result.states.items.len;
+    var lineage = try allocator.alloc([]?u32, n_states);
+    errdefer {
+        for (lineage) |row| allocator.free(row);
+        allocator.free(lineage);
+    }
+    for (result.states.items, 0..) |state, i| {
+        lineage[i] = try allocator.alloc(?u32, state.payload.len);
+        @memset(lineage[i], null);
+    }
+
+    var edges: std.ArrayListUnmanaged(CausalEdge) = .empty;
+    errdefer edges.deinit(allocator);
+
+    for (result.events.items) |event| {
+        if (event.rule >= config.rules.len) continue;
+        const rule = config.rules[event.rule];
+        const src_idx = event.src;
+        const dst_idx = event.dst;
+        if (src_idx >= n_states or dst_idx >= n_states) continue;
+        const src_lin = lineage[src_idx];
+        const lhs_len = rule.lhs.len;
+        const rhs_len = rule.rhs.len;
+        const pos: usize = event.pos;
+        if (pos + lhs_len > src_lin.len) continue;
+
+        var parent_seen: std.AutoHashMapUnmanaged(u32, void) = .empty;
+        defer parent_seen.deinit(allocator);
+        var i: usize = pos;
+        while (i < pos + lhs_len) : (i += 1) {
+            if (src_lin[i]) |parent| {
+                const gop = try parent_seen.getOrPut(allocator, parent);
+                if (!gop.found_existing) {
+                    try edges.append(allocator, .{ .parent = parent, .child = event.id });
+                }
+            }
+        }
+
+        // First writer of a destination owns its lineage snapshot.
+        if (result.states.items[dst_idx].first_event) |fe| {
+            if (fe == event.id) {
+                const dst_len = result.states.items[dst_idx].payload.len;
+                const expected = src_lin.len - lhs_len + rhs_len;
+                if (expected != dst_len) continue;
+                const dst_lin = lineage[dst_idx];
+                @memcpy(dst_lin[0..pos], src_lin[0..pos]);
+                @memset(dst_lin[pos .. pos + rhs_len], event.id);
+                if (pos + lhs_len < src_lin.len) {
+                    @memcpy(dst_lin[pos + rhs_len ..], src_lin[pos + lhs_len ..]);
+                }
+            }
+        }
+    }
+
+    for (lineage) |row| allocator.free(row);
+    allocator.free(lineage);
+    return try edges.toOwnedSlice(allocator);
+}
 
 fn appendFmt(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, comptime fmt: []const u8, args: anytype) !void {
     const chunk = try std.fmt.allocPrint(allocator, fmt, args);
@@ -103,9 +167,14 @@ pub fn exportCanonicalJson(allocator: std.mem.Allocator, config: Config, result:
     try out.appendSlice(allocator, "],\"metrics\":");
     try appendMetricsJson(&out, allocator, metrics);
     try appendFmt(&out, allocator, ",\"termination\":\"{s}\",\"complete\":{}", .{ result.termination.label(), result.complete });
-    // Causal analysis is limited for exact string rewriting: no symbol-level
-    // lineage is tracked, so no causal edges are exported.
-    try out.appendSlice(allocator, ",\"causal_graph\":\"limited:no-token-lineage\"");
+    const causal = try buildCausalEdges(allocator, config, result);
+    defer allocator.free(causal);
+    try out.appendSlice(allocator, ",\"causal_graph\":{\"status\":\"token-lineage\",\"edges\":[");
+    for (causal, 0..) |edge, i| {
+        if (i > 0) try out.append(allocator, ',');
+        try appendFmt(&out, allocator, "{{\"parent\":{d},\"child\":{d}}}", .{ edge.parent, edge.child });
+    }
+    try out.appendSlice(allocator, "]}");
     if (result.complete) {
         try out.appendSlice(allocator, ",\"resume\":null");
     } else {

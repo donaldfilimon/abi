@@ -365,7 +365,7 @@ pub const CapabilityClaim = struct {
 pub const capability_claims = [_]CapabilityClaim{
     .{ .area = "identity_and_operating_contract", .status = .current, .boundary = "canonical static contract plus deterministic profile routing" },
     .{ .area = "local_multi_persona_routing", .status = .current, .boundary = "keyword/EMA routing over local deterministic templates" },
-    .{ .area = "constitutional_governance", .status = .partial, .boundary = "six-principle substring audit is observable but does not gate returned output" },
+    .{ .area = "constitutional_governance", .status = .partial, .boundary = "six-principle substring audit; safety-class hard veto replaces returned output (non-veto failures still observational)" },
     .{ .area = "wdbx_context_and_memory", .status = .partial, .boundary = "opt-in local completion vectors, minimal metadata, blocks, and bounded SEA recall; not perfect memory" },
     .{ .area = "accessibility_adaptation", .status = .proposed, .boundary = "principle and authoring requirement; no verified multi-depth or assistive-technology runtime" },
     .{ .area = "visual_generation", .status = .proposed, .boundary = "no image-generation model is embedded in the ABI Zig runtime" },

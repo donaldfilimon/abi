@@ -162,7 +162,7 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
     if (std.mem.eql(u8, sub, "compute")) {
         if (args.len == 4 and usage_mod.isHelpToken(args[3])) return wdbxComputeHelp();
         if (args.len != 4 or !std.mem.eql(u8, args[3], "info")) return usage();
-        return runtime_commands.computeInfo();
+        return runtime_commands.computeInfo(io, allocator);
     }
 
     if (std.mem.eql(u8, sub, "secure")) {

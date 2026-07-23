@@ -67,7 +67,7 @@ Prioritized after A–G. Do not promote to Done without source + tests + honest 
 
 | Priority | Item | Status | Notes |
 | -------- | ---- | ------ | ----- |
-| 1 | Neural / ggml in-process sampler (or keep Partial forever) | ⚪ / disclosed | Only if embedding a real chunked local backend; otherwise leave A residual labeled. |
+| 1 | Neural / ggml in-process sampler (or keep Partial forever) | ◑ Partial | `abi complete --neural` char-LM path + checkpoint round-trip landed (honest demo, not LLM). Residual: real ggml/GGUF transformer sampler. |
 | 2 | Broader Metal GPU path (more kernels / reduce) | ◑ Improved | Fused cosine/dot/L2 + elementwise add/sub/max/min/div + unary scale/relu + multi-pass `reduce_sum_kernel` / `reduce_max_kernel` / `reduce_min_kernel` + demo-grade softmax (on-GPU max). Residual: more kernels / CUDA/ANE disclosed. |
 | 3 | Windows **runtime** CI/job | 🔴 Blocked (no Windows runner) | ACL code exists for windows-gnu; execution verify blocked on host. |
 | 4 | OS keychain credential storage | ◑ Partial | macOS login keychain via Security.framework SecItem (opt-in `ABI_CREDENTIALS_BACKEND=keychain`); off-macOS env request is disclosed and load/save fall back to file (Windows/Linux Proposed); default remains file-based; OS-provided at-rest protection only — not hardware-backed, not audited; runtime-verified on macOS host only. |
@@ -99,6 +99,7 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
+- **Docs-plans wave-1** — `abi complete --neural` (char-LM + persist/sampleStreaming); multiway token-lineage causal graph export; constitution safety hard-veto replaces output; `remote_compute.dotOrLocal` wired + compute info probe. Residual: ggml, Phase D HITL, native TLS, Win runtime CI.
 - **Public `reduceMin`** — `GpuCompute.reduceMin` / `VectorOps.reduceMin` add a Metal `reduce_min_kernel` (multi-pass threadgroup, mirrors `reduce_max_kernel`) with CPU fallback and CPU/GPU parity tests, symmetric to the existing `reduceMax` public API. Source: src/features/gpu/{metal_kernels,metal_shared,vector_ops,compute_api,stub}.zig, docs/{contracts/public-api.mdx,contracts/external-claims-audit.mdx,spec/wdbx-north-star.mdx}, README.md, CHANGELOG.md.
 - **Public `reduceMax` + cluster peer reload** — `GpuCompute.reduceMax` / `VectorOps.reduceMax` expose the existing `reduce_max_kernel` through the public API (parity + tests); `ClusterPolicy.withPeers` enables runtime peer-allowlist reload (loopback-tested, not sharding). Source: src/features/gpu/{compute_api,vector_ops,stub}.zig, src/features/wdbx/cluster_rpc.zig, docs/{contracts/external-claims-audit.mdx,spec/cluster-mtls-ops.mdx}, CHANGELOG.md.
 - **#738** production-hardening wave (e9a2f8b / PR #738): incomplete HTTP 400 reject, constant-time bearer, WAL fsync + torn-tail skip + parent-dir sync, putVector HNSW rollback + id-burn on WAL fail, REST rate-limit before auth, MCP durable fail-closed (ABI_WDBX_ALLOW_MEMORY_FALLBACK), scheduler OOM-safe error_msg. Source files: src/features/wdbx/{hnsw,rest,store,wal}.zig, src/core/scheduler.zig, src/mcp/{ai_tools,http_transport,state}.zig, src/foundation/{env,http}.zig (see CHANGELOG, git show).

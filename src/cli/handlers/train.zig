@@ -28,6 +28,8 @@ pub const CompleteOptions = struct {
     confirmed: bool = false,
     learn: bool = false,
     stream: bool = false,
+    /// In-process character-level demo LM (not a production LLM).
+    neural: bool = false,
     soul: ?[]const u8 = null,
     soul_alpha: f32 = 0.5,
 };
@@ -79,6 +81,14 @@ fn printCompletionMetadata(completion: *const features.ai.CompletionResult, stat
 pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOptions) !u8 {
     const input = opts.input;
     const selected_model = if (opts.model) |m| features.ai.models.canonical(m) else features.ai.models.default_model;
+
+    if (opts.neural) {
+        if (opts.model != null) return usage_mod.usageError("--neural and --model are mutually exclusive");
+        if (opts.live or opts.learn or opts.soul != null) {
+            return usage_mod.usageError("--neural cannot combine with --live, --learn, or --soul");
+        }
+        return complete.handleNeuralComplete(io, allocator, input, opts.stream);
+    }
 
     if (opts.model) |m| {
         if (!features.ai.models.isKnown(m)) {
@@ -168,6 +178,12 @@ pub fn handleComplete(io: std.Io, allocator: std.mem.Allocator, opts: CompleteOp
     const stats = store.stats();
     printCompletionMetadata(&result, stats, null, false);
     return 0;
+}
+
+test "complete --neural rejects --model combination" {
+    const allocator = std.testing.allocator;
+    const code = try handleComplete(std.testing.io, allocator, .{ .input = "hello", .model = "abi-local", .neural = true });
+    try std.testing.expectEqual(@as(u8, 2), code);
 }
 
 test "complete --live rejects non-anthropic models before any network or credential read" {

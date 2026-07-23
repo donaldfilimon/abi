@@ -3,10 +3,10 @@
 //! Reference building blocks for the north-star "remote TPU execution" backend:
 //! a pure-Zig TCP transport that can ship one vector dot-product request to an
 //! explicit host/port and return its result. `ABI_REMOTE_COMPUTE_ENDPOINT` is
-//! currently report-only configuration metadata; backend selection and
-//! production compute paths do not call `dialDot` or wire a remote fallback.
-//! The transport mirrors the `cluster_rpc` socket pattern and is exercised over
-//! a 127.0.0.1 loopback reference server in tests.
+//! configuration via `ABI_REMOTE_COMPUTE_ENDPOINT` (`host:port`). Callers use
+//! `dotOrLocal` to attempt a remote DOT and fall back to CPU `localDot` when
+//! the endpoint is unset or unreachable. The transport mirrors `cluster_rpc`
+//! and is exercised over a 127.0.0.1 loopback reference server in tests.
 //!
 //! Wire protocol (one request/response per connection, newline-framed text):
 //!   "DOT <n> <a0> .. <a(n-1)> <b0> .. <b(n-1)>\n"  ->  "<dot>\n"
@@ -33,9 +33,31 @@ pub fn localDot(a: []const f32, b: []const f32) !f32 {
     return sum;
 }
 
-/// Report-only remote endpoint metadata ("host:port"), or null when unset.
+/// Remote endpoint metadata ("host:port"), or null when unset.
 pub fn endpoint() ?[]const u8 {
     return env.get(ENDPOINT_ENV);
+}
+
+/// Parse `host:port` from `ENDPOINT_ENV`. Returns null when unset/malformed.
+pub fn parseEndpointPort(ep: []const u8) ?u16 {
+    const colon = std.mem.lastIndexOfScalar(u8, ep, ':') orelse return null;
+    if (colon + 1 >= ep.len) return null;
+    return std.fmt.parseInt(u16, ep[colon + 1 ..], 10) catch null;
+}
+
+/// Attempt remote DOT via `ABI_REMOTE_COMPUTE_ENDPOINT`; on missing endpoint or
+/// dial failure, return the local CPU reference product. Never silently swaps
+/// dimensions — length mismatch still errors.
+pub fn dotOrLocal(io: std.Io, allocator: std.mem.Allocator, a: []const f32, b: []const f32) !f32 {
+    if (a.len != b.len) return error.DimensionMismatch;
+    if (endpoint()) |ep| {
+        if (parseEndpointPort(ep)) |port| {
+            if (dialDot(io, allocator, port, a, b) catch null) |stream| {
+                return readDotReply(io, stream) catch localDot(a, b);
+            }
+        }
+    }
+    return localDot(a, b);
 }
 
 /// Accept one connection, evaluate the DOT op, and respond. This is the

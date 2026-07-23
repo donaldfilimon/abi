@@ -76,7 +76,7 @@ No metric is labeled "computational complexity"; names describe exactly what is 
 
 - **State evolution graph** — vertices are canonical states, edges are valid transitions. Exported to Graphviz DOT (`--format dot`).
 - **Event graph** — vertices are events; multiplicity and provenance (source, destination, rule id, match offset, depth, local index) are retained. Every event is a distinct DOT edge, so multiplicity is visible.
-- **Causal graph** — **limited** for exact string rewriting. Rigorous causal edges require symbol/token-level lineage (which output symbols a later match consumed); this is not yet tracked, so the engine exports `causal_graph: "limited:no-token-lineage"` rather than manufacturing causal edges from temporal adjacency. See [next steps](#next-steps-token-lineage-and-hypergraph-backends).
+- **Causal graph** — **token-lineage** (Current). Export derives event→event edges from reconstructed per-byte producer lineage: a later event is a child of every distinct prior event that produced a byte in its matched LHS. Hypergraph backends remain Proposed.
 
 ## Reproducibility guarantees
 
@@ -134,11 +134,8 @@ The reference experiment — initial `A`; rules `A->AB`, `A->BA`, `BB->A`; depth
 
 These values were additionally verified with an external Python oracle before being encoded.
 
-## Next steps: token lineage and hypergraph backends
+## Next steps: hypergraph backends
 
-The engine's data model (rules with LHS/RHS, content-hashed states, events with match position and local index) was designed so richer backends slot in without replacing it:
+Token lineage for the causal graph is **Current** (export-time derivation in `multiway_export.buildCausalEdges`). Remaining:
 
-- **Token-sequence backend** — replace byte payloads with token-id sequences and track, per output token, which input tokens produced it. That lineage is exactly what a **rigorous causal graph** needs: connect events whose output tokens were later consumed as another event's matched input. This upgrades `causal_graph` from `limited` to a real derivation.
 - **Hypergraph backend** — replace payloads with hypergraph encodings and rule matching with subgraph isomorphism, keeping the same bounded BFS, canonical hashing (of a canonical hypergraph serialization), event multiplicity, metrics, and WDBX layout.
-
-The recommended first step is **token lineage**, because it is the smallest change that makes the causal graph rigorous while reusing the entire existing engine and persistence path.

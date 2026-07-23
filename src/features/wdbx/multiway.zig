@@ -13,10 +13,8 @@
 //! canonical export deliberately excludes wall-clock timing; runtime metrics
 //! live only in the human summary.
 //!
-//! Causal note: without symbol-level lineage tracking, causal edges between
-//! events cannot be derived rigorously for string rewriting; this module
-//! exports state-transition and event graphs only and marks causal analysis
-//! as limited.
+//! Causal note: token lineage is derived at export time from rule applications
+//! (which output bytes a later match consumed). Hypergraph backends remain Proposed.
 
 const std = @import("std");
 
@@ -39,6 +37,7 @@ pub const validateConfig = types.validateConfig;
 pub const Termination = types.Termination;
 pub const State = types.State;
 pub const Event = types.Event;
+pub const CausalEdge = types.CausalEdge;
 pub const Result = types.Result;
 pub const hashPayload = types.hashPayload;
 pub const ParseRuleError = types.ParseRuleError;

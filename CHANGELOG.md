@@ -6,6 +6,10 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- feat(nn): `abi complete --neural` — in-process character-level demo LM with checkpoint serialize/load (`nn/persist.zig`), chunked `sampleStreaming`, mutual exclusion with `--model`; not a production LLM / not ggml.
+- feat(wdbx): multiway export derives token-lineage causal edges (`causal_graph.status=token-lineage`); hypergraph backend remains Proposed.
+- feat(wdbx): `remote_compute.dotOrLocal` — dial remote DOT when `ABI_REMOTE_COMPUTE_ENDPOINT` is set, else CPU; compute info probe when endpoint set — not production TPU.
+- feat(ai): constitution safety hard-veto replaces returned completion text (audit metadata still reports vetoed).
 - feat(gpu): Metal `reduce_min_kernel` (`runReduceMin`) plus public `reduceMin` API on `GpuCompute` and `VectorOps`, mirroring `reduceMax` — CPU fallback and CPU/GPU parity tests — still not a general GPU speedup / CUDA / ANE claim.
 - feat(gpu): Public `reduceMax` API on `GpuCompute` and `VectorOps` — exposes the existing Metal `reduce_max_kernel` through the public surface with CPU fallback and CPU/GPU parity tests — still not a general GPU speedup / CUDA / ANE claim.
 - feat(cluster): `ClusterPolicy.withPeers` — runtime peer-allowlist reload for the cluster RPC serve path (loopback-tested); first step toward dynamic membership, still NOT a wire-level join/leave protocol, NOT sharding.

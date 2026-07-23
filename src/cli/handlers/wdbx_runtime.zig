@@ -219,7 +219,7 @@ pub fn clusterServe(io: std.Io, allocator: std.mem.Allocator, host: []const u8, 
 /// `abi wdbx compute info`: report the available compute backends and dynamic
 /// selection (best CPU backend, ANE/remote-dispatch availability). Native
 /// dispatch is not linked, so the CPU fallback is active. Returns the exit code.
-pub fn computeInfo() anyerror!u8 {
+pub fn computeInfo(io: std.Io, allocator: std.mem.Allocator) anyerror!u8 {
     const caps = wdbx.compute.capabilities();
     std.debug.print("compute backends (native dispatch not linked in this build; CPU fallback active):\n", .{});
     for (caps) |cap| {
@@ -230,7 +230,16 @@ pub fn computeInfo() anyerror!u8 {
     std.debug.print("dynamic selection: best_cpu={s}; request npu-ane -> effective={s} ({s})\n", .{ best.name(), sel.effective.name(), sel.message });
     std.debug.print("apple neural engine: hardware_present={any} native_dispatch=false (CoreML/ANE path requires Apple frameworks, not linked; CPU fallback)\n", .{wdbx.compute.aneHardwarePresent()});
     const remote_ep = wdbx.remote_compute.endpoint();
-    std.debug.print("remote compute reference: endpoint={s} ({s} is report-only; production ops remain on the selected local CPU/GPU path)\n", .{ remote_ep orelse "none", wdbx.remote_compute.ENDPOINT_ENV });
+    std.debug.print("remote compute: endpoint={s} ({s}; dotOrLocal attempts dial then CPU fallback — not production TPU)\n", .{ remote_ep orelse "none", wdbx.remote_compute.ENDPOINT_ENV });
+    if (remote_ep != null) {
+        const a = [_]f32{ 1, 2, 3 };
+        const b = [_]f32{ 4, 5, 6 };
+        const d = wdbx.remote_compute.dotOrLocal(io, allocator, &a, &b) catch |err| blk: {
+            std.debug.print("remote compute probe: error={s}\n", .{@errorName(err)});
+            break :blk @as(f32, 0);
+        };
+        std.debug.print("remote compute probe: dot([1,2,3],[4,5,6])={d:.4} (local ref=32)\n", .{d});
+    }
     return 0;
 }
 

@@ -57,6 +57,10 @@ test "registry `complete` spec parses like the legacy parseCompleteArgs" {
     // Missing input and a dangling `--model` are usage errors (→ exit 2).
     try std.testing.expectError(error.Usage, arg.parse(std.testing.allocator, spec, &.{ "abi", "complete", "--learn" }));
     try std.testing.expectError(error.Usage, arg.parse(std.testing.allocator, spec, &.{ "abi", "complete", "--model" }));
+
+    var neural = try arg.parse(std.testing.allocator, spec, &.{ "abi", "complete", "--neural", "hi" });
+    defer neural.deinit();
+    try std.testing.expect(neural.flag("neural"));
 }
 
 test "complete --soul/--soul-alpha malformed usage exits 2 without running a completion" {

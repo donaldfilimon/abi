@@ -2,6 +2,7 @@ const std = @import("std");
 pub const types = @import("types.zig");
 const model_mod = @import("model.zig");
 const train_mod = @import("train.zig");
+const persist = @import("persist.zig");
 
 pub const NnError = types.NnError;
 pub const Error = types.Error;
@@ -15,6 +16,15 @@ pub const trainModel = train_mod.trainModel;
 pub const trainOnText = train_mod.trainOnText;
 pub const trainOnJsonl = train_mod.trainOnJsonl;
 pub const extractCorpusFromJsonl = train_mod.extractCorpusFromJsonl;
+pub const saveModelAlloc = persist.saveModelAlloc;
+pub const loadModelBytes = persist.loadModelBytes;
+pub const saveModelPath = persist.saveModelPath;
+pub const loadModelPath = persist.loadModelPath;
+pub const sampleStreaming = persist.sampleStreaming;
+pub const trainBundled = persist.trainBundled;
+pub const DEFAULT_CHECKPOINT_PATH = persist.DEFAULT_CHECKPOINT_PATH;
+pub const BUNDLED_CORPUS = persist.BUNDLED_CORPUS;
+pub const MAX_OUTPUT_CHARS = persist.MAX_OUTPUT_CHARS;
 
 pub fn isEnabled() bool {
     return true;

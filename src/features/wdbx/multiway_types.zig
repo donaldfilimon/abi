@@ -162,6 +162,12 @@ pub const Event = struct {
     local: u32,
 };
 
+/// Causal edge between events: `parent` produced tokens later consumed by `child`.
+pub const CausalEdge = struct {
+    parent: u32,
+    child: u32,
+};
+
 // ---------------------------------------------------------------------------
 // Result and engine
 // ---------------------------------------------------------------------------

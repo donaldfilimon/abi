@@ -16,6 +16,12 @@ pub const NnError = error{
     NoCorpusData,
     /// A `TrainConfig` field was zero/out of range.
     InvalidConfig,
+    /// Bundled/on-disk neural checkpoint path missing.
+    NeuralCheckpointMissing,
+    /// Checkpoint bytes failed structural validation.
+    NeuralCheckpointCorrupt,
+    /// Checkpoint magic/version mismatch.
+    NeuralCheckpointVersion,
     OutOfMemory,
 };
 
