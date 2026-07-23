@@ -15,7 +15,7 @@ Landed on `main` via [#676](https://github.com/donaldfilimon/abi/pull/676) (`cur
 | Track | Ask | Status | Source of truth | Residual (do NOT fake-complete) |
 | ----- | --- | ------ | --------------- | ------------------------------- |
 | **A** | In-process streaming — real incremental local generator | ◑ Done for template path | `src/features/ai/incremental.zig`; TUI `stream=incremental` | Neural LM / ggml in-process sampler (needs embedded runtime). Post-hoc path remains labeled where used. |
-| **B** | Metal native kernels for `vectorOps` hot paths (Zig+Metal only) | ◑ Partial | Metal fused cosine/dot/L2 + multi-pass `reduce_sum_kernel` + demo-grade softmax (`softmax_kernel` / `softmax_norm_kernel`) | Broader kernels; CUDA/Vulkan. **ANE = non-goal**. |
+| **B** | Metal native kernels for `vectorOps` hot paths (Zig+Metal only) | ◑ Partial | Metal fused cosine/dot/L2 + elementwise `add_kernel` (`compute_api.map(.add)`) + multi-pass `reduce_sum_kernel` + demo-grade softmax (`softmax_kernel` / `softmax_norm_kernel`) | Broader kernels; CUDA/Vulkan. **ANE = non-goal**. |
 | **C** | Windows credential ACL + secret zeroing; runtime verify CI-blocked | ◑ Partial | Win32 SDDL owner-only DACL on credential write; POSIX `secureZero` / `secureWipe`; macOS login keychain via `ABI_CREDENTIALS_BACKEND=keychain` (`src/foundation/keychain.zig`, Security.framework `SecItem*`) | Windows/Linux keychain still Proposed. **Windows runtime verification** needs a Windows host/runner (cross-smoke = compile-only). |
 | **D** | Lossless ANS/order-1 demo next to Huffman — not SOTA | ✅ Demo landed | `src/features/wdbx/ans.zig` + `abi wdbx secure demo` | Production/SOTA learned codec (ANS/arithmetic/context-model at scale). |
 | **E** | FHE deepen reference tests/docs — not audited | ✅ Reference deepened | `fhe.zig` (`REF_P_BITS` / `REF_NOISE_BITS` / `VERIFIED_MUL_DEPTH`) | External security audit + bootstrapped FHE. |
@@ -39,7 +39,7 @@ Landed on `main` via [#676](https://github.com/donaldfilimon/abi/pull/676) (`cur
 
 | Item | Status | Gap to production |
 | ---- | ------ | ----------------- |
-| Native compute beyond Metal cosine | ◑ Partial | Metal fused cosine/dot/L2 + multi-pass threadgroup reduce + demo-grade softmax for HNSW/`vectorOps`; CUDA/Vulkan/broader kernels not linked. ANE **out of scope**. |
+| Native compute beyond Metal cosine | ◑ Partial | Metal fused cosine/dot/L2 + elementwise add + multi-pass threadgroup reduce + demo-grade softmax for HNSW/`vectorOps`/`compute_api`; CUDA/Vulkan/broader kernels not linked. ANE **out of scope**. |
 | Production/SOTA learned compression | ◑ Partial / disclosed | Huffman (`entropy.zig`) + demo rANS/order-1 (`ans.zig`) + int8 + reference autoencoder — **not** SOTA. |
 | Security-audited FHE | ⚪ Not started (reference only) | DGHV reference params deepened; **not** audited. |
 | Non-loopback REST hardening | ◑ Partial / disclosed | Loopback + bearer + rate-limit + TLS env validation; native TLS not linked; needs threat review for external expose. |
@@ -68,9 +68,9 @@ Prioritized after A–G. Do not promote to Done without source + tests + honest 
 | Priority | Item | Status | Notes |
 | -------- | ---- | ------ | ----- |
 | 1 | Neural / ggml in-process sampler (or keep Partial forever) | ⚪ / disclosed | Only if embedding a real chunked local backend; otherwise leave A residual labeled. |
-| 2 | Broader Metal GPU path (more kernels / reduce) | ◑ Improved | Fused cosine/dot/L2 + multi-pass `reduce_sum_kernel` + demo-grade softmax map+norm (#712). Residual: more kernels / CUDA/ANE disclosed. |
+| 2 | Broader Metal GPU path (more kernels / reduce) | ◑ Improved | Fused cosine/dot/L2 + elementwise `add_kernel` + multi-pass `reduce_sum_kernel` + demo-grade softmax map+norm. Residual: more kernels / CUDA/ANE disclosed. |
 | 3 | Windows **runtime** CI/job | 🔴 Blocked (no Windows runner) | ACL code exists for windows-gnu; execution verify blocked on host. |
-| 4 | OS keychain credential storage | ◑ Partial | macOS login keychain via Security.framework SecItem (opt-in `ABI_CREDENTIALS_BACKEND=keychain`); `abi auth status` now surfaces the active backend (`keychain (macOS login keychain, opt-in)` / `file (~/.abi/credentials.json)`); default remains file-based; Windows Credential Manager and Linux Secret Service remain Proposed; OS-provided at-rest protection only — not hardware-backed (no Secure Enclave/biometric), not audited; runtime-verified on macOS host only (interactive session), not headless-CI-safe. |
+| 4 | OS keychain credential storage | ◑ Partial | macOS login keychain via Security.framework SecItem (opt-in `ABI_CREDENTIALS_BACKEND=keychain`); `abi auth status` surfaces active backend and discloses non-macOS keychain requests as unsupported (Windows/Linux Proposed); default remains file-based; OS-provided at-rest protection only — not hardware-backed (no Secure Enclave/biometric), not audited; runtime-verified on macOS host only (interactive session), not headless-CI-safe. |
 | 5 | Phase D cutover plan (HITL) | ◑ Plan landed | `docs/spec/phase-d-cutover-plan.mdx` — checklist only; cutover still needs explicit HITL + gates. Scaffold honesty gate: `tools/check_modernized_refs.sh` in `full-check` (stale `` `src/...` `` refs fail). |
 | 6 | Non-loopback REST threat review + native TLS link decision | ◑ Docs landed | `docs/spec/non-loopback-rest-threat-review.mdx` — proxy TLS preferred; native TLS deferred; not a hardened-expose claim. |
 | 7 | Cluster mTLS / membership (still not sharding) | ◑ Ops docs landed | `docs/spec/cluster-mtls-ops.mdx` — proxy mTLS preferred; dynamic membership + sharding stay Proposed. |
@@ -99,23 +99,20 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
+- **#732** — Parallel strangler extracts: AI router leaves, CLI agent hub+dispatch leaves, Metal `metal_kernels.zig`, credentials file/keychain leaves.
+- **#731** — `metal_objc.zig` extract; `wdbx_simulate` options/format leaves + hub.
+- **#730** — Split oversized `multiway.zig` into typed leaf modules; `wdbx.multiway.*` API unchanged.
 - **modernized-refs gate** — portable `tools/check_modernized_refs.sh` (bash 3.2) wired into `zig build full-check`; fails on stale fenced `` `src/...` `` pointers under `modernized/` (not a second build root).
 - **#728** — `abi auth status` surfaces active credential backend (`keychain` / `file`).
 - **#727** — P0-1 lock-across-I/O audit table, bench regression gate, multiway/octtree docs refresh.
 - **#726** — Zig pin `0.17.0-dev.1442+972627084` (+ CI `ZIG_VERSION` sync).
 - **Branch consolidation** — preserved adaptive-router state hardening and current Zig-pin docs contracts, restored compact canonical agent instructions, and fixed portable stderr flushing for Windows cross-builds; superseded branch trees were excluded to avoid regressions.
-- **#692** — `TestWriter` consolidated to `foundation/test_helpers.zig` (15 inline copies removed across dashboard, registry, tui); `deleteTestFileIfExists` added for production WDBX use; import paths fixed in recovery/persistence/segments/wal/repl_git_commands.
-- **#691** — Env var names centralized in `foundation/env.zig` (15 constants); `escapeJsonString` delegated to `foundation/json.zig` from `rest_parse.zig`; connectors keep inline `appendJsonString` (module isolation). 99%+ tests pass (1 pre-existing flaky).
-- **#690** — `MAX_REQUEST_SIZE`/`writeUnauthorized`/`jsonStringAlloc` consolidated to `foundation`; `writeUnauthorized` comptime concat bug fixed.
-- **#689** — `reasonPhrase`/`strField`/`bindLoopback` extracted to `foundation`; silent `else |_| {}` fixed in `wdbx_db.zig`.
-- **#688/#687** — `readHttpRequest`/`HttpReadResult` extracted to `foundation/http.zig` (was duplicated in MCP and WDBX REST); `foundation/json.zig` created with `appendJsonString`/`escapeJsonString`; MCP `json_helpers.zig` delegates to foundation; 20+ silent `catch {}` fixed; `wakeHttpServer`/config accessors restored.
 - **#712 Metal softmax** — demo-grade `softmax_kernel` + `softmax_norm_kernel` with CPU/GPU parity; claims sync README/external-claims/north-star/public-api/claim-boundaries. Broader kernels / CUDA / ANE remain Proposed.
 - **#684 Metal multi-pass reduce** — `runReduceSum` loops 256-wide threadgroup partials until one scalar; claims sync README/external-claims/north-star; kernel comment aligned.
 - **#683** — Metal `reduce_sum_kernel` + REST wrong-bearer 401/`WWW-Authenticate` parity.
 - **#682** — abi-mega ops paths + inventory/board note; markdown audit fix-severity 0.
 - **#681/#680** — cluster mTLS ops + Phase D cutover HITL; host SIMD `sumF32` + REST threat review.
 - **#678/#676** — Metal status probe / Tracks A–G (`incremental.zig`, fused cosine, Win32 DACL, `ans.zig`, FHE honesty, Phase D scaffold).
-- **#675/#674/#673/#671/#670/#669** — config cleanup; streaming/RankedNode/creds polish; AGENTS Learned + thin redirects; wdbx query UX; leaf extracts.
 - **Approach-1 A–C + modern-refactor** — complete; product reimagine stays Phase D scaffold until cutover.
 
 ---
