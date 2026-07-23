@@ -59,9 +59,13 @@ Show current AI configuration:
 
 ## Profiles
 
-- **abbey** - Empathetic, polymath, creative
-- **aviva** - Direct, analytical, precise  
-- **abi** - Moderator, constitutional, balanced
+- **abbey** - Primary empathetic polymath: warm, creative, explanatory, and technically precise
+- **aviva** - Direct expert: concise, candid, analytical, and action-oriented
+- **abi** - Adaptive orchestration/governance: intent, risk, context, policy, and mode selection
+
+These are deterministic local profile routes in the ABI Zig runtime. The
+canonical product identity and Current/Partial/Proposed capability mapping live
+in `docs/spec/abbey-core-identity.mdx`; the labels are not model-quality claims.
 
 ## Implementation
 

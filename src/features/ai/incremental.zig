@@ -12,6 +12,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+const identity = @import("identity.zig");
 
 pub const StreamMode = enum {
     /// Word/token iterative emit during persona/template generation.
@@ -33,19 +34,15 @@ const ProfileParts = struct {
 };
 
 fn partsFor(profile: types.AgentProfile) ProfileParts {
-    return switch (profile) {
-        .abbey => .{
-            .prefix = "Abbey: ",
-            .suffix = "\n\nI’ll approach this with warmth, creativity, and technical care while keeping uncertainty explicit.",
-        },
-        .aviva => .{
-            .prefix = "Aviva direct expert: ",
-            .suffix = "\n\nLeading with the concrete answer, assumptions, and next action.",
-        },
-        .abi => .{
-            .prefix = "ABI orchestration review: ",
-            .suffix = "\n\nEvaluating intent, risk, context, and the appropriate response mode.",
-        },
+    // Single source of truth: identity.zig ProfileContract templates.
+    const contract = switch (profile) {
+        .abbey => identity.profileContract(.abbey),
+        .aviva => identity.profileContract(.aviva),
+        .abi => identity.profileContract(.abi),
+    };
+    return .{
+        .prefix = contract.response_prefix,
+        .suffix = contract.response_suffix,
     };
 }
 
@@ -116,15 +113,22 @@ pub fn generateProfileIncremental(
 
 test "incremental generation matches one-shot persona strings" {
     const allocator = std.testing.allocator;
-    const cases = [_]struct { types.AgentProfile, []const u8, []const u8 }{
-        .{ .abbey, "hello world", "Abbey: hello world\n\nI’ll approach this with warmth, creativity, and technical care while keeping uncertainty explicit." },
-        .{ .aviva, "execute", "Aviva direct expert: execute\n\nLeading with the concrete answer, assumptions, and next action." },
-        .{ .abi, "route", "ABI orchestration review: route\n\nEvaluating intent, risk, context, and the appropriate response mode." },
+    const cases = [_]struct { types.AgentProfile, []const u8, identity.ProfileId }{
+        .{ .abbey, "hello world", .abbey },
+        .{ .aviva, "execute", .aviva },
+        .{ .abi, "route", .abi },
     };
     for (cases) |c| {
         const got = try generateProfileIncremental(allocator, c[0], c[1], null, null);
         defer allocator.free(got);
-        try std.testing.expectEqualStrings(c[2], got);
+        const contract = identity.profileContract(c[2]);
+        const expected = try std.fmt.allocPrint(allocator, "{s}{s}{s}", .{
+            contract.response_prefix,
+            c[1],
+            contract.response_suffix,
+        });
+        defer allocator.free(expected);
+        try std.testing.expectEqualStrings(expected, got);
     }
 }
 
@@ -151,10 +155,14 @@ test "incremental callback fires during generation with real per-step deltas" {
     // prefix tokens + "alpha" + space + "beta" => multiple steps, not one post-hoc dump
     try std.testing.expect(ctx.chunks >= 4);
     try std.testing.expect(ctx.saw_done);
-    try std.testing.expectEqualStrings(
-        "Abbey: alpha beta\n\nI’ll approach this with warmth, creativity, and technical care while keeping uncertainty explicit.",
-        got,
-    );
+    const abbey = identity.profileContract(.abbey);
+    const expected = try std.fmt.allocPrint(allocator, "{s}{s}{s}", .{
+        abbey.response_prefix,
+        "alpha beta",
+        abbey.response_suffix,
+    });
+    defer allocator.free(expected);
+    try std.testing.expectEqualStrings(expected, got);
 }
 
 test {

@@ -92,7 +92,7 @@ pub const AdaptiveModulator = struct {
 
     pub fn serialize(self: *const AdaptiveModulator, allocator: std.mem.Allocator) ![]u8 {
         _ = self;
-        return try allocator.dupe(u8, "0.50,0.25,0.25,0,0.3");
+        return try allocator.dupe(u8, "0.40,0.30,0.30,0,0.3");
     }
 
     pub fn deserialize(data: []const u8) AdaptiveModulator {

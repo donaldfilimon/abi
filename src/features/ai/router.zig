@@ -68,31 +68,34 @@ pub const SENTIMENT_KEYWORDS = [_]SentimentKeyword{
 pub const abbey = struct {
     pub fn processInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
         std.log.info("Abbey processing: {s}", .{input});
-        return try std.fmt.allocPrint(
-            allocator,
-            "Abbey: {s}\n\nI’ll approach this with warmth, creativity, and technical care while keeping uncertainty explicit.",
-            .{input},
-        );
+        const contract = identity.profileContract(.abbey);
+        return try std.fmt.allocPrint(allocator, "{s}{s}{s}", .{
+            contract.response_prefix,
+            input,
+            contract.response_suffix,
+        });
     }
 };
 
 pub const aviva = struct {
     pub fn processInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-        return try std.fmt.allocPrint(
-            allocator,
-            "Aviva direct expert: {s}\n\nLeading with the concrete answer, assumptions, and next action.",
-            .{input},
-        );
+        const contract = identity.profileContract(.aviva);
+        return try std.fmt.allocPrint(allocator, "{s}{s}{s}", .{
+            contract.response_prefix,
+            input,
+            contract.response_suffix,
+        });
     }
 };
 
 pub const abi_profile = struct {
     pub fn processInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-        return try std.fmt.allocPrint(
-            allocator,
-            "ABI orchestration review: {s}\n\nEvaluating intent, risk, context, and the appropriate response mode.",
-            .{input},
-        );
+        const contract = identity.profileContract(.abi);
+        return try std.fmt.allocPrint(allocator, "{s}{s}{s}", .{
+            contract.response_prefix,
+            input,
+            contract.response_suffix,
+        });
     }
 };
 
@@ -360,11 +363,12 @@ test "analyzeSentiment ignores suffix false positives but keeps prefix stems" {
     }
 
     // Intended prefix stems still match: "quickly"->"quick" and "running"->"run"
-    // both bias Aviva, the direct expert mode for execution cues.
+    // both increase Aviva's share. A single cue need not override Abbey's
+    // primary-personality prior; several strong cues do so in the routing test.
     const quickly = analyzeSentiment("quickly");
-    try std.testing.expect(quickly.w_aviva > quickly.w_abbey and quickly.w_aviva > quickly.w_abi);
+    try std.testing.expect(quickly.w_aviva > neutral.w_aviva);
     const running = analyzeSentiment("running");
-    try std.testing.expect(running.w_aviva > running.w_abbey and running.w_aviva > running.w_abi);
+    try std.testing.expect(running.w_aviva > neutral.w_aviva);
 
     // A whole-word keyword still routes as before; removing the "what if" bigram
     // entry is neutral (it never matched a single-token split).

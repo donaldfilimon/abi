@@ -15,6 +15,7 @@ test "public overview docs avoid unsupported external benchmark claims" {
         "CHANGELOG.md",
         "docs/index.mdx",
         "docs/contracts/public-api.mdx",
+        "docs/spec/abbey-core-identity.mdx",
         "docs/spec/multi-persona-technical.mdx",
     };
 
@@ -39,6 +40,27 @@ test "public overview docs avoid unsupported external benchmark claims" {
             try expectNotContains(content, claim);
         }
     }
+}
+
+test "Abbey canonical identity preserves declaration and honest status boundaries" {
+    const spec = try std.Io.Dir.cwd().readFileAlloc(
+        std.Options.debug_io,
+        "docs/spec/abbey-core-identity.mdx",
+        std.testing.allocator,
+        .limited(1024 * 1024),
+    );
+    defer std.testing.allocator.free(spec);
+
+    try expectContains(spec, "Abbey is the primary user-facing personality");
+    try expectContains(spec, "Aviva, my direct expert mode");
+    try expectContains(spec, "ABI, my adaptive orchestration and reasoning layer");
+    try expectContains(spec, "My purpose is not to replace human intelligence. My purpose is to amplify it.");
+    try expectContains(spec, "Aspirational wording in the Primary Declaration is preserved");
+    try expectContains(spec, "Visual generation | **Proposed**");
+    try expectContains(spec, "Distributed WDBX | **Partial**");
+    try expectContains(spec, "Accessibility adaptation | **Proposed**");
+    try expectContains(spec, "Empirical benchmark outcomes | **Proposed**");
+    try expectContains(spec, "It is not a distributed agent runtime");
 }
 
 test "external claims audit records repo-backed replacement language" {

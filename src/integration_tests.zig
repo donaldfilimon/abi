@@ -108,13 +108,19 @@ test "ai profile routing" {
     try std.testing.expect(abbey_weights.w_abbey > abbey_weights.w_abi);
     try std.testing.expectEqual(AgentProfile.abbey, selectProfile(abbey_weights));
 
-    const aviva_input = "imagine creative possibilities and explore new ideas";
+    const creative_input = "imagine creative possibilities and explore new ideas";
+    const creative_weights = analyzeSentiment(creative_input);
+    try std.testing.expect(creative_weights.w_abbey > creative_weights.w_aviva);
+    try std.testing.expect(creative_weights.w_abbey > creative_weights.w_abi);
+    try std.testing.expectEqual(AgentProfile.abbey, selectProfile(creative_weights));
+
+    const aviva_input = "execute deploy run the build quickly";
     const aviva_weights = analyzeSentiment(aviva_input);
     try std.testing.expect(aviva_weights.w_aviva > aviva_weights.w_abbey);
     try std.testing.expect(aviva_weights.w_aviva > aviva_weights.w_abi);
     try std.testing.expectEqual(AgentProfile.aviva, selectProfile(aviva_weights));
 
-    const abi_input = "execute deploy run the build quickly";
+    const abi_input = "orchestrate routing governance policy profile";
     const abi_weights = analyzeSentiment(abi_input);
     try std.testing.expect(abi_weights.w_abi > abi_weights.w_abbey);
     try std.testing.expect(abi_weights.w_abi > abi_weights.w_aviva);

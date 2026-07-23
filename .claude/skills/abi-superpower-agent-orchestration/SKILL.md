@@ -72,7 +72,7 @@ For multi-worker execution use `multi` or `spawn`. For claim-honest browser plan
 
 ## Worker Model
 
-- **Fixed trio**: Abbey (analytical), Aviva (creative), Abi (concise) — `abi agent multi`
+- **Fixed trio**: Abbey (primary empathetic polymath), Aviva (direct expert), ABI (orchestration/governance) — `abi agent multi`
 - **Custom**: Up to 32 workers (`max_worker_count = 32`) — `abi agent spawn`
 - **Browser**: Local planner worker only; real browser = external MCP integration
 - **Execution**: All workers submit through scheduler; `--background` prints task IDs then blocks on `runAll()`
