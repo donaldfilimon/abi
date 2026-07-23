@@ -159,6 +159,13 @@ test "isLocalBridgeModel matches known prefixes" {
     try std.testing.expect(!isLocalBridgeModel("gpt-4"));
 }
 
+test "fable-5 alias is not a local bridge model" {
+    // The catalog alias `fable-5` (-> `claude-fable-5`) must never match the
+    // local-bridge prefix table — it routes to the anthropic provider, not here.
+    try std.testing.expect(!isLocalBridgeModel("fable-5"));
+    try std.testing.expect(!isLocalBridgeModel("fable5"));
+}
+
 test "endpointFor routes mlx to MLX endpoint" {
     try std.testing.expectEqualStrings(LLAMA_CPP_DEFAULT_ENDPOINT, endpointFor("llama-cpp/mistral", null));
     try std.testing.expectEqualStrings(MLX_DEFAULT_ENDPOINT, endpointFor("mlx/gemma", null));
