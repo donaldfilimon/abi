@@ -542,5 +542,6 @@ test {
     _ = @import("iot_monitor.zig");
     _ = @import("multimodal_fusion.zig");
     _ = @import("orchestration.zig");
+    _ = @import("browser_plan.zig");
     std.testing.refAllDecls(@This());
 }

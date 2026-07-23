@@ -4,7 +4,7 @@ const parse = @import("rest_parse.zig");
 const handlers = @import("rest_handlers.zig");
 const RateLimiter = @import("rate_limiter.zig").RateLimiter;
 const TlsConfig = @import("tls_config.zig").TlsConfig;
-const http_io = @import("../../foundation/http.zig");
+const http_io = @import("../../foundation/http/mod.zig");
 
 pub const MAX_REQUEST_SIZE = http_io.MAX_REQUEST_SIZE;
 

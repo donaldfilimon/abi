@@ -12,7 +12,7 @@ pub const credentials = @import("credentials.zig");
 pub const keychain = @import("keychain.zig");
 pub const pool_allocator = @import("pool_allocator.zig");
 pub const temp_path = @import("temp_path.zig");
-pub const http = @import("http.zig");
+pub const http = @import("http/mod.zig");
 pub const json = @import("json.zig");
 pub const test_helpers = @import("test_helpers.zig");
 
@@ -32,7 +32,7 @@ test {
     _ = @import("env.zig");
     _ = @import("plugin_validator.zig");
     _ = @import("temp_path.zig");
-    _ = @import("http.zig");
+    _ = @import("http/mod.zig");
     _ = @import("json.zig");
     _ = @import("test_helpers.zig");
     std.testing.refAllDecls(@This());
