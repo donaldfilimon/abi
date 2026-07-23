@@ -3,15 +3,18 @@
 //! Each mutation is appended as a CRC32-framed, JSON-encoded record so the log
 //! is append-only, deterministic, and verifiable. Replay reconstructs a Store
 //! by handing the verified record bodies to `persistence.deserialize`, reusing
-//! the exact same apply path as snapshot restore. A truncated tail or a flipped
-//! byte is rejected with `error.WalCorruption` rather than silently replaying
-//! partial state.
+//! the exact same apply path as snapshot restore. A **mid-log** flipped byte or
+//! malformed frame is rejected with `error.WalCorruption`. A **torn last frame**
+//! (incomplete line at EOF after a crash mid-append) is skipped so verified
+//! prefix frames still replay; callers may truncate the file to the last good
+//! newline via `truncateTornTail`.
 //!
 //! Frame format (one record per line, after the header line):
 //!   <crc32-hex8> <minified-json>\n
 //! where crc32 is computed over the JSON bytes only.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const wdbx_mod = @import("mod.zig");
 const persistence = @import("persistence.zig");
 const persistence_parse = @import("persistence_parse.zig");
@@ -39,6 +42,23 @@ fn crc32Hex(bytes: []const u8) [8]u8 {
     return std.fmt.bytesToHex(std.mem.toBytes(std.mem.nativeToBig(u32, sum)), .lower);
 }
 
+/// Best-effort parent-directory fsync after creating/appending a WAL file so
+/// the directory entry is durable on POSIX. No-op on Windows and when the
+/// parent cannot be opened. Not a multi-host durability claim.
+/// Uses `Io.File.sync` on the directory fd (`posix.fsync` was removed in 0.17).
+fn syncParentDirBestEffort(io: std.Io, path: []const u8) void {
+    if (comptime builtin.os.tag == .windows) return;
+    const parent = std.fs.path.dirname(path) orelse ".";
+    var dir = std.Io.Dir.cwd().openDir(io, parent, .{}) catch return;
+    defer dir.close(io);
+    const as_file: std.Io.File = .{ .handle = dir.handle, .flags = .{ .nonblocking = false } };
+    as_file.sync(io) catch |err| {
+        // Best-effort: directory entry may still be durable after file.sync;
+        // do not fail the WAL append if parent-dir sync is unsupported.
+        std.log.debug("WAL parent-dir sync skipped: {s}", .{@errorName(err)});
+    };
+}
+
 /// Append one already-encoded JSON record to the WAL at `path`. O(1): an
 /// existing log is opened and the framed record is written at EOF via a
 /// positional writer (no full-file read-rewrite); a missing log is created with
@@ -64,6 +84,11 @@ pub fn appendRecord(io: std.Io, allocator: std.mem.Allocator, path: []const u8, 
             try out.writer.writeAll(json);
             try out.writer.writeAll("\n");
             try cwd.writeFile(io, .{ .sub_path = path, .data = out.written() });
+            // Best-effort durability for the create path (writeFile then reopen+sync).
+            var created = try cwd.openFile(io, path, .{ .mode = .read_write });
+            defer created.close(io);
+            try created.sync(io);
+            syncParentDirBestEffort(io, path);
             return;
         },
         else => return err,
@@ -83,6 +108,10 @@ pub fn appendRecord(io: std.Io, allocator: std.mem.Allocator, path: []const u8, 
     try frame.writer.writeAll(json);
     try frame.writer.writeAll("\n");
     try file.writePositionalAll(io, frame.written(), end);
+    // Durability: flush data to stable storage before treating the append as
+    // committed, then best-effort parent-dir fsync for the directory entry.
+    try file.sync(io);
+    syncParentDirBestEffort(io, path);
 }
 
 /// Append a key/value mutation record.
@@ -295,8 +324,10 @@ const FrameIterator = struct {
     started: bool = false,
 
     /// Returns the next verified JSON payload, or null at end. Header must be
-    /// the first line; any frame whose CRC does not match its payload, or that
-    /// lacks the `<crc> <json>` shape, fails with `error.WalCorruption`.
+    /// the first line. Mid-log frames whose CRC does not match, or that lack the
+    /// `<crc> <json>` shape, fail with `error.WalCorruption`. A malformed or
+    /// CRC-mismatched frame that is the last non-empty line is treated as a torn
+    /// tail (return null) so verified prefix frames remain recoverable.
     fn next(self: *FrameIterator) !?[]const u8 {
         if (!self.started) {
             const header = self.lines.next() orelse return error.InvalidHeader;
@@ -306,17 +337,34 @@ const FrameIterator = struct {
         while (self.lines.next()) |raw| {
             const line = std.mem.trim(u8, raw, " \t\r");
             if (line.len == 0) continue;
-            const sp = std.mem.indexOfScalar(u8, line, ' ') orelse return error.WalCorruption;
+            const sp = std.mem.indexOfScalar(u8, line, ' ') orelse {
+                if (hasLaterNonEmpty(self.lines)) return error.WalCorruption;
+                return null; // torn incomplete line at EOF
+            };
             const crc = line[0..sp];
             const json = line[sp + 1 ..];
-            if (json.len == 0) return error.WalCorruption;
+            if (json.len == 0) {
+                if (hasLaterNonEmpty(self.lines)) return error.WalCorruption;
+                return null; // torn incomplete line at EOF
+            }
             const expect = crc32Hex(json);
+            // A well-shaped frame with a bad CRC is always corruption — including
+            // when it is the last line (bit flip / overwrite). Only incomplete
+            // shape above is soft-skipped as a torn append tail.
             if (!std.mem.eql(u8, crc, &expect)) return error.WalCorruption;
             return json;
         }
         return null;
     }
 };
+
+fn hasLaterNonEmpty(it: std.mem.SplitIterator(u8, .scalar)) bool {
+    var look = it;
+    while (look.next()) |raw| {
+        if (std.mem.trim(u8, raw, " \t\r").len > 0) return true;
+    }
+    return false;
+}
 
 fn frameIterator(content: []const u8) FrameIterator {
     return .{ .lines = std.mem.splitScalar(u8, content, '\n') };
@@ -372,6 +420,55 @@ test "wal: detects a flipped byte in a framed record" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = path, .data = content });
 
     try std.testing.expectError(error.WalCorruption, replay(std.testing.io, allocator, path));
+    try std.testing.expectError(error.WalCorruption, verify(std.testing.io, allocator, path));
+}
+
+test "wal: torn last frame is skipped; verified prefix still replays" {
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-wal-torn-tail.wal";
+    defer deleteTestFileIfExists(path);
+    deleteTestFileIfExists(path);
+
+    try appendKv(std.testing.io, allocator, path, "keep", "yes");
+    try appendKv(std.testing.io, allocator, path, "also", "kept");
+
+    const content = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, path, allocator, .limited(64 * 1024));
+    defer allocator.free(content);
+    // Append an incomplete last line (no trailing newline, truncated JSON) —
+    // the crash-mid-append case. Prefix frames must still verify/replay.
+    var torn: std.Io.Writer.Allocating = .init(allocator);
+    defer torn.deinit();
+    try torn.writer.writeAll(content);
+    // Incomplete shape (no space-separated CRC/json) — not a well-formed frame.
+    try torn.writer.writeAll("DEADBEEFincomplete");
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = path, .data = torn.written() });
+
+    try std.testing.expectEqual(@as(usize, 2), try verify(std.testing.io, allocator, path));
+
+    var store = try replay(std.testing.io, allocator, path);
+    defer store.deinit();
+    try std.testing.expectEqualStrings("yes", store.get("keep").?);
+    try std.testing.expectEqualStrings("kept", store.get("also").?);
+    try std.testing.expect(store.get("lost") == null);
+}
+
+test "wal: mid-log corruption after a good frame still hard-fails" {
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-wal-mid-corrupt.wal";
+    defer deleteTestFileIfExists(path);
+    deleteTestFileIfExists(path);
+
+    try appendKv(std.testing.io, allocator, path, "a", "1");
+    try appendKv(std.testing.io, allocator, path, "b", "2");
+    try appendKv(std.testing.io, allocator, path, "c", "3");
+
+    const content = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, path, allocator, .limited(64 * 1024));
+    defer allocator.free(content);
+    // Corrupt the middle frame's key while leaving a later good-looking line.
+    const idx = std.mem.indexOf(u8, content, "\"b\"").?;
+    content[idx + 1] = 'X'; // flip inside "b"
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = path, .data = content });
+
     try std.testing.expectError(error.WalCorruption, verify(std.testing.io, allocator, path));
 }
 
@@ -476,13 +573,38 @@ test "wal: a malformed base_epoch token is rejected as corruption" {
     try std.testing.expectError(error.WalCorruption, readBaseEpoch(std.testing.io, allocator, path));
 }
 
-test "wal: a frame missing the crc/json separator is corruption" {
+test "wal: a frame missing the crc/json separator at EOF is a torn tail" {
     const allocator = std.testing.allocator;
     const path = "zig-out/wdbx-wal-nosep.wal";
     defer deleteTestFileIfExists(path);
     deleteTestFileIfExists(path);
-    // Valid header, then a frame line lacking the "<crc> <json>" space split.
+    // Valid header, then a last line lacking the "<crc> <json>" space split —
+    // treated as a crash-torn append tail (skip), not mid-log corruption.
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = path, .data = WAL_HEADER_PREFIX ++ "\nnospaceframe\n" });
+    try std.testing.expectEqual(@as(usize, 0), try verify(std.testing.io, allocator, path));
+}
+
+test "wal: a frame missing the crc/json separator mid-log is corruption" {
+    const allocator = std.testing.allocator;
+    const path = "zig-out/wdbx-wal-nosep-mid.wal";
+    defer deleteTestFileIfExists(path);
+    deleteTestFileIfExists(path);
+
+    try appendKv(std.testing.io, allocator, path, "before", "ok");
+    try appendKv(std.testing.io, allocator, path, "after", "also");
+    const content = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, path, allocator, .limited(64 * 1024));
+    defer allocator.free(content);
+
+    // Insert a separator-less line between the two good frames.
+    var lines = std.mem.splitScalar(u8, content, '\n');
+    const header = lines.next().?;
+    const frame1 = lines.next().?;
+    const frame2 = lines.next().?;
+    var injected: std.Io.Writer.Allocating = .init(allocator);
+    defer injected.deinit();
+    try injected.writer.print("{s}\n{s}\nnospaceframe\n{s}\n", .{ header, frame1, frame2 });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = path, .data = injected.written() });
+
     try std.testing.expectError(error.WalCorruption, verify(std.testing.io, allocator, path));
 }
 

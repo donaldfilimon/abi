@@ -50,6 +50,9 @@ pub const WDBX_TLS_CERT_ENV = "ABI_WDBX_TLS_CERT";
 pub const WDBX_TLS_KEY_ENV = "ABI_WDBX_TLS_KEY";
 pub const WDBX_PATH_ENV = "ABI_WDBX_PATH";
 pub const WDBX_PERSIST_ENV = "ABI_WDBX_PERSIST";
+/// When set to a truthy value (`1`/`true`/`yes`), MCP falls back to an empty
+/// in-memory WDBX store if durable open fails. Default is fail-closed.
+pub const WDBX_ALLOW_MEMORY_FALLBACK_ENV = "ABI_WDBX_ALLOW_MEMORY_FALLBACK";
 pub const WDBX_RATE_LIMIT_CAPACITY_ENV = "ABI_WDBX_RATE_LIMIT_CAPACITY";
 pub const WDBX_RATE_LIMIT_REFILL_ENV = "ABI_WDBX_RATE_LIMIT_REFILL";
 pub const LLAMA_CPP_ENDPOINT_ENV = "ABI_LLAMA_CPP_ENDPOINT";

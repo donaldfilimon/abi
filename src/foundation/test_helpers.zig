@@ -17,8 +17,9 @@ pub const TestWriter = struct {
 };
 
 pub fn deleteTestFileIfExists(path: []const u8) void {
-    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| {
-        std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) });
+    std.Io.Dir.cwd().deleteFile(std.testing.io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.debug.print("failed to delete test file '{s}': {s}\n", .{ path, @errorName(err) }),
     };
 }
 

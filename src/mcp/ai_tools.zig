@@ -22,7 +22,7 @@ pub fn schedulerStatsText(allocator: std.mem.Allocator) ![]u8 {
 
 pub fn runTraining(allocator: std.mem.Allocator, config: features.ai.TrainingConfig) ![]u8 {
     const ai_mod = features.ai;
-    const store = state.getWdbxStore();
+    const store = try state.getWdbxStore();
     state.lockWdbxStore();
     defer state.unlockWdbxStore();
 
@@ -67,7 +67,7 @@ pub fn runTraining(allocator: std.mem.Allocator, config: features.ai.TrainingCon
 
 pub fn runLocalCompletion(allocator: std.mem.Allocator, input: []const u8, model: []const u8) ![]u8 {
     const ai_mod = features.ai;
-    const store = state.getWdbxStore();
+    const store = try state.getWdbxStore();
 
     state.lockWdbxStore();
     defer state.unlockWdbxStore();
@@ -137,7 +137,7 @@ fn appendCompletionTail(
 /// selected, so with `-Dfeat-sea=false` the stub degrades to a plain persisted
 /// completion (evidence_count=0, adapted=false).
 pub fn runLearn(allocator: std.mem.Allocator, input: []const u8, model: []const u8, evidence_limit: usize) ![]u8 {
-    const store = state.getWdbxStore();
+    const store = try state.getWdbxStore();
 
     state.lockWdbxStore();
     defer state.unlockWdbxStore();
@@ -177,7 +177,7 @@ pub fn runLearn(allocator: std.mem.Allocator, input: []const u8, model: []const 
 }
 
 pub fn wdbxStatsText(allocator: std.mem.Allocator) ![]u8 {
-    const store = state.getWdbxStore();
+    const store = try state.getWdbxStore();
     state.lockWdbxStore();
     defer state.unlockWdbxStore();
 
@@ -194,7 +194,7 @@ pub fn wdbxStatsText(allocator: std.mem.Allocator) ![]u8 {
 
 pub fn runLocalWdbxQuery(allocator: std.mem.Allocator, query: []const u8) ![]u8 {
     const ai_mod = features.ai;
-    const store = state.getWdbxStore();
+    const store = try state.getWdbxStore();
 
     state.lockWdbxStore();
     defer state.unlockWdbxStore();
