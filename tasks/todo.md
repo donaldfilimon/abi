@@ -116,6 +116,20 @@ Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
 ---
 
+## P0-1 lock-across-I/O audit (2026-07-23)
+
+Scope: every lock site in WDBX network-facing paths (`rest.zig`, `rest_handlers.zig`, `cluster.zig`, `cluster_rpc.zig`, `runtime.zig`, `durable_store.zig`, `remote_compute.zig`) and MCP HTTP (`src/mcp/http_transport.zig`). Method: `grep -rn "Mutex|\.lock\(\)|\.lockShared|\.tryLock"` over `src/`, then trace each critical section for `std.Io.net` reads/writes under the lock.
+
+Result: exactly **one** mutex exists in all of `src/` — the token-bucket spin-lock in `rate_limiter.zig`. All other scoped files hold zero locks; their concurrency model is a single-threaded accept→handle loop with per-connection arenas, and `Store` has no internal locking, so "no lock held across network I/O" holds vacuously there (a site-by-site row would be fabricating lock sites that don't exist).
+
+| Site | Lock | Critical section | Verdict |
+|------|------|------------------|---------|
+| `src/features/wdbx/rate_limiter.zig:65` `acquire()` | spin-lock (`std.atomic.Mutex`) | `refillLocked()` + token/counter arithmetic only; the 429 response write in `rest.zig:99-111` happens after `acquire()` returns (lock released by `defer`). | SAFE |
+| `src/features/wdbx/rate_limiter.zig:92` `statsJson()` | same spin-lock | one `std.fmt.allocPrint` (allocation, no socket ops); response write happens after return (`rest.zig:121-125`). | SAFE |
+| `rest.zig` / `rest_handlers.zig` / `cluster.zig` / `cluster_rpc.zig` / `runtime.zig` / `durable_store.zig` / `remote_compute.zig` / `mcp/http_transport.zig` | none | no `Mutex`/`lock()` in any of these files (grep-verified 2026-07-23). | SAFE (vacuous) |
+
+Residual risk: if any of these servers ever moves to a threaded accept model, `Store` needs a locking design first — nothing guards concurrent mutation today; that is a known single-threaded-by-design boundary, not a latent race in current code.
+
 ## References
 
 - `docs/spec/wdbx-north-star.mdx` — Current/Partial/Proposed
