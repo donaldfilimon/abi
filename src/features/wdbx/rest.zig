@@ -73,6 +73,11 @@ fn handleConnectionWithAuth(allocator: std.mem.Allocator, io: std.Io, store: *wd
     var read_buf: [MAX_REQUEST_SIZE]u8 = undefined;
     const raw = switch (readHttpRequest(io, conn, &read_buf)) {
         .empty => return,
+        .incomplete => {
+            const err_resp = "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"incomplete request\"}";
+            try http_io.writeHttpAll(io, conn, err_resp);
+            return;
+        },
         .too_large => {
             const err_resp = "HTTP/1.1 413 Payload Too Large\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"request too large\"}";
             try http_io.writeHttpAll(io, conn, err_resp);

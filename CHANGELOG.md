@@ -6,6 +6,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- feat(env): `ABI_WDBX_ALLOW_MEMORY_FALLBACK` — opt-in empty in-memory MCP store when durable open fails (default fail-closed).
 - feat(gpu): Metal elementwise `max_kernel` / `min_kernel` via `compute_api.map(.max|.min)` (+ stub parity) — still not a general GPU speedup / CUDA / ANE claim.
 - feat(gpu): Metal elementwise `sub_kernel` wired through `compute_api.map(.sub)` / `reduce(.sub)` (+ stub parity) — still not a general GPU speedup / CUDA / ANE claim.
 - feat(gpu): Metal elementwise `add_kernel` wired through `compute_api.map(.add)` / `reduce(.add)` with CPU fallback and parity tests — still not a general GPU speedup / CUDA / ANE claim.
@@ -16,6 +17,12 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Changed
 
+- fix(http): reject incomplete HTTP requests (Content-Length not fully read / truncated headers) with `.incomplete` → 400 on MCP HTTP and WDBX REST; do not dispatch partial bodies.
+- fix(http): bearer token compare uses fixed-work equality (same approach as cluster RPC) instead of `std.mem.eql`.
+- fix(wdbx): WAL append `fsync` after write; torn incomplete last frame is skipped so verified prefix still replays; mid-log shape/CRC failures stay `WalCorruption`.
+- fix(wdbx): `putVector` burns the reserved vector id when WAL append fails so retries cannot insert a duplicate HNSW node id.
+- fix(mcp): durable WDBX open failures no longer silently fall back to an empty RAM store unless `ABI_WDBX_ALLOW_MEMORY_FALLBACK` is set; tools return `WdbxUnavailable`.
+- fix(scheduler): on task failure, leave `error_msg` null when `dupe` OOMs instead of storing a string literal that `deinit` would free.
 - docs(auth): `abi auth` help text discloses off-macOS keychain→file fallback (Windows/Linux Proposed).
 - fix(auth): non-macOS `ABI_CREDENTIALS_BACKEND=keychain` falls back to the file store for load/save; `abi auth status` discloses the request (`using file — Windows/Linux Proposed`); keychain clear is a no-op off-macOS.
 - fix(auth): `abi auth status` discloses non-macOS `ABI_CREDENTIALS_BACKEND=keychain` as unsupported (Windows/Linux Proposed) instead of implying an active macOS keychain; Backend line prints before credential load so `KeychainUnsupported` no longer hides the disclosure.
