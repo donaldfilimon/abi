@@ -129,6 +129,38 @@ pub const VectorOps = struct {
         cpuSoftmax(values, out);
     }
 
+    /// `out[i] = values[i] * factor`. Metal `scale_kernel` when initialized;
+    /// otherwise host loop. No speedup claim.
+    pub fn scale(self: VectorOps, values: []const f32, factor: f32, out: []f32) !void {
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+
+        if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runScale(values, factor, out) catch |err| {
+                std.log.warn("Metal scale failed ({s}); using CPU fallback", .{@errorName(err)});
+                cpuScale(values, factor, out);
+            };
+        }
+
+        cpuScale(values, factor, out);
+    }
+
+    /// `out[i] = max(values[i], 0)`. Metal `relu_kernel` when initialized;
+    /// otherwise host loop. No speedup claim.
+    pub fn relu(self: VectorOps, values: []const f32, out: []f32) !void {
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+
+        if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runRelu(values, out) catch |err| {
+                std.log.warn("Metal relu failed ({s}); using CPU fallback", .{@errorName(err)});
+                cpuRelu(values, out);
+            };
+        }
+
+        cpuRelu(values, out);
+    }
+
     /// Flattens `candidates` (non-contiguous, pointing into HNSW/caller
     /// storage) into one contiguous host buffer of `candidates.len * query.len`
     /// floats and dispatches the fused batched Metal kernel in a single
@@ -222,6 +254,14 @@ fn cpuSoftmax(values: []const f32, out: []f32) void {
         return;
     }
     for (out) |*slot| slot.* /= sum;
+}
+
+fn cpuScale(values: []const f32, factor: f32, out: []f32) void {
+    for (values, out) |v, *slot| slot.* = v * factor;
+}
+
+fn cpuRelu(values: []const f32, out: []f32) void {
+    for (values, out) |v, *slot| slot.* = @max(v, 0);
 }
 
 pub fn executeKernel(spec: backends.KernelSpec) !backends.KernelResult {
@@ -505,6 +545,31 @@ test "gpu softmax rejects mismatched output length" {
     const values = [_]f32{ 1.0, 2.0, 3.0 };
     var out: [2]f32 = undefined;
     try std.testing.expectError(error.DimensionMismatch, ops.softmax(&values, &out));
+}
+
+test "gpu scale matches independent scalar reference (CPU/GPU parity)" {
+    const ops = vectorOps();
+    const values = [_]f32{ 1.0, -2.0, 0.5, 4.0, -0.25 };
+    const factor: f32 = 2.5;
+    var expected: [values.len]f32 = undefined;
+    for (values, &expected) |v, *slot| slot.* = v * factor;
+    var out: [values.len]f32 = undefined;
+    try ops.scale(&values, factor, &out);
+    for (expected, out) |exp, got| {
+        try std.testing.expectApproxEqAbs(exp, got, 1e-4);
+    }
+}
+
+test "gpu relu matches independent scalar reference (CPU/GPU parity)" {
+    const ops = vectorOps();
+    const values = [_]f32{ 1.0, -2.0, 0.0, 4.0, -0.25, 0.5 };
+    var expected: [values.len]f32 = undefined;
+    for (values, &expected) |v, *slot| slot.* = @max(v, 0);
+    var out: [values.len]f32 = undefined;
+    try ops.relu(&values, &out);
+    for (expected, out) |exp, got| {
+        try std.testing.expectApproxEqAbs(exp, got, 1e-4);
+    }
 }
 
 test "reduceSum CPU fallback matches scalar reference" {

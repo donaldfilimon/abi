@@ -21,11 +21,13 @@ sources are still `build.zig`, `src/`, `tests/contracts/`,
 - Cluster RPC is a real RequestVote/AppendEntries TCP transport with shared
   secret and optional peer allowlist controls, but remains reference-scoped.
 - GPU/backend support is capability reporting plus vector operations that use
-  linked Metal `dot` / `squaredL2` / fused `cosine_parts` kernels, multi-pass
-  `reduce_sum_kernel` (256-wide until one scalar), and demo-grade softmax
-  (`softmax_kernel` + `softmax_norm_kernel`, host-side max/sum) on macOS when
-  the runtime reports initialized native kernels, and otherwise deterministically
-  fall back to vectorized CPU.
+  linked Metal `dot` / `squaredL2` / fused `cosine_parts` kernels, elementwise
+  `add` / `sub` / `max` / `min` / `div`, unary `scale` / `relu`, multi-pass
+  `reduce_sum_kernel` / `reduce_max_kernel` (256-wide until one scalar), and
+  demo-grade softmax (`softmax_kernel` + `softmax_norm_kernel`, on-GPU
+  reduce_max when available; host partition-sum) on macOS when the runtime
+  reports initialized native kernels, and otherwise deterministically fall back
+  to vectorized CPU.
 - Compression demos include int8 quantization, exact order-0 Huffman, demo rANS
   + order-1 residual coding (`ans.zig`), and a reference autoencoder — not SOTA.
 - FHE surfaces are reference/demo scoped unless audited production artifacts
