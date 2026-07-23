@@ -14,61 +14,19 @@ const features = @import("abi").features;
 
 const wdbx = features.wdbx;
 
-const MAX_RULE_FILE_BYTES = 1 * 1024 * 1024;
-const MAX_CONFIG_FILE_BYTES = 1 * 1024 * 1024;
-const MAX_RESUME_FILE_BYTES = 256 * 1024 * 1024;
+const format = @import("wdbx_simulate_format.zig");
+const options = @import("wdbx_simulate_options.zig");
 
-pub fn help() u8 {
-    std.debug.print(
-        \\usage: abi wdbx simulate [options]
-        \\
-        \\Run a bounded multiway (Wolfram-style) string-rewriting experiment.
-        \\Simulates a finite, explicitly bounded slice of rule space; it does not
-        \\enumerate "the ruliad" and makes no physics claims.
-        \\
-        \\Rules & initial states
-        \\  --initial <STATE>        Initial state (repeatable; at least one required)
-        \\  --rule '<LHS->RHS>'      Inline rewriting rule (repeatable)
-        \\  --rules-file <PATH>      One rule per line; blank lines and # comments ignored
-        \\  --config <PATH>          JSON experiment config (flags override file values)
-        \\
-        \\Bounds (hard limits; partial results are returned when one is reached)
-        \\  --depth <N>              Maximum depth (default 5)
-        \\  --max-states <N>         Maximum unique states (default 10000)
-        \\  --max-events <N>         Maximum events (default 100000)
-        \\  --max-payload <N>        Maximum state payload bytes (default 4096)
-        \\  --deadline-ms <N>        Wall-clock budget in ms (0 = unlimited)
-        \\  --max-memory <N>         Approximate engine memory budget in bytes (0 = unlimited)
-        \\
-        \\Reproducibility
-        \\  --seed <N>               Recorded random seed (engine is deterministic)
-        \\  --workers <N>            Recorded worker count (expansion is single-threaded)
-        \\
-        \\Output & persistence
-        \\  --format <summary|json|dot>  Output format (default summary)
-        \\  --output <PATH>          Write json/dot export to a file instead of printing
-        \\  --store <PATH>           Persist experiment into a WDBX checkpoint at PATH
-        \\  --resume <PATH>          Resume from a canonical JSON export file
-        \\  --resume-wdbx <PATH>     Resume from the latest experiment in a WDBX checkpoint
-        \\  --dry-run                Validate configuration and print the plan, then exit
-        \\  --quiet                  Suppress the human summary
-        \\  --verbose                Print per-depth tables and extra detail
-        \\
-        \\Ctrl-C cancels a running experiment; the partial result is still
-        \\summarized/exported with termination reason "cancelled".
-        \\
-        \\example:
-        \\  abi wdbx simulate --initial A --rule 'A->AB' --rule 'A->BA' --rule 'BB->A' \
-        \\      --depth 5 --max-states 500 --max-events 5000 --format json --output experiment.json
-        \\
-    , .{});
-    return 0;
-}
-
-fn diag(comptime fmt: []const u8, args: anytype) u8 {
-    std.debug.print("simulate: " ++ fmt ++ "\n", .{} ++ args);
-    return 2;
-}
+pub const help = format.help;
+const diag = format.diag;
+const printSummary = format.printSummary;
+const Options = options.Options;
+const parseRuleLine = options.parseRuleLine;
+const loadRulesFile = options.loadRulesFile;
+const loadConfigFile = options.loadConfigFile;
+const parseUintFlag = options.parseUintFlag;
+const stringFlag = options.stringFlag;
+const MAX_RESUME_FILE_BYTES = options.MAX_RESUME_FILE_BYTES;
 
 var sigint_cancel = std.atomic.Value(bool).init(false);
 
@@ -92,167 +50,6 @@ fn installCancelHandler() void {
             posix.sigaction(posix.SIG.INT, &handler, null);
         },
     }
-}
-
-const Options = struct {
-    initial: std.ArrayListUnmanaged([]const u8) = .empty,
-    rules: std.ArrayListUnmanaged(wdbx.multiway.Rule) = .empty,
-    max_depth: ?u32 = null,
-    max_states: ?u32 = null,
-    max_events: ?u32 = null,
-    max_payload: ?u32 = null,
-    max_duration_ms: ?u64 = null,
-    max_memory_bytes: ?u64 = null,
-    seed: ?u64 = null,
-    workers: ?u32 = null,
-    format: enum { summary, json, dot } = .summary,
-    output: ?[]const u8 = null,
-    store: ?[]const u8 = null,
-    resume_file: ?[]const u8 = null,
-    resume_wdbx: ?[]const u8 = null,
-    dry_run: bool = false,
-    quiet: bool = false,
-    verbose: bool = false,
-};
-
-fn parseRuleLine(allocator: std.mem.Allocator, opts: *Options, text: []const u8, origin: []const u8) !?u8 {
-    const rule = wdbx.multiway.parseRule(allocator, text) catch |err| switch (err) {
-        error.MissingArrow => return diag("invalid rule '{s}' ({s}): expected 'LHS->RHS'", .{ text, origin }),
-        error.EmptyLhs => return diag("invalid rule '{s}' ({s}): left-hand side must be non-empty", .{ text, origin }),
-        error.OutOfMemory => return error.OutOfMemory,
-    };
-    try opts.rules.append(allocator, rule);
-    return null;
-}
-
-fn loadRulesFile(io: std.Io, allocator: std.mem.Allocator, opts: *Options, path: []const u8) !?u8 {
-    const content = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(MAX_RULE_FILE_BYTES)) catch |err| {
-        return diag("cannot read rules file '{s}': {s}", .{ path, @errorName(err) });
-    };
-    var lines = std.mem.splitScalar(u8, content, '\n');
-    while (lines.next()) |raw| {
-        const line = std.mem.trim(u8, raw, " \t\r");
-        if (line.len == 0 or line[0] == '#') continue;
-        if (try parseRuleLine(allocator, opts, line, path)) |code| return code;
-    }
-    return null;
-}
-
-fn jsonUint(value: std.json.Value) ?u64 {
-    return switch (value) {
-        .integer => |n| if (n < 0) null else @intCast(n),
-        else => null,
-    };
-}
-
-fn loadConfigFile(io: std.Io, allocator: std.mem.Allocator, opts: *Options, path: []const u8) !?u8 {
-    const content = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(MAX_CONFIG_FILE_BYTES)) catch |err| {
-        return diag("cannot read config file '{s}': {s}", .{ path, @errorName(err) });
-    };
-    const parsed = std.json.parseFromSliceLeaky(std.json.Value, allocator, content, .{}) catch {
-        return diag("config file '{s}' is not valid JSON", .{path});
-    };
-    const root = switch (parsed) {
-        .object => |obj| obj,
-        else => return diag("config file '{s}': top level must be a JSON object", .{path}),
-    };
-    if (root.get("initial")) |value| {
-        const arr = switch (value) {
-            .array => |a| a,
-            else => return diag("config '{s}': \"initial\" must be an array of strings", .{path}),
-        };
-        for (arr.items) |item| {
-            const text = switch (item) {
-                .string => |s| s,
-                else => return diag("config '{s}': \"initial\" entries must be strings", .{path}),
-            };
-            try opts.initial.append(allocator, try allocator.dupe(u8, text));
-        }
-    }
-    if (root.get("rules")) |value| {
-        const arr = switch (value) {
-            .array => |a| a,
-            else => return diag("config '{s}': \"rules\" must be an array", .{path}),
-        };
-        for (arr.items) |item| {
-            switch (item) {
-                .string => |text| {
-                    if (try parseRuleLine(allocator, opts, text, path)) |code| return code;
-                },
-                .object => |obj| {
-                    const text = switch (obj.get("rule") orelse return diag("config '{s}': rule object missing \"rule\"", .{path})) {
-                        .string => |s| s,
-                        else => return diag("config '{s}': rule object \"rule\" must be a string", .{path}),
-                    };
-                    if (try parseRuleLine(allocator, opts, text, path)) |code| return code;
-                    const rule = &opts.rules.items[opts.rules.items.len - 1];
-                    if (obj.get("weight")) |weight_value| {
-                        rule.weight = switch (weight_value) {
-                            .float => |f| f,
-                            .integer => |n| @floatFromInt(n),
-                            else => return diag("config '{s}': rule \"weight\" must be a number", .{path}),
-                        };
-                    }
-                    if (obj.get("family")) |family_value| {
-                        rule.family = switch (family_value) {
-                            .string => |s| try allocator.dupe(u8, s),
-                            else => return diag("config '{s}': rule \"family\" must be a string", .{path}),
-                        };
-                    }
-                },
-                else => return diag("config '{s}': \"rules\" entries must be strings or objects", .{path}),
-            }
-        }
-    }
-    const uint_fields = .{
-        .{ "max_depth", "max_depth" },
-        .{ "max_states", "max_states" },
-        .{ "max_events", "max_events" },
-        .{ "max_payload", "max_payload" },
-    };
-    inline for (uint_fields) |field| {
-        if (root.get(field[0])) |value| {
-            const n = jsonUint(value) orelse return diag("config '{s}': \"{s}\" must be a non-negative integer", .{ path, field[0] });
-            if (n > std.math.maxInt(u32)) return diag("config '{s}': \"{s}\" too large", .{ path, field[0] });
-            @field(opts, field[1]) = @intCast(n);
-        }
-    }
-    if (root.get("max_duration_ms")) |value| {
-        opts.max_duration_ms = jsonUint(value) orelse return diag("config '{s}': \"max_duration_ms\" must be a non-negative integer", .{path});
-    }
-    if (root.get("max_memory_bytes")) |value| {
-        opts.max_memory_bytes = jsonUint(value) orelse return diag("config '{s}': \"max_memory_bytes\" must be a non-negative integer", .{path});
-    }
-    if (root.get("seed")) |value| {
-        opts.seed = jsonUint(value) orelse return diag("config '{s}': \"seed\" must be a non-negative integer", .{path});
-    }
-    if (root.get("workers")) |value| {
-        const n = jsonUint(value) orelse return diag("config '{s}': \"workers\" must be a non-negative integer", .{path});
-        if (n == 0 or n > std.math.maxInt(u32)) return diag("config '{s}': \"workers\" out of range", .{path});
-        opts.workers = @intCast(n);
-    }
-    return null;
-}
-
-fn parseUintFlag(comptime T: type, args: []const []const u8, index: *usize, flag: []const u8) !?T {
-    if (index.* + 1 >= args.len) {
-        _ = diag("{s} requires a value", .{flag});
-        return error.Reported;
-    }
-    index.* += 1;
-    return std.fmt.parseInt(T, args[index.*], 10) catch {
-        _ = diag("{s}: '{s}' is not a valid non-negative integer", .{ flag, args[index.*] });
-        return error.Reported;
-    };
-}
-
-fn stringFlag(args: []const []const u8, index: *usize, flag: []const u8) ![]const u8 {
-    if (index.* + 1 >= args.len) {
-        _ = diag("{s} requires a value", .{flag});
-        return error.Reported;
-    }
-    index.* += 1;
-    return args[index.*];
 }
 
 /// Entry point; `args` is the full argv (`abi wdbx simulate ...`).
@@ -469,60 +266,6 @@ fn resumeOrDiag(allocator: std.mem.Allocator, export_json: []const u8, config: w
         return null;
     };
 }
-
-fn printSummary(result: *const wdbx.multiway.Result, metrics: *const wdbx.multiway.Metrics, export_hash: *const [64]u8, verbose: bool) void {
-    const elapsed_ms = @as(f64, @floatFromInt(result.elapsed_ns)) / @as(f64, std.time.ns_per_ms);
-    const elapsed_s = @max(elapsed_ms / 1000.0, 1e-9);
-    std.debug.print(
-        \\multiway simulation
-        \\  states (unique):        {d}
-        \\  events:                 {d}
-        \\  transitions (unique):   {d}
-        \\  termination:            {s}
-        \\  exhaustive in domain:   {}
-        \\  mean out-degree:        {d:.3} (unique transitions / unique states)
-        \\  max out-degree:         {d}
-        \\  median out-degree:      {d:.1}
-        \\  convergent states:      {d} (distinct-predecessor in-degree > 1)
-        \\  self-loops:             {d}
-        \\  cycle present:          {}
-        \\  weakly connected comps: {d}
-        \\  payload bytes max/mean: {d}/{d:.2}
-        \\  runtime:                {d:.3} ms ({d:.0} states/s, {d:.0} events/s)
-        \\  export sha256:          {s}
-        \\
-    , .{
-        metrics.unique_states,
-        metrics.event_count,
-        metrics.unique_transitions,
-        metrics.termination.label(),
-        metrics.exhaustive,
-        metrics.mean_out_degree,
-        metrics.max_out_degree,
-        metrics.median_out_degree,
-        metrics.convergent_states,
-        metrics.self_loops,
-        metrics.has_cycle,
-        metrics.weakly_connected_components,
-        metrics.max_payload_bytes,
-        metrics.mean_payload_bytes,
-        elapsed_ms,
-        @as(f64, @floatFromInt(metrics.unique_states)) / elapsed_s,
-        @as(f64, @floatFromInt(metrics.event_count)) / elapsed_s,
-        export_hash,
-    });
-    if (verbose) {
-        std.debug.print("  depth  states  events  growth\n", .{});
-        for (metrics.states_per_depth, 0..) |states, depth| {
-            const growth: f64 = if (depth >= 1 and depth - 1 < metrics.growth_rates.len) metrics.growth_rates[depth - 1] else 0.0;
-            std.debug.print("  {d: >5}  {d: >6}  {d: >6}  {d: >6.2}\n", .{ depth, states, metrics.events_per_depth[depth], growth });
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Tests (run through the public wdbx handler surface)
-// ---------------------------------------------------------------------------
 
 const handleWdbx = @import("wdbx.zig").handleWdbx;
 const test_helpers = @import("abi").foundation.test_helpers;
