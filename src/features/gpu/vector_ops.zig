@@ -193,6 +193,22 @@ pub const VectorOps = struct {
         cpuRelu(values, out);
     }
 
+    /// `out[i] = fabs(values[i])`. Metal `abs_kernel` when initialized;
+    /// otherwise host loop. No speedup claim.
+    pub fn abs(self: VectorOps, values: []const f32, out: []f32) !void {
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+
+        if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runAbs(values, out) catch |err| {
+                std.log.warn("Metal abs failed ({s}); using CPU fallback", .{@errorName(err)});
+                cpuAbs(values, out);
+            };
+        }
+
+        cpuAbs(values, out);
+    }
+
     /// Flattens `candidates` (non-contiguous, pointing into HNSW/caller
     /// storage) into one contiguous host buffer of `candidates.len * query.len`
     /// floats and dispatches the fused batched Metal kernel in a single
@@ -310,6 +326,10 @@ fn cpuScale(values: []const f32, factor: f32, out: []f32) void {
 
 fn cpuRelu(values: []const f32, out: []f32) void {
     for (values, out) |v, *slot| slot.* = @max(v, 0);
+}
+
+fn cpuAbs(values: []const f32, out: []f32) void {
+    for (values, out) |v, *slot| slot.* = @abs(v);
 }
 
 pub fn executeKernel(spec: backends.KernelSpec) !backends.KernelResult {
@@ -637,6 +657,18 @@ test "gpu relu matches independent scalar reference (CPU/GPU parity)" {
     for (values, &expected) |v, *slot| slot.* = @max(v, 0);
     var out: [values.len]f32 = undefined;
     try ops.relu(&values, &out);
+    for (expected, out) |exp, got| {
+        try std.testing.expectApproxEqAbs(exp, got, 1e-4);
+    }
+}
+
+test "gpu abs matches independent scalar reference (CPU/GPU parity)" {
+    const ops = vectorOps();
+    const values = [_]f32{ 1.0, -2.0, 0.0, 4.0, -0.25, 0.5 };
+    var expected: [values.len]f32 = undefined;
+    for (values, &expected) |v, *slot| slot.* = @abs(v);
+    var out: [values.len]f32 = undefined;
+    try ops.abs(&values, &out);
     for (expected, out) |exp, got| {
         try std.testing.expectApproxEqAbs(exp, got, 1e-4);
     }

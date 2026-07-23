@@ -145,6 +145,13 @@ pub const VectorOps = struct {
         if (out.len != values.len) return error.DimensionMismatch;
         for (values, out) |v, *slot| slot.* = @max(v, 0);
     }
+
+    pub fn abs(self: VectorOps, values: []const f32, out: []f32) !void {
+        _ = self;
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+        for (values, out) |v, *slot| slot.* = @abs(v);
+    }
 };
 
 pub fn backendName(backend: Backend) []const u8 {
