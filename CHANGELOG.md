@@ -6,6 +6,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- feat(gpu): Metal elementwise `sub_kernel` wired through `compute_api.map(.sub)` / `reduce(.sub)` (+ stub parity) — still not a general GPU speedup / CUDA / ANE claim.
 - feat(gpu): Metal elementwise `add_kernel` wired through `compute_api.map(.add)` / `reduce(.add)` with CPU fallback and parity tests — still not a general GPU speedup / CUDA / ANE claim.
 - feat(gpu): bounded Metal softmax (`softmax_kernel` + `softmax_norm_kernel`) with host-side max/partition-sum, CPU fallback, and CPU/GPU parity tests — demo-grade; CUDA/Vulkan/ANE remain non-goals.
 - docs(ops): claim-honest non-loopback REST/MCP HTTP threat review (`docs/spec/non-loopback-rest-threat-review.mdx`) — proxy TLS preferred, native TLS deferred, not a hardened-expose claim.
@@ -14,6 +15,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Changed
 
+- fix(auth): non-macOS `ABI_CREDENTIALS_BACKEND=keychain` falls back to the file store for load/save; `abi auth status` discloses the request (`using file — Windows/Linux Proposed`); keychain clear is a no-op off-macOS.
 - fix(auth): `abi auth status` discloses non-macOS `ABI_CREDENTIALS_BACKEND=keychain` as unsupported (Windows/Linux Proposed) instead of implying an active macOS keychain; Backend line prints before credential load so `KeychainUnsupported` no longer hides the disclosure.
 - docs(claims): sync north-star / external-claims / README / public-api / claim-boundaries with demo-grade Metal softmax alongside fused cosine/dot/L2 + multi-pass reduce.
 - perf(gpu): Metal dispatch CQ — shared `MetalDispatch` helper; map+reduce and fused cosine chain multi-pass `reduce_sum` in one command buffer (no host re-upload thrash); Metal failures log then explicit CPU fallback. Broader kernels / CUDA / ANE remain Proposed.

@@ -22,6 +22,7 @@ pub const MetalContext = struct {
     dot_pipeline: ?*anyopaque = null,
     l2_pipeline: ?*anyopaque = null,
     add_pipeline: ?*anyopaque = null,
+    sub_pipeline: ?*anyopaque = null,
     cosine_parts_pipeline: ?*anyopaque = null,
     batch_cosine_pipeline: ?*anyopaque = null,
     reduce_sum_pipeline: ?*anyopaque = null,
@@ -76,6 +77,15 @@ pub const MetalContext = struct {
             \\    uint id [[thread_position_in_grid]]
             \\) {
             \\    result[id] = a[id] + b[id];
+            \\}
+            \\
+            \\kernel void sub_kernel(
+            \\    device const float* a [[buffer(0)]],
+            \\    device const float* b [[buffer(1)]],
+            \\    device float* result [[buffer(2)]],
+            \\    uint id [[thread_position_in_grid]]
+            \\) {
+            \\    result[id] = a[id] - b[id];
             \\}
             \\
             \\kernel void cosine_parts_kernel(
@@ -219,6 +229,9 @@ pub const MetalContext = struct {
         const add_func_name = try createNSString(allocator, "add_kernel") orelse return error.CreateStringFailed;
         const add_func = msg_send_id_ret_id(library, sel_newFunctionWithName, add_func_name) orelse return error.FunctionNotFound;
 
+        const sub_func_name = try createNSString(allocator, "sub_kernel") orelse return error.CreateStringFailed;
+        const sub_func = msg_send_id_ret_id(library, sel_newFunctionWithName, sub_func_name) orelse return error.FunctionNotFound;
+
         const cosine_func_name = try createNSString(allocator, "cosine_parts_kernel") orelse return error.CreateStringFailed;
         const cosine_func = msg_send_id_ret_id(library, sel_newFunctionWithName, cosine_func_name) orelse return error.FunctionNotFound;
 
@@ -242,6 +255,10 @@ pub const MetalContext = struct {
         err = null;
         self.add_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, add_func, @ptrCast(&err));
         if (self.add_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
+        self.sub_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, sub_func, @ptrCast(&err));
+        if (self.sub_pipeline == null) return error.CreatePipelineStateFailed;
 
         err = null;
         self.cosine_parts_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, cosine_func, @ptrCast(&err));
@@ -275,6 +292,7 @@ pub const MetalContext = struct {
         msg_send_void_ret_void(dot_func, sel_release);
         msg_send_void_ret_void(l2_func, sel_release);
         msg_send_void_ret_void(add_func, sel_release);
+        msg_send_void_ret_void(sub_func, sel_release);
         msg_send_void_ret_void(cosine_func, sel_release);
         msg_send_void_ret_void(batch_cosine_func, sel_release);
         msg_send_void_ret_void(reduce_func, sel_release);
@@ -284,6 +302,7 @@ pub const MetalContext = struct {
         msg_send_void_ret_void(dot_func_name, sel_release);
         msg_send_void_ret_void(l2_func_name, sel_release);
         msg_send_void_ret_void(add_func_name, sel_release);
+        msg_send_void_ret_void(sub_func_name, sel_release);
         msg_send_void_ret_void(cosine_func_name, sel_release);
         msg_send_void_ret_void(batch_cosine_func_name, sel_release);
         msg_send_void_ret_void(reduce_func_name, sel_release);
