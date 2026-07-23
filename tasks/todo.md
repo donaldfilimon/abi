@@ -14,7 +14,7 @@ Landed on `main` via [#676](https://github.com/donaldfilimon/abi/pull/676) (`cur
 
 | Track | Ask | Status | Source of truth | Residual (do NOT fake-complete) |
 | ----- | --- | ------ | --------------- | ------------------------------- |
-| **A** | In-process streaming — real incremental local generator | ◑ Done for template path | `src/features/ai/incremental.zig`; TUI `stream=incremental` | Neural LM / ggml in-process sampler (needs embedded runtime). Post-hoc path remains labeled where used. |
+| **A** | In-process streaming — real incremental local generator | ◑ Done for template path | `src/features/ai/incremental.zig`; TUI `stream=incremental` | Neural LM / ggml in-process sampler (needs embedded runtime). Post-hoc path remains labeled where used. Char-LM `--neural` demo landed (not LLM). |
 | **B** | Metal native kernels for `vectorOps` hot paths (Zig+Metal only) | ◑ Partial | Metal fused cosine/dot/L2 + elementwise add/sub/max/min/div (`compute_api`) + unary scale/relu + multi-pass `reduce_sum_kernel` / `reduce_max_kernel` / `reduce_min_kernel` + demo-grade softmax (on-GPU max when available) | Broader kernels; CUDA/Vulkan. **ANE = non-goal**. |
 | **C** | Windows credential ACL + secret zeroing; runtime verify CI-blocked | ◑ Partial | Win32 SDDL owner-only DACL on credential write; POSIX `secureZero` / `secureWipe`; macOS login keychain via `ABI_CREDENTIALS_BACKEND=keychain` (`src/foundation/keychain.zig`, Security.framework `SecItem*`) | Windows/Linux keychain still Proposed. **Windows runtime verification** needs a Windows host/runner (cross-smoke = compile-only). |
 | **D** | Lossless ANS/order-1 demo next to Huffman — not SOTA | ✅ Demo landed | `src/features/wdbx/ans.zig` + `abi wdbx secure demo` | Production/SOTA learned codec (ANS/arithmetic/context-model at scale). |
@@ -54,7 +54,7 @@ Frozen surfaces: **13 CLI commands**, **12 MCP tools** — extend via flags/subc
 | Local llama-cpp / OpenAI-compat bridge | ◑ Landed (HTTP) | `local_bridge.zig`; env `ABI_LLAMA_CPP_ENDPOINT`. Not embedded ggml. SSE when server streams. |
 | MLX bridge / on-device FM | ◑ Partial | HTTP `ABI_MLX_ENDPOINT`; Apple FM separate (`feat-foundationmodels`). ANE non-goal. |
 | Codex/claude-code TUI parity | ◑ Partial | Line editor, slash-cmds (`/open` `/diff` `/commit` `/context` `/features` `/learn` `/live` `/pane` / sessions…), plugins, multi-turn, `/pane`, live Anthropic SSE, `stream=incremental` footers. Residual: neural LM sampler. |
-| Streaming completion | ◑ Partial (improved) | Template: **during-generation** emit via `incremental.zig`. Bridge + Anthropic: SSE. Residual: ggml/neural sampler. |
+| Streaming completion | ◑ Partial (improved) | Template: **during-generation** emit via `incremental.zig`. Bridge + Anthropic: SSE. `--neural` chunked char-LM. Residual: ggml sampler. |
 | File-aware agent context | ✅ Landed (v2) | `@file` + fair-share budget + workspace tree + plan/multi git diff. |
 | Zero-copy RankedNode / SearchResult views | ✅ Done | Borrowed `vector` views; lifetime ends at next store mutation. |
 | Trainable PointNeuralNetwork + SoulLayout | ✅ Done | Wired through train + `--soul` / `--soul-alpha`. |
