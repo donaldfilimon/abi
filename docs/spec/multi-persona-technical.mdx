@@ -54,6 +54,8 @@ graph TD
 | Area | Source | Current role |
 | --- | --- | --- |
 | Public root | `src/root.zig` | Exposes the `abi` module namespace. |
+| Identity contract | `src/features/ai/identity.zig` | Profiles, default routing prior, operating protocol, capability claim map, Primary Declaration (product direction). |
+| Persona templates | `src/features/ai/incremental.zig` | Iterative local template generation; prefix/suffix from `identity.profileContract`. |
 | AI module | `src/features/ai/mod.zig` | Completion, training metadata acceptance, WDBX persistence integration, fixed-trio multi-agent entrypoint. |
 | Orchestration | `src/features/ai/orchestration.zig` | Custom worker specs, background scheduler batch, browser local dry-run plan (`embedded_browser=false`). |
 | AI router | `src/features/ai/router.zig` | Keyword-weighted routing, profile selection, optional EMA smoothing. |
@@ -64,11 +66,15 @@ graph TD
 | CLI | `src/cli/` | Frozen command surface and handlers. |
 | MCP | `src/mcp/` | JSON-RPC 2.0 stdio and optional loopback HTTP/SSE tool surface. |
 
+Canonical product identity (roles, privacy, epistemic discipline, evidence map):
+[`abbey-core-identity.mdx`](./abbey-core-identity).
+
 ## 3. Persona Routing
 
-Routing is deterministic and local. `src/features/ai/router.zig` starts with an
-Abbey-primary prior (`0.40 / 0.30 / 0.30`) and adjusts it when keyword patterns
-are found in the input. A neutral input therefore selects Abbey.
+Routing is deterministic and local. `src/features/ai/router.zig` starts from
+`identity.DEFAULT_*_WEIGHT` (currently Abbey-primary
+`0.40 / 0.30 / 0.30`) and adjusts when keyword patterns are found in the input.
+A neutral input therefore selects Abbey.
 
 Current examples from the router keyword table include:
 

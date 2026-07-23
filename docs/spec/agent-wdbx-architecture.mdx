@@ -5,10 +5,16 @@ description: "Source-backed overview of how the ABI agent layer composes with WD
 
 ABI is a local AI runtime with two tightly coupled layers:
 
-- **ABI Agent layer**: routing, completion, training, scheduling, CLI/MCP exposure, plugins, connector boundaries, and constitution checks.
+- **ABI Agent layer**: Abbey/Aviva/ABI persona routing, completion, training, scheduling, CLI/MCP exposure, plugins, connector boundaries, and constitution checks.
 - **WDBX layer**: in-process key/value, vector, block, spatial, temporal/causal retrieval, snapshot/WAL/segment persistence, and reference-scoped runtime demos.
 
 The useful mental model is: **ABI is the control plane; WDBX is the memory plane.** The agent layer decides how a request is routed, validated, scheduled, and optionally persisted. WDBX stores the records, vectors, metadata, linked blocks, and retrieval graph that make later local recall possible.
+
+Product identity and claim-honest role boundaries for Abbey (primary), Aviva
+(direct expert), ABI (orchestration), and WDBX (memory substrate) live in
+[`abbey-core-identity.mdx`](./abbey-core-identity) and
+`src/features/ai/identity.zig`. Runtime routing detail is in
+[`multi-persona-technical.mdx`](./multi-persona-technical).
 
 This page describes current repo-backed behavior. When this overview disagrees with `build.zig`, `src/`, `tests/contracts/`, or the build gates, the executable source wins.
 

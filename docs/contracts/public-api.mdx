@@ -48,6 +48,25 @@ The WDBX store contract exposes key-value counts, vector counts, block counts, s
 
 This contract does not prove distributed sharding, AES-256 encryption, RBAC, Swift/Python/TensorFlow implementations, Kubernetes/H100 deployments, regulatory certifications, production QPS/latency/accuracy, energy-use, or comparative model-benchmark claims. Keep those out of public collateral unless they are backed by new executable tests, benchmark artifacts, or implementation files.
 
+## AI identity and multi-persona surface
+
+`abi.features.ai.identity` (`src/features/ai/identity.zig`) is the executable
+mirror of the Abbey Core Identity contract:
+
+- Abbey is the only `primary_user_facing` profile; Aviva is the direct expert
+  mode; ABI is the orchestration/governance profile.
+- Default routing prior is Abbey-primary (`DEFAULT_ABBEY_WEIGHT` /
+  `DEFAULT_AVIVA_WEIGHT` / `DEFAULT_ABI_WEIGHT`); keyword evidence may still
+  select Aviva or ABI.
+- `primary_declaration` is product direction, not proof that every named
+  capability is Current.
+- `capability_claims` map areas such as visual generation, distributed AI, and
+  empirical benchmarks to Current / Partial / Proposed with explicit boundaries.
+
+Human-readable companion: `docs/spec/abbey-core-identity.mdx`. Local profile
+responses remain deterministic templates via `incremental.zig` /
+`router.zig` — not live model quality or distributed multi-host claims.
+
 ## AI/WDBX completion contract
 
 `abi.features.ai.CompletionRequest.store_result` defaults to `false`. `completeWithStore()` must not mutate WDBX when storage is not requested, when input is invalid, or when WDBX is disabled.
