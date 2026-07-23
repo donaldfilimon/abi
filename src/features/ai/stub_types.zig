@@ -147,6 +147,8 @@ pub const CompletionRequest = struct {
     /// Mirrors the real explicit-consent persistence switch. Disabled AI never
     /// persists a completion regardless of this value.
     store_result: bool = false,
+    /// Mirrors real `routing_input` (persona routing text when `input` is augmented).
+    routing_input: ?[]const u8 = null,
     stream_callback: ?StreamCallback = null,
     stream_ctx: ?*anyopaque = null,
 };

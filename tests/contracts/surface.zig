@@ -198,6 +198,10 @@ test "nested feature public surfaces are frozen across feature flags" {
     try std.testing.expect(@hasDecl(ai.profile.ProfileWeights, "normalize"));
     try std.testing.expect(@hasDecl(ai.profile, "SentimentKeyword"));
     try std.testing.expect(@hasDecl(ai.profile, "SENTIMENT_KEYWORDS"));
+    try std.testing.expect(@hasDecl(ai.profile, "explicitProfileSelector"));
+    try std.testing.expectEqual(ai.AgentProfile.aviva, ai.profile.explicitProfileSelector("Aviva, be direct.").?);
+    try std.testing.expectEqual(ai.AgentProfile.abi, ai.profile.explicitProfileSelector("ABI, orchestrate this.").?);
+    try std.testing.expect(ai.profile.explicitProfileSelector("stability") == null);
     try std.testing.expect(@hasDecl(ai, "identity"));
     try std.testing.expect(@hasDecl(ai.identity, "primary_declaration"));
     try std.testing.expect(@hasDecl(ai.identity, "capability_claims"));

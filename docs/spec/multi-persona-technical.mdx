@@ -76,6 +76,12 @@ Routing is deterministic and local. `src/features/ai/router.zig` starts from
 `0.40 / 0.30 / 0.30`) and adjusts when keyword patterns are found in the input.
 A neutral input therefore selects Abbey.
 
+An exact leading persona address overrides the heuristic: for example,
+`Aviva, be direct.` selects Aviva and `ABI, orchestrate this.` selects ABI.
+Selection requires a complete leading name token, so `abi` embedded inside a
+larger word does not select the ABI profile. Explicit selection also takes
+precedence over adaptive EMA and optional soul-network blending for that turn.
+
 Current examples from the router keyword table include:
 
 - Abbey-oriented terms include analytical, explanatory, creative, empathetic,
@@ -121,8 +127,12 @@ Profile responses are currently deterministic local strings, not live network mo
 The metadata labels generated completions as `authority=inferred` and
 `epistemic_status=generated_output`, records that persistence came from the
 explicit `store_result` switch, and omits raw prompt/response text. SEA recall
-uses explicit authority as a trust-weighted ranking signal and defaults missing
-or unknown authority to `inferred` rather than promoting it.
+parses exact top-level JSON fields. Generic WDBX key/value metadata is
+self-asserted, so its authority is always downgraded to `inferred`; nested
+fields, textual spoofs, malformed JSON, and unrecognized values cannot promote
+a record. Higher authority requires a separately trusted ingestion boundary.
+Every returned evidence set is sorted by its final score, with vector id as a
+deterministic tie-breaker.
 
 When WDBX is disabled, storage paths return explicit disabled-feature behavior rather than fabricating persistence success.
 

@@ -4,6 +4,7 @@
 const std = @import("std");
 const scheduler_mod = @import("../../core/scheduler.zig");
 const types = @import("types.zig");
+const identity = @import("identity.zig");
 
 pub const AgentConfig = types.AgentConfig;
 pub const AgentResult = types.AgentResult;
@@ -155,9 +156,9 @@ pub fn freeWorkerSpecs(allocator: std.mem.Allocator, specs: []AgentWorkerSpec) v
 
 pub fn defaultTrioSpecs() [3]AgentWorkerSpec {
     return .{
-        .{ .name = "abbey", .instructions = "Analytical review and structured safety analysis.", .profile_override = .abbey, .tool_hints = &.{.plan} },
-        .{ .name = "aviva", .instructions = "Creative exploration and alternative perspectives.", .profile_override = .aviva, .tool_hints = &.{.explore} },
-        .{ .name = "abi", .instructions = "Concise action-oriented execution plan.", .profile_override = .abi, .tool_hints = &.{.plan} },
+        .{ .name = "abbey", .instructions = identity.profileContract(.abbey).description, .profile_override = .abbey, .tool_hints = &.{ .explore, .plan } },
+        .{ .name = "aviva", .instructions = identity.profileContract(.aviva).description, .profile_override = .aviva, .tool_hints = &.{.plan} },
+        .{ .name = "abi", .instructions = identity.profileContract(.abi).description, .profile_override = .abi, .tool_hints = &.{.plan} },
     };
 }
 
@@ -310,6 +311,24 @@ test "parse worker specs and tool hints" {
     try std.testing.expectEqualStrings("scout", specs[0].name);
     try std.testing.expectEqual(@as(usize, 2), specs[0].tool_hints.len);
     try std.testing.expect(specs[0].tool_hints[1] == .browser);
+}
+
+test "default trio role text matches canonical identity contracts" {
+    const specs = defaultTrioSpecs();
+    try std.testing.expectEqualStrings("abbey", specs[0].name);
+    try std.testing.expectEqualStrings(identity.profileContract(.abbey).description, specs[0].instructions);
+    try std.testing.expect(std.mem.indexOf(u8, specs[0].instructions, "Primary user-facing personality") != null);
+    try std.testing.expectEqual(AgentProfile.abbey, specs[0].profile_override.?);
+
+    try std.testing.expectEqualStrings("aviva", specs[1].name);
+    try std.testing.expectEqualStrings(identity.profileContract(.aviva).description, specs[1].instructions);
+    try std.testing.expect(std.mem.indexOf(u8, specs[1].instructions, "Focused response mode") != null);
+    try std.testing.expectEqual(AgentProfile.aviva, specs[1].profile_override.?);
+
+    try std.testing.expectEqualStrings("abi", specs[2].name);
+    try std.testing.expectEqualStrings(identity.profileContract(.abi).description, specs[2].instructions);
+    try std.testing.expect(std.mem.indexOf(u8, specs[2].instructions, "Orchestration, reasoning, policy") != null);
+    try std.testing.expectEqual(AgentProfile.abi, specs[2].profile_override.?);
 }
 
 test "parse worker specs without hints frees safely" {

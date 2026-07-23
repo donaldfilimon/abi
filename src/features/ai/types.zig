@@ -87,6 +87,10 @@ pub const CompletionRequest = struct {
     /// minimal provenance/audit metadata, and a linked block — not raw prompt or
     /// response text in the completion metadata record.
     store_result: bool = false,
+    /// Optional text used only for persona routing (explicit selector + sentiment
+    /// / EMA update). When null, `input` is used. SEA learn-loop passes the raw
+    /// user utterance here while `input` carries the evidence-augmented prompt.
+    routing_input: ?[]const u8 = null,
     /// Optional streaming callback. When set, persona/template generation emits
     /// word/token deltas **during** iterative generation (`stream=incremental`).
     /// This is not a neural LM sampler; live SSE paths remain separate.
