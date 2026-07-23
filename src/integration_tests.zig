@@ -559,4 +559,7 @@ test "wdbx tampered block detection: corrupted metadata invalidates verifyBlocks
 
 test {
     std.testing.refAllDecls(@This());
+    std.testing.refAllDecls(@import("tests/e2e_database_test.zig"));
+    std.testing.refAllDecls(@import("tests/e2e_llm_test.zig"));
+    std.testing.refAllDecls(@import("tests/stress_test.zig"));
 }

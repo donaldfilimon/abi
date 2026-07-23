@@ -14,6 +14,8 @@ push/PR (`docs-validate` job in [`.github/workflows/ci.yml`](../.github/workflow
 | [`contracts/*.mdx`](contracts/) | Frozen public surfaces + external claims audit | Yes |
 | [`spec/*.mdx`](spec/) | Architecture / north-star / ops (Current/Partial/Proposed) | Yes |
 | [`superpowers/`](superpowers/) | Working plans/specs + archive — **not** public contracts | No |
+| [`tutorials/`](tutorials/) | How-to guides (not in Mintlify nav) | No |
+| [`research/`](research/) | Research notes and PoC plans | No |
 
 ## Source of truth
 

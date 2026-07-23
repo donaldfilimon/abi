@@ -1,0 +1,24 @@
+name: Publish Benchmark Dashboard
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./tools/benchmark-dashboard
+
+# Publishes the static benchmark dashboard to GitHub Pages. Configure repository
+# Pages settings (source: gh-pages branch) as needed.
