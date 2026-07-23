@@ -1,7 +1,7 @@
 const std = @import("std");
 
-pub fn appendJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
-    try out.append(allocator, '"');
+/// Appends the escaped body of `value` without surrounding quotes.
+fn appendEscapedBody(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
     for (value) |byte| {
         switch (byte) {
             '"' => try out.appendSlice(allocator, "\\\""),
@@ -17,6 +17,11 @@ pub fn appendJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.All
             else => try out.append(allocator, byte),
         }
     }
+}
+
+pub fn appendJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
+    try out.append(allocator, '"');
+    try appendEscapedBody(out, allocator, value);
     try out.append(allocator, '"');
 }
 
@@ -35,30 +40,13 @@ pub fn escapeJsonString(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
 }
 
 pub fn jsonStringAlloc(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
-    var out: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer out.deinit(allocator);
-    try appendJsonString(&out, allocator, value);
-    return try out.toOwnedSlice(allocator);
+    return escapeJsonString(allocator, value);
 }
 
 pub fn escapeJsonStringRaw(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
     var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
-    for (value) |byte| {
-        switch (byte) {
-            '"' => try out.appendSlice(allocator, "\\\""),
-            '\\' => try out.appendSlice(allocator, "\\\\"),
-            '\n' => try out.appendSlice(allocator, "\\n"),
-            '\r' => try out.appendSlice(allocator, "\\r"),
-            '\t' => try out.appendSlice(allocator, "\\t"),
-            0x00...0x07 => try out.print(allocator, "\\u{X:0>4}", .{byte}),
-            0x08 => try out.appendSlice(allocator, "\\b"),
-            0x0c => try out.appendSlice(allocator, "\\f"),
-            0x0b => try out.print(allocator, "\\u{X:0>4}", .{byte}),
-            0x0e...0x1f => try out.print(allocator, "\\u{X:0>4}", .{byte}),
-            else => try out.append(allocator, byte),
-        }
-    }
+    try appendEscapedBody(&out, allocator, value);
     return try out.toOwnedSlice(allocator);
 }
 
