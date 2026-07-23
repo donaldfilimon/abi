@@ -345,3 +345,6 @@ legacy/
 # ── Sync marker files ──────────────────────────────────────
 /.agents/skills/.plugins-synced-from-central
 /src/plugins/.central-synced
+
+# ── Unrelated local projects ───────────────────────────────
+/alien-invasion/
