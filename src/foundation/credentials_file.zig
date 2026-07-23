@@ -141,7 +141,8 @@ fn restrictedPermissions(comptime mode: std.posix.mode_t) std.Io.File.Permission
 
 /// On Windows, set a DACL granting full access only to the owner (SDDL OW).
 /// No-op elsewhere. Runtime verification needs a Windows host (cross-smoke is
-/// compile-only). Keychain remains a disclosed gap.
+/// compile-only). macOS login keychain is a separate opt-in path
+/// (`ABI_CREDENTIALS_BACKEND=keychain`); Windows/Linux OS secret stores remain Proposed.
 fn applyWindowsOwnerOnlyAcl(path: []const u8) !void {
     if (comptime builtin.target.os.tag == .windows) {
         try windows_owner_acl.apply(path);

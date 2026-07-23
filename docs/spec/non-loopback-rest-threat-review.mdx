@@ -27,7 +27,7 @@ If an operator binds beyond loopback (or ports a reverse proxy to a public NIC) 
 2. **Cleartext credentials and payloads** on the wire when traffic is not terminated by an external TLS proxy.
 3. **Resource exhaustion** despite rate limits (amplification via large vectors, many clients, or shared-token abuse).
 4. **Confused-deputy / SSRF-style** use of local connectors if live credentials are present and an attacker can reach the loopback-adjacent host.
-5. **Integrity / confidentiality of WDBX stores** on disk — HTTP auth does not replace filesystem ACLs or keychain storage (Windows ACL Partial; OS keychain still Proposed).
+5. **Integrity / confidentiality of WDBX stores** on disk — HTTP auth does not replace filesystem ACLs or keychain storage (Windows ACL Partial compile-only; macOS login keychain Partial via `ABI_CREDENTIALS_BACKEND=keychain`; Windows/Linux OS secret stores still Proposed).
 
 ## Decisions (claim-honest)
 

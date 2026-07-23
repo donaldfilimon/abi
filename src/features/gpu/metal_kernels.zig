@@ -25,9 +25,13 @@ pub const MetalContext = struct {
     sub_pipeline: ?*anyopaque = null,
     max_pipeline: ?*anyopaque = null,
     min_pipeline: ?*anyopaque = null,
+    div_pipeline: ?*anyopaque = null,
+    scale_pipeline: ?*anyopaque = null,
+    relu_pipeline: ?*anyopaque = null,
     cosine_parts_pipeline: ?*anyopaque = null,
     batch_cosine_pipeline: ?*anyopaque = null,
     reduce_sum_pipeline: ?*anyopaque = null,
+    reduce_max_pipeline: ?*anyopaque = null,
     softmax_pipeline: ?*anyopaque = null,
     softmax_norm_pipeline: ?*anyopaque = null,
     initialized: bool = false,
@@ -106,6 +110,33 @@ pub const MetalContext = struct {
             \\    uint id [[thread_position_in_grid]]
             \\) {
             \\    result[id] = min(a[id], b[id]);
+            \\}
+            \\
+            \\kernel void div_kernel(
+            \\    device const float* a [[buffer(0)]],
+            \\    device const float* b [[buffer(1)]],
+            \\    device float* result [[buffer(2)]],
+            \\    uint id [[thread_position_in_grid]]
+            \\) {
+            \\    result[id] = a[id] / b[id];
+            \\}
+            \\
+            \\// out[id] = a[id] * scale (unary + scalar constant).
+            \\kernel void scale_kernel(
+            \\    device const float* in [[buffer(0)]],
+            \\    constant float& scale [[buffer(1)]],
+            \\    device float* out [[buffer(2)]],
+            \\    uint id [[thread_position_in_grid]]
+            \\) {
+            \\    out[id] = in[id] * scale;
+            \\}
+            \\
+            \\kernel void relu_kernel(
+            \\    device const float* in [[buffer(0)]],
+            \\    device float* out [[buffer(1)]],
+            \\    uint id [[thread_position_in_grid]]
+            \\) {
+            \\    out[id] = max(in[id], 0.0f);
             \\}
             \\
             \\kernel void cosine_parts_kernel(
@@ -191,6 +222,28 @@ pub const MetalContext = struct {
             \\    if (lid == 0u) partials[tgid] = shared[0];
             \\}
             \\
+            \\// One partial max per threadgroup (256 threads). Empty lanes use
+            \\// -INFINITY so they do not win the tree reduction. Zig encodeReduce*
+            \\// re-dispatches until a single scalar remains (multi-pass).
+            \\kernel void reduce_max_kernel(
+            \\    device const float* in [[buffer(0)]],
+            \\    device float* partials [[buffer(1)]],
+            \\    constant uint& n [[buffer(2)]],
+            \\    uint lid [[thread_position_in_threadgroup]],
+            \\    uint tgid [[threadgroup_position_in_grid]]
+            \\) {
+            \\    threadgroup float shared[256];
+            \\    const uint lsize = 256u;
+            \\    uint i = tgid * lsize + lid;
+            \\    shared[lid] = (i < n) ? in[i] : -INFINITY;
+            \\    threadgroup_barrier(mem_flags::mem_threadgroup);
+            \\    for (uint stride = lsize / 2u; stride > 0u; stride >>= 1u) {
+            \\        if (lid < stride) shared[lid] = max(shared[lid], shared[lid + stride]);
+            \\        threadgroup_barrier(mem_flags::mem_threadgroup);
+            \\    }
+            \\    if (lid == 0u) partials[tgid] = shared[0];
+            \\}
+            \\
             \\// exp(x - max) into `result`. `max_val` is the row max, passed as a
             \\// kernel constant so every lane subtracts the same shift (numerically
             \\// stable softmax). A separate reduce_sum_kernel pass sums `result`,
@@ -258,6 +311,15 @@ pub const MetalContext = struct {
         const min_func_name = try createNSString(allocator, "min_kernel") orelse return error.CreateStringFailed;
         const min_func = msg_send_id_ret_id(library, sel_newFunctionWithName, min_func_name) orelse return error.FunctionNotFound;
 
+        const div_func_name = try createNSString(allocator, "div_kernel") orelse return error.CreateStringFailed;
+        const div_func = msg_send_id_ret_id(library, sel_newFunctionWithName, div_func_name) orelse return error.FunctionNotFound;
+
+        const scale_func_name = try createNSString(allocator, "scale_kernel") orelse return error.CreateStringFailed;
+        const scale_func = msg_send_id_ret_id(library, sel_newFunctionWithName, scale_func_name) orelse return error.FunctionNotFound;
+
+        const relu_func_name = try createNSString(allocator, "relu_kernel") orelse return error.CreateStringFailed;
+        const relu_func = msg_send_id_ret_id(library, sel_newFunctionWithName, relu_func_name) orelse return error.FunctionNotFound;
+
         const cosine_func_name = try createNSString(allocator, "cosine_parts_kernel") orelse return error.CreateStringFailed;
         const cosine_func = msg_send_id_ret_id(library, sel_newFunctionWithName, cosine_func_name) orelse return error.FunctionNotFound;
 
@@ -266,6 +328,9 @@ pub const MetalContext = struct {
 
         const reduce_func_name = try createNSString(allocator, "reduce_sum_kernel") orelse return error.CreateStringFailed;
         const reduce_func = msg_send_id_ret_id(library, sel_newFunctionWithName, reduce_func_name) orelse return error.FunctionNotFound;
+
+        const reduce_max_func_name = try createNSString(allocator, "reduce_max_kernel") orelse return error.CreateStringFailed;
+        const reduce_max_func = msg_send_id_ret_id(library, sel_newFunctionWithName, reduce_max_func_name) orelse return error.FunctionNotFound;
 
         const sel_newComputePipelineState = objc.sel_registerName("newComputePipelineStateWithFunction:error:");
         const msg_send_id_err_ret_id = @as(MsgSendIdErrRetId, @ptrCast(&objc.objc_msgSend));
@@ -295,6 +360,18 @@ pub const MetalContext = struct {
         if (self.min_pipeline == null) return error.CreatePipelineStateFailed;
 
         err = null;
+        self.div_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, div_func, @ptrCast(&err));
+        if (self.div_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
+        self.scale_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, scale_func, @ptrCast(&err));
+        if (self.scale_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
+        self.relu_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, relu_func, @ptrCast(&err));
+        if (self.relu_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
         self.cosine_parts_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, cosine_func, @ptrCast(&err));
         if (self.cosine_parts_pipeline == null) return error.CreatePipelineStateFailed;
 
@@ -305,6 +382,10 @@ pub const MetalContext = struct {
         err = null;
         self.reduce_sum_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, reduce_func, @ptrCast(&err));
         if (self.reduce_sum_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
+        self.reduce_max_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, reduce_max_func, @ptrCast(&err));
+        if (self.reduce_max_pipeline == null) return error.CreatePipelineStateFailed;
 
         const softmax_func_name = try createNSString(allocator, "softmax_kernel") orelse return error.CreateStringFailed;
         const softmax_func = msg_send_id_ret_id(library, sel_newFunctionWithName, softmax_func_name) orelse return error.FunctionNotFound;
@@ -329,9 +410,13 @@ pub const MetalContext = struct {
         msg_send_void_ret_void(sub_func, sel_release);
         msg_send_void_ret_void(max_func, sel_release);
         msg_send_void_ret_void(min_func, sel_release);
+        msg_send_void_ret_void(div_func, sel_release);
+        msg_send_void_ret_void(scale_func, sel_release);
+        msg_send_void_ret_void(relu_func, sel_release);
         msg_send_void_ret_void(cosine_func, sel_release);
         msg_send_void_ret_void(batch_cosine_func, sel_release);
         msg_send_void_ret_void(reduce_func, sel_release);
+        msg_send_void_ret_void(reduce_max_func, sel_release);
         msg_send_void_ret_void(softmax_func, sel_release);
         msg_send_void_ret_void(softmax_norm_func, sel_release);
         msg_send_void_ret_void(library, sel_release);
@@ -341,9 +426,13 @@ pub const MetalContext = struct {
         msg_send_void_ret_void(sub_func_name, sel_release);
         msg_send_void_ret_void(max_func_name, sel_release);
         msg_send_void_ret_void(min_func_name, sel_release);
+        msg_send_void_ret_void(div_func_name, sel_release);
+        msg_send_void_ret_void(scale_func_name, sel_release);
+        msg_send_void_ret_void(relu_func_name, sel_release);
         msg_send_void_ret_void(cosine_func_name, sel_release);
         msg_send_void_ret_void(batch_cosine_func_name, sel_release);
         msg_send_void_ret_void(reduce_func_name, sel_release);
+        msg_send_void_ret_void(reduce_max_func_name, sel_release);
         msg_send_void_ret_void(softmax_func_name, sel_release);
         msg_send_void_ret_void(softmax_norm_func_name, sel_release);
         msg_send_void_ret_void(source_nsstring, sel_release);
@@ -365,6 +454,27 @@ pub const MetalContext = struct {
         d.msg_set_buf(encoder, d.sel_set_buffer, buffer_a, 0, 0);
         d.msg_set_buf(encoder, d.sel_set_buffer, buffer_b, 0, 1);
         d.msg_set_buf(encoder, d.sel_set_buffer, buffer_res, 0, 2);
+
+        const local_size = @min(len, 256);
+        const threadgroups = MTLSize{ .width = len, .height = 1, .depth = 1 };
+        const threads_per_threadgroup = MTLSize{ .width = local_size, .height = 1, .depth = 1 };
+        d.msg_dispatch(encoder, d.sel_dispatch_threads, threadgroups, threads_per_threadgroup);
+        d.msg_void_void(encoder, d.sel_end);
+    }
+
+    /// Unary map: `out[i] = f(in[i])` (buffers 0 and 1 only — relu).
+    fn encodeUnaryMapKernel(
+        d: MetalDispatch,
+        pipeline: ?*anyopaque,
+        cmd_buf: ?*anyopaque,
+        buffer_in: ?*anyopaque,
+        buffer_out: ?*anyopaque,
+        len: usize,
+    ) !void {
+        const encoder = d.msg_void_id(cmd_buf, d.sel_encoder) orelse return error.EncoderCreationFailed;
+        _ = d.msg_id_id(encoder, d.sel_set_pipeline, pipeline);
+        d.msg_set_buf(encoder, d.sel_set_buffer, buffer_in, 0, 0);
+        d.msg_set_buf(encoder, d.sel_set_buffer, buffer_out, 0, 1);
 
         const local_size = @min(len, 256);
         const threadgroups = MTLSize{ .width = len, .height = 1, .depth = 1 };
@@ -707,14 +817,104 @@ pub const MetalContext = struct {
         return sum;
     }
 
+    /// Multi-pass threadgroup reduce-max on the GPU (256-wide). Same dispatch
+    /// pattern as `runReduceSum`; empty lanes use -INFINITY in MSL. Callers fall
+    /// back to a host max if Metal dispatch fails.
+    pub fn runReduceMax(self: *MetalContext, values: []const f32) !f32 {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (values.len == 0) return error.EmptyInput;
+        if (values.len == 1) return values[0];
+        if (self.reduce_max_pipeline == null) return error.NotInitialized;
+
+        const d = MetalDispatch.load();
+        const in_bytes = values.len * @sizeOf(f32);
+        const buffer_in = d.msg_bytes(self.device, d.sel_new_bytes, values.ptr, in_bytes, 0) orelse
+            return error.BufferAllocationFailed;
+
+        const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse {
+            d.release(buffer_in);
+            return error.CommandBufferCreationFailed;
+        };
+
+        const scalar_buf = d.encodeReduceToScalar(
+            self.device,
+            self.reduce_max_pipeline,
+            cmd_buf,
+            buffer_in,
+            values.len,
+        ) catch |e| {
+            return e;
+        };
+
+        d.commitAndWait(cmd_buf);
+        const max_val = d.readF32(scalar_buf) catch |e| {
+            d.release(scalar_buf);
+            return e;
+        };
+        d.release(scalar_buf);
+        return max_val;
+    }
+
+    /// `out[i] = values[i] * scale`. Unary map with a scalar constant buffer.
+    pub fn runScale(self: *MetalContext, values: []const f32, scale: f32, out: []f32) !void {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (self.scale_pipeline == null) return error.NotInitialized;
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+
+        var scale_var = scale;
+        const d = MetalDispatch.load();
+        const byte_len = values.len * @sizeOf(f32);
+
+        const buffer_in = d.msg_bytes(self.device, d.sel_new_bytes, values.ptr, byte_len, 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_in);
+        const buffer_scale = d.msg_bytes(self.device, d.sel_new_bytes, &scale_var, @sizeOf(f32), 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_scale);
+        const buffer_out = d.msg_bytes(self.device, d.sel_new_bytes, out.ptr, byte_len, 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_out);
+
+        const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse
+            return error.CommandBufferCreationFailed;
+        try encodeMapKernel(d, self.scale_pipeline, cmd_buf, buffer_in, buffer_scale, buffer_out, values.len);
+        d.commitAndWait(cmd_buf);
+        try d.copyBufferToHost(buffer_out, out[0..values.len]);
+    }
+
+    /// `out[i] = max(values[i], 0)`. Unary relu map.
+    pub fn runRelu(self: *MetalContext, values: []const f32, out: []f32) !void {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (self.relu_pipeline == null) return error.NotInitialized;
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+
+        const d = MetalDispatch.load();
+        const byte_len = values.len * @sizeOf(f32);
+
+        const buffer_in = d.msg_bytes(self.device, d.sel_new_bytes, values.ptr, byte_len, 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_in);
+        const buffer_out = d.msg_bytes(self.device, d.sel_new_bytes, out.ptr, byte_len, 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_out);
+
+        const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse
+            return error.CommandBufferCreationFailed;
+        try encodeUnaryMapKernel(d, self.relu_pipeline, cmd_buf, buffer_in, buffer_out, values.len);
+        d.commitAndWait(cmd_buf);
+        try d.copyBufferToHost(buffer_out, out[0..values.len]);
+    }
+
     /// Softmax over `values`, written into `out` (len must equal values.len).
-    /// Numerically stable: the row max is subtracted before exp (computed
-    /// host-side — demo-grade, not a performance path). GPU does the exp map
-    /// (softmax_kernel) and the per-element divide (softmax_norm_kernel); the
-    /// partition-function sum is folded on the host since `values` is already
-    /// resident there (cheap, honest for a demo kernel). Falls back to the host
-    /// implementation in vector_ops.zig if Metal dispatch fails. Demo-grade;
-    /// CUDA/Vulkan/ANE remain non-goals.
+    /// Numerically stable: row max via on-GPU `reduce_max_kernel` when available
+    /// (falls back to host max), then host partition-sum of exp(x-max). GPU does
+    /// the exp map (`softmax_kernel`) and the per-element divide
+    /// (`softmax_norm_kernel`). Demo-grade; CUDA/Vulkan/ANE remain non-goals.
     pub fn runSoftmax(self: *MetalContext, values: []const f32, out: []f32) !void {
         if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
         if (!self.initialized) return error.NotInitialized;
@@ -722,11 +922,14 @@ pub const MetalContext = struct {
         if (values.len == 0) return;
         if (out.len != values.len) return error.DimensionMismatch;
 
-        // Row max (host-side) for numerical stability.
-        var max_val: f32 = values[0];
-        for (values[1..]) |v| {
-            if (v > max_val) max_val = v;
-        }
+        // Prefer on-GPU reduce_max; host max if that path fails.
+        const max_val: f32 = self.runReduceMax(values) catch blk: {
+            var m: f32 = values[0];
+            for (values[1..]) |v| {
+                if (v > m) m = v;
+            }
+            break :blk m;
+        };
 
         // Partition-function sum on the host (values already resident here).
         var sum: f32 = 0;
@@ -748,10 +951,12 @@ pub const MetalContext = struct {
         defer d.release(buffer_exp);
 
         // Scalar uniform buffers for the kernel's `constant float&` params.
-        const buffer_max = d.msg_bytes(self.device, d.sel_new_bytes, &max_val, @sizeOf(f32), 0) orelse
+        var max_var = max_val;
+        var sum_var = sum;
+        const buffer_max = d.msg_bytes(self.device, d.sel_new_bytes, &max_var, @sizeOf(f32), 0) orelse
             return error.BufferAllocationFailed;
         defer d.release(buffer_max);
-        const buffer_sum = d.msg_bytes(self.device, d.sel_new_bytes, &sum, @sizeOf(f32), 0) orelse
+        const buffer_sum = d.msg_bytes(self.device, d.sel_new_bytes, &sum_var, @sizeOf(f32), 0) orelse
             return error.BufferAllocationFailed;
         defer d.release(buffer_sum);
 

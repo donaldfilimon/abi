@@ -111,6 +111,20 @@ pub const VectorOps = struct {
         }
         for (out) |*slot| slot.* /= sum;
     }
+
+    pub fn scale(self: VectorOps, values: []const f32, factor: f32, out: []f32) !void {
+        _ = self;
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+        for (values, out) |v, *slot| slot.* = v * factor;
+    }
+
+    pub fn relu(self: VectorOps, values: []const f32, out: []f32) !void {
+        _ = self;
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+        for (values, out) |v, *slot| slot.* = @max(v, 0);
+    }
 };
 
 pub fn backendName(backend: Backend) []const u8 {
@@ -220,7 +234,7 @@ pub fn vectorOps() VectorOps {
 // honestly reported unavailable. Keeps name/shape parity with the real module.
 pub const compute_api = @This();
 
-pub const Kernel = enum { mul, l2diff, add, sub, max, min };
+pub const Kernel = enum { mul, l2diff, add, sub, max, min, div };
 
 pub const BackendAvailability = struct {
     backend: Backend,
@@ -281,6 +295,9 @@ pub const GpuCompute = struct {
             .min => for (a, b, out) |x, y, *o| {
                 o.* = @min(x, y);
             },
+            .div => for (a, b, out) |x, y, *o| {
+                o.* = x / y;
+            },
         }
     }
 
@@ -307,6 +324,9 @@ pub const GpuCompute = struct {
             },
             .min => for (a, b) |x, y| {
                 sum += @min(x, y);
+            },
+            .div => for (a, b) |x, y| {
+                sum += x / y;
             },
         }
         return sum;
