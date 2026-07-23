@@ -57,6 +57,11 @@ test {
     _ = @import("crypto_he.zig");
     _ = @import("compute.zig");
     _ = @import("multiway.zig");
+    _ = @import("multiway_types.zig");
+    _ = @import("multiway_engine.zig");
+    _ = @import("multiway_metrics.zig");
+    _ = @import("multiway_export.zig");
+    _ = @import("multiway_persist.zig");
     _ = @import("multiway_regression.zig");
     _ = @import("rest.zig");
     _ = @import("rate_limiter.zig");
