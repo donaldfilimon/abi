@@ -54,12 +54,15 @@ Gitignore gotcha: global `*.md` allowlist in effect — every new tracked markdo
 
 ## Learned User Preferences
 - Prefer feature branches `cursor/*` from `origin/main`; do not commit/push directly to `main`; never force-push.
-- Land finished work via PR/merge (prefer `gh pr merge --squash`); return to main; remove merged `cursor/*` branches after.
+- Land finished work via draft PR then merge (prefer `gh pr merge --squash`); return to main; remove merged `cursor/*` branches after.
 - AGENTS.md learned-only updates: append prefs onto `origin/main`.
-- Prefer draft PRs when flow requests.
+- "continue", "continue with all", "do all", "finalize", or "merge all into main" means broaden and keep going; a green gate alone is not a stop unless a stop was named.
+- Mid-task slash-skill attaches (`/review`, `/abi-skills`, `/self-improving-codebase-loop`, `/dispatching-parallel-agents`, etc.) win over inventing a parallel workflow.
+- Dual review asks (security and code quality) mean run both Bugbot and Security Review.
+- For ABI "test all features" / live verify, smoke `zig-out/bin/abi` (e.g. `backends`, representative commands) in addition to `./build.sh check` / `full-check`.
 - Verify interactive TUI with `.agents/skills/run-tui/tui.sh` (tmux pty); never prepend Homebrew zig ahead of pinned.
 - Honest status/demos only — never fake-complete honest stubs, ANE, audited FHE, SOTA compression, or prod multi-host sharding.
-- Refactors: prefer scoped tracks over open-ended rewrites.
+- Refactors: prefer scoped tracks (strangler extracts with hub re-exports) over open-ended rewrites.
 - Skills/docs: full repo-relative paths in `.agents/` etc.; sync `.agents` → `.claude` via `.agents/skills/sync-clis/launch.sh`.
 - `/abi` → route implementation through the `abi` subagent.
 
