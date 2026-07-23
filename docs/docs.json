@@ -29,7 +29,8 @@
           "spec/multi-persona-technical",
           "spec/non-loopback-rest-threat-review",
           "spec/cluster-mtls-ops",
-          "spec/phase-d-cutover-plan"
+          "spec/phase-d-cutover-plan",
+          "spec/wdbx-multiway"
         ]
       },
       {

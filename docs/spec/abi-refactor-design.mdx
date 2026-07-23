@@ -310,7 +310,7 @@ const ConversationBlock = struct {
 
 ### 4.4 WDBX Runtime Control Surface (`abi wdbx`) and Roadmap Modules
 
-`src/cli/handlers/wdbx.zig` owns the `abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api>` namespace as one member of the frozen top-level CLI contract, with its contract row in `tests/contracts/surface.zig`. It is comptime-gated on `build_options.feat_wdbx` and backed by the in-process store, segment checkpoints, the compatibility JSONL snapshot mirror, and the write-ahead log:
+`src/cli/handlers/wdbx.zig` owns the `abi wdbx <db|block|query|benchmark|simulate|cluster|compute|secure|gpu|api>` namespace as one member of the frozen top-level CLI contract, with its contract row in `tests/contracts/surface.zig`. It is comptime-gated on `build_options.feat_wdbx` and backed by the in-process store, segment checkpoints, the compatibility JSONL snapshot mirror, and the write-ahead log:
 
 - `db init|verify`, `block insert|get`, `query` — segment checkpoint + WAL lifecycle; runtime reads/writes recover WAL-ahead state, while `db verify` cross-checks WAL replay against the current checkpoint block count and reports divergence until a write checkpoints it. Legacy snapshot files are still written as mirrors for direct-load tooling.
 - `benchmark [count]` — local in-memory insert/search timing (explicitly *not* a published throughput claim).

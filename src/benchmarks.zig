@@ -325,6 +325,163 @@ test "bench wdbx store operations" {
     runBench("wdbx store put/get", StoreBench.run);
 }
 
+// --- Multiway rewriting simulator benchmarks ------------------------------
+//
+// Small/medium/branching/convergent/cyclic rule sets, each bounded so a bench
+// run stays well under a second and cannot consume exponential memory. Every
+// bench reports through the same runBench harness; peak unique-state counts
+// are asserted after timing so the numbers are grounded in an observed run.
+
+const multiway = wdbx.multiway;
+
+const MW_BRANCHING = [_]multiway.Rule{
+    .{ .lhs = "A", .rhs = "AB" },
+    .{ .lhs = "A", .rhs = "BA" },
+    .{ .lhs = "BB", .rhs = "A" },
+};
+const MW_CONVERGENT = [_]multiway.Rule{
+    .{ .lhs = "A", .rhs = "C" },
+    .{ .lhs = "B", .rhs = "C" },
+};
+const MW_CYCLIC = [_]multiway.Rule{
+    .{ .lhs = "A", .rhs = "B" },
+    .{ .lhs = "B", .rhs = "A" },
+};
+const MW_GROWING = [_]multiway.Rule{.{ .lhs = "A", .rhs = "AA" }};
+
+fn mwConfig(rules: []const multiway.Rule, initial: []const []const u8, depth: u32) multiway.Config {
+    return .{
+        .initial = initial,
+        .rules = rules,
+        .max_depth = depth,
+        .max_states = 4096,
+        .max_events = 200_000,
+        .max_payload = 64,
+    };
+}
+
+test "bench multiway successor generation" {
+    // Successor generation + full frontier expansion over the branching set.
+    const config = mwConfig(&MW_BRANCHING, &.{"A"}, 6);
+    const Gen = struct {
+        pub fn run() void {
+            var result = multiway.run(std.testing.allocator, mwConfig(&MW_BRANCHING, &.{"A"}, 6), null) catch return;
+            result.deinit();
+        }
+    };
+    runBench("multiway successor generation (branching, d6)", Gen.run);
+
+    var result = try multiway.run(std.testing.allocator, config, null);
+    defer result.deinit();
+    try std.testing.expect(result.states.items.len > 0);
+    std.debug.print("  peak unique states: {d} (branching d6)\n", .{result.states.items.len});
+}
+
+test "bench multiway single-threaded frontier expansion (growing)" {
+    const Grow = struct {
+        pub fn run() void {
+            var result = multiway.run(std.testing.allocator, mwConfig(&MW_GROWING, &.{"A"}, 8), null) catch return;
+            result.deinit();
+        }
+    };
+    runBench("multiway frontier expansion (growing, d8)", Grow.run);
+
+    var result = try multiway.run(std.testing.allocator, mwConfig(&MW_GROWING, &.{"A"}, 8), null);
+    defer result.deinit();
+    std.debug.print("  peak unique states: {d} (growing d8, termination {s})\n", .{ result.states.items.len, result.termination.label() });
+}
+
+test "bench multiway canonical hashing + deduplication (convergent)" {
+    const Dedup = struct {
+        pub fn run() void {
+            var result = multiway.run(std.testing.allocator, mwConfig(&MW_CONVERGENT, &.{"ABABAB"}, 6), null) catch return;
+            result.deinit();
+        }
+    };
+    runBench("multiway hashing + dedup (convergent, d6)", Dedup.run);
+}
+
+test "bench multiway cyclic expansion" {
+    const Cyclic = struct {
+        pub fn run() void {
+            var result = multiway.run(std.testing.allocator, mwConfig(&MW_CYCLIC, &.{"A"}, 32), null) catch return;
+            result.deinit();
+        }
+    };
+    runBench("multiway cyclic expansion (d32)", Cyclic.run);
+
+    var result = try multiway.run(std.testing.allocator, mwConfig(&MW_CYCLIC, &.{"A"}, 32), null);
+    defer result.deinit();
+    // Cyclic system converges to 2 canonical states regardless of depth.
+    try std.testing.expectEqual(@as(usize, 2), result.states.items.len);
+}
+
+test "bench multiway canonical export" {
+    var result = try multiway.run(std.testing.allocator, mwConfig(&MW_BRANCHING, &.{"A"}, 5), null);
+    defer result.deinit();
+    var metrics = try multiway.computeMetrics(std.testing.allocator, &result);
+    defer metrics.deinit();
+
+    const Export = struct {
+        result_ptr: *const multiway.Result,
+        metrics_ptr: *const multiway.Metrics,
+        var ctx: ?@This() = null;
+        pub fn run() void {
+            const c = ctx.?;
+            const bytes = multiway.exportCanonicalJson(std.testing.allocator, mwConfig(&MW_BRANCHING, &.{"A"}, 5), c.result_ptr, c.metrics_ptr) catch return;
+            std.testing.allocator.free(bytes);
+        }
+    };
+    Export.ctx = .{ .result_ptr = &result, .metrics_ptr = &metrics };
+    runBench("multiway canonical export (branching, d5)", Export.run);
+    Export.ctx = null;
+}
+
+test "bench multiway wdbx persistence + resume load" {
+    const path = "zig-out/bench-multiway.jsonl";
+    cleanupBenchStore(path);
+    defer cleanupBenchStore(path);
+
+    var result = try multiway.run(std.testing.allocator, mwConfig(&MW_BRANCHING, &.{"A"}, 4), null);
+    defer result.deinit();
+    var metrics = try multiway.computeMetrics(std.testing.allocator, &result);
+    defer metrics.deinit();
+    const export_json = try multiway.exportCanonicalJson(std.testing.allocator, mwConfig(&MW_BRANCHING, &.{"A"}, 4), &result, &metrics);
+    defer std.testing.allocator.free(export_json);
+
+    const Persist = struct {
+        export_ptr: []const u8,
+        result_ptr: *const multiway.Result,
+        var ctx: ?@This() = null;
+        pub fn run() void {
+            const c = ctx.?;
+            multiway.persistToWdbx(std.testing.io, std.testing.allocator, "zig-out/bench-multiway.jsonl", mwConfig(&MW_BRANCHING, &.{"A"}, 4), c.result_ptr, c.export_ptr) catch return;
+        }
+    };
+    Persist.ctx = .{ .export_ptr = export_json, .result_ptr = &result };
+    runBench("multiway wdbx persistence (branching, d4)", Persist.run);
+    Persist.ctx = null;
+
+    const ResumeLoad = struct {
+        pub fn run() void {
+            const bytes = multiway.loadExportFromWdbx(std.testing.io, std.testing.allocator, "zig-out/bench-multiway.jsonl", null) catch return;
+            std.testing.allocator.free(bytes);
+        }
+    };
+    runBench("multiway resume load (branching, d4)", ResumeLoad.run);
+}
+
+fn cleanupBenchStore(path: []const u8) void {
+    var buf: [256]u8 = undefined;
+    test_helpers.deleteTestFileIfExists(path);
+    if (std.fmt.bufPrint(&buf, "{s}.wal", .{path})) |wp| test_helpers.deleteTestFileIfExists(wp) else |_| {}
+    if (std.fmt.bufPrint(&buf, "{s}.manifest", .{path})) |mp| test_helpers.deleteTestFileIfExists(mp) else |_| {}
+    var epoch: u64 = 0;
+    while (epoch < 8) : (epoch += 1) {
+        if (std.fmt.bufPrint(&buf, "{s}.seg.{d}.jsonl", .{ path, epoch })) |sp| test_helpers.deleteTestFileIfExists(sp) else |_| {}
+    }
+}
+
 // Runs after all bench tests (source order), serializing the collected results.
 test "write benchmark artifact" {
     writeBenchArtifact();

@@ -231,7 +231,7 @@ fi
 require_substring "$scheduler_bad_out" "abi scheduler status"
 
 wdbx_help_out="$("$ABI" wdbx --help 2>&1)"
-require_substring "$wdbx_help_out" "abi wdbx <db|block|query|benchmark|cluster|compute|secure|gpu|api> ..."
+require_substring "$wdbx_help_out" "abi wdbx <db|block|query|benchmark|simulate|cluster|compute|secure|gpu|api> ..."
 require_substring "$wdbx_help_out" "Subcommands:"
 require_substring "$wdbx_help_out" "db"
 require_substring "$wdbx_help_out" "cluster serve <port>"

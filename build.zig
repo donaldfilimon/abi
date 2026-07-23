@@ -457,8 +457,13 @@ pub fn build(b: *std.Build) void {
     tui_smoke.step.dependOn(b.getInstallStep());
 
     // Fmt and Parity Checks
-    const fmt_check = b.addSystemCommand(&.{ "zig", "fmt", "--check", "src", "tests", "tools", "build.zig" });
-    const fmt = b.addSystemCommand(&.{ "zig", "fmt", "src", "tests", "tools", "build.zig" });
+    // Use the invoking compiler's own path (b.graph.zig_exe), not a bare "zig"
+    // resolved via PATH — PATH can point at a different (e.g. newer/master)
+    // toolchain than the one driving this build, and `zig fmt` silently
+    // rewrites syntax across pinned/newer boundaries (e.g. @intFromEnum vs
+    // @backingInt), corrupting the tree under the pin.
+    const fmt_check = b.addSystemCommand(&.{ b.graph.zig_exe, "fmt", "--check", "src", "tests", "tools", "build.zig" });
+    const fmt = b.addSystemCommand(&.{ b.graph.zig_exe, "fmt", "src", "tests", "tools", "build.zig" });
 
     // check_parity is *run* during the build (`addRunArtifact`), so it must be
     // built for the host graph to stay executable under a cross build.

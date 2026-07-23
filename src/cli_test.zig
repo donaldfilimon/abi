@@ -194,9 +194,9 @@ test "registry `wdbx` advertises raw subcommands without taking over execution" 
 
     try std.testing.expect(command.raw_handler != null);
     try std.testing.expect(command.handler == null);
-    try std.testing.expectEqual(@as(usize, 9), command.subcommands.len);
+    try std.testing.expectEqual(@as(usize, 10), command.subcommands.len);
     try std.testing.expectEqualStrings("db", command.subcommands[0].name);
-    try std.testing.expectEqualStrings("api", command.subcommands[8].name);
+    try std.testing.expectEqualStrings("api", command.subcommands[9].name);
 }
 
 test "argument-free commands reject stray tokens" {

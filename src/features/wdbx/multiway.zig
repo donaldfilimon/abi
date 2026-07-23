@@ -1027,7 +1027,9 @@ pub fn exportDot(allocator: std.mem.Allocator, config: Config, result: *const Re
         const rule = config.rules[event.rule];
         try appendFmt(&out, allocator, "  s{d} -> s{d} [label=\"", .{ event.src, event.dst });
         try appendDotEscaped(&out, allocator, rule.lhs);
-        try out.appendSlice(allocator, "\\xe2\\x86\\x92");
+        // ASCII arrow: a quoted DOT label is plain text, so "->" renders as-is
+        // (Graphviz does not interpret backslash-x byte escapes here).
+        try out.appendSlice(allocator, "->");
         try appendDotEscaped(&out, allocator, rule.rhs);
         try appendFmt(&out, allocator, "@{d}\"];\n", .{event.pos});
     }

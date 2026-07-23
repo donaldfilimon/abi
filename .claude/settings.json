@@ -18,8 +18,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *.zig) zig fmt \"$f\";; esac; } 2>/dev/null || true",
-            "statusMessage": "zig fmt"
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *.zig) pin=$(cat \"$CLAUDE_PROJECT_DIR/.zigversion\" 2>/dev/null); zb=\"$HOME/.zvm/$pin/zig\"; if [ -x \"$zb\" ]; then \"$zb\" fmt \"$f\"; else zig fmt \"$f\"; fi;; esac; } 2>/dev/null || true",
+            "statusMessage": "zig fmt (pinned)"
           },
           {
             "type": "command",

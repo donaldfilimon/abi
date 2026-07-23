@@ -3,6 +3,7 @@ const build_options = @import("build_options");
 const features = @import("abi").features;
 const db_commands = @import("wdbx_db.zig");
 const runtime_commands = @import("wdbx_runtime.zig");
+const simulate_commands = @import("wdbx_simulate.zig");
 const test_helpers = @import("abi").foundation.test_helpers;
 const usage_mod = @import("../usage.zig");
 const env = @import("abi").foundation.env;
@@ -35,6 +36,7 @@ fn usageCode(code: u8) u8 {
         \\  block get <path>               Print the most recent block
         \\  query <path> [text] [persona] [--limit N] [--json]  Store stats; hybrid semantic search (flags: --text/--persona/--limit/--json)
         \\  benchmark [count]              Measure local insert/search timing
+        \\  simulate [options]             Run a bounded multiway rewriting experiment (see `simulate --help`)
         \\  cluster status                 Report cluster topology (single-node default)
         \\  cluster demo [nodes]           Run in-process consensus: elect, replicate, fail over
         \\  cluster serve <port> [node] [host]  Serve consensus RPC. host defaults to 127.0.0.1; non-loopback requires ABI_WDBX_CLUSTER_TOKEN. Optional ABI_WDBX_CLUSTER_PEERS. Front multi-host with TLS/mTLS proxy — not production sharding.
@@ -150,6 +152,11 @@ fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) anyer
             return runtime_commands.clusterServe(io, allocator, host, port, node_id);
         }
         return usage();
+    }
+
+    if (std.mem.eql(u8, sub, "simulate")) {
+        if (args.len >= 4 and usage_mod.isHelpToken(args[3])) return simulate_commands.help();
+        return simulate_commands.handleSimulate(io, allocator, args);
     }
 
     if (std.mem.eql(u8, sub, "compute")) {

@@ -118,6 +118,7 @@ pub const wdbx_subcommands = [_]Command{
     .{ .name = "block", .summary = "Append or inspect SHA-linked conversation blocks in a WDBX checkpoint.", .usage = "abi wdbx block <insert|get> <path> ..." },
     .{ .name = "query", .summary = "Print store stats or run semantic/persona-scoped retrieval over a recovered store.", .usage = "abi wdbx query <path> [text] [persona]" },
     .{ .name = "benchmark", .summary = "Measure local insert/search timing for the in-process vector store.", .usage = "abi wdbx benchmark [count]" },
+    .{ .name = "simulate", .summary = "Run a bounded multiway (Wolfram-style) string-rewriting experiment with canonical JSON/DOT export and optional WDBX persistence.", .usage = "abi wdbx simulate --initial A --rule 'A->AB' --depth 5 [--format json|dot] [--output PATH] [--store PATH]" },
     .{ .name = "cluster", .summary = "Run single-node status, in-process consensus demo, or authenticated cluster RPC serving.", .usage = "abi wdbx cluster status | cluster demo [nodes] | cluster serve <port> [node] [host]" },
     .{ .name = "compute", .summary = "Report CPU/GPU/NPU/TPU backend selection and fallback state.", .usage = "abi wdbx compute info" },
     .{ .name = "secure", .summary = "Demonstrate local compression plus reference homomorphic aggregation; not security-audited FHE.", .usage = "abi wdbx secure demo" },
