@@ -33,11 +33,25 @@ pub fn handleAuth(io_mod: std.Io, allocator: std.mem.Allocator, args: []const []
 }
 
 pub fn handleAuthStatus(allocator: std.mem.Allocator) !u8 {
-    var creds = try credentials.loadCredentials(allocator);
-    defer creds.deinit(allocator);
-
+    // Print Backend first so non-macOS `ABI_CREDENTIALS_BACKEND=keychain`
+    // still surfaces the honest unsupported label even when load fails with
+    // KeychainUnsupported before any provider lines.
     std.debug.print("Authentication Status:\n", .{});
     std.debug.print("  Backend:   {s}\n", .{credentialBackendLabel()});
+
+    var creds = credentials.loadCredentials(allocator) catch |err| {
+        if (err == error.KeychainUnsupported) {
+            std.debug.print("  OpenAI:    unavailable (keychain unsupported on this OS)\n", .{});
+            std.debug.print("  Anthropic: unavailable (keychain unsupported on this OS)\n", .{});
+            std.debug.print("  Discord:   unavailable (keychain unsupported on this OS)\n", .{});
+            std.debug.print("  Grok:      unavailable (keychain unsupported on this OS)\n", .{});
+            std.debug.print("  Twilio:    unavailable (keychain unsupported on this OS)\n", .{});
+            return 0;
+        }
+        return err;
+    };
+    defer creds.deinit(allocator);
+
     std.debug.print("  OpenAI:    {s}\n", .{if (creds.openai_api_key != null) "configured" else "not configured"});
     std.debug.print("  Anthropic: {s}\n", .{if (creds.anthropic_api_key != null) "configured" else "not configured"});
     std.debug.print("  Discord:   {s}\n", .{if (creds.discord_token != null) "configured" else "not configured"});

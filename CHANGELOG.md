@@ -14,7 +14,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Changed
 
-- fix(auth): `abi auth status` discloses non-macOS `ABI_CREDENTIALS_BACKEND=keychain` as unsupported (Windows/Linux Proposed) instead of implying an active macOS keychain.
+- fix(auth): `abi auth status` discloses non-macOS `ABI_CREDENTIALS_BACKEND=keychain` as unsupported (Windows/Linux Proposed) instead of implying an active macOS keychain; Backend line prints before credential load so `KeychainUnsupported` no longer hides the disclosure.
 - docs(claims): sync north-star / external-claims / README / public-api / claim-boundaries with demo-grade Metal softmax alongside fused cosine/dot/L2 + multi-pass reduce.
 - perf(gpu): Metal dispatch CQ — shared `MetalDispatch` helper; map+reduce and fused cosine chain multi-pass `reduce_sum` in one command buffer (no host re-upload thrash); Metal failures log then explicit CPU fallback. Broader kernels / CUDA / ANE remain Proposed.
 - refactor(wdbx): dedupe REST missing-token vs wrong-bearer 401 insert fixture (`expectUnauthorizedInsert`).
