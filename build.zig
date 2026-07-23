@@ -515,10 +515,15 @@ pub fn build(b: *std.Build) void {
     check_step.dependOn(&fmt_check.step);
     check_step.dependOn(&parity_check.step);
 
-    const full_check_step = b.step("full-check", "Run check, integration tests, benchmarks, dashboard smoke, example smoke, and agent TUI smoke");
+    // Benchmark regression gate: runs the suite (best-of-N) and fails on a
+    // >5% slowdown vs tools/bench_baseline.json. Replaces a plain bench_step
+    // dependency here -- the script invokes `zig build benchmarks` itself.
+    const bench_regress = b.addSystemCommand(&.{ "bash", "tools/bench_regress.sh" });
+
+    const full_check_step = b.step("full-check", "Run check, integration tests, bench regression gate, dashboard smoke, example smoke, and agent TUI smoke");
     full_check_step.dependOn(check_step);
     full_check_step.dependOn(test_integration_step);
-    full_check_step.dependOn(bench_step);
+    full_check_step.dependOn(&bench_regress.step);
     full_check_step.dependOn(example_3d_hybrid_step);
     full_check_step.dependOn(&tui_smoke.step);
 

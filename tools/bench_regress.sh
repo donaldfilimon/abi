@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # bench_regress.sh — benchmark baseline + regression gate for abi.
 #
-# Standalone and opt-in: NOT wired into build.zig or build.sh. It runs
+# Wired into `zig build full-check` (release-readiness gate); also runs
+# standalone. It runs
 # `zig build benchmarks`, which writes the machine-readable artifact
 # zig-out/bench/results.json (schema "abi-bench/v2", see
 # src/benchmarks.zig BENCH_ARTIFACT_PATH), then compares per-benchmark

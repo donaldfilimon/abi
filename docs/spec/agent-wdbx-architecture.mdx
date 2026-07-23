@@ -112,7 +112,8 @@ WDBX is a composite in-process memory substrate, not just a vector index. The cu
 | Vectors | `mod.zig`, `hnsw.zig`, `hnsw_storage.zig`, `hnsw_distance.zig` | Fixed-capacity padded vectors and HNSW-style cosine search. | Current |
 | Conversation blocks | `chain.zig` | SHA-256-linked blocks with profile, query/response vector ids, metadata, snapshots, and verification. | Current |
 | Temporal/causal graph | `temporal.zig`, `retrieval.zig` | Recency decay, causal proximity, and persona-weighted hybrid ranking. | Current |
-| Spatial records | `spatial_3d.zig` | In-memory 3D records with distance search surfaces exposed through store stats/contracts. | Current |
+| Spatial records | `spatial_3d.zig` | In-memory 3D records; kNN/radius search octree-accelerated for euclidean/manhattan at >= 64 points (linear-scan fallback below and for cosine), oracle-tested against the linear path. | Current |
+| Hybrid spatial retrieval | `retrieval.zig` | `hybridSpatialSearch` blends embedding cosine similarity with 3D proximity (weight edge cases test-covered); runnable via `zig build run-example-3d-hybrid`. | Current |
 | JSONL snapshots | `persistence.zig`, `persistence_parse.zig` | Checkpoint serialization and restoration with a trailing SHA-256 integrity line. | Current |
 | WAL | `wal.zig` | CRC32-framed append-only mutation records with replay and corruption detection. | Current |
 | Segment checkpoints | `segments.zig` | Manifest-backed immutable checkpoint epochs, latest-epoch loading, reset, and compaction. | Current |

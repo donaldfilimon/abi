@@ -48,7 +48,9 @@ No unproven claims (production FHE/AES/RBAC, multi-host sharding, QPS/latency/ac
 - **`abi` binary can get overwritten by feature-stub smoke.** `./build.sh check` runs `tools/check_feature_stubs.sh`, which builds `abi` with feature flags disabled and installs it over `zig-out/bin/abi`. Re-run `zig build cli` (or `./build.sh cli`) afterward to restore the full-featured binary (otherwise e.g. `wdbx` shows disabled in `abi backends`).
 
 ## Linux / non-macOS note
-Cross-compiles link cleanly for `x86_64-linux-gnu` / `aarch64-linux-gnu` / `windows-gnu` (exe + all test modules set `link_libc=true`; `metal_shared.zig` gates objc externs to macOS via `comptime`). Ambient WDBX persist EBADF is **fixed** (`ensureOwnerOnlyDir` opens with `iterate=true` so Linux `fchmod` works). Execution of cross binaries still needs a Linux/Windows host (CI `cross-smoke`); this macOS host cannot run them. Green native suites on macOS: full `./build.sh check`. Feature-stub smoke in `check` overwrites `zig-out/bin/abi` — re-run `./build.sh cli` to restore it.
+Cross-compiles link cleanly for `x86_64-linux-gnu` / `aarch64-linux-gnu` / `windows-gnu` (exe + all test modules set `link_libc=true`; `metal_shared.zig` gates objc externs to macOS via `comptime`). Ambient WDBX persist EBADF is **fixed** (`ensureOwnerOnlyDir` opens with `iterate=true` so Linux `fchmod` works). Execution of cross binaries still needs a Linux/Windows host (CI `cross-smoke`); this macOS host cannot run them. Green native suites on macOS: full `./build.sh check`. Feature-stub smoke in `check` overwrites `zig-out/bin/abi` — re-run `./build.sh cli` to restore it. `tools/cross_smoke.sh` covers both the CLI and the WDBX 3D-hybrid example (`example-3d-hybrid` compile-only step) per target.
+
+Gitignore gotcha: a global `*.md` markdown allowlist is in effect — every new `examples/*/README.md` (and any other tracked-markdown location) needs an explicit `!` entry in `.gitignore` or it is silently untracked.
 
 ## Learned User Preferences
 - Prefer feature branches named with the `cursor/` prefix from `origin/main`; do not commit or push directly to `main`; never force-push `main`.
