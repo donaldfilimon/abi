@@ -1,6 +1,6 @@
 const std = @import("std");
 const env = @import("../../foundation/env.zig");
-const foundation = @import("../../foundation/http.zig");
+const foundation = @import("../../foundation/http/mod.zig");
 const foundation_json = @import("../../foundation/json.zig");
 
 pub const REST_TOKEN_ENV = env.WDBX_REST_TOKEN_ENV;
