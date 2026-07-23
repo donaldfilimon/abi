@@ -196,6 +196,28 @@ test "extractCompletion rejects invalid JSON" {
     try std.testing.expectError(ConnectorError.InvalidResponse, extractCompletion(allocator, "not json"));
 }
 
+test "local_bridge healthCheck returns false for unreachable endpoint" {
+    const allocator = std.testing.allocator;
+    var threaded: std.Io.Threaded = .init(std.testing.allocator, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    try std.testing.expect(!healthCheck(io, allocator, "http://127.0.0.1:1"));
+}
+
+test "local_bridge completeLive errors for unreachable endpoint (no leak on success path)" {
+    const allocator = std.testing.allocator;
+    var threaded: std.Io.Threaded = .init(std.testing.allocator, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    // deinit requires *Response → `var` (not `const`). Default llama endpoint is
+    // :8080; if occupied, InvalidResponse is an expected live-path outcome.
+    var response = completeLive(io, allocator, "llama/phi3", "ping") catch |err| {
+        try std.testing.expect(err == error.LiveTransportUnavailable or err == error.ConnectionFailed or err == error.Timeout or err == error.InvalidResponse);
+        return;
+    };
+    defer response.deinit(allocator);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

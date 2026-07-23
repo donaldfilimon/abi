@@ -29,6 +29,7 @@ pub const MetalContext = struct {
     scale_pipeline: ?*anyopaque = null,
     relu_pipeline: ?*anyopaque = null,
     abs_pipeline: ?*anyopaque = null,
+    negate_pipeline: ?*anyopaque = null,
     cosine_parts_pipeline: ?*anyopaque = null,
     batch_cosine_pipeline: ?*anyopaque = null,
     reduce_sum_pipeline: ?*anyopaque = null,
@@ -148,6 +149,15 @@ pub const MetalContext = struct {
             \\    uint id [[thread_position_in_grid]]
             \\) {
             \\    out[id] = fabs(in[id]);
+            \\}
+            \\
+            \\// out[id] = -in[id]
+            \\kernel void negate_kernel(
+            \\    device const float* in [[buffer(0)]],
+            \\    device float* out [[buffer(1)]],
+            \\    uint id [[thread_position_in_grid]]
+            \\) {
+            \\    out[id] = -in[id];
             \\}
             \\
             \\kernel void cosine_parts_kernel(
@@ -356,6 +366,9 @@ pub const MetalContext = struct {
         const abs_func_name = try createNSString(allocator, "abs_kernel") orelse return error.CreateStringFailed;
         const abs_func = msg_send_id_ret_id(library, sel_newFunctionWithName, abs_func_name) orelse return error.FunctionNotFound;
 
+        const negate_func_name = try createNSString(allocator, "negate_kernel") orelse return error.CreateStringFailed;
+        const negate_func = msg_send_id_ret_id(library, sel_newFunctionWithName, negate_func_name) orelse return error.FunctionNotFound;
+
         const cosine_func_name = try createNSString(allocator, "cosine_parts_kernel") orelse return error.CreateStringFailed;
         const cosine_func = msg_send_id_ret_id(library, sel_newFunctionWithName, cosine_func_name) orelse return error.FunctionNotFound;
 
@@ -415,6 +428,10 @@ pub const MetalContext = struct {
         if (self.abs_pipeline == null) return error.CreatePipelineStateFailed;
 
         err = null;
+        self.negate_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, negate_func, @ptrCast(&err));
+        if (self.negate_pipeline == null) return error.CreatePipelineStateFailed;
+
+        err = null;
         self.cosine_parts_pipeline = msg_send_id_err_ret_id(device, sel_newComputePipelineState, cosine_func, @ptrCast(&err));
         if (self.cosine_parts_pipeline == null) return error.CreatePipelineStateFailed;
 
@@ -461,6 +478,7 @@ pub const MetalContext = struct {
         msg_send_void_ret_void(scale_func, sel_release);
         msg_send_void_ret_void(relu_func, sel_release);
         msg_send_void_ret_void(abs_func, sel_release);
+        msg_send_void_ret_void(negate_func, sel_release);
         msg_send_void_ret_void(cosine_func, sel_release);
         msg_send_void_ret_void(batch_cosine_func, sel_release);
         msg_send_void_ret_void(reduce_func, sel_release);
@@ -479,6 +497,7 @@ pub const MetalContext = struct {
         msg_send_void_ret_void(scale_func_name, sel_release);
         msg_send_void_ret_void(relu_func_name, sel_release);
         msg_send_void_ret_void(abs_func_name, sel_release);
+        msg_send_void_ret_void(negate_func_name, sel_release);
         msg_send_void_ret_void(cosine_func_name, sel_release);
         msg_send_void_ret_void(batch_cosine_func_name, sel_release);
         msg_send_void_ret_void(reduce_func_name, sel_release);
@@ -1021,6 +1040,31 @@ pub const MetalContext = struct {
         const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse
             return error.CommandBufferCreationFailed;
         try encodeUnaryMapKernel(d, self.abs_pipeline, cmd_buf, buffer_in, buffer_out, values.len);
+        d.commitAndWait(cmd_buf);
+        try d.copyBufferToHost(buffer_out, out[0..values.len]);
+    }
+
+    /// `out[i] = -values[i]`. Unary negate map.
+    pub fn runNegate(self: *MetalContext, values: []const f32, out: []f32) !void {
+        if (comptime builtin.target.os.tag != .macos) return error.NotSupported;
+        if (!self.initialized) return error.NotInitialized;
+        if (self.negate_pipeline == null) return error.NotInitialized;
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+
+        const d = MetalDispatch.load();
+        const byte_len = values.len * @sizeOf(f32);
+
+        const buffer_in = d.msg_bytes(self.device, d.sel_new_bytes, values.ptr, byte_len, 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_in);
+        const buffer_out = d.msg_bytes(self.device, d.sel_new_bytes, out.ptr, byte_len, 0) orelse
+            return error.BufferAllocationFailed;
+        defer d.release(buffer_out);
+
+        const cmd_buf = d.msg_void_id(self.queue, d.sel_command_buffer) orelse
+            return error.CommandBufferCreationFailed;
+        try encodeUnaryMapKernel(d, self.negate_pipeline, cmd_buf, buffer_in, buffer_out, values.len);
         d.commitAndWait(cmd_buf);
         try d.copyBufferToHost(buffer_out, out[0..values.len]);
     }

@@ -66,6 +66,14 @@ test "gpu module reexports safe vector operations" {
     try ops.abs(&.{ -1.0, 2.0, -3.0 }, &abs_out);
     try std.testing.expectApproxEqAbs(@as(f32, 1), abs_out[0], 1e-4);
 
+    var mul_out: [2]f32 = undefined;
+    try ops.mul(&.{ 2.0, 3.0 }, &.{ 4.0, 5.0 }, &mul_out);
+    try std.testing.expectApproxEqAbs(@as(f32, 8), mul_out[0], 1e-4);
+
+    var neg_out: [2]f32 = undefined;
+    try ops.negate(&.{ 1.0, -2.0 }, &neg_out);
+    try std.testing.expectApproxEqAbs(@as(f32, -1), neg_out[0], 1e-4);
+
     const report = try backendStatusReport(std.testing.allocator);
     defer std.testing.allocator.free(report);
     try std.testing.expect(std.mem.indexOf(u8, report, "simulated:") != null);

@@ -152,6 +152,20 @@ pub const VectorOps = struct {
         if (out.len != values.len) return error.DimensionMismatch;
         for (values, out) |v, *slot| slot.* = @abs(v);
     }
+
+    pub fn mul(self: VectorOps, a: []const f32, b: []const f32, out: []f32) !void {
+        _ = self;
+        if (a.len != b.len or a.len != out.len) return error.DimensionMismatch;
+        if (a.len == 0) return;
+        for (a, b, out) |x, y, *slot| slot.* = x * y;
+    }
+
+    pub fn negate(self: VectorOps, values: []const f32, out: []f32) !void {
+        _ = self;
+        if (values.len == 0) return;
+        if (out.len != values.len) return error.DimensionMismatch;
+        for (values, out) |v, *slot| slot.* = -v;
+    }
 };
 
 pub fn backendName(backend: Backend) []const u8 {
