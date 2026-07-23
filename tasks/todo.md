@@ -39,7 +39,7 @@ Landed on `main` via [#676](https://github.com/donaldfilimon/abi/pull/676) (`cur
 
 | Item | Status | Gap to production |
 | ---- | ------ | ----------------- |
-| Native compute beyond Metal cosine | ◑ Partial | Metal fused cosine/dot/L2 + elementwise add/sub/max/min/div + unary scale/relu + multi-pass threadgroup reduce_sum/reduce_max + demo-grade softmax for HNSW/`vectorOps`/`compute_api`; CUDA/Vulkan/broader kernels not linked. ANE **out of scope**. |
+| Native compute beyond current Metal kernels (fused+elementwise+unary+reduce+softmax) | ◑ Partial | Metal fused cosine/dot/L2 + elementwise add/sub/max/min/div + unary scale/relu + multi-pass threadgroup reduce_sum/reduce_max + demo-grade softmax for HNSW/`vectorOps`/`compute_api`; CUDA/Vulkan/broader kernels not linked. ANE **out of scope**. |
 | Production/SOTA learned compression | ◑ Partial / disclosed | Huffman (`entropy.zig`) + demo rANS/order-1 (`ans.zig`) + int8 + reference autoencoder — **not** SOTA. |
 | Security-audited FHE | ⚪ Not started (reference only) | DGHV reference params deepened; **not** audited. |
 | Non-loopback REST hardening | ◑ Partial / disclosed | Loopback + bearer + rate-limit + TLS env validation; native TLS not linked; needs threat review for external expose. |
@@ -99,8 +99,8 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
-- **Production hardening wave** — incomplete HTTP reject; constant-time bearer; WAL fsync + torn-tail skip + parent-dir sync; putVector HNSW rollback + id-burn on WAL fail; REST rate-limit before auth; MCP durable fail-closed (`ABI_WDBX_ALLOW_MEMORY_FALLBACK`); scheduler OOM-safe error_msg.
-- **Metal div/scale/relu + reduce_max** — `compute_api.div`, `vectorOps.scale`/`relu`, softmax prefers on-GPU max; claims/docs keychain honesty sync (macOS Partial / Win+Linux Proposed).
+- **#738** production-hardening wave (e9a2f8b / PR #738): incomplete HTTP 400 reject, constant-time bearer, WAL fsync + torn-tail skip + parent-dir sync, putVector HNSW rollback + id-burn on WAL fail, REST rate-limit before auth, MCP durable fail-closed (ABI_WDBX_ALLOW_MEMORY_FALLBACK), scheduler OOM-safe error_msg. Source files: src/features/wdbx/{hnsw,rest,store,wal}.zig, src/core/scheduler.zig, src/mcp/{ai_tools,http_transport,state}.zig, src/foundation/{env,http}.zig (see CHANGELOG, git show).
+- **#737** Metal kernels+claims (c28cbea / PR #737): Metal div/scale/relu + reduce_max (`compute_api.div`, `vectorOps.{scale,relu}`, softmax on-GPU max pref); keychain claims/docs sync. Source: src/features/gpu/{compute_api,metal_kernels,metal_shared,stub,vector_ops}.zig, src/foundation/credentials_file.zig, docs/contracts/external-claims-audit.mdx, docs/spec/wdbx-north-star.mdx, README.md, tasks/todo.md (see CHANGELOG).
 - **#734** — Metal `sub_kernel` + macOS-gated keychain file fallback off-macOS.
 - **#733** — Metal `add_kernel` + honest non-macOS keychain status label; stub `.add` parity; Backend before load.
 - **#732** — Parallel strangler extracts: AI router leaves, CLI agent hub+dispatch leaves, Metal `metal_kernels.zig`, credentials file/keychain leaves.
