@@ -68,7 +68,7 @@ Prioritized after A–G. Do not promote to Done without source + tests + honest 
 | Priority | Item | Status | Notes |
 | -------- | ---- | ------ | ----- |
 | 1 | Neural / ggml in-process sampler (or keep Partial forever) | ◑ Partial | `abi complete --neural` char-LM path + checkpoint round-trip landed (honest demo, not LLM). Residual: real ggml/GGUF transformer sampler. |
-| 2 | Broader Metal GPU path (more kernels / reduce) | ◑ Improved | Fused cosine/dot/L2 + elementwise add/sub/max/min/div + unary scale/relu + multi-pass `reduce_sum_kernel` / `reduce_max_kernel` / `reduce_min_kernel` + demo-grade softmax (on-GPU max). Residual: more kernels / CUDA/ANE disclosed. |
+| 2 | Broader Metal GPU path (more kernels / reduce) | ◑ Improved | Fused cosine/dot/L2 + elementwise add/sub/max/min/div + unary scale/relu/abs + multi-pass reduce + demo softmax. Added public `VectorOps.abs` + Metal abs_kernel (parity tests). Residual: more kernels / CUDA/ANE disclosed. |
 | 3 | Windows **runtime** CI/job | 🔴 Blocked (no Windows runner) | ACL code exists for windows-gnu; execution verify blocked on host. |
 | 4 | OS keychain credential storage | ◑ Partial | macOS login keychain via Security.framework SecItem (opt-in `ABI_CREDENTIALS_BACKEND=keychain`); off-macOS env request is disclosed and load/save fall back to file (Windows/Linux Proposed); default remains file-based; OS-provided at-rest protection only — not hardware-backed, not audited; runtime-verified on macOS host only. |
 | 5 | Phase D cutover plan (HITL) | ◑ Plan landed | `docs/spec/phase-d-cutover-plan.mdx` — checklist only; cutover still needs explicit HITL + gates. Scaffold honesty gate: `tools/check_modernized_refs.sh` in `full-check` (stale `` `src/...` `` refs fail). |
