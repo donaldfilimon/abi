@@ -11,6 +11,8 @@
 const std = @import("std");
 const wdbx_mod = @import("mod.zig");
 const temporal = @import("temporal.zig");
+const spatial_3d = @import("spatial_3d.zig");
+const hnsw_distance = @import("hnsw_distance.zig");
 
 pub const RankedNode = temporal.RankedNode;
 pub const PersonaWeightFn = *const fn (*const anyopaque, u32) f32;
@@ -135,6 +137,76 @@ pub fn hybridSearchScoped(
     const trimmed = try allocator.dupe(temporal.RankedNode, ranked[0..limit]);
     attachBorrowedVectors(store, trimmed);
     return trimmed;
+}
+
+/// One ranked result from `hybridSpatialSearch`: `point` and `payload` are
+/// zero-copy borrowed views into the store's spatial index, valid until the
+/// next mutation that grows/frees that index's backing storage (same
+/// convention as `attachBorrowedVectors`).
+pub const RankedSpatialResult = struct {
+    id: u32,
+    point: spatial_3d.Point3D,
+    payload: []const u8,
+    score: f32,
+    semantic_score: f32,
+    spatial_score: f32,
+};
+
+fn lessThanSpatialScore(_: void, a: RankedSpatialResult, b: RankedSpatialResult) bool {
+    return a.score > b.score;
+}
+
+/// Semantic + 3D-spatial hybrid ranking: blends cosine similarity to
+/// `query_vector` with proximity to `center` into one score, highest first.
+/// `weight_semantic` and `weight_spatial` need not sum to 1 -- the caller
+/// controls the blend; passing 1.0/0.0 recovers pure-semantic ranking over
+/// the spatial candidate pool, and 0.0/1.0 recovers pure-spatial ranking.
+///
+/// Candidates are drawn from the store's 3D spatial index (up to
+/// `limit *| 8` nearest points to `center`, euclidean metric). A candidate
+/// whose id has no vector attached via `Store.putVector` is skipped -- a
+/// hybrid score requires both signals. `allocator` must be the Store's
+/// allocator. Caller owns and frees the returned slice.
+pub fn hybridSpatialSearch(
+    allocator: std.mem.Allocator,
+    store: *const wdbx_mod.Store,
+    query_vector: []const f32,
+    center: spatial_3d.Point3D,
+    limit: usize,
+    weight_semantic: f32,
+    weight_spatial: f32,
+) ![]RankedSpatialResult {
+    const pool = limit *| 8;
+    const spatial_hits = try store.searchSpatial3D(center, pool, .euclidean);
+    defer allocator.free(spatial_hits);
+
+    if (spatial_hits.len == 0) return try allocator.alloc(RankedSpatialResult, 0);
+
+    var max_distance: f32 = 0;
+    for (spatial_hits) |hit| max_distance = @max(max_distance, hit.distance);
+
+    var candidates: std.ArrayListUnmanaged(RankedSpatialResult) = .empty;
+    defer candidates.deinit(allocator);
+
+    for (spatial_hits) |hit| {
+        const vector = store.getVector(hit.id) orelse continue;
+        const semantic_score = 1.0 - hnsw_distance.cosineDistanceSIMD(query_vector, vector);
+        const normalized_distance = if (max_distance == 0) 0 else hit.distance / max_distance;
+        const spatial_score = 1.0 - normalized_distance;
+        try candidates.append(allocator, .{
+            .id = hit.id,
+            .point = hit.point,
+            .payload = hit.payload,
+            .score = weight_semantic * semantic_score + weight_spatial * spatial_score,
+            .semantic_score = semantic_score,
+            .spatial_score = spatial_score,
+        });
+    }
+
+    std.mem.sort(RankedSpatialResult, candidates.items, {}, lessThanSpatialScore);
+
+    const out_len = @min(limit, candidates.items.len);
+    return try allocator.dupe(RankedSpatialResult, candidates.items[0..out_len]);
 }
 
 const testing = std.testing;
@@ -276,6 +348,71 @@ test "hybridSearchWithPersonaContext applies metadata-backed persona weights" {
     try testing.expectEqual(@as(usize, 2), ranked.len);
     try testing.expectEqual(high_persona, ranked[0].id);
     try testing.expect(ranked[0].components.persona > ranked[1].components.persona);
+}
+
+test "hybridSpatialSearch weight=1.0/0.0 recovers pure-semantic ranking" {
+    const allocator = testing.allocator;
+    var store = wdbx_mod.Store.init(allocator);
+    defer store.deinit();
+
+    // id_semantic_match: vector identical to the query, but far away in space.
+    // id_spatial_match: vector orthogonal to the query, but at the query center.
+    const id_semantic_match = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+    try store.putSpatial3D(id_semantic_match, .{ .x = 100.0, .y = 100.0, .z = 100.0 }, "");
+
+    const id_spatial_match = try store.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+    try store.putSpatial3D(id_spatial_match, .{ .x = 0.0, .y = 0.0, .z = 0.0 }, "");
+
+    const query_vector = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
+    const center = spatial_3d.Point3D{ .x = 0.0, .y = 0.0, .z = 0.0 };
+
+    const ranked = try hybridSpatialSearch(allocator, &store, &query_vector, center, 10, 1.0, 0.0);
+    defer allocator.free(ranked);
+
+    try testing.expectEqual(@as(usize, 2), ranked.len);
+    try testing.expectEqual(id_semantic_match, ranked[0].id);
+}
+
+test "hybridSpatialSearch weight=0.0/1.0 recovers pure-spatial ranking" {
+    const allocator = testing.allocator;
+    var store = wdbx_mod.Store.init(allocator);
+    defer store.deinit();
+
+    const id_semantic_match = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+    try store.putSpatial3D(id_semantic_match, .{ .x = 100.0, .y = 100.0, .z = 100.0 }, "");
+
+    const id_spatial_match = try store.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
+    try store.putSpatial3D(id_spatial_match, .{ .x = 0.0, .y = 0.0, .z = 0.0 }, "");
+
+    const query_vector = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
+    const center = spatial_3d.Point3D{ .x = 0.0, .y = 0.0, .z = 0.0 };
+
+    const ranked = try hybridSpatialSearch(allocator, &store, &query_vector, center, 10, 0.0, 1.0);
+    defer allocator.free(ranked);
+
+    try testing.expectEqual(@as(usize, 2), ranked.len);
+    try testing.expectEqual(id_spatial_match, ranked[0].id);
+}
+
+test "hybridSpatialSearch skips candidates with no attached vector" {
+    const allocator = testing.allocator;
+    var store = wdbx_mod.Store.init(allocator);
+    defer store.deinit();
+
+    // Spatial-only point: no matching putVector call for this id.
+    try store.putSpatial3D(999, .{ .x = 0.0, .y = 0.0, .z = 0.0 }, "");
+
+    const id_with_vector = try store.putVector(&.{ 1.0, 0.0, 0.0, 0.0 });
+    try store.putSpatial3D(id_with_vector, .{ .x = 1.0, .y = 0.0, .z = 0.0 }, "");
+
+    const query_vector = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
+    const center = spatial_3d.Point3D{ .x = 0.0, .y = 0.0, .z = 0.0 };
+
+    const ranked = try hybridSpatialSearch(allocator, &store, &query_vector, center, 10, 0.5, 0.5);
+    defer allocator.free(ranked);
+
+    try testing.expectEqual(@as(usize, 1), ranked.len);
+    try testing.expectEqual(id_with_vector, ranked[0].id);
 }
 
 test {

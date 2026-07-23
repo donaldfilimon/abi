@@ -14,6 +14,23 @@ zig version             # Confirm the pinned Zig 0.17.0-dev.1442+972627084 toolc
 
 Plain `zig build` and `zig build check` are expected to work with the pinned toolchain. On macOS/Darwin, keep using `./build.sh ...` for the documented project workflow.
 
+## Cross-compilation
+
+`abi` cross-compiles cleanly via Zig's target flag. Verified locally via
+`tools/cross_smoke.sh` (builds the CLI and the WDBX 3D-hybrid example for
+each target):
+
+```bash
+zig build -Dtarget=x86_64-linux-gnu
+zig build -Dtarget=x86_64-windows-gnu
+zig build -Dtarget=aarch64-macos
+```
+
+These three targets are exercised by `tools/cross_smoke.sh`, which this
+documentation treats as the source of truth for cross-compile support --
+run it locally after any change touching platform-specific code paths
+(networking, credentials, GPU backend selection).
+
 ## Local Walkthrough
 
 Build the CLI, then exercise the local surfaces without live network credentials:

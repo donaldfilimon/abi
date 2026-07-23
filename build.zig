@@ -326,6 +326,29 @@ pub fn build(b: *std.Build) void {
     const bench_step = b.step("benchmarks", "Run benchmark suite");
     bench_step.dependOn(&run_benchmarks.step);
 
+    // WDBX 3D-spatial + hybrid-retrieval example
+    const example_3d_hybrid = b.addExecutable(.{
+        .name = "wdbx-3d-hybrid-example",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/wdbx_3d_hybrid/demo.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+            .imports = &.{
+                .{ .name = "abi", .module = abi_mod },
+                .{ .name = "build_options", .module = options_mod },
+            },
+        }),
+    });
+    const run_example_3d_hybrid = b.addRunArtifact(example_3d_hybrid);
+    const example_3d_hybrid_step = b.step("run-example-3d-hybrid", "Run the WDBX 3D point cloud + embedding hybrid retrieval example");
+    example_3d_hybrid_step.dependOn(&run_example_3d_hybrid.step);
+
+    // Compile-only variant so tools/cross_smoke.sh can verify the example
+    // links for non-native targets (a cross binary cannot execute on host).
+    const example_3d_hybrid_build_step = b.step("example-3d-hybrid", "Build (compile+link only) the WDBX 3D hybrid example");
+    example_3d_hybrid_build_step.dependOn(&example_3d_hybrid.step);
+
     const cli_usage_mod = b.createModule(.{
         .root_source_file = b.path("src/cli/usage.zig"),
         .target = target,
@@ -492,10 +515,11 @@ pub fn build(b: *std.Build) void {
     check_step.dependOn(&fmt_check.step);
     check_step.dependOn(&parity_check.step);
 
-    const full_check_step = b.step("full-check", "Run check, integration tests, benchmarks, dashboard smoke, and agent TUI smoke");
+    const full_check_step = b.step("full-check", "Run check, integration tests, benchmarks, dashboard smoke, example smoke, and agent TUI smoke");
     full_check_step.dependOn(check_step);
     full_check_step.dependOn(test_integration_step);
     full_check_step.dependOn(bench_step);
+    full_check_step.dependOn(example_3d_hybrid_step);
     full_check_step.dependOn(&tui_smoke.step);
 
     const lint_step = b.step("lint", "Check Zig formatting");

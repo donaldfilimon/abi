@@ -263,6 +263,9 @@ test_imports3
 # GitHub Actions runner ops (self-hosted security + day-2)
 !/.github/self-hosted-runner.md
 
+# Example walkthroughs
+!/examples/wdbx_3d_hybrid/README.md
+
 # Documentation tree
 !/docs/README.md
 !/docs/index.md
