@@ -59,6 +59,16 @@ pub const ClusterPolicy = struct {
         }
         return false;
     }
+
+    /// Return a new policy with an updated peer allowlist. This is the
+    /// membership-reload primitive: a server loop can call `withPeers` on a
+    /// fresh peer list and pass the new policy to the next `serveOnceAuth`,
+    /// so a node admitted or rejected at startup can be reconfigured without
+    /// restarting the listener. Single-host / loopback-tested; NOT production
+    /// dynamic membership, NOT sharding, NOT mTLS.
+    pub fn withPeers(self: ClusterPolicy, new_peers: ?[]const u32) ClusterPolicy {
+        return .{ .auth = self.auth, .peers = new_peers };
+    }
 };
 
 const ParsedRequest = union(enum) {
@@ -624,6 +634,39 @@ test "cluster_rpc: authenticated multi-node loop reaches quorum and verifies pee
     try testing.expectEqual(@as(usize, 4), result.votes);
     try testing.expectEqual(@as(usize, 4), result.append_acks);
     try testing.expectEqual(@as(usize, ports.len), result.logs_verified);
+}
+
+test "cluster_rpc: peer allowlist reload admits a previously-rejected candidate" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
+    var n1 = cluster.Node{ .id = 1, .term = 3 };
+    defer deinitNode(&n1, allocator);
+
+    var s1 = try listen(io, 39191);
+    defer s1.deinit(io);
+
+    // Initial policy: only nodes 0, 1, 2 are peers — node 99 is rejected.
+    const initial_peers = [_]u32{ 0, 1, 2 };
+    var policy = ClusterPolicy{ .auth = .{ .token = "cluster-secret" }, .peers = &initial_peers };
+
+    const rejected = (try dialVoteAddrAuth(io, "127.0.0.1", 39191, 5, 99, "cluster-secret")).?;
+    try serveOnceAuth(io, &s1, &n1, allocator, policy);
+    const rejected_reply = try readVoteReply(io, rejected);
+    try testing.expect(!rejected_reply.granted);
+    try testing.expectEqual(@as(u64, 3), n1.term);
+    try testing.expectEqual(@as(?u32, null), n1.voted_for);
+
+    // Reload: add node 99 to the peer allowlist without restarting the listener.
+    const reloaded_peers = [_]u32{ 0, 1, 2, 99 };
+    policy = policy.withPeers(&reloaded_peers);
+
+    const admitted = (try dialVoteAddrAuth(io, "127.0.0.1", 39191, 6, 99, "cluster-secret")).?;
+    try serveOnceAuth(io, &s1, &n1, allocator, policy);
+    const admitted_reply = try readVoteReply(io, admitted);
+    try testing.expect(admitted_reply.granted);
+    try testing.expectEqual(@as(u64, 6), n1.term);
+    try testing.expectEqual(@as(?u32, 99), n1.voted_for);
 }
 
 test {

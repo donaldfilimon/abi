@@ -73,7 +73,7 @@ Prioritized after A–G. Do not promote to Done without source + tests + honest 
 | 4 | OS keychain credential storage | ◑ Partial | macOS login keychain via Security.framework SecItem (opt-in `ABI_CREDENTIALS_BACKEND=keychain`); off-macOS env request is disclosed and load/save fall back to file (Windows/Linux Proposed); default remains file-based; OS-provided at-rest protection only — not hardware-backed, not audited; runtime-verified on macOS host only. |
 | 5 | Phase D cutover plan (HITL) | ◑ Plan landed | `docs/spec/phase-d-cutover-plan.mdx` — checklist only; cutover still needs explicit HITL + gates. Scaffold honesty gate: `tools/check_modernized_refs.sh` in `full-check` (stale `` `src/...` `` refs fail). |
 | 6 | Non-loopback REST threat review + native TLS link decision | ◑ Docs landed | `docs/spec/non-loopback-rest-threat-review.mdx` — proxy TLS preferred; native TLS deferred; not a hardened-expose claim. |
-| 7 | Cluster mTLS / membership (still not sharding) | ◑ Ops docs landed | `docs/spec/cluster-mtls-ops.mdx` — proxy mTLS preferred; dynamic membership + sharding stay Proposed. |
+| 7 | Cluster mTLS / membership (still not sharding) | ◑ Improved | `docs/spec/cluster-mtls-ops.mdx` — proxy mTLS preferred; `ClusterPolicy.withPeers` enables runtime peer-allowlist reload (loopback-tested); dynamic membership wire protocol + sharding stay Proposed. |
 | 8 | Mark `check-parity` as a required status check (branch protection) | 🔴 Blocked (Actions billing lock) | Explicit `check-parity` / `check-parity-hosted` jobs added to `.github/workflows/ci.yml`; jobs currently die in ~2s under the account billing lock — do not trigger CI; flip branch protection once billing is unblocked. |
 
 ---
@@ -99,6 +99,7 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
+- **Public `reduceMax` + cluster peer reload** — `GpuCompute.reduceMax` / `VectorOps.reduceMax` expose the existing `reduce_max_kernel` through the public API (parity + tests); `ClusterPolicy.withPeers` enables runtime peer-allowlist reload (loopback-tested, not sharding). Source: src/features/gpu/{compute_api,vector_ops,stub}.zig, src/features/wdbx/cluster_rpc.zig, docs/{contracts/external-claims-audit.mdx,spec/cluster-mtls-ops.mdx}, CHANGELOG.md.
 - **#738** production-hardening wave (e9a2f8b / PR #738): incomplete HTTP 400 reject, constant-time bearer, WAL fsync + torn-tail skip + parent-dir sync, putVector HNSW rollback + id-burn on WAL fail, REST rate-limit before auth, MCP durable fail-closed (ABI_WDBX_ALLOW_MEMORY_FALLBACK), scheduler OOM-safe error_msg. Source files: src/features/wdbx/{hnsw,rest,store,wal}.zig, src/core/scheduler.zig, src/mcp/{ai_tools,http_transport,state}.zig, src/foundation/{env,http}.zig (see CHANGELOG, git show).
 - **#737** Metal kernels+claims (c28cbea / PR #737): Metal div/scale/relu + reduce_max (`compute_api.div`, `vectorOps.{scale,relu}`, softmax on-GPU max pref); keychain claims/docs sync. Source: src/features/gpu/{compute_api,metal_kernels,metal_shared,stub,vector_ops}.zig, src/foundation/credentials_file.zig, docs/contracts/external-claims-audit.mdx, docs/spec/wdbx-north-star.mdx, README.md, tasks/todo.md (see CHANGELOG).
 - **#734** — Metal `sub_kernel` + macOS-gated keychain file fallback off-macOS.

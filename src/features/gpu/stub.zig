@@ -112,6 +112,16 @@ pub const VectorOps = struct {
         for (out) |*slot| slot.* /= sum;
     }
 
+    pub fn reduceMax(self: VectorOps, values: []const f32) !f32 {
+        _ = self;
+        if (values.len == 0) return error.EmptyInput;
+        var best: f32 = values[0];
+        for (values[1..]) |v| {
+            if (v > best) best = v;
+        }
+        return best;
+    }
+
     pub fn scale(self: VectorOps, values: []const f32, factor: f32, out: []f32) !void {
         _ = self;
         if (values.len == 0) return;
@@ -270,6 +280,16 @@ pub const GpuCompute = struct {
     pub fn isAccelerated(self: GpuCompute) bool {
         _ = self;
         return false;
+    }
+
+    pub fn reduceMax(self: GpuCompute, values: []const f32) !f32 {
+        _ = self;
+        if (values.len == 0) return error.EmptyInput;
+        var best: f32 = values[0];
+        for (values[1..]) |v| {
+            if (v > best) best = v;
+        }
+        return best;
     }
 
     pub fn map(self: GpuCompute, kernel: Kernel, a: []const f32, b: []const f32, out: []f32) !void {

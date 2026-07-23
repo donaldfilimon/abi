@@ -129,6 +129,22 @@ pub const VectorOps = struct {
         cpuSoftmax(values, out);
     }
 
+    /// Reduce-max of `values`: returns the maximum element. Routes through the
+    /// Metal `reduce_max_kernel` when initialized on macOS, otherwise a host
+    /// loop. No speedup claim; CUDA/Vulkan/ANE remain Proposed.
+    pub fn reduceMax(self: VectorOps, values: []const f32) !f32 {
+        if (values.len == 0) return error.EmptyInput;
+        if (values.len == 1) return values[0];
+
+        if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runReduceMax(values) catch |err| {
+                std.log.warn("Metal reduceMax failed ({s}); using CPU fallback", .{@errorName(err)});
+                return cpuReduceMax(values);
+            };
+        }
+        return cpuReduceMax(values);
+    }
+
     /// `out[i] = values[i] * factor`. Metal `scale_kernel` when initialized;
     /// otherwise host loop. No speedup claim.
     pub fn scale(self: VectorOps, values: []const f32, factor: f32, out: []f32) !void {
@@ -254,6 +270,14 @@ fn cpuSoftmax(values: []const f32, out: []f32) void {
         return;
     }
     for (out) |*slot| slot.* /= sum;
+}
+
+fn cpuReduceMax(values: []const f32) f32 {
+    var best: f32 = values[0];
+    for (values[1..]) |v| {
+        if (v > best) best = v;
+    }
+    return best;
 }
 
 fn cpuScale(values: []const f32, factor: f32, out: []f32) void {
@@ -545,6 +569,17 @@ test "gpu softmax rejects mismatched output length" {
     const values = [_]f32{ 1.0, 2.0, 3.0 };
     var out: [2]f32 = undefined;
     try std.testing.expectError(error.DimensionMismatch, ops.softmax(&values, &out));
+}
+
+test "gpu reduceMax matches independent scalar reference (CPU/GPU parity)" {
+    const ops = vectorOps();
+    const values = [_]f32{ 0.5, -1.0, 2.25, 3.0, -0.75, 1.5, 0.0, 4.0, -2.0, 0.125 };
+    var ref_max: f32 = values[0];
+    for (values[1..]) |v| {
+        if (v > ref_max) ref_max = v;
+    }
+    try std.testing.expectApproxEqAbs(ref_max, try ops.reduceMax(&values), 1e-4);
+    try std.testing.expectError(error.EmptyInput, ops.reduceMax(&.{}));
 }
 
 test "gpu scale matches independent scalar reference (CPU/GPU parity)" {

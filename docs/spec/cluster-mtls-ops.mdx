@@ -17,7 +17,7 @@ description: "Claim-honest ops guidance for ABI WDBX cluster RPC transit encrypt
 | Auth | Shared secret frames via `ABI_WDBX_CLUSTER_TOKEN` (required for non-loopback binds) |
 | Peers | Optional allowlist `ABI_WDBX_CLUSTER_PEERS` (comma-separated node ids) |
 | TLS / mTLS | **Not linked in-process** — front with a TLS/mTLS-terminating proxy |
-| Membership | Static config for the serve path; no dynamic join/leave protocol |
+| Membership | Runtime peer-set reload via `ClusterPolicy.withPeers` (loopback-tested); no dynamic join/leave wire protocol |
 | Sharding | **Not implemented** (stays Proposed) |
 
 ## Threat model (routable cluster RPC)
@@ -33,7 +33,7 @@ description: "Claim-honest ops guidance for ABI WDBX cluster RPC transit encrypt
 | Decision | Outcome |
 | -------- | ------- |
 | Native TLS/mTLS in ABI cluster RPC | **Deferred.** Prefer stunnel / nginx stream / Envoy / Caddy with mutual TLS to loopback `cluster serve` ports. |
-| Dynamic membership | **Proposed.** Keep static TOKEN + PEERS until a tested join/leave path exists. |
+| Dynamic membership | **Partial.** `ClusterPolicy.withPeers` allows runtime peer-allowlist reload between serve rounds (loopback-tested). A wire-level join/leave protocol with heartbeat/log-catchup stays Proposed. |
 | Data sharding | **Proposed / non-goal for this doc.** Do not schedule as “complete.” |
 | Supported ops mode | Loopback multi-node demos and carefully controlled LAN binds behind mTLS proxy + token + peers. |
 
@@ -48,5 +48,5 @@ description: "Claim-honest ops guidance for ABI WDBX cluster RPC transit encrypt
 ## Residual Proposed work
 
 - Native TLS or mTLS linked and contract-tested on `cluster_rpc`.
-- Dynamic membership / reconfiguration protocol with tests.
+- Dynamic membership wire protocol (join/leave with heartbeat + log-catchup) — `withPeers` reload is the first step; the wire protocol stays Proposed.
 - Production multi-host runbooks (still not sharding).

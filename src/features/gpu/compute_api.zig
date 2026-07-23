@@ -188,6 +188,22 @@ pub const GpuCompute = struct {
         return cpuReduce(kernel, a, b);
     }
 
+    /// Reduce-max of `values`: returns the maximum element. Routes through the
+    /// Metal `reduce_max_kernel` when accelerated on macOS, otherwise a host
+    /// loop. No speedup claim; CUDA/Vulkan/ANE remain Proposed.
+    pub fn reduceMax(self: GpuCompute, values: []const f32) !f32 {
+        if (values.len == 0) return error.EmptyInput;
+        if (values.len == 1) return values[0];
+
+        if (self.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runReduceMax(values) catch |err| {
+                std.log.warn("Metal reduceMax failed ({s}); using CPU fallback", .{@errorName(err)});
+                return cpuReduceMax(values);
+            };
+        }
+        return cpuReduceMax(values);
+    }
+
     fn cpuReduce(kernel: Kernel, a: []const f32, b: []const f32) f32 {
         var sum: f32 = 0;
         var i: usize = 0;
@@ -241,6 +257,14 @@ pub const GpuCompute = struct {
         return sum;
     }
 };
+
+fn cpuReduceMax(values: []const f32) f32 {
+    var best: f32 = values[0];
+    for (values[1..]) |v| {
+        if (v > best) best = v;
+    }
+    return best;
+}
 
 const testing = std.testing;
 
@@ -340,6 +364,17 @@ test "compute_api: map writes correct elementwise results and checks dims" {
 
     var bad: [3]f32 = undefined;
     try testing.expectError(error.DimensionMismatch, gc.map(.mul, &a, &b, &bad));
+}
+
+test "compute_api: reduceMax matches scalar reference on the active backend" {
+    const gc = GpuCompute.init();
+    const values = [_]f32{ 0.5, -1.0, 2.25, 3.0, -0.75, 1.5, 0.0, 4.0, -2.0, 0.125 };
+    var ref_max: f32 = values[0];
+    for (values[1..]) |v| {
+        if (v > ref_max) ref_max = v;
+    }
+    try testing.expectApproxEqAbs(ref_max, try gc.reduceMax(&values), 1e-4);
+    try testing.expectError(error.EmptyInput, gc.reduceMax(&.{}));
 }
 
 test "compute_api: empty input is a no-op / zero reduce" {
