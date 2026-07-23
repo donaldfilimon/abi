@@ -14,6 +14,7 @@ const utils = @import("utils.zig");
 const types = @import("credentials_types.zig");
 const file = @import("credentials_file.zig");
 const keychain_backend = @import("credentials_keychain.zig");
+const temp_path = @import("temp_path.zig");
 
 pub const Credentials = types.Credentials;
 pub const secureWipe = types.secureWipe;
@@ -22,10 +23,14 @@ pub const replaceOwnedString = types.replaceOwnedString;
 pub const getCredentialsPath = file.getCredentialsPath;
 
 pub const credentialsBackendIsKeychain = keychain_backend.credentialsBackendIsKeychain;
-pub const clearKeychainCredentials = keychain_backend.clearKeychainCredentials;
 
 pub fn loadCredentials(allocator: std.mem.Allocator) !Credentials {
-    if (credentialsBackendIsKeychain()) return try keychain_backend.loadCredentialsFromKeychain(allocator);
+    // Keychain I/O is macOS-only. Off-macOS, env `=keychain` is disclosed by
+    // `abi auth status` but load falls back to the file store — Windows/
+    // Linux Secret Service remain Proposed (never silent empty success).
+    if (credentialsBackendIsKeychain() and comptime builtin.os.tag == .macos) {
+        return try keychain_backend.loadCredentialsFromKeychain(allocator);
+    }
 
     const path = try getCredentialsPath(allocator);
     defer allocator.free(path);
@@ -34,7 +39,9 @@ pub fn loadCredentials(allocator: std.mem.Allocator) !Credentials {
 }
 
 pub fn saveCredentials(allocator: std.mem.Allocator, creds: Credentials) !void {
-    if (credentialsBackendIsKeychain()) return try keychain_backend.saveCredentialsToKeychain(creds);
+    if (credentialsBackendIsKeychain() and comptime builtin.os.tag == .macos) {
+        return try keychain_backend.saveCredentialsToKeychain(creds);
+    }
 
     const path = try getCredentialsPath(allocator);
     defer allocator.free(path);
@@ -45,11 +52,54 @@ pub fn saveCredentials(allocator: std.mem.Allocator, creds: Credentials) !void {
     try file.saveCredentialsToPath(allocator, path, creds);
 }
 
+/// Clear keychain-held secrets when the keychain backend is active on macOS.
+/// Off-macOS this is a no-op success: there is no linked keychain backend to
+/// clear (Windows/Linux remain Proposed).
+pub fn clearKeychainCredentials() !void {
+    if (comptime builtin.os.tag != .macos) return;
+    if (!credentialsBackendIsKeychain()) return;
+    try keychain_backend.clearKeychainCredentials();
+}
+
 test {
     _ = types;
     _ = file;
     _ = keychain_backend;
     std.testing.refAllDecls(@This());
+}
+
+test "keychain env on non-macOS falls back to file load/save without KeychainUnsupported" {
+    // Claim-honest gate: env may request keychain, but only macOS links SecItem.
+    if (comptime builtin.os.tag == .macos) return error.SkipZigTest;
+
+    const allocator = std.testing.allocator;
+    const test_path = try temp_path.tempFilePath(allocator, "abi_credentials_keychain_fallback", "json");
+    defer allocator.free(test_path);
+    defer {
+        var threaded: std.Io.Threaded = .init(std.heap.page_allocator, .{});
+        defer threaded.deinit();
+        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch {};
+    }
+
+    var environ = std.process.Environ.Map.init(allocator);
+    defer environ.deinit();
+    try environ.put("ABI_CREDENTIALS_BACKEND", "keychain");
+    try environ.put("ABI_CREDENTIALS_PATH", test_path);
+    env.install(&environ);
+    defer env.resetForTesting();
+
+    try std.testing.expect(credentialsBackendIsKeychain());
+
+    var creds = Credentials{
+        .openai_api_key = try allocator.dupe(u8, "sk-file-fallback"),
+    };
+    defer creds.deinit(allocator);
+    try saveCredentials(allocator, creds);
+
+    var loaded = try loadCredentials(allocator);
+    defer loaded.deinit(allocator);
+    try std.testing.expectEqualStrings("sk-file-fallback", loaded.openai_api_key orelse return error.MissingKey);
+    try clearKeychainCredentials(); // no-op success off-macOS
 }
 
 test "keychain backend save/load/clear round trip through the public API (opt-in, hits real keychain)" {
