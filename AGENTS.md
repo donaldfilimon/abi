@@ -3,7 +3,7 @@
 Canonical instruction file. If this conflicts with `build.zig`, `tools/build.sh`, or source, trust the executable source. Sibling files `CLAUDE.md`/`GEMINI.md` are thin redirects that each point here. Session-start checklist: `tasks/lessons.md`; active board: `tasks/todo.md`.
 
 ## Toolchain
-- Pinned to `0.17.0-dev.1398+cb5635714` (`.zigversion`). Use zvm/zigup to select it; the wrapper does **not** switch.
+- Pinned to `0.17.0-dev.1442+972627084` (`.zigversion`). Use zvm/zigup to select it; the wrapper does **not** switch.
 - On macOS: use `./build.sh ...` (Darwin Metal-linking entrypoint). `feat-foundationmodels` needs arm64 macOS + Xcode + macOS 26 SDK.
 
 ## Commands

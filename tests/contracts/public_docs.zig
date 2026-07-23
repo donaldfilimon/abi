@@ -72,7 +72,7 @@ test "external claims audit records repo-backed replacement language" {
     );
     defer std.testing.allocator.free(audit);
 
-    try expectContains(audit, "Zig `0.17.0-dev.1398+cb5635714`");
+    try expectContains(audit, "Zig `0.17.0-dev.1442+972627084`");
     try expectContains(audit, "in-process vector/key-value/block store");
     try expectContains(audit, "Not currently proven by repo source or tests");
     try expectContains(audit, "does not currently prove distributed sharding");
@@ -89,7 +89,7 @@ test "README walkthrough documents current CLI and MCP surfaces" {
     );
     defer std.testing.allocator.free(readme);
 
-    try expectContains(readme, "0.17.0-dev.1398+cb5635714");
+    try expectContains(readme, "0.17.0-dev.1442+972627084");
     try expectContains(readme, "./zig-out/bin/abi scheduler status");
     try expectContains(readme, "./zig-out/bin/abi agent plan");
     try expectContains(readme, "./zig-out/bin/abi agent train all");

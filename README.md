@@ -4,7 +4,7 @@ ABI is a **Zig 0.17.0-dev** framework for local AI service orchestration, semant
 
 ## Quick Start
 ```bash
-zig version             # Confirm the pinned Zig 0.17.0-dev.1398+cb5635714 toolchain (see .zigversion; build.zig.zon minimum 0.17.0-dev.1252+e4b325c19)
+zig version             # Confirm the pinned Zig 0.17.0-dev.1442+972627084 toolchain (see .zigversion; build.zig.zon minimum 0.17.0-dev.1252+e4b325c19)
 ./build.sh -l           # List all available build targets (wrapper for zig build -l)
 ./build.sh check        # Primary validation gate on macOS/Darwin
 ./build.sh full-check   # Check + integration tests + benchmarks + dashboard/agent TUI smoke

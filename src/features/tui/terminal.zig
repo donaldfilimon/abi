@@ -56,8 +56,8 @@ const PosixInteractiveTerminal = struct {
         const vmin = if (@hasDecl(std.posix, "VMIN")) std.posix.VMIN else std.posix.system.V.MIN;
         const vtime = if (@hasDecl(std.posix, "VTIME")) std.posix.VTIME else std.posix.system.V.TIME;
 
-        raw.cc[@intFromEnum(vmin)] = 1;
-        raw.cc[@intFromEnum(vtime)] = 0;
+        raw.cc[@backingInt(vmin)] = 1;
+        raw.cc[@backingInt(vtime)] = 0;
 
         try std.posix.tcsetattr(fd, .FLUSH, raw);
         return .{ .fd = fd, .original = original, .is_tty = true };

@@ -130,18 +130,18 @@ test "ai profile routing" {
 test "constitution validation" {
     const empty_result = constitution.Constitution.validate("");
     try std.testing.expect(!empty_result.passed);
-    try std.testing.expect(empty_result.violations.isSet(@intFromEnum(constitution.Principle.truthfulness)));
+    try std.testing.expect(empty_result.violations.isSet(@backingInt(constitution.Principle.truthfulness)));
 
     const clean_result = constitution.Constitution.validate("this is a safe and helpful response for everyone");
     try std.testing.expect(clean_result.passed);
 
     const harm_result = constitution.Constitution.validate("this could cause harm to users");
     try std.testing.expect(!harm_result.passed);
-    try std.testing.expect(harm_result.violations.isSet(@intFromEnum(constitution.Principle.safety)));
+    try std.testing.expect(harm_result.violations.isSet(@backingInt(constitution.Principle.safety)));
 
     const privacy_result = constitution.Constitution.validate("your password is personal data");
     try std.testing.expect(!privacy_result.passed);
-    try std.testing.expect(privacy_result.violations.isSet(@intFromEnum(constitution.Principle.privacy)));
+    try std.testing.expect(privacy_result.violations.isSet(@backingInt(constitution.Principle.privacy)));
 
     const all_principles = [_]constitution.Principle{
         .truthfulness,
@@ -152,12 +152,12 @@ test "constitution validation" {
         .transparency,
     };
     const eval_result = constitution.Constitution.evaluateResponse("here is how to do it safely", &all_principles);
-    try std.testing.expect(eval_result.scores[@intFromEnum(constitution.Principle.helpfulness)] > 0.7);
+    try std.testing.expect(eval_result.scores[@backingInt(constitution.Principle.helpfulness)] > 0.7);
 
     const eval_empty = constitution.Constitution.evaluateResponse("", &all_principles);
     try std.testing.expect(!eval_empty.passed);
     for (all_principles) |p| {
-        try std.testing.expect(eval_empty.violations.isSet(@intFromEnum(p)));
+        try std.testing.expect(eval_empty.violations.isSet(@backingInt(p)));
     }
 }
 

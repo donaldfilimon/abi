@@ -6,7 +6,7 @@
 
 **Architecture:** A new binary save/load module lets a trained `Model` persist to and load from disk. A new streaming-sample function in `nn/` emits chunked output via callback. CLI wiring adds `--neural` as a mutually-exclusive alternative to `--model`, dispatching to a new handler that loads the bundled checkpoint and streams generation to stdout with honest disclosure text.
 
-**Tech Stack:** Zig 0.17.0-dev.1398+cb5635714 (pinned, `.zigversion`), existing `src/features/nn/` char-LM, existing CLI arg-parsing engine (`src/cli/arg.zig` + `src/cli/wiring.zig`).
+**Tech Stack:** Zig 0.17.0-dev.1442+972627084 (pinned, `.zigversion`), existing `src/features/nn/` char-LM, existing CLI arg-parsing engine (`src/cli/arg.zig` + `src/cli/wiring.zig`).
 
 ## Global Constraints
 

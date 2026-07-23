@@ -41,7 +41,7 @@ pub fn httpPostForm(
 
     try mapHttpStatus(result.status);
     return .{
-        .status = @intCast(@intFromEnum(result.status)),
+        .status = @intCast(@backingInt(result.status)),
         .body = try response_writer.toOwnedSlice(),
         .owned = true,
     };
@@ -79,7 +79,7 @@ pub fn httpPostJson(
 
     try mapHttpStatus(result.status);
     return .{
-        .status = @intCast(@intFromEnum(result.status)),
+        .status = @intCast(@backingInt(result.status)),
         .body = try response_writer.toOwnedSlice(),
         .owned = true,
     };
@@ -113,7 +113,7 @@ pub fn httpGetJson(
 
     try mapHttpStatus(result.status);
     return .{
-        .status = @intCast(@intFromEnum(result.status)),
+        .status = @intCast(@backingInt(result.status)),
         .body = try response_writer.toOwnedSlice(),
         .owned = true,
     };
@@ -130,7 +130,7 @@ fn mapHttpError(err: anyerror) ConnectorError {
 }
 
 fn mapHttpStatus(status: std.http.Status) ConnectorError!void {
-    const code: u16 = @intCast(@intFromEnum(status));
+    const code: u16 = @intCast(@backingInt(status));
     return switch (code) {
         200...299 => {},
         401, 403 => ConnectorError.AuthenticationError,

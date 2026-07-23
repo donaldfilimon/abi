@@ -69,7 +69,7 @@ pub const AuditResult = struct {
 
         var vetoed = false;
         for (SAFETY_CLASS) |p| {
-            if (self.scores[@intFromEnum(p)] < SAFETY_VETO_THRESHOLD) vetoed = true;
+            if (self.scores[@backingInt(p)] < SAFETY_VETO_THRESHOLD) vetoed = true;
         }
         self.vetoed = vetoed;
         if (vetoed) self.passed = false;

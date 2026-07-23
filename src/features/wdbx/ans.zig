@@ -170,7 +170,7 @@ fn fromResiduals(residuals: []const u8, out: []u8) void {
 fn encodeBytes(allocator: std.mem.Allocator, input: []const u8, mode: Mode) !Encoded {
     if (input.len == 0) {
         var out: std.ArrayListUnmanaged(u8) = .empty;
-        try out.append(allocator, @intFromEnum(Mode.stored));
+        try out.append(allocator, @backingInt(Mode.stored));
         try writeU32(&out, allocator, 0);
         return .{ .mode = .stored, .data = try out.toOwnedSlice(allocator), .original_len = 0 };
     }
@@ -194,7 +194,7 @@ fn encodeBytes(allocator: std.mem.Allocator, input: []const u8, mode: Mode) !Enc
 
     var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
-    try out.append(allocator, @intFromEnum(mode));
+    try out.append(allocator, @backingInt(mode));
     try writeU32(&out, allocator, @intCast(input.len));
     try writeU32(&out, allocator, x);
     try packFreqRow(&out, allocator, &freq);
@@ -205,7 +205,7 @@ fn encodeBytes(allocator: std.mem.Allocator, input: []const u8, mode: Mode) !Enc
         out.deinit(allocator);
         var stored: std.ArrayListUnmanaged(u8) = .empty;
         errdefer stored.deinit(allocator);
-        try stored.append(allocator, @intFromEnum(Mode.stored));
+        try stored.append(allocator, @backingInt(Mode.stored));
         try writeU32(&stored, allocator, @intCast(input.len));
         try stored.appendSlice(allocator, input);
         return .{ .mode = .stored, .data = try stored.toOwnedSlice(allocator), .original_len = input.len };
@@ -219,8 +219,8 @@ fn decodeBytes(allocator: std.mem.Allocator, blob: []const u8) !struct { mode: M
     // `Mode` is an exhaustive enum over {0,1,2}; blob[0] is an untrusted byte
     // that can be any of 256 values, so an unchecked `@enumFromInt` hits
     // safety-checked illegal-enum-value UB on a corrupted/malicious blob.
-    if (blob[0] > @intFromEnum(Mode.rans1)) return error.InvalidAnsMode;
-    const mode: Mode = @enumFromInt(blob[0]);
+    if (blob[0] > @backingInt(Mode.rans1)) return error.InvalidAnsMode;
+    const mode: Mode = @fromBackingInt(@intCast(blob[0]));
     var off: usize = 1;
     const original_len = try readU32(blob, &off);
     if (mode == .stored) {

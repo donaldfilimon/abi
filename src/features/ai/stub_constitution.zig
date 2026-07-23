@@ -9,8 +9,8 @@ pub const Constitution = struct {
         var result = AuditResult.init();
         if (response.len == 0) {
             result.passed = false;
-            result.violations.set(@intFromEnum(Principle.truthfulness));
-            result.scores[@intFromEnum(Principle.truthfulness)] = 0.0;
+            result.violations.set(@backingInt(Principle.truthfulness));
+            result.scores[@backingInt(Principle.truthfulness)] = 0.0;
         }
         result.finalize();
         return result;
@@ -21,8 +21,8 @@ pub const Constitution = struct {
         if (response.len == 0) {
             result.passed = false;
             for (principles) |p| {
-                result.violations.set(@intFromEnum(p));
-                result.scores[@intFromEnum(p)] = 0.0;
+                result.violations.set(@backingInt(p));
+                result.scores[@backingInt(p)] = 0.0;
             }
         }
         result.finalize();
