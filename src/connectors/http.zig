@@ -140,16 +140,27 @@ fn mapHttpStatus(status: std.http.Status) ConnectorError!void {
     };
 }
 
+/// True if `s` starts with `prefix` (case-insensitively) and the prefix ends
+/// at a real host-name boundary — end of string, or a `:`/`/` separator.
+/// A bare prefix match would let `http://127.0.0.1.evil.com` or
+/// `http://127.0.0.1@evil.com` slip through as if they were loopback.
+fn hasHostPrefix(s: []const u8, prefix: []const u8) bool {
+    if (s.len < prefix.len or !std.ascii.eqlIgnoreCase(s[0..prefix.len], prefix)) return false;
+    if (s.len == prefix.len) return true;
+    return switch (s[prefix.len]) {
+        ':', '/' => true,
+        else => false,
+    };
+}
+
 /// Live connector base URLs must use HTTPS so API keys are never sent over
 /// cleartext HTTP (TM-007). Loopback URLs (http://127.0.0.1 / http://localhost)
 /// are exempted so local integration tests and loopback services work without TLS.
 pub fn requireHttpsBaseUrl(base_url: []const u8) ConnectorError!void {
     const https_prefix = "https://";
     if (base_url.len >= https_prefix.len and std.ascii.eqlIgnoreCase(base_url[0..https_prefix.len], https_prefix)) return;
-    const loopback_http = "http://127.0.0.1";
-    if (base_url.len >= loopback_http.len and std.ascii.eqlIgnoreCase(base_url[0..loopback_http.len], loopback_http)) return;
-    const localhost_http = "http://localhost";
-    if (base_url.len >= localhost_http.len and std.ascii.eqlIgnoreCase(base_url[0..localhost_http.len], localhost_http)) return;
+    if (hasHostPrefix(base_url, "http://127.0.0.1")) return;
+    if (hasHostPrefix(base_url, "http://localhost")) return;
     return ConnectorError.InsecureBaseUrl;
 }
 
@@ -330,6 +341,25 @@ test "requireHttpsBaseUrl accepts https and rejects cleartext schemes" {
     try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl("ftp://example.com"));
     try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl(""));
     try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl("https:/bad"));
+}
+
+test "requireHttpsBaseUrl loopback exemption checks a real host boundary" {
+    // Legitimate loopback forms must still pass.
+    try requireHttpsBaseUrl("http://127.0.0.1");
+    try requireHttpsBaseUrl("http://127.0.0.1:8080");
+    try requireHttpsBaseUrl("http://127.0.0.1/v1");
+    try requireHttpsBaseUrl("http://localhost");
+    try requireHttpsBaseUrl("http://localhost:11434");
+    try requireHttpsBaseUrl("HTTP://LOCALHOST/v1");
+
+    // A bare prefix match must not exempt a spoofed non-loopback host — these
+    // all start with the loopback prefix but resolve to an attacker host and
+    // must be rejected as insecure, not silently treated as loopback.
+    try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl("http://127.0.0.1.evil.com"));
+    try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl("http://127.0.0.1@evil.com"));
+    try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl("http://127.0.0.10"));
+    try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl("http://localhost.evil.com"));
+    try std.testing.expectError(error.InsecureBaseUrl, requireHttpsBaseUrl("http://localhost@evil.com"));
 }
 
 test "joinUrl requires https and joins path segments" {

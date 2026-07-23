@@ -88,6 +88,19 @@ pub const SegmentStore = struct {
                 }
             }
         }
+
+        // `flush` always appends the pre-increment `next_epoch` as the new
+        // (and therefore highest) active epoch, and `reclaim` never drops the
+        // highest epoch — so `max(active) + 1 == next_epoch` holds after every
+        // successful write. A torn/truncated write can still parse as a valid
+        // manifest (a shorter-but-well-formed `active=` list) while violating
+        // this invariant; catching it here turns silent stale-checkpoint
+        // recovery into a loud, honest failure instead.
+        if (m.active.items.len > 0) {
+            var max: u64 = m.active.items[0];
+            for (m.active.items) |e| max = @max(max, e);
+            if (max + 1 != m.next_epoch) return SegmentError.InvalidManifest;
+        }
         return m;
     }
 
@@ -104,7 +117,18 @@ pub const SegmentStore = struct {
 
         const mp = try self.manifestPath();
         defer self.allocator.free(mp);
-        try std.Io.Dir.cwd().writeFile(self.io, .{ .sub_path = mp, .data = out.written() });
+        // Write-then-rename rather than truncate-in-place: a crash or partial
+        // write mid-truncate can leave a manifest that still parses (a valid
+        // prefix of the old content) but silently understates `active`,
+        // pointing recovery at a stale epoch instead of failing loudly or
+        // falling back to the legacy mirror. Rename is atomic on the
+        // filesystems this store targets, so readers only ever see the old
+        // manifest or the fully-written new one, never a torn one.
+        const tmp = try std.fmt.allocPrint(self.allocator, "{s}.tmp", .{mp});
+        defer self.allocator.free(tmp);
+        const cwd = std.Io.Dir.cwd();
+        try cwd.writeFile(self.io, .{ .sub_path = tmp, .data = out.written() });
+        try cwd.rename(tmp, cwd, mp, self.io);
     }
 
     /// Checkpoint `store` as a new immutable segment; returns its epoch.
@@ -440,11 +464,44 @@ test "segments: readManifest rejects corrupt manifests rather than mis-parsing" 
         "# BOGUS HEADER\n", // wrong/missing header
         MANIFEST_HEADER ++ "\nnext_epoch=abc\n", // non-numeric next_epoch
         MANIFEST_HEADER ++ "\nnext_epoch=1\nactive=0,xx\n", // non-numeric active token
+        // A well-formed-but-truncated `active=` list (as a torn/partial write
+        // could produce): syntactically valid, but understates the live
+        // epochs relative to `next_epoch`. Must fail loudly, not silently
+        // recover a stale checkpoint while orphaning newer segments on disk.
+        MANIFEST_HEADER ++ "\nnext_epoch=3\nactive=0\n",
     };
     for (corrupt) |bad| {
         try std.Io.Dir.cwd().writeFile(testing.io, .{ .sub_path = mp, .data = bad });
         try testing.expectError(SegmentError.InvalidManifest, ss.latestEpoch());
     }
+}
+
+test "segments: writeManifest survives a killed write via rename, never a torn file" {
+    const allocator = testing.allocator;
+    const base = "zig-out/wdbx-seg-atomic";
+    cleanup(base);
+    defer cleanup(base);
+
+    var ss = SegmentStore.init(allocator, testing.io, base);
+
+    var s0 = wdbx_mod.Store.init(allocator);
+    _ = try s0.appendBlock("abbey", 0, 0, "{\"t\":1}");
+    _ = try ss.flush(&s0);
+    s0.deinit();
+
+    var s1 = wdbx_mod.Store.init(allocator);
+    _ = try s1.appendBlock("abbey", 0, 0, "{\"t\":1}");
+    _ = try s1.appendBlock("aviva", 0, 0, "{\"t\":2}");
+    _ = try ss.flush(&s1);
+    s1.deinit();
+
+    // No leftover `.manifest.tmp` after a normal write sequence.
+    const mp = base ++ ".manifest";
+    const tmp = mp ++ ".tmp";
+    try testing.expectError(error.FileNotFound, std.Io.Dir.cwd().access(testing.io, tmp, .{}));
+
+    // The committed manifest reflects the final state, not a torn intermediate.
+    try testing.expectEqual(@as(?u64, 1), try ss.latestEpoch());
 }
 
 test {
