@@ -4,25 +4,26 @@ Canonical instruction file. If this conflicts with `build.zig`, `tools/build.sh`
 
 ## Toolchain
 - Pinned to `0.17.0-dev.1442+972627084` (`.zigversion`). Use zvm/zigup; the wrapper does **not** switch. `tools/check_zigversion.sh` (wired into `check`) fails on drift vs `.github/workflows/ci.yml`.
-- On macOS: **use `./build.sh ...`** (Darwin Metal-linking entrypoint). `feat-foundationmodels` needs arm64 macOS + Xcode + macOS 26 SDK.
+- On macOS: **use `./build.sh ...`** (→ `tools/build.sh`; Darwin Metal-linking entrypoint). `feat-foundationmodels` needs arm64 macOS + Xcode + macOS 26 SDK.
 
 ## Commands
 | Command | What it does |
 |---------|-------------|
 | `./build.sh check` | Primary gate: build, tests, lint, parity, feature-off stubs (overwrites `zig-out/bin/abi`), CLI smoke. Re-run `./build.sh cli` afterward to restore full binary. |
-| `./build.sh full-check` | check + integration + benchmarks + dashboard/agent TUI smoke |
+| `./build.sh full-check` | check + integration + benchmarks + dashboard/agent TUI smoke + `tools/check_modernized_refs.sh` |
 | `./build.sh cli` / `mcp` | Build `zig-out/bin/abi` / `zig-out/bin/abi-mcp` |
 | `./build.sh test -Dtest-filter="<pattern>"` | Single test (use build option; `-- --test-filter` is silently ignored) |
-| `./build.sh test-{cli,plugins,contracts,mcp-*,integration,feature-contracts}` | Focused suites |
+| `./build.sh test-{cli,plugins,contracts,mcp-contracts,mcp-server,integration,feature-contracts}` | Focused suites |
 | `./build.sh check-parity` | Verify mod/stub public-decl parity (run after any public API change) |
 | `./build.sh lint`/`fix` | Check/apply formatting |
+| `./build.sh cross-smoke` | Compile+link smoke for linux/windows/macos cross targets |
 | `.agents/skills/docs-validate/validate.sh` | Docs validation (CI `docs (mint validate)`) |
 
 ## Architecture (non-obvious from names)
 - Entrypoints: `src/main.zig` (CLI), `src/mcp/main.zig` (MCP server). Public API: `src/root.zig` (`@import("abi")`).
-- **MCP module-root isolation**: `src/mcp/` is its own Zig module (depends on `abi` only via named import). mcp files reach `foundation.*` (http/env/json) via `@import("abi").foundation.*` only. No `src/mcp/*.zig` reaches `abi.features`/`ai`/`wdbx` internals; nothing outside imports MCP internals. MCP↔WDBX REST duplication is intentional.
+- **Import boundary**: library modules under `src/features/`, `src/core/`, `src/foundation/` use **relative** imports only. Executables may `@import("abi")`: CLI (`src/main.zig` + `src/cli/**`) and the whole MCP module (`src/mcp/**` — its own Zig module root). MCP reaches `foundation.*` via `@import("abi").foundation.*` only; no MCP file reaches `abi.features`/`ai`/`wdbx` internals; nothing outside imports MCP internals. MCP↔WDBX REST framing duplication is intentional.
 - **Generated**: `src/plugin_registry.zig` is regenerated from `src/plugins/*/abi-plugin.json` at build time — never hand-edit. (See `tools/generate_plugin_registry.zig` and build.zig.)
-- Repo-root `mcp/` holds only launcher scripts (`launcher.sh` wired by `opencode.json`).
+- Repo-root `mcp/` holds only launcher scripts (`launcher.sh` wired by `opencode.json`). Launcher **must** `cd` to repo root before `exec` — `abi-mcp` links with `@rpath` into `.zig-cache` (`libabi_fm_shim.dylib`); dyld needs cwd = repo root.
 
 ## Frozen surfaces (contract-tested — don't break)
 - **CLI (13)**: `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`. Do **not** resurrect legacy names.
@@ -47,9 +48,9 @@ No unproven claims (production FHE/AES/RBAC, multi-host sharding, QPS/latency/ac
 - Feature-stub smoke in `check` overwrites the `abi` binary — re-run `./build.sh cli` to restore.
 
 ## Linux / non-macOS note
-Cross-compiles link cleanly (use `tools/cross_smoke.sh`). Execution of cross binaries needs a Linux/Windows host. Green native suites on macOS: full `./build.sh check`.
+Cross-compiles link cleanly (`./build.sh cross-smoke` / `tools/cross_smoke.sh`). Execution of cross binaries needs a Linux/Windows host. Green native suites on macOS: full `./build.sh check`.
 
-Gitignore gotcha: global `*.md` allowlist in effect — every new tracked markdown (e.g. `examples/*/README.md`) needs an explicit `!` entry or it is silently untracked.
+Gitignore gotcha: global `*.md` allowlist in effect — every new tracked markdown (e.g. `examples/*/README.md`) needs an explicit `!` entry or it is silently untracked. `tasks/goals.md` is intentionally untracked; use committed `tasks/todo.md`.
 
 ## Learned User Preferences
 - Prefer feature branches `cursor/*` from `origin/main`; do not commit/push directly to `main`; never force-push.
@@ -64,7 +65,6 @@ Gitignore gotcha: global `*.md` allowlist in effect — every new tracked markdo
 
 ## Learned Workspace Facts
 - Live code in `src/`; `modernized/` is scaffold only — `tools/check_modernized_refs.sh` (in full-check) rejects stale `src/...` pointers inside it.
-- `tasks/goals.md` gitignored; use committed `tasks/todo.md` as active board.
 - Interactive `abi tui|dashboard|--tui` uses split layout; `--once` is stacked (different by design). Dashboard is digest only.
 - Plugin slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>`).
 - WDBX borrowed vectors (SearchResult/RankedNode) are zero-copy; lifetime ends on next mutation.
@@ -72,7 +72,7 @@ Gitignore gotcha: global `*.md` allowlist in effect — every new tracked markdo
 - Metal details, shared foundation/http+json, and similar are reference only in Metal/CUDA stubs.
 
 ## Common Pitfalls
-1. Circular imports: `@import("abi")` **only** from MCP executable + handler group (`src/mcp/main.zig` + handlers group). Use relative everywhere else in `src/`.
+1. Circular imports: `@import("abi")` only from executables (CLI `src/main.zig`+`src/cli/**`, MCP `src/mcp/**`). Relative imports in `src/features/`, `src/core/`, `src/foundation/`.
 2. Path imports must include `.zig` extension.
 3. Empty `catch {}` forbidden in data/inference/persistence.
 4. `ArrayListUnmanaged(T).empty` (not `.init(allocator)`).
@@ -82,5 +82,6 @@ Gitignore gotcha: global `*.md` allowlist in effect — every new tracked markdo
 8. macOS builds: prefer `./build.sh` (wrapper + Metal).
 9. Every module test block: `std.testing.refAllDecls(@This())`.
 10. Feature flags: `build_options.feat_*` at compile time (not runtime checks).
+11. MCP launcher: run via `mcp/launcher.sh` (or from repo root) — bare `zig-out/bin/abi-mcp` from another cwd fails dyld `@rpath` resolution for `libabi_fm_shim.dylib`.
 
 After any edit: `./build.sh check`.
