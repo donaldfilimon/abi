@@ -1,0 +1,13 @@
+{
+  "initial": ["A"],
+  "rules": [
+    "A->B",
+    "B->A"
+  ],
+  "max_depth": 32,
+  "max_states": 100,
+  "max_events": 5000,
+  "max_payload": 16,
+  "seed": 0,
+  "workers": 1
+}

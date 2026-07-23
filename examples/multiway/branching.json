@@ -1,0 +1,14 @@
+{
+  "initial": ["A"],
+  "rules": [
+    { "rule": "A->AB", "family": "grow", "weight": 1.0 },
+    { "rule": "A->BA", "family": "grow", "weight": 1.0 },
+    { "rule": "BB->A", "family": "shrink", "weight": 1.0 }
+  ],
+  "max_depth": 5,
+  "max_states": 500,
+  "max_events": 5000,
+  "max_payload": 64,
+  "seed": 0,
+  "workers": 1
+}

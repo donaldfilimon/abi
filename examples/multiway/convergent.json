@@ -1,0 +1,13 @@
+{
+  "initial": ["ABAB"],
+  "rules": [
+    "A->C",
+    "B->C"
+  ],
+  "max_depth": 6,
+  "max_states": 1000,
+  "max_events": 20000,
+  "max_payload": 32,
+  "seed": 0,
+  "workers": 1
+}

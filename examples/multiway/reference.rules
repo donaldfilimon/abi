@@ -1,0 +1,8 @@
+# Reference multiway experiment rule set.
+# One rule per line as LHS->RHS; blank lines and #-comments are ignored.
+# Run with:
+#   abi wdbx simulate --initial A --rules-file examples/multiway/reference.rules \
+#     --depth 5 --max-states 500 --max-events 5000 --format json --output experiment.json
+A->AB
+A->BA
+BB->A
