@@ -248,6 +248,9 @@ test_imports3
 /src_next/
 .zls.json
 
+# SDD session scratch (progress ledgers, review packages, salvage patches)
+/.superpowers/
+
 # ── Markdown allowlist ─────────────────────────────────────────────────
 *.md
 
@@ -263,7 +266,8 @@ test_imports3
 # GitHub Actions runner ops (self-hosted security + day-2)
 !/.github/self-hosted-runner.md
 
-# Example walkthroughs
+# Example walkthroughs (each new examples/*/README.md needs its own entry)
+!/examples/multiway/README.md
 !/examples/wdbx_3d_hybrid/README.md
 
 # Documentation tree
