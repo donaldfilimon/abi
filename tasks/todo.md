@@ -20,7 +20,7 @@ Landed on `main` via [#676](https://github.com/donaldfilimon/abi/pull/676) (`cur
 | **D** | Lossless ANS/order-1 demo next to Huffman — not SOTA | ✅ Demo landed | `src/features/wdbx/ans.zig` + `abi wdbx secure demo` | Production/SOTA learned codec (ANS/arithmetic/context-model at scale). |
 | **E** | FHE deepen reference tests/docs — not audited | ✅ Reference deepened | `fhe.zig` (`REF_P_BITS` / `REF_NOISE_BITS` / `VERIFIED_MUL_DEPTH`) | External security audit + bootstrapped FHE. |
 | **F** | Cluster TLS-fronting story + ops docs — not sharding | ✅ Ops honesty landed | `cluster_rpc` TOKEN/PEERS tests; non-loopback TLS-fronting note | Production multi-host, mTLS, dynamic membership, **sharding**. |
-| **G** | Phase D first approved scaffold under `modernized/` | ✅ Minimal scaffold | `modernized/README.md` + `modernized/packages/*` | Cutover / second build root. **Live code remains `src/`**. |
+| **G** | Phase D first approved scaffold under `modernized/` | ✅ Minimal scaffold | `modernized/README.md` + `modernized/packages/*`; `tools/check_modernized_refs.sh` in `full-check` | Cutover / second build root. **Live code remains `src/`**. |
 
 ---
 
@@ -71,7 +71,7 @@ Prioritized after A–G. Do not promote to Done without source + tests + honest 
 | 2 | Broader Metal GPU path (more kernels / reduce) | ◑ Improved | Fused cosine/dot/L2 + multi-pass `reduce_sum_kernel` + demo-grade softmax map+norm (#712). Residual: more kernels / CUDA/ANE disclosed. |
 | 3 | Windows **runtime** CI/job | 🔴 Blocked (no Windows runner) | ACL code exists for windows-gnu; execution verify blocked on host. |
 | 4 | OS keychain credential storage | ◑ Partial | macOS login keychain via Security.framework SecItem (opt-in `ABI_CREDENTIALS_BACKEND=keychain`); `abi auth status` now surfaces the active backend (`keychain (macOS login keychain, opt-in)` / `file (~/.abi/credentials.json)`); default remains file-based; Windows Credential Manager and Linux Secret Service remain Proposed; OS-provided at-rest protection only — not hardware-backed (no Secure Enclave/biometric), not audited; runtime-verified on macOS host only (interactive session), not headless-CI-safe. |
-| 5 | Phase D cutover plan (HITL) | ◑ Plan landed | `docs/spec/phase-d-cutover-plan.mdx` — checklist only; cutover still needs explicit HITL + gates. |
+| 5 | Phase D cutover plan (HITL) | ◑ Plan landed | `docs/spec/phase-d-cutover-plan.mdx` — checklist only; cutover still needs explicit HITL + gates. Scaffold honesty gate: `tools/check_modernized_refs.sh` in `full-check` (stale `` `src/...` `` refs fail). |
 | 6 | Non-loopback REST threat review + native TLS link decision | ◑ Docs landed | `docs/spec/non-loopback-rest-threat-review.mdx` — proxy TLS preferred; native TLS deferred; not a hardened-expose claim. |
 | 7 | Cluster mTLS / membership (still not sharding) | ◑ Ops docs landed | `docs/spec/cluster-mtls-ops.mdx` — proxy mTLS preferred; dynamic membership + sharding stay Proposed. |
 | 8 | Mark `check-parity` as a required status check (branch protection) | 🔴 Blocked (Actions billing lock) | Explicit `check-parity` / `check-parity-hosted` jobs added to `.github/workflows/ci.yml`; jobs currently die in ~2s under the account billing lock — do not trigger CI; flip branch protection once billing is unblocked. |
@@ -99,6 +99,10 @@ Do not schedule these as “complete”:
 
 Full detail: `git log` + `CHANGELOG.md`. Keep this list short.
 
+- **modernized-refs gate** — portable `tools/check_modernized_refs.sh` (bash 3.2) wired into `zig build full-check`; fails on stale fenced `` `src/...` `` pointers under `modernized/` (not a second build root).
+- **#728** — `abi auth status` surfaces active credential backend (`keychain` / `file`).
+- **#727** — P0-1 lock-across-I/O audit table, bench regression gate, multiway/octtree docs refresh.
+- **#726** — Zig pin `0.17.0-dev.1442+972627084` (+ CI `ZIG_VERSION` sync).
 - **Branch consolidation** — preserved adaptive-router state hardening and current Zig-pin docs contracts, restored compact canonical agent instructions, and fixed portable stderr flushing for Windows cross-builds; superseded branch trees were excluded to avoid regressions.
 - **#692** — `TestWriter` consolidated to `foundation/test_helpers.zig` (15 inline copies removed across dashboard, registry, tui); `deleteTestFileIfExists` added for production WDBX use; import paths fixed in recovery/persistence/segments/wal/repl_git_commands.
 - **#691** — Env var names centralized in `foundation/env.zig` (15 constants); `escapeJsonString` delegated to `foundation/json.zig` from `rest_parse.zig`; connectors keep inline `appendJsonString` (module isolation). 99%+ tests pass (1 pre-existing flaky).
