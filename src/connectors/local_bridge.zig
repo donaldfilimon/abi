@@ -72,15 +72,17 @@ pub fn healthCheck(io: std.Io, allocator: std.mem.Allocator, endpoint: []const u
 /// (owned by the caller). The caller is responsible for parsing the
 /// `choices[0].message.content` field.
 ///
-/// `endpoint_override` (default `null`) forces a base URL — same semantics as
-/// `endpointFor`'s override — so tests can target an unreachable host without
-/// racing whatever may be listening on the default `:8080`.
+/// `endpoint_override` forces a base URL — same semantics as `endpointFor`'s
+/// override — so tests can target an unreachable host without racing whatever
+/// may be listening on the default `:8080`. Pass `null` for the default
+/// endpoint resolution (Zig has no default parameter values, so callers that
+/// want the default must pass `null` explicitly).
 pub fn completeLive(
     io: std.Io,
     allocator: std.mem.Allocator,
     model: []const u8,
     input: []const u8,
-    endpoint_override: ?[]const u8 = null,
+    endpoint_override: ?[]const u8,
 ) !Response {
     const endpoint = endpointFor(model, endpoint_override);
     const config = ConnectorConfig{
@@ -219,7 +221,10 @@ test "local_bridge completeLive errors for unreachable endpoint (no leak on succ
     // httpPostJson → ConnectionFailed (typically), or Timeout /
     // LiveTransportUnavailable.
     if (completeLive(io, allocator, "llama/phi3", "ping", "http://127.0.0.1:1")) |response| {
-        defer response.deinit(allocator);
+        // `deinit` takes a mutable pointer, and an `if` payload capture is
+        // const, so rebind before freeing.
+        var owned = response;
+        defer owned.deinit(allocator);
         try std.testing.expect(false); // success must not pass
     } else |err| {
         try std.testing.expect(err == error.ConnectionFailed or err == error.Timeout or err == error.LiveTransportUnavailable);

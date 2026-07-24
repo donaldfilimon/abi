@@ -14,11 +14,26 @@ const LearnMetadata = struct {
     adapted: bool,
 };
 
+const DebugWriter = struct {
+    pub fn print(_: *const @This(), comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format, args);
+    }
+};
+
 fn printCompletionMetadata(completion: *const features.ai.CompletionResult, stats: anytype, learn: ?LearnMetadata, skip_output: bool) void {
+    const writer = DebugWriter{};
+    printCompletionMetadataWriter(&writer, completion, stats, learn, skip_output) catch {};
+}
+
+/// Renders the same one-line-per-field completion metadata as
+/// `printCompletionMetadata` through an injectable `writer` (anything with a
+/// `print(comptime fmt, args) !void` method), so the exact formatted content
+/// can be asserted in tests without capturing stderr.
+fn printCompletionMetadataWriter(writer: anytype, completion: *const features.ai.CompletionResult, stats: anytype, learn: ?LearnMetadata, skip_output: bool) !void {
     const persisted = completion.query_vector_id != null and completion.response_vector_id != null and completion.block_id != null;
 
     if (learn) |meta| {
-        std.debug.print("model={s} profile={s} audit_passed={s} audit_escore={d:.3} audit_vetoed={s} persisted={s} learn=true evidence_count={d} adapted={s}\n", .{
+        try writer.print("model={s} profile={s} audit_passed={s} audit_escore={d:.3} audit_vetoed={s} persisted={s} learn=true evidence_count={d} adapted={s}\n", .{
             completion.model,
             completion.selected_profile.label(),
             if (completion.audit.passed) "true" else "false",
@@ -29,7 +44,7 @@ fn printCompletionMetadata(completion: *const features.ai.CompletionResult, stat
             if (meta.adapted) "true" else "false",
         });
     } else {
-        std.debug.print("model={s} profile={s} audit_passed={s} audit_escore={d:.3} audit_vetoed={s} persisted={s}\n", .{
+        try writer.print("model={s} profile={s} audit_passed={s} audit_escore={d:.3} audit_vetoed={s} persisted={s}\n", .{
             completion.model,
             completion.selected_profile.label(),
             if (completion.audit.passed) "true" else "false",
@@ -39,18 +54,18 @@ fn printCompletionMetadata(completion: *const features.ai.CompletionResult, stat
         });
     }
 
-    std.debug.print("wdbx kv_entries={d} vectors={d} blocks={d}\n", .{ stats.kv_entries, stats.vectors, stats.blocks });
+    try writer.print("wdbx kv_entries={d} vectors={d} blocks={d}\n", .{ stats.kv_entries, stats.vectors, stats.blocks });
     if (completion.query_vector_id) |qid| {
-        std.debug.print("query_vector_id={d}\n", .{qid});
-        std.debug.print("metadata_key=completion:{d}\n", .{qid});
+        try writer.print("query_vector_id={d}\n", .{qid});
+        try writer.print("metadata_key=completion:{d}\n", .{qid});
     }
-    if (completion.response_vector_id) |rid| std.debug.print("response_vector_id={d}\n", .{rid});
+    if (completion.response_vector_id) |rid| try writer.print("response_vector_id={d}\n", .{rid});
     if (completion.block_id) |block_id| {
         const block_hex = std.fmt.bytesToHex(block_id, .lower);
-        std.debug.print("block_id={s}\n", .{&block_hex});
+        try writer.print("block_id={s}\n", .{&block_hex});
     }
-    if (!persisted) std.debug.print("wdbx_status={s}\n", .{stats.acceleration.message});
-    if (!skip_output) std.debug.print("{s}\n", .{completion.output});
+    if (!persisted) try writer.print("wdbx_status={s}\n", .{stats.acceleration.message});
+    if (!skip_output) try writer.print("{s}\n", .{completion.output});
 }
 
 /// `abi complete --learn`: run one SEA self-learning pass against the durable
@@ -269,7 +284,7 @@ pub fn handleLocalBridgeComplete(io: std.Io, allocator: std.mem.Allocator, input
         return 0;
     }
 
-    var response = connectors.local_bridge.completeLive(io, allocator, model, input) catch |err| {
+    var response = connectors.local_bridge.completeLive(io, allocator, model, input, null) catch |err| {
         std.debug.print("error: local bridge request failed: {s}\n", .{@errorName(err)});
         return 1;
     };
@@ -346,4 +361,122 @@ pub fn handleNeuralComplete(io: std.Io, allocator: std.mem.Allocator, input: []c
         .{if (stream) "chunked" else "batch"},
     );
     return 0;
+}
+
+const test_helpers = @import("abi").foundation.test_helpers;
+const testing = std.testing;
+
+const test_block_id: [32]u8 = @splat(0xAB);
+
+fn testCompletion(allocator: std.mem.Allocator, output: []const u8, persisted: bool) !features.ai.CompletionResult {
+    var audit = features.ai.constitution.AuditResult.init();
+    audit.escore = 0.875;
+    return .{
+        .model = "claude-fable-5",
+        .selected_profile = .abbey,
+        .output = try allocator.dupe(u8, output),
+        .audit = audit,
+        .query_vector_id = if (persisted) 7 else null,
+        .response_vector_id = if (persisted) 8 else null,
+        .block_id = if (persisted) test_block_id else null,
+    };
+}
+
+const testStats = .{
+    .kv_entries = 3,
+    .vectors = 5,
+    .blocks = 1,
+    .acceleration = .{ .message = "cpu_fallback (deterministic SIMD)" },
+};
+
+test "printCompletionMetadataWriter: persisted completion without learn omits learn/evidence fields" {
+    const a = testing.allocator;
+    var completion = try testCompletion(a, "hello there", true);
+    defer completion.deinit(a);
+
+    var buf: std.ArrayListUnmanaged(u8) = .empty;
+    defer buf.deinit(a);
+    const writer = test_helpers.TestWriter{ .allocator = a, .buffer = &buf };
+
+    try printCompletionMetadataWriter(&writer, &completion, testStats, null, false);
+
+    try testing.expect(std.mem.indexOf(u8, buf.items, "model=claude-fable-5") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "profile=abbey") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "audit_passed=true") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "audit_escore=0.875") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "persisted=true") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "learn=true") == null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "evidence_count") == null);
+
+    try testing.expect(std.mem.indexOf(u8, buf.items, "wdbx kv_entries=3 vectors=5 blocks=1") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "query_vector_id=7") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "metadata_key=completion:7") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "response_vector_id=8") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "block_id=") != null);
+    // A persisted completion never reports the fallback wdbx_status line.
+    try testing.expect(std.mem.indexOf(u8, buf.items, "wdbx_status=") == null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "hello there") != null);
+}
+
+test "printCompletionMetadataWriter: learn metadata adds evidence_count and adapted fields" {
+    const a = testing.allocator;
+    var completion = try testCompletion(a, "learned output", true);
+    defer completion.deinit(a);
+
+    var buf: std.ArrayListUnmanaged(u8) = .empty;
+    defer buf.deinit(a);
+    const writer = test_helpers.TestWriter{ .allocator = a, .buffer = &buf };
+
+    try printCompletionMetadataWriter(&writer, &completion, testStats, .{ .evidence_count = 4, .adapted = true }, false);
+
+    try testing.expect(std.mem.indexOf(u8, buf.items, "learn=true") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "evidence_count=4") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "adapted=true") != null);
+}
+
+test "printCompletionMetadataWriter: unpersisted completion reports wdbx_status and omits vector/block ids" {
+    const a = testing.allocator;
+    var completion = try testCompletion(a, "no store output", false);
+    defer completion.deinit(a);
+
+    var buf: std.ArrayListUnmanaged(u8) = .empty;
+    defer buf.deinit(a);
+    const writer = test_helpers.TestWriter{ .allocator = a, .buffer = &buf };
+
+    try printCompletionMetadataWriter(&writer, &completion, testStats, null, false);
+
+    try testing.expect(std.mem.indexOf(u8, buf.items, "persisted=false") != null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "query_vector_id=") == null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "response_vector_id=") == null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "block_id=") == null);
+    try testing.expect(std.mem.indexOf(u8, buf.items, "wdbx_status=cpu_fallback (deterministic SIMD)") != null);
+}
+
+test "printCompletionMetadataWriter: skip_output suppresses the completion body" {
+    const a = testing.allocator;
+    var completion = try testCompletion(a, "should not appear", true);
+    defer completion.deinit(a);
+
+    var buf: std.ArrayListUnmanaged(u8) = .empty;
+    defer buf.deinit(a);
+    const writer = test_helpers.TestWriter{ .allocator = a, .buffer = &buf };
+
+    try printCompletionMetadataWriter(&writer, &completion, testStats, null, true);
+
+    try testing.expect(std.mem.indexOf(u8, buf.items, "should not appear") == null);
+}
+
+test "handleFmComplete refuses on-device completion without --confirm" {
+    const a = testing.allocator;
+    const code = try handleFmComplete(a, "hi", "apple-fm", false);
+    try testing.expectEqual(@as(u8, 2), code);
+}
+
+test "handleLiveComplete rejects non-anthropic models before touching credentials or network" {
+    const code = try handleLiveComplete(testing.io, testing.allocator, "hi", "gpt-4", false);
+    try testing.expectEqual(@as(u8, 2), code);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

@@ -33,6 +33,14 @@ Canonical instruction file. If this conflicts with `build.zig`, `tools/build.sh`
 - Any public API change → update **both** `mod.zig` and `stub.zig`, then `./build.sh check-parity`. Parity scans column-0 `pub const`/`pub fn` only; struct methods are invisible.
 - 5 contract test files: `tests/contracts/{surface,feature_modules,mcp_tools,plugin_registry,public_docs}.zig`.
 
+## Test topology (not obvious from the file tree)
+- Most coverage is inline `test {}` blocks (~288 of 293 `src/**.zig` files). What *runs* depends on the target:
+- `test` = mod + connector + **cli** + **plugin** + feature-contract artifacts. **`test` does NOT include integration.**
+- **`check` runs `test` but NOT `test-integration`** — only `full-check` runs integration. A test reachable only from `integration_tests.zig` stays unverified in the primary gate.
+- Aggregators exist because inline tests would otherwise never run: CLI ships as an executable (`src/cli_test.zig`) and plugins load by path at runtime (`src/plugins_test.zig`). Adding a test under `src/cli/**` or `src/plugins/**` without the aggregator reaching it silently never executes.
+- `src/tests/*.zig` (e2e/stress) are pulled in only via `refAllDecls` from `src/integration_tests.zig` → `test-integration` → `full-check`.
+- Tests that write under `zig-out/` must create it; a bare `zig build test-integration` on a clean tree has no `zig-out` and fails with `FileNotFound`.
+
 ## Zig 0.17 essentials (easy to miss)
 - `pub fn main(init: std.process.Init) !void`; `ArrayListUnmanaged(T).empty`; `std.mem.trimEnd`/`splitScalar`/`splitAny`/`splitSequence`; `foundation.time.unixMs()`.
 - Tests: inline `test {}`, end modules with `std.testing.refAllDecls(@This())`.

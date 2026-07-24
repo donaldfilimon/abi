@@ -179,3 +179,34 @@ fn isAllowedLsOption(arg: []const u8) bool {
     }
     return true;
 }
+
+test "pathContained: exact workspace root path is contained" {
+    try std.testing.expect(pathContained("/home/user/abi", "/home/user/abi"));
+}
+
+test "pathContained: a proper subdirectory or file is contained" {
+    try std.testing.expect(pathContained("/home/user/abi/src/main.zig", "/home/user/abi"));
+    try std.testing.expect(pathContained("/home/user/abi/", "/home/user/abi"));
+}
+
+test "pathContained: a sibling directory sharing the workspace root as a string prefix is NOT contained" {
+    // "/home/user/abi-other" starts with the literal bytes "/home/user/abi" but
+    // is a sibling directory, not a subpath — the separator check must catch this.
+    try std.testing.expect(!pathContained("/home/user/abi-other", "/home/user/abi"));
+    try std.testing.expect(!pathContained("/home/user/abisecret/file", "/home/user/abi"));
+}
+
+test "pathContained: a parent or unrelated directory is NOT contained" {
+    try std.testing.expect(!pathContained("/home/user", "/home/user/abi"));
+    try std.testing.expect(!pathContained("/etc/passwd", "/home/user/abi"));
+    try std.testing.expect(!pathContained("/", "/home/user/abi"));
+}
+
+test "pathContained: relative paths are never contained regardless of textual overlap" {
+    try std.testing.expect(!pathContained("home/user/abi/file", "/home/user/abi"));
+    try std.testing.expect(!pathContained("../abi/file", "/home/user/abi"));
+}
+
+test "pathContained: empty path is never contained in a non-empty workspace root" {
+    try std.testing.expect(!pathContained("", "/home/user/abi"));
+}
