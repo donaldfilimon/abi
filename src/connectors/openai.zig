@@ -98,6 +98,64 @@ pub const Client = struct {
     }
 };
 
+test "Client.chatCompletion on the local transport synthesizes a parseable response without any network call" {
+    const a = std.testing.allocator;
+    var client = Client.init(a, .{
+        .api_key = "test-key",
+        .base_url = "http://local.invalid",
+        .transport = .local,
+    });
+    defer client.deinit();
+
+    var response = try client.chatCompletion(a, "gpt-4", "[{\"role\":\"user\",\"content\":\"hi\"}]");
+    defer response.deinit(a);
+
+    try std.testing.expectEqual(@as(u16, 200), response.status);
+    try json.validateJsonValue(a, response.body, .object);
+    try std.testing.expect(std.mem.indexOf(u8, response.body, "model=gpt-4") != null);
+}
+
+test "Client.chatCompletion rejects malformed (non-array) messages before synthesizing a response" {
+    const a = std.testing.allocator;
+    var client = Client.init(a, .{
+        .api_key = "test-key",
+        .base_url = "http://local.invalid",
+        .transport = .local,
+    });
+    defer client.deinit();
+
+    try std.testing.expectError(ConnectorError.InvalidResponse, client.chatCompletion(a, "gpt-4", "{\"not\":\"array\"}"));
+}
+
+test "Client.streamChatCompletion on the local transport synthesizes SSE-shaped output" {
+    const a = std.testing.allocator;
+    var client = Client.init(a, .{
+        .api_key = "test-key",
+        .base_url = "http://local.invalid",
+        .transport = .local,
+    });
+    defer client.deinit();
+
+    var response = try client.streamChatCompletion(a, "gpt-4", "[]");
+    defer response.deinit(a);
+
+    try std.testing.expectEqual(@as(u16, 200), response.status);
+    try std.testing.expect(std.mem.startsWith(u8, response.body, "data: "));
+    try std.testing.expect(std.mem.endsWith(u8, response.body, "data: [DONE]\n\n"));
+}
+
+test "Client.chatCompletion on the live transport refuses local synthesis (LiveTransportUnavailable)" {
+    const a = std.testing.allocator;
+    var client = Client.init(a, .{
+        .api_key = "test-key",
+        .base_url = "https://api.openai.com",
+        .transport = .live,
+    });
+    defer client.deinit();
+
+    try std.testing.expectError(ConnectorError.LiveTransportUnavailable, client.chatCompletion(a, "gpt-4", "[]"));
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

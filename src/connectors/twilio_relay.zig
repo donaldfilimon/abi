@@ -341,6 +341,214 @@ fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
     return false;
 }
 
+const testing = std.testing;
+
+fn eventFor(kind: ConversationRelayEventKind, transcript: []const u8) ConversationRelayEvent {
+    return .{
+        .kind = kind,
+        .conversation_id = "conv-1",
+        .customer_id = "cust-1",
+        .transcript = transcript,
+        .owned = false,
+    };
+}
+
+test "classifyEscalation: normal transcript is not escalated" {
+    try testing.expect(classifyEscalation(eventFor(.user_transcript, "I'd like to check my order status please")) == null);
+}
+
+test "classifyEscalation: empty or whitespace-only transcript escalates" {
+    try testing.expectEqual(EscalationReason.empty_transcript, classifyEscalation(eventFor(.user_transcript, "")).?);
+    try testing.expectEqual(EscalationReason.empty_transcript, classifyEscalation(eventFor(.user_transcript, "   \t  ")).?);
+}
+
+test "classifyEscalation: explicit human request keywords escalate case-insensitively" {
+    try testing.expectEqual(EscalationReason.human_requested, classifyEscalation(eventFor(.user_transcript, "let me talk to a HUMAN please")).?);
+    try testing.expectEqual(EscalationReason.human_requested, classifyEscalation(eventFor(.user_transcript, "I want a representative")).?);
+    try testing.expectEqual(EscalationReason.human_requested, classifyEscalation(eventFor(.user_transcript, "connect me with a real person")).?);
+    try testing.expectEqual(EscalationReason.human_requested, classifyEscalation(eventFor(.user_transcript, "get me a Support Agent")).?);
+}
+
+test "classifyEscalation: sensitive topic keywords escalate case-insensitively" {
+    try testing.expectEqual(EscalationReason.sensitive_topic, classifyEscalation(eventFor(.user_transcript, "my credit card was declined")).?);
+    try testing.expectEqual(EscalationReason.sensitive_topic, classifyEscalation(eventFor(.user_transcript, "here is my SSN")).?);
+    try testing.expectEqual(EscalationReason.sensitive_topic, classifyEscalation(eventFor(.user_transcript, "I need a medical diagnosis")).?);
+    try testing.expectEqual(EscalationReason.sensitive_topic, classifyEscalation(eventFor(.user_transcript, "this is about debt collection")).?);
+}
+
+test "classifyEscalation: very short or low-confidence phrasing escalates" {
+    try testing.expectEqual(EscalationReason.low_confidence, classifyEscalation(eventFor(.user_transcript, "hi")).?);
+    try testing.expectEqual(EscalationReason.low_confidence, classifyEscalation(eventFor(.user_transcript, "I'm not sure what happened")).?);
+    try testing.expectEqual(EscalationReason.low_confidence, classifyEscalation(eventFor(.user_transcript, "totally confused right now")).?);
+    try testing.expectEqual(EscalationReason.low_confidence, classifyEscalation(eventFor(.user_transcript, "got an unknown error code")).?);
+}
+
+test "classifyEscalation: intelligence signal overrides transcript content, even a clean one" {
+    var event = eventFor(.user_transcript, "everything is going great, thanks!");
+    event.intelligence = .{ .escalation_recommended = true };
+    try testing.expectEqual(EscalationReason.intelligence_signal, classifyEscalation(event).?);
+}
+
+test "classifyEscalation: intelligence signal present but not recommending escalation defers to transcript" {
+    var event = eventFor(.user_transcript, "everything is going great, thanks!");
+    event.intelligence = .{ .escalation_recommended = false };
+    try testing.expect(classifyEscalation(event) == null);
+}
+
+test "buildLocalConversationResponse: fixed replies for setup/disconnect/interrupt/dtmf need no classification" {
+    const a = testing.allocator;
+
+    var setup = try buildLocalConversationResponse(a, eventFor(.setup, ""), "unused");
+    defer setup.deinit(a);
+    try testing.expect(std.mem.indexOf(u8, setup.text, "ABI support") != null);
+    try testing.expect(setup.escalation == null);
+
+    var disconnect = try buildLocalConversationResponse(a, eventFor(.disconnect, ""), "unused");
+    defer disconnect.deinit(a);
+    try testing.expect(std.mem.indexOf(u8, disconnect.text, "Thanks for contacting") != null);
+
+    var interrupt = try buildLocalConversationResponse(a, eventFor(.interrupt, ""), "unused");
+    defer interrupt.deinit(a);
+    try testing.expect(std.mem.indexOf(u8, interrupt.text, "interruption") != null);
+
+    var dtmf_event = eventFor(.dtmf, "");
+    dtmf_event.digit = "5";
+    var dtmf = try buildLocalConversationResponse(a, dtmf_event, "unused");
+    defer dtmf.deinit(a);
+    try testing.expect(std.mem.indexOf(u8, dtmf.text, "keypad input 5") != null);
+
+    var dtmf_no_digit = try buildLocalConversationResponse(a, eventFor(.dtmf, ""), "unused");
+    defer dtmf_no_digit.deinit(a);
+    try testing.expect(std.mem.indexOf(u8, dtmf_no_digit.text, "keypad input unknown") != null);
+}
+
+test "buildLocalConversationResponse: user_transcript with no escalation carries the agent reply and memory recall" {
+    const a = testing.allocator;
+
+    var plain = try buildLocalConversationResponse(a, eventFor(.user_transcript, "what are your hours?"), "We're open 9-5.");
+    defer plain.deinit(a);
+    try testing.expectEqualStrings("We're open 9-5.", plain.text);
+    try testing.expect(plain.escalation == null);
+
+    var with_memory = eventFor(.user_transcript, "what are your hours?");
+    with_memory.memory = .{ .recall_summary = "previously asked about returns" };
+    var with_memory_response = try buildLocalConversationResponse(a, with_memory, "We're open 9-5.");
+    defer with_memory_response.deinit(a);
+    try testing.expect(std.mem.indexOf(u8, with_memory_response.text, "We're open 9-5.") != null);
+    try testing.expect(std.mem.indexOf(u8, with_memory_response.text, "previously asked about returns") != null);
+}
+
+test "buildLocalConversationResponse: escalating user_transcript attaches an escalation payload" {
+    const a = testing.allocator;
+
+    var response = try buildLocalConversationResponse(a, eventFor(.user_transcript, "let me talk to a human"), "unused");
+    defer response.deinit(a);
+
+    try testing.expect(std.mem.indexOf(u8, response.text, "support specialist") != null);
+    const payload = response.escalation.?;
+    try testing.expectEqualStrings("human_requested", payload.reason_code);
+    try testing.expectEqualStrings("conv-1", payload.conversation_id);
+    try testing.expectEqualStrings("cust-1", payload.customer_id);
+    try testing.expect(std.mem.indexOf(u8, payload.routing_hints, "priority=normal") != null);
+}
+
+test "buildEscalationPayload: sensitive_topic and intelligence_signal get high routing priority, others normal" {
+    const a = testing.allocator;
+
+    var sensitive = try buildEscalationPayload(a, eventFor(.user_transcript, "my ssn is 123"), .sensitive_topic);
+    defer sensitive.deinit(a);
+    try testing.expect(std.mem.indexOf(u8, sensitive.routing_hints, "priority=high") != null);
+
+    var human = try buildEscalationPayload(a, eventFor(.user_transcript, "get me a human"), .human_requested);
+    defer human.deinit(a);
+    try testing.expect(std.mem.indexOf(u8, human.routing_hints, "priority=normal") != null);
+
+    var empty = try buildEscalationPayload(a, eventFor(.user_transcript, ""), .empty_transcript);
+    defer empty.deinit(a);
+    try testing.expect(std.mem.indexOf(u8, empty.summary, "no usable transcript captured") != null);
+}
+
+test "parseConversationRelayEvent: recognizes all event kind aliases" {
+    const a = testing.allocator;
+
+    const cases = .{
+        .{ "{\"type\":\"setup\"}", ConversationRelayEventKind.setup },
+        .{ "{\"type\":\"user_transcript\"}", ConversationRelayEventKind.user_transcript },
+        .{ "{\"type\":\"transcript\"}", ConversationRelayEventKind.user_transcript },
+        .{ "{\"event\":\"prompt\"}", ConversationRelayEventKind.user_transcript },
+        .{ "{\"type\":\"DTMF\"}", ConversationRelayEventKind.dtmf },
+        .{ "{\"type\":\"interrupt\"}", ConversationRelayEventKind.interrupt },
+        .{ "{\"type\":\"disconnect\"}", ConversationRelayEventKind.disconnect },
+    };
+    inline for (cases) |case| {
+        var event = try parseConversationRelayEvent(a, case[0]);
+        defer event.deinit(a);
+        try testing.expectEqual(case[1], event.kind);
+    }
+}
+
+test "parseConversationRelayEvent: unknown event type is InvalidResponse" {
+    const a = testing.allocator;
+    try testing.expectError(ConnectorError.InvalidResponse, parseConversationRelayEvent(a, "{\"type\":\"bogus\"}"));
+    try testing.expectError(ConnectorError.InvalidResponse, parseConversationRelayEvent(a, "not json"));
+    try testing.expectError(ConnectorError.InvalidResponse, parseConversationRelayEvent(a, "[1,2,3]"));
+}
+
+test "parseConversationRelayEvent: applies field aliases and defaults for missing ids" {
+    const a = testing.allocator;
+    var event = try parseConversationRelayEvent(a, "{\"type\":\"user_transcript\",\"callSid\":\"CA123\",\"from\":\"+15551234567\",\"text\":\"hello\"}");
+    defer event.deinit(a);
+    try testing.expectEqualStrings("CA123", event.conversation_id);
+    try testing.expectEqualStrings("+15551234567", event.customer_id);
+    try testing.expectEqualStrings("hello", event.transcript);
+
+    var defaults = try parseConversationRelayEvent(a, "{\"type\":\"setup\"}");
+    defer defaults.deinit(a);
+    try testing.expectEqualStrings("local-conversation", defaults.conversation_id);
+    try testing.expectEqualStrings("anonymous", defaults.customer_id);
+}
+
+test "parseConversationRelayEvent: parses nested memory and intelligence objects" {
+    const a = testing.allocator;
+    var event = try parseConversationRelayEvent(a,
+        \\{"type":"user_transcript","transcript":"hi","memory":{"profile_id":"p1","recall_summary":"likes tea"},"intelligence":{"sentiment":"positive","escalation_recommended":true}}
+    );
+    defer event.deinit(a);
+
+    try testing.expect(event.memory != null);
+    try testing.expectEqualStrings("p1", event.memory.?.profile_id);
+    try testing.expectEqualStrings("likes tea", event.memory.?.recall_summary);
+
+    try testing.expect(event.intelligence != null);
+    try testing.expectEqualStrings("positive", event.intelligence.?.sentiment);
+    try testing.expect(event.intelligence.?.escalation_recommended);
+}
+
+test "parseConversationRelayEvent: non-object memory/intelligence values are InvalidResponse" {
+    const a = testing.allocator;
+    try testing.expectError(ConnectorError.InvalidResponse, parseConversationRelayEvent(a, "{\"type\":\"setup\",\"memory\":\"nope\"}"));
+    try testing.expectError(ConnectorError.InvalidResponse, parseConversationRelayEvent(a, "{\"type\":\"setup\",\"intelligence\":42}"));
+}
+
+test "buildConversationRelayJson: round-trips text with and without an escalation payload" {
+    const a = testing.allocator;
+
+    var no_escalation_response = ConversationRelayResponse{ .text = try a.dupe(u8, "hello \"world\"") };
+    defer no_escalation_response.deinit(a);
+    const no_escalation = try buildConversationRelayJson(a, no_escalation_response);
+    defer a.free(no_escalation);
+    try json_lib.validateJsonValue(a, no_escalation, .object);
+    try testing.expect(std.mem.indexOf(u8, no_escalation, "\"escalation\":null") != null);
+
+    const payload = try buildEscalationPayload(a, eventFor(.user_transcript, "get me a human"), .human_requested);
+    var with_escalation_response = ConversationRelayResponse{ .text = try a.dupe(u8, "please hold"), .escalation = payload };
+    defer with_escalation_response.deinit(a);
+    const with_escalation = try buildConversationRelayJson(a, with_escalation_response);
+    defer a.free(with_escalation);
+    try json_lib.validateJsonValue(a, with_escalation, .object);
+    try testing.expect(std.mem.indexOf(u8, with_escalation, "\"reason_code\":\"human_requested\"") != null);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

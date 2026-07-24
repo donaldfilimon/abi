@@ -124,6 +124,64 @@ pub const Client = struct {
     }
 };
 
+test "Client.message on the local transport synthesizes a parseable response without any network call" {
+    const a = std.testing.allocator;
+    var client = Client.init(a, .{
+        .api_key = "test-key",
+        .base_url = "http://local.invalid",
+        .transport = .local,
+    });
+    defer client.deinit();
+
+    var response = try client.message(a, "fable-5", "hello there", 256);
+    defer response.deinit(a);
+
+    try std.testing.expectEqual(@as(u16, 200), response.status);
+    try json.validateJsonValue(a, response.body, .object);
+    try std.testing.expect(std.mem.indexOf(u8, response.body, "model=fable-5") != null);
+    try std.testing.expect(std.mem.indexOf(u8, response.body, "max_tokens=256") != null);
+}
+
+test "Client.streamMessage on the local transport synthesizes SSE-shaped output" {
+    const a = std.testing.allocator;
+    var client = Client.init(a, .{
+        .api_key = "test-key",
+        .base_url = "http://local.invalid",
+        .transport = .local,
+    });
+    defer client.deinit();
+
+    var response = try client.streamMessage(a, "fable-5", "hi", 128);
+    defer response.deinit(a);
+
+    try std.testing.expectEqual(@as(u16, 200), response.status);
+    try std.testing.expect(std.mem.startsWith(u8, response.body, "event: content_block_delta\ndata: "));
+}
+
+test "Client.message rejects an empty api key before building any request" {
+    const a = std.testing.allocator;
+    var client = Client.init(a, .{
+        .api_key = "",
+        .base_url = "http://local.invalid",
+        .transport = .local,
+    });
+    defer client.deinit();
+
+    try std.testing.expectError(ConnectorError.AuthenticationError, client.message(a, "fable-5", "hi", 128));
+}
+
+test "Client.message on the live transport refuses local synthesis (LiveTransportUnavailable)" {
+    const a = std.testing.allocator;
+    var client = Client.init(a, .{
+        .api_key = "test-key",
+        .base_url = "https://api.anthropic.com",
+        .transport = .live,
+    });
+    defer client.deinit();
+
+    try std.testing.expectError(ConnectorError.LiveTransportUnavailable, client.message(a, "fable-5", "hi", 128));
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

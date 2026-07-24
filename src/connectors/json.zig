@@ -162,6 +162,138 @@ pub fn discordLocalAck(allocator: std.mem.Allocator, channel_id: []const u8, con
     return try out.toOwnedSlice(allocator);
 }
 
+test "appendJsonString escapes quotes, backslashes, and common control characters" {
+    const a = std.testing.allocator;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    defer out.deinit(a);
+
+    try appendJsonString(&out, a, "line1\nline2\ttab\r\"quoted\"\\backslash");
+    try std.testing.expectEqualStrings(
+        "\"line1\\nline2\\ttab\\r\\\"quoted\\\"\\\\backslash\"",
+        out.items,
+    );
+}
+
+test "appendJsonString escapes backspace, form feed, and low control bytes as \\u escapes" {
+    const a = std.testing.allocator;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    defer out.deinit(a);
+
+    try appendJsonString(&out, a, &.{ 0x08, 0x0c, 0x01, 0x1f });
+    try std.testing.expectEqualStrings("\"\\b\\f\\u0001\\u001F\"", out.items);
+}
+
+test "appendJsonString passes through plain ASCII unchanged" {
+    const a = std.testing.allocator;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    defer out.deinit(a);
+
+    try appendJsonString(&out, a, "hello world 123");
+    try std.testing.expectEqualStrings("\"hello world 123\"", out.items);
+}
+
+test "validateJsonValue enforces the expected top-level kind" {
+    const a = std.testing.allocator;
+    try validateJsonValue(a, "[1,2,3]", .array);
+    try validateJsonValue(a, "{\"k\":1}", .object);
+    try validateJsonValue(a, "\"anything\"", .any);
+
+    try std.testing.expectError(ConnectorError.InvalidResponse, validateJsonValue(a, "{\"k\":1}", .array));
+    try std.testing.expectError(ConnectorError.InvalidResponse, validateJsonValue(a, "[1]", .object));
+    try std.testing.expectError(ConnectorError.InvalidResponse, validateJsonValue(a, "not json", .any));
+}
+
+test "buildOpenAiBody requires a JSON array for messages and embeds model/stream" {
+    const a = std.testing.allocator;
+
+    try std.testing.expectError(ConnectorError.InvalidResponse, buildOpenAiBody(a, "gpt-4", "{\"not\":\"array\"}", false));
+
+    const body = try buildOpenAiBody(a, "gpt-4", "[{\"role\":\"user\",\"content\":\"hi\"}]", false);
+    defer a.free(body);
+    try std.testing.expect(std.mem.indexOf(u8, body, "\"model\":\"gpt-4\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, body, "\"stream\"") == null);
+    try validateJsonValue(a, body, .object);
+
+    const streamed = try buildOpenAiBody(a, "gpt-4", "[]", true);
+    defer a.free(streamed);
+    try std.testing.expect(std.mem.indexOf(u8, streamed, "\"stream\":true") != null);
+}
+
+test "buildAnthropicBody embeds model, max_tokens, and the user message" {
+    const a = std.testing.allocator;
+
+    const body = try buildAnthropicBody(a, "fable-5", "hello \"claude\"", 512, false);
+    defer a.free(body);
+    try validateJsonValue(a, body, .object);
+    try std.testing.expect(std.mem.indexOf(u8, body, "\"model\":\"fable-5\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, body, "\"max_tokens\":512") != null);
+    try std.testing.expect(std.mem.indexOf(u8, body, "\\\"claude\\\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, body, "\"stream\"") == null);
+
+    const streamed = try buildAnthropicBody(a, "fable-5", "hi", 128, true);
+    defer a.free(streamed);
+    try std.testing.expect(std.mem.indexOf(u8, streamed, "\"stream\":true") != null);
+}
+
+test "buildDiscordMessageBody and buildDiscordIdentifyBody produce parseable JSON with expected fields" {
+    const a = std.testing.allocator;
+
+    const msg_body = try buildDiscordMessageBody(a, "hello discord");
+    defer a.free(msg_body);
+    try validateJsonValue(a, msg_body, .object);
+    try std.testing.expect(std.mem.indexOf(u8, msg_body, "\"content\":\"hello discord\"") != null);
+
+    const identify_body = try buildDiscordIdentifyBody(a, "tok123", 513);
+    defer a.free(identify_body);
+    try validateJsonValue(a, identify_body, .object);
+    try std.testing.expect(std.mem.indexOf(u8, identify_body, "\"op\":2") != null);
+    try std.testing.expect(std.mem.indexOf(u8, identify_body, "\"token\":\"tok123\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, identify_body, "\"intents\":513") != null);
+}
+
+test "openAiLocalResponse and openAiLocalStream embed model/byte-count metadata as parseable JSON" {
+    const a = std.testing.allocator;
+
+    const resp = try openAiLocalResponse(a, "gpt-4", "[1,2,3]", 42);
+    defer a.free(resp);
+    try validateJsonValue(a, resp, .object);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "model=gpt-4") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "messages_bytes=7") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "request_bytes=42") != null);
+
+    const stream = try openAiLocalStream(a, "gpt-4", "[1,2,3]", 42);
+    defer a.free(stream);
+    try std.testing.expect(std.mem.startsWith(u8, stream, "data: "));
+    try std.testing.expect(std.mem.endsWith(u8, stream, "data: [DONE]\n\n"));
+}
+
+test "anthropicLocalResponse and anthropicLocalStream embed model/prompt/max_tokens metadata" {
+    const a = std.testing.allocator;
+
+    const resp = try anthropicLocalResponse(a, "fable-5", "hi there", 256, 99);
+    defer a.free(resp);
+    try validateJsonValue(a, resp, .object);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "model=fable-5") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "prompt_bytes=8") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "max_tokens=256") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "request_bytes=99") != null);
+
+    const stream = try anthropicLocalStream(a, "fable-5", "hi there", 256, 99);
+    defer a.free(stream);
+    try std.testing.expect(std.mem.startsWith(u8, stream, "event: content_block_delta\ndata: "));
+    try std.testing.expect(std.mem.endsWith(u8, stream, "event: message_stop\n\n"));
+}
+
+test "discordLocalAck reports channel id and content byte length as parseable JSON" {
+    const a = std.testing.allocator;
+    const ack = try discordLocalAck(a, "chan-42", "hello");
+    defer a.free(ack);
+    try validateJsonValue(a, ack, .object);
+    try std.testing.expect(std.mem.indexOf(u8, ack, "\"status\":\"queued-local\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, ack, "\"channel_id\":\"chan-42\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, ack, "\"content_bytes\":5") != null);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
