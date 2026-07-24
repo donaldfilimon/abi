@@ -286,6 +286,40 @@ test "MCP HTTP transport returns 413 for oversized POST body" {
     var resp_buf: [512]u8 = undefined;
     const resp = try readHttpResponse(io, client, &resp_buf);
     try std.testing.expect(std.mem.indexOf(u8, resp, "413 Payload Too Large") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "application/json") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "request too large") != null);
+}
+
+test "MCP HTTP transport returns 400 for incomplete request" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    // Content-Length claims 48 body bytes but only a short prefix is sent; SHUT_WR
+    // ends the body so readHttpRequest tags .incomplete instead of blocking.
+    const request = "POST /message HTTP/1.1\r\nContent-Length: 48\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":1}";
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [256]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+    try client.shutdown(io, .send);
+
+    const conn = try bound.server.accept(io);
+    try handleHttpConnection(allocator, io, conn);
+
+    var resp_buf: [512]u8 = undefined;
+    const resp = try readHttpResponse(io, client, &resp_buf);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "400 Bad Request") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "incomplete request") != null);
 }
 
 test "MCP HTTP transport requires bearer token when configured" {
@@ -387,6 +421,37 @@ test "MCP HTTP transport denies SSE subscribe with the wrong bearer token" {
     try std.testing.expect(std.mem.indexOf(u8, resp, "WWW-Authenticate: Bearer") != null);
     try std.testing.expect(std.mem.indexOf(u8, resp, "text/event-stream") == null);
     try std.testing.expect(std.mem.indexOf(u8, resp, "event: endpoint") == null);
+}
+
+test "MCP HTTP transport accepts SSE subscribe with configured bearer token" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    const request = "GET /sse HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer local-token\r\n\r\n";
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [256]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+
+    const conn = try bound.server.accept(io);
+    try handleHttpConnectionWithAuth(allocator, io, conn, "local-token");
+
+    var resp_buf: [2048]u8 = undefined;
+    const resp = try readHttpResponse(io, client, &resp_buf);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "200 OK") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "text/event-stream") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "event: endpoint") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "401 Unauthorized") == null);
 }
 
 test "MCP HTTP transport rejects the wrong bearer token" {

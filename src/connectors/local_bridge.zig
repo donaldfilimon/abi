@@ -71,13 +71,18 @@ pub fn healthCheck(io: std.Io, allocator: std.mem.Allocator, endpoint: []const u
 /// is OpenAI-compatible (`/v1/chat/completions`). Returns the response body
 /// (owned by the caller). The caller is responsible for parsing the
 /// `choices[0].message.content` field.
+///
+/// `endpoint_override` (default `null`) forces a base URL — same semantics as
+/// `endpointFor`'s override — so tests can target an unreachable host without
+/// racing whatever may be listening on the default `:8080`.
 pub fn completeLive(
     io: std.Io,
     allocator: std.mem.Allocator,
     model: []const u8,
     input: []const u8,
+    endpoint_override: ?[]const u8 = null,
 ) !Response {
-    const endpoint = endpointFor(model, null);
+    const endpoint = endpointFor(model, endpoint_override);
     const config = ConnectorConfig{
         .api_key = "",
         .base_url = endpoint,
@@ -209,13 +214,16 @@ test "local_bridge completeLive errors for unreachable endpoint (no leak on succ
     var threaded: std.Io.Threaded = .init(std.testing.allocator, .{});
     defer threaded.deinit();
     const io = threaded.io();
-    // deinit requires *Response → `var` (not `const`). Default llama endpoint is
-    // :8080; if occupied, InvalidResponse is an expected live-path outcome.
-    var response = completeLive(io, allocator, "llama/phi3", "ping") catch |err| {
-        try std.testing.expect(err == error.LiveTransportUnavailable or err == error.ConnectionFailed or err == error.Timeout or err == error.InvalidResponse);
-        return;
-    };
-    defer response.deinit(allocator);
+    // Force an unused loopback port so success / InvalidResponse cannot pass
+    // when something answers on the default :8080. Unreachable maps via
+    // httpPostJson → ConnectionFailed (typically), or Timeout /
+    // LiveTransportUnavailable.
+    if (completeLive(io, allocator, "llama/phi3", "ping", "http://127.0.0.1:1")) |response| {
+        defer response.deinit(allocator);
+        try std.testing.expect(false); // success must not pass
+    } else |err| {
+        try std.testing.expect(err == error.ConnectionFailed or err == error.Timeout or err == error.LiveTransportUnavailable);
+    }
 }
 
 test {

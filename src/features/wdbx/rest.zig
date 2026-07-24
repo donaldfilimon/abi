@@ -262,6 +262,43 @@ test "rest: HTTP transport returns 413 for oversized request" {
     var resp_buf: [512]u8 = undefined;
     const resp = try http_io.readHttpResponse(io, client, &resp_buf);
     try std.testing.expect(std.mem.indexOf(u8, resp, "413 Payload Too Large") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "application/json") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "request too large") != null);
+}
+
+test "rest: HTTP transport returns 400 for incomplete request" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var store = wdbx.Store.init(allocator);
+    defer store.deinit();
+
+    var bound = try bindLoopback(io);
+    defer bound.server.deinit(io);
+
+    // Content-Length claims 32 body bytes but only a short prefix is sent; SHUT_WR
+    // ends the body so readHttpRequest tags .incomplete instead of blocking.
+    const request = "POST /insert HTTP/1.1\r\nContent-Length: 32\r\n\r\n{\"key\":\"truncated\"}";
+
+    var caddr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", bound.port);
+    const client = try caddr.connect(io, .{ .mode = .stream });
+    defer client.close(io);
+
+    {
+        var wb: [256]u8 = undefined;
+        var sw = client.writer(io, &wb);
+        try sw.interface.writeAll(request);
+        try sw.interface.flush();
+    }
+    try client.shutdown(io, .send);
+
+    const conn = try bound.server.accept(io);
+    try handleConnection(allocator, io, &store, conn);
+
+    var resp_buf: [512]u8 = undefined;
+    const resp = try http_io.readHttpResponse(io, client, &resp_buf);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "400 Bad Request") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resp, "incomplete request") != null);
 }
 
 fn expectUnauthorizedInsert(
