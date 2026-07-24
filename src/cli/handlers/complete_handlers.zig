@@ -20,9 +20,9 @@ const DebugWriter = struct {
     }
 };
 
-fn printCompletionMetadata(completion: *const features.ai.CompletionResult, stats: anytype, learn: ?LearnMetadata, skip_output: bool) void {
+fn printCompletionMetadata(completion: *const features.ai.CompletionResult, stats: anytype, learn: ?LearnMetadata, skip_output: bool) !void {
     const writer = DebugWriter{};
-    printCompletionMetadataWriter(&writer, completion, stats, learn, skip_output) catch {};
+    try printCompletionMetadataWriter(&writer, completion, stats, learn, skip_output);
 }
 
 /// Renders the same one-line-per-field completion metadata as
@@ -82,7 +82,7 @@ pub fn handleLearnComplete(
 
     const completion = result.completion;
     const stats = store.stats();
-    printCompletionMetadata(&completion, stats, .{ .evidence_count = result.evidence_count, .adapted = result.adapted }, false);
+    try printCompletionMetadata(&completion, stats, .{ .evidence_count = result.evidence_count, .adapted = result.adapted }, false);
     return 0;
 }
 
@@ -246,7 +246,7 @@ pub fn handleLocalBridgeComplete(io: std.Io, allocator: std.mem.Allocator, input
             defer result.deinit(allocator);
             std.debug.print("\n", .{});
             const stats = store.stats();
-            printCompletionMetadata(&result, stats, null, false);
+            try printCompletionMetadata(&result, stats, null, false);
             return 0;
         }
         var result = try features.ai.completeWithScheduler(allocator, store, &scheduler, "complete:local-bridge-fallback", .{
@@ -256,7 +256,7 @@ pub fn handleLocalBridgeComplete(io: std.Io, allocator: std.mem.Allocator, input
         });
         defer result.deinit(allocator);
         const stats = store.stats();
-        printCompletionMetadata(&result, stats, null, false);
+        try printCompletionMetadata(&result, stats, null, false);
         return 0;
     }
 
