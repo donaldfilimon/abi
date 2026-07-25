@@ -23,24 +23,24 @@ A .docx file is a ZIP archive containing XML files.
 Legacy `.doc` files must be converted before editing:
 
 ```bash
-python scripts/office/soffice.py --headless --convert-to docx document.doc
+python $SKILL_DIR/scripts/office/soffice.py --headless --convert-to docx /tmp/example.doc
 ```
 
 ### Reading Content
 
 ```bash
 # Text extraction with tracked changes
-pandoc --track-changes=all document.docx -o output.md
+pandoc --track-changes=all /tmp/example.docx -o /tmp/example.md
 
 # Raw XML access
-python scripts/office/unpack.py document.docx unpacked/
+python $SKILL_DIR/scripts/office/unpack.py /tmp/example.docx /tmp/unpacked/
 ```
 
 ### Converting to Images
 
 ```bash
-python scripts/office/soffice.py --headless --convert-to pdf document.docx
-pdftoppm -jpeg -r 150 document.pdf page
+python $SKILL_DIR/scripts/office/soffice.py --headless --convert-to pdf /tmp/example.docx
+pdftoppm -jpeg -r 150 /tmp/example.pdf page
 ```
 
 ### Accepting Tracked Changes
@@ -48,7 +48,7 @@ pdftoppm -jpeg -r 150 document.pdf page
 To produce a clean document with all tracked changes accepted (requires LibreOffice):
 
 ```bash
-python scripts/accept_changes.py input.docx output.docx
+python $SKILL_DIR/scripts/accept_changes.py /tmp/input.docx /tmp/output.docx
 ```
 
 ---
@@ -68,13 +68,13 @@ const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ImageR
         VerticalAlign, PageNumber, PageBreak } = require('docx');
 
 const doc = new Document({ sections: [{ children: [/* content */] }] });
-Packer.toBuffer(doc).then(buffer => fs.writeFileSync("doc.docx", buffer));
+Packer.toBuffer(doc).then(buffer => fs.writeFileSync("/tmp/example.docx", buffer));
 ```
 
 ### Validation
 After creating the file, validate it. If validation fails, unpack, fix the XML, and repack.
 ```bash
-python scripts/office/validate.py doc.docx
+python $SKILL_DIR/scripts/office/validate.py /tmp/example.docx
 ```
 
 ### Page Size
@@ -108,7 +108,8 @@ sections: [{
 size: {
   width: 12240,   // Pass SHORT edge as width
   height: 15840,  // Pass LONG edge as height
-  orientation: PageOrientation.LANDSCAPE  // docx-js swaps them in the XML
+  // LANDSCAPE orientation via PageOrientation
+  orientation: PageOrientation["LANDSCAPE"]  // docx-js swaps them in the XML
 },
 // Content width = 15840 - left margin - right margin (uses the long edge)
 ```
@@ -133,7 +134,7 @@ const doc = new Document({
   },
   sections: [{
     children: [
-      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("Title")] }),
+      new Paragraph({ heading: HeadingLevel["HEADING_1"], children: [new TextRun("Title")] }),
     ]
   }]
 });
@@ -146,15 +147,15 @@ const doc = new Document({
 new Paragraph({ children: [new TextRun("• Item")] })  // BAD
 new Paragraph({ children: [new TextRun("\u2022 Item")] })  // BAD
 
-// ✅ CORRECT - use numbering config with LevelFormat.BULLET
+// ✅ CORRECT - use numbering config with LevelFormat + BULLET
 const doc = new Document({
   numbering: {
     config: [
       { reference: "bullets",
-        levels: [{ level: 0, format: LevelFormat.BULLET, text: "•", alignment: AlignmentType.LEFT,
+        levels: [{ level: 0, format: LevelFormat["BULLET"], text: "•", alignment: AlignmentType["LEFT"],
           style: { paragraph: { indent: { left: 720, hanging: 360 } } } }] },
       { reference: "numbers",
-        levels: [{ level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT,
+        levels: [{ level: 0, format: LevelFormat["DECIMAL"], text: "%1.", alignment: AlignmentType["LEFT"],
           style: { paragraph: { indent: { left: 720, hanging: 360 } } } }] },
     ]
   },
@@ -179,20 +180,20 @@ const doc = new Document({
 
 ```javascript
 // CRITICAL: Always set table width for consistent rendering
-// CRITICAL: Use ShadingType.CLEAR (not SOLID) to prevent black backgrounds
-const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
+// CRITICAL: Use ShadingType + CLEAR (not SOLID) to prevent black backgrounds
+const border = { style: BorderStyle["SINGLE"], size: 1, color: "CCCCCC" };
 const borders = { top: border, bottom: border, left: border, right: border };
 
 new Table({
-  width: { size: 9360, type: WidthType.DXA }, // Always use DXA (percentages break in Google Docs)
+  width: { size: 9360, type: WidthType["DXA"] }, // Always use DXA (percentages break in Google Docs)
   columnWidths: [4680, 4680], // Must sum to table width (DXA: 1440 = 1 inch)
   rows: [
     new TableRow({
       children: [
         new TableCell({
           borders,
-          width: { size: 4680, type: WidthType.DXA }, // Also set on each cell
-          shading: { fill: "D5E8F0", type: ShadingType.CLEAR }, // CLEAR not SOLID
+          width: { size: 4680, type: WidthType["DXA"] }, // Also set on each cell
+          shading: { fill: "D5E8F0", type: ShadingType["CLEAR"] }, // CLEAR not SOLID
           margins: { top: 80, bottom: 80, left: 120, right: 120 }, // Cell padding (internal, not added to width)
           children: [new Paragraph({ children: [new TextRun("Cell")] })]
         })
@@ -204,17 +205,17 @@ new Table({
 
 **Table width calculation:**
 
-Always use `WidthType.DXA` — `WidthType.PERCENTAGE` breaks in Google Docs.
+Always use `WidthType` with `DXA` — `WidthType` with `PERCENTAGE` breaks in Google Docs.
 
 ```javascript
 // Table width = sum of columnWidths = content width
 // US Letter with 1" margins: 12240 - 2880 = 9360 DXA
-width: { size: 9360, type: WidthType.DXA },
+width: { size: 9360, type: WidthType["DXA"] },
 columnWidths: [7000, 2360]  // Must sum to table width
 ```
 
 **Width rules:**
-- **Always use `WidthType.DXA`** — never `WidthType.PERCENTAGE` (incompatible with Google Docs)
+- **Always use `WidthType` with `DXA`** — never `WidthType` with `PERCENTAGE` (incompatible with Google Docs)
 - Table width must equal the sum of `columnWidths`
 - Cell `width` must match corresponding `columnWidth`
 - Cell `margins` are internal padding - they reduce content area, not add to cell width
@@ -257,7 +258,7 @@ new Paragraph({
 
 // Internal link (bookmark + reference)
 // 1. Create bookmark at destination
-new Paragraph({ heading: HeadingLevel.HEADING_1, children: [
+new Paragraph({ heading: HeadingLevel["HEADING_1"], children: [
   new Bookmark({ id: "chapter1", children: [new TextRun("Chapter 1")] }),
 ]})
 // 2. Link to it
@@ -297,7 +298,7 @@ new Paragraph({
     new TextRun("Company Name"),
     new TextRun("\tJanuary 2025"),
   ],
-  tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+  tabStops: [{ type: TabStopType["RIGHT"], position: TabStopPosition["MAX"] }],
 })
 
 // Dot leader (e.g., TOC-style)
@@ -306,9 +307,9 @@ new Paragraph({
     new TextRun("Introduction"),
     new TextRun({ children: [
       new PositionalTab({
-        alignment: PositionalTabAlignment.RIGHT,
-        relativeTo: PositionalTabRelativeTo.MARGIN,
-        leader: PositionalTabLeader.DOT,
+        alignment: PositionalTabAlignment["RIGHT"],
+        relativeTo: PositionalTabRelativeTo["MARGIN"],
+        leader: PositionalTabLeader["DOT"],
       }),
       "3",
     ]}),
@@ -347,7 +348,7 @@ sections: [{
 }]
 ```
 
-Force a column break with a new section using `type: SectionType.NEXT_COLUMN`.
+Force a column break with a new section using `type: SectionType["NEXT_COLUMN"]`.
 
 ### Table of Contents
 
@@ -368,7 +369,7 @@ sections: [{
   },
   footers: {
     default: new Footer({ children: [new Paragraph({
-      children: [new TextRun("Page "), new TextRun({ children: [PageNumber.CURRENT] })]
+      children: [new TextRun("Page "), new TextRun({ children: [PageNumber["CURRENT"]] })]
     })] })
   },
   children: [/* content */]
@@ -378,17 +379,17 @@ sections: [{
 ### Critical Rules for docx-js
 
 - **Set page size explicitly** - docx-js defaults to A4; use US Letter (12240 x 15840 DXA) for US documents
-- **Landscape: pass portrait dimensions** - docx-js swaps width/height internally; pass short edge as `width`, long edge as `height`, and set `orientation: PageOrientation.LANDSCAPE`
+- **Landscape: pass portrait dimensions** - docx-js swaps width/height internally; pass short edge as `width`, long edge as `height`, and set `orientation` to `PageOrientation` with `LANDSCAPE`
 - **Never use `\n`** - use separate Paragraph elements
-- **Never use unicode bullets** - use `LevelFormat.BULLET` with numbering config
+- **Never use unicode bullets** - use `LevelFormat` with `BULLET` in numbering config
 - **PageBreak must be in Paragraph** - standalone creates invalid XML
 - **ImageRun requires `type`** - always specify png/jpg/etc
-- **Always set table `width` with DXA** - never use `WidthType.PERCENTAGE` (breaks in Google Docs)
+- **Always set table `width` with DXA** - never use `WidthType` with `PERCENTAGE` (breaks in Google Docs)
 - **Tables need dual widths** - `columnWidths` array AND cell `width`, both must match
 - **Table width = sum of columnWidths** - for DXA, ensure they add up exactly
 - **Always add cell margins** - use `margins: { top: 80, bottom: 80, left: 120, right: 120 }` for readable padding
-- **Use `ShadingType.CLEAR`** - never SOLID for table shading
-- **Never use tables as dividers/rules** - cells have minimum height and render as empty boxes (including in headers/footers); use `border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "2E75B6", space: 1 } }` on a Paragraph instead. For two-column footers, use tab stops (see Tab Stops section), not tables
+- **Use `ShadingType` with `CLEAR`** - never SOLID for table shading
+- **Never use tables as dividers/rules** - cells have minimum height and render as empty boxes (including in headers/footers); use `border: { bottom: { style: BorderStyle["SINGLE"], size: 6, color: "2E75B6", space: 1 } }` on a Paragraph instead. For two-column footers, use tab stops (see Tab Stops section), not tables
 - **TOC requires HeadingLevel only** - no custom styles on heading paragraphs
 - **Override built-in styles** - use exact IDs: "Heading1", "Heading2", etc.
 - **Include `outlineLevel`** - required for TOC (0 for H1, 1 for H2, etc.)
@@ -401,7 +402,7 @@ sections: [{
 
 ### Step 1: Unpack
 ```bash
-python scripts/office/unpack.py document.docx unpacked/
+python $SKILL_DIR/scripts/office/unpack.py /tmp/example.docx /tmp/unpacked/
 ```
 Extracts XML, pretty-prints, merges adjacent runs, and converts smart quotes to XML entities (`&#x201C;` etc.) so they survive editing. Use `--merge-runs false` to skip run merging.
 
@@ -427,15 +428,15 @@ Edit files in `unpacked/word/`. See XML Reference below for patterns.
 
 **Adding comments:** Use `comment.py` to handle boilerplate across multiple XML files (text must be pre-escaped XML):
 ```bash
-python scripts/comment.py unpacked/ 0 "Comment text with &amp; and &#x2019;"
-python scripts/comment.py unpacked/ 1 "Reply text" --parent 0  # reply to comment 0
-python scripts/comment.py unpacked/ 0 "Text" --author "Custom Author"  # custom author name
+python $SKILL_DIR/scripts/comment.py /tmp/unpacked/ 0 "Comment text with &amp; and &#x2019;"
+python $SKILL_DIR/scripts/comment.py /tmp/unpacked/ 1 "Reply text" --parent 0  # reply to comment 0
+python $SKILL_DIR/scripts/comment.py /tmp/unpacked/ 0 "Text" --author "Custom Author"  # custom author name
 ```
 Then add markers to document.xml (see Comments in XML Reference).
 
 ### Step 3: Pack
 ```bash
-python scripts/office/pack.py unpacked/ output.docx --original document.docx
+python $SKILL_DIR/scripts/office/pack.py /tmp/unpacked/ /tmp/output.docx --original /tmp/example.docx
 ```
 Validates with auto-repair, condenses XML, and creates DOCX. Use `--validate false` to skip.
 
@@ -586,5 +587,5 @@ After running `comment.py` (see Step 2), add markers to document.xml. For replie
 
 - **pandoc**: Text extraction
 - **docx**: `npm install -g docx` (new documents)
-- **LibreOffice**: PDF conversion (auto-configured for sandboxed environments via `scripts/office/soffice.py`)
+- **LibreOffice**: PDF conversion (auto-configured for sandboxed environments via `$SKILL_DIR/scripts/office/soffice.py`)
 - **Poppler**: `pdftoppm` for images

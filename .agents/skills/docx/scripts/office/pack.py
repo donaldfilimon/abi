@@ -6,8 +6,8 @@ Usage:
     python pack.py <input_directory> <output_file> [--original <file>] [--validate true|false]
 
 Examples:
-    python pack.py /tmp/unpacked/ /tmp/output.docx --original /tmp/input.docx
-    python pack.py /tmp/unpacked/ /tmp/output.pptx --validate false
+    python pack.py unpacked/ output.docx --original input.docx
+    python pack.py unpacked/ output.pptx --validate false
 """
 
 import argparse

@@ -10,7 +10,7 @@ license: Proprietary. LICENSE.txt has complete terms
 
 | Task | Guide |
 |------|-------|
-| Read/analyze content | `python -m markitdown presentation.pptx` |
+| Read/analyze content | `python -m markitdown /tmp/input.pptx` |
 | Edit or create from template | Read [editing.md](editing.md) |
 | Create from scratch | Read [pptxgenjs.md](pptxgenjs.md) |
 
@@ -20,13 +20,13 @@ license: Proprietary. LICENSE.txt has complete terms
 
 ```bash
 # Text extraction
-python -m markitdown presentation.pptx
+python -m markitdown /tmp/input.pptx
 
 # Visual overview
-python scripts/thumbnail.py presentation.pptx
+python $SKILL_DIR/scripts/thumbnail.py /tmp/input.pptx
 
 # Raw XML
-python scripts/office/unpack.py presentation.pptx unpacked/
+python $SKILL_DIR/scripts/office/unpack.py /tmp/input.pptx /tmp/unpacked/
 ```
 
 ---
@@ -147,7 +147,7 @@ Your first render is almost never correct. Approach QA as a bug hunt, not a conf
 ### Content QA
 
 ```bash
-python -m markitdown output.pptx
+python -m markitdown /tmp/output.pptx
 ```
 
 Check for missing content, typos, wrong order.
@@ -155,7 +155,7 @@ Check for missing content, typos, wrong order.
 **When using templates, check for leftover placeholder text:**
 
 ```bash
-python -m markitdown output.pptx | grep -iE "xxxx|lorem|ipsum|this.*(page|slide).*layout"
+python -m markitdown /tmp/output.pptx | grep -iE "xxxx|lorem|ipsum|this.*(page|slide).*layout"
 ```
 
 If grep returns results, fix them before declaring success.
@@ -209,16 +209,16 @@ Report ALL issues found, including minor ones.
 Convert presentations to individual slide images for visual inspection:
 
 ```bash
-python scripts/office/soffice.py --headless --convert-to pdf output.pptx
-pdftoppm -jpeg -r 150 output.pdf slide
+python $SKILL_DIR/scripts/office/soffice.py --headless --convert-to pdf --outdir /tmp /tmp/output.pptx
+pdftoppm -jpeg -r 150 /tmp/output.pdf /tmp/slide
 ```
 
-This creates `slide-01.jpg`, `slide-02.jpg`, etc.
+This creates `/tmp/slide-01.jpg`, `/tmp/slide-02.jpg`, etc.
 
 To re-render specific slides after fixes:
 
 ```bash
-pdftoppm -jpeg -r 150 -f N -l N output.pdf slide-fixed
+pdftoppm -jpeg -r 150 -f N -l N /tmp/output.pdf /tmp/slide-fixed
 ```
 
 ---
@@ -228,5 +228,5 @@ pdftoppm -jpeg -r 150 -f N -l N output.pdf slide-fixed
 - `pip install "markitdown[pptx]"` - text extraction
 - `pip install Pillow` - thumbnail grids
 - `npm install -g pptxgenjs` - creating from scratch
-- LibreOffice (`soffice`) - PDF conversion (auto-configured for sandboxed environments via `scripts/office/soffice.py`)
+- LibreOffice (`soffice`) - PDF conversion (auto-configured for sandboxed environments via `$SKILL_DIR/scripts/office/soffice.py`)
 - Poppler (`pdftoppm`) - PDF to images

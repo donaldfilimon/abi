@@ -8,11 +8,11 @@ Usage:
     python thumbnail.py input.pptx [output_prefix] [--cols N]
 
 Examples:
-    python thumbnail.py presentation.pptx
+    python thumbnail.py /tmp/input.pptx
     # Creates: thumbnails.jpg
 
-    python thumbnail.py template.pptx grid --cols 4
-    # Creates: grid.jpg (or grid-1.jpg, grid-2.jpg for large decks)
+    python thumbnail.py /tmp/template.pptx /tmp/grid --cols 4
+    # Creates: /tmp/grid.jpg (or /tmp/grid-1.jpg, /tmp/grid-2.jpg for large decks)
 """
 
 import argparse

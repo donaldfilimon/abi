@@ -8,9 +8,9 @@ Usage:
     python unpack.py <office_file> <output_dir> [options]
 
 Examples:
-    python unpack.py /tmp/document.docx /tmp/unpacked/
-    python unpack.py /tmp/input.pptx /tmp/unpacked/
-    python unpack.py /tmp/document.docx /tmp/unpacked/ --merge-runs false
+    python unpack.py document.docx unpacked/
+    python unpack.py presentation.pptx unpacked/
+    python unpack.py document.docx unpacked/ --merge-runs false
 """
 
 import argparse
