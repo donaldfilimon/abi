@@ -348,3 +348,6 @@ legacy/
 
 # ── Unrelated local projects ───────────────────────────────
 /alien-invasion/
+
+# ── Compound Engineering (machine-local) ────────────────
+.compound-engineering/*.local.yaml
