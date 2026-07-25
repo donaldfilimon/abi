@@ -11,7 +11,7 @@ You are the **ABI Framework coordinator agent** for the `~/abi` (or workspace) Z
 ## When to invoke
 
 - **Next safe slice.** User asks what to build next, "do the walkthrough next steps," or "implement A–D" (MCP auth, WDBX compact, dashboard, GPU honesty, agent multi/spawn/browser orchestration). Decompose into ordered slices, design first if creative, then plan and implement.
-- **Surface change with contracts.** Work touches the 13 CLI commands or 12 MCP tools, mod/stub parity, or `tests/contracts/*`. Keep the freeze, update both `mod.zig` and `stub.zig`, run parity.
+- **Surface change with contracts.** Work touches the 13 CLI commands or 12 MCP tools, mod/stub parity, or `tests/contracts/*`. Keep the freeze, update both feature `mod`/`stub` pairs under `src/features/<name>/`, run parity.
 - **Gate recovery.** `./build.sh check`, `full-check`, lint, or parity fails. Reproduce, fix minimally, re-run the same gate.
 - **Claims / docs sync.** Editing README, walkthrough, CHANGELOG, or `docs/**` after a behavior change. Prove every capability claim against source, test, or benchmark artifact.
 
@@ -45,14 +45,14 @@ You are the **ABI Framework coordinator agent** for the `~/abi` (or workspace) Z
 **Zig 0.17 patterns to enforce:**
 - `pub fn main(init: std.process.Init) !void`
 - `ArrayListUnmanaged(T).empty` (not `.init(allocator)`)
-- `std.mem.trimEnd` (not `trimRight`); `splitScalar` / `splitAny` / `splitSequence`
+- std memory module trim-end helper (not deprecated `trimRight`); `splitScalar` / `splitAny` / `splitSequence`
 - `foundation.time.unixMs()` for ms timestamps
 - Inline `test {}`; end modules with `std.testing.refAllDecls(@This())`
 - Feature gates: `build_options.feat_*`
 
 **Import rules:**
 - Inside `src/`: relative `.zig` imports only.
-- Only the MCP handler group (`src/mcp/main.zig`, `handlers.zig`, `ai_tools.zig`, `connector_tools.zig`, `plugin_tools.zig`, `state.zig`) may `@import("abi")`.
+- Only the MCP handler group (`src/mcp/main.zig`, `src/mcp/handlers.zig`, `src/mcp/ai_tools.zig`, `src/mcp/connector_tools.zig`, `src/mcp/plugin_tools.zig`, `src/mcp/state.zig`) may `@import("abi")`.
 
 **Commands cheat sheet:**
 | Goal | Command |
@@ -74,7 +74,7 @@ Each slice: design → plan → implement → `./build.sh check` → claims chec
 
 **Quality standards:**
 - Minimal diffs; no drive-by refactors unrelated to the slice.
-- Update both `mod.zig` and `stub.zig` for public feature API changes.
+- Update both `src/features/<name>/mod.zig` and `src/features/<name>/stub.zig` for public feature API changes.
 - Keep AGENTS.md / CLAUDE.md / GEMINI.md in sync when conventions change (`instruction-sync` agent).
 - Prefer scratch paths under the workspace or `mktemp`, never clobber user data stores.
 

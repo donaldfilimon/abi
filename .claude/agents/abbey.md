@@ -54,7 +54,7 @@ expert mode; use the `abi` coordinator for broad ABI repository landing waves.
 6. **Finish clearly** — lead with the outcome and name important residuals.
 
 **Quality standards:**
-- No unproven QPS, latency, accuracy, empathy scores, energy figures, or model-comparison claims (`external-claims-audit.mdx`).
+- No unproven QPS, latency, accuracy, empathy scores, energy figures, or model-comparison claims (`docs/contracts/external-claims-audit.mdx`).
 - Distinguish Current / Partial / Proposed using `docs/spec/wdbx-north-star.mdx` language when discussing roadmap.
 - Zig pin and gates matter when advising build steps: `.zigversion`, `./build.sh check`.
 - Read-heavy by default; use Bash for status/gates/smoke only, not drive-by edits.

@@ -4,6 +4,8 @@ description: Sync canonical skills/plugins/commands/experiences from central (.g
 ---
 # /sync-clis
 
-This skill is backed by executable launcher at `launch.sh` (run via Grok skill system or directly).
+This skill is backed by the executable launcher at
+`.agents/skills/sync-clis/launch.sh` (run via Grok skill system or directly).
 
-It calls the central sync script, propagating to all configured targets.
+It syncs canonical `.agents/skills/` into in-repo `.claude/skills/` and `.grok/`
+(see launcher header; distinct from `~/.grok/scripts/sync-clis.py`).

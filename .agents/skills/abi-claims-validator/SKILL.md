@@ -18,7 +18,7 @@ For *editing* docs to stay claim-honest, prefer `abi-doc-claims-sync`.
 ### scan
 1. Open the target tree (default `docs/`, plus README/AGENTS/CHANGELOG/walkthrough as needed).
 2. Search for claim patterns (table below) with ripgrep or equivalent.
-3. For each hit, cross-reference source/tests/`external-claims-audit.mdx`.
+3. For each hit, cross-reference source/tests/`docs/contracts/external-claims-audit.mdx`.
 4. In `--strict` mode, treat any unproven number or deployment claim as a fail.
 
 Detects:
@@ -54,8 +54,8 @@ when the audit changes reality, do not invent a parallel truth source.
 |---------|---------------|---------------|
 | `\d+\s*(QPS|req/s|throughput)` | ❌ Unsupported | `src/benchmarks.zig` artifact |
 | `\d+\s*ms\s*latency` | ❌ Unsupported | `src/benchmarks.zig` artifact |
-| `distributed|sharding|multi-host|cluster` | ⚠️ Partial | `cluster_rpc.zig` tests |
-| `AES|RBAC|encryption|certified` | ❌ Unsupported | `external-claims-audit.mdx` §2 |
+| `distributed|sharding|multi-host|cluster` | ⚠️ Partial | `src/features/wdbx/cluster_rpc.zig` tests |
+| `AES|RBAC|encryption|certified` | ❌ Unsupported | `docs/contracts/external-claims-audit.mdx` §2 |
 | `Swift|Python|TensorFlow|PyTorch|Kubernetes` | ❌ Unsupported | `build.zig` deps |
 | `H100|A100|InfiniBand|NVLink` | ❌ Unsupported | CI config |
 | `SQuAD|CodeSearchNet|GPT|benchmark` | ❌ Unsupported | Contract tests |

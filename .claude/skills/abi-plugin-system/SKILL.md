@@ -37,7 +37,7 @@ Execute a plugin by name:
 ### validate
 Validate a plugin manifest:
 ```
-/abi-plugin-system validate --manifest ./src/plugins/my-plugin/abi-plugin.json
+/abi-plugin-system validate --manifest ./src/plugins/example-plugin/abi-plugin.json
 ```
 
 ### generate
@@ -93,6 +93,7 @@ Aliases accepted: `targetFeature` / `entryPoint`
 | sea-plugin | feat-sea | SEA self-learning |
 | shader-plugin | feat-shader | Shader validation |
 | telemetry-exporter | feat-telemetry | Telemetry export |
+| tui-plugin | feat-tui | Agent TUI / slash-command surface |
 
 ## Architecture
 
@@ -121,13 +122,12 @@ Aliases accepted: `targetFeature` / `entryPoint`
               │                               │
               └───────────────┬───────────────┘
                               ▼
-                   ┌─────────────────────────┐
-                   │  src/plugins/           │
-                   │  plugin_manager.zig     │
-                   │  - Load/unload/list     │
-                   │  - Manifest validation  │
-                   │  - Safe .zig entry_point│
-                   └─────────────────────────┘
+                   ┌──────────────────────────────────────┐
+                   │  src/plugins/plugin_manager.zig      │
+                   │  - Load/unload/list                  │
+                   │  - Manifest validation               │
+                   │  - Safe .zig entry_point             │
+                   └──────────────────────────────────────┘
 ```
 
 ## Registry Generation

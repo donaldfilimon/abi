@@ -10,8 +10,9 @@ disable-model-invocation: true
 
 # Donald mode
 
-Working conventions for agents helping this user. Prefer `abi/AGENTS.md` for
-toolchain and frozen surfaces. This skill is style and process only.
+Working conventions for agents helping this user. Prefer
+`/Users/donaldfilimon/abi/AGENTS.md` for toolchain and frozen surfaces. This
+skill is style and process only.
 
 ## Response style
 
@@ -40,7 +41,7 @@ toolchain and frozen surfaces. This skill is style and process only.
   `./zig-out/bin/abi backends`, then representative commands (`complete`,
   `wdbx`, `dashboard --once`, `plugin list`, `scheduler status`). Build gates
   alone are not the full verify bar when the human asks to test features.
-- Confirm `zig version` matches `abi/.zigversion` before trusting a build.
+- Confirm `zig version` matches `/Users/donaldfilimon/abi/.zigversion` before trusting a build.
 - Interactive dashboard/TUI: `.agents/skills/run-tui/tui.sh`. Do not put
   Homebrew ahead of the pinned Zig on `PATH`.
 - Reviews: `/review-bugbot` and `/review-security` when the human asks for
@@ -67,8 +68,8 @@ toolchain and frozen surfaces. This skill is style and process only.
   not at sync targets. Sync with `.agents/skills/sync-clis/launch.sh` or the
   home `/sync-clis` skill.
 - "Improve all" / codebase self-improve: run `/abi-skills` together with the
-  `self-improving-codebase-loop` skill (ABI profile
-  `references/abi.md`). Bounded cycles, project gate, no force-push.
+  `self-improving-codebase-loop` skill (use that skill's ABI profile notes).
+  Bounded cycles, project gate, no force-push.
 - Mid-task skill attach wins over inventing a parallel workflow. Broken skill
   mid-task: fix it in its own PR, do not silently work around it.
 - Keep `CLAUDE.md` / `GEMINI.md` as thin redirects to `AGENTS.md`. Do not
