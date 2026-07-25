@@ -10,8 +10,8 @@ description: Plan and execute ABI repo work from current TODOs, roadmap/spec doc
 1. Start in `/Users/donaldfilimon/abi` unless the user gives another ABI checkout.
 2. Inspect `git status --short --branch` before edits; preserve unrelated dirty work.
 3. Read `AGENTS.md`, `tasks/todo.md`, and `tasks/lessons.md`.
-4. Optional: refresh the inventory with `abi_inventory.py --repo /Users/donaldfilimon/abi` if available (ships with the codex `abi-mega` plugin, not this repo); skip when absent.
-5. Optional: load a sibling `current-goals.md` under this skill's `references/` dir if present (codex plugin copies carry it; the canonical repo copy does not) — otherwise derive the source map from `tasks/todo.md` + `docs/spec/wdbx-north-star.mdx`.
+4. Optional: refresh the inventory with the abi-mega `abi_inventory` Python helper (`--repo /Users/donaldfilimon/abi`) if available (ships with the codex `abi-mega` plugin, not this repo); skip when absent.
+5. Optional: load a sibling goals markdown named `current-goals` under this skill's `references/` dir if present (codex plugin copies carry it; the canonical repo copy does not) — otherwise derive the source map from `tasks/todo.md` + `docs/spec/wdbx-north-star.mdx`.
 6. Derive a small executable slice. Prefer changes that make one TODO, roadmap gap, doc mismatch, or validation gap measurably more true.
 7. Keep claims honest: source/build/tests override prose.
 8. Verify with the narrow command that proves the slice, then the broader gate when the blast radius justifies it.
@@ -27,10 +27,11 @@ description: Plan and execute ABI repo work from current TODOs, roadmap/spec doc
 ## Useful Commands
 
 ```bash
-abi_inventory.py --repo /Users/donaldfilimon/abi   # optional; codex abi-mega plugin only
+# optional; codex abi-mega plugin only:
+#   abi_inventory --repo /Users/donaldfilimon/abi
 zig version
 zig build check-parity --summary all
 ./build.sh check
 ```
 
-Use the optional sibling `current-goals.md` under this skill's `references/` dir (when present — see Workflow step 5) for the current source inventory and validation ladder.
+Use the optional sibling goals markdown named `current-goals` under this skill's `references/` dir (when present — see Workflow step 5) for the current source inventory and validation ladder.

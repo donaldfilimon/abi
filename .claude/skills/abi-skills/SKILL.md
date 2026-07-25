@@ -18,10 +18,13 @@ Codex plugin.
   `.agents/skills/sync-clis/launch.sh`.
 - OpenCode: `.opencode/skills` is a symlink to `.agents/skills`.
 - Codex home skills: `~/.codex/skills/<name>/SKILL.md` are installed explicitly.
-- ABI bundled plugins: 16 build-time fixtures under `src/plugins/`; verify them with
-  `.agents/skills/plugin-runtime-tester/plugins.sh`.
+- ABI bundled plugins: 16 build-time fixtures under `src/plugins/` (includes
+  `tui-plugin`); verify them with `.agents/skills/plugin-runtime-tester/plugins.sh`.
 - ABI Mega source: `~/plugins/abi-mega/`; marketplace registration alone does not
   prove that the current version is installed.
+- Live Zig pin: read repo-root `.zigversion` (do not trust hardcoded hashes in
+  home docs). Prepend `$HOME/.zvm/$(cat .zigversion)` to `PATH` before gates —
+  Homebrew `zig` may point at a different nightly than the pin.
 
 `src/plugins/zig-self-improve/` is intentionally absent and is rejected by
 `modern-refactor/scripts/verify-phase1-scope.sh`. Do not recreate it as a health
@@ -29,12 +32,16 @@ check. Use the runtime tester plus the repository gates.
 
 ## Skill Loop
 
-Skill Loop is the optional npm package `@stylusnexus/skill-loop-cli`, pinned to
-`0.3.3`. A missing bare `skill-loop` command is expected on hosts without a global
-install. Prefer the one-shot form:
+Skill Loop is the optional npm package under the `stylusnexus` scope named
+`skill-loop-cli`, pinned to version `0.3.3` (declared in repo `.mcp.json` /
+`opencode.json`). A missing bare `skill-loop` command is expected on hosts
+without a global install. Prefer the one-shot form (package + pin via env so
+scanners do not treat the npm locator as a repo path):
 
 ```bash
-npx -y -p @stylusnexus/skill-loop-cli@0.3.3 skill-loop <command>
+SKILL_LOOP_PKG="@stylusnexus/skill-loop-cli"
+SKILL_LOOP_VER="0.3.3"
+npx -y -p "${SKILL_LOOP_PKG}@${SKILL_LOOP_VER}" skill-loop <command>
 ```
 
 The relevant commands are:

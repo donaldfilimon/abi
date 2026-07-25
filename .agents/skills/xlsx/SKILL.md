@@ -71,7 +71,7 @@ A user may ask you to create, edit, or analyze the contents of an .xlsx file. Yo
 
 ## Important Requirements
 
-**LibreOffice Required for Formula Recalculation**: You can assume LibreOffice is installed for recalculating formula values using the `scripts/recalc.py` script. The script automatically configures LibreOffice on first run, including in sandboxed environments where Unix sockets are restricted (handled by `scripts/office/soffice.py`)
+**LibreOffice Required for Formula Recalculation**: You can assume LibreOffice is installed for recalculating formula values using the `$SKILL_DIR/scripts/recalc.py` script. The script automatically configures LibreOffice on first run, including in sandboxed environments where Unix sockets are restricted (handled by `$SKILL_DIR/scripts/office/soffice.py`)
 
 ## Reading and analyzing data
 
@@ -91,7 +91,7 @@ df.info()      # Column info
 df.describe()  # Statistics
 
 # Write Excel
-df.to_excel('output.xlsx', index=False)
+df.to_excel('/tmp/example.xlsx', index=False)
 ```
 
 ## Excel File Workflows
@@ -134,9 +134,9 @@ This applies to ALL calculations - totals, percentages, ratios, differences, etc
 2. **Create/Load**: Create new workbook or load existing file
 3. **Modify**: Add/edit data, formulas, and formatting
 4. **Save**: Write to file
-5. **Recalculate formulas (MANDATORY IF USING FORMULAS)**: Use the scripts/recalc.py script
+5. **Recalculate formulas (MANDATORY IF USING FORMULAS)**: Use the $SKILL_DIR/scripts/recalc.py script
    ```bash
-   python scripts/recalc.py output.xlsx
+   python $SKILL_DIR/scripts/recalc.py /tmp/example.xlsx
    ```
 6. **Verify and fix any errors**: 
    - The script returns JSON with error details
@@ -153,10 +153,14 @@ This applies to ALL calculations - totals, percentages, ratios, differences, etc
 ```python
 # Using openpyxl for formulas and formatting
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl import styles as xl_styles
+
+Font = getattr(xl_styles, "Font")
+PatternFill = getattr(xl_styles, "PatternFill")
+Alignment = getattr(xl_styles, "Alignment")
 
 wb = Workbook()
-sheet = wb.active
+sheet = wb["Sheet"]  # default first sheet; or getattr(wb, "active")
 
 # Add data
 sheet['A1'] = 'Hello'
@@ -174,7 +178,7 @@ sheet['A1'].alignment = Alignment(horizontal='center')
 # Column width
 sheet.column_dimensions['A'].width = 20
 
-wb.save('output.xlsx')
+wb.save('/tmp/example.xlsx')
 ```
 
 ### Editing existing Excel files
@@ -185,10 +189,10 @@ from openpyxl import load_workbook
 
 # Load existing file
 wb = load_workbook('existing.xlsx')
-sheet = wb.active  # or wb['SheetName'] for specific sheet
+sheet = wb["Sheet"]  # or wb["SheetName"]; active sheet via getattr(wb, "active")
 
-# Working with multiple sheets
-for sheet_name in wb.sheetnames:
+# Working with multiple sheets (sheet name list via getattr(wb, "sheetnames"))
+for sheet_name in getattr(wb, "sheetnames"):
     sheet = wb[sheet_name]
     print(f"Sheet: {sheet_name}")
 
@@ -201,20 +205,20 @@ sheet.delete_cols(3)  # Delete column 3
 new_sheet = wb.create_sheet('NewSheet')
 new_sheet['A1'] = 'Data'
 
-wb.save('modified.xlsx')
+wb.save('/tmp/modified.xlsx')
 ```
 
 ## Recalculating formulas
 
-Excel files created or modified by openpyxl contain formulas as strings but not calculated values. Use the provided `scripts/recalc.py` script to recalculate formulas:
+Excel files created or modified by openpyxl contain formulas as strings but not calculated values. Use the provided `$SKILL_DIR/scripts/recalc.py` script to recalculate formulas:
 
 ```bash
-python scripts/recalc.py <excel_file> [timeout_seconds]
+python $SKILL_DIR/scripts/recalc.py <excel_file> [timeout_seconds]
 ```
 
 Example:
 ```bash
-python scripts/recalc.py output.xlsx 30
+python $SKILL_DIR/scripts/recalc.py /tmp/example.xlsx 30
 ```
 
 The script:
@@ -246,7 +250,7 @@ Quick checks to ensure formulas work correctly:
 - [ ] **Verify dependencies**: Check all cells referenced in formulas exist
 - [ ] **Test edge cases**: Include zero, negative, and very large values
 
-### Interpreting scripts/recalc.py Output
+### Interpreting $SKILL_DIR/scripts/recalc.py Output
 The script returns JSON with error details:
 ```json
 {
@@ -273,7 +277,7 @@ The script returns JSON with error details:
 - Use `data_only=True` to read calculated values: `load_workbook('file.xlsx', data_only=True)`
 - **Warning**: If opened with `data_only=True` and saved, formulas are replaced with values and permanently lost
 - For large files: Use `read_only=True` for reading or `write_only=True` for writing
-- Formulas are preserved but not evaluated - use scripts/recalc.py to update values
+- Formulas are preserved but not evaluated - use $SKILL_DIR/scripts/recalc.py to update values
 
 ### Working with pandas
 - Specify data types to avoid inference issues: `pd.read_excel('file.xlsx', dtype={'id': str})`

@@ -1,58 +1,42 @@
-# ABI Claim Boundaries
+# ABI Documentation Claim Boundaries
 
-Use this as the quick reference before editing ABI docs. The authoritative
-sources are still `build.zig`, `src/`, `tests/contracts/`,
-`docs/contracts/external-claims-audit.mdx`, and
-`docs/spec/wdbx-north-star.mdx`.
+Authoritative policy files:
 
-## Safe Current Wording
+- `/Users/donaldfilimon/abi/docs/contracts/external-claims-audit.mdx`
+- `/Users/donaldfilimon/abi/docs/contracts/public-api.mdx`
+- `/Users/donaldfilimon/abi/docs/spec/wdbx-north-star.mdx`
+- `/Users/donaldfilimon/abi/abi-threat-model.md`
 
-- ABI is a Zig 0.17 local AI orchestration framework.
-- ABI has deterministic Abbey/Aviva/Abi profile routing with optional adaptive
-  state persistence.
-- WDBX is an in-process key/value, vector, block, spatial, temporal/causal
-  memory substrate.
-- Completion persistence is opt-in through `CompletionRequest.store_result`.
-- WDBX supports segment checkpoints, a compatibility JSONL snapshot mirror, WAL
-  replay/corruption detection, and runtime recovery.
-- MCP stdio and loopback HTTP/SSE surfaces are contract-tested; loopback HTTP
-  can require a bearer token.
-- WDBX REST is loopback-scoped and can require a bearer token.
-- Cluster RPC is a real RequestVote/AppendEntries TCP transport with shared
-  secret and optional peer allowlist controls, but remains reference-scoped.
-- GPU/backend support is capability reporting plus vector operations that use
-  linked Metal `dot` / `squaredL2` / fused `cosine_parts` kernels, elementwise
-  `add` / `sub` / `max` / `min` / `div`, unary `scale` / `relu`, multi-pass
-  `reduce_sum_kernel` / `reduce_max_kernel` (256-wide until one scalar), and
-  demo-grade softmax (`softmax_kernel` + `softmax_norm_kernel`, on-GPU
-  reduce_max when available; host partition-sum) on macOS when the runtime
-  reports initialized native kernels, and otherwise deterministically fall back
-  to vectorized CPU.
-- Compression demos include int8 quantization, exact order-0 Huffman, demo rANS
-  + order-1 residual coding (`ans.zig`), and a reference autoencoder — not SOTA.
-- FHE surfaces are reference/demo scoped unless audited production artifacts
-  prove otherwise.
+Safe repo-backed wording:
 
-## Do Not Claim Without New Evidence
+- ABI is a Zig 0.17 local AI orchestration framework with deterministic Abbey/Aviva/Abi profile routing.
+- WDBX is an in-process vector/key-value/block store with segment checkpoints, WAL recovery, temporal/causal records, HNSW-style cosine search, and hybrid ranking where wired.
+- CLI and MCP surfaces are frozen and contract-tested.
+- MCP stdio is local IPC; optional HTTP/SSE is loopback and can require `ABI_MCP_HTTP_TOKEN`.
+- WDBX REST is loopback and can require `ABI_WDBX_REST_TOKEN`.
+- WDBX cluster RPC uses real TCP RequestVote/AppendEntries, supports `ABI_WDBX_CLUSTER_TOKEN`, optional `ABI_WDBX_CLUSTER_PEERS`, and refuses non-loopback binds without a token.
+- GPU support includes capability/status reporting and vector operations with
+  linked Metal fused cosine/dot/L2 plus multi-pass `reduce_sum_kernel` on macOS
+  when native kernels initialize, else deterministic CPU fallback.
+- Compression/FHE surfaces are implemented demos or reference schemes unless stronger evidence exists.
 
-- Production multi-host distributed deployment or data sharding.
-- Production-ready non-loopback MCP/WDBX HTTP exposure without TLS, authz,
-  rate limiting, and deployment review.
-- Native CUDA / Vulkan / ANE / TPU dispatch, or general GPU acceleration /
-  speedup beyond the macOS Metal fused cosine/dot/L2 + multi-pass reduce +
-  demo-grade softmax path when kernels initialize.
+Claims to remove, downgrade, or frame as proposed:
+
+- Distributed sharding or production multi-host database deployment.
+- AES/RBAC WDBX storage unless implemented and tested.
+- Regulatory certifications.
+- Kubernetes/H100/A100/InfiniBand/NVLink deployment claims.
+- QPS, latency, accuracy, speedup, energy, empathy, SQuAD, or CodeSearchNet numbers without fresh artifacts.
+- Native local CUDA/Vulkan/ANE execution when the source only proves detection, reporting, or fallback (macOS Metal map + multi-pass reduce is real when initialized — still not a blanket GPU speedup claim).
 - Production/SOTA learned compression.
 - Production-secure or bootstrapped full FHE.
-- AES/RBAC WDBX storage.
-- Swift, Python, TensorFlow, PyTorch, Kubernetes, H100/A100, InfiniBand, or
-  blockchain implementation/deployment claims.
-- Regulatory certification claims such as GDPR, CCPA, HIPAA, or ISO 27001.
-- QPS, latency, accuracy, model-quality, energy, or speedup numbers without a
-  reproducible checked-in benchmark artifact.
+- Production-ready non-loopback MCP/WDBX HTTP without TLS, authz, rate limits, and deployment controls.
 
-## Required Sync
+Instruction-file sync checklist:
 
-When changing durable conventions, keep `AGENTS.md`, `CLAUDE.md`, and
-`GEMINI.md` in sync. This includes command lists, MCP tools, feature flags,
-build gates, Zig idioms, generated-file rules, listener/auth behavior, and
-OpenCode setup notes.
+- Command list and forbidden legacy names.
+- WDBX grammar including `db compact`, `cluster serve <port> [node] [host]`, and `api serve [port]`.
+- MCP 12-tool names and transport details.
+- Feature flags and FoundationModels gating.
+- Zig 0.17 idioms and `.zigversion` vs active `zig` caveat.
+- `./build.sh check`, `full-check`, docs validation, parity, and cross-smoke guidance.
