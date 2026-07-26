@@ -17,20 +17,6 @@ fn sumF32(values: []const f32) f32 {
     return sum;
 }
 
-/// Prefer Metal multi-pass threadgroup reduce (256-wide until one scalar)
-/// when initialized; otherwise host `sumF32`. On Metal failure, log and use
-/// the explicit CPU fallback — never swallow silently. Broader kernels /
-/// CUDA remain Proposed.
-fn reduceSum(values: []const f32) f32 {
-    if (builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
-        return metal.g_metal_context.runReduceSum(values) catch |err| {
-            std.log.warn("Metal reduceSum failed ({s}); using vectorized CPU fallback", .{@errorName(err)});
-            return sumF32(values);
-        };
-    }
-    return sumF32(values);
-}
-
 pub const VectorOps = struct {
     backend: backends.BackendStatus,
 
@@ -159,6 +145,22 @@ pub const VectorOps = struct {
             };
         }
         return cpuReduceMin(values);
+    }
+
+    /// Reduce-sum of `values`: returns the sum of all elements (0 for empty
+    /// input). Routes through the Metal multi-pass `reduce_sum_kernel` when
+    /// initialized on macOS, otherwise a vectorized CPU loop. No speedup
+    /// claim; CUDA/Vulkan/ANE remain Proposed.
+    pub fn reduceSum(self: VectorOps, values: []const f32) f32 {
+        if (values.len == 0) return 0;
+
+        if (self.backend.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runReduceSum(values) catch |err| {
+                std.log.warn("Metal reduceSum failed ({s}); using vectorized CPU fallback", .{@errorName(err)});
+                return sumF32(values);
+            };
+        }
+        return sumF32(values);
     }
 
     /// `out[i] = values[i] * factor`. Metal `scale_kernel` when initialized;
@@ -396,16 +398,16 @@ test "host sumF32 matches scalar reduce across SIMD width and tail" {
     try std.testing.expectEqual(@as(f32, 0), sumF32(&.{}));
 }
 
-test "gpu vector ops: reduceSum matches host sum across multiple threadgroups" {
-    _ = vectorOps(); // ensure Metal init on macOS when available
+test "gpu reduceSum matches host sum across multiple threadgroups (CPU/GPU parity)" {
+    const ops = vectorOps();
     var values: [520]f32 = undefined;
     var expected: f32 = 0;
     for (&values, 0..) |*slot, i| {
         slot.* = @as(f32, @floatFromInt(i % 7)) * 0.125 - 0.5;
         expected += slot.*;
     }
-    try std.testing.expectApproxEqAbs(expected, reduceSum(&values), 1e-2);
-    try std.testing.expectEqual(@as(f32, 0), reduceSum(&.{}));
+    try std.testing.expectApproxEqAbs(expected, ops.reduceSum(&values), 1e-2);
+    try std.testing.expectEqual(@as(f32, 0), ops.reduceSum(&.{}));
 }
 
 test "gpu vector ops provide deterministic acceleration" {
@@ -739,14 +741,15 @@ test "gpu negate matches independent scalar reference (CPU/GPU parity)" {
     }
 }
 
-test "reduceSum CPU fallback matches scalar reference" {
+test "gpu reduceSum CPU fallback matches scalar reference" {
+    const ops = vectorOps();
     var values: [256]f32 = undefined;
     var expected: f32 = 0;
     for (&values, 0..) |*slot, i| {
         slot.* = @as(f32, @floatFromInt(i)) * 0.5 - 64.0;
         expected += slot.*;
     }
-    try std.testing.expectApproxEqAbs(expected, reduceSum(&values), 1e-2);
+    try std.testing.expectApproxEqAbs(expected, ops.reduceSum(&values), 1e-2);
 }
 
 test "generic kernel status does not claim native dispatch" {

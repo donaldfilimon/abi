@@ -220,6 +220,22 @@ pub const GpuCompute = struct {
         return cpuReduceMin(values);
     }
 
+    /// Reduce-sum of `values`: returns the sum of all elements (0 for empty
+    /// input). Routes through the Metal multi-pass `reduce_sum_kernel` when
+    /// accelerated on macOS, otherwise a host loop. No speedup claim;
+    /// CUDA/Vulkan/ANE remain Proposed.
+    pub fn reduceSum(self: GpuCompute, values: []const f32) f32 {
+        if (values.len == 0) return 0;
+
+        if (self.accelerated and builtin.target.os.tag == .macos and metal.g_metal_context.initialized) {
+            return metal.g_metal_context.runReduceSum(values) catch |err| {
+                std.log.warn("Metal reduceSum failed ({s}); using CPU fallback", .{@errorName(err)});
+                return cpuSum(values);
+            };
+        }
+        return cpuSum(values);
+    }
+
     fn cpuReduce(kernel: Kernel, a: []const f32, b: []const f32) f32 {
         var sum: f32 = 0;
         var i: usize = 0;
@@ -288,6 +304,12 @@ fn cpuReduceMin(values: []const f32) f32 {
         if (v < best) best = v;
     }
     return best;
+}
+
+fn cpuSum(values: []const f32) f32 {
+    var sum: f32 = 0;
+    for (values) |v| sum += v;
+    return sum;
 }
 
 const testing = std.testing;
@@ -410,6 +432,15 @@ test "compute_api: reduceMin matches scalar reference on the active backend" {
     }
     try testing.expectApproxEqAbs(ref_min, try gc.reduceMin(&values), 1e-4);
     try testing.expectError(error.EmptyInput, gc.reduceMin(&.{}));
+}
+
+test "compute_api: reduceSum matches scalar reference on the active backend" {
+    const gc = GpuCompute.init();
+    const values = [_]f32{ 0.5, -1.0, 2.25, 3.0, -0.75, 1.5, 0.0, 4.0, -2.0, 0.125 };
+    var expected: f32 = 0;
+    for (values) |v| expected += v;
+    try testing.expectApproxEqAbs(expected, gc.reduceSum(&values), 1e-4);
+    try testing.expectEqual(@as(f32, 0), gc.reduceSum(&.{}));
 }
 
 test "compute_api: empty input is a no-op / zero reduce" {

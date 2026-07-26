@@ -6,6 +6,7 @@ All notable ABI Framework changes are recorded here. The executable gates remain
 
 ### Added
 
+- feat(gpu): Public `reduceSum` API on `GpuCompute` and `VectorOps` — exposes the existing Metal multi-pass `reduce_sum_kernel` (`runReduceSum`) through the public surface, mirroring `reduceMax`/`reduceMin`, with CPU fallback and CPU/GPU parity tests — still not a general GPU speedup / CUDA / ANE claim.
 - feat(nn): `abi complete --neural` — in-process character-level demo LM with checkpoint serialize/load (`nn/persist.zig`), chunked `sampleStreaming`, mutual exclusion with `--model`; not a production LLM / not ggml.
 - feat(wdbx): multiway export derives token-lineage causal edges (`causal_graph.status=token-lineage`); hypergraph backend remains Proposed.
 - feat(wdbx): `remote_compute.dotOrLocal` — dial remote DOT when `ABI_REMOTE_COMPUTE_ENDPOINT` is set, else CPU; compute info probe when endpoint set — not production TPU.
