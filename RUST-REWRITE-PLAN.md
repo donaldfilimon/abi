@@ -103,14 +103,17 @@ names" into "the Rust CLI emits byte-identical output".
   torn-tail handling, absolute vector continuity, deterministic block replay,
   epoch-gated checkpoint merge/stale-WAL discard, and checkpoint reset.
 - [ ] **4e. WDBX algorithms/services** — HNSW index + storage, richer MVCC,
-  REST + cluster surfaces, rate limiter, compression/entropy/neural-compress,
+  cluster surfaces, compression/entropy/neural-compress,
   FHE + crypto_he demos, spatial 3-D octree, temporal graph, multiway engine,
   ANS, retrieval, remote compute. A deterministic exact cosine index provides
   the correctness oracle, and the layered HNSW graph/storage/search core with
   rollback journaling is now ported. A durable store facade now joins recovery,
   WAL-backed mutations, checkpoints and HNSW search. Manifest-authoritative
-  retain-latest compaction and reset are also ported. Full MVCC remains outside
-  the current Zig claim boundary; the listed services remain.
+  retain-latest compaction and reset are also ported. The loopback-only REST
+  surface is ported with its five routes, hybrid temporal/causal/persona
+  re-ranking, optional fixed-work bearer authentication, 64 KiB request bound,
+  failed-auth-aware token bucket, and real-TCP tests. Full MVCC remains outside
+  the current Zig claim boundary; the remaining listed services stay open.
 - [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir, hash, metrics, telemetry, mobile, os_control.
 - [ ] **7. `abi-tui`**

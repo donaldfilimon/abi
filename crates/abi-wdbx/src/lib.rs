@@ -3,8 +3,9 @@
 //! Step 4 of the Zig→Rust port. This crate now covers the **on-disk format**,
 //! checkpoint publication and salvage, CRC-framed WAL recovery, and a
 //! deterministic exact-search reference index plus layered HNSW graph. Durable
-//! store integration, the REST surface, the cluster protocol, compression and
-//! the homomorphic-encryption demos are still Zig; see `RUST-REWRITE-PLAN.md`.
+//! store integration and the loopback REST surface are ported; the cluster
+//! protocol, compression and homomorphic-encryption demos are still Zig; see
+//! `RUST-REWRITE-PLAN.md`.
 //!
 //! ## Read-compatibility is a requirement, not a goal
 //!
