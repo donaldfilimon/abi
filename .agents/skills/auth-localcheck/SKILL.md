@@ -37,5 +37,5 @@ five providers as `not configured`; bare `signin` prints its usage banner.
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./build.sh check`. |
+| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./tools/check.sh`. |
 | `Authentication Status:` missing | Handler grammar drift — check the `auth` path in `src/cli/handlers/` and `src/foundation` credentials. |

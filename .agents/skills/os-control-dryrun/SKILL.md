@@ -32,5 +32,5 @@ the plan; execute-without-confirm returns exit 2.
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | `/zig-build-doctor` or `./build.sh check`. |
+| `build` FAIL | `./tools/check.sh`. |
 | execute-without-confirm didn't return 2 | the confirm gate regressed — check `src/cli/handlers/agent.zig` agent-os path. |

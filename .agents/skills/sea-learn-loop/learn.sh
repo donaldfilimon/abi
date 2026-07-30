@@ -3,8 +3,8 @@
 # completion path (`abi complete --learn`). Asserts the loop runs, persists, and
 # reports evidence/adaptation counters. Resolves the repo root from its location.
 #
-# feat-sea defaults ON with the other -Dfeat-* flags. Pass --sea only to force
-# -Dfeat-sea=true explicitly while debugging feature-flag behavior.
+# SEA is always available in the Rust workspace (no feature-off CLI flag).
+# `--sea` is accepted for compatibility and is a no-op build-path alias.
 #
 # Usage:
 #   .agents/skills/sea-learn-loop/learn.sh ["input text"]
@@ -24,22 +24,24 @@ for a in "$@"; do
     esac
 done
 
-ABI="$REPO_ROOT/zig-out/bin/abi"
+ABI="$REPO_ROOT/target/debug/abi"
+# Scratch durable store so --learn does not fall back to non-learn local
+# completion and never touches the user's live ~/.abi/.
+SCRATCH_DIR="$REPO_ROOT/target/skill-scratch"
+STORE="$SCRATCH_DIR/sea-learn-wdbx"
 fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 
-if [ "$SEA" -eq 1 ]; then
-    say "build cli with -Dfeat-sea=true"
-    build_ok() { zig build cli -Dfeat-sea=true; }
-else
-    say "build cli (default feat-sea=true)"
-    build_ok() { ./build.sh cli; }
-fi
-if build_ok; then echo "[ok] build"; else echo "[FAIL] build"; exit 1; fi
+say "build cli (SEA always linked in Rust workspace)"
+if ./tools/cargo.sh build -p abi-cli; then echo "[ok] build"; else echo "[FAIL] build"; exit 1; fi
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
 
-say "abi complete --learn"
-echo "\$ $ABI complete --learn \"$INPUT\""
+mkdir -p "$SCRATCH_DIR"
+rm -rf "$STORE"
+export ABI_WDBX_PATH="$STORE"
+
+say "abi complete --learn (ABI_WDBX_PATH=$STORE)"
+echo "\$ ABI_WDBX_PATH=$STORE $ABI complete --learn \"$INPUT\""
 out=$("$ABI" complete --learn "$INPUT" 2>&1); rc=$?
 printf '%s\n' "$out"
 [ "$rc" -eq 0 ] || { echo "[FAIL] complete --learn exit $rc"; fail=$((fail+1)); }
@@ -54,7 +56,7 @@ grep -qF -- "persisted=true" <<<"$out" && echo "[ok] persisted=true" \
     || echo "[note] not persisted (acceptable depending on store state)"
 
 say "summary"
-echo "feat-sea: $([ "$SEA" -eq 1 ] && echo explicit-on || echo default-on)"
+echo "feat-sea: $([ "$SEA" -eq 1 ] && echo flag-accepted-noop || echo default-on)"
 echo "failed checks: $fail"
 [ "$fail" -eq 0 ] && echo "RESULT: PASS — SEA learn loop ran." || echo "RESULT: FAIL — $fail check(s) failed."
 exit "$fail"

@@ -44,6 +44,6 @@ bearer enforcement is exactly 401/401/200.
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./build.sh check`. |
+| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./tools/check.sh`. |
 | `server did not come up` | Port in use — pass a free base port; or the build didn't produce the binary. |
 | bearer test all 200 | `ABI_WDBX_REST_TOKEN` not being read — check `src/features/wdbx/rest.zig` (`loadBearerToken`/`hasBearerToken`). |

@@ -27,8 +27,8 @@ Prints `RESULT: PASS` (exit 0) or `RESULT: FAIL` with the missing assertion (exi
   own `Scheduler` + `MemoryTracker`, submits one probe task, runs it, prints, exits 0.
 - **Don't use `timeout`** — macOS doesn't ship it, and the command self-terminates
   so no guard is needed (`gtimeout` from coreutils only if you must).
-- **The build is near-silent** — `./build.sh cli` prints ~2 info lines and exits;
-  confirm with `ls zig-out/bin/abi`, not stdout.
+- **The build is near-silent** — `./tools/cargo.sh build -p abi-cli` prints ~2 info lines and exits;
+  confirm with `ls target/debug/abi`, not stdout.
 - Healthy output = `running=0 pending=0 completed=1 failed=0 total_tasks=1`,
   `memory_tracker=attached` (zeroed usage is normal — the probe allocates nothing),
   and a Prometheus block with `scheduler_tasks_submitted 1` / `scheduler_tasks_completed 1`.
@@ -36,7 +36,7 @@ Prints `RESULT: PASS` (exit 0) or `RESULT: FAIL` with the missing assertion (exi
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./build.sh check`. |
+| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./tools/check.sh`. |
 | empty output | You captured stdout only — scheduler prints to stderr; use `2>&1`. |
 | `usage: abi scheduler status` | You used `stats`/`info`/bare `scheduler`; the CLI word is `status`. |
 | `completed=0` / `total_tasks=0` | The probe task didn't run — inspect `src/core/scheduler.zig`; use the `scheduler-memory-auditor` subagent to audit submission/completion accounting. |

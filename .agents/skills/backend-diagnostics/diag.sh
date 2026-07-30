@@ -8,7 +8,7 @@ set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
-ABI="$REPO_ROOT/zig-out/bin/abi"
+ABI="$REPO_ROOT/target/debug/abi"
 fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 check() { local label="$1" expect="$2"; shift 2; local out; out=$("$@" 2>&1)
@@ -16,12 +16,12 @@ check() { local label="$1" expect="$2"; shift 2; local out; out=$("$@" 2>&1)
     grep -qF -- "$expect" <<<"$out" && echo "[ok] $label" || { echo "[FAIL] $label (missing: $expect)"; fail=$((fail+1)); }; }
 
 say "build cli"
-./build.sh cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
+./tools/cargo.sh build -p abi-cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
 [ -x "$ABI" ] || { echo "[FAIL] no binary"; exit 1; }
 
 check "backends report"  "Compute Backends:"    "$ABI" backends
 check "compute matrix"   "compute backends"    "$ABI" wdbx compute info
-check "gpu info"         "GPU backend"          "$ABI" wdbx gpu info
+check "gpu info"         "gpu backend="         "$ABI" wdbx gpu info
 
 say "summary"; echo "failed: $fail"
 [ "$fail" -eq 0 ] && echo "RESULT: PASS — backend diagnostics captured." || echo "RESULT: FAIL — $fail check(s)."

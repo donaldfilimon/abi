@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # wdbx-bench driver: build the abi CLI, run the in-process WDBX benchmark, and
-# (optionally) the full `zig build benchmarks` suite. Asserts exit codes and the
+# (optionally) the abi-wdbx unit-test suite. Asserts exit codes and the
 # expected output markers. Resolves the repo root from its own location.
 #
 # Usage:
 #   .agents/skills/wdbx-bench/bench.sh [count]     # default count=50
-#   .agents/skills/wdbx-bench/bench.sh --suite     # also run `zig build benchmarks`
+#   .agents/skills/wdbx-bench/bench.sh --suite     # also run `cargo test -p abi-wdbx`
 set -uo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -22,12 +22,12 @@ for a in "$@"; do
     esac
 done
 
-ABI="$REPO_ROOT/zig-out/bin/abi"
+ABI="$REPO_ROOT/target/debug/abi"
 fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 
 say "build cli"
-if ./build.sh cli; then echo "[ok] build"; else echo "[FAIL] build"; exit 1; fi
+if ./tools/cargo.sh build -p abi-cli; then echo "[ok] build"; else echo "[FAIL] build"; exit 1; fi
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
 
 say "abi wdbx benchmark $COUNT"
@@ -40,8 +40,8 @@ for marker in "benchmark (local, in-memory" "inserts:" "searches:"; do
 done
 
 if [ "$SUITE" -eq 1 ]; then
-    say "zig build benchmarks (full suite)"
-    if zig build benchmarks; then echo "[ok] suite"; else echo "[FAIL] suite"; fail=$((fail+1)); fi
+    say "./tools/cargo.sh test -p abi-wdbx --lib"
+    if ./tools/cargo.sh test -p abi-wdbx --lib; then echo "[ok] suite"; else echo "[FAIL] suite"; fail=$((fail+1)); fi
 fi
 
 say "summary"

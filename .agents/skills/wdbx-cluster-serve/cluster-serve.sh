@@ -11,7 +11,7 @@ set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
-ABI="$REPO_ROOT/zig-out/bin/abi"
+ABI="$REPO_ROOT/target/debug/abi"
 PORT="${1:-8092}"
 case "$PORT" in
   ''|*[!0-9]*) echo "usage: cluster-serve.sh [port]   (port must be numeric; default 8092)" >&2; exit 2 ;;
@@ -27,7 +27,7 @@ trap cleanup EXIT
 say() { printf '\n=== %s ===\n' "$*"; }
 
 say "build cli"
-./build.sh cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
+./tools/cargo.sh build -p abi-cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
 
 MARKER="serving consensus RPC on 127.0.0.1:$PORT"

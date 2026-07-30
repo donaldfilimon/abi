@@ -19,7 +19,7 @@ Prints `RESULT: PASS` (exit 0) or `RESULT: FAIL` with the missing panel/assertio
 
 One-liner by hand:
 ```bash
-./zig-out/bin/abi dashboard < /dev/null 2>&1 | sed $'s/\033\[[0-9;]*m//g'
+./target/debug/abi dashboard < /dev/null 2>&1 | sed $'s/\033\[[0-9;]*m//g'
 ```
 
 ## Gotchas
@@ -34,7 +34,7 @@ One-liner by hand:
   one-shot fallback; treat `unexpected errno`, `tcgetattr`, or `panic` as a bug.
 - **No `timeout` needed** (and macOS lacks it) — a non-TTY stdin makes it a clean
   one-shot. `timeout`/`gtimeout` only matters if you insist on a TTY guard.
-- **The build is near-silent** — confirm with `ls zig-out/bin/abi`, not stdout.
+- **The build is near-silent** — confirm with `ls target/debug/abi`, not stdout.
 - Healthy render = title `ABI Diagnostics Dashboard`, an operational health row,
   and 5 panels (System / Plugins / WDBX Storage / Scheduler / Memory), exit 0.
   Fresh-process values are mostly zero (empty WDBX, a couple completed scheduler
@@ -45,9 +45,8 @@ One-liner by hand:
 |---|---|
 | hangs / never returns | stdin is a TTY — redirect `< /dev/null` to force the one-shot. |
 | empty output | You captured stdout only — the dashboard prints to stderr; use `2>&1`. |
-| looks like a crash (errno/tcgetattr) | Regression in the non-TTY fallback; inspect `src/features/tui/mod.zig`. |
-| a panel missing | Inspect `src/cli/handlers/dashboard.zig`; use the `tui-navigation-guide` subagent for the render loop. |
+| looks like a crash (errno/tcgetattr) | Regression in the non-TTY fallback; inspect `crates/abi-cli` dashboard/TUI code. |
+| a panel missing | Inspect dashboard render in `crates/abi-cli`; panels must still be System / Plugins / WDBX Storage / Scheduler / Memory. |
 
-Historical verification: **PASS** on the pin in `.zigversion` — one-shot render
-of all 5 panels, exit 0. Do not hardcode a Zig nightly in this skill; read
-`.zigversion` for the live pin.
+Historical verification: **PASS** on nightly Rust via `./tools/cargo.sh` — one-shot
+render of all 5 panels, exit 0.

@@ -49,6 +49,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ## Recently landed
 
+- Agent skill drivers ported off `zig-out`/`./build.sh cli` → `./tools/cargo.sh` + `target/debug/abi` (dashboard, backends, plugins, SEA scratch store, WDBX roundtrip, etc.)
 - nn demo JSON checkpoint (`--out` / `--checkpoint`); Rust smoke scripts + goals/run-abi/mcp-smoke skills
 - **Rust rewrite on `main`** via [#756](https://github.com/donaldfilimon/abi/pull/756) (`34c35d5`)
 - FoundationModels Swift `@c` shim + `complete --live --model apple-fm --confirm`
