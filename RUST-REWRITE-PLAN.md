@@ -102,7 +102,7 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **4d. WDBX WAL/recovery core** — CRC32-framed append, bounded verify,
   torn-tail handling, absolute vector continuity, deterministic block replay,
   epoch-gated checkpoint merge/stale-WAL discard, and checkpoint reset.
-- [ ] **4e. WDBX algorithms/services** — HNSW index + storage, richer MVCC,
+- [x] **4e. WDBX algorithms/services** — HNSW index + storage, richer MVCC,
   cluster surfaces, compression/entropy/neural-compress,
   FHE + crypto_he demos, spatial 3-D octree, temporal graph, multiway engine,
   ANS, retrieval, remote compute. A deterministic exact cosine index provides
@@ -119,10 +119,36 @@ names" into "the Rust CLI emits byte-identical output".
   failed-auth-aware token bucket, and real-TCP tests. Compute backend selection,
   runtime CPU feature detection, nightly portable-SIMD DOT with ragged-tail
   handling, truthful ANE presence metadata, deterministic accelerator fallback,
-  and the bounded loopback remote-DOT reference transport are also ported. This
-  does not claim native CUDA/Vulkan/ANE execution or production remote TPU
-  dispatch. Full MVCC remains outside the current Zig claim boundary; the
-  remaining listed services stay open.
+  and the bounded loopback remote-DOT reference transport are also ported. The
+  3-D spatial index now includes Euclidean/Manhattan/cosine distance, borrowed
+  payload results, lazy octree rebuild, radius and k-nearest queries, and
+  threshold/distribution tests against a linear oracle. Per-vector affine
+  8-bit quantization and exact order-0 canonical Huffman coding are ported too;
+  Huffman retains the 256-byte code-length table and stored-mode fallback, so it
+  never expands incompressible payloads. This does not claim learned/SOTA
+  compression, native CUDA/Vulkan/ANE execution, or production remote TPU
+  dispatch. The deterministic in-process tanh/linear autoencoder, single-key
+  additive WyHash-masked aggregation demo, and arbitrary-precision DGHV
+  add/multiply demo are now ported with the same 126-bit secret, 20-bit noise,
+  and tested depth-3 reference constants. They are explicitly not production
+  encryption, multi-key HE, bootstrapped FHE, security-audited, or SOTA learned
+  compression. Self-contained order-0 rANS plus order-1 previous-byte residual
+  coding is ported with stored fallback, explicit corrupt-mode/truncation errors,
+  and deterministic blobs. Persona-weighted, persona-isolated, and semantic/3-D
+  spatial hybrid retrieval are also ported with borrowed store views and the
+  oracle's saturating 8x candidate over-fetch. The append-only MVCC audit chain
+  now preserves deterministic sequencing/hashing, stable shared blocks, frozen
+  snapshots, concurrent append safety, and strict integrity verification. The
+  bounded multiway core now ports exact byte-string rules, overlapping matches,
+  deterministic breadth-first expansion, state deduplication with full event
+  multiplicity, atomic hard caps, cancellation/deadline handling, and structural
+  metrics. Canonical JSON/config/export hashes, token-lineage causal edges, DOT,
+  resume decoding, content-addressed WDBX persistence, and latest/config-hash
+  retrieval are ported too; an opt-in integration test proves the representative
+  Rust canonical export is byte-for-byte identical to the restored Zig oracle.
+  TLS cert/key environment loading and accessibility validation are ported too,
+  while preserving the disclosed-partial boundary: native TLS termination is
+  not linked and non-loopback production hardening is not claimed.
 - [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir, hash, metrics, telemetry, mobile, os_control.
 - [ ] **7. `abi-tui`**

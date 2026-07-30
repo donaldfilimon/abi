@@ -1,7 +1,10 @@
-//! Frozen command metadata and help rendering for ABI's command-line surface.
+//! Command metadata, help rendering, and process dispatch for ABI's CLI.
 //!
-//! This crate is intentionally independent from command handlers. During the
-//! Rust migration it provides a small, stable contract boundary that can be
-//! checked against output captured from the Zig implementation.
+//! During the Rust migration, the help surface is a stable contract boundary
+//! checked against output captured from the Zig implementation. Command
+//! handlers are attached incrementally behind the same process dispatcher.
 
+pub mod app;
 pub mod usage;
+
+mod wdbx;

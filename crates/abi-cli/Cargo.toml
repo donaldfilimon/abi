@@ -5,9 +5,14 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Frozen ABI command metadata and help rendering."
+description = "ABI command metadata, help rendering, and process dispatch."
 
-[dev-dependencies]
+[[bin]]
+name = "abi"
+path = "src/main.rs"
+
+[dependencies]
+abi-wdbx = { path = "../abi-wdbx" }
 serde_json = { workspace = true }
 
 [lints]
