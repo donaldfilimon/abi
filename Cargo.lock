@@ -3,6 +3,15 @@
 version = 4
 
 [[package]]
+name = "abi-core"
+version = "0.1.0"
+dependencies = [
+ "abi-foundation",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "abi-foundation"
 version = "0.1.0"
 dependencies = [

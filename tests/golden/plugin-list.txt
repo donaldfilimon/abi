@@ -1,0 +1,17 @@
+Installed Plugins (16):
+  - accelerator-plugin v0.1.0 [accelerator] (mod.zig): Example reference plugin targeting the feat-accelerator gate.
+  - ai-plugin v0.1.0 [ai] (mod.zig): Example reference plugin targeting the feat-ai gate.
+  - example-plugin v0.1.0 [plugins] (mod.zig): Minimal example plugin used by registry generation tests.
+  - example-wdbx-plugin v0.1.0 [wdbx] (mod.zig): Example WDBX plugin used by multi-plugin registry contract tests.
+  - foundationmodels-plugin v0.1.0 [foundationmodels] (mod.zig): Example reference plugin targeting the feat-foundationmodels gate.
+  - gpu-plugin v0.1.0 [gpu] (mod.zig): Example reference plugin targeting the feat-gpu gate.
+  - hash-plugin v0.1.0 [hash] (mod.zig): Example reference plugin targeting the feat-hash gate.
+  - metrics-plugin v0.1.0 [metrics] (mod.zig): Example reference plugin targeting the feat-metrics gate.
+  - mlir-plugin v0.1.0 [mlir] (mod.zig): Example reference plugin targeting the feat-mlir gate.
+  - mobile-plugin v0.1.0 [mobile] (mod.zig): Example reference plugin targeting the feat-mobile gate.
+  - nn-plugin v0.1.0 [nn] (mod.zig): Example reference plugin targeting the feat-nn gate.
+  - os-control-plugin v0.1.0 [os-control] (mod.zig): Example reference plugin targeting the feat-os-control gate.
+  - sea-plugin v0.1.0 [sea] (mod.zig): Example reference plugin targeting the feat-sea gate.
+  - shader-plugin v0.1.0 [shader] (mod.zig): Example reference plugin targeting the feat-shader gate.
+  - telemetry-exporter v0.1.0 [telemetry] (mod.zig): Example telemetry plugin: formats a telemetry event line for the feat-telemetry observability path.
+  - tui-plugin v0.1.0 [tui] (mod.zig): Example reference plugin targeting the feat-tui gate.
