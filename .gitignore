@@ -262,6 +262,7 @@ test_imports3
 !/ABI-MEGA-PLUGIN.md
 !/CODE_OF_CONDUCT.md
 !/walkthrough.md
+!/RUST-REWRITE-PLAN.md
 
 # GitHub Actions runner ops (self-hosted security + day-2)
 !/.github/self-hosted-runner.md
@@ -351,3 +352,6 @@ legacy/
 
 # ── Compound Engineering (machine-local) ────────────────
 .compound-engineering/*.local.yaml
+
+# Rust build artifacts
+/target/
