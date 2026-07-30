@@ -48,8 +48,9 @@ Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
 No unproven claims (production FHE/AES/RBAC, multi-host sharding, QPS/latency/
 accuracy, K8s/H100, native CUDA/ANE kernels). WDBX secure demos are
 reference-grade. GPU reports `accelerated=false` when kernels are not linked.
-`complete --live` is Anthropic-only across an explicit credential boundary;
-`apple-fm` discloses FoundationModels unavailability without the Swift FFI.
+`complete --live` is Anthropic-only for HTTP providers; `apple-fm --confirm`
+uses the FoundationModels Swift shim on arm64 macOS when Apple Intelligence is
+ready, otherwise discloses unavailability (never fabricates a reply).
 
 ## Store safety
 

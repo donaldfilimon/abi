@@ -2,8 +2,9 @@
 //! soul-network blend, and explicit live Anthropic transport.
 //!
 //! Ported from the local and live paths of `src/cli/handlers/complete_handlers.zig`.
-//! `--live` is Anthropic-only (matching Zig). Apple `FoundationModels`
-//! (`apple-fm` + `--confirm`) reports honest unavailability (no Swift FFI).
+//! `--live` is Anthropic-only for HTTP providers. Apple `FoundationModels`
+//! (`apple-fm` + `--confirm`) uses the Swift `@c` shim when linked on arm64
+//! macOS; otherwise it reports honest unavailability.
 //! `--soul <file.json>` loads a `SoulLayout`, bootstraps a `[3, 8, 3]` point net,
 //! and blends with keyword routing via `--soul-alpha` (default 0.5).
 
@@ -13,9 +14,10 @@ use std::path::Path;
 
 use abi_ai::{PointNeuralNetwork, SoulLayout, complete, models, route_with_soul};
 use abi_connectors::{
-    Client, ConnectorConfig, DefaultTransport, Provider, is_local_bridge_model,
-    local_bridge_complete, local_bridge_complete_stream, local_bridge_endpoint,
-    local_bridge_extract, local_bridge_health, parse_stream,
+    Client, ConnectorConfig, DefaultTransport, Provider, fm_available, fm_bridge_linked,
+    fm_complete_live, fm_config, is_local_bridge_model, local_bridge_complete,
+    local_bridge_complete_stream, local_bridge_endpoint, local_bridge_extract, local_bridge_health,
+    parse_stream,
 };
 use abi_foundation::credentials::{self, CredentialField};
 use abi_sea::{LearnLoopConfig, run_learn_loop};
@@ -274,8 +276,10 @@ fn run_neural(input: &str) -> Outcome {
 
 /// On-device Apple `FoundationModels` path (`--live --model apple-fm --confirm`).
 ///
-/// Honest: the Swift FFI shim is not linked in the Rust port, so this always
-/// reports unavailability rather than inventing on-device inference.
+/// Links the Swift `@c` shim (`libabi_fm_shim.dylib`) on arm64 macOS when the
+/// `foundationmodels` feature is enabled. Returns an honest unavailability error
+/// when the bridge is not linked or the on-device model is not ready — never a
+/// fabricated reply.
 fn run_fm_complete(input: &str, model: &str, confirmed: bool) -> Outcome {
     if !confirmed {
         return Outcome::stderr(
@@ -286,12 +290,29 @@ fn run_fm_complete(input: &str, model: &str, confirmed: bool) -> Outcome {
     if input.trim().is_empty() {
         return Outcome::stderr("error: completion input must not be empty\n".into(), 1);
     }
-    Outcome::stderr(
-        format!(
-            "error: on-device FoundationModels unavailable for model={model}: not built with FoundationModels FFI, or the on-device runtime is not reachable on this host\n"
+    if !fm_bridge_linked() || !fm_available() {
+        return Outcome::stderr(
+            format!(
+                "error: on-device FoundationModels unavailable for model={model}: not built with FoundationModels FFI, not running on arm64 macOS, or the on-device runtime is not reachable on this host\n"
+            ),
+            1,
+        );
+    }
+    match fm_complete_live(input, fm_config()) {
+        Ok(resp) => Outcome {
+            stdout: format!(
+                "{}\n[model={model} | provider=foundationmodels | transport=on-device | status={}]\n",
+                resp.body.trim_end(),
+                resp.status
+            ),
+            stderr: String::new(),
+            exit_code: 0,
+        },
+        Err(err) => Outcome::stderr(
+            format!("error: on-device FoundationModels request failed: {err}\n"),
+            1,
         ),
-        1,
-    )
+    }
 }
 
 /// Stage 2: live Anthropic path behind `--live` (Zig parity).
@@ -758,7 +779,7 @@ mod tests {
     }
 
     #[test]
-    fn apple_fm_with_confirm_is_honestly_unavailable() {
+    fn apple_fm_with_confirm_is_honest_or_live() {
         let outcome = run(&[
             "--live".to_owned(),
             "--model".to_owned(),
@@ -766,8 +787,18 @@ mod tests {
             "--confirm".to_owned(),
             "hello".to_owned(),
         ]);
-        assert_eq!(outcome.exit_code, 1);
-        assert!(outcome.stderr.contains("FoundationModels unavailable"));
+        // On hosts without the bridge / model: exit 1 with unavailable.
+        // On arm64 macOS with Apple Intelligence ready: exit 0 with on-device text.
+        if outcome.exit_code == 0 {
+            assert!(outcome.stdout.contains("provider=foundationmodels"));
+            assert!(outcome.stdout.contains("transport=on-device"));
+        } else {
+            assert_eq!(outcome.exit_code, 1);
+            assert!(
+                outcome.stderr.contains("FoundationModels unavailable")
+                    || outcome.stderr.contains("FoundationModels request failed")
+            );
+        }
     }
 
     #[test]

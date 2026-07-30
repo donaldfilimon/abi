@@ -47,6 +47,7 @@ pub mod connector;
 pub mod discord_gateway;
 pub mod discord_routing;
 pub mod discord_ws;
+pub mod fm;
 pub mod local_bridge;
 pub mod payload;
 pub mod providers;
@@ -67,6 +68,9 @@ pub use discord_routing::{
 pub use discord_ws::{
     Frame, GATEWAY_HOST, GATEWAY_PATH, WsError, build_handshake_request, encode_masked_text_frame,
     handshake_on_stream, key_b64_from_seed, try_parse_frame,
+};
+pub use fm::{
+    FmConfig, complete_live as fm_complete_live, fm_available, fm_bridge_linked, fm_config,
 };
 pub use local_bridge::{
     LLAMA_CPP_DEFAULT_ENDPOINT, MLX_DEFAULT_ENDPOINT, complete_live as local_bridge_complete,

@@ -92,14 +92,18 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **2. `abi-core`** — config, registry, task, scheduler, memory. Concurrency decided: **one-shot**, tasks run synchronously on the caller's thread (`mode=one-shot`, `running=0` at rest). Golden-tested against the captured `scheduler_stats` output. 79 tests.
 - [x] **3a. `abi-connectors` core** — connector types, URL/auth (HTTPS enforcement + host-boundary check), payload builders + byte-exact local synthesis, SSE parsing (both dialects), `Transport` trait with `ureq` live impl + `RecordingTransport`, clients for OpenAI/Anthropic/Grok/Discord/Twilio. 75 tests.
 - [x] **3b. `abi-connectors` remainder** — Apple `FoundationModels` Swift FFI
-  remains intentionally unlinked (CLI discloses unavailability).
+  linked via `native/fm_shim.swift` → `libabi_fm_shim.dylib` (feature
+  `foundationmodels`, arm64 macOS). CLI `complete --live --model apple-fm
+  --confirm` runs on-device when Apple Intelligence is ready; otherwise
+  discloses unavailability (never fabricates).
   - [x] **Twilio ConversationRelay local builder** (`twilio_relay.rs`) + MCP
-    `connector_test` / CLI `twilio simulate`.
+    `connector_test` / CLI `twilio simulate`. Live Twilio media WebSocket remains
+    a disclosed residual (TLS proxy / provider transport — not a rewrite gap).
   - [x] **Discord gateway + routing + WS framing** (`discord_routing.rs`,
     `discord_gateway.rs`, `discord_ws.rs`): pure command routing, injectable
     gateway loop + `FakeTransport` (Hello/Identify/heartbeat/MESSAGE_CREATE),
-    WebSocket handshake/frame helpers. Live `wss://` needs TLS proxy (not
-    linked; disclosed).
+    WebSocket handshake/frame helpers. Live `wss://` without an external TLS
+    proxy is a disclosed residual (same honesty boundary as Zig).
   - [x] **Local OpenAI-compatible inference bridge** (`local_bridge.rs`):
     model-prefix routing, endpoint env (`ABI_LLAMA_CPP_ENDPOINT` /
     `ABI_MLX_ENDPOINT`), health check, complete + stream, extract completion.
@@ -308,7 +312,8 @@ names" into "the Rust CLI emits byte-identical output".
     interactive raw-mode refresh is still not linked.
     `complete --neural` runs the in-process char-LM demo; `complete --live`
     is Anthropic-only with credential-store boundary + optional `--stream`
-    SSE; `apple-fm` + `--confirm` reports honest FoundationModels unavailability.
+    SSE; `apple-fm` + `--confirm` drives on-device FoundationModels via the
+    Swift shim when linked+ready, else honest unavailability.
   - [x] **8e. WDBX listeners + text query.** `wdbx query <path> <text>` runs
     hybrid semantic×temporal×causal×persona ranking via `abi_ai::text_embedding`
     + `hybrid_search_*`. `wdbx api serve [port]` loopback REST (`RestServer`,
@@ -324,10 +329,11 @@ names" into "the Rust CLI emits byte-identical output".
   - [x] **8h. Discord gateway/routing.** Offline-tested gateway loop + pure
     `!help/status/prompt/governance` routing + WS framing. Live TLS not linked.
   - [x] **8i. Local bridge + MCP HTTP/SSE.** See 3b / 9b.
-  - Still open (honest stubs / deferred): FoundationModels Swift FFI; live
-    Discord `wss://` without external TLS proxy; live Twilio WebSocket relay;
-    native GPU kernels / external shader-MLIR toolchains / mobile native
-    dispatch (disclosed, not fake-completed).
+  - **Rewrite surface closed.** Residual honesty boundaries (not open ports):
+    live Discord `wss://` / Twilio media WebSocket without a TLS-terminating
+    proxy; native GPU kernels; external shader/MLIR toolchains; mobile
+    `native_dispatch`. These match Zig's disclosed non-goals and must not be
+    fake-completed.
 - [x] **9a. `abi-mcp` protocol + stdio transport** — JSON-RPC envelope,
   structural pre-check (size/depth/object-root), the frozen 12-tool table
   (schemas pre-parsed so property order is preserved), declarative field

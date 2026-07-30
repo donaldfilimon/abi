@@ -78,8 +78,8 @@ const FEATURES: &[Feature] = &[
     },
     Feature {
         name: "foundationmodels",
-        implemented: false,
-        detail: "Apple Foundation Models Swift FFI not linked (complete --live --model apple-fm discloses)",
+        implemented: true,
+        detail: "Swift @c shim + on-device complete; ready only when Apple Intelligence model is available",
     },
     Feature {
         name: "hash",
@@ -148,6 +148,8 @@ fn report() -> String {
     let hash_smoke = abi_foundation::hash64(b"abi-backends");
     let mut metrics = abi_telemetry::Metrics::new();
     metrics.increment("backends.report", 1);
+    let fm_bridge = abi_connectors::fm_bridge_linked();
+    let fm_ready = abi_connectors::fm_available();
 
     writeln!(
         output,
@@ -178,7 +180,7 @@ fn report() -> String {
     }
     writeln!(
         output,
-        "  Apple Neural Engine: hardware_present={} native_dispatch=false\n  Remote compute endpoint: {} (reference transport; local fallback, not production TPU)\n  Shaders         {}  {}  (compiler available={})\n  MLIR            {} → {}  (toolchain available={})\n  Hash            wyhash64=0x{hash_smoke:x}  (Zig-compatible)\n  Metrics         registry counters={}  (enabled={})\n  Mobile          {}",
+        "  Apple Neural Engine: hardware_present={} native_dispatch=false\n  Remote compute endpoint: {} (reference transport; local fallback, not production TPU)\n  Shaders         {}  {}  (compiler available={})\n  MLIR            {} → {}  (toolchain available={})\n  Hash            wyhash64=0x{hash_smoke:x}  (Zig-compatible)\n  Metrics         registry counters={}  (enabled={})\n  Mobile          {}\n  FoundationModels bridge_linked={} model_ready={}",
         abi_wdbx::ane_hardware_present(),
         abi_wdbx::remote_compute_endpoint()
             .as_deref()
@@ -196,6 +198,8 @@ fn report() -> String {
         metrics.get_counter("backends.report").unwrap_or(0),
         metrics.enabled(),
         mobile_status_line(),
+        fm_bridge,
+        fm_ready,
     )
     .expect("writing to a String cannot fail");
     output
@@ -227,6 +231,8 @@ mod tests {
         assert!(output.stderr.contains("hash               \u{1b}[32m✓"));
         assert!(output.stderr.contains("metrics            \u{1b}[32m✓"));
         assert!(output.stderr.contains("mobile             \u{1b}[32m✓"));
+        assert!(output.stderr.contains("foundationmodels   \u{1b}[32m✓"));
+        assert!(output.stderr.contains("FoundationModels bridge_linked="));
         assert!(
             output
                 .stderr
