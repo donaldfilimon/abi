@@ -18,6 +18,7 @@ dependencies = [
  "abi-ai",
  "abi-core",
  "abi-foundation",
+ "abi-gpu",
  "abi-nn",
  "abi-plugins",
  "abi-sea",

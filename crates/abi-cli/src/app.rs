@@ -410,6 +410,9 @@ pub fn run(args: &[String]) -> Outcome {
     if resolved == "nn" {
         return crate::nn::run(&args[1..]);
     }
+    if resolved == "dashboard" || resolved == "tui" {
+        return crate::dashboard::run(&args[1..]);
+    }
 
     Outcome::stderr(
         format!("error: Rust handler for `{resolved}` is not yet ported\n"),
@@ -499,12 +502,24 @@ mod tests {
 
     #[test]
     fn unported_handlers_fail_honestly() {
-        let outcome = run(&args(&["tui"]));
+        let outcome = run(&args(&["agent", "plan"]));
         assert_eq!(outcome.exit_code, 1);
         assert_eq!(
             outcome.stderr,
-            "error: Rust handler for `tui` is not yet ported\n"
+            "error: Rust handler for `agent` is not yet ported\n"
         );
+    }
+
+    #[test]
+    fn dashboard_once_is_attached() {
+        let outcome = run(&args(&["dashboard", "--once", "--plain"]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stderr.contains("ABI Diagnostics Dashboard"));
+        assert!(outcome.stderr.contains("System"));
+        assert!(outcome.stderr.contains("Plugins"));
+        assert!(outcome.stderr.contains("WDBX Storage"));
+        assert!(outcome.stderr.contains("Scheduler"));
+        assert!(outcome.stderr.contains("Memory"));
     }
 
     #[test]

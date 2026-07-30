@@ -87,12 +87,19 @@ fn direct_help_and_exit_codes_cross_the_real_process_boundary() {
     assert!(unknown.stdout.is_empty());
     assert!(String::from_utf8_lossy(&unknown.stderr).contains("hint: did you mean `complete`?"));
 
-    let unported = run(&["tui"]);
+    let unported = run(&["agent", "plan"]);
     assert_eq!(unported.status.code(), Some(1));
     assert_eq!(
         unported.stderr,
-        b"error: Rust handler for `tui` is not yet ported\n"
+        b"error: Rust handler for `agent` is not yet ported\n"
     );
+
+    let dash = run(&["dashboard", "--once", "--plain"]);
+    assert!(dash.status.success());
+    let dash_text = String::from_utf8_lossy(&dash.stderr);
+    assert!(dash_text.contains("ABI Diagnostics Dashboard"));
+    assert!(dash_text.contains("System"));
+    assert!(dash_text.contains("Memory"));
 
     let train = run(&["train", "example"]);
     assert!(train.status.success());

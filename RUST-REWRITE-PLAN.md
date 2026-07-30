@@ -248,6 +248,12 @@ names" into "the Rust CLI emits byte-identical output".
     property tests pass. JSONL field extract + CLI wiring. Demo-grade only;
     checkpoint persist format still open.
 - [ ] **7. `abi-tui`**
+  - [x] **7a. One-shot dashboard / `tui` / `--tui`.** Stacked digest with all
+    five panes (System, Plugins, WDBX Storage, Scheduler, Memory), `--list-panes`,
+    `--json`, `--compact`, `--pane`, `--plain`, `--once`. Collects live plugin
+    registry (16), one-shot scheduler probe (completed=2), MemoryTracker, and
+    honest `abi-gpu` status. Interactive raw-mode refresh is **not** linked —
+    every invocation is one-shot with an explicit footer note.
 - [x] **8a. `abi-cli` contract model** — frozen 13-command metadata,
   top-level help, shortcut resolution, and argument-free command help are
   golden-tested. This does **not** claim handler or full typed-help parity.

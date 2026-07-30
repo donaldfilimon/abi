@@ -57,8 +57,8 @@ const FEATURES: &[Feature] = &[
     },
     Feature {
         name: "tui",
-        implemented: false,
-        detail: "Rust diagnostics dashboard pending",
+        implemented: true,
+        detail: "one-shot dashboard/tui digest; interactive raw-mode not linked",
     },
     Feature {
         name: "os_control",
