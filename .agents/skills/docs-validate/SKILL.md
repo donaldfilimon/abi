@@ -1,6 +1,6 @@
 ---
 name: docs-validate
-description: Validate the Mintlify docs site (docs/docs.json + docs/**/*.mdx) via `npx mint@latest validate`, plus a stale-.md-reference scan. Local pre-push gate; CI job docs (mint validate) runs the same script on push/PR. Not part of ./build.sh check. User-invocable only.
+description: Validate the Mintlify docs site (docs/docs.json + docs/**/*.mdx) via `npx mint@latest validate`, plus a stale-.md-reference scan. Local pre-push gate; CI job docs (mint validate) runs the same script on push/PR. Not part of ./tools/check.sh. User-invocable only.
 disable-model-invocation: true
 ---
 
@@ -20,7 +20,7 @@ Prints `RESULT: PASS` (exit 0) or `RESULT: FAIL` (exit 1) with the validator out
 ## Gates
 | Gate | Covers docs? |
 |------|----------------|
-| `./build.sh check` | No (Zig primary gate stays separate) |
+| `./tools/check.sh` | No (Zig primary gate stays separate) |
 | CI job **docs (mint validate)** (Node 22) | Yes — runs this script on push/PR |
 | Local `validate.sh` | Yes — run after editing `docs/` before push |
 

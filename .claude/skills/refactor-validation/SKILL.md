@@ -9,7 +9,7 @@ Validation layers for modernization: behavioral parity, modern quality, structur
 
 ## Layers
 
-- Behavioral: contracts, tests, ./build.sh check, check-parity pass.
+- Behavioral: contracts, tests, ./tools/check.sh, check-parity pass.
 - Modern: apply patterns from modern-patterns, no legacy smells.
 - Structural: boundaries clean, no god files, explicit over implicit.
 

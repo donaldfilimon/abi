@@ -22,12 +22,12 @@ for a in "$@"; do
     esac
 done
 
-ABI="$REPO_ROOT/zig-out/bin/abi"
+ABI="$REPO_ROOT/target/debug/abi"
 fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 
 say "build cli"
-if ./build.sh cli; then echo "[ok] build"; else echo "[FAIL] build"; exit 1; fi
+if ./tools/cargo.sh build -p abi-cli; then echo "[ok] build"; else echo "[FAIL] build"; exit 1; fi
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
 
 say "abi wdbx benchmark $COUNT"

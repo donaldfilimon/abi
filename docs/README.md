@@ -23,8 +23,8 @@ job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
 
 ## Source of truth
 
-When prose disagrees with code, trust `build.zig`, `src/`, `tests/contracts/`, and
-`./build.sh check`. Claim boundaries:
+When prose disagrees with code, trust `Cargo.toml`, `crates/`, `tests/golden/`, and
+`./tools/check.sh`. Claim boundaries:
 [`contracts/external-claims-audit.mdx`](contracts/external-claims-audit.mdx).
 Persona / product identity direction:
 [`spec/abbey-core-identity.mdx`](spec/abbey-core-identity.mdx) and

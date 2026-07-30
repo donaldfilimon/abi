@@ -19,7 +19,7 @@ with a `diff` of expected-vs-got tool names (exit 1).
 
 One-liner if you just want the names by hand:
 ```bash
-printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./zig-out/bin/abi-mcp 2>/dev/null | jq -r '.result.tools[].name'
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./target/debug/abi-mcp 2>/dev/null | jq -r '.result.tools[].name'
 ```
 
 ## Gotchas
@@ -36,8 +36,8 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./zig-out/bin/a
   coreutils only). Running `abi-mcp` with an open/interactive stdin is what hangs.
 - **`initialize` is not required.** A bare `tools/list` returns the full list;
   you don't need the usual MCP `initialize` handshake first.
-- **The build is silent.** `./build.sh mcp` prints ~2 info lines and exits with
-  no "success" banner — confirm with `ls zig-out/bin/abi-mcp`, not stdout.
+- **The build is silent.** `./tools/cargo.sh build -p abi-mcp` prints ~2 info lines and exits with
+  no "success" banner — confirm with `ls target/debug/abi-mcp`, not stdout.
 - **Ignore the stderr line** `info: MCP HTTP/SSE server listening on
   http://127.0.0.1:8080` — the loopback HTTP listener always starts; the
   JSON-RPC reply you want is on **stdout**. The driver drops stderr with `2>/dev/null`.
@@ -47,7 +47,7 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./zig-out/bin/a
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./build.sh check`. |
+| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./tools/check.sh`. |
 | empty response | You piped to the HTTP framing or forgot the trailing `\n`; use the one-liner above. |
 | got 13 tools | You counted bare `"name":`; count `"name":"…"` values or use `jq` (see Gotchas). |
 | tool set mismatch | A tool was added/removed/renamed — reconcile `src/mcp/handlers.zig` with the frozen list in AGENTS.md and `tests/contracts/surface.zig`, then run `zig build test-mcp-contracts`. |

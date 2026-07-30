@@ -100,4 +100,4 @@ Requires `feat-wdbx=true` (default). When disabled, returns `FeatureDisabled`.
 - `crypto_he.zig` — additive homomorphism verification
 - `fhe.zig` — DGHV add+multiply chain depth-3
 
-All tests pass `./build.sh check`.
+All tests pass `./tools/check.sh`.

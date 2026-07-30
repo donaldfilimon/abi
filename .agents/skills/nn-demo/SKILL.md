@@ -1,6 +1,6 @@
 ---
 name: nn-demo
-description: Build the abi CLI and run the miniature character-level neural-net demo — `nn train` (real manual-backprop char-LM) and `nn sample` (train-then-generate). Use to train, sample, or smoke-test the nn demo trainer, or verify feat-nn after touching src/features/nn/. This is a demo trainer, NOT a production/LLM/distributed trainer.
+description: Build the abi CLI and run the miniature character-level neural-net demo — `nn train` (real manual-backprop char-LM) and `nn sample` (train-then-generate). Use to train, sample, or smoke-test the nn demo trainer, or verify nn after touching crates/abi-nn/. This is a demo trainer, NOT a production/LLM/distributed trainer.
 ---
 
 # nn-demo — drive abi's character-level demo trainer

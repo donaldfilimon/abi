@@ -1,6 +1,6 @@
 ---
 name: os-control-dryrun
-description: Build the abi CLI and exercise the OS-control policy in dry-run (planning) mode only, and verify the execute path refuses without --confirm. Use when working on src/features/os_control/ or the `abi agent os` handler, or to safely demo OS-command planning. Never executes a command.
+description: Build the abi CLI and exercise the OS-control policy in dry-run (planning) mode only, and verify the execute path refuses without --confirm. Use when working on OS-control handlers or the `abi agent os` handler, or to safely demo OS-command planning. Never executes a command.
 ---
 
 # os-control-dryrun — safely drive abi's OS-control planning

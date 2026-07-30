@@ -31,5 +31,5 @@ Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — int8 ratio
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | `/zig-build-doctor` or `./build.sh check`. |
+| `build` FAIL | `/zig-build-doctor` or `./tools/check.sh`. |
 | missing `match=true` | a HE/compression invariant broke — check `src/features/wdbx/{compression,crypto_he,fhe}.zig`. |

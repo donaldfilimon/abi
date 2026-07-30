@@ -35,12 +35,12 @@ vectors=4 blocks=2`, on Zig master `0.17.0-dev.1099`.
   store may simply have no matching evidence yet.
 - The model line shows the catalog default (`claude-fable-5`); `--learn` is local
   (WDBX metadata), not a live API call — no credentials needed.
-- First build can be a fresh feature-graph compile; later `./build.sh cli` runs
+- First build can be a fresh feature-graph compile; later `./tools/cargo.sh build -p abi-cli` runs
   are incremental.
 
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL (default) | `/zig-build-doctor` or `./build.sh check`. |
+| `build` FAIL (default) | `/zig-build-doctor` or `./tools/check.sh`. |
 | `build` FAIL (`--sea`) | explicit feat-sea graph issue — check `src/features/sea/{mod,stub}.zig` parity. |
 | missing `learn=true` | `complete` grammar drifted — check `src/cli/` `complete` handler + `--learn`. |

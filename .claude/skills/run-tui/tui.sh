@@ -10,7 +10,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
 export PATH="$PATH:/opt/homebrew/bin"   # append (not prepend!) so brew tmux is found without shadowing the zvm zig with brew's 0.16
-ABI="$REPO_ROOT/zig-out/bin/abi"
+ABI="$REPO_ROOT/target/debug/abi"
 CMD="${1:-dashboard}"
 SESSION="abi-tui-skill-$$"
 MARKER="ABI Diagnostics Dashboard"
@@ -22,7 +22,7 @@ trap cleanup EXIT
 command -v tmux >/dev/null || { echo "[FAIL] tmux not installed (brew install tmux)"; exit 1; }
 
 say "build cli"
-./build.sh cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
+./tools/cargo.sh build -p abi-cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
 
 say "launch 'abi $CMD' under tmux pty"

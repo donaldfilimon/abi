@@ -4,8 +4,9 @@ description: "Welcome to the ABI framework documentation. This hub provides cent
 ---
 
 Welcome to the ABI multi-AI orchestration framework documentation. ABI is
-implemented in Zig 0.17; this hub points at contracts, architecture specs, and
-build guides without re-stating frozen CLI or MCP surfaces.
+implemented in **nightly Rust** (`crates/*`); this hub points at contracts,
+architecture specs, and build guides without re-stating frozen CLI or MCP
+surfaces.
 
 **Primary identity:** Abbey (empathetic polymath), with Aviva (direct expert),
 ABI (orchestration), and WDBX (knowledge/memory substrate). See the
@@ -13,9 +14,9 @@ ABI (orchestration), and WDBX (knowledge/memory substrate). See the
 and the claim-honest Current / Partial / Proposed evidence map.
 
 <Note type="warning">
-  **Source wins.** When docs disagree with `build.zig`, `src/cli/usage.zig`,
-  `src/mcp/handlers.zig`, or `tests/contracts/`, trust the executable sources
-  and `./build.sh check`. Claim boundaries:
+  **Source wins.** When docs disagree with `Cargo.toml`, `crates/`,
+  `tests/golden/`, or `tools/check.sh`, trust the executable sources and
+  `./tools/check.sh`. Claim boundaries:
   [External Claims Audit](contracts/external-claims-audit). Local persona
   output is deterministic template generation, not a model-quality or
   distributed-AI claim.
@@ -65,7 +66,7 @@ routing.
     Cluster RPC transit encryption and membership — proxy mTLS preferred; not sharding.
   </Card>
   <Card title="Phase D Cutover Plan (HITL)" href="spec/phase-d-cutover-plan">
-    Human-gated checklist before any modernized/ → src/ cutover.
+    Historical HITL checklist from the pre-Rust modernization track (archive).
   </Card>
 </CardGroup>
 
@@ -86,7 +87,9 @@ For quick-start commands and current validation status, see [README.md](../READM
 For source-of-truth rules, claim-safe wording, page organization, and required
 validation, see [Contributing to ABI Documentation](contributing).
 
-On macOS/Darwin, prefer `./build.sh ...` for project validation even when plain `zig build` works locally. Primary gate: `./build.sh check`. Full local gate: `./build.sh full-check` (check plus integration tests, benchmarks, and dashboard smoke).
+Primary gate: `./tools/check.sh` (fmt, clippy, build, workspace tests, docs).
+Compatibility entrypoint: `./build.sh check` → the same gate. Always build with
+`./tools/cargo.sh` so the nightly pin is honored.
 
 ## Instruction files
 

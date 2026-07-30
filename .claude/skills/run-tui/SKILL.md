@@ -27,9 +27,9 @@ and there's **no** `errno 19`/`tcgetattr`/panic. Sends `q` (the quit key —
 To eyeball it yourself: `tmux capture-pane -pt <session>` shows the System pane
 (GPU backend, accelerated, native-linked) and the Plugins pane (16 registered).
 
-Historical verification: **PASS** on the pin in `.zigversion` — dashboard box +
+Historical verification: **PASS** on the pin in `rust-toolchain.toml` — dashboard box +
 System + Plugins panes render under the pty; `q` quits; session cleaned up.
-Do not hardcode a Zig nightly in this skill; read `.zigversion` for the live pin.
+Do not hardcode a Zig nightly in this skill; read `rust-toolchain.toml` for the live pin.
 
 
 ## Gotchas (battle scars)

@@ -43,7 +43,7 @@ When designing the target:
 - `.agents/skills/refactor-strategy/references/strategy-guide.md` — detailed decision trees and examples of each strategy.
 - `.agents/skills/refactor-strategy/examples/sample-plan-outline.md` — real plan outlines from previous modernizations.
 
-Use this skill before touching code. Always run `./build.sh check` before and after.
+Use this skill before touching code. Always run `./tools/check.sh` before and after.
 
 ## Optional host settings
 

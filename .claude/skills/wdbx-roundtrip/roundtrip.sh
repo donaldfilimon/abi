@@ -9,7 +9,7 @@ set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
-ABI="$REPO_ROOT/zig-out/bin/abi"
+ABI="$REPO_ROOT/target/debug/abi"
 PROFILE="${1:-abi}"
 META="${2:-{\"note\":\"wdbx-roundtrip\"}}"
 STORE="$REPO_ROOT/zig-out/skill-wdbx-roundtrip.jsonl"
@@ -25,7 +25,7 @@ step() { local label="$1"; shift; local -a markers=(); local a
             || { echo "[FAIL] $label missing: $a"; fail=$((fail+1)); }; done; }
 
 say "build cli"
-./build.sh cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
+./tools/cargo.sh build -p abi-cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
 rm -f "$STORE"
 

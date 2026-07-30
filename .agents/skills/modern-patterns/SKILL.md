@@ -1,6 +1,6 @@
 ---
 name: modern-patterns
-description: This skill should be used when the user asks what a modern idiom looks like for error handling, types, or modularity in Zig — e.g. 'show me the modern way to do this', 'what's the idiomatic Zig 0.17 pattern here' — while implementing a refactor.
+description: This skill should be used when the user asks what a modern idiom looks like for error handling, types, or modularity in Rust — e.g. 'show me the modern way to do this', 'what's the idiomatic Rust pattern here' — while implementing a refactor.
 ---
 
 # Modern Patterns
@@ -27,7 +27,7 @@ Enums, tagged unions, strong types.
 
 Extract pure core, push effects to edges. Small focused units.
 
-See references for catalog of before/after in Zig context.
+See references for catalog of before/after in Rust context.
 
 ## Additional Resources
 
