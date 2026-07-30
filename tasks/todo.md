@@ -19,7 +19,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 | Frozen CLI (13) + MCP (12) | ✅ | Golden + unit coverage |
 | FoundationModels shim | ✅ | `libabi_fm_shim.dylib` on arm64 macOS; honest offline |
 | Local OpenAI bridge + MCP HTTP/SSE | ✅ | Loopback; fallback when bridge unusable |
-| Land `rust-rewrite` on `main` | 🟡 | PR [#756](https://github.com/donaldfilimon/abi/pull/756) |
+| Land `rust-rewrite` on `main` | ✅ | Squash-merged [#756](https://github.com/donaldfilimon/abi/pull/756) as `34c35d5` |
 
 ---
 
@@ -40,19 +40,19 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 | Priority | Item | Notes |
 | -------- | ---- | ----- |
-| 1 | Merge PR #756 + post-merge smoke on `main` | Required to call rewrite done on default branch |
-| 2 | Long-form docs Zig-path scrub | CHANGELOG/threat-model history OK; skills must not teach `zig build` as gate |
-| 3 | `nn` checkpoint persist | Demo durability; not production LLM |
-| 4 | Live Discord/Twilio TLS clients | Optional product expansion |
-| 5 | Metal kernels beyond detection | Large; keep claims honest |
-| 6 | Windows runtime CI for ACLs | 🔴 no Windows runner |
+| 1 | Long-form docs Zig-path scrub | CHANGELOG/threat-model history OK; skills must not teach `zig build` as gate |
+| 2 | `nn` checkpoint persist | Demo durability; not production LLM |
+| 3 | Live Discord/Twilio TLS clients | Optional product expansion |
+| 4 | Metal kernels beyond detection | Large; keep claims honest |
+| 5 | Windows runtime CI for ACLs | 🔴 no Windows runner |
 
 ---
 
-## Recently landed (rust-rewrite)
+## Recently landed
 
+- **Rust rewrite on `main`** via [#756](https://github.com/donaldfilimon/abi/pull/756) (`34c35d5`)
 - FoundationModels Swift `@c` shim + `complete --live --model apple-fm --confirm`
 - shaders / mlir / hash / metrics / mobile report surfaces
-- local_bridge + MCP HTTP/SSE
+- local_bridge + MCP HTTP/SSE; wdbx_stats open-failure disclosure for CI
 - Discord gateway/routing/WS framing (offline); Twilio ConversationRelay local path
 - Zig one-shot teardown
