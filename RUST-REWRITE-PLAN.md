@@ -243,6 +243,10 @@ names" into "the Rust CLI emits byte-identical output".
     is always `false` and the message discloses vectorized CPU fallback. Shape-
     checked in the golden fixture path; not byte-equal to Zig's Metal-linked
     message.
+  - [x] **6b. `abi-nn` + CLI `nn train|sample`.** Hand-backprop char-LM demo
+    (embed → hidden → softmax, SGD/Adam). Loss-decrease and greedy-sample
+    property tests pass. JSONL field extract + CLI wiring. Demo-grade only;
+    checkpoint persist format still open.
 - [ ] **7. `abi-tui`**
 - [x] **8a. `abi-cli` contract model** — frozen 13-command metadata,
   top-level help, shortcut resolution, and argument-free command help are

@@ -32,8 +32,8 @@ const FEATURES: &[Feature] = &[
     },
     Feature {
         name: "nn",
-        implemented: false,
-        detail: "Rust neural-net demo trainer pending",
+        implemented: true,
+        detail: "char-LM demo trainer; CLI nn train|sample live",
     },
     Feature {
         name: "gpu",

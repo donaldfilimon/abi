@@ -18,6 +18,7 @@ dependencies = [
  "abi-ai",
  "abi-core",
  "abi-foundation",
+ "abi-nn",
  "abi-plugins",
  "abi-sea",
  "abi-telemetry",
@@ -79,6 +80,13 @@ dependencies = [
  "abi-sea",
  "abi-wdbx",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "abi-nn"
+version = "0.1.0"
+dependencies = [
  "serde_json",
 ]
 

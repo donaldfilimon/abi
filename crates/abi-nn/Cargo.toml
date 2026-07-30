@@ -1,0 +1,14 @@
+[package]
+name = "abi-nn"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Miniature character-level neural-net demo trainer for the ABI framework. Demo-grade, not a production LLM."
+
+[dependencies]
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

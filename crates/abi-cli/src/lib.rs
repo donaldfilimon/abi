@@ -10,6 +10,7 @@ pub mod usage;
 mod auth;
 mod backends;
 mod complete;
+mod nn;
 mod plugin;
 mod train;
 

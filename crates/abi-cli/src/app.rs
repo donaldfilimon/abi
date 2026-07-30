@@ -407,6 +407,9 @@ pub fn run(args: &[String]) -> Outcome {
     if resolved == "train" {
         return crate::train::run(&args[1..]);
     }
+    if resolved == "nn" {
+        return crate::nn::run(&args[1..]);
+    }
 
     Outcome::stderr(
         format!("error: Rust handler for `{resolved}` is not yet ported\n"),
@@ -496,12 +499,20 @@ mod tests {
 
     #[test]
     fn unported_handlers_fail_honestly() {
-        let outcome = run(&args(&["nn", "train"]));
+        let outcome = run(&args(&["tui"]));
         assert_eq!(outcome.exit_code, 1);
         assert_eq!(
             outcome.stderr,
-            "error: Rust handler for `nn` is not yet ported\n"
+            "error: Rust handler for `tui` is not yet ported\n"
         );
+    }
+
+    #[test]
+    fn nn_train_is_attached() {
+        let outcome = run(&args(&["nn", "train", "hello world hello world "]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stdout.contains("nn train:"));
+        assert!(outcome.stdout.contains("improved=true"));
     }
 
     #[test]
