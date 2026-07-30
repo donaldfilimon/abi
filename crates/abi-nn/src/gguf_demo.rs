@@ -9,7 +9,7 @@
 //!
 //! Not a production LLM loader; not distributed; not network-connected.
 
-use crate::checkpoint::{self, load as load_checkpoint};
+use crate::checkpoint::{self, load as load_checkpoint, load_json};
 use crate::model::Model;
 use crate::types::NnError;
 use std::path::Path;
@@ -42,11 +42,15 @@ impl std::error::Error for GgufError {}
 
 /// Write a demo GGUF container wrapping a JSON checkpoint payload.
 pub fn write_demo_gguf(path: &str, model: &Model) -> Result<(), GgufError> {
-    let tmp = format!("{path}.json.tmp");
-    checkpoint::save(Path::new(&tmp), model).map_err(GgufError::Checkpoint)?;
+    // Serialize via a private temp under std::env::temp_dir (never beside `path`).
+    let ns = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    let tmp = std::env::temp_dir().join(format!("abi-nn-gguf-write-{ns}.json"));
+    checkpoint::save(&tmp, model).map_err(GgufError::Checkpoint)?;
     let json = std::fs::read(&tmp).map_err(|e| GgufError::Io(e.to_string()))?;
     let _ = std::fs::remove_file(&tmp);
-    let mut out = Vec::with_capacity(8 + json.len());
+    let mut out = Vec::with_capacity(12 + json.len());
     out.extend_from_slice(DEMO_MAGIC);
     out.extend_from_slice(&DEMO_VERSION.to_le_bytes());
     let len =
@@ -82,11 +86,8 @@ pub fn load_model_file(path: &str) -> Result<Model, GgufError> {
     }
     let json =
         std::str::from_utf8(&bytes[12..12 + len]).map_err(|e| GgufError::Format(e.to_string()))?;
-    let tmp = format!("{path}.extract.json");
-    std::fs::write(&tmp, json).map_err(|e| GgufError::Io(e.to_string()))?;
-    let model = load_checkpoint(Path::new(&tmp)).map_err(GgufError::Checkpoint)?;
-    let _ = std::fs::remove_file(&tmp);
-    Ok(model)
+    // Parse in-memory — never write a sidecar next to the model path.
+    load_json(json).map_err(GgufError::Checkpoint)
 }
 
 /// Load a model file and run incremental sample for `n` characters.

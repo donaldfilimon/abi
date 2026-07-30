@@ -157,7 +157,8 @@ pub fn key_b64_from_seed(seed: [u8; 16]) -> String {
 
 /// Perform the HTTP upgrade over an already-connected stream (plaintext).
 ///
-/// Honesty: Discord requires TLS; callers must put a TLS proxy in front.
+/// For live Discord use [`crate::tls_ws::DiscordTlsTransport`] (rustls `wss://`).
+/// This helper is for plaintext injectables / unit tests only.
 pub fn handshake_on_stream<S: Read + Write>(
     stream: &mut S,
     host: &str,

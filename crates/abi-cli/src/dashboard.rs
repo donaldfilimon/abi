@@ -102,8 +102,7 @@ fn dashboard_health(ds: &DashboardState) -> &'static str {
     if ds.gpu_accelerated && ds.gpu_linked {
         return "nominal";
     }
-    // Zig labels Metal-linked CPU-SIMD as "cpu"; we always land here until
-    // native kernels are linked.
+    // No GPU kernels active (or only CPU SIMD): report health as "cpu".
     "cpu"
 }
 
@@ -236,7 +235,7 @@ fn collect_state(options: &Options) -> DashboardState {
     DashboardState {
         gpu_backend: gpu.backend.name().to_string(),
         gpu_accelerated: gpu.accelerated,
-        gpu_linked: abi_gpu::metal_kernels::kernels_active(),
+        gpu_linked: abi_gpu::metal_kernels::kernels_linked(),
         plugin_count,
         plugin_names,
         // Ephemeral probe store — never opens the user's durable path.
@@ -683,12 +682,12 @@ mod tests {
         let v: Value = serde_json::from_str(outcome.stderr.trim()).expect("json");
         assert_eq!(v["type"], "abi.dashboard");
         assert_eq!(v["plugins"]["count"], 16);
-        let metal = abi_gpu::metal_kernels::kernels_active();
-        assert_eq!(v["gpu"]["linked"], metal);
-        assert_eq!(v["gpu"]["accelerated"], metal);
-        // Health is "nominal" when GPU kernels are active, else "cpu" (unless
-        // attention from scheduler/memory).
-        assert_eq!(v["health"], if metal { "nominal" } else { "cpu" });
+        let linked = abi_gpu::metal_kernels::kernels_linked();
+        let active = abi_gpu::metal_kernels::kernels_active();
+        assert_eq!(v["gpu"]["linked"], linked);
+        assert_eq!(v["gpu"]["accelerated"], active);
+        // Health is "nominal" only when kernels are active (linked∧init).
+        assert_eq!(v["health"], if active { "nominal" } else { "cpu" });
         assert_eq!(v["scheduler"]["completed"], 2);
         assert_eq!(v["wdbx"]["blocks"], 0);
         assert_eq!(v["wdbx"]["vectors"], 0);

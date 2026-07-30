@@ -28,7 +28,7 @@ use abi_wdbx::best_cpu_backend;
 pub enum Backend {
     /// Deterministic vectorized CPU fallback.
     Simulated,
-    /// Apple Metal (declared on macOS; native kernels not linked).
+    /// Apple Metal (preferred on macOS; optional DOT kernels via `metal-kernels`).
     Metal,
     /// Vulkan (declared; not linked).
     Vulkan,

@@ -12,7 +12,9 @@ pub mod sample_inc;
 pub mod train;
 pub mod types;
 
-pub use checkpoint::{load as load_checkpoint, save as save_checkpoint};
+pub use checkpoint::{
+    load as load_checkpoint, load_json as load_checkpoint_json, save as save_checkpoint,
+};
 pub use gguf_demo::{
     GgufError, load_and_sample as load_gguf_and_sample, load_model_file, write_demo_gguf,
 };

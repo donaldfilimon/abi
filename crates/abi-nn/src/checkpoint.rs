@@ -104,8 +104,12 @@ pub fn save(path: &Path, model: &Model) -> Result<(), NnError> {
 /// Load a demo checkpoint written by [`save`].
 pub fn load(path: &Path) -> Result<Model, NnError> {
     let raw = fs::read_to_string(path).map_err(|e| NnError::Io(e.to_string()))?;
-    let file: CheckpointFile =
-        serde_json::from_str(&raw).map_err(|e| NnError::Io(e.to_string()))?;
+    load_json(&raw)
+}
+
+/// Parse a checkpoint from a JSON string (no filesystem).
+pub fn load_json(raw: &str) -> Result<Model, NnError> {
+    let file: CheckpointFile = serde_json::from_str(raw).map_err(|e| NnError::Io(e.to_string()))?;
     if file.version != CHECKPOINT_VERSION {
         return Err(NnError::Io(format!(
             "unsupported checkpoint version {} (want {CHECKPOINT_VERSION})",

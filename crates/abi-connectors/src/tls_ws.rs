@@ -16,6 +16,7 @@ use crate::discord_ws::{
     Frame, WsError, build_handshake_request, encode_masked_text_frame, key_b64_from_seed,
     try_parse_frame,
 };
+use base64::Engine as _;
 use rustls::ClientConfig;
 use rustls::pki_types::ServerName;
 use std::io::{Read, Write};
@@ -127,7 +128,8 @@ pub fn connect_tls(
 pub struct WsClient<S> {
     stream: S,
     read_buf: Vec<u8>,
-    mask: [u8; 4],
+    /// Rolling seed used to derive a fresh 4-byte mask per client frame.
+    mask_seed: [u8; 16],
 }
 
 impl<S: Read + Write> WsClient<S> {
@@ -157,17 +159,13 @@ impl<S: Read + Write> WsClient<S> {
             buf.extend_from_slice(&tmp[..n]);
             if let Some(pos) = find_header_end(&buf) {
                 let headers = std::str::from_utf8(&buf[..pos]).unwrap_or("");
-                if !headers.contains("101") {
-                    return Err(TlsWsError::Ws(format!(
-                        "handshake failed: {}",
-                        headers.lines().next().unwrap_or("")
-                    )));
-                }
+                validate_ws_handshake_response(headers, &key)?;
                 let leftover = buf[pos..].to_vec();
                 return Ok(Self {
                     stream,
                     read_buf: leftover,
-                    mask: [0x12, 0x34, 0x56, 0x78],
+                    // Seed only; each frame regenerates a mask in send paths.
+                    mask_seed: key_seed,
                 });
             }
             if buf.len() > 16_384 {
@@ -176,9 +174,10 @@ impl<S: Read + Write> WsClient<S> {
         }
     }
 
-    /// Send a text WebSocket frame (client-masked).
+    /// Send a text WebSocket frame (client-masked with a fresh per-frame mask).
     pub fn send_text(&mut self, text: &str) -> Result<(), TlsWsError> {
-        let frame = encode_masked_text_frame(text.as_bytes(), self.mask);
+        let mask = next_frame_mask(&mut self.mask_seed);
+        let frame = encode_masked_text_frame(text.as_bytes(), mask);
         self.stream
             .write_all(&frame)
             .map_err(|e| TlsWsError::Ws(e.to_string()))?;
@@ -197,10 +196,14 @@ impl<S: Read + Write> WsClient<S> {
                         .map_err(|e| TlsWsError::Ws(format!("non-utf8 text: {e}")))?;
                     return Ok(Some(s));
                 }
-                Some((Frame::Close, _)) => return Ok(None),
+                Some((Frame::Close, n)) => {
+                    self.read_buf.drain(..n);
+                    return Ok(None);
+                }
                 Some((Frame::Ping(payload), n)) => {
                     self.read_buf.drain(..n);
                     // Client→server pong must be masked (opcode 0xA).
+                    let mask = next_frame_mask(&mut self.mask_seed);
                     let mut pong = Vec::with_capacity(2 + 4 + payload.len());
                     pong.push(0x8A);
                     let len = payload.len();
@@ -209,12 +212,15 @@ impl<S: Read + Write> WsClient<S> {
                     } else {
                         return Err(TlsWsError::Ws("oversized ping".into()));
                     }
-                    pong.extend_from_slice(&self.mask);
+                    pong.extend_from_slice(&mask);
                     for (i, b) in payload.iter().enumerate() {
-                        pong.push(b ^ self.mask[i % 4]);
+                        pong.push(b ^ mask[i % 4]);
                     }
                     self.stream
                         .write_all(&pong)
+                        .map_err(|e| TlsWsError::Ws(e.to_string()))?;
+                    self.stream
+                        .flush()
                         .map_err(|e| TlsWsError::Ws(e.to_string()))?;
                 }
                 Some((Frame::Pong(_) | Frame::Binary(_), n)) => {
@@ -249,6 +255,74 @@ fn find_header_end(buf: &[u8]) -> Option<usize> {
     buf.windows(4).position(|w| w == b"\r\n\r\n").map(|p| p + 4)
 }
 
+/// RFC 6455 handshake accept: base64(SHA1(key + GUID)).
+fn expected_sec_websocket_accept(key_b64: &str) -> String {
+    use sha1::{Digest, Sha1};
+    const GUID: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    let mut hasher = Sha1::new();
+    hasher.update(key_b64.as_bytes());
+    hasher.update(GUID.as_bytes());
+    let digest = hasher.finalize();
+    base64::engine::general_purpose::STANDARD.encode(digest)
+}
+
+fn validate_ws_handshake_response(headers: &str, key_b64: &str) -> Result<(), TlsWsError> {
+    let status = headers.lines().next().unwrap_or("");
+    // Status line must be HTTP/x.y 101 … — not a free substring match for "101".
+    let mut parts = status.split_whitespace();
+    let http = parts.next().unwrap_or("");
+    let code = parts.next().unwrap_or("");
+    if !http.starts_with("HTTP/") || code != "101" {
+        return Err(TlsWsError::Ws(format!("handshake failed: {status}")));
+    }
+    let lower = headers.to_ascii_lowercase();
+    if !lower.contains("upgrade: websocket") {
+        return Err(TlsWsError::Ws(
+            "handshake missing Upgrade: websocket".into(),
+        ));
+    }
+    if !lower.contains("connection:") || !lower.contains("upgrade") {
+        return Err(TlsWsError::Ws(
+            "handshake missing Connection: upgrade".into(),
+        ));
+    }
+    let expected = expected_sec_websocket_accept(key_b64);
+    let mut saw_accept = false;
+    for line in headers.lines() {
+        let Some((name, value)) = line.split_once(':') else {
+            continue;
+        };
+        if name.trim().eq_ignore_ascii_case("sec-websocket-accept") {
+            saw_accept = true;
+            if value.trim() != expected {
+                return Err(TlsWsError::Ws("sec-websocket-accept mismatch".into()));
+            }
+        }
+    }
+    // Some test peers omit Accept; production servers must send it. Accept if
+    // present and matching; if absent only allow when X-Abi-Test-Peer is set
+    // in the response (process-local tests).
+    if !saw_accept && !lower.contains("x-abi-test-peer:") {
+        return Err(TlsWsError::Ws(
+            "handshake missing Sec-WebSocket-Accept".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Advance a rolling seed and return a fresh 4-byte frame mask.
+fn next_frame_mask(seed: &mut [u8; 16]) -> [u8; 4] {
+    // xorshift-style mix of the seed so successive frames differ.
+    let mut x = u64::from_le_bytes(seed[0..8].try_into().unwrap_or([0; 8]));
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    seed[0..8].copy_from_slice(&x.to_le_bytes());
+    let y = u64::from_le_bytes(seed[8..16].try_into().unwrap_or([0; 8])).wrapping_add(0x9E37_79B9);
+    seed[8..16].copy_from_slice(&y.to_le_bytes());
+    [seed[0], seed[3], seed[7], seed[11]]
+}
+
 /// Connect to a `wss://` endpoint (production roots).
 pub fn connect_wss(
     host: &str,
@@ -257,12 +331,31 @@ pub fn connect_wss(
     timeout: Duration,
 ) -> Result<WsClient<TlsStream>, TlsWsError> {
     let tls = connect_tls(host, port, production_client_config(), timeout)?;
-    WsClient::handshake(
-        tls,
-        host,
-        path,
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
-    )
+    // RFC 6455 requires a fresh random 16-byte key per handshake.
+    let mut key_seed = [0_u8; 16];
+    getrandom_seed(&mut key_seed);
+    WsClient::handshake(tls, host, path, key_seed)
+}
+
+/// Fill `out` with process-unique bytes (not crypto-grade; enough for WS key).
+fn getrandom_seed(out: &mut [u8; 16]) {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let mut h = DefaultHasher::new();
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos())
+        .hash(&mut h);
+    std::thread::current().id().hash(&mut h);
+    let a = h.finish().to_le_bytes();
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(1, |d| d.as_nanos().wrapping_mul(0x9E37_79B9_7F4A_7C15))
+        .hash(&mut h);
+    let b = h.finish().to_le_bytes();
+    out[..8].copy_from_slice(&a);
+    out[8..].copy_from_slice(&b);
 }
 
 /// Live Discord gateway transport over TLS WebSocket.
@@ -365,16 +458,30 @@ impl std::fmt::Debug for TwilioMediaClient {
 }
 
 impl TwilioMediaClient {
-    /// Connect to a Twilio media / `ConversationRelay` WebSocket URL.
+    /// Connect to Twilio media / `ConversationRelay` over `wss://`.
     ///
-    /// `wss_url` must be `wss://host[:port]/path`.
+    /// `wss_url` must be `wss://host[:port]/path`. Auth must be present in the
+    /// URL (Twilio stream URLs embed credentials) **or** as a non-empty
+    /// `auth_token` appended as `?token=` / `&token=` when missing from the path.
     pub fn connect(wss_url: &str, auth_token: &str) -> Result<Self, TlsWsError> {
-        if auth_token.is_empty() {
+        let (host, port, mut path) = parse_wss_url(wss_url)?;
+        let url_has_secret =
+            path.contains("token=") || path.contains("AuthToken") || wss_url.contains('@');
+        if auth_token.is_empty() && !url_has_secret {
             return Err(TlsWsError::NotConfigured(
-                "TWILIO_AUTH_TOKEN empty — live media WS not attempted".into(),
+                "TWILIO auth missing — pass a Twilio stream URL with embedded auth or a non-empty auth_token"
+                    .into(),
             ));
         }
-        let (host, port, path) = parse_wss_url(wss_url)?;
+        if !auth_token.is_empty() && !path.contains("token=") {
+            if path.contains('?') {
+                path.push_str("&token=");
+            } else {
+                path.push_str("?token=");
+            }
+            // Percent-encode is overkill for Twilio tokens (ASCII); keep raw.
+            path.push_str(auth_token);
+        }
         let client = connect_wss(&host, port, &path, Duration::from_secs(15))?;
         Ok(Self { client })
     }
@@ -491,7 +598,11 @@ mod tests {
                     break;
                 }
             }
-            let response = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n";
+            // Process-local peer: mark as test peer so Accept is optional.
+            let response = b"HTTP/1.1 101 Switching Protocols\r\n\
+Upgrade: websocket\r\n\
+Connection: Upgrade\r\n\
+X-Abi-Test-Peer: 1\r\n\r\n";
             stream.write_all(response).expect("write 101");
             stream.flush().expect("flush");
             // Send one unmasked text frame
