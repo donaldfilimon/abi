@@ -191,12 +191,31 @@ names" into "the Rust CLI emits byte-identical output".
     re-verified before each commit — this is the one failure here that git
     cannot undo. Baseline for this session:
     `d88f675c3d2585e576e7393b65a984c87e05e71f` (verified unchanged at 5a).
-  - [ ] **5b. `ai_complete`.** Needs `AdaptiveModulator`, whose persisted
-    `modulator:weights` KV entry makes persona selection store-dependent — where
-    those weights live in Rust, and whether a read-only call may mutate them, is
-    a `std.Io`-class decision to document rather than let emerge. Only
-    `sea/learn_loop.zig` ever calls `saveWeights`, so `ai_complete` reads and
-    `ai_learn` writes.
+  - [ ] **5b. `ai_complete`.** Scope is now measured rather than guessed:
+    - **The modulator is *not* on this path.** `ai_complete` calls
+      `completeWithScheduler` → `completeWithStore` → `complete()`, which is the
+      pure `analyzeSentiment` + `selectBestProfile` pair already ported in 5a.
+      `AdaptiveModulator` is only reached through `completeAdaptive` /
+      `completeWithStoreAdaptive`, i.e. the SEA path. So persona selection for
+      `ai_complete` is deterministic and store-independent; only the counters and
+      `block_id` are store-derived. (An earlier note here assumed otherwise.)
+    - **Blocker: `textEmbedding` cannot use the Rust `wyhash` crate.** Zig's
+      `std.hash.Wyhash.hash(seed, bytes)` and `wyhash` 0.5 return entirely
+      different values — measured on the pinned Zig, e.g. seed 3 over `"hel"`
+      gives `10846395113768030678` (Zig) vs `490820195397404894` (crate).
+      `helpers.textEmbedding` derives each of the 32 buckets *and its sign* from
+      that hash, and the resulting vectors are **persisted into the user's real
+      ~94 MB store**. Porting with the crate would write embeddings that do not
+      match the Zig-written vectors already there, so cosine/semantic search
+      across old and new records would be silently wrong — no error, just bad
+      ranking. 5b therefore needs a faithful port of Zig's Wyhash variant,
+      verified against values printed from the pinned Zig. Nothing is corrupted
+      today: the embedding is not yet ported.
+    - Remaining pieces, all small once the hash is right: `textEmbedding`,
+      `completionMetadataJson` (+ its string escaping), the
+      `completion:<id>` key, the `putVector`/`store`/`appendBlock` calls against
+      the already-ported durable store, the balanced transient alloc/free on the
+      memory tracker, and the before/after `stats()` deltas.
   - [ ] **5c. `abi-sea` + `ai_learn`**, then **5d. `abi-nn`**. `ai_train`
     reports `backend=gpu-metal` in Zig; no Rust GPU backend is linked, so that
     field needs the same explicit disclosure `wdbx_stats`'s `backend` carries.
