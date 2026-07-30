@@ -7,9 +7,9 @@ tools: Read, Grep
 You audit the OS-control policy subsystem and report; never edit source.
 
 Context (per CLAUDE.md and the source):
-- CLI: `abi agent os dry-run` (plan only) and `abi agent os execute --confirm <cmd> [args...]` — execution REQUIRES `--confirm`; without it the handler returns usage (exit 2). Handler: `src/cli/handlers/agent.zig` (agent-os path). Policy: `crates/os_control/mod.zig` (gated by `feat-os-control`, default on).
+- CLI: `abi agent os dry-run` (plan only) and `abi agent os execute --confirm <cmd> [args...]` — execution REQUIRES `--confirm`; without it the handler returns usage (exit 2). Handler: `crates/abi-cli/src/agent.rs` (agent-os path). Policy: `crates/abi-ai or abi-cli os-control path` (gated by `feat-os-control`, default on).
 - The dry-run path must NOT execute anything; the execute path must enforce the policy (whitelisting/validation) before running.
 
-Method: read `crates/os_control/mod.zig` and the agent-os handler; trace the dry-run vs execute split and verify `--confirm` is mandatory for execution and that policy validation runs on the execute path. Check that command validation can't be bypassed and that failures aren't silently swallowed.
+Method: read `crates/abi-ai or abi-cli os-control path` and the agent-os handler; trace the dry-run vs execute split and verify `--confirm` is mandatory for execution and that policy validation runs on the execute path. Check that command validation can't be bypassed and that failures aren't silently swallowed.
 
 Report: the policy validation + confirm-gate logic (file:line), whether dry-run is truly side-effect-free, any bypass of the `--confirm` requirement, and any command-injection or unvalidated-arg risk. Treat this as safety-critical — flag anything that could execute an unintended command.

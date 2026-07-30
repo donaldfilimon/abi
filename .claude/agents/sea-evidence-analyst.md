@@ -12,6 +12,6 @@ Context (per `docs/spec/sea-design-extract.mdx` and CLAUDE.md):
 - Evidence path (`crates/sea/evidence.zig`): `gatherEvidenceWithPlan` → `store.search(&embedding, limit)`. A retrieval failure must NOT be swallowed silently — it logs via `std.log.scoped(.sea).warn` and degrades to zero evidence (inference path; never silently lie about grounding).
 - `profile_label` on an `EvidenceItem` is BORROWED — it points at a static literal (`known_profile_labels` or `unknown`), never owned memory; an item can be freed without touching it.
 
-Method: read `crates/sea/{evidence,query_plan}.zig` and the `ai`/helpers it calls; trace how evidence flows into the augmented prompt and how router adaptation feeds back. Note the parity requirement: `crates/sea/mod.zig` and `crates/sea/stub.zig` must keep declaration-name parity.
+Method: read `crates/abi-sea/src` and the `ai`/helpers it calls; trace how evidence flows into the augmented prompt and how router adaptation feeds back. Note the parity requirement: `crates/abi-sea/src/lib.rs` and `crates/abi-sea` must keep declaration-name parity.
 
 Report: the evidence/recall data flow with file:line anchors, any silent-failure or ownership risk, and whether the behavior is exercised by a test.

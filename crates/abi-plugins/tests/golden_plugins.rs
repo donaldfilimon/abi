@@ -1,13 +1,11 @@
-//! Golden compatibility checks for the bundled plugin set, captured from Zig.
+//! Golden compatibility checks for the bundled plugin set.
 //!
-//! Two fixtures cover the plugin surfaces, and both are matched here except for
-//! the single disclosed `entry_point` deviation described in the crate docs:
-//! Zig wrote `mod.zig`, and the Rust plugins are `mod.rs`.
-//!
-//! A third test closes the loop the compiled-in [`abi_plugins::BUNDLED`] table
-//! opens: it parses all sixteen on-disk `abi-plugin.json` files and asserts they
-//! agree with the table field by field, so editing a manifest without editing the
-//! table (or the reverse) fails the gate.
+//! Two fixtures cover the plugin listing surfaces and are matched byte-for-byte
+//! (entry points are `mod.rs`). A third test closes the loop the compiled-in
+//! [`abi_plugins::BUNDLED`] table opens: it parses all sixteen on-disk
+//! `abi-plugin.json` files and asserts they agree with the table field by field,
+//! so editing a manifest without editing the table (or the reverse) fails the
+//! gate.
 
 use std::fmt::Write as _;
 use std::path::PathBuf;
@@ -15,33 +13,12 @@ use std::path::PathBuf;
 use abi_core::registry::Registry;
 use abi_plugins::{BUNDLED, PluginManager, register_all};
 
-/// `abi plugin list` output, captured from the Zig CLI.
+/// `abi plugin list` output (alphabetical registry order).
 const GOLDEN_CLI_LIST: &str = include_str!("../../../tests/golden/plugin-list.txt");
-/// Every `tools/call` with empty arguments, captured from the Zig MCP server.
+/// Every `tools/call` with empty arguments (MCP `plugin_list` is declaration order).
 const GOLDEN_MCP_CALLS: &str = include_str!("../../../tests/golden/mcp-tool-calls.jsonl");
 
-/// The entry point Zig reported, and the one Rust reports in its place.
-const ZIG_ENTRY_POINT: &str = "mod.zig";
-const RUST_ENTRY_POINT: &str = "mod.rs";
-
-/// Rewrite the Rust entry point back to Zig's so the rest of a line can be
-/// compared byte for byte.
-///
-/// Deliberately *not* a blanket `mod.rs` -> `mod.zig` replacement over the whole
-/// text: it only rewrites the two exact shapes the entry point appears in, so an
-/// unrelated `mod.rs` occurrence could never be silently normalized away.
-fn retarget_entry_point(text: &str) -> String {
-    text.replace(
-        &format!("({RUST_ENTRY_POINT})"),
-        &format!("({ZIG_ENTRY_POINT})"),
-    )
-    .replace(
-        &format!("entry={RUST_ENTRY_POINT} "),
-        &format!("entry={ZIG_ENTRY_POINT} "),
-    )
-}
-
-/// Render the MCP `plugin_list` text, mirroring `src/mcp/plugin_tools.zig`.
+/// Render the MCP `plugin_list` text, matching `abi-mcp`'s `plugin_list` formatter.
 ///
 /// Duplicated from `abi-mcp` rather than imported, so this test fails if the two
 /// ever disagree about the format instead of agreeing on a shared bug.
@@ -66,8 +43,7 @@ fn cli_plugin_list_matches_the_golden_fixture() {
     let mut registry = Registry::new();
     register_all(&mut registry).expect("bundled plugins register without collisions");
 
-    let rendered = retarget_entry_point(&registry.format_plugin_list());
-    assert_eq!(rendered, GOLDEN_CLI_LIST);
+    assert_eq!(registry.format_plugin_list(), GOLDEN_CLI_LIST);
 }
 
 #[test]
@@ -84,8 +60,7 @@ fn mcp_plugin_list_matches_the_golden_fixture() {
     let mut manager = PluginManager::new();
     manager.load_bundled();
 
-    let rendered = retarget_entry_point(&mcp_plugin_list_text(&manager));
-    assert_eq!(rendered, expected_text);
+    assert_eq!(mcp_plugin_list_text(&manager), expected_text);
 }
 
 #[test]

@@ -53,10 +53,6 @@ pub enum ToolError {
     PathTraversal,
     /// `params.name` did not match any of the 12 tools.
     UnknownTool,
-    /// The tool's arguments validated, but its backing feature has not been
-    /// ported to Rust yet. Not a Zig error — the Rust port's own honest-stub
-    /// convention (see `abi-cli`'s "not yet ported" handlers).
-    NotYetPorted,
     /// A backing service (scheduler, WDBX store) failed unexpectedly.
     Internal,
 }
@@ -85,7 +81,6 @@ impl ToolError {
             Self::FieldTooLong => "Field too long",
             Self::PathTraversal => "Invalid path",
             Self::UnknownTool => "Method not found",
-            Self::NotYetPorted => "Internal error: Rust handler not yet ported",
             Self::Internal => "Internal error",
         }
     }
