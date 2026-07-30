@@ -133,13 +133,19 @@ fn reads_the_real_store_when_opted_in() {
 
     let snapshot = abi_wdbx::store::load(&paths).expect("the real store must load");
 
+    // Printed in the same field order as Zig's `abi wdbx db verify`, so the two
+    // implementations can be compared line for line. They agreed exactly on the
+    // observed store: kv=262 vectors=663 blocks=330 spatial=0 temporal_nodes=3
+    // temporal_edges=2, chain valid.
     println!(
-        "loaded {} epochs: {} kv, {} vectors, {} blocks, {} spatial, {} truncated",
+        "loaded {} epochs: kv={} vectors={} blocks={} spatial={} temporal_nodes={} temporal_edges={} truncated={}",
         snapshot.stats.epochs_loaded,
         snapshot.stats.kv_entries,
         snapshot.stats.vectors,
         snapshot.stats.blocks,
         snapshot.stats.spatial_records,
+        snapshot.stats.temporal_nodes,
+        snapshot.stats.temporal_edges,
         snapshot.stats.truncated_segments,
     );
 

@@ -65,3 +65,55 @@ of the user's actual completions and embeddings; committing a slice of that woul
 publish their data into a public repository. The fixtures cover every record type
 and edge case instead, and `wdbx-format.md` records the census taken from the real
 store so the sample can be checked as representative.
+
+## MCP tool call responses
+
+`mcp-tool-calls.jsonl` — all 12 tools invoked with **empty arguments**, one line
+per tool as `{"tool":…,"response":…}`. Nine return a validation error, and those
+error strings are themselves part of the contract: `Missing input`,
+`Missing profile`, `Missing query`, `Missing connector service`,
+`Missing plugin name`.
+
+Each tool was invoked in its own server process. Batching them into one stdin
+stream does not work — the server stops after the first tool that errors, which
+silently truncated the first capture attempt to two lines.
+
+`mcp-tool-calls-args.jsonl` — the success paths, with arguments. Note
+`connector_test` returns the OpenAI-compatible *local synthesized* response, so
+it cross-checks `abi-connectors`' `payload::openai_local_response`.
+
+## WDBX runtime output
+
+- `wdbx-db-verify.txt` — `abi wdbx db verify ~/.abi/wdbx` against the real store.
+- `wdbx-stats.txt` — `abi wdbx` subcommand listing (the bare `stats` form prints
+  usage; the real numbers come from `db verify` and the `wdbx_stats` MCP tool).
+- `backends.txt` — `abi backends`, including its ANSI colour codes.
+
+### Cross-implementation agreement
+
+`wdbx-db-verify.txt` is the strongest verification the port has so far. Zig and
+the Rust reader were pointed at the same store and agree on every field:
+
+```
+Zig : epoch=306 kv=262 vectors=663 blocks=330 spatial=0 temporal_nodes=3 temporal_edges=2 chain_valid=true
+Rust:           kv=262 vectors=663 blocks=330 spatial=0 temporal_nodes=3 temporal_edges=2 chain verifies
+```
+
+Reproduce with:
+
+```bash
+./zig-out/bin/abi wdbx db verify ~/.abi/wdbx
+ABI_WDBX_REAL_STORE_TEST=1 ./tools/cargo.sh test -p abi-wdbx --test real_store -- --nocapture
+```
+
+**Caveat on these numbers.** Capturing the `ai_complete` / `ai_learn` / `ai_train`
+success paths above *wrote to the live store* — those tools report
+`persisted=true`. The store went from epoch 300 to 306, gaining 6 kv entries, 9
+vectors, 3 blocks, and the first 3 temporal nodes / 2 temporal edges it had ever
+held. Appends only, and the chain still verifies, but it means the counts here
+are later than the ones in the `abi-wdbx` commit message, and that a golden
+capture of an AI tool is not a read-only operation.
+
+Silver lining: those temporal records are the only real ones in existence, so
+they are what first exercised the Rust temporal-record path against actual data
+rather than a fixture.

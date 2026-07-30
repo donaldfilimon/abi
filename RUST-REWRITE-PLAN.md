@@ -80,6 +80,11 @@ names" into "the Rust CLI emits byte-identical output".
   full input schemas, **in emitted order** (which is not declaration order:
   `wdbx_stats` comes after `plugin_list`)
 - `tests/golden/wdbx-format.md` + synthetic `wdbx-sample.*` fixtures
+- `tests/golden/mcp-tool-calls.jsonl` — all 12 tools with empty arguments; the
+  nine validation error strings are contract too
+- `tests/golden/mcp-tool-calls-args.jsonl` — the success paths
+- `tests/golden/wdbx-db-verify.txt`, `wdbx-stats.txt`, `backends.txt`,
+  `plugin-list.txt`, `scheduler-status.txt`, `mcp-scheduler-calls.jsonl`
 
 - [x] **0. Workspace** — cargo workspace, nightly pin, wrapper scripts, gate.
 - [x] **1. `abi-foundation`** — errors, env, time, temp_path, json, validation, logger, io, text, credentials (+file/keychain/secret/Windows ACL), http, system, plugin_manifest. 155 tests.
@@ -88,7 +93,9 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **3a. `abi-connectors` core** — connector types, URL/auth (HTTPS enforcement + host-boundary check), payload builders + byte-exact local synthesis, SSE parsing (both dialects), `Transport` trait with `ureq` live impl + `RecordingTransport`, clients for OpenAI/Anthropic/Grok/Discord/Twilio. 75 tests.
 - [ ] **3b. `abi-connectors` remainder** — Discord gateway + WS client (`discord_gateway.zig` 483, `discord_ws_client.zig` 228, `discord_routing.zig` 126), Twilio relay (`twilio_relay.zig` 554), the local bridge (`local_bridge.zig` 236) and the Apple `FoundationModels` shim (`fm.zig` 217). These need a WebSocket client and a Swift FFI shim; ~1.8k Zig LOC.
 - [x] **4a. `abi-wdbx` on-disk format** — records (all 6 types), both hash encodings, manifest, checkpoint load, chain verification. **Verified against the user's real 301-epoch store**: 327 blocks, chain verifies from genesis, 32-dim vectors. 56 tests.
-- [ ] **4b. `abi-wdbx` remainder** — HNSW index + storage, MVCC/WAL/recovery, REST + cluster surfaces, rate limiter, compression/entropy/neural-compress, FHE + crypto_he demos, spatial 3-D octree, temporal graph, multiway engine, ANS, retrieval, remote compute. ~11k Zig LOC — the largest single block left.
+- [ ] **4b. `abi-wdbx` remainder** — also add a descending-epoch salvage load: neither `load` nor `load_merging_all_epochs` recovers when the *latest* checkpoint is corrupt, which is the real recovery case.
+- [ ] **4c. WDBX writer** — there is currently no write path. `Hash` serializes (array form, correct and tested) but the record types have no serde derives, so "the reader works" must not be read as "round-trips".
+- [ ] **4d. (was 4b)** — HNSW index + storage, MVCC/WAL/recovery, REST + cluster surfaces, rate limiter, compression/entropy/neural-compress, FHE + crypto_he demos, spatial 3-D octree, temporal graph, multiway engine, ANS, retrieval, remote compute. ~11k Zig LOC — the largest single block left.
 - [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir, hash, metrics, telemetry, mobile, os_control.
 - [ ] **7. `abi-tui`**

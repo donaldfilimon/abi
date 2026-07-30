@@ -1,0 +1,34 @@
+ABI Framework  0.1.0
+Zig 0.17.0-dev.1442+972627084  Debug  macos
+
+Features:
+  ai                 [32m✓[0m  AI profiles, routing, constitution
+  wdbx               [32m✓[0m  Vector store, HNSW index, persistence
+  sea                [32m✓[0m  Self-learning evidence loop
+  nn                 [32m✓[0m  Neural net demo trainer
+  gpu                [32m✓[0m  GPU acceleration (Metal)
+  accelerator        [32m✓[0m  Accelerator backend routing
+  shaders            [32m✓[0m  Shader validation
+  mlir               [32m✓[0m  Textual MLIR lowering
+  tui                [32m✓[0m  TUI dashboard
+  os_control         [32m✓[0m  OS command policy
+  telemetry          [32m✓[0m  Event telemetry
+  foundationmodels   [90m○[0m  Apple Foundation Models
+  hash               [32m✓[0m  Portable hashing utilities
+  metrics            [32m✓[0m  In-process observability
+  mobile             [32m✓[0m  Mobile platform detection
+
+Compute Backends:
+  GPU:            metal  [32m✓[0m  accelerated=[32myes[0m
+  Native kernels  [32mlinked[0m  Metal framework linked and native kernels compiled successfully
+  Backend matrix  7 declared backends (see capability report)
+simulated: available=true accelerated=false native_kernels=false - Deterministic vectorized CPU fallback backend active
+metal: available=true accelerated=true native_kernels=true - Metal GPU acceleration active
+vulkan: available=false accelerated=false native_kernels=false - Vulkan backend is declared but native dispatch is not linked; vectorized CPU fallback active
+cuda: available=false accelerated=false native_kernels=false - CUDA backend is declared but native dispatch is not linked; vectorized CPU fallback active
+webgpu: available=false accelerated=false native_kernels=false - WebGPU backend is declared but native dispatch is not linked; vectorized CPU fallback active
+opengl: available=false accelerated=false native_kernels=false - OpenGL backend is declared but native dispatch is not linked; vectorized CPU fallback active
+webgl2: available=false accelerated=false native_kernels=false - WebGL2 backend is declared but native dispatch is not linked; vectorized CPU fallback active
+  Accelerator     training [90m→[0m gpu-metal  (gpu=[32m✓[0m native=[32m✓[0m native_dispatch=[90mfalse[0m)
+  Shaders         zig-kernel  [90m○[0m
+  MLIR            linalg [90m→[0m textual-local  [90m○[0m

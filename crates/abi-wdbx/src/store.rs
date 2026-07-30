@@ -29,7 +29,23 @@ use std::collections::BTreeMap;
 
 /// Counters describing a snapshot.
 ///
-/// Field names match the `wdbx_stats` JSON keys, which are a contract.
+/// **Not the `wdbx_stats` wire shape.** This is an internal type. The frozen MCP
+/// tool emits a flat line
+///
+/// ```text
+/// kv=256 vectors=654 blocks=327 spatial=0 dims=32 backend=metal source=mcp-store
+/// ```
+///
+/// and `abi wdbx db verify` emits a different one again. The store's JSON form
+/// (`src/features/wdbx/store.zig:351`) carries ten keys in this order:
+/// `kv_entries`, `vectors`, `blocks`, `spatial_records`, `temporal_nodes`,
+/// `temporal_edges`, `vector_dimensions`, `next_vector_id`, `backend`, `mode`.
+///
+/// The first six line up with the fields below; the last four are not counters
+/// and are supplied by the MCP layer at step 9, which owns the wire format.
+/// `epochs_loaded` and `truncated_segments` are additions with no wire
+/// counterpart. Captured goldens: `tests/golden/mcp-tool-calls.jsonl` and
+/// `tests/golden/wdbx-db-verify.txt`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct SnapshotStats {
     /// Distinct key/value entries after shadowing.

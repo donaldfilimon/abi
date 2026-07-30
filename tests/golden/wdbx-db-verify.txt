@@ -1,0 +1,2 @@
+checkpoint OK: source=segment epoch=306 kv=262 vectors=663 blocks=330 spatial=0 temporal_nodes=3 temporal_edges=2 chain_valid=true
+WAL OK: frames=0 merged_blocks=330 merged_chain_valid=true
