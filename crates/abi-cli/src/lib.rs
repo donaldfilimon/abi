@@ -9,7 +9,9 @@ pub mod usage;
 
 mod auth;
 mod backends;
+mod complete;
 mod plugin;
+mod train;
 
 /// Serialization for tests that read or write the process-global telemetry table.
 ///

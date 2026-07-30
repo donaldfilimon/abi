@@ -401,6 +401,12 @@ pub fn run(args: &[String]) -> Outcome {
     if resolved == "plugin" {
         return crate::plugin::run(&args[1..]);
     }
+    if resolved == "complete" {
+        return crate::complete::run(&args[1..]);
+    }
+    if resolved == "train" {
+        return crate::train::run(&args[1..]);
+    }
 
     Outcome::stderr(
         format!("error: Rust handler for `{resolved}` is not yet ported\n"),
@@ -490,11 +496,27 @@ mod tests {
 
     #[test]
     fn unported_handlers_fail_honestly() {
-        let outcome = run(&args(&["train", "example"]));
+        let outcome = run(&args(&["nn", "train"]));
         assert_eq!(outcome.exit_code, 1);
         assert_eq!(
             outcome.stderr,
-            "error: Rust handler for `train` is not yet ported\n"
+            "error: Rust handler for `nn` is not yet ported\n"
+        );
+    }
+
+    #[test]
+    fn train_and_complete_are_attached() {
+        let train = run(&args(&["train", "example"]));
+        assert_eq!(train.exit_code, 0);
+        assert!(train.stdout.contains("training accepted"));
+
+        let complete = run(&args(&["complete", "hello world"]));
+        assert_eq!(complete.exit_code, 0);
+        assert!(complete.stdout.contains("profile="));
+        assert!(
+            complete.stdout.contains("Abbey:")
+                || complete.stdout.contains("Aviva")
+                || complete.stdout.contains("ABI")
         );
     }
 }

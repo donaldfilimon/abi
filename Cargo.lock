@@ -15,9 +15,11 @@ dependencies = [
 name = "abi-cli"
 version = "0.1.0"
 dependencies = [
+ "abi-ai",
  "abi-core",
  "abi-foundation",
  "abi-plugins",
+ "abi-sea",
  "abi-telemetry",
  "abi-wdbx",
  "ctrlc",

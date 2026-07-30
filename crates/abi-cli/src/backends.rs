@@ -17,8 +17,8 @@ struct Feature {
 const FEATURES: &[Feature] = &[
     Feature {
         name: "ai",
-        implemented: false,
-        detail: "Rust AI profiles and routing pending",
+        implemented: true,
+        detail: "personas, routing, completion, training, modulator; MCP AI tools live",
     },
     Feature {
         name: "wdbx",
@@ -27,8 +27,8 @@ const FEATURES: &[Feature] = &[
     },
     Feature {
         name: "sea",
-        implemented: false,
-        detail: "Rust self-learning evidence loop pending",
+        implemented: true,
+        detail: "evidence recall, adaptive learn loop; MCP ai_learn live",
     },
     Feature {
         name: "nn",
