@@ -284,10 +284,12 @@ names" into "the Rust CLI emits byte-identical output".
     `max_tokens=256` versus the connector's own default of 4096).
   - Wired after 5a–5d/10: all four AI tools (`ai_run`, `ai_complete`,
     `ai_learn`, `ai_train`), plus `plugin_list`/`plugin_run`.
+  - Wired: `wdbx_query` (persona prototype seed + hybrid re-rank via
+    `hybrid_search_with_persona`, fixed `now_ms=1000` matching Zig).
   - Honestly stubbed (`NotYetPorted`, after validation still runs):
-    `wdbx_query`, `gpu_status`, and `connector_test` for `twilio` — each
-    depends on a feature plan step 6 hasn't reached yet, or (twilio) on
-    `twilio_relay.zig`'s conversation builder from step 3b.
+    `gpu_status` and `connector_test` for `twilio` — each depends on a feature
+    plan step 6 hasn't reached yet, or (twilio) on `twilio_relay.zig`'s
+    conversation builder from step 3b.
   - `wdbx_stats` reads the real durable store (env resolution — `ABI_WDBX_PATH`,
     `ABI_WDBX_PERSIST`, `XDG_DATA_HOME`, `HOME` fallback — ported and unit
     tested standalone) but **discloses `backend=cpu`** rather than Zig's

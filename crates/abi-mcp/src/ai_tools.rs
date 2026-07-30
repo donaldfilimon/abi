@@ -29,11 +29,11 @@
 use std::fmt::Write as _;
 
 use abi_ai::{
-    EMBED_DIM, TrainingConfig, complete, text_embedding, train_inspect, training_store_key,
-    training_store_value, training_vectors,
+    EMBED_DIM, PROFILE_LABELS, TrainingConfig, analyze_sentiment, complete, select_best_profile,
+    text_embedding, train_inspect, training_store_key, training_store_value, training_vectors,
 };
 use abi_sea::{LearnLoopConfig, run_learn_loop};
-use abi_wdbx::DurableStore;
+use abi_wdbx::{DurableStore, HybridScorer, TemporalCausalGraph, hybrid_search_with_persona};
 
 use crate::state::{WdbxStatsError, open_wdbx_store};
 
@@ -380,6 +380,125 @@ pub fn report_train(
     )
 }
 
+/// Run `wdbx_query`: seed persona prototypes if needed, hybrid-rank the top hit.
+///
+/// # Errors
+///
+/// Returns [`WdbxStatsError`] if a configured store path fails to open.
+pub fn run_wdbx_query(query: &str) -> Result<String, WdbxStatsError> {
+    let mut store = open_wdbx_store()?;
+    Ok(report_wdbx_query(store.as_mut(), query))
+}
+
+/// Pure core of `wdbx_query`.
+#[must_use]
+pub fn report_wdbx_query(store: Option<&mut DurableStore>, query: &str) -> String {
+    let Some(store) = store else {
+        return format!("wdbx local match unavailable: {NO_STORE_STATUS}");
+    };
+
+    if let Err(err) = seed_mcp_profile_vectors(store) {
+        return format!("wdbx local match unavailable: {err}");
+    }
+
+    let query_vec = text_embedding(query);
+    let weights = analyze_sentiment(query);
+    let selected = select_best_profile(weights);
+    let focus_id = profile_vector_id(store, selected.label()).unwrap_or(1);
+
+    let graph = TemporalCausalGraph::from_records(&store.snapshot().temporal);
+    // Zig hard-codes now_ms=1000 for the MCP tool; half-life matches the default.
+    let scorer = HybridScorer {
+        now_ms: 1000,
+        ..HybridScorer::new(1000)
+    };
+
+    let ranked =
+        match hybrid_search_with_persona(store, &query_vec, 3, &graph, scorer, focus_id, |id| {
+            query_persona_weight(store, &weights, id)
+        }) {
+            Ok(ranked) => ranked,
+            Err(err) => return format!("wdbx local match unavailable: {err}"),
+        };
+
+    if ranked.is_empty() {
+        return "wdbx query returned no local matches".to_string();
+    }
+
+    let top = &ranked[0];
+    let stats = store.stats();
+    format!(
+        "wdbx local match profile={} vector_id={} score={:.3} semantic={:.3} temporal={:.3} causal={:.3} persona={:.3} total_vectors={} total_blocks={} ranking=hybrid",
+        profile_for_vector(store, top.id),
+        top.id,
+        top.score,
+        top.components.semantic,
+        top.components.temporal,
+        top.components.causal,
+        top.components.persona,
+        stats.vectors,
+        stats.blocks,
+    )
+}
+
+fn seed_mcp_profile_vectors(store: &mut DurableStore) -> Result<(), String> {
+    let already = store.get("wdbx:profiles_seeded").is_some() && store.stats().temporal_nodes > 0;
+    if already {
+        return Ok(());
+    }
+    for label in PROFILE_LABELS {
+        let vector = text_embedding(label);
+        let id = store.put_vector(&vector).map_err(|e| e.to_string())?;
+        store
+            .put(&format!("wdbx:profile:{id}"), label)
+            .map_err(|e| e.to_string())?;
+        store
+            .add_temporal_node(id, 1000)
+            .map_err(|e| e.to_string())?;
+    }
+    store
+        .put("wdbx:profiles_seeded", "1")
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn profile_vector_id(store: &DurableStore, label: &str) -> Option<u64> {
+    // Scan profile keys written by seed_mcp_profile_vectors / prior trains.
+    // DurableStore has no key iteration API exposed for prefix scan of the
+    // snapshot; walk known small id range is not ideal. Instead re-check the
+    // three labels by re-deriving is not stored. Zig walks profile keys —
+    // we look up via get on candidate keys only if we track them. Simplest
+    // faithful approach: search for vectors whose wdbx:profile:{id} matches.
+    // Without key enumeration, seed always runs first and we remember via
+    // the sequential ids just written when empty. For an already-seeded
+    // store, probe a modest id window.
+    let max = store.stats().vectors.saturating_add(16);
+    for id in 1..=max as u64 {
+        if store.get(&format!("wdbx:profile:{id}")) == Some(label) {
+            return Some(id);
+        }
+    }
+    None
+}
+
+fn profile_for_vector(store: &DurableStore, id: u64) -> &'static str {
+    match store.get(&format!("wdbx:profile:{id}")) {
+        Some("abbey") => "abbey",
+        Some("aviva") => "aviva",
+        Some("abi") => "abi",
+        _ => "unknown",
+    }
+}
+
+fn query_persona_weight(store: &DurableStore, weights: &abi_ai::ProfileWeights, id: u64) -> f32 {
+    match profile_for_vector(store, id) {
+        "abbey" => weights.w_abbey,
+        "aviva" => weights.w_aviva,
+        "abi" => weights.w_abi,
+        _ => 0.5,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -604,5 +723,22 @@ mod tests {
         let output = report_train(None, &config, FIXED_NOW_MS);
         assert!(output.contains("backend=cpu"));
         assert!(output.contains(&format!("wdbx_status={NO_STORE_STATUS}")));
+    }
+
+    #[test]
+    fn wdbx_query_seeds_profiles_and_returns_a_hybrid_hit() {
+        let (_dir, mut store) = scratch_store();
+        let output = report_wdbx_query(Some(&mut store), "hello world");
+        assert!(output.starts_with("wdbx local match profile="), "{output}");
+        assert!(output.contains("ranking=hybrid"));
+        assert!(output.contains("total_vectors=3")); // three persona seeds
+        assert!(output.contains("semantic="));
+        assert!(output.contains("persona="));
+    }
+
+    #[test]
+    fn wdbx_query_without_store_discloses_status() {
+        let output = report_wdbx_query(None, "hello");
+        assert!(output.contains("unavailable"));
     }
 }

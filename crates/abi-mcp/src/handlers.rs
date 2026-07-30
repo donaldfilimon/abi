@@ -331,7 +331,15 @@ pub fn handle_tools_call(state: McpState, params: Option<&Value>) -> Result<Valu
     }
 
     match tool_name {
-        "wdbx_query" | "gpu_status" => Err(ToolError::NotYetPorted),
+        "gpu_status" => Err(ToolError::NotYetPorted),
+        "wdbx_query" => {
+            let args = tool_arguments(params_obj)?;
+            let query = object_string(args, "query", ToolError::MissingQuery)?;
+            match crate::ai_tools::run_wdbx_query(query) {
+                Ok(text) => Ok(text_result(&text)),
+                Err(_) => Err(ToolError::Internal),
+            }
+        }
         "ai_train" => {
             let args = tool_arguments(params_obj)?;
             let profile = object_string(args, "profile", ToolError::MissingProfile)?;
