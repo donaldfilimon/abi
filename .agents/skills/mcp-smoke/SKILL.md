@@ -6,52 +6,34 @@ description: Build the abi MCP server and smoke-test its JSON-RPC tool surface �
 # mcp-smoke — assert the MCP server's 12-tool contract
 
 Driver: **`.agents/skills/mcp-smoke/smoke.sh`** (paths relative to repo root).
-Builds `abi-mcp`, sends one JSON-RPC `tools/list` over the **stdio** transport,
-extracts the tool names, and asserts they exactly match the frozen 12-tool set.
-Evidence is the `RESULT:` line. Fully local — no network dispatch.
+Builds `abi-mcp` via `./tools/cargo.sh`, sends one JSON-RPC `tools/list` over
+**stdio**, and asserts the frozen 12-tool set. Fully local — no network.
 
 ## Run (agent path)
 ```bash
 .agents/skills/mcp-smoke/smoke.sh
 ```
-Prints `RESULT: PASS — 12/12 frozen MCP tools present` (exit 0) or `RESULT: FAIL`
-with a `diff` of expected-vs-got tool names (exit 1).
+Prints `RESULT: PASS — 12/12 frozen MCP tools present` (exit 0) or `RESULT: FAIL`.
 
-One-liner if you just want the names by hand:
+One-liner:
 ```bash
-printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./zig-out/bin/abi-mcp 2>/dev/null | jq -r '.result.tools[].name'
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+  | ./target/debug/abi-mcp 2>/dev/null | jq -r '.result.tools[].name'
 ```
 
 ## Gotchas
 - ⚠️ **Do NOT count tools with `grep -c '"name":'` — it returns 13, not 12.**
-  `plugin_run`'s `inputSchema` has its own `name` property, so bare `"name":`
-  over-counts by one and looks like a broken contract. Count name *values*
-  (`grep -oE '"name":"[^"]+"'`) or use `jq -r '.result.tools[].name'`.
-- **stdio framing is newline-delimited JSON** — one JSON object per line,
-  `\n`-terminated. This is NOT the LSP-style `Content-Length` framing; that
-  framing belongs only to the HTTP/SSE transport (`GET /sse`, `POST /message`).
-- **No hang, no `timeout` needed.** The stdio loop breaks on EOF, so piping the
-  request in (`printf ... | abi-mcp`) closes stdin and the process exits on its
-  own. Don't reach for `timeout` — macOS doesn't ship it (`gtimeout` via
-  coreutils only). Running `abi-mcp` with an open/interactive stdin is what hangs.
-- **`initialize` is not required.** A bare `tools/list` returns the full list;
-  you don't need the usual MCP `initialize` handshake first.
-- **The build is silent.** `./build.sh mcp` prints ~2 info lines and exits with
-  no "success" banner — confirm with `ls zig-out/bin/abi-mcp`, not stdout.
-- **Ignore the stderr line** `info: MCP HTTP/SSE server listening on
-  http://127.0.0.1:8080` — the loopback HTTP listener always starts; the
-  JSON-RPC reply you want is on **stdout**. The driver drops stderr with `2>/dev/null`.
-- Request cap is 64 KB; `ABI_MCP_HTTP_TOKEN` gates the HTTP/SSE transport only —
-  stdio JSON-RPC stays tokenless local IPC (see AGENTS.md).
+  Use `jq -r '.result.tools[].name'` or count only tool-list name values.
+- **stdio framing is newline-delimited JSON** — not LSP `Content-Length`.
+- **No hang, no `timeout` needed.** Pipe EOF exits the stdio loop.
+- Optional loopback HTTP/SSE may log on stderr; drop stderr when grepping stdout.
 
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./build.sh check`. |
-| empty response | You piped to the HTTP framing or forgot the trailing `\n`; use the one-liner above. |
-| got 13 tools | You counted bare `"name":`; count `"name":"…"` values or use `jq` (see Gotchas). |
-| tool set mismatch | A tool was added/removed/renamed — reconcile `src/mcp/handlers.zig` with the frozen list in AGENTS.md and `tests/contracts/surface.zig`, then run `zig build test-mcp-contracts`. |
+| `build` FAIL | `./tools/cargo.sh build -p abi-mcp` then `./tools/check.sh` |
+| empty response | trailing `\n` required; drop stderr |
+| got 13 tools | over-counting schema `"name"` fields |
+| tool set mismatch | reconcile `crates/abi-mcp/src/handlers.rs` with AGENTS.md frozen list |
 
-Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — `tools/list` over
-stdio returns exactly the 12 frozen tools. For source-level MCP contract review use
-the `mcp-contract-auditor` subagent; for transport tests run `zig build test-mcp-server`.
+Historical golden: `tests/golden/mcp-tools-list.json`.

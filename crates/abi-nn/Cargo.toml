@@ -8,6 +8,7 @@ repository.workspace = true
 description = "Miniature character-level neural-net demo trainer for the ABI framework. Demo-grade, not a production LLM."
 
 [dependencies]
+serde = { workspace = true }
 serde_json = { workspace = true }
 
 [lints]
