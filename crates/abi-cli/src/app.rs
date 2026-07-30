@@ -224,7 +224,17 @@ fn edit_distance(left: &str, right: &str) -> usize {
     previous[right.chars().count()]
 }
 
-fn suggestion<'a>(name: &str, candidates: impl Iterator<Item = &'a str>) -> Option<&'a str> {
+/// Closest edit-distance match for `name` among `candidates`, if any is close
+/// enough to be worth suggesting.
+///
+/// `pub(crate)` so per-command handlers with their own small, fixed choice sets
+/// (see `plugin::run`) can offer the same "did you mean" hint this module
+/// already gives for a mistyped top-level command or `--help` subcommand,
+/// without re-deriving edit distance or its threshold.
+pub(crate) fn suggestion<'a>(
+    name: &str,
+    candidates: impl Iterator<Item = &'a str>,
+) -> Option<&'a str> {
     candidates
         .map(|candidate| (edit_distance(name, candidate), candidate))
         .filter(|(distance, candidate)| *distance <= min(3, candidate.len() / 2 + 1))
