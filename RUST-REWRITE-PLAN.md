@@ -280,10 +280,19 @@ names" into "the Rust CLI emits byte-identical output".
   - [x] **8c. CLI complete / train / nn / agent / dashboard.** Local
     `complete` (+`--learn`), `train`, `nn train|sample`, one-shot
     `dashboard`/`tui`, and `agent plan|multi|train|os|spawn|browser` are
-    attached. Interactive `agent tui`, complete `--live`/`--neural`, and
-    `twilio` remain open.
-  - Still open: interactive TUI raw-mode, REST/cluster listener CLI, interactive
-    auth signin, Twilio simulation, workspace-tree `file_context` on agent plan.
+    attached. `twilio simulate` is offline-local.
+  - [x] **8d. file_context + agent line-mode + complete live/neural.**
+    Workspace-tree `file_context` (budget shares, `@file`, git `--stat`, path
+    sandbox) is attached to `agent plan`/`multi` and line-mode TUI.
+    `agent tui` is the honest non-TTY line-mode REPL with slash commands
+    (`/help` `/status` `/context` `/history` `/reset` `/features` `/clear`);
+    interactive raw-mode refresh is still not linked.
+    `complete --neural` runs the in-process char-LM demo; `complete --live`
+    is Anthropic-only with credential-store boundary + optional `--stream`
+    SSE; `apple-fm` + `--confirm` reports honest FoundationModels unavailability.
+  - Still open (honest stubs / deferred): interactive raw-mode TUI, REST/cluster
+    listener CLI, interactive `auth signin`, Discord gateway/WS, full Twilio
+    ConversationRelay + MCP `connector_test twilio`, FoundationModels FFI.
 - [x] **9a. `abi-mcp` protocol + stdio transport** — JSON-RPC envelope,
   structural pre-check (size/depth/object-root), the frozen 12-tool table
   (schemas pre-parsed so property order is preserved), declarative field

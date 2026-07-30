@@ -131,20 +131,21 @@ mod tests {
         credentials::{BACKEND_ENV, CREDENTIALS_PATH_ENV, Credentials, Secret},
         env,
     };
-    use std::sync::{
-        Mutex,
-        atomic::{AtomicU64, Ordering},
-    };
+    use std::sync::atomic::{AtomicU64, Ordering};
 
-    static TEST_LOCK: Mutex<()> = Mutex::new(());
     static NEXT_PATH: AtomicU64 = AtomicU64::new(0);
 
     struct CredentialEnvironment {
         path: std::path::PathBuf,
+        /// Shared with any other test that mutates credential env overrides.
+        _lock: std::sync::MutexGuard<'static, ()>,
     }
 
     impl CredentialEnvironment {
         fn new() -> Self {
+            // `env::lock_for_test` serializes against complete --live and other
+            // credential-path override users across modules.
+            let lock = env::lock_for_test();
             let suffix = NEXT_PATH.fetch_add(1, Ordering::Relaxed);
             let path = std::env::temp_dir()
                 .join(format!("abi-cli-auth-{}-{suffix}.json", std::process::id()));
@@ -154,7 +155,7 @@ mod tests {
                 path.to_str().expect("UTF-8 test path"),
             );
             env::set_override(BACKEND_ENV, "file");
-            Self { path }
+            Self { path, _lock: lock }
         }
     }
 
@@ -172,7 +173,6 @@ mod tests {
 
     #[test]
     fn status_matches_the_zig_field_order_and_twilio_pair_rule() {
-        let _guard = TEST_LOCK.lock().expect("test lock");
         let _environment = CredentialEnvironment::new();
         let mut credentials = Credentials::new();
         credentials.set(CredentialField::OPENAI_API_KEY, Some(Secret::new("openai")));
@@ -194,7 +194,6 @@ mod tests {
 
     #[test]
     fn logout_reports_absence_then_removes_the_file() {
-        let _guard = TEST_LOCK.lock().expect("test lock");
         let environment = CredentialEnvironment::new();
         assert_eq!(run(&args(&["logout"])).stderr, "No credentials found.\n");
         std::fs::write(&environment.path, "{}").expect("credential fixture");
@@ -207,7 +206,6 @@ mod tests {
 
     #[test]
     fn status_prints_backend_context_before_a_load_failure() {
-        let _guard = TEST_LOCK.lock().expect("test lock");
         let environment = CredentialEnvironment::new();
         std::fs::write(&environment.path, "{").expect("malformed credential fixture");
 

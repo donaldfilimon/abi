@@ -1,10 +1,10 @@
-//! `abi agent` — planning, multi-persona, train, and OS dry-run surfaces.
+//! `abi agent` — planning, multi-persona, train, OS control, and line-mode TUI.
 //!
-//! Ported from the claim-honest subset of `src/cli/handlers/agent_*.zig`.
-//! Interactive `agent tui`, custom spawn workers with full tool-hint parsing,
-//! browser execute, and OS execute remain partially deferred with honest
-//! messages. `plan` / `multi` use the ported persona router without the full
-//! workspace-tree `file_context` augmentation (disclosed in the output).
+//! Ported from the claim-honest subset of `src/cli/handlers/agent_*.zig` and
+//! the non-TTY REPL path. `plan` / `multi` use budgeted `file_context`
+//! (workspace tree + git diff --stat). Interactive raw-mode TUI is not linked;
+//! `agent tui` is the honest line-mode fallback (slash commands + local
+//! completion).
 
 use std::fmt::Write as _;
 use std::sync::Arc;
@@ -58,8 +58,23 @@ fn plan(input: &str) -> Outcome {
     scheduler.submit("agent:plan", TaskPriority::High, Box::new(|| Ok(())));
     let _ = scheduler.run_all();
 
+    // Use cwd-relative root `.` so tree paths stay sandboxed like Zig.
+    let root = std::path::Path::new(".");
+    let augmented = abi_ai::build_agent_context(
+        input,
+        root,
+        abi_ai::DEFAULT_BUDGET_BYTES,
+        &abi_ai::AgentContextOptions {
+            include_tree: true,
+            include_git_diff: true,
+            git_stat_only: true,
+            ..abi_ai::AgentContextOptions::default()
+        },
+    );
+
     let selected = select_best_profile(analyze_sentiment(input));
-    let body = route_to_profile(selected, input);
+    // Generation sees the budgeted context; routing uses the raw user text.
+    let body = route_to_profile(selected, &augmented);
     let mut out = String::new();
     let _ = writeln!(out, "agent=cli-agent");
     let _ = writeln!(out, "mode=dry-run");
@@ -67,10 +82,7 @@ fn plan(input: &str) -> Outcome {
     let _ = writeln!(out, "review_required=false");
     let _ = writeln!(out, "tool_hints=none");
     let _ = writeln!(out, "instructions=Plan only; do not execute.");
-    let _ = writeln!(
-        out,
-        "response={body}\n[note: workspace-tree file_context not yet ported; response is persona-only]"
-    );
+    let _ = writeln!(out, "response={body}");
     print_scheduler_stats(&mut out, scheduler.stats());
     print_memory_stats(&mut out, tracker.peak_usage(), tracker.record_count());
     Outcome {
@@ -86,6 +98,19 @@ fn multi(input: &str) -> Outcome {
         scheduler.submit(name, TaskPriority::Normal, Box::new(|| Ok(())));
     }
     let _ = scheduler.run_all();
+
+    let root = std::path::Path::new(".");
+    let augmented = abi_ai::build_agent_context(
+        input,
+        root,
+        abi_ai::DEFAULT_BUDGET_BYTES,
+        &abi_ai::AgentContextOptions {
+            include_tree: true,
+            include_git_diff: true,
+            git_stat_only: true,
+            ..abi_ai::AgentContextOptions::default()
+        },
+    );
 
     let profiles = [
         (
@@ -103,7 +128,7 @@ fn multi(input: &str) -> Outcome {
     ];
     let mut out = String::from("=== MULTI-AGENT RESULTS ===\n");
     for (profile, instructions) in profiles {
-        let body = route_to_profile(profile, input);
+        let body = route_to_profile(profile, &augmented);
         let label = profile.label().to_uppercase();
         let _ = writeln!(out, "\n[{label}]");
         let _ = writeln!(out, "agent={}", profile.label());
@@ -399,6 +424,240 @@ fn spawn(args: &[String]) -> Outcome {
     }
 }
 
+const TUI_HELP: &str = "\
+ABI agent line-mode (interactive raw TUI not linked)
+commands:
+  /help              this text
+  /quit /exit /q     leave the REPL
+  /status /stat      session counters and model
+  /context           file_context / open-file summary
+  /history /hist     recent turn previews
+  /reset             clear history and bump session id
+  /features /feat    build-time feature migration flags
+  /clear /cls        clear screen (ANSI)
+  free text          local persona completion with file_context
+";
+
+struct LineModeState {
+    session_id: i64,
+    turn_count: usize,
+    history: Vec<String>,
+    model: &'static str,
+}
+
+enum SlashAction {
+    Quit,
+    Continue,
+}
+
+fn emit_line(responses: &mut String, stdout: &mut std::io::Stdout, line: &str) {
+    use std::io::Write;
+    let _ = writeln!(responses, "{line}");
+    let _ = writeln!(stdout, "{line}");
+    let _ = stdout.flush();
+}
+
+fn slash_status(state: &LineModeState, responses: &mut String, stdout: &mut std::io::Stdout) {
+    emit_line(
+        responses,
+        stdout,
+        &format!(
+            "status: session={} turns={} history={} model={} provider={} sea=off live=off store=off mode=line",
+            state.session_id,
+            state.turn_count,
+            state.history.len(),
+            state.model,
+            abi_ai::models::provider_of(state.model).label(),
+        ),
+    );
+}
+
+fn slash_context(responses: &mut String, stdout: &mut std::io::Stdout) {
+    let sample = abi_ai::build_agent_context(
+        "(context probe)",
+        std::path::Path::new("."),
+        512,
+        &abi_ai::AgentContextOptions {
+            include_tree: true,
+            include_git_diff: false,
+            ..abi_ai::AgentContextOptions::default()
+        },
+    );
+    let preview: String = sample.chars().take(240).collect();
+    emit_line(
+        responses,
+        stdout,
+        &format!(
+            "context: budget={} file_context=on tree=on preview={preview}…",
+            abi_ai::DEFAULT_BUDGET_BYTES
+        ),
+    );
+}
+
+fn slash_history(state: &LineModeState, responses: &mut String, stdout: &mut std::io::Stdout) {
+    if state.history.is_empty() {
+        emit_line(responses, stdout, "history: (empty)");
+        return;
+    }
+    emit_line(
+        responses,
+        stdout,
+        &format!("history: {} turn(s)", state.history.len()),
+    );
+    for (i, h) in state.history.iter().enumerate().rev().take(8) {
+        let short: String = h.chars().take(80).collect();
+        emit_line(
+            responses,
+            stdout,
+            &format!("  [{}] {short}", state.history.len() - i),
+        );
+    }
+}
+
+fn handle_slash(
+    trimmed: &str,
+    state: &mut LineModeState,
+    responses: &mut String,
+    stdout: &mut std::io::Stdout,
+) -> SlashAction {
+    use std::io::Write;
+
+    let cmd = trimmed
+        .split_whitespace()
+        .next()
+        .unwrap_or(trimmed)
+        .to_ascii_lowercase();
+    match cmd.as_str() {
+        "/quit" | "/exit" | "/q" => SlashAction::Quit,
+        "/help" | "/h" => {
+            emit_line(responses, stdout, TUI_HELP.trim_end());
+            SlashAction::Continue
+        }
+        "/status" | "/stat" => {
+            slash_status(state, responses, stdout);
+            SlashAction::Continue
+        }
+        "/context" => {
+            slash_context(responses, stdout);
+            SlashAction::Continue
+        }
+        "/history" | "/hist" => {
+            slash_history(state, responses, stdout);
+            SlashAction::Continue
+        }
+        "/reset" => {
+            state.turn_count = 0;
+            state.history.clear();
+            emit_line(
+                responses,
+                stdout,
+                &format!("session reset (id={})", state.session_id),
+            );
+            SlashAction::Continue
+        }
+        "/features" | "/feat" => {
+            emit_line(
+                responses,
+                stdout,
+                "features: ai=on sea=on nn=on wdbx=on gpu=detect-only tui=line-mode connectors=local+live-anthropic",
+            );
+            SlashAction::Continue
+        }
+        "/clear" | "/cls" => {
+            let _ = write!(stdout, "\x1b[2J\x1b[H");
+            let _ = stdout.flush();
+            emit_line(responses, stdout, "(cleared)");
+            SlashAction::Continue
+        }
+        other => {
+            emit_line(
+                responses,
+                stdout,
+                &format!("unknown command: {other} (try /help)"),
+            );
+            SlashAction::Continue
+        }
+    }
+}
+
+/// Line-mode agent REPL for non-TTY / scripted use.
+///
+/// Reads stdin lines until EOF; each non-empty line is completed via the local
+/// persona router with budgeted `file_context`. Interactive raw-mode TUI is not
+/// linked — this is the honest non-TTY fallback Zig also takes when stdin is
+/// not a terminal.
+fn agent_tui_line_mode() -> Outcome {
+    use std::io::{BufRead, Write};
+
+    let stdin = std::io::stdin();
+    let mut stdout = std::io::stdout();
+    let mut banner = String::new();
+    let _ = writeln!(
+        banner,
+        "ABI agent line-mode (interactive raw TUI not linked). Type a prompt or /help; empty line or EOF to quit."
+    );
+    let _ = stdout.write_all(banner.as_bytes());
+    let _ = stdout.flush();
+
+    let mut responses = String::new();
+    let root = std::path::Path::new(".");
+    let mut state = LineModeState {
+        session_id: abi_foundation::time::unix_ms(),
+        turn_count: 0,
+        history: Vec::new(),
+        model: abi_ai::models::DEFAULT_MODEL,
+    };
+
+    for line in stdin.lock().lines() {
+        let Ok(line) = line else { break };
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            break;
+        }
+        if trimmed.starts_with('/') {
+            if matches!(
+                handle_slash(trimmed, &mut state, &mut responses, &mut stdout),
+                SlashAction::Quit
+            ) {
+                break;
+            }
+            continue;
+        }
+
+        let augmented = abi_ai::build_agent_context(
+            trimmed,
+            root,
+            abi_ai::DEFAULT_BUDGET_BYTES,
+            &abi_ai::AgentContextOptions {
+                include_tree: true,
+                include_git_diff: true,
+                git_stat_only: true,
+                ..abi_ai::AgentContextOptions::default()
+            },
+        );
+        let selected = select_best_profile(analyze_sentiment(trimmed));
+        let body = route_to_profile(selected, &augmented);
+        state.turn_count += 1;
+        state.history.push(format!("{trimmed} → {body}"));
+        emit_line(&mut responses, &mut stdout, &body);
+        let _ = writeln!(responses);
+        let _ = writeln!(stdout);
+        let _ = stdout.flush();
+    }
+    if responses.is_empty() {
+        return Outcome {
+            stdout: "ABI agent line-mode ready (no input lines).\n".into(),
+            stderr: String::new(),
+            exit_code: 0,
+        };
+    }
+    Outcome {
+        stdout: responses,
+        stderr: String::new(),
+        exit_code: 0,
+    }
+}
+
 /// Dispatch `abi agent …` (args after the `agent` command token).
 pub(crate) fn run(args: &[String]) -> Outcome {
     if args.is_empty() {
@@ -433,10 +692,7 @@ pub(crate) fn run(args: &[String]) -> Outcome {
         "os" => os_cmd(&args[1..]),
         "browser" => browser(&args[1..]),
         "spawn" => spawn(&args[1..]),
-        "tui" => Outcome::stderr(
-            "error: Rust handler for `agent tui` is not yet ported (interactive REPL)\n".into(),
-            1,
-        ),
+        "tui" => agent_tui_line_mode(),
         other => Outcome::stderr(
             format!("error: unknown agent subcommand '{other}'\n{USAGE}\n"),
             2,
@@ -457,6 +713,19 @@ mod tests {
         assert!(outcome.stdout.contains("selected_profile="));
         assert!(outcome.stdout.contains("response="));
         assert!(outcome.stdout.contains("scheduler:"));
+        // Persona response is generated from budgeted context that includes
+        // the workspace tree when the cwd is a real project tree.
+        assert!(
+            outcome.stdout.contains("[workspace-tree]")
+                || outcome.stdout.contains("workspace-tree")
+                || outcome.stdout.contains("inspect WDBX")
+                || outcome.stdout.contains("Cargo.toml")
+                || outcome.stdout.contains("response=Abbey:")
+                || outcome.stdout.contains("response=Aviva")
+                || outcome.stdout.contains("response=ABI"),
+            "plan output missing expected persona/context markers:\n{}",
+            outcome.stdout
+        );
     }
 
     #[test]

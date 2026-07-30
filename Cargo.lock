@@ -16,6 +16,7 @@ name = "abi-cli"
 version = "0.1.0"
 dependencies = [
  "abi-ai",
+ "abi-connectors",
  "abi-core",
  "abi-foundation",
  "abi-gpu",

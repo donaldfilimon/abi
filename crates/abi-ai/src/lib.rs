@@ -42,6 +42,7 @@
 pub mod completion;
 pub mod constitution;
 pub mod embedding;
+pub mod file_context;
 pub mod identity;
 pub mod incremental;
 pub mod keywords;
@@ -53,6 +54,11 @@ pub mod training;
 pub use completion::{CompletionResult, EmptyInputError, complete, complete_adaptive};
 pub use constitution::{AuditResult, Principle, validate};
 pub use embedding::{EMBED_DIM, count_non_empty_lines, response_embedding, text_embedding};
+pub use file_context::{
+    AgentContextOptions, BudgetShares, ContextBudget, DEFAULT_BUDGET_BYTES, FileMention,
+    build_agent_context, list_workspace_tree, parse_file_mentions, read_git_diff_budgeted,
+    resolve_and_inject, validate_mention_path,
+};
 pub use identity::{
     AgentProfile, KNOWN_PROFILES, PROFILE_LABELS, ProfileContract, profile_contract,
 };
