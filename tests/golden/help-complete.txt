@@ -1,0 +1,22 @@
+abi complete [--live] [--confirm] [--learn] [--stream] [--neural] [--model <id>] <input>
+
+Run completion through local ABI agent pipeline; --model selects catalog id, --live enables explicit live transport, --neural is in-process char-LM demo
+
+--model selects a catalog id, --live enables explicit live transport, --learn runs the SEA self-learning loop, --neural selects the in-process character-level demo LM (mutually exclusive with --model; not a production LLM), and apple-fm requires --confirm. Use `--` before a prompt that starts with `-`.
+
+Arguments:
+  --live               serve anthropic models over the live transport
+  --confirm            confirm on-device FoundationModels execution
+  --learn              run the SEA self-learning loop
+  --soul <value>       soul layout JSON file for neural routing
+  --soul-alpha <value>       blend weight for soul neural routing (0.0-1.0)
+  --stream             stream completion tokens to stdout
+  --neural             in-process char-LM demo (not a production LLM); mutually exclusive with --model
+  --model <value>       select a catalog model id (e.g. claude-fable-5)
+  <input>             completion prompt (required)
+
+Examples:
+  abi complete "summarize repository status"
+  abi complete -- --literal-leading-dash
+  abi complete --learn --model claude-fable-5 "plan next repair"
+  abi complete --neural "hello"

@@ -1,0 +1,2 @@
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"scheduler running=0 pending=0 completed=0 failed=0 cancelled=0 total_tasks=0 source=mcp-server"}]}}
+{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"scheduler running=0 pending=0 completed=0 failed=0 cancelled=0 total_tasks=0 source=mcp-server"}]}}

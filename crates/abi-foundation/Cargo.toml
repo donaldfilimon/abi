@@ -1,0 +1,36 @@
+[package]
+name = "abi-foundation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared primitives for the ABI framework: errors, env, time, JSON escaping, validation, logging, credentials, IO and HTTP helpers."
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { workspace = true }
+
+# macOS login-keychain backend (opt-in via ABI_CREDENTIALS_BACKEND=keychain).
+# Deliberately macOS-only: the Zig implementation documented Windows Credential
+# Manager and Linux Secret Service as Proposed/unimplemented, and a
+# cross-platform crate here would silently widen that claim. See
+# src/credentials/keychain.rs.
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "3"
+
+# Owner-only DACL on the credential file, replacing the hand-written advapi32
+# externs in credentials_file.zig. See src/credentials/windows_acl.rs.
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "0.61"
+features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_System_Memory",
+]
+
+[lints]
+workspace = true

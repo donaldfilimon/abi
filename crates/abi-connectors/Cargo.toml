@@ -1,0 +1,28 @@
+[package]
+name = "abi-connectors"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "External-service connectors for the ABI framework: OpenAI, Anthropic, Grok, Discord, Twilio."
+
+[dependencies]
+abi-foundation = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+base64 = "0.22"
+
+# Blocking HTTP for the live transport. Rust std has no HTTP client, so the Zig
+# std.http.Client has no direct equivalent; ureq is blocking (matching the
+# scheduler's synchronous model) and uses rustls rather than linking OpenSSL.
+ureq = { version = "3", default-features = false, features = ["rustls"], optional = true }
+
+[features]
+default = ["live"]
+# The live transport. Disable to build a connectors crate that can only use the
+# local synthesized transport — useful for offline or minimal builds.
+live = ["ureq"]
+
+[lints]
+workspace = true

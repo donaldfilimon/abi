@@ -1,0 +1,29 @@
+abi agent <plan|train|tui|multi|spawn|browser|os> ...
+
+Agent planning, training, TUI, multi-worker orchestration, browser planning, OS-control
+
+Subcommands: plan, train, tui, multi, spawn (custom workers), browser (local orchestration), os dry-run/execute.
+
+Subcommands:
+  plan         abi agent plan <input>
+               Run a dry-run agent planning task through the scheduler and print memory tracker statistics.
+  train        abi agent train <abbey|aviva|abi|all>
+               Train one known local profile or all known profiles against the durable WDBX store.
+  tui          abi agent tui
+               Launch the interactive ABI agent REPL. Non-tty input falls back to line mode.
+  multi        abi agent multi <input>
+               Run Abbey, Aviva, and Abi concurrently via the scheduler.
+  spawn        abi agent spawn [--background] [--workers <spec>] <input>
+               Create custom smart-agent workers with optional background scheduler submission.
+  browser      abi agent browser [--url <url>] [--execute --confirm] <task>
+               Plan browser automation locally (dry-run default; external MCP for real navigation).
+  os           abi agent os <dry-run|execute --confirm> <cmd> [args...]
+               Audit an OS-control command request. execute requires --confirm and the policy allow-list.
+
+Examples:
+  abi agent plan "inspect WDBX persistence"
+  abi agent tui
+  abi agent multi "coordinate release"
+  abi agent spawn --workers "scout|Explore pages|explore,browser" "task"
+  abi agent browser --url https://example.com "open docs"
+  abi agent os dry-run ls

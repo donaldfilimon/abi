@@ -1,0 +1,14 @@
+scheduler status
+source=cli-scheduler-status
+mode=one-shot
+running=0 pending=0 completed=1 failed=0 cancelled=0 total_tasks=1
+memory_tracker=attached peak=0B current=0B records=0
+# abi telemetry (prometheus text exposition)
+# TYPE abi_telemetry_events_total counter
+abi_telemetry_events_total 2
+# TYPE abi_telemetry_distinct_counters gauge
+abi_telemetry_distinct_counters 2
+# TYPE abi_telemetry_dropped_events_total counter
+abi_telemetry_dropped_events_total 0
+scheduler_tasks_submitted 1
+scheduler_tasks_completed 1

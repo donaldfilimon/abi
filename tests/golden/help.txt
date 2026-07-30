@@ -1,0 +1,27 @@
+Usage: abi <command> [args...]
+       abi --tui [dashboard flags]
+
+[1mCore[0m
+  [36mhelp        [0m Show top-level, command, subcommand, shortcut, JSON, or shell-completion help
+
+[1mAI[0m
+  [36mcomplete    [0m Run completion through local ABI agent pipeline; --model selects catalog id, --live enables explicit live transport, --neural is in-process char-LM demo
+  [36mtrain       [0m Run the AI pipeline compatibility trainer
+  [36magent       [0m Agent planning, training, TUI, multi-worker orchestration, browser planning, OS-control
+  [36mnn          [0m Run the miniature character-level demo trainer
+
+[1mData[0m
+  [36mplugin      [0m Inspect or execute installed plugins
+  [36mwdbx        [0m Operate WDBX storage, WAL, blocks, stats, and demos
+
+[1mSystem[0m
+  [36mbackends    [0m Show GPU, accelerator, shader, MLIR status, feature flags, and version info
+  [36mauth        [0m Manage external-service authentication state
+  [36mtui         [0m Render the diagnostics dashboard
+  [36mdashboard   [0m Render the diagnostics dashboard
+  [36mscheduler   [0m Report scheduler and memory tracker status
+
+[1mNetwork[0m
+  [36mtwilio      [0m Run a local Twilio voice-agent simulation
+
+Run `abi help [--json|--completion <shell>] <command> [subcommand]` for details.

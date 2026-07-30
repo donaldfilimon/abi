@@ -1,0 +1,8 @@
+abi backends
+
+Show GPU, accelerator, shader, MLIR status, feature flags, and version info
+
+Reports truthful linked/native/fallback status for local compute backends, lists all build-time feature flags with their enabled/disabled status, and shows framework version and build info.
+
+Examples:
+  abi backends

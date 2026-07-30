@@ -1,0 +1,111 @@
+//! Owner-only DACL for the credential file on Windows.
+//!
+//! Ported from the `windows_owner_acl` block in
+//! `src/foundation/credentials_file.zig`, which declared the `advapi32` entry
+//! points by hand. Here they come from `windows-sys` instead, so the signatures
+//! are maintained upstream rather than by this repo.
+//!
+//! The SDDL string is unchanged: `D:P(A;;FA;;;OW)` — a protected DACL (`P`,
+//! blocking inherited ACEs) granting full access (`FA`) to the object owner
+//! (`OW`) and to nobody else. Windows has no POSIX mode bits, so this is what
+//! stands in for `0600`.
+//!
+//! ## Verification status
+//!
+//! This is compile-checked only. The Zig original was in the same position — its
+//! cross-target check was compile-only and no test exercised the path — and this
+//! host is macOS, so nothing here has been run. It is *not* verified working; it
+//! is a faithful port of code that was itself unverified. Unlike the POSIX path,
+//! a failure is surfaced as an error rather than ignored, so a broken ACL fails
+//! the write instead of leaving a secret behind permissive inherited ACLs.
+
+#![allow(unsafe_code)] // Win32 ACL APIs are only reachable through FFI.
+
+use crate::errors::AbiError;
+use std::os::windows::ffi::OsStrExt as _;
+use std::path::Path;
+
+use windows_sys::Win32::Foundation::{ERROR_SUCCESS, LocalFree};
+use windows_sys::Win32::Security::Authorization::{
+    ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1, SE_FILE_OBJECT,
+    SetNamedSecurityInfoW,
+};
+use windows_sys::Win32::Security::{
+    DACL_SECURITY_INFORMATION, GetSecurityDescriptorDacl, PSECURITY_DESCRIPTOR,
+};
+
+/// Grant full access to the file owner only.
+pub fn apply(path: &Path) -> Result<(), AbiError> {
+    let mut path_w: Vec<u16> = path.as_os_str().encode_wide().collect();
+    path_w.push(0);
+
+    let mut sddl_w: Vec<u16> = "D:P(A;;FA;;;OW)".encode_utf16().collect();
+    sddl_w.push(0);
+
+    let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
+
+    // SAFETY: `sddl_w` is NUL-terminated UTF-16 and `descriptor` is a valid
+    // out-pointer. On success Windows allocates the descriptor with LocalAlloc,
+    // which is released below.
+    let converted = unsafe {
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            sddl_w.as_ptr(),
+            SDDL_REVISION_1,
+            &raw mut descriptor,
+            std::ptr::null_mut(),
+        )
+    };
+    if converted == 0 || descriptor.is_null() {
+        return Err(AbiError::PermissionDenied);
+    }
+
+    let result = apply_descriptor(&mut path_w, descriptor);
+
+    // SAFETY: `descriptor` came from ConvertStringSecurityDescriptorToSecurityDescriptorW,
+    // which documents LocalFree as the matching deallocator. Freed exactly once
+    // on every path, including the error returns inside `apply_descriptor`.
+    unsafe {
+        LocalFree(descriptor.cast());
+    }
+
+    result
+}
+
+fn apply_descriptor(path_w: &mut [u16], descriptor: PSECURITY_DESCRIPTOR) -> Result<(), AbiError> {
+    let mut dacl_present = 0i32;
+    let mut dacl = std::ptr::null_mut();
+    let mut dacl_defaulted = 0i32;
+
+    // SAFETY: `descriptor` is a live security descriptor; the three out-params
+    // are valid, correctly typed locals.
+    let read = unsafe {
+        GetSecurityDescriptorDacl(
+            descriptor,
+            &raw mut dacl_present,
+            &raw mut dacl,
+            &raw mut dacl_defaulted,
+        )
+    };
+    if read == 0 || dacl_present == 0 {
+        return Err(AbiError::PermissionDenied);
+    }
+
+    // SAFETY: `path_w` is NUL-terminated UTF-16 and `dacl` borrows from
+    // `descriptor`, which outlives this call in `apply`.
+    let status = unsafe {
+        SetNamedSecurityInfoW(
+            path_w.as_mut_ptr(),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            dacl,
+            std::ptr::null_mut(),
+        )
+    };
+    if status == ERROR_SUCCESS {
+        Ok(())
+    } else {
+        Err(AbiError::PermissionDenied)
+    }
+}

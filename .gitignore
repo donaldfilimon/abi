@@ -262,6 +262,11 @@ test_imports3
 !/ABI-MEGA-PLUGIN.md
 !/CODE_OF_CONDUCT.md
 !/walkthrough.md
+!/RUST-REWRITE-PLAN.md
+
+# Golden fixtures captured from the Zig implementation before its removal
+!/tests/golden/README.md
+!/tests/golden/wdbx-format.md
 
 # GitHub Actions runner ops (self-hosted security + day-2)
 !/.github/self-hosted-runner.md
@@ -351,3 +356,6 @@ legacy/
 
 # ── Compound Engineering (machine-local) ────────────────
 .compound-engineering/*.local.yaml
+
+# Rust build artifacts
+/target/

@@ -1,0 +1,20 @@
+abi auth <signin|logout|status>
+
+Manage external-service authentication state
+
+Credential helpers are local; live connectors still require explicit credentials and live transport selection.
+
+Subcommands:
+  status       abi auth status
+               Show which local connector credentials are configured.
+  logout       abi auth logout
+               Remove the local ABI credential file when present.
+  signin       abi auth signin <openai|anthropic|discord|grok|twilio>
+               Prompt for a credential and persist it in the local ABI credential file.
+
+Arguments:
+  <command>             auth subcommand (required) choices=signin|logout|status
+  <service>             service for signin
+
+Examples:
+  abi auth status
