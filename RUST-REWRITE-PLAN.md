@@ -1,5 +1,12 @@
 # ABI Rust Rewrite — Port Plan
 
+> **Status: COMPLETE (rewrite surface).** Tracked Zig is gone; gate is
+> `./tools/check.sh` on nightly Rust. Open product residuals
+> (native GPU kernels, live Discord/Twilio TLS without a proxy, external
+> shader/MLIR toolchains, mobile `native_dispatch`, production FHE/sharding)
+> are **disclosed non-goals**, not unfinished ports. History below is retained
+> for audit.
+
 Goal: replace the entire Zig implementation of `abi` with Rust (nightly), and
 delete every Zig source file, build script, and toolchain pin from the repo.
 
@@ -411,6 +418,8 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **12. Docs + memory (instruction trio)** — `CLAUDE.md`, `AGENTS.md`,
   `GEMINI.md` rewritten for nightly Rust + `./tools/check.sh`. README still
   needs a full prose pass for remaining Zig wording in long-form docs.
+  (User-facing README/AGENTS already point at `./tools/check.sh`; historical
+  CHANGELOG/threat-model Zig paths may remain as history.)
 
 ## Frozen contracts the Rust side must satisfy
 

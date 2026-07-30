@@ -33,6 +33,9 @@ $ABI dashboard --once --plain   # one-shot operational snapshot
 $ABI complete "summarize ABI scheduler status"
 $ABI complete --model fable-5 "summarize ABI scheduler status"
 $ABI complete --neural "hello"  # in-process char-LM demo (not a production LLM)
+# arm64 macOS + Apple Intelligence ready:
+# $ABI complete --live --model apple-fm --confirm "hello"
+$ABI complete --model llama/phi3 "hello"  # local OpenAI-compat bridge (falls back offline)
 $ABI agent plan "stage a safe WDBX refactor"
 $ABI agent train all
 $ABI wdbx stats
@@ -47,8 +50,11 @@ For MCP smoke testing, build the server and call the same contract tools through
 
 ```bash
 ./tools/cargo.sh build -p abi-mcp
-./target/debug/abi-mcp stdio
-# or: mcp/launcher.sh
+# Prefer mcp/launcher.sh (or run from repo root) so @loader_path resolves
+# libabi_fm_shim.dylib next to the binary on arm64 macOS.
+./mcp/launcher.sh
+# stdio is primary; optional loopback HTTP/SSE on ABI_MCP_HTTP_PORT (default 8080)
+# with optional ABI_MCP_HTTP_TOKEN bearer auth.
 ```
 
 Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, and `plugin_run`. `wdbx_query` returns a local hybrid-ranked match when WDBX is enabled; `connector_test` uses deterministic local connector paths and does not perform live network dispatch.
@@ -56,7 +62,7 @@ Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_lea
 ## Current Status
 
 - ABI targets **nightly Rust** (`rust-toolchain.toml`); validate with `./tools/check.sh`.
-- Core crates and MCP transport have contract/golden coverage; MCP HTTP stays loopback-oriented.
+- Core crates and MCP transport have contract/golden coverage; MCP stdio is primary, with optional loopback HTTP/SSE (`GET /sse`, `POST /message`).
 - Documentation: `CLAUDE.md`, `GEMINI.md`, and `AGENTS.md` describe the Rust lifecycle.
 - Build gate: `./tools/check.sh` runs fmt, clippy (`-D warnings`), workspace build/tests, and docs.
 - GPU: capability table + preferred backend reporting with **honest `accelerated=false`** when native kernels are not linked; vector ops use deterministic CPU SIMD fallback. CUDA/Vulkan/ANE kernels remain non-claims.
@@ -65,6 +71,6 @@ Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_lea
 - Abbey identity: Abbey is the primary empathetic-polymath profile, Aviva is the direct expert mode, and ABI is the orchestration/governance layer. The preserved Primary Declaration and the claim-honest Current/Partial/Proposed mapping live in `docs/spec/abbey-core-identity.mdx`; local profile output is deterministic template generation, not a model-quality or distributed-AI claim.
 - WDBX: contract coverage verifies ordered vector search results, block metadata round-tripping, segment/WAL recovery and compaction, temporal graph snapshot restore, and MCP hybrid ranking while disabled builds return explicit `error.FeatureDisabled` operations for key-value/vector/search/block/spatial/temporal writes.
 - Connectors: Discord validates printable non-whitespace credentials, numeric snowflake-like IDs, and message size; Twilio validates account SID/auth-token shape, base URL, timeout, explicit `.live` transport, TwiML/form escaping, and ConversationRelay payload aliases before local/live dispatch.
-- External collateral should not cite distributed sharding, AES/RBAC, Swift, Python/TensorFlow stacks, Kubernetes/H100 deployments, regulatory certifications, QPS/latency/accuracy, energy-efficiency, or model-benchmark claims unless a repo test, benchmark artifact, or documented source file proves them; see [docs/contracts/external-claims-audit.mdx](docs/contracts/external-claims-audit.mdx).
+- External collateral should not cite distributed sharding, AES/RBAC, Python/TensorFlow stacks, Kubernetes/H100 deployments, regulatory certifications, QPS/latency/accuracy, energy-efficiency, or model-benchmark claims unless a repo test, benchmark artifact, or documented source file proves them. The Apple `FoundationModels` Swift shim is an on-device bridge only (not a general Swift product stack). See [docs/contracts/external-claims-audit.mdx](docs/contracts/external-claims-audit.mdx).
 
 See [docs/index.mdx](docs/index.mdx) for architecture, public API contracts, onboarding, and development guides, and [CHANGELOG.md](CHANGELOG.md) for release-note style modernization highlights.
