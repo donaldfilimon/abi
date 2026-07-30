@@ -38,5 +38,5 @@ Instruction-file sync checklist:
 - WDBX grammar including `db compact`, `cluster serve <port> [node] [host]`, and `api serve [port]`.
 - MCP 12-tool names and transport details.
 - Feature flags and FoundationModels gating.
-- Zig 0.17 idioms and `rust-toolchain.toml` vs active `zig` caveat.
-- `./tools/check.sh`, `full-check`, docs validation, parity, and cross-smoke guidance.
+- Zig 0.17 idioms and `.zigversion` vs active `zig` caveat.
+- `./build.sh check`, `full-check`, docs validation, parity, and cross-smoke guidance.

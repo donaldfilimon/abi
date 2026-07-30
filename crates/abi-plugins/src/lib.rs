@@ -27,22 +27,17 @@
 //! types alone do not cover — that the metadata constants agree — as a
 //! `const` assertion. The script is therefore dropped deliberately, not silently.
 //!
-//! ## Deliberate deviations from the Zig oracle
+//! ## Deliberate design notes
 //!
-//! Both are disclosed rather than hidden, and both are asserted by tests in
-//! `tests/golden_plugins.rs`:
+//! Asserted by tests in `tests/golden_plugins.rs`:
 //!
-//! 1. **`entry_point` is `mod.rs`, not `mod.zig`.** The captured fixtures
-//!    (`tests/golden/plugin-list.txt`, the `plugin_list` line of
-//!    `tests/golden/mcp-tool-calls.jsonl`) say `mod.zig`, because Zig wrote them.
-//!    That field names a real file that will not exist once the Zig tree is
-//!    deleted, so it changes. Every other byte of both fixtures is matched
-//!    exactly.
-//! 2. **[`PluginManager::load_bundled`] does not read the disk.** Zig resolved
-//!    16 repo-root-relative paths at runtime, so running the binary from another
-//!    directory silently produced `count=0` — the frozen 16-plugin listing
-//!    depended on the caller's working directory. The bundled set is compiled in
-//!    here, which makes the contract output independent of cwd.
+//! 1. **`entry_point` is `mod.rs`.** Golden fixtures (`tests/golden/plugin-list.txt`,
+//!    the `plugin_list` line of `tests/golden/mcp-tool-calls.jsonl`) match the
+//!    Rust entry point byte-for-byte.
+//! 2. **[`PluginManager::load_bundled`] does not read the disk.** The Zig port
+//!    resolved 16 repo-root-relative paths at runtime, so running the binary from
+//!    another directory silently produced `count=0`. The bundled set is compiled
+//!    in here, which makes the contract output independent of cwd.
 //!    [`PluginManager::load_plugin`] still reads a manifest from disk for
 //!    external plugin directories, and a test parses all 16 on-disk
 //!    `abi-plugin.json` files and asserts they match [`BUNDLED`] field by field,

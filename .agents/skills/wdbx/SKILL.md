@@ -5,7 +5,7 @@ description: Plan abi WDBX vector-store work — in-process KV+vector store, HNS
 
 # wdbx
 
-Entry point for abi's WDBX vector store (`src/features/wdbx/`). Routes:
+Entry point for abi's WDBX vector store (`crates/abi-wdbx/src/`). Routes:
 
 | You want to… | Use |
 | --- | --- |

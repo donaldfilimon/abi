@@ -16,14 +16,14 @@ Routes:
 
 ## REPL slash commands (agent TUI, not OpenCode config)
 
-Implemented in `src/features/tui/repl*.zig` (see `abi-superpower-tui`). Companion
+Implemented in `crates/abi-cli/src/terminal.rs` (see `abi-superpower-tui`). Companion
 skills document the agent-side helpers: `/open`→file-context-loader,
 `/diff`→git-diff-integration, `/commit`→git-commit-integration,
 `/context`→context-state-reporter, `/features`→feature-flag-display,
 `/learn`→sea-learning-controller, `/save`→session-persister,
 `/load`→session-restorer, `/status`→agent-status-reporter,
 `/reset`→context-resetter. Plugin-provided commands come from each plugin's
-`src/plugins/*/abi-plugin.json` `commands` field. Repo OpenCode config is `opencode.json` (no
+`crates/abi-plugins/plugins/*/abi-plugin.json` `commands` field. Repo OpenCode config is `opencode.json` (no
 `slash_commands` key).
 
 ## Gotchas
@@ -31,4 +31,4 @@ skills document the agent-side helpers: `/open`→file-context-loader,
   fallback; the only surface that needs a real terminal is the interactive
   refresh loop (`run-tui` uses tmux).
 - `@file` mentions are sandboxed to cwd (8 KB budget; rejects `..` / absolute /
-  symlink escape) via `src/features/ai/file_context.zig`.
+  symlink escape) via `crates/abi-ai/src/file_context.rs`.

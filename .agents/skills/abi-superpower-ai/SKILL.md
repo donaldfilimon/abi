@@ -63,17 +63,17 @@ Show current AI configuration:
 - **aviva** - Direct expert: concise, candid, analytical, and action-oriented
 - **abi** - Adaptive orchestration/governance: intent, risk, context, policy, and mode selection
 
-These are deterministic local profile routes in the ABI Zig runtime. The
+These are deterministic local profile routes in the ABI Rust runtime. The
 canonical product identity and Current/Partial/Proposed capability mapping live
 in `docs/spec/abbey-core-identity.mdx`; the labels are not model-quality claims.
 
 ## Implementation
 
 Maps to:
-- `src/features/ai/completion.zig` - `completeWithStore()`, `completeWithStoreAdaptive()`
-- `src/features/sea/learn_loop.zig` - `runLearnLoop()`, evidence recall
-- `src/features/ai/constitution.zig` - 6-principle audit
-- `src/features/ai/router.zig` - sentiment analysis, profile selection
+- `crates/abi-ai/src/completion.rs` - `completeWithStore()`, `completeWithStoreAdaptive()`
+- `crates/abi-sea/src/learn_loop.rs` - `runLearnLoop()`, evidence recall
+- `crates/abi-ai/src/constitution.rs` - 6-principle audit
+- `crates/abi-ai/src/router.rs` - sentiment analysis, profile selection
 
 ## Feature Gate
 

@@ -37,7 +37,7 @@ Execute a plugin by name:
 ### validate
 Validate a plugin manifest:
 ```
-/abi-plugin-system validate --manifest ./src/plugins/example-plugin/abi-plugin.json
+/abi-plugin-system validate --manifest ./crates/abi-plugins/plugins/example-plugin/abi-plugin.json
 ```
 
 ### generate
@@ -60,7 +60,7 @@ Show plugin metadata:
   "version": "1.0.0",
   "description": "Example plugin",
   "target_feature": "feat-example",
-  "entry_point": "mod.zig",
+  "entry_point": "mod.rs",
   "commands": [
     { "name": "greet", "summary": "Say hello", "aliases": ["hi"] }
   ],
@@ -72,7 +72,7 @@ Show plugin metadata:
 
 Required fields: `name`, `version`, `description`, `target_feature`, `entry_point`
 Aliases accepted: `targetFeature` / `entryPoint`
-`entry_point` must be a safe relative `.zig` path under the plugin directory.
+`entry_point` must be a safe relative `.rs` path under the plugin directory.
 
 ## Bundled Fixtures (16)
 
@@ -99,17 +99,15 @@ Aliases accepted: `targetFeature` / `entryPoint`
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    tools/generate_plugin_registry.zig       │
-│  Scans src/plugins/*/abi-plugin.json → generates           │
-│  src/plugin_registry.zig (DO NOT HAND-EDIT)                 │
+│              crates/abi-plugins/src/lib.rs                  │
+│  `BUNDLED` + `registry_descriptors()` / `register_all()`    │
+│  (edit when adding/removing bundled plugins)                │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    src/plugin_registry.zig                  │
-│  Generated metadata: name, version, description,            │
-│  target_feature, entry_point, commands[],                   │
-│  context_providers[]                                        │
+│         crates/abi-plugins/plugins/<name>/                  │
+│  abi-plugin.json + mod.rs + stub.rs                         │
 └─────────────────────────────────────────────────────────────┘
                               │
               ┌───────────────┴───────────────┐
@@ -117,38 +115,37 @@ Aliases accepted: `targetFeature` / `entryPoint`
 ┌─────────────────────────┐         ┌─────────────────────────┐
 │  CLI: abi plugin        │         │  MCP: plugin_list/      │
 │  - plugin list          │         │  plugin_run             │
-│  - plugin run           │         │                         │
 └─────────────────────────┘         └─────────────────────────┘
               │                               │
               └───────────────┬───────────────┘
                               ▼
                    ┌──────────────────────────────────────┐
-                   │  src/plugins/plugin_manager.zig      │
+                   │  crates/abi-plugins/src/manager.rs   │
                    │  - Load/unload/list                  │
                    │  - Manifest validation               │
-                   │  - Safe .zig entry_point             │
+                   │  - Safe .rs entry_point              │
                    └──────────────────────────────────────┘
 ```
 
-## Registry Generation
+## Registry
 
-- Runs at **build time** via `addRunArtifact(gen_plugin_registry)`
-- On cross-compile, runs on **host** (target binary can't exec)
-- Contract test: `tests/contracts/plugin_registry.zig` validates multiple fixtures
+- Bundled metadata lives in `crates/abi-plugins/src/lib.rs` (`BUNDLED`,
+  `registry_descriptors`, `register_all`) — update it when plugins change.
+- Contract tests under `crates/abi-plugins/tests/` pin the plugin count.
 
-## Plugin Manager (`src/plugins/plugin_manager.zig`)
+## Plugin Manager (`crates/abi-plugins/src/manager.rs`)
 
 | Method | Description |
 |--------|-------------|
-| `load(allocator, path)` | Load plugin from manifest + entry_point |
-| `unload(plugin)` | Unload plugin, free resources |
-| `list()` | Return all loaded plugin metadata |
-| `run(plugin, input)` | Execute plugin's `run()` function |
+| `load` | Load plugin from manifest + entry_point |
+| `unload` | Unload plugin, free resources |
+| `list` | Return all loaded plugin metadata |
+| `run` | Execute plugin's `run()` function |
 
 Validates:
 - Manifest required fields present
 - `target_feature` matches enabled feature
-- `entry_point` exists as `.zig` under plugin dir
+- `entry_point` exists as `.rs` under plugin dir
 - No path traversal in `entry_point`
 
 ## CLI Surface
@@ -190,5 +187,5 @@ Plugins can declare `context_providers[]`:
 - ✅ Slash commands + context providers from manifests
 - ✅ Safe entry_point path validation
 - ❌ NOT a dynamic plugin marketplace
-- ❌ NOT sandboxed execution (loads as Zig module)
+- ❌ NOT sandboxed execution (loads as a Rust module)
 - ❌ NOT hot-reload capable (build-time generation)

@@ -12,21 +12,20 @@ Codex plugin.
 ## Sources of truth
 
 - Repository instructions: `AGENTS.md`, then `tasks/lessons.md` and `tasks/todo.md`.
-- Zig pin: `rust-toolchain.toml` and `.github/workflows/ci.yml` must agree.
+- Nightly pin: `rust-toolchain.toml` and `.github/workflows/ci.yml` must agree.
 - Canonical repository skills: `.agents/skills/`.
 - Repository mirrors: `.claude/skills/` and `.grok/`, synchronized by
   `.agents/skills/sync-clis/launch.sh`.
 - OpenCode: `.opencode/skills` is a symlink to `.agents/skills`.
 - Codex home skills: `~/.codex/skills/<name>/SKILL.md` are installed explicitly.
-- ABI bundled plugins: 16 build-time fixtures under `src/plugins/` (includes
+- ABI bundled plugins: 16 build-time fixtures under `crates/abi-plugins/plugins/` (includes
   `tui-plugin`); verify them with `.agents/skills/plugin-runtime-tester/plugins.sh`.
 - ABI Mega source: `~/plugins/abi-mega/`; marketplace registration alone does not
   prove that the current version is installed.
-- Live Zig pin: read repo-root `rust-toolchain.toml` (do not trust hardcoded hashes in
-  home docs). Prepend `$HOME/.zvm/$(cat rust-toolchain.toml)` to `PATH` before gates —
-  Homebrew `zig` may point at a different nightly than the pin.
+- Live Rust pin: read repo-root `rust-toolchain.toml`. Always use `./tools/cargo.sh`
+  (Homebrew stable `cargo` may shadow rustup nightly).
 
-`src/plugins/zig-self-improve/` is intentionally absent and is rejected by
+`crates/abi-plugins/plugins/` is intentionally absent and is rejected by
 `modern-refactor/scripts/verify-phase1-scope.sh`. Do not recreate it as a health
 check. Use the runtime tester plus the repository gates.
 
@@ -61,8 +60,8 @@ live telemetry, not durable capability claims.
 1. **Freeze the target** — inspect `git status --short --branch`,
    `git worktree list --porcelain`, branches, stashes, and remotes. If another
    process moves the checkout, stop and use an isolated worktree.
-2. **Select the pin locally** — prepend `~/.zvm/$(cat rust-toolchain.toml)` to `PATH`
-   for ABI gates without changing the user's global ZVM selection.
+2. **Select the toolchain locally** — use `./tools/cargo.sh` for all ABI gates
+   (Homebrew stable `cargo` may shadow rustup nightly).
 3. **Establish a baseline** — run `./tools/check.sh` without a PTY. Afterward,
    run `./tools/cargo.sh build -p abi-cli` because feature-stub smoke overwrites `target/debug/abi`.
 4. **Refresh ABI Mega evidence**:
@@ -80,9 +79,9 @@ live telemetry, not durable capability claims.
 9. **Install Codex skill text** — copy the corrected `SKILL.md` to the matching
    `~/.codex/skills/<name>/SKILL.md`. Companion-resource parity is a separate
    policy decision.
-10. **Validate** — run `./tools/check.sh-parity`, `./build.sh lint`,
-    `.agents/skills/docs-validate/validate.sh`, and `./tools/check.sh` with the
-    pinned Zig. Restore the full CLI with `./tools/cargo.sh build -p abi-cli`.
+10. **Validate** — run `./tools/check.sh`, `./tools/cargo.sh clippy --workspace --all-targets -- -D warnings`,
+    `.agents/skills/docs-validate/validate.sh`, and `./tools/check.sh` with
+    nightly Rust. Restore the full CLI with `./tools/cargo.sh build -p abi-cli`.
 11. **Log** — `skill-loop log abi-skills success` (or `partial`/`failure`) when
     telemetry is initialized.
 12. **Integrate** — use a `cursor/` feature branch and PR; never force-push
@@ -104,13 +103,12 @@ separately through Plugin Management.
 ## Validation commands
 
 ```bash
-PINNED_ZIG_DIR="$HOME/.zvm/$(cat rust-toolchain.toml)"
-PATH="$PINNED_ZIG_DIR:$PATH" ./tools/check.sh-parity
-PATH="$PINNED_ZIG_DIR:$PATH" ./build.sh lint
-PATH="$PINNED_ZIG_DIR:$PATH" .agents/skills/plugin-runtime-tester/plugins.sh
+./tools/check.sh
+./tools/cargo.sh clippy --workspace --all-targets -- -D warnings
+.agents/skills/plugin-runtime-tester/plugins.sh
 .agents/skills/docs-validate/validate.sh
-PATH="$PINNED_ZIG_DIR:$PATH" ./tools/check.sh
-PATH="$PINNED_ZIG_DIR:$PATH" ./tools/cargo.sh build -p abi-cli
+./tools/check.sh
+./tools/cargo.sh build -p abi-cli
 ```
 
 Run `./tools/check.sh` through pipes/non-interactive execution. Allocating a PTY
@@ -118,7 +116,7 @@ causes CLI dashboard smoke to enter interactive mode and invalidates the gate.
 
 ## Claim boundaries
 
-- The 16 bundled plugins are build-time Zig modules, not sandboxed marketplace
+- The 16 bundled plugins are build-time Rust modules, not sandboxed marketplace
   extensions or hot-reloadable code.
 - Registry presence does not prove `plugin run` dispatch; use the runtime tester.
 - Marketplace registration does not prove ABI Mega is installed or current.

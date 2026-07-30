@@ -62,11 +62,11 @@ Run full secure demo (all of the above):
 
 | Module | Purpose | Status |
 |--------|---------|--------|
-| `src/features/wdbx/compression.zig` | Int8 quantization | Current |
-| `src/features/wdbx/entropy.zig` | Order-0 Huffman | Current |
-| `src/features/wdbx/neural_compress.zig` | Autoencoder (hand backprop) | Current |
-| `src/features/wdbx/crypto_he.zig` | Additive HE | Current |
-| `src/features/wdbx/fhe.zig` | DGHV SHE (add+multiply, depth-3) | Current |
+| `crates/abi-wdbx/src/compression.rs` | Int8 quantization | Current |
+| `crates/abi-wdbx/src/entropy.rs` | Order-0 Huffman | Current |
+| `crates/abi-wdbx/src/neural_compress.rs` | Autoencoder (hand backprop) | Current |
+| `crates/abi-wdbx/src/crypto_he.rs` | Additive HE | Current |
+| `crates/abi-wdbx/src/fhe.rs` | DGHV SHE (add+multiply, depth-3) | Current |
 
 ## Claim Boundary
 
@@ -94,10 +94,10 @@ Requires `feat-wdbx=true` (default). When disabled, returns `FeatureDisabled`.
 
 ## Testing
 
-- `compression.zig` — quantization round-trip + determinism
-- `entropy.zig` — encode/decode round-trip, compression ratio
-- `neural_compress.zig` — training determinism, reconstruction error
-- `crypto_he.zig` — additive homomorphism verification
-- `fhe.zig` — DGHV add+multiply chain depth-3
+- `compression.rs` — quantization round-trip + determinism
+- `entropy.rs` — encode/decode round-trip, compression ratio
+- `neural_compress.rs` — training determinism, reconstruction error
+- `crypto_he.rs` — additive homomorphism verification
+- `fhe.rs` — DGHV add+multiply chain depth-3
 
 All tests pass `./tools/check.sh`.

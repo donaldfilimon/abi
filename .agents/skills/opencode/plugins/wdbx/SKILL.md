@@ -58,10 +58,10 @@ As per WDBX superpower.
 ## Implementation
 
 Maps to:
-- `src/features/wdbx/store.zig`
-- `src/features/wdbx/segments.zig`
-- `src/features/wdbx/rest.zig`
-- `src/features/wdbx/cluster_rpc.zig`
+- `crates/abi-wdbx/src/store.rs`
+- `crates/abi-wdbx/src/segments.rs`
+- `crates/abi-wdbx/src/rest.rs`
+- `crates/abi-wdbx/src/cluster_rpc.rs`
 
 ## Feature Gate
 

@@ -77,9 +77,9 @@ MCP tools `ai_complete`/`ai_run`/`ai_learn` include audit fields in response.
 
 | Component | Source |
 |-----------|--------|
-| Constitution Core | `src/features/ai/constitution.zig` — `validate()`, `evaluateResponse()`, `AuditResult` |
-| Completion Integration | `src/features/ai/completion.zig` — audit called post-generation, metadata stored |
-| MCP Tools | `src/mcp/ai_tools.zig` — audit fields in tool responses |
+| Constitution Core | `crates/abi-ai/src/constitution.rs` — `validate()`, `evaluateResponse()`, `AuditResult` |
+| Completion Integration | `crates/abi-ai/src/completion.rs` — audit called post-generation, metadata stored |
+| MCP Tools | `crates/abi-mcp/src/ai_tools.rs` — audit fields in tool responses |
 
 ## Feature Gates
 

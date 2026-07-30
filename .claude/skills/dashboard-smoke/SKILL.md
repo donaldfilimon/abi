@@ -45,9 +45,8 @@ One-liner by hand:
 |---|---|
 | hangs / never returns | stdin is a TTY — redirect `< /dev/null` to force the one-shot. |
 | empty output | You captured stdout only — the dashboard prints to stderr; use `2>&1`. |
-| looks like a crash (errno/tcgetattr) | Regression in the non-TTY fallback; inspect `src/features/tui/mod.zig`. |
-| a panel missing | Inspect `src/cli/handlers/dashboard.zig`; use the `tui-navigation-guide` subagent for the render loop. |
+| looks like a crash (errno/tcgetattr) | Regression in the non-TTY fallback; inspect `crates/abi-cli` dashboard/TUI code. |
+| a panel missing | Inspect dashboard render in `crates/abi-cli`; panels must still be System / Plugins / WDBX Storage / Scheduler / Memory. |
 
-Historical verification: **PASS** on the pin in `rust-toolchain.toml` — one-shot render
-of all 5 panels, exit 0. Do not hardcode a Zig nightly in this skill; read
-`rust-toolchain.toml` for the live pin.
+Historical verification: **PASS** on nightly Rust via `./tools/cargo.sh` — one-shot
+render of all 5 panels, exit 0.

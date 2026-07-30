@@ -9,7 +9,7 @@ You audit capability claims in documentation against what the repository actuall
 
 **Method:**
 1. Extract each concrete capability claim (a sentence asserting the framework *does* X, or a number).
-2. For each claim, search for proof: a passing test (`tests/`, inline `test {}`), a benchmark artifact, or a source file that implements it. Use Grep/Read; run a focused test (`zig build test-<...>`) only when that is the proof and it is cheap.
+2. For each claim, search for proof: a passing test (`tests/`, inline `#[test]`), a benchmark artifact, or a source file that implements it. Use Grep/Read; run a focused test (`./tools/cargo.sh test -p <crate>`) only when that is the proof and it is cheap.
 3. Classify each claim:
    - **PROVEN** — cite the exact test/file:line that backs it.
    - **DISCLOSED-STUB** — the code truthfully discloses a limitation (e.g. `available=false`, `native_dispatch=false`); confirm the disclosure matches behavior.

@@ -11,7 +11,7 @@ opencode loads abi via mechanisms wired in repo-root `opencode.json` and the
 - **Skills**: `.opencode/skills` is a symlink to `../.agents/skills`, so every
   canonical skill dir is visible to opencode automatically. No separate allowlist
   file is required today — editing a skill under `.agents/skills/<name>/` is enough.
-- **Agent TUI slash commands**: live in the Zig agent TUI (not an opencode JSON
+- **Agent TUI slash commands**: live in the abi agent TUI (not an opencode JSON
   map). Skills such as `file-context-loader`, `git-diff-integration`,
   `git-commit-integration`, `context-state-reporter`, `feature-flag-display`,
   `sea-learning-controller`, `session-persister`, `session-restorer`,

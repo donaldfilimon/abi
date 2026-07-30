@@ -26,11 +26,11 @@ the plan; execute-without-confirm returns exit 2.
 - ⚠️ **This skill never runs `agent os execute --confirm`** — that actually runs
   the planned OS command and is deliberately out of scope. Only `dry-run` (plan)
   and the negative confirm-gate check are exercised.
-- `feat-os-control` is on by default; the policy lives in `src/features/os_control/`.
+- `feat-os-control` is on by default; the policy lives in `crates/abi-plugins/plugins/os-control-plugin/`.
   Use the `os-control-policy-reviewer` subagent to audit the validation/whitelist.
 
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
 | `build` FAIL | `./tools/check.sh`. |
-| execute-without-confirm didn't return 2 | the confirm gate regressed — check `src/cli/handlers/agent.zig` agent-os path. |
+| execute-without-confirm didn't return 2 | the confirm gate regressed — check `crates/abi-cli/src/agent.rs` agent-os path. |

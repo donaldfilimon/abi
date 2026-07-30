@@ -5,7 +5,7 @@ description: Plan abi SEA (Sparse Evidence Attention) self-learning work — evi
 
 # sea
 
-Entry point for abi's SEA self-learning loop (`src/features/ai/`). Routes:
+Entry point for abi's SEA self-learning loop (`crates/abi-ai/src/`). Routes:
 
 | You want to… | Use |
 | --- | --- |

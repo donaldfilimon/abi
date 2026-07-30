@@ -29,4 +29,4 @@ Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — Metal link
 | Symptom | Fix |
 |---|---|
 | `build` FAIL | `./tools/check.sh`. |
-| missing `Compute Backends:` | CLI grammar drift — check `src/cli/handlers/backends.zig`. |
+| missing `Compute Backends:` | CLI grammar drift — check `crates/abi-cli/src/backends.rs`. |

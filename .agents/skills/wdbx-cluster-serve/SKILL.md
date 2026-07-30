@@ -45,6 +45,6 @@ lingering process, on Zig master `0.17.0-dev.1099`.
 |---|---|
 | `build` FAIL | Run `./tools/check.sh` for the real error. |
 | no readiness marker / `bind … failed` | Port in use or privileged — pick a higher free port (`8095`). |
-| missing marker string | CLI grammar drifted — check `src/cli/handlers/wdbx_runtime.zig` `clusterServe`. |
+| missing marker string | CLI grammar drifted — check `crates/abi-cli/src/wdbx.rs` `clusterServe`. |
 
 For source-level questions about the consensus/RPC internals, use the `wdbx-explorer` subagent.

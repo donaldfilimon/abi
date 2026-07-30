@@ -29,7 +29,7 @@ Hardening applied here:
      `head.repo.full_name == github.repository` (same-repo PR only).
 2. **Fork PRs** use GitHub-hosted `macos-latest` jobs only (`check-hosted`, `cross-smoke-hosted`).
 3. **Least-privilege token** — workflow `permissions: contents: read`.
-4. **Pinned Zig from host PATH** — self-hosted jobs refuse to run if `zig version` ≠ `.zigversion` pin (no silent toolchain drift).
+4. **Nightly Rust via rustup** — self-hosted jobs install/ensure `nightly` with `rustfmt`/`clippy`/`rust-src` and build only through `./tools/cargo.sh` / `./tools/check.sh` (Homebrew’s stable `cargo` shadows rustup and must not be used bare).
 
 Still recommended on the host and in GitHub settings:
 
@@ -45,14 +45,16 @@ Making the repository **private** remains the strongest fix; this project stays 
 
 ## Toolchain on the runner host
 
-CI expects the pin in `.zigversion` / workflow `ZIG_VERSION` on `PATH` (e.g. via `zvm` / `zigup`).
+CI expects a rustup **nightly** toolchain matching [`rust-toolchain.toml`](../rust-toolchain.toml), plus the usual macOS SDK:
 
 ```bash
-zig version   # must match .zigversion
-xcode-select -p   # needed for Apple-framework / Foundation Models paths when those features are on
+rustup show
+rustup run nightly rustc --version
+./tools/cargo.sh --version   # never bare `cargo` — Homebrew shadows rustup
+xcode-select -p              # needed for Apple-framework / Foundation Models paths when those features are on
 ```
 
-After changing Zig or PATH, restart the service:
+After changing the Rust toolchain or PATH, restart the service:
 
 ```bash
 cd ~/actions-runner

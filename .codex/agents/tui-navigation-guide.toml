@@ -1,13 +1,13 @@
 name = "tui-navigation-guide"
-description = "Explain abi's TUI/diagnostics-dashboard module organization — state rendering, terminal redraw helpers, and the diagnostics surfaces behind `abi tui` / `abi dashboard` / `abi --tui`. Use to navigate crates/tui/ or understand the render loop. Read-only."
+description = "Explain abi's TUI/diagnostics-dashboard module organization — state rendering, terminal redraw helpers, and the diagnostics surfaces behind `abi tui` / `abi dashboard` / `abi --tui`. Use to navigate crates/abi-cli/src/ or understand the render loop. Read-only."
 developer_instructions = """
 You map the TUI subsystem and report; never edit source.
 
-Context (per AGENTS.md and `crates/tui/`):
-- `abi tui` and `abi dashboard` render the diagnostics dashboard; `abi --tui` is the shortcut handled in `src/main.zig` (outside `src/cli/usage.zig`). Handler: `src/cli/handlers/dashboard.zig`.
+Context (per AGENTS.md and `crates/abi-cli/src/`):
+- `abi tui` and `abi dashboard` render the diagnostics dashboard; `abi --tui` is the shortcut handled in `crates/abi-cli/src/main.rs` (outside `crates/abi-cli/src/usage.rs`). Handler: `crates/abi-cli/src/dashboard.rs`.
 - `agent tui` is a separate interactive REPL (line-at-a-time with raw-mode fallback; `/help /model /history /reset /quit`).
-- TUI is gated by `feat-tui` (default on); `mod.zig`/`stub.zig` keep parity.
+- TUI is gated by `feat-tui` (default on); `mod.rs`/`stub.rs` keep parity.
 
-Method: read `crates/tui/` modules and `dashboard.zig`; trace how diagnostics state is gathered, rendered, and redrawn, and where terminal control sequences live. Identify the entry points and the redraw cycle. (The TUI is interactive; describe the render flow from source rather than driving it blind.)
+Method: read `crates/abi-cli/src/` modules and `dashboard.rs`; trace how diagnostics state is gathered, rendered, and redrawn, and where terminal control sequences live. Identify the entry points and the redraw cycle. (The TUI is interactive; describe the render flow from source rather than driving it blind.)
 
 Report: the module layout, the data→render→redraw flow with file:line anchors, the difference between the dashboard render and the `agent tui` REPL, and any raw-mode/terminal-state cleanup risk."""

@@ -61,22 +61,22 @@ Show or plan remote TPU reference transport configuration:
 | Backend | Available | Dispatches | Reality |
 |---------|-----------|------------|---------|
 | CPU SIMD | Always | ✅ Always | Vectorized `@Vector` with host-matched width |
-| Metal (macOS) | On macOS | ⚠️ Only if `g_metal_context.init()` succeeds | Pure-Zig ObjC FFI, runtime MSL compile |
+| Metal (macOS) | On macOS | ⚠️ Only if `g_metal_context.init()` succeeds | Metal FFI / shaders when linked; CPU fallback otherwise |
 | CUDA | Never | ❌ No | Capability reported, not linked |
 | Vulkan | Never | ❌ No | Needs loader/ICD + SPIR-V; not linked |
 | ANE (NPU) | On Apple Silicon | ❌ No | `compute.aneHardwarePresent()` truthfully detects; needs CoreML/ObjC |
-| TPU (remote) | Reference only | ❌ Not production-wired | `remote_compute.zig` has a loopback-tested DOT transport; the environment endpoint is report-only |
+| TPU (remote) | Reference only | ❌ Not production-wired | `remote_compute.rs` has a loopback-tested DOT transport; the environment endpoint is report-only |
 
 ## Implementation
 
 | Component | Source | Role |
 |-----------|--------|------|
-| Backend Selector | `src/features/wdbx/compute.zig` | Dynamic CPU/GPU/NPU/TPU selection |
-| CPU SIMD | `src/features/wdbx/hnsw_distance.zig` | `@Vector` cosine, `std.simd.suggestVectorLength` |
-| GPU | `src/features/gpu/vector_ops.zig` + `compute_api.zig` | `cosineSimilarity()` via Metal, CPU fallback |
-| NPU Detection | `src/features/wdbx/compute.zig` | `aneHardwarePresent()` — truthful |
-| Remote TPU | `src/features/wdbx/remote_compute.zig` | Reference DOT transport; no production caller wires `ABI_REMOTE_COMPUTE_ENDPOINT` |
-| Parity Test | `src/features/gpu/compute_api.zig` | CPU/GPU dot-product parity |
+| Backend Selector | `crates/abi-wdbx/src/compute.rs` | Dynamic CPU/GPU/NPU/TPU selection |
+| CPU SIMD | `crates/abi-wdbx/src/hnsw_distance.rs` | `@Vector` cosine, `std.simd.suggestVectorLength` |
+| GPU | `crates/abi-gpu/src/vector_ops.rs` + `lib.rs` | `cosineSimilarity()` via Metal, CPU fallback |
+| NPU Detection | `crates/abi-wdbx/src/compute.rs` | `aneHardwarePresent()` — truthful |
+| Remote TPU | `crates/abi-wdbx/src/remote_compute.rs` | Reference DOT transport; no production caller wires `ABI_REMOTE_COMPUTE_ENDPOINT` |
+| Parity Test | `crates/abi-gpu/src/compute_api.rs` | CPU/GPU dot-product parity |
 
 ## CLI Access
 
@@ -97,4 +97,4 @@ Per `docs/spec/wdbx-north-star.mdx` §3.3 and `docs/contracts/external-claims-au
 - ✅ Remote TPU dispatch transport (operator's endpoint)
 - ❌ Native CUDA/Metal/Vulkan/ANE kernel execution NOT linked
 - ❌ No bundled accelerator — TPU points at operator's own service
-- ❌ ANE execution requires CoreML/ObjC (not pure Zig) — disclosed non-goal
+- ❌ ANE execution requires CoreML/ObjC (not available as a pure in-tree kernel) — disclosed non-goal

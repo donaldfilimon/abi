@@ -32,5 +32,5 @@ sim responds + reports `escalation: false`; auth status lists all providers.
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | `/zig-build-doctor` or `./tools/check.sh`. |
-| missing `Twilio ConversationRelay simulation` | grammar drift — check `src/cli/handlers` twilio path + `src/connectors/twilio.zig`. |
+| `build` FAIL | `./tools/check.sh`. |
+| missing `Twilio ConversationRelay simulation` | grammar drift — check `src/cli/handlers` twilio path + `crates/abi-connectors/src/twilio.rs`. |

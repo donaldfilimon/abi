@@ -93,7 +93,7 @@ Sets `ABI_MCP_HTTP_TOKEN` and `ABI_WDBX_REST_TOKEN` for current session.
                    ┌─────────────────────┐
                    │  JSON-RPC 2.0       │
                    │  Protocol Engine    │
-                   │  (src/mcp/protocol) │
+                   │  (crates/abi-mcp/src/protocol) │
                    └──────────┬──────────┘
                               ▼
                    ┌─────────────────────┐
@@ -107,18 +107,18 @@ Sets `ABI_MCP_HTTP_TOKEN` and `ABI_WDBX_REST_TOKEN` for current session.
                               ▼
                    ┌─────────────────────┐
                    │  Tool Dispatch      │
-                   │  (src/mcp/handlers) │
+                   │  (crates/abi-mcp/src/handlers) │
                    └─────────────────────┘
 ```
 
-## Protocol Limits (Enforced in `src/mcp/middleware.zig` + `src/mcp/protocol.zig`)
+## Protocol Limits (Enforced in `crates/abi-mcp/src/middleware.rs` + `crates/abi-mcp/src/protocol.rs`)
 
 | Limit | Value | Source |
 |-------|-------|--------|
 | Max request size | 64 KB | `protocol.MAX_REQUEST_SIZE` |
 | Max JSON depth | 32 | `protocol.MAX_JSON_DEPTH` |
-| Max field size | 16 KB | `src/mcp/middleware.zig` per-field cap |
-| Stdio exit | EOF/read fail | `src/mcp/stdio_transport.zig` |
+| Max field size | 16 KB | `crates/abi-mcp/src/middleware.rs` per-field cap |
+| Stdio exit | EOF/read fail | `crates/abi-mcp/src/stdio.rs` |
 
 ## Authentication
 
@@ -153,7 +153,7 @@ Sets `ABI_MCP_HTTP_TOKEN` and `ABI_WDBX_REST_TOKEN` for current session.
 
 ## Error Handling
 
-- `handlers.errorMessage` normalizes **every** `anyerror` to stable non-leaking string
+- `handlers.errorMessage` normalizes **every** `anyhow/thiserror / crate errors` to stable non-leaking string
 - Raw `@errorName` **never** leaks on either transport
 - Feature-disabled tools return `FeatureDisabled` error (not fabricated success)
 

@@ -68,9 +68,9 @@ ai_run, ai_complete, ai_learn, ai_train, wdbx_query, scheduler_stats, scheduler_
 ## Implementation
 
 Maps to:
-- `src/mcp/main.zig` - JSON-RPC 2.0 server
-- `src/mcp/handlers.zig` - 12 tool implementations
-- `src/mcp/http_transport.zig` - Loopback HTTP/SSE
+- `crates/abi-mcp/src/main.rs` - JSON-RPC 2.0 server
+- `crates/abi-mcp/src/handlers.rs` - 12 tool implementations
+- `crates/abi-mcp/src/http.rs` - Loopback HTTP/SSE
 
 ## Feature Gates
 

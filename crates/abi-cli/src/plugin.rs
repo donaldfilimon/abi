@@ -98,13 +98,11 @@ mod tests {
     const GOLDEN_LIST: &str = include_str!("../../../tests/golden/plugin-list.txt");
 
     #[test]
-    fn list_matches_the_golden_fixture_but_for_the_entry_point() {
+    fn list_matches_the_golden_fixture() {
         let output = list();
         assert_eq!(output.exit_code, 0);
-        assert!(output.stdout.is_empty(), "Zig printed to stderr");
-        // `mod.zig` -> `mod.rs` is the one disclosed deviation; every other byte
-        // of the sixteen-plugin listing is asserted here.
-        assert_eq!(output.stderr.replace("(mod.rs)", "(mod.zig)"), GOLDEN_LIST);
+        assert!(output.stdout.is_empty(), "plugin list prints to stderr");
+        assert_eq!(output.stderr, GOLDEN_LIST);
     }
 
     #[test]

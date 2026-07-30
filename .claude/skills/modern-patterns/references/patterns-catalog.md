@@ -22,13 +22,13 @@ return Ok(result.value);
 ## Types
 
 **Legacy**
-```zig
-const status = "pending" | "done"; // string
+```rust
+let status: &str = "pending"; // untyped string
 ```
 
 **Modern**
-```zig
-const Status = enum { pending, done };
+```rust
+enum Status { Pending, Done }
 ```
 
 ## Modularity

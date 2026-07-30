@@ -197,22 +197,6 @@ mod tests {
                 continue;
             }
 
-            // plugin_list is fully ported and matches every byte except the
-            // entry-point file name: Zig reported `mod.zig`, and the Rust
-            // plugins are `mod.rs`. Rewriting just that token keeps the rest of
-            // the 16-plugin listing — names, versions, targets, descriptions,
-            // and their declaration order — under a byte-exact assertion.
-            if tool == "plugin_list" {
-                let retargeted = serde_json::from_str::<Value>(
-                    &serde_json::to_string(&got)
-                        .expect("response reserializes")
-                        .replace("entry=mod.rs ", "entry=mod.zig "),
-                )
-                .expect("retargeted response parses");
-                assert_eq!(retargeted, *expected_response, "tool={tool}");
-                continue;
-            }
-
             assert_eq!(got, *expected_response, "tool={tool}");
         }
     }

@@ -23,9 +23,9 @@ Shows table with:
 
 ## Implementation
 
-Reads `build_options` from Zig build system:
+Reads Cargo features / workspace crate enablement:
 - 15 flags: ai, gpu, tui, accelerator, shader, mlir, mobile, wdbx, os_control, hash, metrics, telemetry, nn, sea, foundationmodels
-- Each has `mod.zig` (real) + `stub.zig` (disabled) pair
+- Each has `mod.rs` (real) + `stub.rs` (disabled) pair
 
 ## Skill Integration
 

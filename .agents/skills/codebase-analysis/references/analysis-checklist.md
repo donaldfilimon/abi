@@ -6,8 +6,8 @@ Use before planning a modernization. Capture evidence (path + line + why), not v
 
 - [ ] Module / package boundaries identified (entrypoints, public API, generated files)
 - [ ] Frozen contracts listed (CLI commands, MCP tools, public `mod`/`stub` pairs)
-- [ ] Generated or host-only paths noted (do not hand-edit; e.g. `src/plugin_registry.zig`)
-- [ ] Executable sources of truth named (`Cargo.toml`, `usage.zig`, contract tests, gates)
+- [ ] Generated or host-only paths noted (do not hand-edit; e.g. `crates/abi-plugins/src/lib.rs`)
+- [ ] Executable sources of truth named (`Cargo.toml`, `crates/abi-cli/src/usage.rs`, contract tests, gates)
 
 ## 2. Legacy pattern scan
 
@@ -28,7 +28,7 @@ Use before planning a modernization. Capture evidence (path + line + why), not v
 ## 4. Testability & risk
 
 - [ ] Can the unit be tested without network, credentials, or full process graph?
-- [ ] Which gate proves behavior today? (`./tools/check.sh`, focused `zig build test-*`)
+- [ ] Which gate proves behavior today? (`./tools/check.sh`, focused `./tools/cargo.sh test`)
 - [ ] Blast radius if wrong: contracts, persistence, connectors, public claims
 
 ## 5. Prioritization output

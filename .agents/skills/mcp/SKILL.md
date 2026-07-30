@@ -5,7 +5,7 @@ description: Plan abi MCP server work — the 12-tool JSON-RPC 2.0 surface over 
 
 # mcp
 
-Entry point for the abi MCP server (`src/mcp/`). Routes to specialists:
+Entry point for the abi MCP server (`crates/abi-mcp/src/`). Routes to specialists:
 
 | You want to… | Use |
 | --- | --- |
@@ -18,7 +18,7 @@ Entry point for the abi MCP server (`src/mcp/`). Routes to specialists:
   `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`,
   `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`.
 - `protocol.MAX_REQUEST_SIZE` = 64 KB; `MAX_JSON_DEPTH` = 32; per-field 16 KB
-  cap in `src/mcp/middleware.zig` (declarative validation before dispatch).
+  cap in `crates/abi-mcp/src/middleware.rs` (declarative validation before dispatch).
 - Frozen enums: `connector_test` tool arg `service` ∈ {openai, anthropic, discord,
   twilio, grok}; `ai_train` tool arg `format` ∈ {jsonl, csv, text}.
 
@@ -26,5 +26,5 @@ Entry point for the abi MCP server (`src/mcp/`). Routes to specialists:
 Stdio exits on stdin EOF (not a long-lived daemon). Optional HTTP/SSE is
 loopback-only (`127.0.0.1:8080`, `ABI_MCP_HTTP_PORT` / `ABI_MCP_HTTP_TOKEN`).
 Non-loopback hardening (TLS/authz/rate-limit) is **not** done — deploy behind
-a TLS-terminating proxy. `handlers.errorMessage` normalizes every `anyerror`
+a TLS-terminating proxy. `handlers.errorMessage` normalizes every `anyhow/thiserror / crate errors`
 so `@errorName` never leaks on either transport.

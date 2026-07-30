@@ -23,7 +23,7 @@ Reports the current state of the agent REPL context.
 
 ## Implementation
 
-Reads `ReplState` from `src/features/tui/repl.zig`:
+Reads `ReplState` from `crates/abi-cli/src/terminal.rs`:
 - `turn_history` ring buffer
 - `file_mentions` cache
 - `learn_mode` flag

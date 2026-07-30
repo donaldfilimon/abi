@@ -90,9 +90,9 @@ hotkeys / Tab — there is no separate `pane --focus` CLI.
 ## Implementation
 
 Maps to:
-- `src/features/tui/repl.zig` - REPL with line editor (`abi agent tui`)
-- `src/features/tui/dashboard.zig` - Split-pane dashboard (`abi tui` / `abi dashboard`)
-- `src/features/tui/line_editor.zig` - CSI decode, cursor, history
+- `crates/abi-cli/src/terminal.rs` - REPL with line editor (`abi agent tui`)
+- `crates/abi-cli/src/dashboard.rs` - Split-pane dashboard (`abi tui` / `abi dashboard`)
+- `crates/abi-cli/src/terminal.rs` - CSI decode, cursor, history
 - `.agents/skills/run-tui/tui.sh` - Interactive pty driver
 - `.agents/skills/dashboard-smoke/dashboard.sh` - Headless one-shot smoke
 

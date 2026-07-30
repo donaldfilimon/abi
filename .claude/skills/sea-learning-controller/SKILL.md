@@ -21,7 +21,7 @@ Toggles the SEA adaptive learning loop on/off for the current session.
 
 ## Implementation
 
-Controls `ReplConfig.learn_mode` in `src/features/tui/repl.zig`:
+Controls `ReplConfig.learn_mode` in `crates/abi-cli/src/terminal.rs`:
 - When on: `complete --learn --stream` uses `completeWithStoreAdaptive`
 - Persists `AdaptiveModulator` weights (EMA, alpha=0.3) to WDBX key `modulator:weights`
 - 8-signal scorer with task-aware weighting (7 task types)

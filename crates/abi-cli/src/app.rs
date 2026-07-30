@@ -428,8 +428,10 @@ pub fn run(args: &[String]) -> Outcome {
         return crate::twilio::run(&args[1..]);
     }
 
+    // All thirteen frozen COMMANDS have handlers above. Reaching here means a
+    // new name was added to `usage::COMMANDS` without a dispatch arm.
     Outcome::stderr(
-        format!("error: Rust handler for `{resolved}` is not yet ported\n"),
+        format!("error: internal: no handler registered for `{resolved}`\n"),
         1,
     )
 }

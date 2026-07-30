@@ -40,9 +40,9 @@ System hardware report:
 ## Implementation
 
 Maps to:
-- `src/features/gpu/reporting.zig` - Metal/CUDA/Vulkan detection
-- `src/features/gpu/vector_ops.zig` - HNSW search acceleration
-- `src/features/gpu/compute_api.zig` - SIMD/Metal kernels
+- `crates/abi-gpu/src/reporting.rs` - Metal/CUDA/Vulkan detection
+- `crates/abi-gpu/src/vector_ops.rs` - HNSW search acceleration
+- `crates/abi-gpu/src/compute_api.rs` - SIMD/Metal kernels
 
 ## Feature Gate
 

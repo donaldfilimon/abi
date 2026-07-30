@@ -5,24 +5,16 @@ description: Build, launch, and drive the abi nightly-Rust project — the `abi`
 
 # Run abi
 
-`abi` is a modular Zig framework that builds two binaries: a CLI (`target/debug/abi`)
-and an MCP server (`target/debug/abi-mcp`, JSON-RPC 2.0 over stdio + optional
-loopback HTTP/SSE). Both are **non-interactive and headless-friendly** — the
-driver builds them and drives the real binaries end-to-end. The diagnostics TUI
-also has a clean non-TTY one-shot mode; use tmux only when you need to exercise
-the interactive refresh loop (see Gotchas).
+`abi` is a **nightly Rust** framework that builds two binaries: a CLI
+(`target/debug/abi`) and an MCP server (`target/debug/abi-mcp`, JSON-RPC 2.0 over
+stdio + optional loopback HTTP/SSE). Both are **non-interactive and
+headless-friendly** — the driver builds them and drives the real binaries
+end-to-end.
 
-**Paths below are relative to the repo root** (`<unit>/`). The driver lives at
-`.agents/skills/run-abi/smoke.sh` and resolves the repo root from its own location,
-so you can run it from any cwd.
+**Paths below are relative to the repo root.** The driver lives at
+`.agents/skills/run-abi/smoke.sh` and resolves the repo root from its own location.
 
 ## Run (agent path) — the driver
-
-One command builds both binaries and drives them with real input — CLI
-subcommands (help, backends, scheduler, complete, plugin list), a WDBX store round-trip
-(init → insert → query), and the MCP server over stdio with real JSON-RPC
-(initialize + tools/list + tools/call). It checks exit codes, greps output for
-expected markers, prints `pass=N fail=N`, and writes a full transcript.
 
 ```bash
 ./.agents/skills/run-abi/smoke.sh
@@ -31,110 +23,61 @@ expected markers, prints `pass=N fail=N`, and writes a full transcript.
 Expected tail on success (exit 0):
 
 ```
-=== summary: pass=18 fail=0 ===
-transcript: <repo>/zig-out/run-abi-smoke.txt
+=== summary: pass=N fail=0 ===
+transcript: <repo>/target/debug/run-abi-smoke.txt
 SMOKE OK
 ```
 
-The transcript lands at `zig-out/run-abi-smoke.txt` and a scratch WDBX store at
-`zig-out/smoke-memory.jsonl`. Read the transcript to see every command, its
-output, and exit code. A non-zero exit equals the number of failed checks.
-
 ## Prerequisites
 
-- macOS (this repo is Darwin-first; `Cargo.toml` links Metal when `feat-gpu=true`).
-- The pinned dev Zig must already be on `PATH`. `rust-toolchain.toml` pins
-  `0.17.0-dev.1442+972627084` (see repo-root `rust-toolchain.toml`; `Cargo.toml.zon`
-  `minimum_zig_version` may be a lower bound). The tree also compiles on nearby
-  Zig master nightlies (verify with `zig version` / the `zig-newest-skills`
-  driver). `./build.sh` does **not** switch or enforce the pin — it runs
-  whatever `zig` is on `PATH` and just echoes `Using Zig: …`. Select the
-  toolchain with zvm/zigup first. Zig 0.16 will not compile this tree.
-
-```bash
-zig version    # must be a 0.17.0-dev build
-```
+- Nightly Rust via `rust-toolchain.toml`. **Always** use `./tools/cargo.sh`
+  (never bare Homebrew `cargo`).
+- Primary gate: `./tools/check.sh`.
 
 ## Build
 
-The driver builds for you, but to build the binaries directly:
-
 ```bash
-./tools/cargo.sh build -p abi-cli    # -> target/debug/abi
-./tools/cargo.sh build -p abi-mcp    # -> target/debug/abi-mcp
+./tools/cargo.sh build -p abi-cli   # -> target/debug/abi
+./tools/cargo.sh build -p abi-mcp   # -> target/debug/abi-mcp
 ```
 
-Cold builds are slow (full feature graph + Metal link). Builds are incremental
-against `.zig-cache/`; a warm rebuild + full smoke run finishes in ~1s.
+On arm64 macOS, building with the default `foundationmodels` feature also
+produces `target/debug/libabi_fm_shim.dylib` next to the binaries.
 
 ## Drive the CLI directly
 
-All of these were run as part of the smoke pass:
-
 ```bash
 ./target/debug/abi help
-./target/debug/abi backends                 # GPU/accelerator/shader/MLIR report
+./target/debug/abi backends
 ./target/debug/abi scheduler status
-./target/debug/abi complete "summarize scheduler status"   # -> model=claude-fable-5 ...
-./target/debug/abi plugin list              # CLI sees all 16 bundled plugins
-./target/debug/abi wdbx db init zig-out/smoke-memory.jsonl
-./target/debug/abi wdbx block insert zig-out/smoke-memory.jsonl abi '{"note":"hi"}'
-./target/debug/abi wdbx query zig-out/smoke-memory.jsonl
+./target/debug/abi complete "summarize scheduler status"
+./target/debug/abi plugin list
 ```
 
 ## Drive the MCP server directly
 
-The server reads newline-delimited JSON-RPC on stdin and writes responses to
-stdout. Pipe requests in; `stderr` carries logs (redirect with `2>/dev/null`):
-
 ```bash
 printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}' \
-  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"plugin_list","arguments":{}}}' \
-  | ./target/debug/abi-mcp stdio 2>/dev/null
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+  | ./target/debug/abi-mcp 2>/dev/null
 ```
 
-Returns the `serverInfo` handshake then the tool result. Other no-arg tools to
-probe: `scheduler_info`, `gpu_status`, `wdbx_stats`. The smoke also calls
-`plugin_list` and expects the same 16 bundled plugins as the CLI. The server exposes 12 tools;
-`tools/list` enumerates them with their input schemas.
-
-## Run (human path) — the TUI
-
-The diagnostics dashboard is interactive on a real terminal:
-
-```bash
-./target/debug/abi tui        # or: abi dashboard / abi --tui
-```
-
-Run it in your own terminal and quit with the in-app key. For headless checks,
-use the dashboard one-shot smoke (`abi dashboard < /dev/null`) or the tmux-based
-`run-tui` skill for the interactive path.
+Exactly **12** frozen tools. Prefer `mcp/launcher.sh` when `@loader_path` for
+the FM dylib matters.
 
 ## Gotchas
 
-- **`abi tui`/`dashboard`/`--tui` are interactive on a TTY.** With stdin piped or
-  `/dev/null`, they should render once and exit cleanly through the non-TTY
-  fallback. Use a pty (tmux `send-keys`/`capture-pane`) to drive the live loop.
-- **CLI and MCP plugin lists should match.** Both surfaces load the 16 bundled
-  plugin manifests; drift means the shared plugin manager/registry wiring changed.
-- **Both Metal runtime states are valid.** `backends` reports whether the linked
-  Metal kernels initialized successfully. `accelerated=true` means native Metal
-  kernels are active; `accelerated=false` means initialization was unavailable or
-  failed and the deterministic vectorized CPU fallback is active. Neither state
-  should be inferred from framework linkage alone.
-- **`./build.sh` does not honor `rust-toolchain.toml`.** It runs whatever `zig` is on
-  `PATH`. If a build fails with std API errors, check `zig version` first.
-- **`complete` (no `--live`) is fully local** — it routes to the local model and
-  records WDBX metadata; it does not call any remote provider.
+- **GPU honesty:** `accelerated=false` means native kernels are not linked;
+  CPU SIMD is the real path. Do not treat Metal-as-preferred as native kernels.
+- **`complete` (no `--live`)** is fully local. `--live` is Anthropic-only for HTTP;
+  `apple-fm --confirm` uses the FoundationModels shim when ready.
+- **Store safety:** do not point smokes at the user's real `~/.abi/` path.
 
 ## Troubleshooting
 
-- `command not found: timeout` (when probing the TUI on macOS): `timeout` isn't a
-  default macOS command. Use a background-process + `kill` pattern, or `gtimeout`
-  from coreutils.
-- Smoke prints `FATAL: binaries not produced`: a build step failed — re-run
-  `./tools/cargo.sh build -p abi-cli` / `./tools/cargo.sh build -p abi-mcp` and read the compiler error; usually a
-  wrong `zig` on `PATH`.
-- MCP responses look empty: logs go to `stderr`. Keep `2>/dev/null` (or inspect
-  stderr separately) so JSON on stdout is clean.
+| Symptom | Fix |
+|---|---|
+| build FAIL | `./tools/check.sh`; ensure nightly via `./tools/cargo.sh` |
+| dyld FM shim missing | build from repo so `libabi_fm_shim.dylib` sits next to `abi` |
+| MCP empty | JSON on stdout; logs on stderr — drop stderr when grepping tools |
