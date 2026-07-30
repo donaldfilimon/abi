@@ -17,6 +17,7 @@ abi-foundation = { workspace = true }
 abi-plugins = { workspace = true }
 abi-ai = { workspace = true }
 abi-sea = { workspace = true }
+abi-gpu = { workspace = true }
 abi-connectors = { path = "../abi-connectors" }
 abi-wdbx = { path = "../abi-wdbx" }
 serde = { workspace = true }

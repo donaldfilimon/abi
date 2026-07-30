@@ -168,10 +168,22 @@ mod tests {
             let got = resp(&call);
             let expected_response = &expected["response"];
 
-            // wdbx_stats depends on a GPU backend that is not linked, and
-            // gpu_status on a feature not yet ported, so both diverge by
-            // disclosure — see McpState::wdbx_stats_text.
+            // wdbx_stats discloses backend=cpu (no Rust GPU linked) rather than
+            // Zig's metal; gpu_status is ported with the same honesty — preferred
+            // name is metal on macOS but accelerated=false and the message says
+            // native kernels are not linked. Shape-check both; skip byte-equality.
             if matches!(tool, "wdbx_stats" | "gpu_status") {
+                let text = got["result"]["content"][0]["text"]
+                    .as_str()
+                    .expect("text content");
+                if tool == "gpu_status" {
+                    assert!(text.starts_with("backend="), "{text}");
+                    assert!(text.contains(" available="), "{text}");
+                    assert!(text.contains(" accelerated=false"), "{text}");
+                    assert!(text.contains(" capabilities=7 "), "{text}");
+                    assert!(text.contains(" message="), "{text}");
+                    assert!(!text.contains("accelerated=true"), "{text}");
+                }
                 continue;
             }
 

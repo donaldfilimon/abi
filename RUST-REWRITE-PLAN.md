@@ -236,8 +236,13 @@ names" into "the Rust CLI emits byte-identical output".
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir,
   hash, metrics, telemetry, mobile, os_control.
   - The bounded process-wide telemetry counter table and Prometheus text
-    rendering are ported as `abi-telemetry`; GPU and the remaining small
-    features are still open.
+    rendering are ported as `abi-telemetry`.
+  - [x] **6a. `abi-gpu` detection + MCP `gpu_status`.** Declared seven-backend
+    capability table, preferred backend (Metal on macOS / simulated elsewhere),
+    and the MCP wire line. **Native kernels are not linked** — `accelerated`
+    is always `false` and the message discloses vectorized CPU fallback. Shape-
+    checked in the golden fixture path; not byte-equal to Zig's Metal-linked
+    message.
 - [ ] **7. `abi-tui`**
 - [x] **8a. `abi-cli` contract model** — frozen 13-command metadata,
   top-level help, shortcut resolution, and argument-free command help are
@@ -285,10 +290,10 @@ names" into "the Rust CLI emits byte-identical output".
   - Wired after 5a–5d/10: all four AI tools (`ai_run`, `ai_complete`,
     `ai_learn`, `ai_train`), plus `plugin_list`/`plugin_run`.
   - Wired: `wdbx_query` (persona prototype seed + hybrid re-rank via
-    `hybrid_search_with_persona`, fixed `now_ms=1000` matching Zig).
+    `hybrid_search_with_persona`, fixed `now_ms=1000` matching Zig),
+    `gpu_status` (honest no-kernel disclosure via `abi-gpu`).
   - Honestly stubbed (`NotYetPorted`, after validation still runs):
-    `gpu_status` and `connector_test` for `twilio` — each depends on a feature
-    plan step 6 hasn't reached yet, or (twilio) on `twilio_relay.zig`'s
+    `connector_test` for `twilio` only — depends on `twilio_relay.zig`'s
     conversation builder from step 3b.
   - `wdbx_stats` reads the real durable store (env resolution — `ABI_WDBX_PATH`,
     `ABI_WDBX_PERSIST`, `XDG_DATA_HOME`, `HOME` fallback — ported and unit

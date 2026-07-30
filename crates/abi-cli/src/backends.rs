@@ -37,8 +37,8 @@ const FEATURES: &[Feature] = &[
     },
     Feature {
         name: "gpu",
-        implemented: false,
-        detail: "native Rust GPU kernels not linked; CPU fallback active",
+        implemented: true,
+        detail: "detection + MCP gpu_status ported; native kernels not linked",
     },
     Feature {
         name: "accelerator",
@@ -174,7 +174,7 @@ mod tests {
         assert!(output.stdout.is_empty());
         assert!(output.stderr.contains("Rust nightly"));
         assert!(output.stderr.contains("wdbx               \u{1b}[32m✓"));
-        assert!(output.stderr.contains("gpu                \u{1b}[90m○"));
+        assert!(output.stderr.contains("gpu                \u{1b}[32m✓"));
         assert!(
             output
                 .stderr

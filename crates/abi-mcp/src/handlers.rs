@@ -331,7 +331,7 @@ pub fn handle_tools_call(state: McpState, params: Option<&Value>) -> Result<Valu
     }
 
     match tool_name {
-        "gpu_status" => Err(ToolError::NotYetPorted),
+        "gpu_status" => Ok(text_result(&abi_gpu::status_text())),
         "wdbx_query" => {
             let args = tool_arguments(params_obj)?;
             let query = object_string(args, "query", ToolError::MissingQuery)?;
