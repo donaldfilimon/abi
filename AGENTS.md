@@ -83,8 +83,9 @@ use scratch `DurableStore` paths, `ABI_WDBX_PATH=:memory:`, or
 - Live code is Rust under `crates/`. The Zig tree, `modernized/`, and
   `modern-refactor/` scaffolds were removed; historical archive docs may still
   mention Zig.
-- Interactive `abi tui|dashboard` is one-shot digest by default; `agent tui` is
-  line-mode (raw-mode not linked). Dashboard is digest only.
+- Interactive `abi dashboard|tui` enters raw-mode on a TTY (one-shot for
+  `--once`/`--json`/non-TTY); `agent tui` is line-mode (raw-mode editor not
+  linked).
 - Plugin slash-commands dispatch via `__cmd__:<name>` (parallel to
   `__context__:<name>`).
 - WDBX borrowed vectors are zero-copy; lifetime ends on next mutation.

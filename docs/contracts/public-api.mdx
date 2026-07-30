@@ -3,54 +3,52 @@ title: "ABI Public API Contract"
 description: "This document records the public surfaces that should remain stable across feature flags and refactors. Treat it as a human-readable companion to…"
 ---
 
-This document records the public surfaces that should remain stable across feature flags and refactors. Treat it as a human-readable companion to `tests/contracts/` and `zig build check-parity`.
+This document records the public surfaces that should remain stable across feature flags and refactors. Treat it as a human-readable companion to `tests/golden/` and `./tools/check.sh`.
 
-## Root exports
+## Workspace crates
 
-`src/root.zig` exports these top-level namespaces:
+Public library and binary surfaces live under `crates/`:
 
-- `interfaces`
-- `foundation`
-- `features`
-- `registry`
-- `config`
-- `connectors`
-- `memory`
-- `scheduler`
-- `plugins`
+- `abi-foundation` — shared utilities, credentials, HTTP helpers, plugin manifest validation
+- `abi-core` — config, memory, scheduler, plugin registry
+- `abi-ai` — profiles, identity, routing, completion/training helpers
+- `abi-wdbx` — vector/key-value/block store, WAL, cluster/compute/secure demos, REST
+- `abi-gpu` — GPU capability/status reporting, optional Metal DOT, shaders/mlir/mobile report surfaces
+- `abi-connectors` — local/live connector boundaries
+- `abi-plugins` — bundled plugins + `PluginManager` (compile-time `Plugin` trait + mod/stub parity)
+- `abi-sea` / `abi-nn` / `abi-telemetry` — feature crates behind the same workspace
+- `abi-cli` — binary `abi` (frozen 13-command CLI)
+- `abi-mcp` — binary `abi-mcp` (frozen 12 MCP tools)
 
-## Feature gates
+There is no monolithic root crate re-exporting every namespace; consumers depend on the workspace crates above.
 
-Feature modules are selected by `src/features/mod.zig` from `build_options` and must keep `mod.zig` / `stub.zig` public API parity. `zig build check-parity` checks top-level public declaration names for feature/plugin pairs; it is not a complete signature/type equivalence checker.
+## Feature gates and plugin parity
 
-- `ai`
-- `accelerator`
-- `gpu`
-- `hash`
-- `metrics`
-- `telemetry`
-- `mlir`
-- `os_control`
-- `shaders`
-- `tui`
-- `wdbx`
-- `sea`
-- `mobile`
-- `nn`
+Feature and plugin surfaces keep real/`stub` public API parity via the Rust type system: both `mod.rs` and `stub.rs` implement the `Plugin` trait in `crates/abi-plugins`, with `assert_plugin_parity!` covering metadata constants. This replaces the former declaration-name parity gate; it is still not a complete behavioral equivalence checker.
 
-Disabled features should return stable no-op or explicit disabled-feature responses rather than removing public symbols. `tools/check_feature_stubs.sh` now runs CLI compilation, focused `zig build test-feature-contracts -Dfeat-*=false`, and feature-aware `zig build test-contracts -Dfeat-*=false` coverage for every `src/features` flag. It also runs an enabled-feature pass for SEA/metrics/mobile inline tests and a `-Dfeat-foundationmodels=false` CLI compile check for the connector-specific build flag.
+Representative feature crates / modules:
 
-The GPU feature has a stable runtime contract across real and disabled builds: all backends are listed, `detectBackend()` returns a safe backend status, vector operations use linked Metal `dot` / `squaredL2` / fused `cosine_parts` kernels plus multi-pass `reduce_sum_kernel` / `reduce_max_kernel` / `reduce_min_kernel`, elementwise `add` / `sub` / `max` / `min` / `div` via `compute_api`, unary `scale` / `relu` / `abs` / `negate` (`scale_kernel` / `relu_kernel` / `abs_kernel` / `negate_kernel`), elementwise `mul` via existing `dot_kernel` / `dot_pipeline` (`result[id]=a[id]*b[id]`; no separate `mul_kernel`), and demo-grade `softmax` (`softmax_kernel` + `softmax_norm_kernel`, on-GPU reduce_max when available, host partition-sum) on macOS when native kernels initialize (else deterministic vectorized CPU fallback), and `backendStatusReport()` explains whether Metal/native kernels are active or falling back. This does not prove CUDA/Vulkan/ANE dispatch or GPU speedup figures.
+- `ai` (`abi-ai`)
+- `gpu` / `shaders` / `mlir` / `mobile` (`abi-gpu`)
+- `wdbx` (`abi-wdbx`)
+- `sea` (`abi-sea`)
+- `nn` (`abi-nn`)
+- `telemetry` / metrics-style exporters (`abi-telemetry`, plugins)
+- connectors / OS-control helpers as wired through CLI and connectors
 
-The mobile feature exposes a stable profile contract across real and disabled builds: `RuntimeMode`, `MobileProfile`, `DeviceProfile`, `profile()`, `deviceProfile()`, `layoutSummary()`, and `runtimeModeName()` report platform/profile metadata and validate layout inputs. Real desktop builds use a simulated mobile profile, and disabled builds preserve the same public symbols with explicit disabled responses. This contract does not prove native iOS/Android dispatch.
+Disabled features should return stable no-op or explicit disabled-feature responses rather than removing public symbols. Workspace tests under `./tools/check.sh` and golden fixtures under `tests/golden/` guard the frozen CLI/MCP surfaces.
 
-The WDBX store contract exposes key-value counts, vector counts, block counts, spatial record counts, temporal node/edge counts, vector dimensions, next vector ID, and acceleration status via `stats()` and `exportManifest()`. Default contract tests verify non-increasing vector search scores, block metadata round-tripping, manifest snapshots, temporal graph snapshot restore, and block-chain snapshot lookup. Disabled WDBX builds preserve the same manifest shape where possible and add `"disabled":true`; key-value/vector/search/block/spatial/temporal write paths return `error.FeatureDisabled` instead of fabricating successful persistence.
+The GPU crate has a stable runtime contract across real and disabled builds: all declared backends are listed, detection returns a safe backend status, and vector work uses linked Metal **DOT** on macOS when the `metal-kernels` feature initializes a device/pipeline (`crates/abi-gpu/src/metal_kernels.rs`); otherwise deterministic CPU SIMD fallback with `accelerated=false`. Status reporting explains whether Metal/native kernels are active or falling back. This does not prove CUDA/Vulkan/ANE dispatch, a broader Metal kernel suite, or GPU speedup figures.
+
+The mobile surface exposes a stable profile contract across real and disabled builds: platform/profile metadata and layout validation helpers report honestly. Real desktop builds use a simulated mobile profile, and disabled builds preserve the same public symbols with explicit disabled responses. This contract does not prove native iOS/Android dispatch.
+
+The WDBX store contract exposes key-value counts, vector counts, block counts, spatial record counts, temporal node/edge counts, vector dimensions, next vector ID, and acceleration status via store `stats()` / manifest export. Default tests verify non-increasing vector search scores, block metadata round-tripping, manifest snapshots, temporal graph snapshot restore, and block-chain snapshot lookup. Disabled WDBX builds preserve the same manifest shape where possible and add `"disabled":true`; key-value/vector/search/block/spatial/temporal write paths return feature-disabled errors instead of fabricating successful persistence.
 
 This contract does not prove distributed sharding, AES-256 encryption, RBAC, Swift/Python/TensorFlow implementations, Kubernetes/H100 deployments, regulatory certifications, production QPS/latency/accuracy, energy-use, or comparative model-benchmark claims. Keep those out of public collateral unless they are backed by new executable tests, benchmark artifacts, or implementation files.
 
 ## AI identity and multi-persona surface
 
-`abi.features.ai.identity` (`src/features/ai/identity.zig`) is the executable
+`abi_ai::identity` (`crates/abi-ai/src/identity.rs`) is the executable
 mirror of the Abbey Core Identity contract:
 
 - Abbey is the only `primary_user_facing` profile; Aviva is the direct expert
@@ -64,20 +62,20 @@ mirror of the Abbey Core Identity contract:
   empirical benchmarks to Current / Partial / Proposed with explicit boundaries.
 
 Human-readable companion: `docs/spec/abbey-core-identity.mdx`. Local profile
-responses remain deterministic templates via `incremental.zig` /
-`router.zig` — not live model quality or distributed multi-host claims.
+responses remain deterministic templates via `crates/abi-ai/src/incremental.rs` /
+`crates/abi-ai/src/router.rs` — not live model quality or distributed multi-host claims.
 
 ## AI/WDBX completion contract
 
-`abi.features.ai.CompletionRequest.store_result` defaults to `false`. `completeWithStore()` must not mutate WDBX when storage is not requested, when input is invalid, or when WDBX is disabled.
+Completion persistence is opt-in. Completion helpers must not mutate WDBX when storage is not requested, when input is invalid, or when WDBX is disabled.
 
-When WDBX is enabled and `store_result=true`, `completeWithStore()` stores JSON completion metadata under `completion:<query_vector_id>`, records query/response vectors, and appends a conversation block linked to the previous block. `CompletionResult.query_vector_id`, `CompletionResult.response_vector_id`, and `CompletionResult.block_id` expose those persisted IDs when storage succeeds; they remain `null` when persistence is skipped or unavailable. The metadata includes `kind`, `model`, `profile`, `audit_passed`, `audit_vetoed`, weighted constitutional `escore`, byte counts, and query/response vector IDs. `abi.features.wdbx.Store.verifyBlocks()` exposes public chain-integrity verification across real and disabled WDBX builds.
+When WDBX is enabled and storage is requested, completion paths may store JSON completion metadata, record query/response vectors, and append a conversation block linked to the previous block. Result fields expose persisted IDs when storage succeeds; they remain unset when persistence is skipped or unavailable. Metadata includes kind, model, profile, audit fields, weighted constitutional escore, byte counts, and query/response vector IDs. WDBX exposes public chain-integrity verification across real and disabled builds (`crates/abi-wdbx/src/mvcc.rs`).
 
-AI scheduler integration is exposed through `CompletionTaskContext`, `TrainingTaskContext`, `AgentTaskContext`, `submitCompletionTask()`, `submitTrainingTask()`, `submitAgentTask()`, `completeWithScheduler()`, and `runAgentWithScheduler()`. Real AI builds submit scheduler tasks that fill caller-owned context results and attach any scheduler `MemoryTracker` to WDBX-backed work. Disabled AI builds preserve the public declarations: `submit*Task()` returns `error.FeatureDisabled`, while the convenience helpers preserve degraded completion/agent behavior by delegating to the local no-op paths.
+AI scheduler integration is exposed through scheduler-backed completion/training/agent helpers in `abi-ai` / `abi-core`. Real AI builds submit scheduler tasks that fill caller-owned context results and attach any scheduler memory tracker to WDBX-backed work. Disabled AI builds preserve public declarations with feature-disabled or degraded local no-op paths.
 
 ## CLI command contract
 
-The CLI command surface is guarded by `tests/contracts/surface.zig` and currently includes the frozen `src/cli/usage.zig` command array:
+The CLI command surface is guarded by golden fixtures under `tests/golden/` and the frozen command array in `crates/abi-cli/src/usage.rs`:
 
 - `help`
 - `complete`
@@ -93,17 +91,17 @@ The CLI command surface is guarded by `tests/contracts/surface.zig` and currentl
 - `scheduler`
 - `nn`
 
-The top-level `abi --tui` shortcut is handled in `src/main.zig` outside the frozen `usage.commands` array. `abi complete` prints completion governance/persistence observability (`audit_passed=`, `audit_escore=`, `audit_vetoed=`, `persisted=`, WDBX counts, vector IDs, metadata key, and block hash when available) for its transient in-memory WDBX store. `abi agent plan <input>`, `train <abbey|aviva|abi|all>`, `multi <input>`, and `spawn [--background] [--workers <spec>] <input>` run through local scheduler-backed AI helpers; they do not imply live external model training or distributed agents. `abi agent browser [--url <url>] [--execute --confirm] <task>` emits a reviewed local orchestration plan and local planner result. It does not embed or launch a browser; real navigation remains an external MCP integration step. `abi agent tui` runs an interactive REPL: on a POSIX TTY it uses a pure, unit-tested line editor (`src/features/tui/line_editor.zig`) with CSI/arrow decode, cursor edit, history, and tab completion of slash-commands; non-TTY/CI falls back to line-at-a-time stdin (same contract smoke as dashboard one-shot). `abi scheduler status` reports a one-shot CLI scheduler probe with task counts and attached `MemoryTracker` counters; it is not a long-running daemon.
+The top-level `abi --tui` shortcut is handled in `crates/abi-cli` outside the frozen `usage.commands` array. `abi complete` prints completion governance/persistence observability (`audit_passed=`, `audit_escore=`, `audit_vetoed=`, `persisted=`, WDBX counts, vector IDs, metadata key, and block hash when available) for its transient in-memory WDBX store. `abi agent plan <input>`, `train <abbey|aviva|abi|all>`, `multi <input>`, and `spawn [--background] [--workers <spec>] <input>` run through local scheduler-backed AI helpers; they do not imply live external model training or distributed agents. `abi agent browser [--url <url>] [--execute --confirm] <task>` emits a reviewed local orchestration plan and local planner result. It does not embed or launch a browser; real navigation remains an external MCP integration step. `abi agent tui` runs an interactive **line-mode** REPL (slash commands + local completion); the interactive raw-mode line editor is **not** linked for agent tui. `abi dashboard` / `abi tui` enter a raw-mode refresh loop on a TTY; `--once`, `--json`, or non-TTY force one-shot digest (`crates/abi-cli/src/dashboard.rs`). `abi scheduler status` reports a one-shot CLI scheduler probe with task counts and attached memory-tracker counters; it is not a long-running daemon.
 
-`abi nn` is a miniature character-level demo trainer behind `feat-nn`: `nn train "<text>"`, `nn train --jsonl <path> [--field <name>]`, and `nn sample ...`. It is not a production LLM trainer, distributed trainer, or external model benchmark surface.
+`abi nn` is a miniature character-level demo trainer behind the nn feature: `nn train "<text>"`, `nn train --jsonl <path> [--field <name>]`, and `nn sample ...`. It is not a production LLM trainer, distributed trainer, or external model benchmark surface.
 
-`abi wdbx <db|block|query|benchmark|simulate|cluster|compute|secure|gpu|api>` is a WDBX runtime control surface backed by the in-process store, segment checkpoints, a legacy JSONL snapshot mirror, and the write-ahead log (`src/cli/handlers/wdbx.zig`). `db`/`block`/`query`/`benchmark`/`gpu`/`api` operate the durable store and report state. Runtime `block get`, `query`, and the next `block insert` recover WAL-ahead state before serving data; `db verify` reports checkpoint/WAL divergence as a consistency failure until a write checkpoints it; `db compact <path> [keep]` retains the newest segment checkpoints and reclaims older manifest-listed checkpoints without touching the latest recovery baseline or sidecar WAL. `cluster`, `compute`, and `secure` are honest in-process demonstrations (single-host Raft-style consensus, backend selection with deterministic CPU fallback, int8 quantization, exact order-0 Huffman entropy coding, a reference autoencoder codec, additive single-key homomorphic aggregation, and DGHV somewhat-homomorphic add/multiply at reference parameters). They are **not** distributed clustering, native NPU/TPU execution, production/SOTA learned compression, or production-secure/bootstrapped full FHE — see `docs/spec/wdbx-north-star.mdx` and `docs/contracts/external-claims-audit.mdx`.
+`abi wdbx <db|block|query|benchmark|simulate|cluster|compute|secure|gpu|api>` is a WDBX runtime control surface backed by the in-process store, segment checkpoints, a legacy JSONL snapshot mirror, and the write-ahead log (`crates/abi-cli/src/wdbx.rs`). `db`/`block`/`query`/`benchmark`/`gpu`/`api` operate the durable store and report state. Runtime `block get`, `query`, and the next `block insert` recover WAL-ahead state before serving data; `db verify` reports checkpoint/WAL divergence as a consistency failure until a write checkpoints it; `db compact <path> [keep]` retains the newest segment checkpoints and reclaims older manifest-listed checkpoints without touching the latest recovery baseline or sidecar WAL. `cluster`, `compute`, and `secure` are honest in-process demonstrations (single-host Raft-style consensus, backend selection with deterministic CPU fallback, int8 quantization, exact order-0 Huffman entropy coding, a reference autoencoder codec, additive single-key homomorphic aggregation, and DGHV somewhat-homomorphic add/multiply at reference parameters). They are **not** distributed clustering, native NPU/TPU execution, production/SOTA learned compression, or production-secure/bootstrapped full FHE — see `docs/spec/wdbx-north-star.mdx` and `docs/contracts/external-claims-audit.mdx`.
 
 ## MCP contract
 
-The MCP server exposes JSON-RPC 2.0 over stdio and loopback HTTP/SSE. Feature-backed tools must expose explicit degraded responses when AI or WDBX is disabled; for example, `ai_train` reports `training disabled` when the AI stub returns `accepted=false`, and `ai_complete` rejects empty input before touching WDBX. Request bodies are capped at 64 KB (`protocol.MAX_REQUEST_SIZE`) and must start with a JSON object; both stdio and HTTP inherit a shared nesting bound (`protocol.MAX_JSON_DEPTH`, currently 32) that rejects over-nested `{`/`[` containers before `std.json.parseFromSlice` (TM-008). MCP completion, training, query, and stats tools share a long-lived in-process WDBX store for the server lifetime; per-call output reports governance fields, call deltas, and total WDBX counts where applicable. When WDBX is enabled, `wdbx_query` seeds local Abbey/Aviva/Abi profile vectors, uses the persisted temporal/causal graph, and returns a hybrid-ranked local match with semantic, temporal, causal, and persona component scores plus `ranking=hybrid`.
+The MCP server exposes JSON-RPC 2.0 over stdio and loopback HTTP/SSE. Feature-backed tools must expose explicit degraded responses when AI or WDBX is disabled; for example, `ai_train` reports training disabled when the AI stub returns `accepted=false`, and `ai_complete` rejects empty input before touching WDBX. Request bodies are capped at 64 KB (`protocol.MAX_REQUEST_SIZE`) and must start with a JSON object; both stdio and HTTP inherit a shared nesting bound (`protocol.MAX_JSON_DEPTH`, currently 32) that rejects over-nested `{`/`[` containers before JSON parse (TM-008). MCP completion, training, query, and stats tools share a long-lived in-process WDBX store for the server lifetime; per-call output reports governance fields, call deltas, and total WDBX counts where applicable. When WDBX is enabled, `wdbx_query` seeds local Abbey/Aviva/Abi profile vectors, uses the persisted temporal/causal graph, and returns a hybrid-ranked local match with semantic, temporal, causal, and persona component scores plus `ranking=hybrid`.
 
-`ai_train` dataset and artifact paths are confined under the training data root: process cwd by default, or `ABI_TRAIN_DATA_ROOT` when set. Middleware still rejects `..` segments on all `file_path` fields; the training path additionally rejects absolute paths outside the root and realpath/symlink escapes (`training_support.confineTrainingPath`). This is local path sandboxing, not a full multi-tenant chroot.
+`ai_train` dataset and artifact paths are confined under the training data root: process cwd by default, or `ABI_TRAIN_DATA_ROOT` when set. Middleware still rejects `..` segments on all `file_path` fields; the training path additionally rejects absolute paths outside the root and realpath/symlink escapes. This is local path sandboxing, not a full multi-tenant chroot.
 
 Contract tools are:
 
@@ -128,7 +126,7 @@ The WDBX REST API (`abi wdbx api serve [port]`) binds `127.0.0.1` and exposes `P
 
 ## Plugin registry contract
 
-Plugin discovery is static and generated at build time from `src/plugins/*/abi-plugin.json`. Bundled plugin directories validated by `src/foundation/plugin_validator.zig` include `mod.zig`, `stub.zig`, and `abi-plugin.json`.
+Plugin discovery is static from `crates/abi-plugins/plugins/*/abi-plugin.json`. Bundled plugin directories validated by `crates/abi-foundation/src/plugin_manifest.rs` include `mod.rs`, `stub.rs`, and `abi-plugin.json`.
 
 Required manifest fields:
 
@@ -136,15 +134,15 @@ Required manifest fields:
 - `version`
 - `description`
 - `target_feature`
-- `entry_point` (safe relative `.zig` path; no absolute paths, traversal, empty/`.`/`..` segments, Windows drive separators, or backslashes; the file must exist under the plugin directory)
+- `entry_point` (safe relative `.rs` path; no absolute paths, traversal, empty/`.`/`..` segments, Windows drive separators, or backslashes; the file must exist under the plugin directory)
 
-`targetFeature` and `entryPoint` manifest aliases are accepted by the generator and plugin manager. `src/core/registry.zig` stores generated plugins as `PluginDescriptor` values containing all manifest metadata and exposes stable accessors such as `getPlugin()`, `pluginCount()`, `appendPluginNames()`, `snapshotPluginNames()`, `snapshotPlugins()`, and `formatPluginList()`. `abi plugin list` includes plugin count, version, target feature, entry point, and description. The legacy `Registry.register(name, info)` helper remains supported and maps `info` to `description` for compatibility.
+`targetFeature` and `entryPoint` manifest aliases are accepted by the generator and plugin manager. `crates/abi-core/src/registry.rs` stores plugins as `PluginDescriptor` values containing manifest metadata and exposes stable accessors such as `plugin()`, `plugins()`, and related list/format helpers. `abi plugin list` includes plugin count, version, target feature, entry point, and description. Legacy register helpers remain supported where present for compatibility.
 
-`tests/contracts/plugin_registry.zig` verifies generated metadata for the bundled example plugins, including the WDBX-targeted fixture.
+Golden / unit coverage verifies generated metadata for the bundled example plugins, including the WDBX-targeted fixture.
 
 ## Connector contract
 
-Connectors provide deterministic local behavior and explicit live-transport boundaries.
+Connectors provide deterministic local behavior and explicit live-transport boundaries (`crates/abi-connectors`).
 
 Discord connector calls validate:
 
@@ -162,32 +160,22 @@ Twilio connector calls validate:
 - XML escaping for TwiML `<Say>` and `<Redirect>` text and URL-encoded form fields
 - live response logs include HTTP status and body byte counts, not provider response bodies
 
-OpenAI and Anthropic connectors validate shared connector config and keep local streaming responses deterministic. Live HTTP dispatch remains an explicit `.live` transport path, and connector tests validate malformed live-path inputs before network dispatch. Live URL construction (`connectors/http.joinUrl`) requires a `https://` base URL scheme (`requireHttpsBaseUrl`); cleartext `http://` and other schemes return `error.InsecureBaseUrl`. Local/mock connectors never call `joinUrl`. This is scheme enforcement only — not host allowlisting, certificate pinning, or mTLS.
+OpenAI and Anthropic connectors validate shared connector config and keep local streaming responses deterministic. Live HTTP dispatch remains an explicit live transport path, and connector tests validate malformed live-path inputs before network dispatch. Live URL construction (`crates/abi-connectors/src/url.rs` `join_url`) requires a `https://` base URL scheme (`require_https_base_url`); cleartext `http://` and other schemes return `InsecureBaseUrl`. Local/mock connectors never call `join_url`. This is scheme enforcement only — not host allowlisting, certificate pinning, or mTLS.
 
 ## Credential storage contract
 
-`abi auth` persists provider credentials as local plaintext JSON by default (resolved from `ABI_CREDENTIALS_PATH`, `XDG_CONFIG_HOME/abi/`, or `~/.abi/` as fallback). On POSIX-capable targets, the credential directory is created or repaired as owner-only (`0700`) and the credential file is opened/truncated with owner-only permissions (`0600`) before secret bytes are written; existing permissive files are tightened before overwrite. On Windows targets, an owner-only DACL is applied via SDDL after write (compile-tested via cross-smoke; **runtime** verification still requires a Windows host). Opt-in macOS login keychain storage is available via `ABI_CREDENTIALS_BACKEND=keychain` (`src/foundation/keychain.zig`, Security.framework `SecItem*` — OS-provided at-rest protection only; not hardware-backed, not audited; runtime-verified on macOS host only). Windows/Linux OS secret stores remain Proposed; off-macOS `keychain` requests fall back to the file store with a disclosed status label. On POSIX TTYs, `auth signin` disables terminal echo while reading secrets and restores it afterward; Windows echo-suppress remains a disclosed gap. This is local filesystem + optional macOS keychain + TTY hardening, not encryption, RBAC, or a regulatory-compliance claim.
+`abi auth` persists provider credentials as local plaintext JSON by default (resolved from `ABI_CREDENTIALS_PATH`, `XDG_CONFIG_HOME/abi/`, or `~/.abi/` as fallback). On POSIX-capable targets, the credential directory is created or repaired as owner-only (`0700`) and the credential file is opened/truncated with owner-only permissions (`0600`) before secret bytes are written; existing permissive files are tightened before overwrite. On Windows targets, an owner-only DACL is applied via SDDL after write (compile-tested via cross-smoke; **runtime** verification still requires a Windows host). Opt-in macOS login keychain storage is available via `ABI_CREDENTIALS_BACKEND=keychain` (`crates/abi-foundation/src/credentials/keychain.rs`, Security.framework `SecItem*` — OS-provided at-rest protection only; not hardware-backed, not audited; runtime-verified on macOS host only). Windows/Linux OS secret stores remain Proposed; off-macOS `keychain` requests fall back to the file store with a disclosed status label. On POSIX TTYs, `auth signin` disables terminal echo while reading secrets and restores it afterward; Windows echo-suppress remains a disclosed gap. This is local filesystem + optional macOS keychain + TTY hardening, not encryption, RBAC, or a regulatory-compliance claim.
 
-Ambient WDBX durable-store parent directories (resolved via `ABI_WDBX_PATH` / XDG / `~/.abi/wdbx`) are created or repaired as owner-only (`0700`) on POSIX when opened through `durable_store.Session.openAt`. WAL frames remain CRC32-framed (not keyed-MAC); this is directory permission hardening only, not production multi-host integrity.
+Ambient WDBX durable-store parent directories (resolved via `ABI_WDBX_PATH` / XDG / `~/.abi/wdbx`) are created or repaired as owner-only (`0700`) on POSIX when opened through `DurableStore`. WAL frames remain CRC32-framed (not keyed-MAC); this is directory permission hardening only, not production multi-host integrity.
 
 ## Validation gates
 
 For source changes:
 
 ```bash
-./build.sh check
+./tools/check.sh
 ```
 
-For release/readiness changes:
+Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
 
-```bash
-./build.sh full-check
-```
-
-`full-check` is `check` plus integration tests, benchmarks, dashboard smoke, and `agent tui` line-mode smoke. When `tmux` is available, `tools/run_tui_smoke.sh` also drives the raw-mode line editor through a PTY (cursor edit, tab completion, history).
-
-For public feature API changes:
-
-```bash
-zig build check-parity
-```
+For public feature/plugin API changes, rely on compile-time `Plugin` trait + `assert_plugin_parity!` in `abi-plugins` and the workspace test/golden suite under `./tools/check.sh`.

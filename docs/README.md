@@ -28,7 +28,7 @@ When prose disagrees with code, trust `Cargo.toml`, `crates/`, `tests/golden/`, 
 [`contracts/external-claims-audit.mdx`](contracts/external-claims-audit.mdx).
 Persona / product identity direction:
 [`spec/abbey-core-identity.mdx`](spec/abbey-core-identity.mdx) and
-`src/features/ai/identity.zig`.
+`crates/abi-ai/src/identity.rs`.
 
 ## Local validation
 
