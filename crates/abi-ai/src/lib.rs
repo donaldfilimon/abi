@@ -48,6 +48,7 @@ pub mod keywords;
 pub mod models;
 pub mod modulator;
 pub mod router;
+pub mod training;
 
 pub use completion::{CompletionResult, EmptyInputError, complete, complete_adaptive};
 pub use constitution::{AuditResult, Principle, validate};
@@ -60,6 +61,11 @@ pub use modulator::{AdaptiveModulator, STORE_KEY as MODULATOR_STORE_KEY};
 pub use router::{
     ProfileWeights, analyze_sentiment, explicit_profile_selector, route_profile,
     select_best_profile,
+};
+pub use training::{
+    DatasetFormat, DatasetSpec, DatasetSummary, TrainingConfig, TrainingError, TrainingResult,
+    apply_store_persistence, parse_agent_profile, profile_embedding, train_inspect,
+    training_store_key, training_store_value, training_vectors, validate_training_config,
 };
 
 /// Generate `profile`'s response to `input`.

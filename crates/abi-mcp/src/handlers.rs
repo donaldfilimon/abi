@@ -331,7 +331,30 @@ pub fn handle_tools_call(state: McpState, params: Option<&Value>) -> Result<Valu
     }
 
     match tool_name {
-        "ai_train" | "wdbx_query" | "gpu_status" => Err(ToolError::NotYetPorted),
+        "wdbx_query" | "gpu_status" => Err(ToolError::NotYetPorted),
+        "ai_train" => {
+            let args = tool_arguments(params_obj)?;
+            let profile = object_string(args, "profile", ToolError::MissingProfile)?;
+            let dataset = object_string(args, "dataset", ToolError::MissingDataset)?;
+            let artifact_dir = object_string(args, "artifact_dir", ToolError::MissingArtifactDir)
+                .unwrap_or("zig-cache/agents");
+            let format = object_string(args, "format", ToolError::InvalidDatasetFormat)
+                .ok()
+                .and_then(abi_ai::DatasetFormat::parse)
+                .unwrap_or_default();
+            let config = abi_ai::TrainingConfig {
+                profile: profile.to_string(),
+                dataset: abi_ai::DatasetSpec {
+                    path: dataset.to_string(),
+                    format,
+                },
+                artifact_dir: artifact_dir.to_string(),
+            };
+            match crate::ai_tools::run_train(&config) {
+                Ok(text) => Ok(text_result(&text)),
+                Err(_) => Err(ToolError::Internal),
+            }
+        }
         "ai_complete" => {
             let args = tool_arguments(params_obj)?;
             let input = object_string(args, "input", ToolError::MissingInput)?;

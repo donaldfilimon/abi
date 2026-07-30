@@ -226,9 +226,13 @@ names" into "the Rust CLI emits byte-identical output".
     `abi-ai`; store I/O stays in SEA. MCP `ai_learn` is attached with the same
     scratch-store / no-env test discipline as `ai_complete`. 17 crate tests +
     MCP report-line tests.
-  - [ ] **5d. `abi-nn` + `ai_train`.** `ai_train` reports `backend=gpu-metal` in
-    Zig; no Rust GPU backend is linked, so that field needs the same explicit
-    disclosure `wdbx_stats`'s `backend` carries.
+  - [x] **5d. `ai_train` (MCP path).** Profile validation, dataset inspection
+    (text/csv/jsonl), confined-path helpers, profile embedding → store vectors +
+    `agent:{profile}:training` KV + audit block. **`backend=cpu`** is disclosed
+    rather than Zig's `gpu-metal` (no Rust GPU linked). The optional
+    PointNeuralNetwork autoencoder weight-write is not ported yet — the message
+    says `model weights unchanged` when no net is trained. Full `abi-nn` char-LM
+    demo remains open under step 6/CLI `nn`.
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir,
   hash, metrics, telemetry, mobile, os_control.
   - The bounded process-wide telemetry counter table and Prometheus text
@@ -278,13 +282,12 @@ names" into "the Rust CLI emits byte-identical output".
     `abi-connectors`' already-ported local synthesis; `openai` is
     golden-matched byte-for-byte, including Anthropic's MCP-specific
     `max_tokens=256` versus the connector's own default of 4096).
-  - Wired after 5a/5b/5c/10: `ai_run` (pure, golden), `ai_complete` and
-    `ai_learn` (store-parameterised, scratch-tested), `plugin_list`/
-    `plugin_run`.
+  - Wired after 5a–5d/10: all four AI tools (`ai_run`, `ai_complete`,
+    `ai_learn`, `ai_train`), plus `plugin_list`/`plugin_run`.
   - Honestly stubbed (`NotYetPorted`, after validation still runs):
-    `ai_train`, `wdbx_query`, `gpu_status`, and `connector_test` for `twilio`
-    — each depends on a feature plan step 5d/6 hasn't reached yet, or
-    (twilio) on `twilio_relay.zig`'s conversation builder from step 3b.
+    `wdbx_query`, `gpu_status`, and `connector_test` for `twilio` — each
+    depends on a feature plan step 6 hasn't reached yet, or (twilio) on
+    `twilio_relay.zig`'s conversation builder from step 3b.
   - `wdbx_stats` reads the real durable store (env resolution — `ABI_WDBX_PATH`,
     `ABI_WDBX_PERSIST`, `XDG_DATA_HOME`, `HOME` fallback — ported and unit
     tested standalone) but **discloses `backend=cpu`** rather than Zig's

@@ -28,7 +28,10 @@
 
 use std::fmt::Write as _;
 
-use abi_ai::{EMBED_DIM, complete, text_embedding};
+use abi_ai::{
+    EMBED_DIM, TrainingConfig, complete, text_embedding, train_inspect, training_store_key,
+    training_store_value, training_vectors,
+};
 use abi_sea::{LearnLoopConfig, run_learn_loop};
 use abi_wdbx::DurableStore;
 
@@ -291,6 +294,92 @@ pub fn report_learn(
     out
 }
 
+/// Run `ai_train`: validate, inspect the dataset, persist profile vectors into
+/// the store when available, and render the MCP report line.
+///
+/// `backend` is always `cpu` — no Rust GPU backend is linked (disclosed, not
+/// Zig's `gpu-metal`).
+///
+/// # Errors
+///
+/// Returns [`WdbxStatsError`] only if a configured store path fails to open.
+/// Validation failures become a reportable error string rather than a transport
+/// error, matching the handler's Internal-vs-text split for empty completion
+/// input — except training validation is always a tool-body error string.
+pub fn run_train(config: &TrainingConfig) -> Result<String, WdbxStatsError> {
+    let mut store = open_wdbx_store()?;
+    Ok(report_train(
+        store.as_mut(),
+        config,
+        abi_foundation::time::unix_ms(),
+    ))
+}
+
+/// Pure core of `ai_train`.
+#[must_use]
+pub fn report_train(
+    store: Option<&mut DurableStore>,
+    config: &TrainingConfig,
+    now_ms: i64,
+) -> String {
+    let (mut result, _summary) = match train_inspect(config) {
+        Ok(pair) => pair,
+        Err(err) => return format!("error: {err}"),
+    };
+
+    let Some(store) = store else {
+        return format!(
+            "training accepted profile={} dataset={} records={} backend=cpu wdbx_kv_entries=0 wdbx_vectors=0 wdbx_blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={NO_STORE_STATUS}: {}",
+            result.profile, result.dataset_path, result.records_stored, result.message,
+        );
+    };
+
+    let before = store.stats();
+    let profile = match abi_ai::parse_agent_profile(&config.profile) {
+        Ok(p) => p,
+        Err(err) => return format!("error: {err}"),
+    };
+    let (query_vec, response_vec) = training_vectors(profile);
+    let Ok(query_id) = store.put_vector(&query_vec) else {
+        return format!(
+            "training accepted profile={} dataset={} records=0 backend=cpu wdbx_kv_entries=0 wdbx_vectors=0 wdbx_blocks=0 total_kv_entries={} total_vectors={} total_blocks={}: training accepted; wdbx write failed",
+            result.profile, result.dataset_path, before.kv_entries, before.vectors, before.blocks,
+        );
+    };
+    let Ok(response_id) = store.put_vector(&response_vec) else {
+        return format!(
+            "training accepted profile={} dataset={} records=0 backend=cpu wdbx_kv_entries=0 wdbx_vectors=0 wdbx_blocks=0 total_kv_entries={} total_vectors={} total_blocks={}: training accepted; wdbx write failed",
+            result.profile,
+            result.dataset_path,
+            store.stats().kv_entries,
+            store.stats().vectors,
+            store.stats().blocks,
+        );
+    };
+
+    let value = training_store_value(config, query_id, response_id, "cpu");
+    let key = training_store_key(&config.profile);
+    let _ = store.put(&key, &value);
+    let _ = store.add_block(&config.profile, query_id, response_id, &value, now_ms);
+
+    result = abi_ai::apply_store_persistence(result, query_id, response_id);
+    let after = store.stats();
+
+    format!(
+        "training accepted profile={} dataset={} records={} backend=cpu wdbx_kv_entries={} wdbx_vectors={} wdbx_blocks={} total_kv_entries={} total_vectors={} total_blocks={}: {}",
+        result.profile,
+        result.dataset_path,
+        result.records_stored,
+        stat_delta(after.kv_entries, before.kv_entries),
+        stat_delta(after.vectors, before.vectors),
+        stat_delta(after.blocks, before.blocks),
+        after.kv_entries,
+        after.vectors,
+        after.blocks,
+        result.message,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -479,6 +568,41 @@ mod tests {
         assert!(output.contains("persisted=false"));
         assert!(output.contains("adapted=false"));
         assert!(output.contains("evidence_count=0"));
+        assert!(output.contains(&format!("wdbx_status={NO_STORE_STATUS}")));
+    }
+
+    #[test]
+    fn train_on_a_fresh_store_persists_profile_vectors() {
+        let (_dir, mut store) = scratch_store();
+        let config = TrainingConfig {
+            profile: "abi".into(),
+            dataset: abi_ai::DatasetSpec {
+                path: "/no/such/dataset".into(),
+                format: abi_ai::DatasetFormat::Text,
+            },
+            artifact_dir: "out".into(),
+        };
+        let output = report_train(Some(&mut store), &config, FIXED_NOW_MS);
+        assert!(output.starts_with("training accepted profile=abi dataset=/no/such/dataset"));
+        assert!(output.contains("backend=cpu"));
+        assert!(output.contains("records=1"));
+        assert!(output.contains("wdbx_vectors=2"));
+        assert!(output.contains("wdbx_blocks=1"));
+        assert!(output.contains("training metadata recorded in wdbx"));
+    }
+
+    #[test]
+    fn train_without_store_discloses_status() {
+        let config = TrainingConfig {
+            profile: "abbey".into(),
+            dataset: abi_ai::DatasetSpec {
+                path: "demo".into(),
+                format: abi_ai::DatasetFormat::Text,
+            },
+            artifact_dir: "out".into(),
+        };
+        let output = report_train(None, &config, FIXED_NOW_MS);
+        assert!(output.contains("backend=cpu"));
         assert!(output.contains(&format!("wdbx_status={NO_STORE_STATUS}")));
     }
 }
