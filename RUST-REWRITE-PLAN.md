@@ -91,8 +91,8 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **1b. Golden fixtures** — captured while the Zig gate was green.
 - [x] **2. `abi-core`** — config, registry, task, scheduler, memory. Concurrency decided: **one-shot**, tasks run synchronously on the caller's thread (`mode=one-shot`, `running=0` at rest). Golden-tested against the captured `scheduler_stats` output. 79 tests.
 - [x] **3a. `abi-connectors` core** — connector types, URL/auth (HTTPS enforcement + host-boundary check), payload builders + byte-exact local synthesis, SSE parsing (both dialects), `Transport` trait with `ureq` live impl + `RecordingTransport`, clients for OpenAI/Anthropic/Grok/Discord/Twilio. 75 tests.
-- [ ] **3b. `abi-connectors` remainder** — local OpenAI-compatible bridge and
-  Apple `FoundationModels` Swift FFI still open.
+- [ ] **3b. `abi-connectors` remainder** — Apple `FoundationModels` Swift FFI
+  still open (CLI discloses unavailability).
   - [x] **Twilio ConversationRelay local builder** (`twilio_relay.rs`) + MCP
     `connector_test` / CLI `twilio simulate`.
   - [x] **Discord gateway + routing + WS framing** (`discord_routing.rs`,
@@ -100,6 +100,12 @@ names" into "the Rust CLI emits byte-identical output".
     gateway loop + `FakeTransport` (Hello/Identify/heartbeat/MESSAGE_CREATE),
     WebSocket handshake/frame helpers. Live `wss://` needs TLS proxy (not
     linked; disclosed).
+  - [x] **Local OpenAI-compatible inference bridge** (`local_bridge.rs`):
+    model-prefix routing, endpoint env (`ABI_LLAMA_CPP_ENDPOINT` /
+    `ABI_MLX_ENDPOINT`), health check, complete + stream, extract completion.
+    CLI `complete --model llama/…` falls back to the in-process persona router
+    when the bridge is unreachable **or** when health is a false positive
+    (e.g. unrelated `/health` on :8080) and chat completion fails.
 - [x] **4a. `abi-wdbx` on-disk format** — records (all 6 types), both hash encodings, manifest, checkpoint load, chain verification. **Verified against the user's real 301-epoch store**: 327 blocks, chain verifies from genesis, 32-dim vectors. 56 tests.
 - [x] **4b. WDBX checkpoint salvage** — descending newest-valid recovery
   skips missing/corrupt active epochs without merging full checkpoints or
@@ -312,9 +318,9 @@ names" into "the Rust CLI emits byte-identical output".
     classification, memory recall). Live Twilio WebSocket relay remains open.
   - [x] **8h. Discord gateway/routing.** Offline-tested gateway loop + pure
     `!help/status/prompt/governance` routing + WS framing. Live TLS not linked.
-  - Still open (honest stubs / deferred): FoundationModels FFI, local
-    OpenAI-compatible inference bridge, MCP HTTP/SSE transport, live Discord
-    `wss://` without external TLS proxy.
+  - [x] **8i. Local bridge + MCP HTTP/SSE.** See 3b / 9b.
+  - Still open (honest stubs / deferred): FoundationModels Swift FFI; live
+    Discord `wss://` without external TLS proxy.
 - [x] **9a. `abi-mcp` protocol + stdio transport** — JSON-RPC envelope,
   structural pre-check (size/depth/object-root), the frozen 12-tool table
   (schemas pre-parsed so property order is preserved), declarative field
@@ -348,8 +354,10 @@ names" into "the Rust CLI emits byte-identical output".
     scheduler/session (each call opens fresh) since no ported tool mutates
     the store yet and the double-checked-atomic lifecycle only pays for
     itself once one does.
-  - Still open (step 9b): the HTTP/SSE transport, and every tool currently
-    stubbed above once its backing feature lands.
+  - [x] **9b. MCP HTTP/SSE transport.** Loopback `GET /sse` + `POST /message`
+    with optional `ABI_MCP_HTTP_TOKEN`, port `ABI_MCP_HTTP_PORT` (default 8080).
+    Spawned beside stdio from `abi-mcp` main; real-TCP unit tests for ping,
+    SSE endpoint event, and bearer auth.
 - [x] **10. `abi-plugins`** — all sixteen bundled plugins, the plugin manager,
   and both listing surfaces. `abi plugin list | run` and the MCP `plugin_list` /
   `plugin_run` tools are attached and byte-verified against the live Zig binary,

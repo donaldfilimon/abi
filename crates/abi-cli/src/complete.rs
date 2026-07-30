@@ -12,7 +12,11 @@ use std::io::Write as _;
 use std::path::Path;
 
 use abi_ai::{PointNeuralNetwork, SoulLayout, complete, models, route_with_soul};
-use abi_connectors::{Client, ConnectorConfig, DefaultTransport, Provider, parse_stream};
+use abi_connectors::{
+    Client, ConnectorConfig, DefaultTransport, Provider, is_local_bridge_model,
+    local_bridge_complete, local_bridge_complete_stream, local_bridge_endpoint,
+    local_bridge_extract, local_bridge_health, parse_stream,
+};
 use abi_foundation::credentials::{self, CredentialField};
 use abi_sea::{LearnLoopConfig, run_learn_loop};
 use abi_wdbx::{DurableStore, StorePaths};
@@ -387,6 +391,79 @@ fn run_live_complete(input: &str, model: &str, stream: bool) -> Outcome {
     }
 }
 
+fn run_local_bridge(input: &str, model: &str, stream: bool) -> Outcome {
+    let transport = DefaultTransport::new();
+    let endpoint = local_bridge_endpoint(model, None);
+    if !local_bridge_health(&transport, &endpoint) {
+        eprintln!(
+            "warning: local inference server not reachable at {endpoint}; falling back to in-process router"
+        );
+        return run_local(input, model);
+    }
+    if stream {
+        let resp = match local_bridge_complete_stream(&transport, model, input, None) {
+            Ok(r) => r,
+            Err(err) => {
+                eprintln!(
+                    "warning: local bridge stream failed ({err}); falling back to in-process router"
+                );
+                return run_local(input, model);
+            }
+        };
+        let mut stdout = std::io::stdout();
+        let mut full = String::new();
+        if let Err(err) = parse_stream(&resp.body, |chunk| {
+            if !chunk.delta.is_empty() {
+                let _ = write!(stdout, "{}", chunk.delta);
+                let _ = stdout.flush();
+                full.push_str(&chunk.delta);
+            }
+            Ok(())
+        }) {
+            eprintln!(
+                "warning: local bridge stream parse failed ({err}); falling back to in-process router"
+            );
+            return run_local(input, model);
+        }
+        let _ = writeln!(stdout);
+        let footer = format!("[model={model} | bridge={endpoint} | local=true | stream=sse]\n");
+        let _ = write!(stdout, "{footer}");
+        if !full.ends_with('\n') {
+            full.push('\n');
+        }
+        full.push_str(&footer);
+        return Outcome {
+            stdout: full,
+            stderr: String::new(),
+            exit_code: 0,
+        };
+    }
+    let resp = match local_bridge_complete(&transport, model, input, None) {
+        Ok(r) => r,
+        Err(err) => {
+            // Health can be a false positive (e.g. unrelated /health on :8080).
+            eprintln!(
+                "warning: local bridge request failed ({err}); falling back to in-process router"
+            );
+            return run_local(input, model);
+        }
+    };
+    let text = match local_bridge_extract(&resp.body) {
+        Ok(t) => t,
+        Err(err) => {
+            eprintln!(
+                "warning: local bridge response unusable ({err}); falling back to in-process router"
+            );
+            return run_local(input, model);
+        }
+    };
+    Outcome {
+        stdout: format!("{text}\n[model={model} | bridge={endpoint} | local=true]\n"),
+        stderr: String::new(),
+        exit_code: 0,
+    }
+}
+
 fn run_soul(input: &str, soul_path: &str, blend_alpha: f32) -> Outcome {
     if input.trim().is_empty() {
         return Outcome::stderr("error: completion input must not be empty\n".into(), 1);
@@ -562,15 +639,6 @@ pub(crate) fn run(args: &[String]) -> Outcome {
             2,
         );
     }
-    if stream && !live && !neural {
-        // Zig streams local via scheduler; we only expose stream with live SSE
-        // for now (honest scope). Local streaming persona chunks are incremental
-        // but not requested here — use local non-stream complete.
-        return Outcome::stderr(
-            "error: --stream currently requires --live (Anthropic SSE)\n".into(),
-            2,
-        );
-    }
     let input = input_parts.join(" ");
     if let Some(path) = soul_path {
         return run_soul(&input, &path, soul_alpha.unwrap_or(0.5));
@@ -583,6 +651,16 @@ pub(crate) fn run(args: &[String]) -> Outcome {
             return run_fm_complete(&input, &model, confirm);
         }
         return run_live_complete(&input, &model, stream);
+    }
+    // Local OpenAI-compatible bridge (llama/ollama/mlx/…) — explicit model id.
+    if is_local_bridge_model(&model) {
+        return run_local_bridge(&input, &model, stream);
+    }
+    if stream {
+        return Outcome::stderr(
+            "error: --stream requires --live (Anthropic SSE) or a local-bridge --model id\n".into(),
+            2,
+        );
     }
     if learn {
         run_learn(&input, &model)

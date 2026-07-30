@@ -47,6 +47,7 @@ pub mod connector;
 pub mod discord_gateway;
 pub mod discord_routing;
 pub mod discord_ws;
+pub mod local_bridge;
 pub mod payload;
 pub mod providers;
 pub mod sse;
@@ -66,6 +67,12 @@ pub use discord_routing::{
 pub use discord_ws::{
     Frame, GATEWAY_HOST, GATEWAY_PATH, WsError, build_handshake_request, encode_masked_text_frame,
     handshake_on_stream, key_b64_from_seed, try_parse_frame,
+};
+pub use local_bridge::{
+    LLAMA_CPP_DEFAULT_ENDPOINT, MLX_DEFAULT_ENDPOINT, complete_live as local_bridge_complete,
+    complete_live_streaming as local_bridge_complete_stream, endpoint_for as local_bridge_endpoint,
+    extract_completion as local_bridge_extract, health_check as local_bridge_health,
+    is_local_bridge_model,
 };
 pub use providers::{Client, DiscordClient, Provider, TwilioClient};
 pub use sse::{StreamChunk, collect_stream, parse_stream};
