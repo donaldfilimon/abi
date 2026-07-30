@@ -1,6 +1,6 @@
-//! Backing implementation for the `ai_complete` MCP tool.
+//! Backing implementation for the `ai_complete` and `ai_learn` MCP tools.
 //!
-//! Ported from `src/mcp/ai_tools.zig`'s `runLocalCompletion` and
+//! Ported from `src/mcp/ai_tools.zig`'s `runLocalCompletion`, `runLearn`, and
 //! `appendCompletionTail`.
 //!
 //! ## Design: the store is a parameter, not read from env inside this module
@@ -29,6 +29,7 @@
 use std::fmt::Write as _;
 
 use abi_ai::{EMBED_DIM, complete, text_embedding};
+use abi_sea::{LearnLoopConfig, run_learn_loop};
 use abi_wdbx::DurableStore;
 
 use crate::state::{WdbxStatsError, open_wdbx_store};
@@ -192,6 +193,104 @@ fn stat_delta(after: usize, before: usize) -> usize {
     after.saturating_sub(before)
 }
 
+/// Run `ai_learn`: one SEA self-learning pass against the ambient store.
+///
+/// # Errors
+///
+/// Returns [`WdbxStatsError`] only if a store path is configured but fails to
+/// open.
+pub fn run_learn(
+    input: &str,
+    requested_model: &str,
+    evidence_limit: usize,
+) -> Result<String, WdbxStatsError> {
+    let model = abi_ai::models::canonical(requested_model);
+    let mut store = open_wdbx_store()?;
+    Ok(report_learn(
+        store.as_mut(),
+        input,
+        model,
+        evidence_limit,
+        abi_foundation::time::unix_ms(),
+    ))
+}
+
+/// Pure core of `ai_learn`: everything but env resolution.
+#[must_use]
+pub fn report_learn(
+    store: Option<&mut DurableStore>,
+    input: &str,
+    model: &str,
+    evidence_limit: usize,
+    now_ms: i64,
+) -> String {
+    let Some(store) = store else {
+        // Without a store there is no evidence and no weight persistence.
+        // Still run a plain completion so the tool returns a persona response.
+        let Ok(result) = complete(input, model) else {
+            return "error: completion input must not be empty".to_string();
+        };
+        return format!(
+            "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted=false evidence_count=0 adapted=false kv_entries=0 vectors=0 blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={NO_STORE_STATUS}: {}",
+            result.model,
+            result.selected_profile.label(),
+            result.audit.passed,
+            result.audit.escore,
+            result.audit.vetoed,
+            result.output,
+        );
+    };
+
+    let before = store.stats();
+    let Ok(learned) = run_learn_loop(
+        store,
+        input,
+        model,
+        LearnLoopConfig {
+            evidence_limit,
+            persist: true,
+            adapt_router: true,
+            ..LearnLoopConfig::default()
+        },
+        now_ms,
+    ) else {
+        return "error: completion input must not be empty".to_string();
+    };
+    let after = store.stats();
+    let result = &learned.completion;
+    let persisted = learned.persisted.is_some();
+
+    let mut out = format!(
+        "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} evidence_count={} adapted={} kv_entries={} vectors={} blocks={} total_kv_entries={} total_vectors={} total_blocks={}",
+        result.model,
+        result.selected_profile.label(),
+        result.audit.passed,
+        result.audit.escore,
+        result.audit.vetoed,
+        persisted,
+        learned.evidence_count,
+        learned.adapted,
+        stat_delta(after.kv_entries, before.kv_entries),
+        stat_delta(after.vectors, before.vectors),
+        stat_delta(after.blocks, before.blocks),
+        after.kv_entries,
+        after.vectors,
+        after.blocks,
+    );
+
+    if let Some(ids) = &learned.persisted {
+        let _ = write!(
+            out,
+            " query_vector_id={} metadata_key=completion:{} response_vector_id={} block_id={}",
+            ids.query_vector_id, ids.query_vector_id, ids.response_vector_id, ids.block_hash_hex,
+        );
+    } else {
+        let _ = write!(out, " wdbx_status={}", persistence_failure_status());
+    }
+    let _ = write!(out, ": {}", result.output);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -324,5 +423,62 @@ mod tests {
                 .to_string()
         };
         assert_ne!(extract(&first), extract(&second));
+    }
+
+    #[test]
+    fn learn_on_a_fresh_store_adapts_and_persists() {
+        let (_dir, mut store) = scratch_store();
+        let output = report_learn(
+            Some(&mut store),
+            "hello world",
+            "claude-fable-5",
+            5,
+            FIXED_NOW_MS,
+        );
+        assert!(output.contains("persisted=true"));
+        assert!(output.contains("adapted=true"));
+        assert!(output.contains("evidence_count=0"));
+        assert!(output.contains("query_vector_id=1"));
+        assert!(output.contains("profile=abbey"));
+    }
+
+    #[test]
+    fn learn_recalls_evidence_on_a_related_second_turn() {
+        let (_dir, mut store) = scratch_store();
+        let _ = report_learn(
+            Some(&mut store),
+            "the capital of france is paris",
+            "m",
+            5,
+            FIXED_NOW_MS,
+        );
+        let second = report_learn(
+            Some(&mut store),
+            "tell me about paris in france",
+            "m",
+            5,
+            FIXED_NOW_MS + 1,
+        );
+        assert!(second.contains("evidence_count="));
+        // extract evidence_count value
+        let count: usize = second
+            .split("evidence_count=")
+            .nth(1)
+            .unwrap()
+            .split_whitespace()
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert!(count > 0, "second turn should recall first: {second}");
+    }
+
+    #[test]
+    fn learn_without_store_reports_disclosed_status() {
+        let output = report_learn(None, "hello world", "claude-fable-5", 5, FIXED_NOW_MS);
+        assert!(output.contains("persisted=false"));
+        assert!(output.contains("adapted=false"));
+        assert!(output.contains("evidence_count=0"));
+        assert!(output.contains(&format!("wdbx_status={NO_STORE_STATUS}")));
     }
 }

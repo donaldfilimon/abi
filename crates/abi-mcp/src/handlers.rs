@@ -297,6 +297,21 @@ fn object_string<'a>(
     }
 }
 
+/// Optional non-negative integer field. Absent or non-integer → `None`.
+fn object_integer(obj: &Map<String, Value>, key: &str) -> Option<usize> {
+    match obj.get(key)? {
+        Value::Number(n) => n
+            .as_u64()
+            .and_then(|v| usize::try_from(v).ok())
+            .or_else(|| {
+                n.as_i64()
+                    .filter(|&i| i >= 0)
+                    .and_then(|i| usize::try_from(i).ok())
+            }),
+        _ => None,
+    }
+}
+
 /// The `tools/call` response `result` object: dispatches to the tool named in
 /// `params.name`, after validating `params.arguments` against that tool's
 /// declared field policy.
@@ -316,7 +331,7 @@ pub fn handle_tools_call(state: McpState, params: Option<&Value>) -> Result<Valu
     }
 
     match tool_name {
-        "ai_learn" | "ai_train" | "wdbx_query" | "gpu_status" => Err(ToolError::NotYetPorted),
+        "ai_train" | "wdbx_query" | "gpu_status" => Err(ToolError::NotYetPorted),
         "ai_complete" => {
             let args = tool_arguments(params_obj)?;
             let input = object_string(args, "input", ToolError::MissingInput)?;
@@ -326,6 +341,18 @@ pub fn handle_tools_call(state: McpState, params: Option<&Value>) -> Result<Valu
             let model = object_string(args, "model", ToolError::MissingModel)
                 .unwrap_or(abi_ai::models::DEFAULT_MODEL);
             match crate::ai_tools::run(input, model) {
+                Ok(text) => Ok(text_result(&text)),
+                Err(_) => Err(ToolError::Internal),
+            }
+        }
+        "ai_learn" => {
+            let args = tool_arguments(params_obj)?;
+            let input = object_string(args, "input", ToolError::MissingInput)?;
+            let model = object_string(args, "model", ToolError::MissingModel)
+                .unwrap_or(abi_ai::models::DEFAULT_MODEL);
+            // Optional integer; middleware only validates string fields.
+            let evidence_limit = object_integer(args, "evidence_limit").unwrap_or(5);
+            match crate::ai_tools::run_learn(input, model, evidence_limit) {
                 Ok(text) => Ok(text_result(&text)),
                 Err(_) => Err(ToolError::Internal),
             }

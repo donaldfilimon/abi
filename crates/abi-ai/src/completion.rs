@@ -23,7 +23,11 @@
 
 use std::fmt::Write as _;
 
-use crate::{AgentProfile, AuditResult, route_to_profile, select_best_profile, validate};
+use crate::modulator::AdaptiveModulator;
+use crate::{
+    AgentProfile, AuditResult, analyze_sentiment, explicit_profile_selector, route_to_profile,
+    select_best_profile, validate,
+};
 
 /// The frozen public-API contract for the persisted metadata key: "stores JSON
 /// completion metadata under `completion:<query_vector_id>`".
@@ -61,7 +65,42 @@ pub fn complete(input: &str, model: &str) -> Result<CompletionResult, EmptyInput
     if input.is_empty() {
         return Err(EmptyInputError);
     }
-    let selected = select_best_profile(crate::analyze_sentiment(input));
+    let selected = select_best_profile(analyze_sentiment(input));
+    Ok(complete_with_profile(input, model, selected))
+}
+
+/// Complete with adaptive EMA routing, using optional persisted modulator state.
+///
+/// Ported from Zig's `completeAdaptive`. Persona routing uses `route_text`
+/// (the raw user utterance) so SEA's evidence preamble cannot mask an explicit
+/// `"Aviva, ..."` address or keyword sentiment. Generation still sees
+/// `input` (which may be the evidence-augmented prompt).
+///
+/// `persisted_weights` is the raw CSV under `modulator:weights`, or `None` when
+/// the key is absent. This function does **not** write the updated weights —
+/// the SEA learn loop owns that side-effect after the turn.
+///
+/// # Errors
+///
+/// Returns an error if `input` is empty.
+pub fn complete_adaptive(
+    input: &str,
+    model: &str,
+    route_text: &str,
+    persisted_weights: Option<&str>,
+) -> Result<CompletionResult, EmptyInputError> {
+    if input.is_empty() {
+        return Err(EmptyInputError);
+    }
+    let mut modulator = match persisted_weights {
+        Some(data) => AdaptiveModulator::deserialize(data),
+        None => AdaptiveModulator::new(),
+    };
+    // Routing-only update: the learn loop reloads and updates separately before
+    // save, so this mutation does not leak into persisted state.
+    modulator.update(analyze_sentiment(route_text));
+    let selected = explicit_profile_selector(route_text)
+        .unwrap_or_else(|| select_best_profile(modulator.weights()));
     Ok(complete_with_profile(input, model, selected))
 }
 

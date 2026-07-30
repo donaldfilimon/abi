@@ -217,9 +217,18 @@ names" into "the Rust CLI emits byte-identical output".
       persist path resolves, the tool reports `persisted=false` with an explicit
       `wdbx_status` (in-memory `DurableStore` is not yet ported). Attached to
       MCP `ai_complete`.
-  - [ ] **5c. `abi-sea` + `ai_learn`**, then **5d. `abi-nn`**. `ai_train`
-    reports `backend=gpu-metal` in Zig; no Rust GPU backend is linked, so that
-    field needs the same explicit disclosure `wdbx_stats`'s `backend` carries.
+  - [x] **5c. `abi-sea` + `ai_learn`.** New `abi-sea` crate: memory taxonomy,
+    query-plan keyword inference, eight-signal scorer + budgeted selection,
+    evidence recall (semantic + exact_recall lexical blend, authority forced to
+    `inferred` for generic store metadata), prompt augmentation with the 4 KiB
+    preamble cap, and the learn loop (adaptive complete + independent weight
+    reload/save under `modulator:weights`). Pure `AdaptiveModulator` lives in
+    `abi-ai`; store I/O stays in SEA. MCP `ai_learn` is attached with the same
+    scratch-store / no-env test discipline as `ai_complete`. 17 crate tests +
+    MCP report-line tests.
+  - [ ] **5d. `abi-nn` + `ai_train`.** `ai_train` reports `backend=gpu-metal` in
+    Zig; no Rust GPU backend is linked, so that field needs the same explicit
+    disclosure `wdbx_stats`'s `backend` carries.
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir,
   hash, metrics, telemetry, mobile, os_control.
   - The bounded process-wide telemetry counter table and Prometheus text
@@ -269,12 +278,13 @@ names" into "the Rust CLI emits byte-identical output".
     `abi-connectors`' already-ported local synthesis; `openai` is
     golden-matched byte-for-byte, including Anthropic's MCP-specific
     `max_tokens=256` versus the connector's own default of 4096).
-  - Wired after 5a/5b/10: `ai_run` (pure, golden), `ai_complete` (store-
-    parameterised, scratch-tested), `plugin_list`/`plugin_run`.
+  - Wired after 5a/5b/5c/10: `ai_run` (pure, golden), `ai_complete` and
+    `ai_learn` (store-parameterised, scratch-tested), `plugin_list`/
+    `plugin_run`.
   - Honestly stubbed (`NotYetPorted`, after validation still runs):
-    `ai_learn`, `ai_train`, `wdbx_query`, `gpu_status`, and `connector_test`
-    for `twilio` — each depends on a feature plan step 5c/5d/6 hasn't reached
-    yet, or (twilio) on `twilio_relay.zig`'s conversation builder from step 3b.
+    `ai_train`, `wdbx_query`, `gpu_status`, and `connector_test` for `twilio`
+    — each depends on a feature plan step 5d/6 hasn't reached yet, or
+    (twilio) on `twilio_relay.zig`'s conversation builder from step 3b.
   - `wdbx_stats` reads the real durable store (env resolution — `ABI_WDBX_PATH`,
     `ABI_WDBX_PERSIST`, `XDG_DATA_HOME`, `HOME` fallback — ported and unit
     tested standalone) but **discloses `backend=cpu`** rather than Zig's

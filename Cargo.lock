@@ -66,6 +66,7 @@ dependencies = [
  "abi-core",
  "abi-foundation",
  "abi-plugins",
+ "abi-sea",
  "abi-wdbx",
  "serde",
  "serde_json",
@@ -78,6 +79,16 @@ dependencies = [
  "abi-core",
  "abi-foundation",
  "abi-telemetry",
+ "serde_json",
+]
+
+[[package]]
+name = "abi-sea"
+version = "0.1.0"
+dependencies = [
+ "abi-ai",
+ "abi-foundation",
+ "abi-wdbx",
  "serde_json",
 ]
 

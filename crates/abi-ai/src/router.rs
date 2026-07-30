@@ -14,12 +14,10 @@
 //!
 //! ## What is not ported here
 //!
-//! `routeInputWithSoul` (the `PointNeuralNetwork` blend) and
-//! `AdaptiveModulator` (which reads and writes persisted `modulator:weights` in
-//! WDBX) are deliberately absent. Both are on the `ai_complete`/`ai_learn` path,
-//! not `ai_run`, and the modulator's store dependency is a decision that belongs
-//! with that step. [`blend_weights`] is ported because it is pure and is the
-//! contract the soul blend will use.
+//! `routeInputWithSoul` (the `PointNeuralNetwork` blend) is deliberately
+//! absent — it is not on any of the four MCP AI tools. The pure
+//! [`crate::AdaptiveModulator`] lives in [`crate::modulator`]; store I/O for
+//! its weights is the SEA learn loop's concern.
 
 use crate::identity::{
     AgentProfile, DEFAULT_ABBEY_WEIGHT, DEFAULT_ABI_WEIGHT, DEFAULT_AVIVA_WEIGHT,

@@ -46,14 +46,21 @@ pub mod identity;
 pub mod incremental;
 pub mod keywords;
 pub mod models;
+pub mod modulator;
 pub mod router;
 
-pub use completion::{CompletionResult, EmptyInputError, complete};
+pub use completion::{CompletionResult, EmptyInputError, complete, complete_adaptive};
 pub use constitution::{AuditResult, Principle, validate};
 pub use embedding::{EMBED_DIM, count_non_empty_lines, response_embedding, text_embedding};
-pub use identity::{AgentProfile, ProfileContract, profile_contract};
+pub use identity::{
+    AgentProfile, KNOWN_PROFILES, PROFILE_LABELS, ProfileContract, profile_contract,
+};
 pub use incremental::{StreamChunk, StreamMode, generate_profile_incremental};
-pub use router::{ProfileWeights, analyze_sentiment, route_profile, select_best_profile};
+pub use modulator::{AdaptiveModulator, STORE_KEY as MODULATOR_STORE_KEY};
+pub use router::{
+    ProfileWeights, analyze_sentiment, explicit_profile_selector, route_profile,
+    select_best_profile,
+};
 
 /// Generate `profile`'s response to `input`.
 ///

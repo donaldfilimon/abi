@@ -15,6 +15,7 @@ abi-core = { path = "crates/abi-core" }
 abi-telemetry = { path = "crates/abi-telemetry" }
 abi-plugins = { path = "crates/abi-plugins" }
 abi-ai = { path = "crates/abi-ai" }
+abi-sea = { path = "crates/abi-sea" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
