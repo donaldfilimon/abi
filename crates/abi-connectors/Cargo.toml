@@ -12,6 +12,7 @@ abi-foundation = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 base64 = "0.22"
+sha1 = "0.10"
 
 # Blocking HTTP for the live transport. Rust std has no HTTP client, so the Zig
 # std.http.Client has no direct equivalent; ureq is blocking (matching the

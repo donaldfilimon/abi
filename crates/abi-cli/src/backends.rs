@@ -163,6 +163,8 @@ fn report() -> String {
     };
     let accel_note = if metal_active {
         "Native accelerator kernels: Metal DOT active"
+    } else if metal_linked {
+        "Native accelerator kernels: Metal linked (init failed)"
     } else {
         "Native accelerator kernels: not linked"
     };
@@ -261,6 +263,12 @@ mod tests {
                 output
                     .stderr
                     .contains("Native accelerator kernels: Metal DOT active")
+            );
+        } else if abi_gpu::metal_kernels::kernels_linked() {
+            assert!(
+                output
+                    .stderr
+                    .contains("Native accelerator kernels: Metal linked (init failed)")
             );
         } else {
             assert!(
