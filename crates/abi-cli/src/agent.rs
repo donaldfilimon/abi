@@ -397,7 +397,7 @@ fn spawn(args: &[String]) -> Outcome {
     let scheduler = Scheduler::new();
     for spec in &specs {
         scheduler.submit(
-            &format!("agent:spawn:{}", spec.name),
+            format!("agent:spawn:{}", spec.name),
             TaskPriority::Normal,
             Box::new(|| Ok(())),
         );

@@ -68,8 +68,8 @@ pub use incremental::{StreamChunk, StreamMode, generate_profile_incremental};
 pub use modulator::{AdaptiveModulator, STORE_KEY as MODULATOR_STORE_KEY};
 pub use orchestration::{
     AgentResult, AgentToolHint, AgentWorkerSpec, CustomMultiAgentResult, MAX_WORKER_COUNT,
-    NamedAgentResult, WorkerSpecError, default_spawn_spec, default_trio_specs,
-    format_tool_hints, parse_worker_specs, run_agent, run_custom_multi_agent,
+    NamedAgentResult, WorkerSpecError, default_spawn_spec, default_trio_specs, format_tool_hints,
+    parse_worker_specs, run_agent, run_custom_multi_agent,
 };
 pub use point_net::{Point, PointNeuralNetwork, TopologyReport};
 pub use router::{
