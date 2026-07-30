@@ -153,6 +153,53 @@ names" into "the Rust CLI emits byte-identical output".
   while preserving the disclosed-partial boundary: native TLS termination is
   not linked and non-loopback production hardening is not claimed.
 - [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
+  - [x] **5a. `abi-ai` core + `ai_run`.** Identity contracts, the keyword
+    router, incremental persona generation, and constitutional governance. The
+    crate is **pure** — no WDBX dependency, no I/O, fully deterministic — which
+    is exactly why `ai_run` is byte-reproducible. Attached to MCP and verified
+    two ways: the captured fixture matches byte-for-byte through full dispatch,
+    and a **60-input differential run against the live Zig binary has zero
+    mismatches** (neutral prior, every keyword class, prefix-stem vs suffix
+    false positives, explicit persona addresses, punctuation trimming, unicode,
+    near-tie mixtures). 46 crate tests.
+    - Two fidelity traps found and fixed, both load-bearing rather than
+      theoretical. (1) Zig's `std.ascii.whitespace` includes vertical tab
+      (0x0B); Rust's `is_ascii_whitespace` does not, so `"Aviva\x0bgo"` would
+      have routed to Abbey instead of Aviva — confirmed against the Zig binary
+      in both directions. (2) Routing must accumulate in `f32`, matching Zig's
+      order and precision; widening to `f64` would silently change the outcome
+      at near-ties.
+    - `AuditResult.timestamp` is dropped: no ported caller reads it, and a
+      wall-clock field inside an otherwise pure, comparable result would make
+      the type non-deterministic for no benefit.
+  - **The `ai_*` fixtures are a weaker oracle than the plan assumed.** Only
+    `ai_run`'s captured line is store-independent and reproducible.
+    `ai_complete`, `ai_learn`, and `ai_train` embed live store counters
+    (`total_vectors`, `query_vector_id`, a SHA-256 `block_id`) captured at one
+    moment — and the capture itself advanced the store, which is why successive
+    fixture lines show `total_blocks` 328, 329, 330. Those three are **shape and
+    field-order references, not equality targets.** What must be asserted for
+    them instead: the persona substring byte-for-byte, the field names/order/
+    formatting (`audit_escore` to three decimals), and the counter *arithmetic*
+    (`response_vector_id == query_vector_id + 1`, `metadata_key ==
+    "completion:{query_vector_id}"`, `total_*` advancing by exactly the reported
+    delta) against a seeded temporary store. That is a stronger contract than a
+    frozen line, because it holds at every store state.
+  - **Store safety for the remaining work.** `ai_complete`/`ai_learn`/`ai_train`
+    write to the user's real 94 MB `~/.abi/`. All step-5 testing must point
+    `ABI_WDBX_PATH` at a scratch copy, and the real store's digest must be
+    re-verified before each commit — this is the one failure here that git
+    cannot undo. Baseline for this session:
+    `d88f675c3d2585e576e7393b65a984c87e05e71f` (verified unchanged at 5a).
+  - [ ] **5b. `ai_complete`.** Needs `AdaptiveModulator`, whose persisted
+    `modulator:weights` KV entry makes persona selection store-dependent — where
+    those weights live in Rust, and whether a read-only call may mutate them, is
+    a `std.Io`-class decision to document rather than let emerge. Only
+    `sea/learn_loop.zig` ever calls `saveWeights`, so `ai_complete` reads and
+    `ai_learn` writes.
+  - [ ] **5c. `abi-sea` + `ai_learn`**, then **5d. `abi-nn`**. `ai_train`
+    reports `backend=gpu-metal` in Zig; no Rust GPU backend is linked, so that
+    field needs the same explicit disclosure `wdbx_stats`'s `backend` carries.
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir,
   hash, metrics, telemetry, mobile, os_control.
   - The bounded process-wide telemetry counter table and Prometheus text

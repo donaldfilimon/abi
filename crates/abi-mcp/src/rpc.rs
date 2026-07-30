@@ -136,6 +136,27 @@ mod tests {
     }
 
     #[test]
+    fn ai_run_matches_the_golden_success_path() {
+        // Proves the wiring, not just `abi_ai::run_text`: the captured Zig
+        // response has to survive dispatch, validation, and JSON framing.
+        // `ai_run` is the only one of the four AI tools whose captured line is a
+        // byte-equality target — the other three embed live store counters.
+        let fixture = include_str!("../../../tests/golden/mcp-tool-calls-args.jsonl");
+        let expected: Value = fixture
+            .lines()
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_str::<Value>(line).expect("fixture line parses"))
+            .find(|value| value["tool"] == "ai_run")
+            .expect("the fixture contains an ai_run call");
+
+        let arguments = &expected["arguments"];
+        let call = format!(
+            r#"{{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{{"name":"ai_run","arguments":{arguments}}}}}"#
+        );
+        assert_eq!(resp(&call), expected["response"]);
+    }
+
+    #[test]
     fn empty_arguments_matches_every_line_of_the_golden_fixture() {
         let fixture = include_str!("../../../tests/golden/mcp-tool-calls.jsonl");
         for line in fixture.lines().filter(|l| !l.is_empty()) {

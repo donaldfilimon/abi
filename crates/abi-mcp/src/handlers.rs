@@ -316,8 +316,15 @@ pub fn handle_tools_call(state: McpState, params: Option<&Value>) -> Result<Valu
     }
 
     match tool_name {
-        "ai_run" | "ai_complete" | "ai_learn" | "ai_train" | "wdbx_query" | "gpu_status" => {
+        "ai_complete" | "ai_learn" | "ai_train" | "wdbx_query" | "gpu_status" => {
             Err(ToolError::NotYetPorted)
+        }
+        "ai_run" => {
+            let args = tool_arguments(params_obj)?;
+            let input = object_string(args, "input", ToolError::MissingInput)?;
+            // Zig logged a warning on a failed audit and returned the response
+            // unchanged; the text is the tool's frozen output either way.
+            Ok(text_result(&abi_ai::run_text(input)))
         }
         "plugin_list" => Ok(text_result(&crate::plugin_tools::plugin_list_text())),
         "plugin_run" => {
