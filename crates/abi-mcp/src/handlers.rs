@@ -417,9 +417,6 @@ pub fn handle_tools_call(state: McpState, params: Option<&Value>) -> Result<Valu
             let input = object_string(args, "input", ToolError::MissingInput)?;
             match crate::connector_tools::run_connector_test(service, input) {
                 Ok(text) => Ok(text_result(&text)),
-                Err(crate::connector_tools::ConnectorToolError::NotYetPorted) => {
-                    Err(ToolError::NotYetPorted)
-                }
                 Err(crate::connector_tools::ConnectorToolError::Failed) => Err(ToolError::Internal),
             }
         }

@@ -2,18 +2,15 @@
 //! local path.
 //!
 //! Ported from `src/mcp/connector_tools.zig`, reusing the already-ported
-//! `abi-connectors` clients (plan step 3a). `twilio` is not yet portable: its
-//! local response goes through `twilio_relay.zig`'s conversation builder,
-//! which is plan step 3b and still open — see `RUST-REWRITE-PLAN.md`.
+//! `abi-connectors` clients (including Twilio `ConversationRelay` local synthesis).
 
-use abi_connectors::{Client, ConnectorConfig, payload};
+use abi_connectors::{
+    Client, ConnectorConfig, ConversationRelayEvent, build_local_conversation_response, payload,
+};
 
 /// Why [`run_connector_test`] could not produce a response.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectorToolError {
-    /// `service` is a valid, known service, but its local dispatch has no
-    /// Rust port yet.
-    NotYetPorted,
     /// The connector's local synthesis failed unexpectedly.
     Failed,
 }
@@ -65,7 +62,17 @@ pub fn run_connector_test(service: &str, input: &str) -> Result<String, Connecto
                 response.status, response.body
             ))
         }
-        "twilio" => Err(ConnectorToolError::NotYetPorted),
+        "twilio" => {
+            // MCP fixture: fixed conversation/customer ids + local agent reply,
+            // matching Zig `handleConversationRelayEvent(.user_transcript, …)`.
+            let event = ConversationRelayEvent::user_transcript(input);
+            let response =
+                build_local_conversation_response(&event, "ABI local relay acknowledged.");
+            Ok(format!(
+                "connector=twilio status=200 body={}",
+                response.text
+            ))
+        }
         _ => Err(ConnectorToolError::Failed),
     }
 }
@@ -91,10 +98,23 @@ mod tests {
     }
 
     #[test]
-    fn twilio_is_honestly_not_yet_ported() {
+    fn twilio_local_relay_synthesizes_body() {
+        // "hi" is < 3 chars and escalates as low_confidence (Zig parity).
+        let text = run_connector_test("twilio", "what are your hours?").expect("twilio is ported");
         assert_eq!(
-            run_connector_test("twilio", "hi"),
-            Err(ConnectorToolError::NotYetPorted)
+            text,
+            "connector=twilio status=200 body=ABI local relay acknowledged."
+        );
+        let escalate =
+            run_connector_test("twilio", "let me talk to a human").expect("twilio escalate");
+        assert!(
+            escalate.contains("support specialist"),
+            "expected escalation reply: {escalate}"
+        );
+        let short = run_connector_test("twilio", "hi").expect("short escalates");
+        assert!(
+            short.contains("support specialist"),
+            "short transcript should escalate: {short}"
         );
     }
 

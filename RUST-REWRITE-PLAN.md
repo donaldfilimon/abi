@@ -91,7 +91,11 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **1b. Golden fixtures** — captured while the Zig gate was green.
 - [x] **2. `abi-core`** — config, registry, task, scheduler, memory. Concurrency decided: **one-shot**, tasks run synchronously on the caller's thread (`mode=one-shot`, `running=0` at rest). Golden-tested against the captured `scheduler_stats` output. 79 tests.
 - [x] **3a. `abi-connectors` core** — connector types, URL/auth (HTTPS enforcement + host-boundary check), payload builders + byte-exact local synthesis, SSE parsing (both dialects), `Transport` trait with `ureq` live impl + `RecordingTransport`, clients for OpenAI/Anthropic/Grok/Discord/Twilio. 75 tests.
-- [ ] **3b. `abi-connectors` remainder** — Discord gateway + WS client (`discord_gateway.zig` 483, `discord_ws_client.zig` 228, `discord_routing.zig` 126), Twilio relay (`twilio_relay.zig` 554), the local bridge (`local_bridge.zig` 236) and the Apple `FoundationModels` shim (`fm.zig` 217). These need a WebSocket client and a Swift FFI shim; ~1.8k Zig LOC.
+- [ ] **3b. `abi-connectors` remainder** — Discord gateway + WS client, the
+  local OpenAI-compatible bridge, and the Apple `FoundationModels` shim still
+  need a WebSocket client / Swift FFI. **Twilio ConversationRelay local
+  builder is ported** (`twilio_relay.rs`) and wired to MCP `connector_test`
+  + CLI `twilio simulate` escalation.
 - [x] **4a. `abi-wdbx` on-disk format** — records (all 6 types), both hash encodings, manifest, checkpoint load, chain verification. **Verified against the user's real 301-epoch store**: 327 blocks, chain verifies from genesis, 32-dim vectors. 56 tests.
 - [x] **4b. WDBX checkpoint salvage** — descending newest-valid recovery
   skips missing/corrupt active epochs without merging full checkpoints or
@@ -299,8 +303,11 @@ names" into "the Rust CLI emits byte-identical output".
   - [x] **8f. complete `--soul`.** `SoulLayout` JSON + `[3,8,3]` point MLP
     bootstrap and `route_with_soul` blend (`--soul-alpha`, default 0.5). Pure
     (no WDBX writes during bootstrap). Explicit persona addresses still win.
-  - Still open (honest stubs / deferred): Discord gateway/WS, full Twilio
-    ConversationRelay + MCP `connector_test twilio`, FoundationModels FFI.
+  - [x] **8g. Twilio local relay + MCP `connector_test twilio`.** Shared
+    ConversationRelay builder (setup/DTMF/interrupt/disconnect, escalation
+    classification, memory recall). Live Twilio WebSocket relay remains open.
+  - Still open (honest stubs / deferred): Discord gateway/WS, FoundationModels
+    FFI, local OpenAI-compatible inference bridge, MCP HTTP/SSE transport.
 - [x] **9a. `abi-mcp` protocol + stdio transport** — JSON-RPC envelope,
   structural pre-check (size/depth/object-root), the frozen 12-tool table
   (schemas pre-parsed so property order is preserved), declarative field
@@ -323,9 +330,8 @@ names" into "the Rust CLI emits byte-identical output".
   - Wired: `wdbx_query` (persona prototype seed + hybrid re-rank via
     `hybrid_search_with_persona`, fixed `now_ms=1000` matching Zig),
     `gpu_status` (honest no-kernel disclosure via `abi-gpu`).
-  - Honestly stubbed (`NotYetPorted`, after validation still runs):
-    `connector_test` for `twilio` only — depends on `twilio_relay.zig`'s
-    conversation builder from step 3b.
+  - All five `connector_test` services are local-synthesized (including
+    `twilio` via the ConversationRelay builder).
   - `wdbx_stats` reads the real durable store (env resolution — `ABI_WDBX_PATH`,
     `ABI_WDBX_PERSIST`, `XDG_DATA_HOME`, `HOME` fallback — ported and unit
     tested standalone) but **discloses `backend=cpu`** rather than Zig's

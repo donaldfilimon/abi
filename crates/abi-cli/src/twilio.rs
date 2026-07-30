@@ -1,10 +1,13 @@
-//! `abi twilio simulate` — local ConversationRelay-shaped simulation.
+//! `abi twilio simulate` — local `ConversationRelay`-shaped simulation.
 //!
 //! Ported from `src/cli/handlers/twilio.zig`'s offline path. Does not contact
-//! the live Twilio API. Full relay event parsing remains in step 3b; this
-//! handler exercises persona routing + the observed CLI report shape.
+//! the live Twilio API. Uses the shared `abi-connectors` `ConversationRelay`
+//! builder for escalation classification and reply text.
+
+use std::fmt::Write as _;
 
 use abi_ai::run_text;
+use abi_connectors::{ConversationRelayEvent, build_local_conversation_response};
 
 use crate::app::Outcome;
 
@@ -31,10 +34,21 @@ pub(crate) fn run(args: &[String]) -> Outcome {
         return Outcome::stderr(format!("error: {USAGE}\n"), 2);
     }
     let input = &args[1];
-    let reply = run_text(input);
-    // Local non-live path: user transcript → persona reply, no escalation.
-    let out =
-        format!("Twilio ConversationRelay simulation\nresponse: {reply}\nescalation: false\n");
+    let agent_reply = run_text(input);
+    let event = ConversationRelayEvent::user_transcript(input);
+    let response = build_local_conversation_response(&event, &agent_reply);
+    let escalated = response.escalation.is_some();
+    let mut out = format!(
+        "Twilio ConversationRelay simulation\nresponse: {}\nescalation: {escalated}\n",
+        response.text
+    );
+    if let Some(payload) = &response.escalation {
+        let _ = write!(
+            out,
+            "escalation_reason: {}\nrouting: {}\n",
+            payload.reason_code, payload.routing_hints
+        );
+    }
     Outcome {
         stdout: out,
         stderr: String::new(),
@@ -57,6 +71,18 @@ mod tests {
         );
         assert!(outcome.stdout.contains("response: Abbey: hello"));
         assert!(outcome.stdout.contains("escalation: false"));
+    }
+
+    #[test]
+    fn simulate_escalates_human_request() {
+        let outcome = run(&["simulate".into(), "let me talk to a human".into()]);
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stdout.contains("escalation: true"));
+        assert!(
+            outcome
+                .stdout
+                .contains("escalation_reason: human_requested")
+        );
     }
 
     #[test]

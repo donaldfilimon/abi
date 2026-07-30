@@ -48,6 +48,7 @@ pub mod payload;
 pub mod providers;
 pub mod sse;
 pub mod transport;
+pub mod twilio_relay;
 pub mod url;
 
 pub use connector::{ConnectorConfig, ConnectorError, Response, Result, TransportMode};
@@ -55,6 +56,11 @@ pub use providers::{Client, DiscordClient, Provider, TwilioClient};
 pub use sse::{StreamChunk, collect_stream, parse_stream};
 pub use transport::{
     DefaultTransport, Header, Method, RecordingTransport, Request, Transport, UnavailableTransport,
+};
+pub use twilio_relay::{
+    ConversationMemory, ConversationRelayEvent, ConversationRelayResponse, EscalationPayload,
+    EscalationReason, EventKind, IntelligenceSignal, build_escalation_payload,
+    build_local_conversation_response, classify_escalation,
 };
 
 #[cfg(feature = "live")]
