@@ -67,7 +67,7 @@ pub struct SnapshotStats {
 }
 
 /// The state reconstructed from a store's active segments.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Snapshot {
     /// Key/value entries, keyed by key. Later epochs have already won.
     pub kv: BTreeMap<String, String>,
@@ -171,6 +171,44 @@ impl Snapshot {
         }
         Ok(())
     }
+
+    /// Verify predecessor links and recompute every block's content hash.
+    ///
+    /// [`Self::verify_chain`] intentionally remains the historical link-only
+    /// compatibility check used by the snapshot loader. Local security surfaces
+    /// such as REST `/verify` use this stricter invariant.
+    pub fn verify_chain_strict(&self) -> std::result::Result<(), ChainIntegrityBreak> {
+        let mut expected_prev = crate::format::Hash::GENESIS;
+        for (index, block) in self.blocks.iter().enumerate() {
+            if block.prev_hash != expected_prev {
+                return Err(ChainIntegrityBreak {
+                    kind: ChainIntegrityKind::PreviousHash,
+                    index,
+                    sequence: block.sequence,
+                    expected: expected_prev,
+                    found: block.prev_hash,
+                });
+            }
+            let expected_hash = crate::wal::compute_block_hash(
+                block.prev_hash,
+                block.timestamp_ms,
+                block.sequence,
+                &block.profile,
+                &block.metadata,
+            );
+            if block.hash != expected_hash {
+                return Err(ChainIntegrityBreak {
+                    kind: ChainIntegrityKind::BlockHash,
+                    index,
+                    sequence: block.sequence,
+                    expected: expected_hash,
+                    found: block.hash,
+                });
+            }
+            expected_prev = block.hash;
+        }
+        Ok(())
+    }
 }
 
 /// Where an audit chain failed to link.
@@ -200,6 +238,55 @@ impl std::fmt::Display for ChainBreak {
 }
 
 impl std::error::Error for ChainBreak {}
+
+/// Which strict audit-chain invariant failed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChainIntegrityKind {
+    /// A block does not point to the preceding block.
+    PreviousHash,
+    /// A block hash does not authenticate its stored contents.
+    BlockHash,
+}
+
+/// Where strict chain authentication failed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChainIntegrityBreak {
+    /// Broken invariant.
+    pub kind: ChainIntegrityKind,
+    /// Position in the replayed block list.
+    pub index: usize,
+    /// The block's own sequence number.
+    pub sequence: u64,
+    /// Hash required by the invariant.
+    pub expected: crate::format::Hash,
+    /// Hash carried by the block.
+    pub found: crate::format::Hash,
+}
+
+impl std::fmt::Display for ChainIntegrityBreak {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            ChainIntegrityKind::PreviousHash => write!(
+                f,
+                "audit chain breaks at block {} (sequence {}): prev_hash is {} but the previous block hashes to {}",
+                self.index,
+                self.sequence,
+                self.found.to_hex(),
+                self.expected.to_hex()
+            ),
+            ChainIntegrityKind::BlockHash => write!(
+                f,
+                "audit block {} (sequence {}) hashes to {} but carries {}",
+                self.index,
+                self.sequence,
+                self.expected.to_hex(),
+                self.found.to_hex()
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ChainIntegrityBreak {}
 
 /// Load a store from its latest checkpoint.
 ///
@@ -238,6 +325,61 @@ pub fn load_latest(paths: &StorePaths, manifest: &Manifest) -> Result<Snapshot> 
     snapshot.stats.epochs_loaded = 1;
     snapshot.recount();
     Ok(snapshot)
+}
+
+/// Recover the newest readable active checkpoint without merging epochs.
+///
+/// Active epochs are tried from newest to oldest. Missing files and corrupt
+/// checkpoints are skipped until one complete checkpoint loads. Because every
+/// epoch is a full snapshot, returning exactly one preserves deletions and avoids
+/// duplicating the audit chain.
+///
+/// If active segment files exist but all are corrupt, the newest corruption is
+/// returned rather than silently inventing an empty store.
+pub fn load_newest_valid(paths: &StorePaths, manifest: &Manifest) -> Result<Snapshot> {
+    load_newest_valid_with_epoch(paths, manifest).map(|(snapshot, _)| snapshot)
+}
+
+/// Recover the newest readable checkpoint and report the epoch selected.
+///
+/// `None` means no manifest-listed segment file exists. This is the form used
+/// by epoch-gated WAL recovery.
+pub fn load_newest_valid_with_epoch(
+    paths: &StorePaths,
+    manifest: &Manifest,
+) -> Result<(Snapshot, Option<u64>)> {
+    let mut epochs = manifest.active.clone();
+    epochs.sort_unstable_by(|left, right| right.cmp(left));
+
+    let mut newest_error = None;
+    for epoch in epochs {
+        let path = paths.segment(epoch);
+        if !path.is_file() {
+            continue;
+        }
+
+        match read_segment(epoch, &path) {
+            Ok(segment) => {
+                let mut snapshot = Snapshot::new();
+                if segment.truncated_tail {
+                    snapshot.stats.truncated_segments = 1;
+                }
+                for record in segment.records {
+                    snapshot.apply(record);
+                }
+                snapshot.stats.epochs_loaded = 1;
+                snapshot.recount();
+                return Ok((snapshot, Some(epoch)));
+            }
+            Err(error) => {
+                if newest_error.is_none() {
+                    newest_error = Some(error);
+                }
+            }
+        }
+    }
+
+    newest_error.map_or_else(|| Ok((Snapshot::new(), None)), Err)
 }
 
 /// Layer **every** active segment into one snapshot.
@@ -309,7 +451,7 @@ pub fn load_ignoring_manifest(paths: &StorePaths) -> Result<Snapshot> {
     // Numeric, not lexicographic: directory order would put seg.10 before seg.2
     // and pick the wrong "latest".
     epochs.sort_unstable();
-    load_latest(
+    load_newest_valid(
         paths,
         &Manifest {
             next_epoch: epochs.last().map_or(0, |last| last + 1),
@@ -419,11 +561,13 @@ mod tests {
         // only the unkeyed block chain reveals the duplication. Three identical
         // checkpoints must still yield one block, not three.
         let fixture = Fixture::new("abi_wdbx_no_dup_blocks");
+        let timestamp_ms = 1_753_000_000_000_i64;
+        let hash = crate::wal::compute_block_hash(Hash::GENESIS, timestamp_ms, 0, "abi", "");
         let genesis = serde_json::json!({
             "type": "block",
-            "hash": vec![1u8; 32],
+            "hash": hash.bytes(),
             "prev_hash": vec![0u8; 32],
-            "timestamp_ms": 1_753_000_000_000i64,
+            "timestamp_ms": timestamp_ms,
             "sequence": 0,
             "profile": "abi",
             "query_id": 1,
@@ -522,6 +666,44 @@ mod tests {
     }
 
     #[test]
+    fn newest_valid_recovery_falls_back_without_merging_checkpoints() {
+        let fixture = Fixture::new("abi_wdbx_newest_valid");
+        fixture.write_segment(0, &[&kv("old", "preserved")]);
+        fixture.write_segment(1, &[&kv("new", "must-not-be-merged")]);
+        std::fs::write(fixture.paths().segment(2), "corrupt\n").expect("write corrupt segment");
+        fixture.write_manifest(3, &[0, 1, 2]);
+
+        let manifest = fixture.paths().read_manifest().expect("manifest");
+        let recovered = load_newest_valid(&fixture.paths(), &manifest).expect("fallback loads");
+        assert_eq!(recovered.stats.epochs_loaded, 1);
+        assert_eq!(
+            recovered.kv.get("new").map(String::as_str),
+            Some("must-not-be-merged")
+        );
+        assert!(
+            !recovered.kv.contains_key("old"),
+            "full checkpoints must not be merged during fallback"
+        );
+    }
+
+    #[test]
+    fn newest_valid_recovery_reports_corruption_when_no_checkpoint_survives() {
+        let fixture = Fixture::new("abi_wdbx_no_valid");
+        std::fs::write(fixture.paths().segment(0), "old-corrupt\n").expect("write");
+        std::fs::write(fixture.paths().segment(1), "new-corrupt\n").expect("write");
+        fixture.write_manifest(2, &[0, 1]);
+
+        let manifest = fixture.paths().read_manifest().expect("manifest");
+        let error = load_newest_valid(&fixture.paths(), &manifest).expect_err("must fail");
+        match error {
+            FormatError::InvalidHeader { path, .. } => {
+                assert_eq!(path, fixture.paths().segment(1));
+            }
+            other => panic!("unexpected error: {other}"),
+        }
+    }
+
+    #[test]
     fn a_torn_segment_tail_is_counted() {
         let fixture = Fixture::new("abi_wdbx_torn");
         let mut content = String::from(SEGMENT_HEADER);
@@ -581,16 +763,19 @@ mod tests {
         assert_eq!(snapshot.max_vector_id(), None);
     }
 
-    fn block(sequence: u64, hash: u8, prev: Hash) -> BlockRecord {
+    fn block(sequence: u64, _hash: u8, prev: Hash) -> BlockRecord {
+        let timestamp_ms = 1_753_000_000_000 + i64::try_from(sequence).unwrap_or(0);
+        let profile = "abi".to_string();
+        let metadata = String::new();
         BlockRecord {
-            hash: Hash([hash; 32]),
+            hash: crate::wal::compute_block_hash(prev, timestamp_ms, sequence, &profile, &metadata),
             prev_hash: prev,
-            timestamp_ms: 1_753_000_000_000 + i64::try_from(sequence).unwrap_or(0),
+            timestamp_ms,
             sequence,
-            profile: "abi".to_string(),
+            profile,
             query_id: sequence * 2,
             response_id: sequence * 2 + 1,
-            metadata: String::new(),
+            metadata,
         }
     }
 
@@ -635,6 +820,20 @@ mod tests {
         assert_eq!(err.sequence, 2);
         assert_eq!(err.expected_prev, second.hash);
         assert!(err.to_string().contains("sequence 2"));
+    }
+
+    #[test]
+    fn a_tampered_block_hash_is_rejected_even_when_links_match() {
+        let mut snapshot = Snapshot::new();
+        let mut first = block(0, 1, Hash::GENESIS);
+        first.hash = Hash([42; 32]);
+        snapshot.apply(Record::Block(first));
+        assert!(snapshot.verify_chain().is_ok(), "links alone still verify");
+        let err = snapshot
+            .verify_chain_strict()
+            .expect_err("strict verification must fail");
+        assert_eq!(err.kind, ChainIntegrityKind::BlockHash);
+        assert_eq!(err.index, 0);
     }
 
     #[test]

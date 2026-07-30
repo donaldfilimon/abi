@@ -93,9 +93,24 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **3a. `abi-connectors` core** — connector types, URL/auth (HTTPS enforcement + host-boundary check), payload builders + byte-exact local synthesis, SSE parsing (both dialects), `Transport` trait with `ureq` live impl + `RecordingTransport`, clients for OpenAI/Anthropic/Grok/Discord/Twilio. 75 tests.
 - [ ] **3b. `abi-connectors` remainder** — Discord gateway + WS client (`discord_gateway.zig` 483, `discord_ws_client.zig` 228, `discord_routing.zig` 126), Twilio relay (`twilio_relay.zig` 554), the local bridge (`local_bridge.zig` 236) and the Apple `FoundationModels` shim (`fm.zig` 217). These need a WebSocket client and a Swift FFI shim; ~1.8k Zig LOC.
 - [x] **4a. `abi-wdbx` on-disk format** — records (all 6 types), both hash encodings, manifest, checkpoint load, chain verification. **Verified against the user's real 301-epoch store**: 327 blocks, chain verifies from genesis, 32-dim vectors. 56 tests.
-- [ ] **4b. `abi-wdbx` remainder** — also add a descending-epoch salvage load: neither `load` nor `load_merging_all_epochs` recovers when the *latest* checkpoint is corrupt, which is the real recovery case.
-- [ ] **4c. WDBX writer** — there is currently no write path. `Hash` serializes (array form, correct and tested) but the record types have no serde derives, so "the reader works" must not be read as "round-trips".
-- [ ] **4d. (was 4b)** — HNSW index + storage, MVCC/WAL/recovery, REST + cluster surfaces, rate limiter, compression/entropy/neural-compress, FHE + crypto_he demos, spatial 3-D octree, temporal graph, multiway engine, ANS, retrieval, remote compute. ~11k Zig LOC — the largest single block left.
+- [x] **4b. WDBX checkpoint salvage** — descending newest-valid recovery
+  skips missing/corrupt active epochs without merging full checkpoints or
+  duplicating the block chain; total corruption remains a loud error.
+- [x] **4c. WDBX checkpoint writer** — all six record types, invariant
+  validation, SHA-256 trailer verification, atomic segment/manifest publication,
+  and multi-epoch round trips.
+- [x] **4d. WDBX WAL/recovery core** — CRC32-framed append, bounded verify,
+  torn-tail handling, absolute vector continuity, deterministic block replay,
+  epoch-gated checkpoint merge/stale-WAL discard, and checkpoint reset.
+- [ ] **4e. WDBX algorithms/services** — HNSW index + storage, richer MVCC,
+  REST + cluster surfaces, rate limiter, compression/entropy/neural-compress,
+  FHE + crypto_he demos, spatial 3-D octree, temporal graph, multiway engine,
+  ANS, retrieval, remote compute. A deterministic exact cosine index provides
+  the correctness oracle, and the layered HNSW graph/storage/search core with
+  rollback journaling is now ported. A durable store facade now joins recovery,
+  WAL-backed mutations, checkpoints and HNSW search. Manifest-authoritative
+  retain-latest compaction and reset are also ported. Full MVCC remains outside
+  the current Zig claim boundary; the listed services remain.
 - [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir, hash, metrics, telemetry, mobile, os_control.
 - [ ] **7. `abi-tui`**

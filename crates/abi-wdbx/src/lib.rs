@@ -1,9 +1,10 @@
 //! WDBX: the ABI framework's vector store.
 //!
-//! Step 4 of the Zig→Rust port. So far this crate covers the **on-disk format** —
-//! the piece with a hard external constraint — via [`mod@format`] and [`mod@store`].
-//! HNSW indexing, the REST surface, the cluster protocol, compression and the
-//! homomorphic-encryption demos are still Zig; see `RUST-REWRITE-PLAN.md`.
+//! Step 4 of the Zig→Rust port. This crate now covers the **on-disk format**,
+//! checkpoint publication and salvage, CRC-framed WAL recovery, and a
+//! deterministic exact-search reference index plus layered HNSW graph. Durable
+//! store integration, the REST surface, the cluster protocol, compression and
+//! the homomorphic-encryption demos are still Zig; see `RUST-REWRITE-PLAN.md`.
 //!
 //! ## Read-compatibility is a requirement, not a goal
 //!
@@ -20,11 +21,30 @@
 //! data — 4136 arrays and 40 strings for `prev_hash` — and a reader that fixes one
 //! encoding per field fails on the genesis block of every segment.
 
+pub mod durable;
 pub mod format;
+pub mod hnsw;
+pub mod index;
+pub mod persistence;
+pub mod rate_limit;
+pub mod rest;
+pub mod segments;
 pub mod store;
+pub mod temporal;
+pub mod wal;
 
+pub use durable::{DurableError, DurableStore};
 pub use format::{
     BlockRecord, FormatError, Hash, KvRecord, Manifest, Record, Segment, SpatialRecord, StorePaths,
     TemporalKind, TemporalRecord, VectorRecord,
 };
+pub use hnsw::{HnswError, HnswIndex, VectorStorage};
+pub use index::{ExactIndex, IndexError, SearchResult, cosine_similarity};
+pub use persistence::{flush, serialize_snapshot, write_snapshot};
+pub use rate_limit::{RateLimitStats, RateLimiter};
+pub use segments::{CompactionResult, SegmentError};
 pub use store::{Snapshot, SnapshotStats};
+pub use temporal::{
+    HybridScorer, RankedNode, ScoreComponents, TemporalCausalGraph, hybrid_search, temporal_weight,
+};
+pub use wal::{Recovered, RecoverySource, Wal, WalError};

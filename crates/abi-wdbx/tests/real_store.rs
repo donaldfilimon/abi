@@ -11,7 +11,7 @@
 //! ```
 
 use abi_wdbx::format::{Manifest, Record, parse_segment};
-use abi_wdbx::{Snapshot, StorePaths};
+use abi_wdbx::{ExactIndex, HnswIndex, Snapshot, StorePaths};
 use std::path::{Path, PathBuf};
 
 fn golden_dir() -> PathBuf {
@@ -167,6 +167,35 @@ fn reads_the_real_store_when_opted_in() {
     // business to fail on.
     if let Some(dims) = snapshot.vector_dimensions() {
         println!("vector dimensions: {dims}");
+
+        let hnsw = HnswIndex::from_snapshot(&snapshot)
+            .expect("the real vectors must rebuild into the Rust HNSW graph");
+        hnsw.validate_graph()
+            .expect("the rebuilt real-store HNSW graph must be internally valid");
+        let exact = ExactIndex::from_snapshot(&snapshot)
+            .expect("the real vectors must rebuild into the exact oracle");
+        let query = snapshot
+            .vectors
+            .first_key_value()
+            .map(|(_, vector)| vector.as_slice())
+            .expect("the observed store has vectors");
+        let approximate = hnsw.search(query, 10).expect("HNSW query");
+        let reference = exact.search(query, 10).expect("exact query");
+        assert!(!approximate.is_empty());
+        assert!(!reference.is_empty());
+        println!(
+            "HNSW candidate id={} score={:.6}; exact id={} score={:.6}",
+            approximate[0].id, approximate[0].score, reference[0].id, reference[0].score
+        );
+        assert!(
+            (approximate[0].score - reference[0].score).abs() < 0.0001,
+            "HNSW should recover an exact nearest neighbor for a stored vector"
+        );
+        println!(
+            "HNSW rebuilt {} vectors; stored-vector top score={:.6}",
+            hnsw.len(),
+            approximate[0].score
+        );
     } else {
         println!("vector dimensions vary across the store");
     }

@@ -23,6 +23,7 @@
 //! - An optional `# checksum:<hex>` trailer may follow the records.
 
 use serde::Serialize;
+use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -81,9 +82,18 @@ pub enum FormatError {
         /// Why it was rejected.
         reason: String,
     },
-    /// A file could not be read.
+    /// A checksum trailer did not match the segment body.
+    ChecksumMismatch {
+        /// The segment that failed verification.
+        path: PathBuf,
+        /// Digest recorded in the trailer.
+        expected: String,
+        /// Digest computed from the body.
+        actual: String,
+    },
+    /// A file could not be read or written.
     Io {
-        /// The file that failed.
+        /// The path that failed.
         path: PathBuf,
         /// The OS error text.
         message: String,
@@ -111,7 +121,18 @@ impl std::fmt::Display for FormatError {
                 write!(f, "hash field {field:?} is invalid: {reason}")
             }
             Self::InvalidManifest { reason } => write!(f, "invalid manifest: {reason}"),
-            Self::Io { path, message } => write!(f, "cannot read {}: {message}", path.display()),
+            Self::ChecksumMismatch {
+                path,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "checksum mismatch for {}: expected {expected}, computed {actual}",
+                path.display()
+            ),
+            Self::Io { path, message } => {
+                write!(f, "I/O failed for {}: {message}", path.display())
+            }
         }
     }
 }
@@ -531,6 +552,8 @@ pub fn parse_segment(epoch: u64, path: &Path, content: &str) -> Result<Segment> 
         });
     }
 
+    verify_checksum(path, content)?;
+
     // A trailing newline means the last record line is complete. Without one, the
     // final line may be a torn write.
     let ends_cleanly = content.ends_with('\n');
@@ -570,6 +593,38 @@ pub fn parse_segment(epoch: u64, path: &Path, content: &str) -> Result<Segment> 
         checksum,
         truncated_tail,
     })
+}
+
+fn verify_checksum(path: &Path, content: &str) -> Result<()> {
+    let marker = format!("\n{CHECKSUM_PREFIX}");
+    let Some(marker_start) = content.rfind(&marker) else {
+        return Ok(());
+    };
+
+    let expected_start = marker_start + marker.len();
+    let expected = content[expected_start..].trim();
+    let body_start = SEGMENT_HEADER.len() + 1;
+    let body_end = marker_start + 1;
+    let actual = hex_digest(Sha256::digest(&content.as_bytes()[body_start..body_end]));
+
+    if expected != actual {
+        return Err(FormatError::ChecksumMismatch {
+            path: path.to_path_buf(),
+            expected: expected.to_string(),
+            actual,
+        });
+    }
+    Ok(())
+}
+
+fn hex_digest(bytes: impl AsRef<[u8]>) -> String {
+    use std::fmt::Write as _;
+    let bytes = bytes.as_ref();
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        let _ = write!(out, "{byte:02x}");
+    }
+    out
 }
 
 /// Read and parse a segment file.
@@ -1012,13 +1067,11 @@ mod tests {
 
     #[test]
     fn reads_the_optional_checksum_trailer() {
-        let content = concat!(
-            "# ABI-WDBX v1\n",
-            "{\"type\":\"kv\",\"key\":\"a\",\"value\":\"1\"}\n",
-            "# checksum:deadbeef\n"
-        );
-        let segment = parse_segment(0, &segment_path(), content).expect("parses");
-        assert_eq!(segment.checksum.as_deref(), Some("deadbeef"));
+        let body = "{\"type\":\"kv\",\"key\":\"a\",\"value\":\"1\"}\n";
+        let checksum = hex_digest(Sha256::digest(body.as_bytes()));
+        let content = format!("{SEGMENT_HEADER}\n{body}{CHECKSUM_PREFIX}{checksum}\n");
+        let segment = parse_segment(0, &segment_path(), &content).expect("parses");
+        assert_eq!(segment.checksum.as_deref(), Some(checksum.as_str()));
         assert_eq!(segment.records.len(), 1);
     }
 
