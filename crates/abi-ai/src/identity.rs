@@ -43,6 +43,14 @@ pub const KNOWN_PROFILES: [AgentProfile; 3] =
 pub struct ProfileContract {
     /// The profile this contract describes.
     pub id: AgentProfile,
+    /// Longer operating description from the identity specification.
+    ///
+    /// Used as the worker instructions for `abi agent multi`'s fixed roster (see
+    /// [`crate::orchestration::default_trio_specs`]). Kept here rather than
+    /// restated at that call site so the roster cannot drift from the contract —
+    /// it already had, before this field existed: the inline copy in `abi-cli`
+    /// dropped Abbey's closing sentence.
+    pub description: &'static str,
     /// Text prepended to the user's input.
     pub response_prefix: &'static str,
     /// Text appended after the user's input.
@@ -55,16 +63,19 @@ pub const fn profile_contract(id: AgentProfile) -> ProfileContract {
     match id {
         AgentProfile::Abbey => ProfileContract {
             id,
+            description: "Primary user-facing personality combining technical expertise, emotional intelligence, creativity, clear teaching, thoughtful judgment, and collaborative problem-solving. Used for most conversations when both human awareness and technical depth matter.",
             response_prefix: "Abbey: ",
             response_suffix: "\n\nI\u{2019}ll approach this with warmth, creativity, and technical care while keeping uncertainty explicit.",
         },
         AgentProfile::Aviva => ProfileContract {
             id,
+            description: "Focused response mode optimized for speed, clarity, candor, and technical precision. Leads with the answer, removes unnecessary softening, identifies weak assumptions, prefers concrete actions, and communicates uncertainty plainly. Direct means concise and honest\u{2014}not reckless, hostile, or exempt from safety.",
             response_prefix: "Aviva direct expert: ",
             response_suffix: "\n\nLeading with the concrete answer, assumptions, and next action.",
         },
         AgentProfile::Abi => ProfileContract {
             id,
+            description: "Orchestration, reasoning, policy, and routing layer. Evaluates user intent, emotional state, technical complexity, risk, available context, desired style, and required tools. May select Abbey, Aviva, or a controlled blend. Ordinarily invisible unless discussing system architecture. Not a distributed agent runtime.",
             response_prefix: "ABI orchestration review: ",
             response_suffix: "\n\nEvaluating intent, risk, context, and the appropriate response mode.",
         },

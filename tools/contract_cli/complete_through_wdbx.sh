@@ -59,7 +59,10 @@ require_substring "$backends_out" "GPU:"
 plugins_out="$("$ABI" plugin list 2>&1)"
 require_substring "$plugins_out" "Installed Plugins ("
 require_substring "$plugins_out" "example-plugin"
-require_substring "$plugins_out" "(mod.zig)"
+# Plugin entry points are `mod.rs` after the Rust rewrite; the Zig tree
+# reported `mod.zig`. This is the one disclosed field change in the
+# plugin listing contract.
+require_substring "$plugins_out" "(mod.rs)"
 
 plugin_help_out="$("$ABI" plugin --help 2>&1)"
 require_substring "$plugin_help_out" "abi plugin list | run <name> [input]"
