@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-bin="zig-out/bin/abi"
+bin="target/debug/abi"
 if [ ! -x "$bin" ]; then
-  echo "tui smoke: missing executable at $bin" >&2
+  echo "tui smoke: missing executable at $bin (run ./tools/cargo.sh build -p abi-cli)" >&2
   exit 1
 fi
 
@@ -116,9 +116,12 @@ case "$once_out" in
   *"ABI Diagnostics Dashboard"*"[1-5] Panes"*|"ABI Diagnostics Dashboard"*) ;;
   *) echo "tui smoke: --once under pty missing dashboard content" >&2; echo "$once_out" >&2; exit 1 ;;
 esac
+# The Rust dashboard deliberately does not claim a one-shot snapshot refreshes.
+# Zig's footer read "live snapshot every 250ms" even with --once, which was
+# misleading; the Rust wording states the interval is CLI metadata only.
 case "$once_out" in
-  *"live snapshot every 250ms"*) ;;
-  *) echo "tui smoke: --interval did not update footer" >&2; echo "$once_out" >&2; exit 1 ;;
+  *"refresh is CLI metadata only"*) ;;
+  *) echo "tui smoke: --interval footer missing the one-shot disclosure" >&2; echo "$once_out" >&2; exit 1 ;;
 esac
 case "$once_out" in
   *$'\033[?1049h'*|*$'\033[?1049l'*|*$'\033[H'*|*$'\033[0J'*)
@@ -155,8 +158,9 @@ agent_out=$(ABI_WDBX_PATH=:memory: "$bin" agent tui 2>&1 <<'EOF'
 EOF
 )
 
+# The Rust REPL prints a lowercase "commands:" header; Zig used "Commands:".
 case "$agent_out" in
-  *"Commands:"*"/help"*"/quit"*) ;;
+  *"commands:"*"/help"*"/quit"*) ;;
   *) echo "tui smoke: missing agent REPL help output" >&2; exit 1 ;;
 esac
 

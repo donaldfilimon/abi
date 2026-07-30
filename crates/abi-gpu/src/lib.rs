@@ -1,15 +1,13 @@
 //! Honest GPU / accelerator backend detection.
 //!
-//! Ported from the claim-honest subset of `src/features/gpu/backends.zig`.
-//! **No native GPU kernels are linked in the Rust port.** The preferred
-//! backend name still reflects the host platform (Metal on macOS, simulated
-//! elsewhere) so operators see the same *declared* surface as Zig, but
-//! `accelerated` is always `false` and the message says so.
+//! Preferred backend is Metal on macOS. When the optional `metal-kernels`
+//! feature links and initializes a Metal DOT pipeline, `accelerated=true`
+//! for that path; otherwise CPU SIMD fallback with `accelerated=false`.
 //!
-//! Also hosts the claim-honest **shaders**, **mlir**, and **mobile** report
-//! surfaces (validation / textual lowering / simulated profile — no external
-//! toolchains or native mobile dispatch).
+//! Also hosts claim-honest **shaders**, **mlir**, and **mobile** report
+//! surfaces (validation / textual lowering / simulated profile).
 
+pub mod metal_kernels;
 pub mod mlir;
 pub mod mobile;
 pub mod shaders;
@@ -80,10 +78,8 @@ pub struct BackendCapabilities {
     /// kernels run").
     pub available: bool,
     /// Whether native accelerated kernels are linked and initialized.
-    /// Always `false` in the Rust port today.
     pub accelerated: bool,
     /// Whether native kernels are compiled into this build.
-    /// Always `false` in the Rust port today.
     pub native_kernels: bool,
     /// Operator-facing explanation.
     pub message: &'static str,
@@ -96,7 +92,7 @@ pub struct BackendStatus {
     pub backend: Backend,
     /// Whether a safe backend is available (always true — CPU fallback).
     pub available: bool,
-    /// Whether native acceleration is active (always false today).
+    /// Whether native acceleration is active for at least one kernel.
     pub accelerated: bool,
     /// Operator-facing explanation.
     pub message: &'static str,
@@ -113,21 +109,29 @@ pub const fn preferred_backend() -> Backend {
     }
 }
 
-/// Capability table for one backend. Native kernels are never claimed.
+/// Capability table for one backend.
+///
+/// Metal may report `accelerated=true` when `metal-kernels` init succeeds.
 #[must_use]
-pub const fn backend_capabilities(backend: Backend) -> BackendCapabilities {
+pub fn backend_capabilities(backend: Backend) -> BackendCapabilities {
     match backend {
         Backend::Metal => {
             let platform_available = cfg!(target_os = "macos");
+            let linked = metal_kernels::kernels_linked();
+            let active = metal_kernels::kernels_active();
             BackendCapabilities {
                 backend: Backend::Metal,
                 available: platform_available,
-                accelerated: false,
-                native_kernels: false,
-                message: if platform_available {
-                    "Metal is the preferred backend on macOS but native kernels are not linked in the Rust port; vectorized CPU fallback active"
-                } else {
+                accelerated: active,
+                native_kernels: linked,
+                message: if !platform_available {
                     "Metal is only available on macOS; vectorized CPU fallback active"
+                } else if active {
+                    "Metal DOT kernel linked and initialized; vector ops may dispatch on GPU"
+                } else if linked {
+                    "Metal kernels linked but device/pipeline init failed; vectorized CPU fallback active"
+                } else {
+                    "Metal is the preferred backend on macOS but native kernels are not linked; vectorized CPU fallback active"
                 },
             }
         }
@@ -176,9 +180,9 @@ pub const fn backend_capabilities(backend: Backend) -> BackendCapabilities {
     }
 }
 
-/// All seven capability rows, matching Zig's `backendCapabilitiesList`.
+/// All seven capability rows.
 #[must_use]
-pub const fn backend_capabilities_list() -> [BackendCapabilities; 7] {
+pub fn backend_capabilities_list() -> [BackendCapabilities; 7] {
     [
         backend_capabilities(Backend::Simulated),
         backend_capabilities(Backend::Metal),
@@ -192,7 +196,7 @@ pub const fn backend_capabilities_list() -> [BackendCapabilities; 7] {
 
 /// Detect the preferred backend's status.
 #[must_use]
-pub const fn detect_backend() -> BackendStatus {
+pub fn detect_backend() -> BackendStatus {
     let caps = backend_capabilities(preferred_backend());
     BackendStatus {
         backend: caps.backend,
@@ -237,14 +241,30 @@ mod tests {
     }
 
     #[test]
-    fn never_claims_native_acceleration() {
-        for caps in backend_capabilities_list() {
-            assert!(!caps.accelerated, "{:?}", caps.backend);
-            assert!(!caps.native_kernels, "{:?}", caps.backend);
+    fn acceleration_matches_metal_kernel_init() {
+        let metal = backend_capabilities(Backend::Metal);
+        if metal_kernels::kernels_active() {
+            assert!(metal.accelerated);
+            assert!(metal.native_kernels);
+            assert!(metal.message.contains("initialized") || metal.message.contains("GPU"));
+            if preferred_backend() == Backend::Metal {
+                assert!(detect_backend().accelerated);
+            }
+        } else {
+            assert!(!metal.accelerated);
+            for caps in backend_capabilities_list() {
+                if caps.backend != Backend::Metal {
+                    assert!(!caps.accelerated, "{:?}", caps.backend);
+                }
+            }
+            if !metal_kernels::kernels_linked() {
+                assert!(
+                    detect_backend().message.contains("fallback")
+                        || detect_backend().message.contains("CPU")
+                        || detect_backend().message.contains("not linked")
+                );
+            }
         }
-        let status = detect_backend();
-        assert!(!status.accelerated);
-        assert!(status.message.contains("fallback") || status.message.contains("CPU"));
     }
 
     #[test]
@@ -264,12 +284,17 @@ mod tests {
         let text = status_text();
         assert!(text.starts_with("backend="));
         assert!(text.contains(" available="));
-        assert!(text.contains(" accelerated=false"));
+        assert!(
+            text.contains(" accelerated=false") || text.contains(" accelerated=true"),
+            "{text}"
+        );
         assert!(text.contains(" capabilities=7 "));
         assert!(text.contains(" message="));
-        // No claim of active native kernels.
-        assert!(!text.contains("accelerated=true"));
-        assert!(!text.contains("GPU acceleration active"));
+        if metal_kernels::kernels_active() && preferred_backend() == Backend::Metal {
+            assert!(text.contains("accelerated=true"), "{text}");
+        } else {
+            assert!(text.contains("accelerated=false"), "{text}");
+        }
     }
 
     #[test]

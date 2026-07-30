@@ -2,8 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(./build.sh *)",
-      "Bash(zig build *)",
-      "Bash(zig test *)",
+      "Bash(./tools/check.sh *)",
+      "Bash(./tools/cargo.sh *)",
       "Bash(npx tsc)",
       "Bash(swift build *)",
       "Bash(swift test *)",
@@ -18,13 +18,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *.zig) pin=$(cat \"$CLAUDE_PROJECT_DIR/.zigversion\" 2>/dev/null); zb=\"$HOME/.zvm/$pin/zig\"; if [ -x \"$zb\" ]; then \"$zb\" fmt \"$f\"; else zig fmt \"$f\"; fi;; esac; } 2>/dev/null || true",
-            "statusMessage": "zig fmt (pinned)"
-          },
-          {
-            "type": "command",
-            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *mod.zig|*stub.zig) cd \"$CLAUDE_PROJECT_DIR\" && zig build check-parity 2>&1 | tail -5;; esac; } 2>/dev/null || true",
-            "statusMessage": "check-parity"
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *.rs) tb=\"$(dirname \"$(rustup which --toolchain nightly cargo)\")\"; if [ -x \"$tb/rustfmt\" ]; then \"$tb/rustfmt\" --edition 2024 \"$f\"; fi;; esac; } 2>/dev/null || true",
+            "statusMessage": "rustfmt (nightly)"
           }
         ]
       },
@@ -46,16 +41,6 @@
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-force-push-main.sh\"",
             "statusMessage": "guard force-push to main"
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "f=$(jq -r '.tool_input.file_path' 2>/dev/null); case \"$f\" in *plugin_registry.zig) echo 'plugin_registry.zig is generated from src/plugins/*/abi-plugin.json; edit the manifest and rebuild (tools/generate_plugin_registry.zig), do not hand-edit.' >&2; exit 2;; esac",
-            "statusMessage": "guard generated files"
           }
         ]
       },

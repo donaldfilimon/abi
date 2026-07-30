@@ -77,9 +77,11 @@ fn direct_help_and_exit_codes_cross_the_real_process_boundary() {
             .stderr
             .starts_with(b"ABI Framework  0.1.0\nRust nightly")
     );
+    let backends_text = String::from_utf8_lossy(&backends.stderr);
     assert!(
-        String::from_utf8_lossy(&backends.stderr)
-            .contains("Native accelerator kernels: not linked")
+        backends_text.contains("Native accelerator kernels: not linked")
+            || backends_text.contains("Native accelerator kernels: Metal DOT active"),
+        "{backends_text}"
     );
 
     let unknown = run(&["complte"]);

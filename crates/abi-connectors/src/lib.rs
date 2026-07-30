@@ -52,6 +52,8 @@ pub mod local_bridge;
 pub mod payload;
 pub mod providers;
 pub mod sse;
+#[cfg(feature = "live")]
+pub mod tls_ws;
 pub mod transport;
 pub mod twilio_relay;
 pub mod url;
@@ -89,5 +91,11 @@ pub use twilio_relay::{
     build_local_conversation_response, classify_escalation,
 };
 
+#[cfg(feature = "live")]
+pub use tls_ws::{
+    DiscordTlsTransport, TlsWsError, TwilioMediaClient, WsClient, client_config_with_root,
+    connect_tls, connect_wss, production_client_config, try_discord_live_connect,
+    try_twilio_media_connect,
+};
 #[cfg(feature = "live")]
 pub use transport::HttpTransport;

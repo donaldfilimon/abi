@@ -1,8 +1,8 @@
 //! Discord gateway bot loop with injectable transport.
 //!
-//! Ported from `src/connectors/discord_gateway.zig`. The loop is fully testable
-//! via [`FakeTransport`] with no network. Live `wss://` requires TLS (not linked);
-//! use a TLS-terminating proxy for real gateway access.
+//! The loop is fully testable via [`FakeTransport`] with no network. Live
+//! `wss://` uses [`crate::tls_ws::DiscordTlsTransport`] (rustls) when the
+//! `live` feature is enabled — credentials missing → disclosed error.
 
 #![allow(
     clippy::cast_possible_truncation,

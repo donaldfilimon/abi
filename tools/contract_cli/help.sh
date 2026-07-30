@@ -15,8 +15,9 @@ require_substring "$completion_bash_out" 'tui|--tui)'
 require_substring "$completion_bash_out" '--list-panes'
 require_substring "$completion_bash_out" 'words="list run "'
 reject_substring "$completion_bash_out" 'words="list run list run '
-printf '%s' "$completion_bash_out" > zig-out/abi-completion-contract.bash
-bash -n zig-out/abi-completion-contract.bash
+mkdir -p target/abi-smoke
+printf '%s' "$completion_bash_out" > target/abi-smoke/abi-completion-contract.bash
+bash -n target/abi-smoke/abi-completion-contract.bash
 if grep -Fq -- "Usage: abi" <<<"$completion_bash_out"; then
   echo "expected 'abi help --completion bash' to emit completion only, not text help" >&2
   echo "$completion_bash_out" >&2

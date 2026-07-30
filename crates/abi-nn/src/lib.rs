@@ -6,12 +6,18 @@
 //! over a small in-memory corpus.
 
 pub mod checkpoint;
+pub mod gguf_demo;
 pub mod model;
+pub mod sample_inc;
 pub mod train;
 pub mod types;
 
 pub use checkpoint::{load as load_checkpoint, save as save_checkpoint};
+pub use gguf_demo::{
+    GgufError, load_and_sample as load_gguf_and_sample, load_model_file, write_demo_gguf,
+};
 pub use model::{Grads, Matrix, Model, Scratch};
+pub use sample_inc::{SampleState, sample_incremental};
 pub use train::{extract_corpus_from_jsonl, sample, train_model, train_on_jsonl, train_on_text};
 pub use types::{Activation, NnError, Optimizer, TrainConfig, TrainReport};
 

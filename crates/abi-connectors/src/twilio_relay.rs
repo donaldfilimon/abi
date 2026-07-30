@@ -1,8 +1,9 @@
 //! Twilio `ConversationRelay` local conversation builder.
 //!
-//! Ported from `src/connectors/twilio_relay.zig` for the offline / MCP
-//! `connector_test` path. Does not contact the live Twilio API. Live event
-//! streaming over WebSocket remains a disclosed non-goal for this module.
+//! Offline / MCP `connector_test` path synthesizes events with no network.
+//! Live media / `ConversationRelay` WebSocket uses [`crate::tls_ws::TwilioMediaClient`]
+//! when the `live` feature is on (TLS via rustls). Missing credentials are
+//! disclosed, never fabricated.
 
 /// `ConversationRelay` event kinds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

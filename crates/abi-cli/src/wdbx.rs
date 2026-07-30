@@ -735,11 +735,18 @@ fn run_api(args: &[String]) -> Outcome {
 
 fn gpu_info() -> Outcome {
     let gpu = abi_gpu::detect_backend();
+    let linked = abi_gpu::metal_kernels::kernels_active();
+    let note = if linked {
+        "note: Metal DOT kernel linked and initialized; other vector ops may still use CPU SIMD"
+    } else {
+        "note: native kernels inactive or not linked; vector ops use deterministic CPU SIMD fallback"
+    };
     Outcome::stderr(
         format!(
-            "gpu backend={} accelerated={} native_linked=false\nmessage={}\nnote: native kernels are not linked in the Rust port; vector ops use deterministic CPU SIMD fallback\n",
+            "gpu backend={} accelerated={} native_linked={}\nmessage={}\n{note}\n",
             gpu.backend.name(),
             gpu.accelerated,
+            linked,
             gpu.message,
         ),
         0,
@@ -1387,8 +1394,13 @@ mod tests {
     fn gpu_info_is_claim_honest() {
         let outcome = run(&strings(&["gpu", "info"]));
         assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
-        assert!(outcome.stderr.contains("native_linked=false"));
         assert!(outcome.stderr.contains("accelerated="));
+        if abi_gpu::metal_kernels::kernels_active() {
+            assert!(outcome.stderr.contains("native_linked=true"));
+            assert!(outcome.stderr.contains("accelerated=true"));
+        } else {
+            assert!(outcome.stderr.contains("native_linked=false"));
+        }
     }
 
     #[test]

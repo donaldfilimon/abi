@@ -105,11 +105,13 @@ pub fn detect_platform() -> PlatformStatus {
             message: "Android platform detected; mobile feature active, native dispatch pending",
         };
     }
-    let gpu = detect_backend();
+    // Desktop mobile profile is always simulated — do not inherit GPU kernel
+    // acceleration into the mobile surface (native_dispatch remains false).
+    let _ = detect_backend();
     PlatformStatus {
         platform: Platform::Unknown,
         available: true,
-        accelerated: gpu.accelerated,
+        accelerated: false,
         message: "Desktop platform; mobile feature active with simulated mobile profile",
     }
 }

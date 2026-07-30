@@ -27,28 +27,28 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 | Item | Status | Constraint |
 | ---- | ------ | ---------- |
-| Native GPU kernels (Metal/CUDA/Vulkan) | ◑ | `accelerated=false`; CPU SIMD is real |
-| Live Discord `wss://` without TLS proxy | ◑ | Offline gateway + framing tested; TLS not linked |
-| Live Twilio media WebSocket | ◑ | Local ConversationRelay builder only |
+| Native GPU kernels (CUDA/Vulkan) | ◑ | Not linked; Metal DOT is optional |
 | External shader / MLIR toolchains | ◑ | Validation / textual IR only |
 | Mobile `native_dispatch` | ◑ | Simulated desktop profile |
 | Production FHE / multi-host sharding | ◑ | Reference demos / ops guidance only |
+| Full ggml/llama.cpp | ◑ | Demo GGUF container only (char-LM payload) |
 
 ---
 
-## Candidate next product slices
+## Recently closed product slices
 
-| Priority | Item | Notes |
-| -------- | ---- | ----- |
-| 1 | Live Discord/Twilio TLS clients | Optional product expansion |
-| 2 | Metal kernels beyond detection | Large; keep claims honest |
-| 3 | Windows runtime CI for ACLs | 🔴 no Windows runner |
-| 4 | ggml / true incremental neural sampler | Optional product expansion |
+| Item | Status | Notes |
+| ---- | ------ | ----- |
+| Live Discord/Twilio TLS clients | ✅ | rustls `wss://` via `abi-connectors::tls_ws`; offline process-local TLS peer tests |
+| Metal DOT kernels | ✅ | `metal-kernels` feature; `accelerated=true` when init succeeds; CPU oracle test |
+| Windows credential ACL CI | ✅ | `cfg(windows)` tests + `windows-acl` job on `windows-latest` |
+| True incremental NN sampler | ✅ | `SampleState::step` + demo GGUF load/sample |
 
 ---
 
 ## Recently landed
 
+- Product residuals: Discord/Twilio TLS WS, Metal DOT kernels, Windows ACL CI, incremental NN + demo GGUF
 - Aggressive residual teardown: deleted `modernized/`, `modern-refactor/`, `zig-pin`, `zig-newest-skills`, `zig-build-doctor`, Zig-only cross-compile skill; rewrote `abi` agents + lessons + docs hub for nightly Rust; freed local `zig-out`/`.zig-cache`
 - Agent skill drivers ported off `zig-out`/`./build.sh cli` → `./tools/cargo.sh` + `target/debug/abi` (dashboard, backends, plugins, SEA scratch store, WDBX roundtrip, etc.)
 - nn demo JSON checkpoint (`--out` / `--checkpoint`); Rust smoke scripts + goals/run-abi/mcp-smoke skills

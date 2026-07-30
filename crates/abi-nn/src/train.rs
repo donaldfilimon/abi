@@ -5,9 +5,7 @@
 //! `DefaultPrng` bit-for-bit — only the loss-decrease and sampling properties
 //! are contract.
 
-use crate::model::{
-    Grads, Matrix, Model, Scratch, backward, eval_loss, forward_loss, forward_loss_no_target,
-};
+use crate::model::{Grads, Matrix, Model, Scratch, backward, eval_loss, forward_loss};
 use crate::types::{NnError, Optimizer, TrainConfig, TrainReport};
 
 /// Splitmix64 — deterministic 64-bit mixer used only for weight init.
@@ -320,37 +318,11 @@ pub fn train_on_jsonl(
 }
 
 /// Greedy sample `n` characters starting from `seed_char`.
+///
+/// Implemented via the true incremental stepper in [`crate::sample_inc`].
 #[must_use]
 pub fn sample(model: &Model, seed_char: u8, n: usize) -> Vec<u8> {
-    let mut out = vec![0_u8; n];
-    if n == 0 {
-        return out;
-    }
-    let mut sc = Scratch::new(model);
-    let start = model
-        .corpus
-        .iter()
-        .position(|&b| b == seed_char)
-        .unwrap_or(0);
-    let _ = model.sample_at(start, &mut sc.ctx);
-
-    for slot in &mut out {
-        forward_loss_no_target(model, &mut sc);
-        let mut best = 0_usize;
-        let mut best_p = sc.probs[0];
-        for (idx, &pv) in sc.probs.iter().enumerate().skip(1) {
-            if pv > best_p {
-                best_p = pv;
-                best = idx;
-            }
-        }
-        *slot = model.id_to_byte[best];
-        if model.seq_len > 1 {
-            sc.ctx.copy_within(1..model.seq_len, 0);
-        }
-        sc.ctx[model.seq_len - 1] = best;
-    }
-    out
+    crate::sample_inc::sample_incremental(model, seed_char, n)
 }
 
 #[cfg(test)]

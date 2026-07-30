@@ -1,9 +1,8 @@
 //! Minimal WebSocket framing for the Discord gateway reference client.
 //!
-//! Ported from `src/connectors/discord_ws_client.zig`. Implements the HTTP
-//! upgrade request, client→server masked frames, and server→client frame
-//! parse. **TLS is not linked** — a live path to `wss://gateway.discord.gg`
-//! requires a TLS-terminating proxy (disclosed honesty boundary).
+//! Implements the HTTP upgrade request, client→server masked frames, and
+//! server→client frame parse. Live `wss://` connects via [`crate::tls_ws`]
+//! (rustls) — no external TLS-terminating proxy required.
 
 #![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 

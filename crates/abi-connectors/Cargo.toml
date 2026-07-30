@@ -18,11 +18,20 @@ base64 = "0.22"
 # scheduler's synchronous model) and uses rustls rather than linking OpenSSL.
 ureq = { version = "3", default-features = false, features = ["rustls"], optional = true }
 
+# Direct TLS for live Discord/Twilio WebSocket clients (no external proxy).
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"], optional = true }
+webpki-roots = { version = "1", optional = true }
+rustls-pki-types = { version = "1", optional = true }
+
+[dev-dependencies]
+# Process-local TLS peers for offline WS handshake/frame tests (no network).
+rcgen = "0.13"
+
 [features]
 default = ["live", "foundationmodels"]
 # The live transport. Disable to build a connectors crate that can only use the
 # local synthesized transport — useful for offline or minimal builds.
-live = ["ureq"]
+live = ["ureq", "rustls", "webpki-roots", "rustls-pki-types"]
 # Apple FoundationModels on-device bridge (arm64 macOS only; no-op elsewhere).
 # Compiles `native/fm_shim.swift` → `libabi_fm_shim.dylib` and links it.
 foundationmodels = []

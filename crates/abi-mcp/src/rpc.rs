@@ -168,10 +168,8 @@ mod tests {
             let got = resp(&call);
             let expected_response = &expected["response"];
 
-            // wdbx_stats discloses backend=cpu (no Rust GPU linked) rather than
-            // Zig's metal; gpu_status is ported with the same honesty — preferred
-            // name is metal on macOS but accelerated=false and the message says
-            // native kernels are not linked. Shape-check both; skip byte-equality.
+            // wdbx_stats discloses backend=cpu for the store path; gpu_status
+            // shape-check only (accelerated depends on Metal kernel init).
             if matches!(tool, "wdbx_stats" | "gpu_status") {
                 let text = got["result"]["content"][0]["text"]
                     .as_str()
@@ -181,10 +179,17 @@ mod tests {
                 if tool == "gpu_status" {
                     assert!(text.starts_with("backend="), "{text}");
                     assert!(text.contains(" available="), "{text}");
-                    assert!(text.contains(" accelerated=false"), "{text}");
+                    assert!(
+                        text.contains(" accelerated=false") || text.contains(" accelerated=true"),
+                        "{text}"
+                    );
                     assert!(text.contains(" capabilities=7 "), "{text}");
                     assert!(text.contains(" message="), "{text}");
-                    assert!(!text.contains("accelerated=true"), "{text}");
+                    if abi_gpu::metal_kernels::kernels_active() {
+                        assert!(text.contains("accelerated=true"), "{text}");
+                    } else {
+                        assert!(text.contains("accelerated=false"), "{text}");
+                    }
                 } else {
                     assert!(text.contains("backend=cpu"), "{text}");
                     assert!(text.contains("source=mcp-store"), "{text}");

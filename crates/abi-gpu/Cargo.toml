@@ -5,7 +5,12 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Honest GPU/backend detection for the ABI framework. Native kernels are not linked; CPU fallback is always the effective path."
+description = "GPU/backend detection for the ABI framework with optional Metal DOT kernels on macOS."
+
+[features]
+default = ["metal-kernels"]
+# Link Metal compute DOT kernel (macOS). When init fails, accelerated stays false.
+metal-kernels = []
 
 [dependencies]
 abi-foundation = { path = "../abi-foundation" }

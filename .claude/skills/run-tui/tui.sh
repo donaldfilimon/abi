@@ -9,7 +9,7 @@ set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
-export PATH="$PATH:/opt/homebrew/bin"   # append (not prepend!) so brew tmux is found without shadowing the zvm zig with brew's 0.16
+export PATH="$PATH:/opt/homebrew/bin"   # append (not prepend!) so brew tmux is found without shadowing rustup with brew's stable cargo
 ABI="$REPO_ROOT/target/debug/abi"
 CMD="${1:-dashboard}"
 SESSION="abi-tui-skill-$$"

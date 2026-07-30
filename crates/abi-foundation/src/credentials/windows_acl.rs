@@ -109,3 +109,38 @@ fn apply_descriptor(path_w: &mut [u16], descriptor: PSECURITY_DESCRIPTOR) -> Res
         Err(AbiError::PermissionDenied)
     }
 }
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn apply_owner_only_acl_on_temp_credentials_file() {
+        let ns = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("abi-acl-test-{ns}.json"));
+        fs::write(&path, br#"{"openai_api_key":"x"}"#).expect("write");
+        apply(&path).expect("apply owner-only DACL must succeed on Windows");
+        // Re-apply is idempotent.
+        apply(&path).expect("second apply");
+        let meta = fs::metadata(&path).expect("meta");
+        assert!(meta.is_file());
+        assert!(meta.len() > 0);
+        // save_to_path also routes through apply — exercise it end-to-end.
+        use crate::credentials::{CredentialField, Credentials};
+        use crate::secret::Secret;
+        let mut creds = Credentials::default();
+        creds.set(
+            CredentialField::OPENAI_API_KEY,
+            Some(Secret::new("sk-windows-acl")),
+        );
+        crate::credentials::file::save_to_path(&path, &creds).expect("save_to_path + ACL");
+        let body = fs::read_to_string(&path).expect("read back");
+        assert!(body.contains("openai_api_key"));
+        let _ = fs::remove_file(&path);
+    }
+}

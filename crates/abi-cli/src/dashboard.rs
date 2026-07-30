@@ -177,6 +177,35 @@ fn append_border(out: &mut String, left: &str, title: &str, right: &str) {
     out.push('\n');
 }
 
+/// Reverse video plus bold red — how the dashboard marks the focused pane.
+///
+/// Kept as one constant because it is contract: `tools/run_tui_smoke.sh` asserts
+/// this exact byte sequence precedes the selected pane's title.
+const FOCUS_STYLE: &str = "\x1b[7m\x1b[1;31m";
+/// SGR reset, closing [`FOCUS_STYLE`].
+const STYLE_RESET: &str = "\x1b[0m";
+
+/// Render a pane's top border, highlighting it when it is the focused pane.
+///
+/// The reset lands *before* the newline: leaving it after would let reverse video
+/// bleed into the following row, which is the usual way this kind of highlight
+/// goes wrong. With `color` false (`--plain` / `--no-color`) no escapes are
+/// emitted at all, which is what makes those flags meaningful for the text
+/// render rather than metadata that only shows up in `--json`.
+fn append_pane_header(out: &mut String, title: &str, selected: bool, color: bool) {
+    let mut line = String::new();
+    append_border(&mut line, "┌", title, "┐");
+
+    if selected && color {
+        out.push_str(FOCUS_STYLE);
+        out.push_str(line.trim_end_matches('\n'));
+        out.push_str(STYLE_RESET);
+        out.push('\n');
+    } else {
+        out.push_str(&line);
+    }
+}
+
 fn append_row(out: &mut String, label: &str, value: &str) {
     out.push_str("│ ");
     out.push_str(&fit(label, LABEL_WIDTH));
@@ -207,7 +236,7 @@ fn collect_state(options: &Options) -> DashboardState {
     DashboardState {
         gpu_backend: gpu.backend.name().to_string(),
         gpu_accelerated: gpu.accelerated,
-        gpu_linked: false, // native kernels are not linked in the Rust port
+        gpu_linked: abi_gpu::metal_kernels::kernels_active(),
         plugin_count,
         plugin_names,
         // Ephemeral probe store — never opens the user's durable path.
@@ -364,7 +393,7 @@ fn render_text(ds: &DashboardState) -> String {
 
     for idx in visible {
         let (_, title, _) = PANES[idx];
-        append_border(&mut out, "┌", title, "┐");
+        append_pane_header(&mut out, title, idx == ds.selected_pane, ds.color);
         match PANES[idx].0 {
             "system" => {
                 append_row(&mut out, "GPU backend", &ds.gpu_backend);
@@ -642,7 +671,9 @@ mod tests {
         // Honest GPU disclosure
         assert!(outcome.stderr.contains("accelerated"));
         assert!(outcome.stderr.contains("native linked"));
-        assert!(!outcome.stderr.contains("native linked             yes"));
+        if !abi_gpu::metal_kernels::kernels_active() {
+            assert!(!outcome.stderr.contains("native linked             yes"));
+        }
     }
 
     #[test]
@@ -652,12 +683,63 @@ mod tests {
         let v: Value = serde_json::from_str(outcome.stderr.trim()).expect("json");
         assert_eq!(v["type"], "abi.dashboard");
         assert_eq!(v["plugins"]["count"], 16);
-        assert_eq!(v["gpu"]["linked"], false);
-        assert_eq!(v["gpu"]["accelerated"], false);
-        assert_eq!(v["health"], "cpu");
+        let metal = abi_gpu::metal_kernels::kernels_active();
+        assert_eq!(v["gpu"]["linked"], metal);
+        assert_eq!(v["gpu"]["accelerated"], metal);
+        // Health is "nominal" when GPU kernels are active, else "cpu" (unless
+        // attention from scheduler/memory).
+        assert_eq!(v["health"], if metal { "nominal" } else { "cpu" });
         assert_eq!(v["scheduler"]["completed"], 2);
         assert_eq!(v["wdbx"]["blocks"], 0);
         assert_eq!(v["wdbx"]["vectors"], 0);
+    }
+
+    #[test]
+    fn selected_pane_is_highlighted_and_plain_suppresses_it() {
+        // The focused pane must be visually marked. Zig did this and the Rust
+        // port initially dropped it: `color` was stored and reported in `--json`
+        // but never used to emit anything, so `--pane` had no visible effect and
+        // `--plain` was a no-op for the text render.
+        let colored = run(&["--pane".to_owned(), "memory".to_owned()]);
+        assert_eq!(colored.exit_code, 0, "{}", colored.stderr);
+        assert!(
+            colored.stderr.contains(&format!("{FOCUS_STYLE}┌ Memory")),
+            "focused pane must carry the highlight"
+        );
+        assert!(
+            colored.stderr.contains(STYLE_RESET),
+            "the highlight must be reset so it does not bleed"
+        );
+        // Unfocused panes stay unstyled.
+        assert!(colored.stderr.contains("┌ System"));
+        assert!(!colored.stderr.contains(&format!("{FOCUS_STYLE}┌ System")));
+
+        let plain = run(&[
+            "--pane".to_owned(),
+            "memory".to_owned(),
+            "--plain".to_owned(),
+        ]);
+        assert_eq!(plain.exit_code, 0, "{}", plain.stderr);
+        assert!(
+            !plain.stderr.contains(FOCUS_STYLE),
+            "--plain must emit no escapes"
+        );
+        assert!(plain.stderr.contains("┌ Memory"));
+    }
+
+    #[test]
+    fn highlight_reset_precedes_the_newline() {
+        // Resetting after the newline would let reverse video bleed across the
+        // following row, which is the usual way this bug shows up in a terminal
+        // but is invisible to a "contains" assertion.
+        let out = run(&["--pane".to_owned(), "memory".to_owned()]);
+        let line = out
+            .stderr
+            .lines()
+            .find(|l| l.contains("┌ Memory"))
+            .expect("the memory pane header is rendered");
+        assert!(line.starts_with(FOCUS_STYLE), "got {line:?}");
+        assert!(line.ends_with(STYLE_RESET), "got {line:?}");
     }
 
     #[test]

@@ -44,12 +44,12 @@ const FEATURES: &[Feature] = &[
     Feature {
         name: "gpu",
         implemented: true,
-        detail: "detection + MCP gpu_status ported; native kernels not linked",
+        detail: "detection + MCP gpu_status; optional Metal DOT kernels on macOS when init succeeds",
     },
     Feature {
         name: "accelerator",
         implemented: true,
-        detail: "compute backend selection via abi-wdbx (CPU SIMD + ANE metadata); native kernels not linked",
+        detail: "compute backend selection via abi-wdbx (CPU SIMD + optional Metal DOT); ANE metadata only",
     },
     Feature {
         name: "shaders",
@@ -106,6 +106,7 @@ fn build_mode() -> &'static str {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn report() -> String {
     let mut output = format!(
         "ABI Framework  {}\nRust nightly (workspace min 1.99)  {}  {}  {}\n\nFeatures:\n",
@@ -151,9 +152,23 @@ fn report() -> String {
     let fm_bridge = abi_connectors::fm_bridge_linked();
     let fm_ready = abi_connectors::fm_available();
 
+    let metal_active = abi_gpu::metal_kernels::kernels_active();
+    let metal_linked = abi_gpu::metal_kernels::kernels_linked();
+    let kernel_line = if metal_active {
+        "Native kernels  Metal DOT linked+initialized"
+    } else if metal_linked {
+        "Native kernels  Metal linked (init failed)  vectorized CPU fallback active"
+    } else {
+        "Native kernels  not linked  vectorized CPU fallback active"
+    };
+    let accel_note = if metal_active {
+        "Native accelerator kernels: Metal DOT active"
+    } else {
+        "Native accelerator kernels: not linked"
+    };
     writeln!(
         output,
-        "\nCompute Backends:\n  GPU:            {}  {}  accelerated={}\n  Native kernels  not linked  vectorized CPU fallback active\n  Effective CPU:  {}  portable_simd_lanes={}\n  Native accelerator kernels: not linked",
+        "\nCompute Backends:\n  GPU:            {}  {}  accelerated={}\n  {}\n  Effective CPU:  {}  portable_simd_lanes={}\n  {}",
         gpu.backend.name(),
         if gpu.available { ENABLED } else { PENDING },
         if gpu.accelerated {
@@ -161,8 +176,10 @@ fn report() -> String {
         } else {
             "\x1b[90mno\x1b[0m"
         },
+        kernel_line,
         best.name(),
-        abi_wdbx::simd_lanes()
+        abi_wdbx::simd_lanes(),
+        accel_note,
     )
     .expect("writing to a String cannot fail");
     for capability in abi_wdbx::capabilities() {
@@ -233,14 +250,26 @@ mod tests {
         assert!(output.stderr.contains("mobile             \u{1b}[32m✓"));
         assert!(output.stderr.contains("foundationmodels   \u{1b}[32m✓"));
         assert!(output.stderr.contains("FoundationModels bridge_linked="));
-        assert!(
-            output
-                .stderr
-                .contains("Native accelerator kernels: not linked")
-        );
         assert!(output.stderr.contains("native_dispatch=false"));
         assert!(!output.stderr.contains("native=true"));
-        assert!(!output.stderr.contains("accelerated=\u{1b}[32myes"));
+        if abi_gpu::metal_kernels::kernels_active() {
+            assert!(
+                output.stderr.contains("accelerated=\u{1b}[32myes")
+                    || output.stderr.contains("Metal DOT")
+            );
+            assert!(
+                output
+                    .stderr
+                    .contains("Native accelerator kernels: Metal DOT active")
+            );
+        } else {
+            assert!(
+                output
+                    .stderr
+                    .contains("Native accelerator kernels: not linked")
+            );
+            assert!(!output.stderr.contains("accelerated=\u{1b}[32myes"));
+        }
     }
 
     #[test]

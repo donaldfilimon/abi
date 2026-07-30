@@ -53,3 +53,25 @@ jobs:
           components: rustfmt, clippy
       - name: ./tools/check.sh
         run: ./tools/check.sh
+
+  # Windows credential DACL runtime proof (owner-only ACL apply + save_to_path).
+  # Additive; does not replace the macOS primary gate.
+  windows-acl:
+    name: windows credential ACL
+    if: >
+      github.repository == 'donaldfilimon/abi' &&
+      (github.event_name == 'push' ||
+       github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+      - name: Windows ACL + credentials file tests
+        shell: bash
+        run: |
+          cargo test -p abi-foundation --lib -- credentials::windows_acl
+          cargo test -p abi-foundation --lib -- credentials::file

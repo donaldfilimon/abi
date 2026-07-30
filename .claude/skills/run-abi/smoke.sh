@@ -15,14 +15,14 @@ cd "$REPO_ROOT"
 
 ABI="$REPO_ROOT/target/debug/abi"
 ABI_MCP="$REPO_ROOT/target/debug/abi-mcp"
-STORE="$REPO_ROOT/zig-out/smoke-memory.jsonl"
-TRANSCRIPT="$REPO_ROOT/zig-out/run-abi-smoke.txt"
+STORE="$REPO_ROOT/target/abi-smoke/smoke-memory.jsonl"
+TRANSCRIPT="$REPO_ROOT/target/abi-smoke/run-abi-smoke.txt"
 
 fail=0
 pass=0
 
-# zig-out/ may not exist before the first build; ensure the transcript dir is
-# writable up front so every log line lands instead of erroring out per-line.
+# target/abi-smoke/ may not exist before the first run; ensure the transcript
+# dir is writable up front so every log line lands instead of erroring per-line.
 mkdir -p "$(dirname -- "$TRANSCRIPT")"
 
 log() { printf '%s\n' "$*" | tee -a "$TRANSCRIPT"; }
