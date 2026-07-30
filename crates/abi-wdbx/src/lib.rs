@@ -22,6 +22,7 @@
 //! data — 4136 arrays and 40 strings for `prev_hash` — and a reader that fixes one
 //! encoding per field fails on the genesis block of every segment.
 
+pub mod cluster;
 pub mod durable;
 pub mod format;
 pub mod hnsw;
@@ -34,6 +35,9 @@ pub mod store;
 pub mod temporal;
 pub mod wal;
 
+pub use cluster::{
+    AppendReply, Cluster, ClusterError, LogEntry, Node, Role, VoteReply, apply_append, apply_vote,
+};
 pub use durable::{DurableError, DurableStore};
 pub use format::{
     BlockRecord, FormatError, Hash, KvRecord, Manifest, Record, Segment, SpatialRecord, StorePaths,

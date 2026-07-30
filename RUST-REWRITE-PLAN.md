@@ -109,7 +109,9 @@ names" into "the Rust CLI emits byte-identical output".
   the correctness oracle, and the layered HNSW graph/storage/search core with
   rollback journaling is now ported. A durable store facade now joins recovery,
   WAL-backed mutations, checkpoints and HNSW search. Manifest-authoritative
-  retain-latest compaction and reset are also ported. The loopback-only REST
+  retain-latest compaction and reset are also ported. The deterministic
+  in-process Raft-style election/replication/failover core is ported; its TCP
+  RPC transport remains open. The loopback-only REST
   surface is ported with its five routes, hybrid temporal/causal/persona
   re-ranking, optional fixed-work bearer authentication, 64 KiB request bound,
   failed-auth-aware token bucket, and real-TCP tests. Full MVCC remains outside
