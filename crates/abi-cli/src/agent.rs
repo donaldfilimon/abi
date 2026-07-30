@@ -10,9 +10,9 @@ use std::fmt::Write as _;
 use std::sync::Arc;
 
 use abi_ai::{
-    AgentProfile, DatasetFormat, DatasetSpec, TrainingConfig, analyze_sentiment, complete,
-    parse_agent_profile, route_to_profile, select_best_profile, train_inspect, training_store_key,
-    training_store_value, training_vectors,
+    DatasetFormat, DatasetSpec, TrainingConfig, analyze_sentiment, parse_agent_profile,
+    route_to_profile, select_best_profile, train_inspect, training_store_key, training_store_value,
+    training_vectors,
 };
 use abi_core::{MemoryTracker, Scheduler, TaskPriority};
 use abi_wdbx::{DurableStore, StorePaths};
@@ -112,32 +112,17 @@ fn multi(input: &str) -> Outcome {
         },
     );
 
-    let profiles = [
-        (
-            AgentProfile::Abbey,
-            "Primary user-facing personality combining technical expertise, emotional intelligence, creativity, clear teaching, thoughtful judgment, and collaborative problem-solving.",
-        ),
-        (
-            AgentProfile::Aviva,
-            "Direct expert mode: concise answers, assumptions, next actions.",
-        ),
-        (
-            AgentProfile::Abi,
-            "Orchestration and governance review layer.",
-        ),
-    ];
+    // The roster and its per-worker report both come from `abi-ai` now. The
+    // instructions used to be restated here, and had already drifted — the inline
+    // Abbey copy dropped the closing sentence of her identity contract.
     let mut out = String::from("=== MULTI-AGENT RESULTS ===\n");
-    for (profile, instructions) in profiles {
-        let body = route_to_profile(profile, &augmented);
-        let label = profile.label().to_uppercase();
-        let _ = writeln!(out, "\n[{label}]");
-        let _ = writeln!(out, "agent={}", profile.label());
-        let _ = writeln!(out, "mode=dry-run");
-        let _ = writeln!(out, "selected_profile={}", profile.label());
-        let _ = writeln!(out, "review_required=false");
-        let _ = writeln!(out, "tool_hints=explore,plan");
-        let _ = writeln!(out, "instructions={instructions}");
-        let _ = writeln!(out, "response={body}");
+    for spec in abi_ai::default_trio_specs() {
+        let Some(result) = abi_ai::run_agent(&spec, &augmented) else {
+            continue;
+        };
+        // `multi` uppercases the persona in its section header, unlike `spawn`.
+        let _ = writeln!(out, "\n[{}]", spec.name.to_uppercase());
+        let _ = writeln!(out, "{}", result.output);
     }
     print_scheduler_stats(&mut out, scheduler.stats());
     Outcome {
@@ -367,9 +352,15 @@ fn browser(args: &[String]) -> Outcome {
     }
 }
 
+const SPAWN_USAGE: &str = "usage: abi agent spawn [--background] [--workers <spec>] <input>";
+/// The longer usage line Zig emitted specifically for a malformed `--workers`
+/// value, which spells out the spec grammar rather than just naming the flag.
+const SPAWN_WORKERS_USAGE: &str =
+    "usage: abi agent spawn [--background] [--workers \"name|instructions|hints;...\"] <input>";
+
 fn spawn(args: &[String]) -> Outcome {
     let mut background = false;
-    let mut workers: Option<String> = None;
+    let mut workers: Option<&str> = None;
     let mut input_parts: Vec<&str> = Vec::new();
     let mut i = 0;
     while i < args.len() {
@@ -377,45 +368,56 @@ fn spawn(args: &[String]) -> Outcome {
             "--background" => background = true,
             "--workers" => {
                 i += 1;
-                let Some(v) = args.get(i) else {
-                    return Outcome::stderr(
-                        "error: usage: abi agent spawn [--background] [--workers <spec>] <input>\n"
-                            .into(),
-                        2,
-                    );
+                let Some(value) = args.get(i) else {
+                    return Outcome::stderr(format!("error: {SPAWN_USAGE}\n"), 2);
                 };
-                workers = Some(v.clone());
+                workers = Some(value.as_str());
             }
             other => input_parts.push(other),
         }
         i += 1;
     }
     if input_parts.is_empty() {
-        return Outcome::stderr(
-            "error: usage: abi agent spawn [--background] [--workers <spec>] <input>\n".into(),
-            2,
-        );
+        return Outcome::stderr(format!("error: {SPAWN_USAGE}\n"), 2);
     }
     let input = input_parts.join(" ");
-    let worker_name = workers
-        .as_deref()
-        .and_then(|s| s.split('|').next())
-        .unwrap_or("smart-agent");
-    let body = complete(&input, "abi-local").map_or_else(
-        |_| route_to_profile(AgentProfile::Abbey, &input),
-        |r| r.output,
-    );
+
+    // A malformed --workers value reports the grammar-spelling usage line; an
+    // absent one falls back to the single default worker. Both match Zig.
+    let specs = match workers {
+        Some(spec_text) => match abi_ai::parse_worker_specs(spec_text) {
+            Ok(specs) => specs,
+            Err(_) => return Outcome::stderr(format!("error: {SPAWN_WORKERS_USAGE}\n"), 2),
+        },
+        None => vec![abi_ai::default_spawn_spec()],
+    };
+
+    // One scheduler task per worker, named `agent:spawn:<worker>` as Zig did, so
+    // `completed=` reflects the real fan-out rather than always reading 1.
+    let scheduler = Scheduler::new();
+    for spec in &specs {
+        scheduler.submit(
+            &format!("agent:spawn:{}", spec.name),
+            TaskPriority::Normal,
+            Box::new(|| Ok(())),
+        );
+    }
+    let _ = scheduler.run_all();
+
+    let Some(batch) = abi_ai::run_custom_multi_agent(&specs, &input) else {
+        return Outcome::stderr(format!("error: {SPAWN_WORKERS_USAGE}\n"), 2);
+    };
+
     let mut out = String::new();
     if background {
+        // Zig printed the submitted task ids before the aggregated results. Ids
+        // are 1-based and assigned in spec order by the scheduler.
         let _ = writeln!(out, "submitted background agent tasks:");
-        let _ = writeln!(out, "  task_id=1 worker={worker_name}");
+        for (index, spec) in specs.iter().enumerate() {
+            let _ = writeln!(out, "  task_id={} worker={}", index + 1, spec.name);
+        }
     }
-    let _ = writeln!(out, "worker={worker_name}");
-    let _ = writeln!(out, "mode=dry-run");
-    let _ = writeln!(out, "response={body}");
-    let scheduler = Scheduler::new();
-    scheduler.submit("agent:spawn", TaskPriority::Normal, Box::new(|| Ok(())));
-    let _ = scheduler.run_all();
+    let _ = writeln!(out, "{}", batch.aggregated);
     print_scheduler_stats(&mut out, scheduler.stats());
     Outcome {
         stdout: out,
@@ -428,6 +430,8 @@ const TUI_HELP: &str = "\
 ABI agent line-mode (interactive raw TUI not linked)
 commands:
   /help              this text
+  /model <id>        switch the completion model (alias-resolved)
+  /profile           show profile routing status
   /quit /exit /q     leave the REPL
   /status /stat      session counters and model
   /context           file_context / open-file summary
@@ -438,11 +442,39 @@ commands:
   free text          local persona completion with file_context
 ";
 
+/// Longest model id the line-mode REPL will accept via `/model`.
+///
+/// Ported from Zig's `MODEL_STORAGE_BYTES`. Zig needed this as a fixed-size
+/// backing array for `state.config.model`; here it survives only as the same
+/// length cap on an owned `String`, so a `/model` argument this long is
+/// rejected the same way in both ports.
+const MODEL_STORAGE_BYTES: usize = 128;
+
+/// Whether `id` is acceptable as a `/model` argument.
+///
+/// Ported from Zig's `validModelId`: every byte must be printable ASCII
+/// excluding space (`0x21..=0x7e`), and the id must be non-empty and no longer
+/// than [`MODEL_STORAGE_BYTES`]. Zig additionally checked
+/// `std.ascii.isWhitespace`, which is redundant here (and there): every ASCII
+/// whitespace byte — space, tab, newline, CR, and the rest — is already below
+/// `0x21`, so the range check alone rejects internal whitespace such as a
+/// two-word id. The range's upper bound also rejects DEL (`0x7f`) and every
+/// non-ASCII byte, including each byte of a multi-byte UTF-8 character, so a
+/// model id is ASCII by construction rather than by a separate check.
+fn valid_model_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= MODEL_STORAGE_BYTES
+        && id.bytes().all(|byte| (0x21..0x7f).contains(&byte))
+}
+
 struct LineModeState {
     session_id: i64,
     turn_count: usize,
     history: Vec<String>,
-    model: &'static str,
+    /// Owned rather than `&'static str`: `/model` can set this to a freeform,
+    /// non-catalog id (Zig accepted any `validModelId` string, not only known
+    /// catalog entries), which has no `'static` lifetime to borrow.
+    model: String,
 }
 
 enum SlashAction {
@@ -458,18 +490,65 @@ fn emit_line(responses: &mut String, stdout: &mut std::io::Stdout, line: &str) {
 }
 
 fn slash_status(state: &LineModeState, responses: &mut String, stdout: &mut std::io::Stdout) {
+    // `session_id=`, not `session=`: matches Zig's `formatStatusLine`.
     emit_line(
         responses,
         stdout,
         &format!(
-            "status: session={} turns={} history={} model={} provider={} sea=off live=off store=off mode=line",
+            "status: session_id={} turns={} history={} model={} provider={} sea=off live=off store=off mode=line",
             state.session_id,
             state.turn_count,
             state.history.len(),
             state.model,
-            abi_ai::models::provider_of(state.model).label(),
+            abi_ai::models::provider_of(&state.model).label(),
         ),
     );
+}
+
+/// `/profile`: report the routing mode and current model. Ported from Zig's
+/// `showProfileStatus`.
+fn slash_profile(state: &LineModeState, responses: &mut String, stdout: &mut std::io::Stdout) {
+    emit_line(
+        responses,
+        stdout,
+        &format!(
+            "profile: adaptive router active; model={}; turns={}",
+            state.model, state.turn_count
+        ),
+    );
+}
+
+/// `/model <id>`: switch the completion model. Ported from Zig's `applyModel`.
+///
+/// An empty argument prints usage without touching `state.model`. An argument
+/// that fails [`valid_model_id`] (after alias resolution — so `/model
+/// fable-5` still normalizes to `claude-fable-5` before validation) reports the
+/// same rejection message and, deliberately, leaves `state.model` unchanged:
+/// the whole point of validating first is that a rejected `/model` cannot move
+/// the session into an inconsistent state.
+fn slash_model(
+    state: &mut LineModeState,
+    arg: &str,
+    responses: &mut String,
+    stdout: &mut std::io::Stdout,
+) {
+    if arg.is_empty() {
+        emit_line(responses, stdout, "usage: /model <id>");
+        return;
+    }
+    let canonical = abi_ai::models::canonical(arg);
+    if !valid_model_id(canonical) {
+        emit_line(
+            responses,
+            stdout,
+            &format!(
+                "model id must be printable non-whitespace ASCII and at most {MODEL_STORAGE_BYTES} bytes"
+            ),
+        );
+        return;
+    }
+    state.model = canonical.to_string();
+    emit_line(responses, stdout, &format!("model set to {}", state.model));
 }
 
 fn slash_context(responses: &mut String, stdout: &mut std::io::Stdout) {
@@ -527,10 +606,25 @@ fn handle_slash(
         .next()
         .unwrap_or(trimmed)
         .to_ascii_lowercase();
+    // Everything after the command token, with the single separating
+    // whitespace run removed but internal whitespace preserved — so
+    // `/model two words` yields the argument `"two words"`, not `"two"`, which
+    // is what makes `valid_model_id` see (and reject) the embedded space.
+    let arg = trimmed
+        .split_once(char::is_whitespace)
+        .map_or("", |(_, rest)| rest.trim());
     match cmd.as_str() {
         "/quit" | "/exit" | "/q" => SlashAction::Quit,
         "/help" | "/h" => {
             emit_line(responses, stdout, TUI_HELP.trim_end());
+            SlashAction::Continue
+        }
+        "/model" => {
+            slash_model(state, arg, responses, stdout);
+            SlashAction::Continue
+        }
+        "/profile" => {
+            slash_profile(state, responses, stdout);
             SlashAction::Continue
         }
         "/status" | "/stat" => {
@@ -605,7 +699,7 @@ fn agent_tui_line_mode() -> Outcome {
         session_id: abi_foundation::time::unix_ms(),
         turn_count: 0,
         history: Vec::new(),
-        model: abi_ai::models::DEFAULT_MODEL,
+        model: abi_ai::models::DEFAULT_MODEL.to_string(),
     };
 
     for line in stdin.lock().lines() {
@@ -766,8 +860,212 @@ mod tests {
     }
 
     #[test]
+    fn spawn_with_workers_emits_the_custom_banner() {
+        // The assertion in tools/contract_cli/complete_through_wdbx.sh.
+        let args = ["--workers", "scout|Explore safely|explore", "inspect docs"].map(String::from);
+        let outcome = spawn(&args);
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(
+            outcome
+                .stdout
+                .contains("=== CUSTOM MULTI-AGENT RESULTS ===")
+        );
+        assert!(outcome.stdout.contains("[scout]"));
+        assert!(outcome.stdout.contains("instructions=Explore safely"));
+        assert!(outcome.stdout.contains("tool_hints=explore"));
+        assert!(outcome.stdout.contains("=== END ==="));
+    }
+
+    #[test]
+    fn spawn_without_workers_still_emits_the_custom_banner() {
+        // The assertion in tools/contract_cli/agent_orchestration.sh: the banner
+        // is unconditional, and the default worker is the named smart-agent.
+        let outcome = spawn(&["contract worker smoke".to_owned()]);
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(
+            outcome
+                .stdout
+                .contains("=== CUSTOM MULTI-AGENT RESULTS ===")
+        );
+        assert!(outcome.stdout.contains("[smart-agent]"));
+        assert!(outcome.stdout.contains("tool_hints=plan,explore"));
+    }
+
+    #[test]
+    fn spawn_runs_every_worker_and_counts_them_all() {
+        let args = ["--workers", "first|One;second|Two;third|Three", "task"].map(String::from);
+        let outcome = spawn(&args);
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        for name in ["[first]", "[second]", "[third]"] {
+            assert!(outcome.stdout.contains(name), "missing {name}");
+        }
+        // One scheduler task per worker, not one per command.
+        assert!(
+            outcome.stdout.contains("completed=3"),
+            "scheduler should report the real fan-out:\n{}",
+            outcome.stdout
+        );
+    }
+
+    #[test]
+    fn spawn_background_lists_task_ids_before_the_results() {
+        let args = ["--background", "--workers", "a|A;b|B", "t"].map(String::from);
+        let outcome = spawn(&args);
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        let ids = outcome
+            .stdout
+            .find("submitted background agent tasks:")
+            .expect("the background header is present");
+        let banner = outcome
+            .stdout
+            .find("=== CUSTOM MULTI-AGENT RESULTS ===")
+            .expect("the banner is present");
+        assert!(ids < banner, "task ids must precede the aggregated results");
+        assert!(outcome.stdout.contains("task_id=1 worker=a"));
+        assert!(outcome.stdout.contains("task_id=2 worker=b"));
+    }
+
+    #[test]
+    fn spawn_rejects_a_malformed_workers_spec_with_the_grammar_usage() {
+        // Zig used a longer usage line for a bad --workers value than for a
+        // missing input, spelling out the spec grammar.
+        for bad in ["onlyname", "n|i|badhint", ""] {
+            let args = ["--workers".to_owned(), bad.to_owned(), "t".to_owned()];
+            let outcome = spawn(&args);
+            assert_eq!(outcome.exit_code, 2, "{bad:?} should be a usage error");
+            assert!(
+                outcome.stderr.contains("name|instructions|hints"),
+                "{bad:?} should report the grammar: {}",
+                outcome.stderr
+            );
+        }
+    }
+
+    #[test]
+    fn spawn_without_input_or_a_workers_value_is_a_usage_error() {
+        assert_eq!(spawn(&[]).exit_code, 2);
+        assert_eq!(spawn(&["--background".to_owned()]).exit_code, 2);
+        // `--workers` as the final token has no value to consume.
+        assert_eq!(spawn(&["--workers".to_owned()]).exit_code, 2);
+    }
+
+    #[test]
+    fn multi_instructions_come_from_the_identity_contracts() {
+        // Guards the drift this change fixed: the inline copy had dropped the
+        // closing sentence of Abbey's contract description.
+        let outcome = multi("hi");
+        assert_eq!(outcome.exit_code, 0);
+        for profile in abi_ai::identity::KNOWN_PROFILES {
+            let expected = abi_ai::profile_contract(profile).description;
+            assert!(
+                outcome.stdout.contains(expected),
+                "{} instructions must match its contract verbatim",
+                profile.label()
+            );
+        }
+    }
+
+    #[test]
     fn train_unknown_profile_is_usage() {
         let outcome = train_profile("nobody");
         assert_eq!(outcome.exit_code, 2);
+    }
+
+    fn line_mode_state(model: &str) -> LineModeState {
+        LineModeState {
+            session_id: 42,
+            turn_count: 0,
+            history: Vec::new(),
+            model: model.to_owned(),
+        }
+    }
+
+    /// Dispatch one REPL line and return only what it wrote to `responses`.
+    ///
+    /// `handle_slash` also writes to a live `std::io::Stdout`, so this prints
+    /// during a `cargo test` run without `--nocapture` shows nothing — libtest
+    /// captures it — but running with `--nocapture` will show duplicate lines.
+    /// That is a property of the REPL loop under test, not of the test.
+    fn dispatch(line: &str, state: &mut LineModeState) -> String {
+        let mut responses = String::new();
+        let mut stdout = std::io::stdout();
+        handle_slash(line, state, &mut responses, &mut stdout);
+        responses
+    }
+
+    #[test]
+    fn model_command_sets_a_valid_model_and_reports_it() {
+        let mut state = line_mode_state(abi_ai::models::DEFAULT_MODEL);
+        let responses = dispatch("/model abi-local", &mut state);
+        assert_eq!(state.model, "abi-local");
+        assert!(responses.contains("model set to abi-local"));
+    }
+
+    #[test]
+    fn model_command_rejects_a_whitespace_containing_id() {
+        // The exact case the smoke test exercises: a two-word "id" must be
+        // rejected, and rejection must not perturb the session's model.
+        let mut state = line_mode_state("abi-local");
+        let responses = dispatch("/model two words", &mut state);
+        assert_eq!(
+            state.model, "abi-local",
+            "a rejected /model must leave state unchanged"
+        );
+        assert!(responses.contains("model id must be printable non-whitespace ASCII"));
+        assert!(!responses.contains("model set to two"));
+    }
+
+    #[test]
+    fn model_command_resolves_aliases_before_validating() {
+        // "/model fable-5" should store the canonical id, matching the
+        // alias-resolution `/model <id>` in the help text promises.
+        let mut state = line_mode_state(abi_ai::models::DEFAULT_MODEL);
+        dispatch("/model fable-5", &mut state);
+        assert_eq!(state.model, "claude-fable-5");
+    }
+
+    #[test]
+    fn model_command_with_no_argument_prints_usage_and_changes_nothing() {
+        let mut state = line_mode_state("abi-local");
+        let responses = dispatch("/model", &mut state);
+        assert_eq!(state.model, "abi-local");
+        assert!(responses.contains("usage: /model <id>"));
+    }
+
+    #[test]
+    fn profile_command_reports_the_current_model_and_turn_count() {
+        let mut state = line_mode_state("abi-local");
+        state.turn_count = 3;
+        let responses = dispatch("/profile", &mut state);
+        assert!(responses.contains("profile: adaptive router active; model=abi-local; turns=3"));
+    }
+
+    #[test]
+    fn status_reports_session_id_not_session() {
+        // The Rust port originally printed `session=`; the smoke test (and
+        // Zig's formatStatusLine) expect `session_id=`.
+        let mut state = line_mode_state("abi-local");
+        let responses = dispatch("/status", &mut state);
+        assert!(responses.contains("status: session_id=42"));
+    }
+
+    #[test]
+    fn help_lists_the_model_and_profile_commands() {
+        assert!(TUI_HELP.contains("/model"));
+        assert!(TUI_HELP.contains("/profile"));
+    }
+
+    #[test]
+    fn valid_model_id_matches_the_zig_reference_cases() {
+        // Verbatim from Zig's "validModelId rejects controls whitespace and
+        // overlong ids" test.
+        assert!(valid_model_id("abi-local"));
+        assert!(valid_model_id("ollama/qwen2"));
+        assert!(!valid_model_id(""));
+        assert!(!valid_model_id("two words"));
+        assert!(!valid_model_id("bad\tid"));
+        assert!(!valid_model_id("bad\x1bid"));
+        assert!(valid_model_id(&"a".repeat(MODEL_STORAGE_BYTES)));
+        assert!(!valid_model_id(&"a".repeat(MODEL_STORAGE_BYTES + 1)));
     }
 }

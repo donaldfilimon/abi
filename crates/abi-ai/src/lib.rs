@@ -47,6 +47,7 @@ pub mod incremental;
 pub mod keywords;
 pub mod models;
 pub mod modulator;
+pub mod orchestration;
 pub mod point_net;
 pub mod router;
 pub mod soul;
@@ -65,6 +66,11 @@ pub use identity::{
 };
 pub use incremental::{StreamChunk, StreamMode, generate_profile_incremental};
 pub use modulator::{AdaptiveModulator, STORE_KEY as MODULATOR_STORE_KEY};
+pub use orchestration::{
+    AgentResult, AgentToolHint, AgentWorkerSpec, CustomMultiAgentResult, MAX_WORKER_COUNT,
+    NamedAgentResult, WorkerSpecError, default_spawn_spec, default_trio_specs,
+    format_tool_hints, parse_worker_specs, run_agent, run_custom_multi_agent,
+};
 pub use point_net::{Point, PointNeuralNetwork, TopologyReport};
 pub use router::{
     ProfileWeights, analyze_sentiment, blend_weights, explicit_profile_selector, route_profile,

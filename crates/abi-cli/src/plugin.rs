@@ -10,10 +10,19 @@
 //!   `plugin_list` tool renders the manager's load order (declaration order). The
 //!   two orders differ on purpose; see the `abi-plugins` crate docs.
 
+use std::fmt::Write as _;
+
 use abi_core::registry::Registry;
 use abi_plugins::{PluginManager, register_all};
 
-use crate::app::Outcome;
+use crate::app::{Outcome, suggestion};
+
+/// The two tokens `abi plugin` actually dispatches on. Zig derived this same
+/// pair from the registry's declared `choices` for the subcommand's positional
+/// arg (`arg.parse` failing against `choices` is what drove its "did you mean"
+/// suggestion); this crate has no generic choices-validated arg parser yet, so
+/// the pair is spelled out here instead of derived.
+const SUBCOMMANDS: [&str; 2] = ["list", "run"];
 
 const USAGE: &str = "usage: abi plugin list | run <name> [input]";
 const LIST_USAGE: &str = "usage: abi plugin list";
@@ -45,7 +54,17 @@ pub(crate) fn run(args: &[String]) -> Outcome {
             let input = args[2..].join(" ");
             run_plugin(name, &input)
         }
-        _ => Outcome::stderr(format!("error: {USAGE}\n"), 2),
+        other => {
+            // Matches Zig's `usageErrorWithSuggestion`: the usage line, then an
+            // unconditional `hint:` line when a close-enough match exists — no
+            // blank line between them (unlike `unknown_command`'s top-level
+            // format, which does separate the hint from its usage block).
+            let mut error = format!("error: {USAGE}\n");
+            if let Some(candidate) = suggestion(other, SUBCOMMANDS.into_iter()) {
+                let _ = writeln!(error, "hint: did you mean `{candidate}`?");
+            }
+            Outcome::stderr(error, 2)
+        }
     }
 }
 
@@ -141,5 +160,24 @@ mod tests {
         assert_eq!(run(&["run".to_string()]).exit_code, 2);
         // `list` takes no arguments.
         assert_eq!(run(&["list".to_string(), "extra".to_string()]).exit_code, 2);
+    }
+
+    #[test]
+    fn a_close_typo_earns_a_did_you_mean_hint() {
+        // Ported from Zig's live behavior: `arg.parse` failing a `choices`
+        // check on the registry's `plugin` command (["list", "run"]) drove
+        // `suggest.usageErrorWithSuggestion`, which this mirrors for the two
+        // real subcommands rather than re-deriving a generic choices parser.
+        let output = run(&["rn".to_string()]);
+        assert_eq!(output.exit_code, 2);
+        assert!(output.stderr.contains(USAGE));
+        assert!(output.stderr.contains("hint: did you mean `run`?"));
+    }
+
+    #[test]
+    fn a_dissimilar_token_earns_no_hint() {
+        let output = run(&["bogus".to_string()]);
+        assert_eq!(output.exit_code, 2);
+        assert!(!output.stderr.contains("hint:"));
     }
 }
