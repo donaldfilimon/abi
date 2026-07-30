@@ -3,14 +3,14 @@
 //! Ported from `src/cli/usage.zig`. That module's own header says it is
 //! deliberately std-only and isolated from the feature graph so help can be
 //! rendered and contract-tested without pulling in the rest of the build; the
-//! same isolation applies here — this module depends on nothing but
-//! `abi_foundation`.
+//! same isolation applies here — this module depends on nothing outside the
+//! Rust standard library.
 //!
 //! **Do not add, remove, reorder, or reword a command here without updating
 //! `tests/golden/help.json` and re-verifying against the Zig binary first** — this
-//! table is asserted byte-for-byte against captured output in
+//! table is asserted field-for-field against captured output in
 //! `crates/abi-cli/tests/golden.rs`, and once the Zig source is deleted in step
-//! 11, this table plus the goldens are the only surviving record of the contract.
+//! 11, this table plus the goldens are the surviving record of the contract.
 
 use std::fmt;
 
@@ -31,7 +31,13 @@ pub enum Category {
 
 impl Category {
     /// Display order for `abi help` and `abi help --json`.
-    pub const ORDER: [Self; 5] = [Self::Core, Self::Ai, Self::Data, Self::System, Self::Network];
+    pub const ORDER: [Self; 5] = [
+        Self::Core,
+        Self::Ai,
+        Self::Data,
+        Self::System,
+        Self::Network,
+    ];
 
     /// The heading printed above this category's commands.
     #[must_use]
@@ -278,7 +284,8 @@ pub fn is_help_token(token: &str) -> bool {
 /// with both set, so this must not either.
 #[must_use]
 pub fn render_usage() -> String {
-    let mut out = String::from("Usage: abi <command> [args...]\n       abi --tui [dashboard flags]\n\n");
+    let mut out =
+        String::from("Usage: abi <command> [args...]\n       abi --tui [dashboard flags]\n\n");
     for category in Category::ORDER {
         out.push_str("\x1b[1m");
         out.push_str(category.title());
@@ -295,7 +302,9 @@ pub fn render_usage() -> String {
         }
         out.push('\n');
     }
-    out.push_str("Run `abi help [--json|--completion <shell>] <command> [subcommand]` for details.\n");
+    out.push_str(
+        "Run `abi help [--json|--completion <shell>] <command> [subcommand]` for details.\n",
+    );
     out
 }
 
@@ -344,8 +353,19 @@ mod tests {
         assert_eq!(
             names,
             [
-                "help", "complete", "train", "agent", "backends", "plugin", "auth", "twilio",
-                "tui", "dashboard", "wdbx", "scheduler", "nn"
+                "help",
+                "complete",
+                "train",
+                "agent",
+                "backends",
+                "plugin",
+                "auth",
+                "twilio",
+                "tui",
+                "dashboard",
+                "wdbx",
+                "scheduler",
+                "nn"
             ]
         );
     }

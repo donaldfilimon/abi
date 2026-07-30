@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "abi-cli"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "abi-connectors"
 version = "0.1.0"
 dependencies = [

@@ -99,7 +99,11 @@ names" into "the Rust CLI emits byte-identical output".
 - [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir, hash, metrics, telemetry, mobile, os_control.
 - [ ] **7. `abi-tui`**
-- [ ] **8. `abi-cli`** — golden-tested against `help.json` / `help-*.txt` / `completion.*`.
+- [x] **8a. `abi-cli` contract model** — frozen 13-command metadata,
+  top-level help, shortcut resolution, and argument-free command help are
+  golden-tested. This does **not** claim handler or full typed-help parity.
+- [ ] **8b. `abi-cli` executable** — typed/raw dispatch, all command handlers,
+  full `help.json` / `help-*.txt`, and `completion.*` parity.
 - [ ] **9. `abi-mcp`** — golden-tested against `mcp-tools-list.json`, order included.
 - [ ] **10. `abi-plugins`**
 - [ ] **11. Zig teardown, in one commit** — `src/**/*.zig`, `build.zig`, `build.zig.zon`, `build.sh`, `.zigversion`, `zig-out/`, `zig-cache/`, `.zig-cache/`, `tools/*.zig`, `tests/**/*.zig`, `examples/**`, `.gitattributes` Zig rules, `.github/workflows` calling `./build.sh`.

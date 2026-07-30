@@ -5,11 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "The abi command-line surface: the frozen 13-command metadata table and its help rendering."
+description = "Frozen ABI command metadata and help rendering."
 
-[dependencies]
-abi-foundation = { workspace = true }
-serde = { workspace = true }
+[dev-dependencies]
 serde_json = { workspace = true }
 
 [lints]
