@@ -34,6 +34,7 @@ pub mod temp_path;
 pub mod text;
 pub mod time;
 pub mod validation;
+pub mod wyhash;
 
 pub use errors::{AbiError, ErrorContext, Result};
 pub use logger::{Level, LogEntry, Logger};

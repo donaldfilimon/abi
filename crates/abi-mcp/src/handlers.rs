@@ -316,8 +316,19 @@ pub fn handle_tools_call(state: McpState, params: Option<&Value>) -> Result<Valu
     }
 
     match tool_name {
-        "ai_complete" | "ai_learn" | "ai_train" | "wdbx_query" | "gpu_status" => {
-            Err(ToolError::NotYetPorted)
+        "ai_learn" | "ai_train" | "wdbx_query" | "gpu_status" => Err(ToolError::NotYetPorted),
+        "ai_complete" => {
+            let args = tool_arguments(params_obj)?;
+            let input = object_string(args, "input", ToolError::MissingInput)?;
+            // Zig fell back to the catalog default when `model` was absent
+            // rather than raising `MissingModel` — that error variant exists
+            // for a `model` field present but not a string.
+            let model = object_string(args, "model", ToolError::MissingModel)
+                .unwrap_or(abi_ai::models::DEFAULT_MODEL);
+            match crate::ai_tools::run(input, model) {
+                Ok(text) => Ok(text_result(&text)),
+                Err(_) => Err(ToolError::Internal),
+            }
         }
         "ai_run" => {
             let args = tool_arguments(params_obj)?;

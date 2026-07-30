@@ -186,12 +186,14 @@ names" into "the Rust CLI emits byte-identical output".
     delta) against a seeded temporary store. That is a stronger contract than a
     frozen line, because it holds at every store state.
   - **Store safety for the remaining work.** `ai_complete`/`ai_learn`/`ai_train`
-    write to the user's real 94 MB `~/.abi/`. All step-5 testing must point
-    `ABI_WDBX_PATH` at a scratch copy, and the real store's digest must be
-    re-verified before each commit — this is the one failure here that git
-    cannot undo. Baseline for this session:
-    `d88f675c3d2585e576e7393b65a984c87e05e71f` (verified unchanged at 5a).
-  - [ ] **5b. `ai_complete`.** Scope is now measured rather than guessed:
+    write to the user's real store under `~/.abi/` when a path resolves. All
+    step-5 testing must use a scratch `DurableStore` (parameterised, never via
+    process env), and the real store's content digest must be re-verified before
+    each commit — this is the one failure here that git cannot undo. Content-only
+    SHA-1 of every file under `~/.abi/` for this session (5b closeout):
+    `39363c5aab63f23bdaa74ec813ff8b678926b07d`. Tests never opened that path;
+    the WAL remains a header-only `base_epoch=306` record with no data frames.
+  - [x] **5b. `ai_complete`.** Scope is now measured rather than guessed:
     - **The modulator is *not* on this path.** `ai_complete` calls
       `completeWithScheduler` → `completeWithStore` → `complete()`, which is the
       pure `analyzeSentiment` + `selectBestProfile` pair already ported in 5a.
@@ -199,23 +201,22 @@ names" into "the Rust CLI emits byte-identical output".
       `completeWithStoreAdaptive`, i.e. the SEA path. So persona selection for
       `ai_complete` is deterministic and store-independent; only the counters and
       `block_id` are store-derived. (An earlier note here assumed otherwise.)
-    - **Blocker: `textEmbedding` cannot use the Rust `wyhash` crate.** Zig's
-      `std.hash.Wyhash.hash(seed, bytes)` and `wyhash` 0.5 return entirely
-      different values — measured on the pinned Zig, e.g. seed 3 over `"hel"`
-      gives `10846395113768030678` (Zig) vs `490820195397404894` (crate).
-      `helpers.textEmbedding` derives each of the 32 buckets *and its sign* from
-      that hash, and the resulting vectors are **persisted into the user's real
-      ~94 MB store**. Porting with the crate would write embeddings that do not
-      match the Zig-written vectors already there, so cosine/semantic search
-      across old and new records would be silently wrong — no error, just bad
-      ranking. 5b therefore needs a faithful port of Zig's Wyhash variant,
-      verified against values printed from the pinned Zig. Nothing is corrupted
-      today: the embedding is not yet ported.
-    - Remaining pieces, all small once the hash is right: `textEmbedding`,
-      `completionMetadataJson` (+ its string escaping), the
-      `completion:<id>` key, the `putVector`/`store`/`appendBlock` calls against
-      the already-ported durable store, the balanced transient alloc/free on the
-      memory tracker, and the before/after `stats()` deltas.
+    - **Wyhash ported faithfully** as `abi_foundation::wyhash`, verified against
+      188 `(seed, len, hash)` triples emitted by the pinned Zig toolchain
+      (`crates/abi-foundation/tests/wyhash_zig_refs.txt`). The Rust `wyhash` 0.5
+      crate is deliberately not used for embeddings — measured divergence is
+      total (seed 3 / `"hel"`: Zig `10846395113768030678` vs crate
+      `490820195397404894`). The same trap remains, harmlessly, in
+      `abi-wdbx`'s `crypto_he::mask()` (self-consistent ephemeral ciphertexts).
+    - Ported: `textEmbedding` / `responseEmbedding`, the model catalog, pure
+      `complete` with hard safety-veto substitution, `completionMetadataJson` /
+      `completion:<id>` (UTF-8-safe escaping — iterating by `char`, not by
+      byte-as-char), and the MCP persistence tail (`put_vector` × 2 + metadata
+      KV + audit block) against a scratch `DurableStore`. Store resolution is
+      parameterised so tests never touch process env or `~/.abi/`. When no
+      persist path resolves, the tool reports `persisted=false` with an explicit
+      `wdbx_status` (in-memory `DurableStore` is not yet ported). Attached to
+      MCP `ai_complete`.
   - [ ] **5c. `abi-sea` + `ai_learn`**, then **5d. `abi-nn`**. `ai_train`
     reports `backend=gpu-metal` in Zig; no Rust GPU backend is linked, so that
     field needs the same explicit disclosure `wdbx_stats`'s `backend` carries.
@@ -268,11 +269,12 @@ names" into "the Rust CLI emits byte-identical output".
     `abi-connectors`' already-ported local synthesis; `openai` is
     golden-matched byte-for-byte, including Anthropic's MCP-specific
     `max_tokens=256` versus the connector's own default of 4096).
-  - Honestly stubbed (`NotYetPorted`, after validation still runs): `ai_run`,
-    `ai_complete`, `ai_learn`, `ai_train`, `wdbx_query`, `gpu_status`,
-    `plugin_list`, `plugin_run`, and `connector_test` for `twilio` — each
-    depends on a feature plan step 5/6/10 hasn't reached yet, or (twilio) on
-    `twilio_relay.zig`'s conversation builder from step 3b.
+  - Wired after 5a/5b/10: `ai_run` (pure, golden), `ai_complete` (store-
+    parameterised, scratch-tested), `plugin_list`/`plugin_run`.
+  - Honestly stubbed (`NotYetPorted`, after validation still runs):
+    `ai_learn`, `ai_train`, `wdbx_query`, `gpu_status`, and `connector_test`
+    for `twilio` — each depends on a feature plan step 5c/5d/6 hasn't reached
+    yet, or (twilio) on `twilio_relay.zig`'s conversation builder from step 3b.
   - `wdbx_stats` reads the real durable store (env resolution — `ABI_WDBX_PATH`,
     `ABI_WDBX_PERSIST`, `XDG_DATA_HOME`, `HOME` fallback — ported and unit
     tested standalone) but **discloses `backend=cpu`** rather than Zig's

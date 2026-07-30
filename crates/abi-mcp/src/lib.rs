@@ -5,6 +5,7 @@
 //! `RUST-REWRITE-PLAN.md` step 9 — so this crate only offers stdio today,
 //! which is the transport Claude Code and other local MCP clients use.
 
+pub mod ai_tools;
 pub mod connector_tools;
 pub mod handlers;
 pub mod middleware;

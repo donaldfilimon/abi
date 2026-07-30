@@ -11,5 +11,8 @@ description = "ABI framework AI: persona identity contracts, keyword routing, in
 abi-foundation = { workspace = true }
 abi-telemetry = { workspace = true }
 
+[dev-dependencies]
+serde_json = { workspace = true }
+
 [lints]
 workspace = true

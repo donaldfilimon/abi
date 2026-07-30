@@ -21,4 +21,16 @@ set -euo pipefail
 TOOLCHAIN_BIN="$(dirname "$(rustup which --toolchain nightly cargo)")"
 export PATH="${TOOLCHAIN_BIN}:${PATH}"
 
+# Swiftly installs a `cc`/`clang` shim that refuses to link when the repo's
+# `.swift-version` pins a toolchain that is not installed. That is fatal for
+# every Rust crate that links (including pure-Rust ones that never touch
+# Swift), because `cc` is the default linker driver. Prefer the system C
+# toolchain for linking unless the caller already set CC/CXX.
+if [[ -z "${CC:-}" && -x /usr/bin/cc ]]; then
+  export CC=/usr/bin/cc
+fi
+if [[ -z "${CXX:-}" && -x /usr/bin/c++ ]]; then
+  export CXX=/usr/bin/c++
+fi
+
 exec "${TOOLCHAIN_BIN}/cargo" "$@"

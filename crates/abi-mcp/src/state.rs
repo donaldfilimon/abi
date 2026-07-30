@@ -2,11 +2,12 @@
 //!
 //! Ported from `src/mcp/state.zig`, simplified. Zig keeps one long-lived
 //! scheduler and one long-lived WDBX session for the process's lifetime,
-//! guarded by double-checked atomics. The Rust port instead opens each fresh
-//! per call: `wdbx_stats` is read-only, and no ported tool mutates the store
-//! yet (every AI/SEA tool that would is still behind [`ToolError::NotYetPorted`](crate::handlers::ToolError::NotYetPorted)),
-//! so there is nothing yet for a shared session to buy beyond avoiding
-//! repeated disk reads. Revisit once a write path is ported.
+//! guarded by double-checked atomics. The Rust port instead opens fresh per
+//! call: `wdbx_stats` is read-only, and `ai_complete` opens, mutates, and
+//! drops its own [`DurableStore`] so concurrent tool calls do not share a
+//! live writer. A shared long-lived session would only pay for itself once a
+//! tool needs cross-call store state (for example SEA modulator weights) or
+//! once lock contention on the WAL becomes measurable.
 
 use std::path::PathBuf;
 
@@ -126,6 +127,21 @@ impl McpState {
 
 fn in_memory_stats_text() -> String {
     "kv=0 vectors=0 blocks=0 spatial=0 dims=null backend=cpu source=mcp-store".to_string()
+}
+
+/// Open the durable store at the resolved path, or `None` for in-memory.
+///
+/// Shared by every write-capable tool so they resolve the base path the same
+/// way `wdbx_stats_text` does. Returns `Ok(None)` rather than an error for the
+/// in-memory case — callers that need to mutate a store decide separately
+/// whether "no persistence configured" is itself an error for them.
+pub(crate) fn open_wdbx_store() -> Result<Option<abi_wdbx::DurableStore>, WdbxStatsError> {
+    match resolve_wdbx_base_path() {
+        Some(base) => DurableStore::open(StorePaths::new(base))
+            .map(Some)
+            .map_err(|_| WdbxStatsError),
+        None => Ok(None),
+    }
 }
 
 #[cfg(test)]

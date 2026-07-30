@@ -12,19 +12,20 @@
 //! generation, and constitutional governance. Together they are exactly the
 //! `ai_run` path.
 //!
-//! Deliberately **not** here, because each depends on the WDBX store or on a
-//! later plan step:
+//! Ported here for `ai_complete` as well: pure completion, the model catalog,
+//! signed-feature text embeddings (via Zig-compatible Wyhash), and the
+//! completion metadata JSON/key helpers. The MCP crate owns the store-facing
+//! persistence tail (`put_vector` / `put` / `add_block`) so this crate stays
+//! pure and free of a WDBX dependency.
 //!
-//! - `AdaptiveModulator` — reads and writes a persisted `modulator:weights` KV
-//!   entry, so persona selection for `ai_complete` depends on store state. Where
-//!   those weights live in Rust, and whether a read-only call may mutate them, is
-//!   a decision that belongs with that step rather than one to make implicitly
-//!   here.
-//! - `completeAdaptive` and the completion persistence tail — `ai_complete`.
-//! - The SEA learn loop — `ai_learn`, plan step 5's `abi-sea`.
+//! Deliberately **not** here, because each depends on a later plan step:
+//!
+//! - `AdaptiveModulator` — only on the SEA path (`completeAdaptive`); lives with
+//!   `abi-sea` / plan step 5c.
+//! - The SEA learn loop — `ai_learn`, plan step 5c.
 //! - Training — `ai_train`, whose Zig output reports `backend=gpu-metal`; no Rust
 //!   GPU backend is linked, so that field will need the same explicit disclosure
-//!   `wdbx_stats`'s `backend` already carries.
+//!   `wdbx_stats`'s `backend` already carries (plan step 5d).
 //! - `point_neural_net`, `file_context`, `soul_layout`, `multimodal_fusion`,
 //!   `streaming`, and `orchestration` — none is on the path to the four MCP AI
 //!   tools.
@@ -38,13 +39,18 @@
 //! they are shape and field-order references, not values to reproduce. The
 //! persona substring inside them *is* contract, and it is asserted.
 
+pub mod completion;
 pub mod constitution;
+pub mod embedding;
 pub mod identity;
 pub mod incremental;
 pub mod keywords;
+pub mod models;
 pub mod router;
 
+pub use completion::{CompletionResult, EmptyInputError, complete};
 pub use constitution::{AuditResult, Principle, validate};
+pub use embedding::{EMBED_DIM, count_non_empty_lines, response_embedding, text_embedding};
 pub use identity::{AgentProfile, ProfileContract, profile_contract};
 pub use incremental::{StreamChunk, StreamMode, generate_profile_incremental};
 pub use router::{ProfileWeights, analyze_sentiment, route_profile, select_best_profile};

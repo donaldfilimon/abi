@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "abi-foundation",
  "abi-telemetry",
+ "serde_json",
 ]
 
 [[package]]
