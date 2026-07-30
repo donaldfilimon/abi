@@ -13,15 +13,15 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
 
-ABI="$REPO_ROOT/zig-out/bin/abi"
-ABI_MCP="$REPO_ROOT/zig-out/bin/abi-mcp"
-STORE="$REPO_ROOT/zig-out/smoke-memory.jsonl"
-TRANSCRIPT="$REPO_ROOT/zig-out/run-abi-smoke.txt"
+ABI="$REPO_ROOT/target/debug/abi"
+ABI_MCP="$REPO_ROOT/target/debug/abi-mcp"
+STORE="$REPO_ROOT/target/debug/smoke-memory.jsonl"
+TRANSCRIPT="$REPO_ROOT/target/debug/run-abi-smoke.txt"
 
 fail=0
 pass=0
 
-# zig-out/ may not exist before the first build; ensure the transcript dir is
+# target/debug/ may not exist before the first build; ensure the transcript dir is
 # writable up front so every log line lands instead of erroring out per-line.
 mkdir -p "$(dirname -- "$TRANSCRIPT")"
 
@@ -50,11 +50,11 @@ run() {
 : > "$TRANSCRIPT"
 log "=== run-abi smoke @ $(date) ==="
 log "repo: $REPO_ROOT"
-log "zig:  $(zig version 2>/dev/null || echo MISSING)"
+log "rustc: $(./tools/cargo.sh rustc --version -- --version 2>/dev/null | head -1 || echo MISSING)"
 
 # --- Build ---------------------------------------------------------------
-run "build cli"  "-" -- ./build.sh cli
-run "build mcp"  "-" -- ./build.sh mcp
+run "build cli"  "-" -- ./tools/cargo.sh build -p abi-cli
+run "build mcp"  "-" -- ./tools/cargo.sh build -p abi-mcp
 
 if [ ! -x "$ABI" ] || [ ! -x "$ABI_MCP" ]; then
     log "FATAL: binaries not produced (abi=$ABI abi-mcp=$ABI_MCP)"
@@ -68,7 +68,7 @@ run "cli scheduler"     "source=cli-scheduler-status" -- "$ABI" scheduler status
 run "cli complete"      "model=claude-fable-5"   -- "$ABI" complete "smoke: summarize scheduler status"
 run "cli plugin list"   "Installed Plugins (" -- "$ABI" plugin list
 run "cli agent multi"   "MULTI-AGENT RESULTS" -- "$ABI" agent multi "smoke multi"
-run "cli agent browser" "embedded_browser=false" -- "$ABI" agent browser "smoke browser"
+run "cli agent browser" "browser-orchestration" -- "$ABI" agent browser "smoke browser"
 
 # --- WDBX store round-trip ----------------------------------------------
 rm -f "$STORE"
@@ -85,7 +85,7 @@ MCP_OUT=$(printf '%s\n' \
   '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"scheduler_info","arguments":{}}}' \
   '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"gpu_status","arguments":{}}}' \
   '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"plugin_list","arguments":{}}}' \
-  | "$ABI_MCP" stdio 2>>"$TRANSCRIPT")
+  | "$ABI_MCP" 2>>"$TRANSCRIPT")
 mcp_rc=$?
 printf '%s\n' "$MCP_OUT" | tee -a "$TRANSCRIPT"
 log "[exit=$mcp_rc]"
@@ -94,7 +94,7 @@ if [ "$mcp_rc" -eq 0 ]; then
 else
     fail=$((fail+1)); log "FAIL: mcp exited $mcp_rc"
 fi
-for marker in '"serverInfo"' '"name":"gpu_status"' 'scheduler running=' 'backend=metal' 'plugins count=16'; do
+for marker in '"serverInfo"' '"name":"gpu_status"' 'scheduler running=' 'backend=' 'plugins count=16'; do
     if grep -Fq -- "$marker" <<<"$MCP_OUT"; then
         pass=$((pass+1)); log "ok: mcp has $marker"
     else

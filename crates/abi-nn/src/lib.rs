@@ -5,10 +5,12 @@
 //! connected. It trains a tiny next-character model by hand-derived backprop
 //! over a small in-memory corpus.
 
+pub mod checkpoint;
 pub mod model;
 pub mod train;
 pub mod types;
 
+pub use checkpoint::{load as load_checkpoint, save as save_checkpoint};
 pub use model::{Grads, Matrix, Model, Scratch};
 pub use train::{extract_corpus_from_jsonl, sample, train_model, train_on_jsonl, train_on_text};
 pub use types::{Activation, NnError, Optimizer, TrainConfig, TrainReport};

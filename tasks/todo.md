@@ -40,16 +40,16 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 | Priority | Item | Notes |
 | -------- | ---- | ----- |
-| 1 | Long-form docs Zig-path scrub | CHANGELOG/threat-model history OK; skills must not teach `zig build` as gate |
-| 2 | `nn` checkpoint persist | Demo durability; not production LLM |
-| 3 | Live Discord/Twilio TLS clients | Optional product expansion |
-| 4 | Metal kernels beyond detection | Large; keep claims honest |
-| 5 | Windows runtime CI for ACLs | 🔴 no Windows runner |
+| 1 | Live Discord/Twilio TLS clients | Optional product expansion |
+| 2 | Metal kernels beyond detection | Large; keep claims honest |
+| 3 | Windows runtime CI for ACLs | 🔴 no Windows runner |
+| 4 | ggml / true incremental neural sampler | Optional product expansion |
 
 ---
 
 ## Recently landed
 
+- nn demo JSON checkpoint (`--out` / `--checkpoint`); Rust smoke scripts + goals/run-abi/mcp-smoke skills
 - **Rust rewrite on `main`** via [#756](https://github.com/donaldfilimon/abi/pull/756) (`34c35d5`)
 - FoundationModels Swift `@c` shim + `complete --live --model apple-fm --confirm`
 - shaders / mlir / hash / metrics / mobile report surfaces

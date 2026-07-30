@@ -37,5 +37,5 @@ Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — training r
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./build.sh check`. |
+| `build` FAIL | Use `./tools/cargo.sh build -p abi-cli`, then `./tools/check.sh`.
 | missing `nn train:` / `nn sample:` | Output grammar drift — check the `nn` handler in `src/cli/handlers/` and `src/features/nn/`. |
