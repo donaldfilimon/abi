@@ -60,10 +60,10 @@ Search and rank evidence for input:
 ## Implementation
 
 Maps to:
-- `src/features/sea/learn_loop.zig` - Core SEA algorithm
-- `src/features/sea/evidence.zig` - Evidence scoring and recall
-- `src/features/ai/constitution.zig` - 6-principle constitutional audit
-- `src/features/wdbx/store.zig` - Persistent modulator weights
+- `crates/abi-sea/src/learn_loop.rs` - Core SEA algorithm
+- `crates/abi-sea/src/evidence.rs` - Evidence scoring and recall
+- `crates/abi-ai/src/constitution.rs` - 6-principle constitutional audit
+- `crates/abi-wdbx/src/store.rs` - Persistent modulator weights
 
 ## Feature Gate
 

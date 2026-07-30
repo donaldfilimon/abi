@@ -1,24 +1,23 @@
 #!/usr/bin/env bash
-# wdbx-bench driver: build the abi CLI and run the in-process WDBX benchmark,
-# asserting exit codes and the expected output markers. Resolves the repo root
-# from its own location.
+# wdbx-bench driver: build the abi CLI, run the in-process WDBX benchmark, and
+# (optionally) the abi-wdbx unit-test suite. Asserts exit codes and the
+# expected output markers. Resolves the repo root from its own location.
 #
 # Usage:
-#   .claude/skills/wdbx-bench/bench.sh [count]     # default count=50
-#
-# There is no full-suite mode: the Zig `zig build benchmarks` step had no Rust
-# successor (the workspace declares no [[bench]] targets), so the flag was
-# removed rather than left pointing at something that cannot run.
+#   .agents/skills/wdbx-bench/bench.sh [count]     # default count=50
+#   .agents/skills/wdbx-bench/bench.sh --suite     # also run `cargo test -p abi-wdbx`
 set -uo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
 
+SUITE=0
 COUNT=50
 for a in "$@"; do
     case "$a" in
-        ''|*[!0-9]*) echo "usage: bench.sh [count]" >&2; exit 2 ;;
+        --suite) SUITE=1 ;;
+        ''|*[!0-9]*) echo "usage: bench.sh [count] [--suite]" >&2; exit 2 ;;
         *) COUNT="$a" ;;
     esac
 done
@@ -39,6 +38,11 @@ for marker in "benchmark (local, in-memory" "inserts:" "searches:"; do
     grep -qF -- "$marker" <<<"$out" && echo "[ok] marker: $marker" \
         || { echo "[FAIL] missing marker: $marker"; fail=$((fail+1)); }
 done
+
+if [ "$SUITE" -eq 1 ]; then
+    say "./tools/cargo.sh test -p abi-wdbx --lib"
+    if ./tools/cargo.sh test -p abi-wdbx --lib; then echo "[ok] suite"; else echo "[FAIL] suite"; fail=$((fail+1)); fi
+fi
 
 say "summary"
 echo "failed checks: $fail"

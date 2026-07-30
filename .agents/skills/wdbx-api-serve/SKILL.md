@@ -38,12 +38,12 @@ bearer enforcement is exactly 401/401/200.
   it flips to `auth=on` when the env var is present.
 - `/stats` reports `backend:metal mode:native_gpu` — that's the linked-Metal /
   vectorized-CPU-fallback status, not a live GPU claim (see `backend-diagnostics`).
-- For a source-level tour of the REST routing core (`rest.zig` `route`) and the
+- For a source-level tour of the REST routing core (`rest.rs` `route`) and the
   WAL/checkpoint substrate, use the `wdbx-explorer` subagent.
 
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./tools/check.sh`. |
+| `build` FAIL | Check nightly via `./tools/cargo.sh --version`, then `./tools/check.sh`. |
 | `server did not come up` | Port in use — pass a free base port; or the build didn't produce the binary. |
-| bearer test all 200 | `ABI_WDBX_REST_TOKEN` not being read — check `src/features/wdbx/rest.zig` (`loadBearerToken`/`hasBearerToken`). |
+| bearer test all 200 | `ABI_WDBX_REST_TOKEN` not being read — check `crates/abi-wdbx/src/rest.rs` (`loadBearerToken`/`hasBearerToken`). |

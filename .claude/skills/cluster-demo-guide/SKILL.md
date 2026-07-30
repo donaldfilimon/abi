@@ -30,5 +30,5 @@ Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — elect → 
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | `/zig-build-doctor` or `./tools/check.sh`. |
-| missing `leader_elected=true` | check `src/features/wdbx/cluster.zig`; use the `wdbx-explorer` subagent. |
+| `build` FAIL | `./tools/check.sh`. |
+| missing `leader_elected=true` | check `crates/abi-wdbx/src/cluster.rs`; use the `wdbx-explorer` subagent. |

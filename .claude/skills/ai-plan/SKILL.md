@@ -5,7 +5,7 @@ description: Plan abi AI work — model routing, completion, SEA self-learning, 
 
 # ai-plan
 
-Entry point for abi's AI subsystem (`src/features/ai/`). Routes to the
+Entry point for abi's AI subsystem (`crates/abi-ai/src/`). Routes to the
 specialist skills instead of duplicating them:
 
 | You want to… | Use |
@@ -17,7 +17,7 @@ specialist skills instead of duplicating them:
 | Toggle SEA mode in the REPL | `sea-learning-controller` (`/learn`) |
 
 ## Facts that constrain any AI plan (from source, not marketing)
-- Default model `claude-fable-5`; `src/features/ai/models.zig` is the single
+- Default model `claude-fable-5`; `crates/abi-ai/src/models.rs` is the single
   source of truth for ids/aliases/provider routing (mod/stub parity).
 - Router `selectBestProfile` ties resolve `abbey > aviva > abi`; neutral input
   routes to `abi`. `analyzeSentiment` is **prefix-only** keyword matching.

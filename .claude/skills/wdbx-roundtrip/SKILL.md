@@ -7,7 +7,7 @@ description: Build the abi CLI and drive a full WDBX persistence round-trip on a
 
 Driver: **`.agents/skills/wdbx-roundtrip/roundtrip.sh`** (paths relative to repo root).
 Builds the CLI and runs the four-step store lifecycle against a scratch segment
-under `zig-out/` (created and removed by the driver). Evidence is the `RESULT:`
+under `target/` (created and removed by the driver). Evidence is the `RESULT:`
 line. Fully local, no network.
 
 ## Run (agent path)
@@ -28,7 +28,7 @@ hashed block, query reports `blocks:1`, verify confirms `chain_valid=true` and
 `WAL OK`.
 
 ## Gotchas
-- The scratch store is `zig-out/skill-wdbx-roundtrip.jsonl` — deleted before and
+- The scratch store is `target/skill-wdbx-roundtrip.jsonl` — deleted before and
   after the run, so it never touches your default `.abi/` store.
 - `wdbx query <store>` on a freshly-block-inserted segment reports `kv_entries:0
   vectors:0 blocks:1` — blocks are the append-only content-addressed log; kv and
@@ -41,5 +41,5 @@ hashed block, query reports `blocks:1`, verify confirms `chain_valid=true` and
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./tools/check.sh`. |
-| `chain_valid=true` missing | Checkpoint/WAL regression — inspect `src/features/wdbx/` (checkpoint + WAL merge path). |
+| `build` FAIL | Check nightly via `./tools/cargo.sh --version`, then `./tools/check.sh`. |
+| `chain_valid=true` missing | Checkpoint/WAL regression — inspect `crates/abi-wdbx/src/` (checkpoint + WAL merge path). |

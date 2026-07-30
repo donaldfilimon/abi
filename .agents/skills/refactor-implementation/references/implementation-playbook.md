@@ -19,9 +19,9 @@ Safe execution steps for clean-slate modernization. Pair with **refactor-validat
 
 ### 2. One semantic change at a time
 
-- Prefer parallel files (`foo_v2.zig` / extracted helper) over in-place rewrites of hot contracts.
+- Prefer parallel files (`foo_v2.rs` / extracted helper) over in-place rewrites of hot contracts.
 - Keep pure helpers extracted first; push IO/effects to edges.
-- For Zig 0.17: `ArrayListUnmanaged(T).empty`, `trimEnd`, `splitScalar`/`splitAny`/`splitSequence`, explicit allocators, no silent empty `catch {}` on data paths.
+- For Rust nightly: prefer explicit `Result`, avoid silent `unwrap`/`expect` on persistence and inference paths, keep clippy `-D warnings` clean.
 
 ### 3. Gate after each batch
 
@@ -29,7 +29,7 @@ Safe execution steps for clean-slate modernization. Pair with **refactor-validat
 | ----------- | ------------ |
 | Docs prose only | Spot-check claims vs `docs/contracts/external-claims-audit.mdx`; `npx mint@latest validate` if nav/content structure changes |
 | Tools scripts (no assertion rewrite) | Re-run the wired step or `./tools/check.sh` |
-| Public feature API | Update `mod.zig` + `stub.zig`; `./tools/check.sh`; `./tools/check.sh` |
+| Public feature API | Update `mod.rs` + `stub.rs`; `./tools/check.sh`; `./tools/check.sh` |
 | CLI/MCP handler | Contract suites + `./tools/check.sh` (surface must stay frozen unless intentional) |
 
 ### 4. Cutover rules
@@ -42,7 +42,7 @@ Safe execution steps for clean-slate modernization. Pair with **refactor-validat
 
 - Source wins over prose (`AGENTS.md` / `CLAUDE.md` / `GEMINI.md` stay siblings when conventions change).
 - Claims: no unproven sharding, production FHE, native GPU dispatch, non-loopback hardening, QPS/latency/accuracy figures.
-- Inside `src/`: relative `.zig` imports only (MCP handler group may `@import("abi")`).
+- Inside `src/`: relative `.rs` imports only (MCP handler group may crate root / `abi_*` deps).
 - Prefer configurable temp dirs (`TMPDIR` / `SCRATCH` env) over hardcoded session paths in tools.
 
 ## Done criteria (before handoff)

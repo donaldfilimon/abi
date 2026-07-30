@@ -15,7 +15,7 @@ Loads files into the agent context for analysis, planning, or completion tasks.
 
 ## Implementation
 
-Uses `src/features/ai/file_context.zig`:
+Uses `crates/abi-ai/src/file_context.rs`:
 - `resolveFileMentions()` - resolves @file mentions in input
 - `validateMentionPath()` - sandboxed to cwd, rejects .. / absolute / symlink escape
 - `ContextBudget` - 8KB default budget per resolution

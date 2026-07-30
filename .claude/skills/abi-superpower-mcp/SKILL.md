@@ -71,10 +71,10 @@ Check server health:
 ## Implementation
 
 Maps to:
-- `src/mcp/main.zig` - JSON-RPC 2.0 server
-- `src/mcp/handlers.zig` - 12 tool implementations
-- `src/mcp/http_transport.zig` - Loopback HTTP/SSE
-- `src/mcp/middleware.zig` - Arg validation, size limits
+- `crates/abi-mcp/src/main.rs` - JSON-RPC 2.0 server
+- `crates/abi-mcp/src/handlers.rs` - 12 tool implementations
+- `crates/abi-mcp/src/http.rs` - Loopback HTTP/SSE
+- `crates/abi-mcp/src/middleware.rs` - Arg validation, size limits
 
 ## Feature Gates
 

@@ -29,7 +29,7 @@ Clears all transient agent context state for a fresh start.
 
 ## Implementation
 
-Calls `clearTurnHistory()` and resets `ReplState` fields in `src/features/tui/repl.zig`:
+Calls `clearTurnHistory()` and resets `ReplState` fields in `crates/abi-cli/src/terminal.rs`:
 - `turn_history` = empty ring buffer
 - `file_mentions` = empty
 - `input_buffer` = empty

@@ -59,15 +59,15 @@ Run authenticated loopback multi-node vote+append round (verifies quorum and pee
 
 | Layer | Source | Status |
 |-------|--------|--------|
-| Raft Core | `src/features/wdbx/cluster.zig` | Current — leader election, majority-quorum replication, failover, quorum-loss detection |
-| RPC Transport | `src/features/wdbx/cluster_rpc.zig` | Partial — real TCP RequestVote/AppendEntries, shared-secret frames, optional peer allowlist, loopback-tested |
-| CLI Surface | `src/cli/handlers/wdbx_runtime.zig` | Current — `abi wdbx cluster status/demo/serve` |
+| Raft Core | `crates/abi-wdbx/src/cluster.rs` | Current — leader election, majority-quorum replication, failover, quorum-loss detection |
+| RPC Transport | `crates/abi-wdbx/src/cluster_rpc.rs` | Partial — real TCP RequestVote/AppendEntries, shared-secret frames, optional peer allowlist, loopback-tested |
+| CLI Surface | `crates/abi-cli/src/wdbx.rs` | Current — `abi wdbx cluster status/demo/serve` |
 
 ## Auth & Network
 
 - **Shared-secret**: `ABI_WDBX_CLUSTER_TOKEN` — required for non-loopback binds, included in RequestVote/AppendEntries frames
 - **Peer allowlist**: `ABI_WDBX_CLUSTER_PEERS` — optional comma-separated node IDs to restrict accepted peers
-- **Transport**: Raw TCP with line-delimited JSON frames (`src/features/wdbx/net_line.zig`)
+- **Transport**: Raw TCP with line-delimited JSON frames (`crates/abi-wdbx/src/net_line.rs`)
 - **TLS/mTLS**: NOT implemented — deploy behind network policy/proxy for non-loopback
 
 ## Gap to Production (§3.5 wdbx-north-star.mdx)

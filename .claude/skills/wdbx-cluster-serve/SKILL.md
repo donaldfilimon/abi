@@ -13,7 +13,7 @@ distinct from the **in-process** `abi wdbx cluster demo` that `/cluster-demo-gui
 single-node `cluster status`. Loopback-only by design.
 
 ## Prerequisites
-- Pinned/master Zig on PATH (see `/zig-newest-skills`). macOS builds via `./build.sh`.
+- Nightly Rust via `./tools/cargo.sh` (never bare Homebrew `cargo`).
 - `nc` for the port probe (optional — the readiness marker is the primary gate; the probe is skipped if `nc` is absent).
 
 ## Run (agent path)
@@ -43,8 +43,8 @@ lingering process, on Zig master `0.17.0-dev.1099`.
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Run `/zig-build-doctor` or `./tools/check.sh` for the real error. |
+| `build` FAIL | Run `./tools/check.sh` for the real error. |
 | no readiness marker / `bind … failed` | Port in use or privileged — pick a higher free port (`8095`). |
-| missing marker string | CLI grammar drifted — check `src/cli/handlers/wdbx_runtime.zig` `clusterServe`. |
+| missing marker string | CLI grammar drifted — check `crates/abi-cli/src/wdbx.rs` `clusterServe`. |
 
 For source-level questions about the consensus/RPC internals, use the `wdbx-explorer` subagent.

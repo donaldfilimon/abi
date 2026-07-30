@@ -12,7 +12,7 @@ Use this skill to update ABI documentation without drifting from source, tests, 
 1. Read `references/claim-boundaries.md`.
 2. Inspect the specific docs being changed plus the source/test paths they claim to describe.
 3. Treat `Cargo.toml`, `src/`, tests, and runnable scripts as authoritative over prose.
-4. Keep `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` synchronized when changing durable conventions: commands, MCP tools, feature flags, build gates, Zig idioms, generated-file rules, listener/auth behavior.
+4. Keep `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` synchronized when changing durable conventions: commands, MCP tools, feature flags, build gates, Rust nightly idioms, generated-file rules, listener/auth behavior.
 5. Rewrite unproven claims as Current/Partial/Proposed language, or remove them.
 6. Run `.agents/skills/docs-validate/validate.sh` after editing `docs/`.
 

@@ -32,4 +32,4 @@ Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — int8 ratio
 | Symptom | Fix |
 |---|---|
 | `build` FAIL | `./tools/check.sh`. |
-| missing `match=true` | a HE/compression invariant broke — check `src/features/wdbx/{compression,crypto_he,fhe}.zig`. |
+| missing `match=true` | a HE/compression invariant broke — check `crates/abi-wdbx/src/{compression,crypto_he,fhe}.rs`. |

@@ -77,10 +77,10 @@ Serve REST API:
 ## Implementation
 
 Maps to:
-- `src/features/wdbx/store.zig` - `Store`, `search()`, `putVector()`
-- `src/features/wdbx/segments.zig` - compaction, checkpoints
-- `src/features/wdbx/rest.zig` - REST server
-- `src/features/wdbx/cluster_rpc.zig` - Raft consensus
+- `crates/abi-wdbx/src/store.rs` - `Store`, `search()`, `putVector()`
+- `crates/abi-wdbx/src/segments.rs` - compaction, checkpoints
+- `crates/abi-wdbx/src/rest.rs` - REST server
+- `crates/abi-wdbx/src/cluster_rpc.rs` - Raft consensus
 
 ## Feature Gate
 

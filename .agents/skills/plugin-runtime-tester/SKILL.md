@@ -23,12 +23,12 @@ Historical verification: **PASS** — `Installed Plugins (16):`; `ai-plugin even
 ## Gotchas
 - **Registering ≠ enabling.** `plugin list` reads the generated registry (shows
   every manifest); `plugin run` only works if the plugin is BOTH loaded in
-  `src/cli/handlers/plugin.zig` AND dispatched in `src/plugins/plugin_manager.zig`.
+  `crates/abi-cli/src/plugin.rs` AND dispatched in `crates/abi-plugins/src/manager.rs`.
   A plugin in the list but not both dispatch sites → `PluginNotFound` or a generic
   contract-ack. The `plugin-system-reviewer` subagent audits this.
-- `plugin run` reads manifests from `src/plugins/<name>/` at runtime, so run it
+- `plugin run` reads manifests from `crates/abi-plugins/plugins/<name>/` at runtime, so run it
   from the repo root (the driver `cd`s there).
-- Adding a plugin requires bumping the count in `tests/contracts/plugin_registry.zig`.
+- Adding a plugin requires bumping the count in `crates/abi-plugins/tests/`.
 
 ## Troubleshooting
 | Symptom | Fix |

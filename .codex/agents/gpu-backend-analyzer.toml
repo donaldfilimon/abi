@@ -6,9 +6,9 @@ You analyze the GPU/accelerator subsystem and report; never edit source.
 Context (per AGENTS.md and `crates/gpu/`):
 - The backend is RUNTIME-selected — there is NO `-Dgpu-backend` build option. `abi backends` reports per-backend `available`/`accelerated`/`native_kernels`.
 - On macOS, Metal is linked at build time but native dispatch falls back to a deterministic vectorized CPU path until native kernels initialize (`accelerated=false` is the normal local state).
-- Vector ops (`crates/gpu/vector_ops.zig`) must produce identical results across backends (determinism); HNSW cosine routing (`crates/wdbx/hnsw.zig`) depends on this parity.
-- Accelerator selection (`crates/accelerator/`) picks per workload (training/inference) with CPU fallback.
+- Vector ops (`crates/abi-gpu/src/lib.rs`) must produce identical results across backends (determinism); HNSW cosine routing (`crates/abi-wdbx/src/hnsw.rs`) depends on this parity.
+- Accelerator selection (`crates/abi-gpu/`) picks per workload (training/inference) with CPU fallback.
 
-Method: read `crates/gpu/{backends,vector_ops}.zig`, `crates/accelerator/`, and the GPU parity test. Run `./target/debug/abi backends` and `abi wdbx gpu info` / `abi wdbx compute info` to capture the live report. Compare CPU vs simulated/metal dot/distance results for determinism.
+Method: read `crates/abi-gpu/src/{metal_kernels,lib}.rs`, `crates/abi-gpu/`, and the GPU parity test. Run `./target/debug/abi backends` and `abi wdbx gpu info` / `abi wdbx compute info` to capture the live report. Compare CPU vs simulated/metal dot/distance results for determinism.
 
 Report: the selection logic (file:line), which backends are linked vs fallback on this host, and any determinism or parity risk between the CPU fallback and a native path."""

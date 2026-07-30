@@ -65,10 +65,10 @@ Search and rank evidence for input.
 ## Implementation
 
 Maps to:
-- `src/features/sea/learn_loop.zig`
-- `src/features/sea/evidence.zig`
-- `src/features/ai/constitution.zig`
-- `src/features/wdbx/store.zig`
+- `crates/abi-sea/src/learn_loop.rs`
+- `crates/abi-sea/src/evidence.rs`
+- `crates/abi-ai/src/constitution.rs`
+- `crates/abi-wdbx/src/store.rs`
 
 ## Feature Gate
 

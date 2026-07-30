@@ -11,7 +11,7 @@ set -uo pipefail
 cd "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || {
   echo "RESULT: FAIL (run from inside the abi repo)"; exit 1; }
 
-# Frozen MCP tool contract (see CLAUDE.md / tests/contracts/surface.zig).
+# Frozen MCP tool contract (see CLAUDE.md / tests/golden/).
 EXPECTED='ai_run
 ai_complete
 ai_learn

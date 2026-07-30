@@ -1,6 +1,6 @@
 ---
 name: complete-base
-description: 'Build the abi CLI and drive the base completion path — `abi complete "<input>"` with no flags — routing to the local model, running the constitution audit, and recording the completion in WDBX. Use to smoke-test the core local-completion path after touching crates/abi-ai/ or the model catalog. Fully local: no --live (remote) and no --learn (SEA).'
+description: 'Build the abi CLI and drive the base completion path — `abi complete "<input>"` with no flags — routing to the local model, running the constitution audit, and optionally recording the completion in WDBX. Use to smoke-test the core local-completion path after touching crates/abi-ai or the model catalog. Fully local: no --live (remote) and no --learn (SEA).'
 ---
 
 # complete-base — drive abi's base local completion
@@ -15,15 +15,12 @@ Evidence is the `RESULT:` line. Fully local, no network.
 .agents/skills/complete-base/complete.sh "summarize backends" fable-5     # custom prompt + model alias
 ```
 - `complete "<prompt>"` (or `complete --model <id> "<prompt>"`) → asserts
-  `model=`, `audit_passed=true`, `persisted=true`, `wdbx kv_entries=`.
+  `model=`, `audit_passed=true`, `wdbx kv_entries=`, and a `persisted=` line
+  (`true` when a durable store path is available, else honest `false`).
 - Model aliases are canonicalized (`fable-5` → `claude-fable-5`); an unrecognized
   id passes through with a one-line stderr warning.
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count.
-
-Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — base completion
-routes to `model=claude-fable-5`, passes the constitution audit, and persists the
-completion (query/response vectors + block) to WDBX.
 
 ## Gotchas
 - ⚠️ **Base path is fully local.** No `--live` means no remote provider is
@@ -31,15 +28,14 @@ completion (query/response vectors + block) to WDBX.
   provider) and on-device `apple-fm` (requires `--confirm`) are out of scope here.
 - `--learn` routes through the SEA self-learning loop — that path is covered by
   the `sea-learn-loop` skill, not this one.
-- `complete` **appends to your default WDBX store** (a completion block + query/
-  response vectors), so `kv_entries`/`vectors`/`blocks` grow each run. This is the
-  designed behavior (same as `run-abi`'s completion step), not a leak.
-- For source-level reasoning about model routing + the catalog, read
-  `src/features/ai/models.zig`; for the SEA path use the `sea-evidence-analyst` subagent.
+- When a durable WDBX path is configured, `complete` may append to that store.
+  Without one, the CLI reports `persisted=false` and `wdbx_status=no persistent
+  WDBX path configured` — both are success cases for this smoke.
+- For routing/catalog source, see `crates/abi-ai`; SEA path is `sea-learn-loop`.
 
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./tools/check.sh`. |
-| `audit_passed=true` missing | Constitution/audit regression — check `src/features/ai/` (constitution + completion path). |
-| unexpected `model=` | Alias/catalog drift — check `src/features/ai/models.zig`. |
+| `build` FAIL | Use `./tools/cargo.sh build -p abi-cli`, then `./tools/check.sh`. |
+| `audit_passed=true` missing | Constitution/audit regression — check `crates/abi-ai`. |
+| unexpected `model=` | Alias/catalog drift — check `crates/abi-ai` models. |

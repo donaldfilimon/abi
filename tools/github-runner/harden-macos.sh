@@ -23,12 +23,18 @@ else
   ok "architecture arm64"
 fi
 
-echo "==> Zig toolchain"
-zig_out=""
-if zig_out="$("${REPO_ROOT}/tools/check_zigversion.sh" 2>&1)"; then
-  ok "${zig_out}"
+echo "==> Rust nightly toolchain"
+if ! command -v rustup >/dev/null 2>&1; then
+  fail "rustup not on PATH (CI installs/uses nightly via rustup)"
+elif ! rustup run nightly rustc --version >/dev/null 2>&1; then
+  fail "nightly toolchain missing — run: rustup toolchain install nightly --profile minimal && rustup component add --toolchain nightly rustfmt clippy rust-src"
 else
-  fail "${zig_out:-zig pin check failed}"
+  ok "$(rustup run nightly rustc --version 2>/dev/null | head -1)"
+fi
+if [[ ! -x "${REPO_ROOT}/tools/cargo.sh" ]]; then
+  fail "tools/cargo.sh missing or not executable"
+else
+  ok "tools/cargo.sh present (use instead of bare cargo — Homebrew shadows rustup)"
 fi
 
 echo "==> Runner install (${INSTALL_DIR})"
@@ -67,11 +73,11 @@ else
 fi
 
 echo "==> Disk"
-# Need headroom for Zig caches + cross-smoke
+# Need headroom for Cargo/target caches + check
 avail_kb="$(df -k "${INSTALL_DIR:-${HOME}}" | awk 'NR==2 {print $4}')"
 avail_gb=$((avail_kb / 1024 / 1024))
 if (( avail_gb < 15 )); then
-  fail "only ~${avail_gb}GiB free; recommend ≥15GiB for check + cross-smoke"
+  fail "only ~${avail_gb}GiB free; recommend ≥15GiB for check + Cargo target/"
 else
   ok "~${avail_gb}GiB free"
 fi

@@ -24,7 +24,7 @@ Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — training r
 `initial_loss`/`final_loss`/`steps` and `nn sample` emits a generated string.
 
 ## Gotchas
-- ⚠️ **Demo, not a production trainer.** `nn` is a pure-Zig hand-derived-backprop
+- ⚠️ **Demo, not a production trainer.** `nn` is a pure-Rust hand-derived-backprop
   char-LM for demonstration — it is not an LLM, not distributed, not a real
   training stack. Loss values vary run-to-run; the driver asserts structural
   markers (`final_loss=`, `steps=`), not a specific loss.
@@ -32,10 +32,10 @@ Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — training r
   seed. `nn sample` trains first, so its output has a leading `nn train:` line.
 - `nn train --jsonl <path> [--field <name>]` trains from a JSONL corpus; the
   driver exercises the inline-text path. For source analysis, read
-  `src/features/nn/`.
+  `crates/abi-nn/src/`.
 
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./tools/check.sh`. |
-| missing `nn train:` / `nn sample:` | Output grammar drift — check the `nn` handler in `src/cli/handlers/` and `src/features/nn/`. |
+| `build` FAIL | Use `./tools/cargo.sh build -p abi-cli`, then `./tools/check.sh`.
+| missing `nn train:` / `nn sample:` | Output grammar drift — check the `nn` handler in `crates/abi-cli/src/` and `crates/abi-nn/src/`. |

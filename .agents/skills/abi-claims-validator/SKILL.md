@@ -42,8 +42,8 @@ when the audit changes reality, do not invent a parallel truth source.
 ## Source of Truth Hierarchy
 
 1. **Executable config**: `Cargo.toml`, `Cargo.toml.zon`, `rust-toolchain.toml`
-2. **Source implementation**: `src/`, `tests/contracts/`
-3. **Contract tests**: `tests/contracts/*.zig` (surface, mcp_tools, feature_modules, plugin_registry, public_docs)
+2. **Source implementation**: `src/`, `tests/golden/`
+3. **Contract tests**: `tests/golden/` (surface, mcp_tools, feature_modules, plugin_registry, public_docs)
 4. **Explicit claim boundary**: `docs/contracts/external-claims-audit.mdx`
 5. **North-star mapping**: `docs/spec/wdbx-north-star.mdx` §2 (Current/Partial/Proposed)
 6. **Prose docs**: `README.md`, `docs/*.mdx` — **lowest priority**, must reconcile upward
@@ -52,9 +52,9 @@ when the audit changes reality, do not invent a parallel truth source.
 
 | Pattern | Likely Status | Check Against |
 |---------|---------------|---------------|
-| `\d+\s*(QPS|req/s|throughput)` | ❌ Unsupported | `src/benchmarks.zig` artifact |
-| `\d+\s*ms\s*latency` | ❌ Unsupported | `src/benchmarks.zig` artifact |
-| `distributed|sharding|multi-host|cluster` | ⚠️ Partial | `src/features/wdbx/cluster_rpc.zig` tests |
+| `\d+\s*(QPS|req/s|throughput)` | ❌ Unsupported | `crates/abi-wdbx/tests/` artifact |
+| `\d+\s*ms\s*latency` | ❌ Unsupported | `crates/abi-wdbx/tests/` artifact |
+| `distributed|sharding|multi-host|cluster` | ⚠️ Partial | `crates/abi-wdbx/src/cluster_rpc.rs` tests |
 | `AES|RBAC|encryption|certified` | ❌ Unsupported | `docs/contracts/external-claims-audit.mdx` §2 |
 | `Swift|Python|TensorFlow|PyTorch|Kubernetes` | ❌ Unsupported | `Cargo.toml` deps |
 | `H100|A100|InfiniBand|NVLink` | ❌ Unsupported | CI config |
@@ -65,13 +65,13 @@ when the audit changes reality, do not invent a parallel truth source.
 
 From `docs/contracts/external-claims-audit.mdx` §Reusable Delta:
 
-> Current ABI repo evidence supports a Zig 0.17 local AI orchestration framework with deterministic Abbey/Aviva/Abi profile routing, an in-process WDBX vector/key-value/block store, segment checkpoint plus WAL persistence with runtime recovery, a compatibility JSONL snapshot mirror, epoch reclamation helpers, snapshot-persisted temporal/causal graph records, MCP hybrid WDBX query ranking, HNSW-style cosine search, SHA-256-linked conversation blocks, 3D spatial search, feature-off stubs, CLI/MCP contract coverage, explicit connector live-mode boundaries, GPU capability reporting with CPU fallback, and a tested WDBX consensus RPC transport with shared-secret and optional peer-allowlist controls. The repo does not currently prove distributed sharding, production multi-host deployment, AES/RBAC WDBX storage, Swift/Python/TensorFlow implementation claims, Kubernetes/H100 deployment claims, regulatory certifications, QPS/latency/accuracy targets, GPU speedup figures, energy-efficiency metrics, or SQuAD/CodeSearchNet/GPT comparative scores.
+> Current ABI repo evidence supports a nightly-Rust local AI orchestration framework with deterministic Abbey/Aviva/Abi profile routing, an in-process WDBX vector/key-value/block store, segment checkpoint plus WAL persistence with runtime recovery, a compatibility JSONL snapshot mirror, epoch reclamation helpers, snapshot-persisted temporal/causal graph records, MCP hybrid WDBX query ranking, HNSW-style cosine search, SHA-256-linked conversation blocks, 3D spatial search, feature-off stubs, CLI/MCP contract coverage, explicit connector live-mode boundaries, GPU capability reporting with CPU fallback, and a tested WDBX consensus RPC transport with shared-secret and optional peer-allowlist controls. The repo does not currently prove distributed sharding, production multi-host deployment, AES/RBAC WDBX storage, Swift/Python/TensorFlow implementation claims, Kubernetes/H100 deployment claims, regulatory certifications, QPS/latency/accuracy targets, GPU speedup figures, energy-efficiency metrics, or SQuAD/CodeSearchNet/GPT comparative scores.
 
 ## Integration
 
 Pre-publish gate (agent runs the scan procedure after code gates):
 ```bash
-./tools/check.sh-parity
+./tools/check.sh
 ./tools/check.sh
 # then: scan docs/ + collateral per Procedure above (--strict)
 ```
