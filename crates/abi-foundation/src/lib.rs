@@ -21,11 +21,15 @@
 //!   [`io::CountingWriter`] carried real behaviour and survives.
 //! - `sync.zig` wrapped `std.Thread.Mutex`. `std::sync` covers it directly.
 
+pub mod credentials;
 pub mod env;
 pub mod errors;
+pub mod http;
 pub mod io;
 pub mod json;
 pub mod logger;
+pub mod plugin_manifest;
+pub mod system;
 pub mod temp_path;
 pub mod text;
 pub mod time;
