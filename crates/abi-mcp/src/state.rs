@@ -108,9 +108,16 @@ impl McpState {
     /// disclosed divergence: Zig reports the linked GPU backend name
     /// (`metal` on this machine); no Rust GPU backend is linked yet, so this
     /// honestly reports `cpu` rather than fabricating an accelerator claim.
+    ///
+    /// Open failures (corrupt/missing segment under the resolved path) return a
+    /// disclosed in-memory line rather than an MCP internal error — CI runners
+    /// and hosts with an unreadable `~/.abi/` must still answer `tools/call`.
     pub fn wdbx_stats_text(&self) -> Result<String, WdbxStatsError> {
         let store = match resolve_wdbx_base_path() {
-            Some(base) => DurableStore::open(StorePaths::new(base)).map_err(|_| WdbxStatsError)?,
+            Some(base) => match DurableStore::open(StorePaths::new(base)) {
+                Ok(store) => store,
+                Err(_) => return Ok(unavailable_stats_text()),
+            },
             None => return Ok(in_memory_stats_text()),
         };
         let stats = store.stats();
@@ -127,6 +134,11 @@ impl McpState {
 
 fn in_memory_stats_text() -> String {
     "kv=0 vectors=0 blocks=0 spatial=0 dims=null backend=cpu source=mcp-store".to_string()
+}
+
+fn unavailable_stats_text() -> String {
+    "kv=0 vectors=0 blocks=0 spatial=0 dims=null backend=cpu source=mcp-store-unavailable"
+        .to_string()
 }
 
 /// Open the durable store at the resolved path, or `None` for in-memory.

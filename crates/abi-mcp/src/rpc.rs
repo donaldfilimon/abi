@@ -175,7 +175,9 @@ mod tests {
             if matches!(tool, "wdbx_stats" | "gpu_status") {
                 let text = got["result"]["content"][0]["text"]
                     .as_str()
-                    .expect("text content");
+                    .unwrap_or_else(|| {
+                        panic!("tool={tool} expected text content, got {got}");
+                    });
                 if tool == "gpu_status" {
                     assert!(text.starts_with("backend="), "{text}");
                     assert!(text.contains(" available="), "{text}");
@@ -183,6 +185,9 @@ mod tests {
                     assert!(text.contains(" capabilities=7 "), "{text}");
                     assert!(text.contains(" message="), "{text}");
                     assert!(!text.contains("accelerated=true"), "{text}");
+                } else {
+                    assert!(text.contains("backend=cpu"), "{text}");
+                    assert!(text.contains("source=mcp-store"), "{text}");
                 }
                 continue;
             }
