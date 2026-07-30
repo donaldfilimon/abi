@@ -11,7 +11,7 @@ Safe transformation techniques for applying modern designs while preserving beha
 
 - Write modern impl beside old (parallel) when risk high.
 - Use strangler fig for gradual cutover.
-- Validate at each step with ./build.sh check, parity, contracts.
+- Validate at each step with ./tools/check.sh, parity, contracts.
 - Prefer direct boring code.
 
 ## Additional Resources

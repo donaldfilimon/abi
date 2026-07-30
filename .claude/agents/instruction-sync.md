@@ -1,6 +1,6 @@
 ---
 name: instruction-sync
-description: Read-only reviewer that checks the three sibling instruction files — CLAUDE.md, AGENTS.md, GEMINI.md — for drift. Use after changing a durable convention (top-level CLI commands, MCP tool surface, feature flags, build commands, frozen contracts, Zig 0.17 patterns) to confirm the change was propagated to all three. Reports divergences only; does not edit.
+description: Read-only reviewer that checks the three sibling instruction files — CLAUDE.md, AGENTS.md, GEMINI.md — for drift. Use after changing a durable convention (top-level CLI commands, MCP tool surface, feature flags, build commands, frozen contracts, nightly Rust patterns) to confirm the change was propagated to all three. Reports divergences only; does not edit.
 tools: Read, Grep
 ---
 
@@ -19,8 +19,8 @@ Compare the three files on every **durable convention**, not prose style. Concre
 1. **CLI contracts** — the frozen top-level command list (`help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`, plus `abi --tui`), subcommand sets (`agent`, `wdbx`, `nn`), and the legacy names that must NOT be dispatched (`version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, `serve`).
 2. **MCP tool surface** — the tool count and the exact tool names (currently 12: `ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`), the 64 KB request cap, HTTP/SSE details, and the `ABI_MCP_HTTP_*` / `ABI_WDBX_REST_TOKEN` env vars.
 3. **Feature flags** — the `-Dfeat-*` set, which default on/off, and any comptime gating (e.g. `feat-foundationmodels` arm64-macOS gating).
-4. **Build & validation commands** — `./build.sh check`, `full-check`, `cli`, `mcp`, `check-parity`, `cross-smoke`, the Zig pin (`0.17.0-dev.1442+972627084` from `.zigversion`; `build.zig.zon` minimum may be older), and the note that `build.sh` does not enforce the pin.
-5. **Zig 0.17 patterns** — the entry signature, `ArrayListUnmanaged(T).empty`, the std memory module trim-end helper (vs deprecated `trimRight`) and `splitScalar`/`splitAny`/`splitSequence` (vs deprecated `split`) memory utilities, `foundation.time.unixMs()` (vs the deprecated `std.time.milliTimestamp`), naming conventions, etc.
+4. **Build & validation commands** — `./tools/check.sh`, `full-check`, `cli`, `mcp`, `check-parity`, `cross-smoke`, the Zig pin (`0.17.0-dev.1442+972627084` from `rust-toolchain.toml`; `Cargo.toml.zon` minimum may be older), and the note that `build.sh` does not enforce the pin.
+5. **nightly Rust patterns** — the entry signature, `ArrayListUnmanaged(T).empty`, the std memory module trim-end helper (vs deprecated `trimRight`) and `splitScalar`/`splitAny`/`splitSequence` (vs deprecated `split`) memory utilities, `foundation.time.unixMs()` (vs the deprecated `std.time.milliTimestamp`), naming conventions, etc.
 6. **Generated / do-not-edit files** — `src/plugin_registry.zig`, mod/stub parity rules, import rules.
 
 ## Method

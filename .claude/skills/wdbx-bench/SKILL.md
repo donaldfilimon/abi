@@ -1,6 +1,6 @@
 ---
 name: wdbx-bench
-description: Build the abi CLI and benchmark the WDBX vector store (in-process insert/search timing), optionally running the full `zig build benchmarks` suite. Use when asked to benchmark WDBX, measure insert/search latency, profile the vector store, or check benchmark output after a storage change.
+description: Build the abi CLI and benchmark the WDBX vector store (in-process insert/search timing), optionally running workspace benchmarks. Use when asked to benchmark WDBX, measure insert/search latency, profile the vector store, or check benchmark output after a storage change.
 ---
 
 # wdbx-bench — benchmark the WDBX vector store
@@ -37,5 +37,5 @@ p50/p95/p99 lines, on Zig master `0.17.0-dev.1099`.
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Run `/zig-build-doctor` or `./build.sh check` to see the real error. |
+| `build` FAIL | Run `/zig-build-doctor` or `./tools/check.sh` to see the real error. |
 | missing `inserts:`/`searches:` marker | CLI grammar drifted — check `src/cli/handlers/wdbx.zig` `benchmark`. |

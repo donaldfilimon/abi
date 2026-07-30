@@ -21,7 +21,7 @@ handlers/foo_format.zig   # pure formatting (unit-tested)
 
 1. Add characterizing tests on public CLI/MCP path.
 2. Move pure validation into a sibling module; call from old path.
-3. Run focused tests + `./build.sh check`.
+3. Run focused tests + `./tools/check.sh`.
 4. Move formatting next; re-run gates.
 5. Only after parity, shrink the original file further.
 

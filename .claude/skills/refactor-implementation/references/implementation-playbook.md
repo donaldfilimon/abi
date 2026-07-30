@@ -6,7 +6,7 @@ Safe execution steps for clean-slate modernization. Pair with **refactor-validat
 
 1. Analysis checklist complete (targets + evidence).
 2. Strategy chosen (direct / phased strangler / parallel modern impl).
-3. Baseline gate green: `./build.sh check` (or the narrowest gate that covers the blast radius).
+3. Baseline gate green: `./tools/check.sh` (or the narrowest gate that covers the blast radius).
 4. Frozen surfaces listed — do **not** resurrect legacy CLI names or invent MCP tools.
 
 ## Execution loop
@@ -28,9 +28,9 @@ Safe execution steps for clean-slate modernization. Pair with **refactor-validat
 | Change kind | Minimum gate |
 | ----------- | ------------ |
 | Docs prose only | Spot-check claims vs `docs/contracts/external-claims-audit.mdx`; `npx mint@latest validate` if nav/content structure changes |
-| Tools scripts (no assertion rewrite) | Re-run the wired step or `./build.sh check` |
-| Public feature API | Update `mod.zig` + `stub.zig`; `zig build check-parity`; `./build.sh check` |
-| CLI/MCP handler | Contract suites + `./build.sh check` (surface must stay frozen unless intentional) |
+| Tools scripts (no assertion rewrite) | Re-run the wired step or `./tools/check.sh` |
+| Public feature API | Update `mod.zig` + `stub.zig`; `./tools/check.sh`; `./tools/check.sh` |
+| CLI/MCP handler | Contract suites + `./tools/check.sh` (surface must stay frozen unless intentional) |
 
 ### 4. Cutover rules
 

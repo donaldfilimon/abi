@@ -53,13 +53,13 @@ toolchain and frozen surfaces. This skill is style and process only.
 
 ## Review and verify
 
-- ABI done bar: `./build.sh check` on macOS. Use `./build.sh full-check` when
+- ABI done bar: `./tools/check.sh` on macOS. Use `./build.sh full-check` when
   the change touches integration, benchmarks, or TUI.
 - After a green gate (or on "test all features"), also smoke the live binary:
-  `./zig-out/bin/abi backends`, then representative commands (`complete`,
+  `./target/debug/abi backends`, then representative commands (`complete`,
   `wdbx`, `dashboard --once`, `plugin list`, `scheduler status`). Build gates
   alone are not the full verify bar when the human asks to test features.
-- Confirm `zig version` matches `abi/.zigversion` before trusting a build.
+- Confirm `zig version` matches `abi/rust-toolchain.toml` before trusting a build.
 - Interactive dashboard/TUI: `.agents/skills/run-tui/tui.sh`. Do not put
   Homebrew ahead of the pinned Zig on `PATH`.
 - Dual review default: when the human asks for review (`/review`, "security and

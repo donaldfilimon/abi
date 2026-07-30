@@ -9,7 +9,7 @@ set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
-ABI="$REPO_ROOT/zig-out/bin/abi"
+ABI="$REPO_ROOT/target/debug/abi"
 if [ "$#" -eq 0 ]; then
     COMMAND=(pwd)
 else
@@ -19,7 +19,7 @@ fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 
 say "build cli"
-./build.sh cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
+./tools/cargo.sh build -p abi-cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
 [ -x "$ABI" ] || { echo "[FAIL] no binary"; exit 1; }
 
 say "abi agent os dry-run (planning only — no execution)"

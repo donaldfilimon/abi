@@ -1,6 +1,6 @@
 ---
 name: scheduler-status
-description: Build the abi CLI and smoke-test the one-shot scheduler surface — run `abi scheduler status`, assert the probe task ran to completion (completed=1 total_tasks=1 failed=0), and assert the always-on Prometheus telemetry block. Use to run/smoke-test the abi scheduler, check scheduler stats/status output, or verify the one-shot task-submission accounting after touching src/core/scheduler.zig or telemetry. Fully local; self-terminating one-shot.
+description: Build the abi CLI and smoke-test the one-shot scheduler surface — run `abi scheduler status`, assert the probe task ran to completion (completed=1 total_tasks=1 failed=0), and assert the always-on Prometheus telemetry block. Use to run/smoke-test the abi scheduler, check scheduler stats/status output, or verify the one-shot task-submission accounting after touching abi-core scheduler or telemetry. Fully local; self-terminating one-shot.
 ---
 
 # scheduler-status — smoke the one-shot scheduler surface

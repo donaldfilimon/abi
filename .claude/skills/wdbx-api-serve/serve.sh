@@ -9,7 +9,7 @@ set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
-ABI="$REPO_ROOT/zig-out/bin/abi"
+ABI="$REPO_ROOT/target/debug/abi"
 PORT="${1:-8091}"
 PORT2=$((PORT + 1))
 fail=0
@@ -22,7 +22,7 @@ wait_up() { local port="$1"; for _ in $(seq 1 25); do curl -s -o /dev/null "http
 code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 
 say "build cli"
-./build.sh cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
+./tools/cargo.sh build -p abi-cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
 
 say "launch WDBX REST (no auth) on :$PORT"

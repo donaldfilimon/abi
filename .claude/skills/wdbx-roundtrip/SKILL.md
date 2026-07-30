@@ -41,5 +41,5 @@ hashed block, query reports `blocks:1`, verify confirms `chain_valid=true` and
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./build.sh check`. |
+| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./tools/check.sh`. |
 | `chain_valid=true` missing | Checkpoint/WAL regression — inspect `src/features/wdbx/` (checkpoint + WAL merge path). |

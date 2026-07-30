@@ -24,7 +24,7 @@ for a in "$@"; do
     esac
 done
 
-ABI="$REPO_ROOT/zig-out/bin/abi"
+ABI="$REPO_ROOT/target/debug/abi"
 fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 
@@ -33,7 +33,7 @@ if [ "$SEA" -eq 1 ]; then
     build_ok() { zig build cli -Dfeat-sea=true; }
 else
     say "build cli (default feat-sea=true)"
-    build_ok() { ./build.sh cli; }
+    build_ok() { ./tools/cargo.sh build -p abi-cli; }
 fi
 if build_ok; then echo "[ok] build"; else echo "[FAIL] build"; exit 1; fi
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }

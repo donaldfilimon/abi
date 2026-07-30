@@ -13,8 +13,8 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
 
-ABI="$REPO_ROOT/zig-out/bin/abi"
-ABI_MCP="$REPO_ROOT/zig-out/bin/abi-mcp"
+ABI="$REPO_ROOT/target/debug/abi"
+ABI_MCP="$REPO_ROOT/target/debug/abi-mcp"
 STORE="$REPO_ROOT/zig-out/smoke-memory.jsonl"
 TRANSCRIPT="$REPO_ROOT/zig-out/run-abi-smoke.txt"
 
@@ -53,8 +53,8 @@ log "repo: $REPO_ROOT"
 log "zig:  $(zig version 2>/dev/null || echo MISSING)"
 
 # --- Build ---------------------------------------------------------------
-run "build cli"  "-" -- ./build.sh cli
-run "build mcp"  "-" -- ./build.sh mcp
+run "build cli"  "-" -- ./tools/cargo.sh build -p abi-cli
+run "build mcp"  "-" -- ./tools/cargo.sh build -p abi-mcp
 
 if [ ! -x "$ABI" ] || [ ! -x "$ABI_MCP" ]; then
     log "FATAL: binaries not produced (abi=$ABI abi-mcp=$ABI_MCP)"

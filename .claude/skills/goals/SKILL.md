@@ -1,6 +1,6 @@
 ---
 name: goals
-description: Capture, track, and execute goals for the abi Zig project. Use when the user wants to record a goal, see outstanding goals, update goal status, or break a goal into a verified work slice. Distinct from abi-goal-orchestrator (which plans from the TODO board) — this skill owns a persistent goal ledger and drives goal-to-slice execution.
+description: Capture, track, and execute goals for the abi nightly-Rust project. Use when the user wants to record a goal, see outstanding goals, update goal status, or break a goal into a verified work slice. Distinct from abi-goal-orchestrator (which plans from the TODO board) — this skill owns a persistent goal ledger and drives goal-to-slice execution.
 ---
 
 # Goals
@@ -51,7 +51,7 @@ to the bottom or mark `done`.
 - Do not add legacy CLI names. Preserve the frozen top-level command set and the
   MCP 12-tool contract.
 - When changing public feature APIs, update both the real and stub modules and run
-  `./build.sh check-parity`.
+  `./tools/check.sh-parity`.
 - When changing docs, run `.agents/skills/docs-validate/validate.sh` in addition to
   code gates.
 - Goals are user intentions, not tasks — keep `tasks/goals.md` coarse and let
@@ -63,8 +63,8 @@ Prove the slice with the narrow command first, then broaden when the blast radiu
 justifies it:
 
 ```bash
-./build.sh check-parity
-./build.sh check
+./tools/check.sh-parity
+./tools/check.sh
 ```
 
 

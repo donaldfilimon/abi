@@ -8,7 +8,7 @@ set -uo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
-ABI="$REPO_ROOT/zig-out/bin/abi"
+ABI="$REPO_ROOT/target/debug/abi"
 PLAN="${1:-summarize the scheduler status}"
 PROFILE="${2:-abbey}"
 fail=0
@@ -18,7 +18,7 @@ markers() { local out="$1"; shift; for m in "$@"; do
         || { echo "[FAIL] missing marker: $m"; fail=$((fail+1)); }; done; }
 
 say "build cli"
-./build.sh cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
+./tools/cargo.sh build -p abi-cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
 
 say "abi agent plan (dry-run)"

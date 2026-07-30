@@ -5,7 +5,9 @@
 > (native GPU kernels, live Discord/Twilio TLS without a proxy, external
 > shader/MLIR toolchains, mobile `native_dispatch`, production FHE/sharding)
 > are **disclosed non-goals**, not unfinished ports. History below is retained
-> for audit.
+> for audit. Residual scrub (2026-07-30): deleted modernized/, modern-refactor/,
+> Zig-only agent skills (zig-pin, zig-newest-skills, zig-build-doctor, Zig cross-smoke),
+> empty Zig src leftover, and local zig-out/.zig-cache; rewrote live agent/docs gates to Rust.
 
 Goal: replace the entire Zig implementation of `abi` with Rust (nightly), and
 delete every Zig source file, build script, and toolchain pin from the repo.

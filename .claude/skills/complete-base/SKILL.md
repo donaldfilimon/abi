@@ -1,6 +1,6 @@
 ---
 name: complete-base
-description: 'Build the abi CLI and drive the base completion path — `abi complete "<input>"` with no flags — routing to the local model, running the constitution audit, and recording the completion in WDBX. Use to smoke-test the core local-completion path after touching src/features/ai/ or the model catalog. Fully local: no --live (remote) and no --learn (SEA).'
+description: 'Build the abi CLI and drive the base completion path — `abi complete "<input>"` with no flags — routing to the local model, running the constitution audit, and recording the completion in WDBX. Use to smoke-test the core local-completion path after touching crates/abi-ai/ or the model catalog. Fully local: no --live (remote) and no --learn (SEA).'
 ---
 
 # complete-base — drive abi's base local completion
@@ -40,6 +40,6 @@ completion (query/response vectors + block) to WDBX.
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./build.sh check`. |
+| `build` FAIL | Check `zig version` (see `/zig-pin`), then `./tools/check.sh`. |
 | `audit_passed=true` missing | Constitution/audit regression — check `src/features/ai/` (constitution + completion path). |
 | unexpected `model=` | Alias/catalog drift — check `src/features/ai/models.zig`. |

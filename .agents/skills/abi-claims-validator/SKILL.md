@@ -6,7 +6,7 @@ description: Validate ABI docs and external collateral against repo evidence and
 # ABI Claims Validator
 
 Agent-side procedure to validate documentation, collateral, and public claims
-against the repository source of truth (`build.zig`, `src/`, contract tests,
+against the repository source of truth (`Cargo.toml`, `src/`, contract tests,
 `docs/contracts/external-claims-audit.mdx`). Use before publishing any external
 artifact. There is **no** `/abi-claims-validator` binary or slash command — follow
 the steps below (or dispatch the `external-claims-auditor` subagent).
@@ -41,7 +41,7 @@ when the audit changes reality, do not invent a parallel truth source.
 
 ## Source of Truth Hierarchy
 
-1. **Executable config**: `build.zig`, `build.zig.zon`, `.zigversion`
+1. **Executable config**: `Cargo.toml`, `Cargo.toml.zon`, `rust-toolchain.toml`
 2. **Source implementation**: `src/`, `tests/contracts/`
 3. **Contract tests**: `tests/contracts/*.zig` (surface, mcp_tools, feature_modules, plugin_registry, public_docs)
 4. **Explicit claim boundary**: `docs/contracts/external-claims-audit.mdx`
@@ -56,7 +56,7 @@ when the audit changes reality, do not invent a parallel truth source.
 | `\d+\s*ms\s*latency` | ❌ Unsupported | `src/benchmarks.zig` artifact |
 | `distributed|sharding|multi-host|cluster` | ⚠️ Partial | `src/features/wdbx/cluster_rpc.zig` tests |
 | `AES|RBAC|encryption|certified` | ❌ Unsupported | `docs/contracts/external-claims-audit.mdx` §2 |
-| `Swift|Python|TensorFlow|PyTorch|Kubernetes` | ❌ Unsupported | `build.zig` deps |
+| `Swift|Python|TensorFlow|PyTorch|Kubernetes` | ❌ Unsupported | `Cargo.toml` deps |
 | `H100|A100|InfiniBand|NVLink` | ❌ Unsupported | CI config |
 | `SQuAD|CodeSearchNet|GPT|benchmark` | ❌ Unsupported | Contract tests |
 | `energy|kWh|efficiency|green` | ❌ Unsupported | No measurement artifact |
@@ -71,8 +71,8 @@ From `docs/contracts/external-claims-audit.mdx` §Reusable Delta:
 
 Pre-publish gate (agent runs the scan procedure after code gates):
 ```bash
-./build.sh check-parity
-./build.sh check
+./tools/check.sh-parity
+./tools/check.sh
 # then: scan docs/ + collateral per Procedure above (--strict)
 ```
 

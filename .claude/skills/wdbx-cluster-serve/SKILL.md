@@ -43,7 +43,7 @@ lingering process, on Zig master `0.17.0-dev.1099`.
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Run `/zig-build-doctor` or `./build.sh check` for the real error. |
+| `build` FAIL | Run `/zig-build-doctor` or `./tools/check.sh` for the real error. |
 | no readiness marker / `bind … failed` | Port in use or privileged — pick a higher free port (`8095`). |
 | missing marker string | CLI grammar drifted — check `src/cli/handlers/wdbx_runtime.zig` `clusterServe`. |
 

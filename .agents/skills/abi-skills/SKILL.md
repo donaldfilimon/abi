@@ -1,6 +1,6 @@
 ---
 name: abi-skills
-description: Coordinate ABI codebase health, skill telemetry, bundled-plugin runtime checks, ABI Mega inventories, pinned Zig gates, and cross-CLI skill synchronization. Use for full ABI health reviews and claim-honest skill/plugin improvement cycles.
+description: Coordinate ABI codebase health, skill telemetry, bundled-plugin runtime checks, ABI Mega inventories, nightly Rust gates, and cross-CLI skill synchronization. Use for full ABI health reviews and claim-honest skill/plugin improvement cycles.
 ---
 
 # abi-skills — ABI codebase health and skill synchronization
@@ -12,7 +12,7 @@ Codex plugin.
 ## Sources of truth
 
 - Repository instructions: `AGENTS.md`, then `tasks/lessons.md` and `tasks/todo.md`.
-- Zig pin: `.zigversion` and `.github/workflows/ci.yml` must agree.
+- Zig pin: `rust-toolchain.toml` and `.github/workflows/ci.yml` must agree.
 - Canonical repository skills: `.agents/skills/`.
 - Repository mirrors: `.claude/skills/` and `.grok/`, synchronized by
   `.agents/skills/sync-clis/launch.sh`.
@@ -22,8 +22,8 @@ Codex plugin.
   `tui-plugin`); verify them with `.agents/skills/plugin-runtime-tester/plugins.sh`.
 - ABI Mega source: `~/plugins/abi-mega/`; marketplace registration alone does not
   prove that the current version is installed.
-- Live Zig pin: read repo-root `.zigversion` (do not trust hardcoded hashes in
-  home docs). Prepend `$HOME/.zvm/$(cat .zigversion)` to `PATH` before gates —
+- Live Zig pin: read repo-root `rust-toolchain.toml` (do not trust hardcoded hashes in
+  home docs). Prepend `$HOME/.zvm/$(cat rust-toolchain.toml)` to `PATH` before gates —
   Homebrew `zig` may point at a different nightly than the pin.
 
 `src/plugins/zig-self-improve/` is intentionally absent and is rejected by
@@ -61,10 +61,10 @@ live telemetry, not durable capability claims.
 1. **Freeze the target** — inspect `git status --short --branch`,
    `git worktree list --porcelain`, branches, stashes, and remotes. If another
    process moves the checkout, stop and use an isolated worktree.
-2. **Select the pin locally** — prepend `~/.zvm/$(cat .zigversion)` to `PATH`
+2. **Select the pin locally** — prepend `~/.zvm/$(cat rust-toolchain.toml)` to `PATH`
    for ABI gates without changing the user's global ZVM selection.
-3. **Establish a baseline** — run `./build.sh check` without a PTY. Afterward,
-   run `./build.sh cli` because feature-stub smoke overwrites `zig-out/bin/abi`.
+3. **Establish a baseline** — run `./tools/check.sh` without a PTY. Afterward,
+   run `./tools/cargo.sh build -p abi-cli` because feature-stub smoke overwrites `target/debug/abi`.
 4. **Refresh ABI Mega evidence**:
    - `~/plugins/abi-mega/skills/abi-goal-orchestrator/scripts/refresh-inventory.sh`
    - `~/plugins/abi-mega/skills/abi-markdown-auditor/scripts/scan-markdown.sh`
@@ -80,9 +80,9 @@ live telemetry, not durable capability claims.
 9. **Install Codex skill text** — copy the corrected `SKILL.md` to the matching
    `~/.codex/skills/<name>/SKILL.md`. Companion-resource parity is a separate
    policy decision.
-10. **Validate** — run `./build.sh check-parity`, `./build.sh lint`,
-    `.agents/skills/docs-validate/validate.sh`, and `./build.sh check` with the
-    pinned Zig. Restore the full CLI with `./build.sh cli`.
+10. **Validate** — run `./tools/check.sh-parity`, `./build.sh lint`,
+    `.agents/skills/docs-validate/validate.sh`, and `./tools/check.sh` with the
+    pinned Zig. Restore the full CLI with `./tools/cargo.sh build -p abi-cli`.
 11. **Log** — `skill-loop log abi-skills success` (or `partial`/`failure`) when
     telemetry is initialized.
 12. **Integrate** — use a `cursor/` feature branch and PR; never force-push
@@ -104,16 +104,16 @@ separately through Plugin Management.
 ## Validation commands
 
 ```bash
-PINNED_ZIG_DIR="$HOME/.zvm/$(cat .zigversion)"
-PATH="$PINNED_ZIG_DIR:$PATH" ./build.sh check-parity
+PINNED_ZIG_DIR="$HOME/.zvm/$(cat rust-toolchain.toml)"
+PATH="$PINNED_ZIG_DIR:$PATH" ./tools/check.sh-parity
 PATH="$PINNED_ZIG_DIR:$PATH" ./build.sh lint
 PATH="$PINNED_ZIG_DIR:$PATH" .agents/skills/plugin-runtime-tester/plugins.sh
 .agents/skills/docs-validate/validate.sh
-PATH="$PINNED_ZIG_DIR:$PATH" ./build.sh check
-PATH="$PINNED_ZIG_DIR:$PATH" ./build.sh cli
+PATH="$PINNED_ZIG_DIR:$PATH" ./tools/check.sh
+PATH="$PINNED_ZIG_DIR:$PATH" ./tools/cargo.sh build -p abi-cli
 ```
 
-Run `./build.sh check` through pipes/non-interactive execution. Allocating a PTY
+Run `./tools/check.sh` through pipes/non-interactive execution. Allocating a PTY
 causes CLI dashboard smoke to enter interactive mode and invalidates the gate.
 
 ## Claim boundaries
