@@ -87,11 +87,10 @@ fn direct_help_and_exit_codes_cross_the_real_process_boundary() {
     assert!(unknown.stdout.is_empty());
     assert!(String::from_utf8_lossy(&unknown.stderr).contains("hint: did you mean `complete`?"));
 
-    let unported = run(&["twilio", "simulate", "hi"]);
-    assert_eq!(unported.status.code(), Some(1));
-    assert_eq!(
-        unported.stderr,
-        b"error: Rust handler for `twilio` is not yet ported\n"
+    let twilio = run(&["twilio", "simulate", "hi"]);
+    assert!(twilio.status.success());
+    assert!(
+        String::from_utf8_lossy(&twilio.stdout).contains("Twilio ConversationRelay simulation")
     );
 
     let agent = run(&["agent", "plan", "inspect"]);

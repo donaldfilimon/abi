@@ -416,6 +416,9 @@ pub fn run(args: &[String]) -> Outcome {
     if resolved == "agent" {
         return crate::agent::run(&args[1..]);
     }
+    if resolved == "twilio" {
+        return crate::twilio::run(&args[1..]);
+    }
 
     Outcome::stderr(
         format!("error: Rust handler for `{resolved}` is not yet ported\n"),
@@ -505,11 +508,24 @@ mod tests {
 
     #[test]
     fn unported_handlers_fail_honestly() {
-        let outcome = run(&args(&["twilio", "simulate", "hi"]));
+        // Interactive auth signin is still deferred with exit 1.
+        let outcome = run(&args(&["auth", "signin", "openai"]));
         assert_eq!(outcome.exit_code, 1);
-        assert_eq!(
-            outcome.stderr,
-            "error: Rust handler for `twilio` is not yet ported\n"
+        assert!(
+            outcome.stderr.contains("not yet ported"),
+            "{}",
+            outcome.stderr
+        );
+    }
+
+    #[test]
+    fn twilio_simulate_is_attached() {
+        let outcome = run(&args(&["twilio", "simulate", "hello"]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(
+            outcome
+                .stdout
+                .contains("Twilio ConversationRelay simulation")
         );
     }
 

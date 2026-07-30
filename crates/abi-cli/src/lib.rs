@@ -15,6 +15,7 @@ mod dashboard;
 mod nn;
 mod plugin;
 mod train;
+mod twilio;
 
 /// Serialization for tests that read or write the process-global telemetry table.
 ///
