@@ -10,9 +10,9 @@ use std::fmt::Write as _;
 use std::sync::Arc;
 
 use abi_ai::{
-    AgentProfile, DatasetFormat, DatasetSpec, TrainingConfig, analyze_sentiment, complete,
-    parse_agent_profile, route_to_profile, select_best_profile, train_inspect, training_store_key,
-    training_store_value, training_vectors,
+    DatasetFormat, DatasetSpec, TrainingConfig, analyze_sentiment, parse_agent_profile,
+    route_to_profile, select_best_profile, train_inspect, training_store_key, training_store_value,
+    training_vectors,
 };
 use abi_core::{MemoryTracker, Scheduler, TaskPriority};
 use abi_wdbx::{DurableStore, StorePaths};
@@ -112,32 +112,17 @@ fn multi(input: &str) -> Outcome {
         },
     );
 
-    let profiles = [
-        (
-            AgentProfile::Abbey,
-            "Primary user-facing personality combining technical expertise, emotional intelligence, creativity, clear teaching, thoughtful judgment, and collaborative problem-solving.",
-        ),
-        (
-            AgentProfile::Aviva,
-            "Direct expert mode: concise answers, assumptions, next actions.",
-        ),
-        (
-            AgentProfile::Abi,
-            "Orchestration and governance review layer.",
-        ),
-    ];
+    // The roster and its per-worker report both come from `abi-ai` now. The
+    // instructions used to be restated here, and had already drifted — the inline
+    // Abbey copy dropped the closing sentence of her identity contract.
     let mut out = String::from("=== MULTI-AGENT RESULTS ===\n");
-    for (profile, instructions) in profiles {
-        let body = route_to_profile(profile, &augmented);
-        let label = profile.label().to_uppercase();
-        let _ = writeln!(out, "\n[{label}]");
-        let _ = writeln!(out, "agent={}", profile.label());
-        let _ = writeln!(out, "mode=dry-run");
-        let _ = writeln!(out, "selected_profile={}", profile.label());
-        let _ = writeln!(out, "review_required=false");
-        let _ = writeln!(out, "tool_hints=explore,plan");
-        let _ = writeln!(out, "instructions={instructions}");
-        let _ = writeln!(out, "response={body}");
+    for spec in abi_ai::default_trio_specs() {
+        let Some(result) = abi_ai::run_agent(&spec, &augmented) else {
+            continue;
+        };
+        // `multi` uppercases the persona in its section header, unlike `spawn`.
+        let _ = writeln!(out, "\n[{}]", spec.name.to_uppercase());
+        let _ = writeln!(out, "{}", result.output);
     }
     print_scheduler_stats(&mut out, scheduler.stats());
     Outcome {
@@ -367,9 +352,15 @@ fn browser(args: &[String]) -> Outcome {
     }
 }
 
+const SPAWN_USAGE: &str = "usage: abi agent spawn [--background] [--workers <spec>] <input>";
+/// The longer usage line Zig emitted specifically for a malformed `--workers`
+/// value, which spells out the spec grammar rather than just naming the flag.
+const SPAWN_WORKERS_USAGE: &str =
+    "usage: abi agent spawn [--background] [--workers \"name|instructions|hints;...\"] <input>";
+
 fn spawn(args: &[String]) -> Outcome {
     let mut background = false;
-    let mut workers: Option<String> = None;
+    let mut workers: Option<&str> = None;
     let mut input_parts: Vec<&str> = Vec::new();
     let mut i = 0;
     while i < args.len() {
@@ -377,45 +368,56 @@ fn spawn(args: &[String]) -> Outcome {
             "--background" => background = true,
             "--workers" => {
                 i += 1;
-                let Some(v) = args.get(i) else {
-                    return Outcome::stderr(
-                        "error: usage: abi agent spawn [--background] [--workers <spec>] <input>\n"
-                            .into(),
-                        2,
-                    );
+                let Some(value) = args.get(i) else {
+                    return Outcome::stderr(format!("error: {SPAWN_USAGE}\n"), 2);
                 };
-                workers = Some(v.clone());
+                workers = Some(value.as_str());
             }
             other => input_parts.push(other),
         }
         i += 1;
     }
     if input_parts.is_empty() {
-        return Outcome::stderr(
-            "error: usage: abi agent spawn [--background] [--workers <spec>] <input>\n".into(),
-            2,
-        );
+        return Outcome::stderr(format!("error: {SPAWN_USAGE}\n"), 2);
     }
     let input = input_parts.join(" ");
-    let worker_name = workers
-        .as_deref()
-        .and_then(|s| s.split('|').next())
-        .unwrap_or("smart-agent");
-    let body = complete(&input, "abi-local").map_or_else(
-        |_| route_to_profile(AgentProfile::Abbey, &input),
-        |r| r.output,
-    );
+
+    // A malformed --workers value reports the grammar-spelling usage line; an
+    // absent one falls back to the single default worker. Both match Zig.
+    let specs = match workers {
+        Some(spec_text) => match abi_ai::parse_worker_specs(spec_text) {
+            Ok(specs) => specs,
+            Err(_) => return Outcome::stderr(format!("error: {SPAWN_WORKERS_USAGE}\n"), 2),
+        },
+        None => vec![abi_ai::default_spawn_spec()],
+    };
+
+    // One scheduler task per worker, named `agent:spawn:<worker>` as Zig did, so
+    // `completed=` reflects the real fan-out rather than always reading 1.
+    let scheduler = Scheduler::new();
+    for spec in &specs {
+        scheduler.submit(
+            &format!("agent:spawn:{}", spec.name),
+            TaskPriority::Normal,
+            Box::new(|| Ok(())),
+        );
+    }
+    let _ = scheduler.run_all();
+
+    let Some(batch) = abi_ai::run_custom_multi_agent(&specs, &input) else {
+        return Outcome::stderr(format!("error: {SPAWN_WORKERS_USAGE}\n"), 2);
+    };
+
     let mut out = String::new();
     if background {
+        // Zig printed the submitted task ids before the aggregated results. Ids
+        // are 1-based and assigned in spec order by the scheduler.
         let _ = writeln!(out, "submitted background agent tasks:");
-        let _ = writeln!(out, "  task_id=1 worker={worker_name}");
+        for (index, spec) in specs.iter().enumerate() {
+            let _ = writeln!(out, "  task_id={} worker={}", index + 1, spec.name);
+        }
     }
-    let _ = writeln!(out, "worker={worker_name}");
-    let _ = writeln!(out, "mode=dry-run");
-    let _ = writeln!(out, "response={body}");
-    let scheduler = Scheduler::new();
-    scheduler.submit("agent:spawn", TaskPriority::Normal, Box::new(|| Ok(())));
-    let _ = scheduler.run_all();
+    let _ = writeln!(out, "{}", batch.aggregated);
     print_scheduler_stats(&mut out, scheduler.stats());
     Outcome {
         stdout: out,
@@ -855,6 +857,112 @@ mod tests {
         assert_eq!(outcome.exit_code, 0);
         assert!(outcome.stdout.contains("browser-orchestration"));
         assert!(outcome.stdout.contains("dry-run"));
+    }
+
+    #[test]
+    fn spawn_with_workers_emits_the_custom_banner() {
+        // The assertion in tools/contract_cli/complete_through_wdbx.sh.
+        let args = ["--workers", "scout|Explore safely|explore", "inspect docs"].map(String::from);
+        let outcome = spawn(&args);
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(
+            outcome
+                .stdout
+                .contains("=== CUSTOM MULTI-AGENT RESULTS ===")
+        );
+        assert!(outcome.stdout.contains("[scout]"));
+        assert!(outcome.stdout.contains("instructions=Explore safely"));
+        assert!(outcome.stdout.contains("tool_hints=explore"));
+        assert!(outcome.stdout.contains("=== END ==="));
+    }
+
+    #[test]
+    fn spawn_without_workers_still_emits_the_custom_banner() {
+        // The assertion in tools/contract_cli/agent_orchestration.sh: the banner
+        // is unconditional, and the default worker is the named smart-agent.
+        let outcome = spawn(&["contract worker smoke".to_owned()]);
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(
+            outcome
+                .stdout
+                .contains("=== CUSTOM MULTI-AGENT RESULTS ===")
+        );
+        assert!(outcome.stdout.contains("[smart-agent]"));
+        assert!(outcome.stdout.contains("tool_hints=plan,explore"));
+    }
+
+    #[test]
+    fn spawn_runs_every_worker_and_counts_them_all() {
+        let args = ["--workers", "first|One;second|Two;third|Three", "task"].map(String::from);
+        let outcome = spawn(&args);
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        for name in ["[first]", "[second]", "[third]"] {
+            assert!(outcome.stdout.contains(name), "missing {name}");
+        }
+        // One scheduler task per worker, not one per command.
+        assert!(
+            outcome.stdout.contains("completed=3"),
+            "scheduler should report the real fan-out:\n{}",
+            outcome.stdout
+        );
+    }
+
+    #[test]
+    fn spawn_background_lists_task_ids_before_the_results() {
+        let args = ["--background", "--workers", "a|A;b|B", "t"].map(String::from);
+        let outcome = spawn(&args);
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        let ids = outcome
+            .stdout
+            .find("submitted background agent tasks:")
+            .expect("the background header is present");
+        let banner = outcome
+            .stdout
+            .find("=== CUSTOM MULTI-AGENT RESULTS ===")
+            .expect("the banner is present");
+        assert!(ids < banner, "task ids must precede the aggregated results");
+        assert!(outcome.stdout.contains("task_id=1 worker=a"));
+        assert!(outcome.stdout.contains("task_id=2 worker=b"));
+    }
+
+    #[test]
+    fn spawn_rejects_a_malformed_workers_spec_with_the_grammar_usage() {
+        // Zig used a longer usage line for a bad --workers value than for a
+        // missing input, spelling out the spec grammar.
+        for bad in ["onlyname", "n|i|badhint", ""] {
+            let args = ["--workers".to_owned(), bad.to_owned(), "t".to_owned()];
+            let outcome = spawn(&args);
+            assert_eq!(outcome.exit_code, 2, "{bad:?} should be a usage error");
+            assert!(
+                outcome.stderr.contains("name|instructions|hints"),
+                "{bad:?} should report the grammar: {}",
+                outcome.stderr
+            );
+        }
+    }
+
+    #[test]
+    fn spawn_without_input_or_a_workers_value_is_a_usage_error() {
+        assert_eq!(spawn(&[]).exit_code, 2);
+        assert_eq!(spawn(&["--background".to_owned()]).exit_code, 2);
+        // `--workers` as the final token has no value to consume.
+        assert_eq!(spawn(&["--workers".to_owned()]).exit_code, 2);
+    }
+
+    #[test]
+    fn multi_instructions_come_from_the_identity_contracts() {
+        // Guards the drift this change fixed: the inline copy had dropped the
+        // closing sentence of Abbey's contract description.
+        let outcome = multi("hi");
+        assert_eq!(outcome.exit_code, 0);
+        for profile in abi_ai::identity::KNOWN_PROFILES {
+            let expected = abi_ai::profile_contract(profile).description;
+            assert!(
+                outcome.stdout.contains(expected),
+                "{} instructions must match its contract verbatim",
+                profile.label()
+            );
+        }
     }
 
     #[test]
