@@ -21,7 +21,7 @@ description: Plan and execute ABI repo work from current TODOs, roadmap/spec doc
 - Treat `tasks/todo.md` as the active board and `docs/spec/wdbx-north-star.mdx` as the Current/Partial/Proposed map.
 - Do not convert disclosed stubs into fake completions. Native dispatch, production clustering, production FHE, and learned-compression claims need real source/tests.
 - Do not add legacy CLI names. Preserve the frozen top-level command set and the MCP 12-tool contract.
-- When changing public feature APIs, update both the real and stub modules and run `zig build check-parity`.
+- When changing public feature APIs, update both the real and stub modules and run `./tools/check.sh`.
 - When changing docs, run `.agents/skills/docs-validate/validate.sh` in addition to code gates.
 
 ## Useful Commands
@@ -30,8 +30,8 @@ description: Plan and execute ABI repo work from current TODOs, roadmap/spec doc
 # optional; codex abi-mega plugin only:
 #   abi_inventory --repo /Users/donaldfilimon/abi
 zig version
-zig build check-parity --summary all
-./build.sh check
+./tools/check.sh
+./tools/check.sh
 ```
 
 Use the optional sibling goals markdown named `current-goals` under this skill's `references/` dir (when present — see Workflow step 5) for the current source inventory and validation ladder.

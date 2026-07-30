@@ -14,10 +14,10 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || {
 LOG=$(mktemp /tmp/abi-scheduler-status.XXXXXX 2>/dev/null || mktemp -t abi-scheduler-status)
 trap 'rm -f "$LOG"' EXIT
 echo "[1/3] building abi CLI ..."
-if ! ./build.sh cli >"$LOG" 2>&1; then
+if ! ./tools/cargo.sh build -p abi-cli >"$LOG" 2>&1; then
   echo "RESULT: FAIL (build) — see $LOG"; exit 1
 fi
-BIN=zig-out/bin/abi
+BIN=target/debug/abi
 [ -x "$BIN" ] || { echo "RESULT: FAIL (no binary at $BIN — build is near-silent, verify with ls)"; exit 1; }
 
 echo "[2/3] running 'abi scheduler status' (output is on stderr) ..."

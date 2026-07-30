@@ -28,5 +28,5 @@ Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — Metal link
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | `/zig-build-doctor` or `./build.sh check`. |
+| `build` FAIL | `./tools/check.sh`. |
 | missing `Compute Backends:` | CLI grammar drift — check `src/cli/handlers/backends.zig`. |

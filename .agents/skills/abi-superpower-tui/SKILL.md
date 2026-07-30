@@ -27,15 +27,15 @@ paths below (or the `run-tui` / `dashboard-smoke` drivers).
 ### repl
 Launch the agent REPL (slash commands live here):
 ```bash
-./zig-out/bin/abi agent tui
+./target/debug/abi agent tui
 ```
 
 ### dashboard
 Show the diagnostics dashboard (`abi tui` is an alias of `abi dashboard`):
 ```bash
-./zig-out/bin/abi dashboard --pane system
-./zig-out/bin/abi dashboard --pane plugins --once --json
-./zig-out/bin/abi tui --compact --pane scheduler
+./target/debug/abi dashboard --pane system
+./target/debug/abi dashboard --pane plugins --once --json
+./target/debug/abi tui --compact --pane scheduler
 ```
 
 Interactive pty smoke (tmux driver):
@@ -55,8 +55,8 @@ scheduler, memory, or 1–5). In the interactive refresh loop, switch panes with
 hotkeys / Tab — there is no separate `pane --focus` CLI.
 
 ```bash
-./zig-out/bin/abi dashboard --list-panes
-./zig-out/bin/abi dashboard --pane memory
+./target/debug/abi dashboard --list-panes
+./target/debug/abi dashboard --pane memory
 ```
 
 ## Slash Commands (in `abi agent tui` REPL)

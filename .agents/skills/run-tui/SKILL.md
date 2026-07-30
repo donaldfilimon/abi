@@ -27,17 +27,14 @@ and there's **no** `errno 19`/`tcgetattr`/panic. Sends `q` (the quit key —
 To eyeball it yourself: `tmux capture-pane -pt <session>` shows the System pane
 (GPU backend, accelerated, native-linked) and the Plugins pane (16 registered).
 
-Historical verification: **PASS** on the pin in `.zigversion` — dashboard box +
-System + Plugins panes render under the pty; `q` quits; session cleaned up.
-Do not hardcode a Zig nightly in this skill; read `.zigversion` for the live pin.
-
+Historical verification: **PASS** on nightly Rust via `./tools/cargo.sh` —
+dashboard box + System + Plugins panes render under the pty; `q` quits; session
+cleaned up.
 
 ## Gotchas (battle scars)
-- ⚠️ **Do NOT prepend `/opt/homebrew/bin` to PATH.** Homebrew ships a `zig`
-  (`/opt/homebrew/bin/zig -> 0.16.0`) that **cannot compile this tree**. Putting
-  brew's bin first shadows the zvm 0.17 zig and the build fails with std API
-  errors. The driver *appends* brew's bin (for `tmux`) so the zvm zig stays
-  first — keep it that way.
+- ⚠️ **Always build with `./tools/cargo.sh`** (never bare Homebrew `cargo`).
+  The driver needs `tmux` on PATH (`brew install tmux`); do not let brew's
+  stable cargo shadow the nightly toolchain used for the build.
 - **A pty is mandatory for the interactive path.** Piped stdin or `/dev/null`
   intentionally uses the one-shot fallback; use tmux when you need to prove the
   live loop paints and accepts `q`.
@@ -53,6 +50,6 @@ Do not hardcode a Zig nightly in this skill; read `.zigversion` for the live pin
 | Symptom | Fix |
 |---|---|
 | `tmux not installed` | `brew install tmux`. |
-| `build` FAIL right after adding brew to PATH | brew's `zig` 0.16 shadowed zvm — append, don't prepend (see Gotchas). |
+| `build` FAIL | Use `./tools/cargo.sh build -p abi-cli`, then `./tools/check.sh`. |
 | `dashboard did not paint` | Increase the `sleep`, or confirm the pane size (`-x/-y`) is large enough. |
 | `tty error / panic in pane` | Regression in the interactive terminal path; confirm launch went through `tmux new-session`. |

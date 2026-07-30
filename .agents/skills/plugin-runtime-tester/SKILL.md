@@ -33,5 +33,5 @@ Historical verification: **PASS** — `Installed Plugins (16):`; `ai-plugin even
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | `/zig-build-doctor` or `./build.sh check`. |
+| `build` FAIL | `./tools/check.sh`. |
 | a plugin → `PluginNotFound` | missing `loadBundledPlugin` + dispatch branch — see `plugin-system-reviewer`. |
