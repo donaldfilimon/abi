@@ -185,7 +185,39 @@ names" into "the Rust CLI emits byte-identical output".
   - Still open: vector-bearing query embedding, GPU reporting, REST and cluster
     listener commands, interactive auth signin, and the other non-WDBX
     top-level handlers.
-- [ ] **9. `abi-mcp`** — golden-tested against `mcp-tools-list.json`, order included.
+- [x] **9a. `abi-mcp` protocol + stdio transport** — JSON-RPC envelope,
+  structural pre-check (size/depth/object-root), the frozen 12-tool table
+  (schemas pre-parsed so property order is preserved), declarative field
+  validation, and the byte-by-byte stdio line transport (overlong lines
+  dropped with a `-32700` before they grow past `MAX_REQUEST_SIZE`, matching
+  Zig's accumulate/clear behavior exactly, including the double-response edge
+  case that produces). `initialize` and `tools/list` are golden-tested
+  byte-for-byte against `mcp-initialize.json` / `mcp-tools-list.json`, order
+  included. `tools/call` dispatch is golden-tested against every one of the 9
+  validation-error lines in `mcp-tool-calls.jsonl`.
+  - Wired to real backends: `scheduler_stats`/`scheduler_info` (via
+    `abi-core`, golden-matched — the MCP variant never submits a probe task,
+    unlike the CLI's `scheduler status`, so it stays all-zero at rest) and
+    `connector_test` for `openai`/`anthropic`/`discord`/`grok` (via
+    `abi-connectors`' already-ported local synthesis; `openai` is
+    golden-matched byte-for-byte, including Anthropic's MCP-specific
+    `max_tokens=256` versus the connector's own default of 4096).
+  - Honestly stubbed (`NotYetPorted`, after validation still runs): `ai_run`,
+    `ai_complete`, `ai_learn`, `ai_train`, `wdbx_query`, `gpu_status`,
+    `plugin_list`, `plugin_run`, and `connector_test` for `twilio` — each
+    depends on a feature plan step 5/6/10 hasn't reached yet, or (twilio) on
+    `twilio_relay.zig`'s conversation builder from step 3b.
+  - `wdbx_stats` reads the real durable store (env resolution — `ABI_WDBX_PATH`,
+    `ABI_WDBX_PERSIST`, `XDG_DATA_HOME`, `HOME` fallback — ported and unit
+    tested standalone) but **discloses `backend=cpu`** rather than Zig's
+    linked `metal`, since no Rust GPU backend is linked; excluded from the
+    golden byte-match for that one field, everything else about it is real.
+  - State is intentionally simpler than Zig's: no shared long-lived
+    scheduler/session (each call opens fresh) since no ported tool mutates
+    the store yet and the double-checked-atomic lifecycle only pays for
+    itself once one does.
+  - Still open (step 9b): the HTTP/SSE transport, and every tool currently
+    stubbed above once its backing feature lands.
 - [ ] **10. `abi-plugins`**
 - [ ] **11. Zig teardown, in one commit** — `src/**/*.zig`, `build.zig`, `build.zig.zon`, `build.sh`, `.zigversion`, `zig-out/`, `zig-cache/`, `.zig-cache/`, `tools/*.zig`, `tests/**/*.zig`, `examples/**`, `.gitattributes` Zig rules, `.github/workflows` calling `./build.sh`.
 - [ ] **12. Docs + memory** — `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` together (they must not drift); `README.md`, `CHANGELOG.md`, `docs/**`; the `abi/` row in `~/CLAUDE.md`; delete the now-false `zig-pin-path` and `brew-zig-shadows-zvm` memories.

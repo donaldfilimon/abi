@@ -48,6 +48,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "abi-mcp"
+version = "0.1.0"
+dependencies = [
+ "abi-connectors",
+ "abi-core",
+ "abi-foundation",
+ "abi-wdbx",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "abi-telemetry"
 version = "0.1.0"
 
