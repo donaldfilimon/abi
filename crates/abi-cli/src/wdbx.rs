@@ -253,6 +253,146 @@ fn get_block(raw_path: &str) -> Outcome {
     )
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct QueryOptions<'a> {
+    path: &'a str,
+    text: Option<&'a str>,
+    persona: Option<&'a str>,
+    limit: usize,
+    json: bool,
+}
+
+fn parse_query(args: &[String]) -> Result<QueryOptions<'_>, ()> {
+    let path = args.first().ok_or(())?.as_str();
+    let mut text = None;
+    let mut persona = None;
+    let mut positionals = Vec::with_capacity(2);
+    let mut limit = 10;
+    let mut json = false;
+    let mut index = 1;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--json" => json = true,
+            "--limit" => {
+                index += 1;
+                limit = args.get(index).ok_or(())?.parse().map_err(|_| ())?;
+                if limit == 0 {
+                    return Err(());
+                }
+            }
+            "--text" => {
+                index += 1;
+                text = Some(args.get(index).ok_or(())?.as_str());
+            }
+            "--persona" => {
+                index += 1;
+                persona = Some(args.get(index).ok_or(())?.as_str());
+            }
+            token if token.starts_with("--") => return Err(()),
+            token => {
+                if positionals.len() == 2 {
+                    return Err(());
+                }
+                positionals.push(token);
+            }
+        }
+        index += 1;
+    }
+    if text.is_none() {
+        text = positionals.first().copied();
+    }
+    if persona.is_none() {
+        persona = positionals.get(1).copied();
+    }
+    Ok(QueryOptions {
+        path,
+        text,
+        persona,
+        limit,
+        json,
+    })
+}
+
+const fn backend_label() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "metal"
+    } else {
+        "cpu"
+    }
+}
+
+fn store_manifest(store: &DurableStore) -> String {
+    let stats = store.stats();
+    let dimensions = store
+        .snapshot()
+        .vector_dimensions()
+        .map_or_else(|| "null".to_owned(), |value| value.to_string());
+    format!(
+        "{{\"kv_entries\":{},\"vectors\":{},\"blocks\":{},\"spatial_records\":{},\"temporal_nodes\":{},\"temporal_edges\":{},\"vector_dimensions\":{dimensions},\"next_vector_id\":{},\"backend\":\"{}\",\"mode\":\"cpu_fallback\"}}",
+        stats.kv_entries,
+        stats.vectors,
+        stats.blocks,
+        stats.spatial_records,
+        stats.temporal_nodes,
+        stats.temporal_edges,
+        store.next_vector_id(),
+        backend_label()
+    )
+}
+
+fn query(args: &[String]) -> Outcome {
+    let Ok(options) = parse_query(args) else {
+        return usage();
+    };
+    let paths = match paths_from_cli_base(options.path) {
+        Ok(paths) => paths,
+        Err(detail) => return error("query failed", detail),
+    };
+    let store = match DurableStore::open(paths) {
+        Ok(store) => store,
+        Err(detail) => return error(&format!("error: {}", options.path), detail),
+    };
+    let manifest = store_manifest(&store);
+    let Some(text) = options.text else {
+        if options.json {
+            let path = serde_json::to_string(options.path).expect("a string always serializes");
+            return Outcome::stderr(
+                format!(
+                    "{{\"path\":{path},\"mode\":\"stats\",\"ranking\":null,\"manifest\":{manifest}}}\n"
+                ),
+                0,
+            );
+        }
+        return Outcome::stderr(format!("{manifest}\n"), 0);
+    };
+
+    if store.stats().vectors == 0 {
+        if options.json {
+            let path = serde_json::to_string(options.path).expect("a string always serializes");
+            let query = serde_json::to_string(text).expect("a string always serializes");
+            return Outcome::stderr(
+                format!(
+                    "{{\"path\":{path},\"query\":{query},\"persona\":\"all\",\"ranking\":\"hybrid\",\"limit\":{},\"vectors\":0,\"results\":[]}}\n",
+                    options.limit
+                ),
+                0,
+            );
+        }
+        return Outcome::stderr(
+            format!(
+                "no vectors in {}; nothing to rank (populate with `abi complete`)\n",
+                options.path
+            ),
+            0,
+        );
+    }
+
+    Outcome::stderr(
+        "error: Rust WDBX text-query embedding handler is not yet ported\n".to_owned(),
+        1,
+    )
+}
+
 fn run_db(args: &[String]) -> Outcome {
     if args.len() == 1 && is_help_token(&args[0]) {
         return Outcome::stderr(DB_HELP.to_owned(), 0);
@@ -299,17 +439,11 @@ pub(crate) fn run(args: &[String]) -> Outcome {
     match subcommand.as_str() {
         "db" => run_db(&args[1..]),
         "block" => run_block(&args[1..]),
+        "query" => query(&args[1..]),
         known
             if matches!(
                 known,
-                "query"
-                    | "benchmark"
-                    | "simulate"
-                    | "cluster"
-                    | "compute"
-                    | "secure"
-                    | "gpu"
-                    | "api"
+                "benchmark" | "simulate" | "cluster" | "compute" | "secure" | "gpu" | "api"
             ) =>
         {
             Outcome::stderr(
@@ -403,6 +537,43 @@ mod tests {
         assert_eq!(verified.exit_code, 0, "{}", verified.stderr);
         assert!(verified.stderr.contains("kv=0 vectors=0 blocks=1"));
         assert!(verified.stderr.contains("merged_chain_valid=true"));
+    }
+
+    #[test]
+    fn query_stats_and_empty_results_are_fully_attached() {
+        let fixture = Fixture::new();
+        let raw_path = fixture.raw_path();
+        assert_eq!(
+            run(&["db".to_owned(), "init".to_owned(), raw_path.clone()]).exit_code,
+            0
+        );
+
+        let stats = run(&["query".to_owned(), raw_path.clone()]);
+        assert_eq!(stats.exit_code, 0);
+        assert_eq!(
+            stats.stderr,
+            format!(
+                "{{\"kv_entries\":0,\"vectors\":0,\"blocks\":0,\"spatial_records\":0,\"temporal_nodes\":0,\"temporal_edges\":0,\"vector_dimensions\":null,\"next_vector_id\":1,\"backend\":\"{}\",\"mode\":\"cpu_fallback\"}}\n",
+                backend_label()
+            )
+        );
+
+        let empty = run(&[
+            "query".to_owned(),
+            raw_path.clone(),
+            "memory".to_owned(),
+            "--json".to_owned(),
+            "--limit".to_owned(),
+            "3".to_owned(),
+        ]);
+        assert_eq!(empty.exit_code, 0);
+        let path_json = serde_json::to_string(&raw_path).expect("path serializes");
+        assert_eq!(
+            empty.stderr,
+            format!(
+                "{{\"path\":{path_json},\"query\":\"memory\",\"persona\":\"all\",\"ranking\":\"hybrid\",\"limit\":3,\"vectors\":0,\"results\":[]}}\n"
+            )
+        );
     }
 
     #[test]
