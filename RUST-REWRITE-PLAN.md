@@ -277,9 +277,13 @@ names" into "the Rust CLI emits byte-identical output".
   - `backends` is attached with Rust build identity, explicit per-feature
     migration status, CPU SIMD selection, and claim-honest native accelerator
     fallback disclosure.
-  - Still open: vector-bearing query embedding, GPU reporting, REST and cluster
-    listener commands, interactive auth signin, and the other non-WDBX
-    top-level handlers.
+  - [x] **8c. CLI complete / train / nn / agent / dashboard.** Local
+    `complete` (+`--learn`), `train`, `nn train|sample`, one-shot
+    `dashboard`/`tui`, and `agent plan|multi|train|os|spawn|browser` are
+    attached. Interactive `agent tui`, complete `--live`/`--neural`, and
+    `twilio` remain open.
+  - Still open: interactive TUI raw-mode, REST/cluster listener CLI, interactive
+    auth signin, Twilio simulation, workspace-tree `file_context` on agent plan.
 - [x] **9a. `abi-mcp` protocol + stdio transport** — JSON-RPC envelope,
   structural pre-check (size/depth/object-root), the frozen 12-tool table
   (schemas pre-parsed so property order is preserved), declarative field

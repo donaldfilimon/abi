@@ -413,6 +413,9 @@ pub fn run(args: &[String]) -> Outcome {
     if resolved == "dashboard" || resolved == "tui" {
         return crate::dashboard::run(&args[1..]);
     }
+    if resolved == "agent" {
+        return crate::agent::run(&args[1..]);
+    }
 
     Outcome::stderr(
         format!("error: Rust handler for `{resolved}` is not yet ported\n"),
@@ -502,12 +505,20 @@ mod tests {
 
     #[test]
     fn unported_handlers_fail_honestly() {
-        let outcome = run(&args(&["agent", "plan"]));
+        let outcome = run(&args(&["twilio", "simulate", "hi"]));
         assert_eq!(outcome.exit_code, 1);
         assert_eq!(
             outcome.stderr,
-            "error: Rust handler for `agent` is not yet ported\n"
+            "error: Rust handler for `twilio` is not yet ported\n"
         );
+    }
+
+    #[test]
+    fn agent_plan_is_attached() {
+        let outcome = run(&args(&["agent", "plan", "inspect WDBX"]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stdout.contains("agent=cli-agent"));
+        assert!(outcome.stdout.contains("mode=dry-run"));
     }
 
     #[test]

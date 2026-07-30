@@ -7,6 +7,7 @@
 pub mod app;
 pub mod usage;
 
+mod agent;
 mod auth;
 mod backends;
 mod complete;
