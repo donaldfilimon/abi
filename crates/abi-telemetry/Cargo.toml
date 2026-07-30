@@ -1,0 +1,11 @@
+[package]
+name = "abi-telemetry"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Bounded process-wide telemetry counters for ABI."
+
+[lints]
+workspace = true

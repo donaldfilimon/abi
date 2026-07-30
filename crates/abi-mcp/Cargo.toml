@@ -1,0 +1,27 @@
+[package]
+name = "abi-mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "ABI MCP server: JSON-RPC protocol, the frozen 12-tool surface, and the stdio transport."
+
+[[bin]]
+name = "abi-mcp"
+path = "src/main.rs"
+
+[dependencies]
+abi-core = { workspace = true }
+abi-foundation = { workspace = true }
+abi-plugins = { workspace = true }
+abi-ai = { workspace = true }
+abi-sea = { workspace = true }
+abi-gpu = { workspace = true }
+abi-connectors = { path = "../abi-connectors" }
+abi-wdbx = { path = "../abi-wdbx" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

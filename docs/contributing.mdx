@@ -11,20 +11,18 @@ are both verified.
 
 Use the narrowest executable source for each claim:
 
-- CLI commands and arguments: `src/cli/usage.zig`, `src/cli/registry.zig`, and
-  `tests/contracts/surface.zig`
-- MCP tools and schemas: `src/mcp/handlers.zig` and
-  `tests/contracts/mcp_tools.zig`
-- Feature flags and defaults: `build.zig`
-- Public feature APIs: paired `mod.zig` / `stub.zig` modules and
-  `zig build check-parity`
+- CLI commands and arguments: `crates/abi-cli/src/usage.rs` and golden fixtures
+  under `tests/golden/help*.txt`
+- MCP tools and schemas: `crates/abi-mcp/src/` and
+  `tests/golden/mcp-tools-list.json`
+- Workspace crates and features: `Cargo.toml`, `crates/*/Cargo.toml`
+- Public plugin APIs: paired `mod.rs` / `stub.rs` under
+  `crates/abi-plugins/plugins/` with `assert_plugin_parity!`
 - Current, Partial, and Proposed capability wording:
   `contracts/external-claims-audit.mdx`, `spec/wdbx-north-star.mdx`, and
-  `spec/abbey-core-identity.mdx` (with executable mirror
-  `src/features/ai/identity.zig`)
-- Abbey / Aviva / ABI / WDBX roles and operating protocol:
-  `spec/abbey-core-identity.mdx`, `spec/multi-persona-technical.mdx`,
-  `src/features/ai/identity.zig`, `src/features/ai/router.zig`
+  `spec/abbey-core-identity.mdx`
+- Abbey / Aviva / ABI roles: `crates/abi-ai/src/identity.rs`,
+  `crates/abi-ai/src/router.rs`
 
 When prose disagrees with these sources, update the prose to match the
 executable behavior. Do not change code merely to preserve stale documentation.
@@ -37,29 +35,14 @@ source + tests.
 Use **Current**, **Partial**, and **Proposed** deliberately. ABI does not claim
 production multi-host sharding, native ANE/CUDA/TPU execution, audited FHE,
 production-scale learned compression, or unpublished performance figures.
-Design extracts must remain labeled as references rather than shipped runtime
-capabilities.
+Design extracts must remain labeled as references rather than shipped runtime.
 
-Prefer links to canonical contracts over repeating the frozen 13-command CLI or
-12-tool MCP lists across multiple pages.
-
-## Adding or moving pages
-
-1. Add the `.mdx` page under `docs/`.
-2. Add its extensionless path to `docs/docs.json` when it belongs in navigation.
-3. Update inbound links found with `rg` if a page moves.
-4. Keep archived plans outside active navigation and label historical material.
-5. Run the docs validator before pushing.
-
-## Required validation
+## Validation
 
 ```bash
-./build.sh check
-.agents/skills/docs-validate/validate.sh
+./tools/check.sh
 ```
 
-Layout, hosting, and CI: [Docs layout](./README.md).
-
-If public APIs changed, also run `zig build check-parity`. For runtime-facing
-documentation, exercise the real binaries with
-`.agents/skills/run-abi/smoke.sh`; a compile-only result is not runtime proof.
+Docs that describe the old Zig build (`build.zig`, `.zigversion`,
+`zig-out/bin/abi`) are historical and should be rewritten to the Rust lifecycle
+above when touched.

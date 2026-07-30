@@ -1,0 +1,22 @@
+{
+  "name": "example-plugin",
+  "version": "0.1.0",
+  "description": "Minimal example plugin used by registry generation tests.",
+  "target_feature": "plugins",
+  "entry_point": "mod.rs",
+  "commands": [
+    {
+      "name": "echo",
+      "summary": "Echo back the input text",
+      "aliases": [
+        "say"
+      ]
+    }
+  ],
+  "context_providers": [
+    {
+      "name": "example-info",
+      "summary": "Example plugin metadata for REPL context"
+    }
+  ]
+}

@@ -14,7 +14,7 @@
 use crate::format::{
     BlockRecord, FormatError, Hash, Record, SpatialRecord, StorePaths, TemporalKind, VectorRecord,
 };
-use crate::store::{Snapshot, load_newest_valid_with_epoch};
+use crate::store::{CheckpointSource, Snapshot, load_checkpoint_with_source};
 use serde::Serialize;
 use sha2::{Digest as _, Sha256};
 use std::io::Write as _;
@@ -498,6 +498,8 @@ pub fn wal_path(paths: &StorePaths) -> PathBuf {
 pub enum RecoverySource {
     /// Neither checkpoint nor WAL held mutations.
     Empty,
+    /// A pre-segment single-file snapshot checkpoint.
+    Snapshot,
     /// A manifest-listed segment checkpoint.
     Segment,
     /// A checkpoint plus a matching WAL delta.
@@ -524,13 +526,12 @@ pub struct Recovered {
 /// A WAL from an older or otherwise different epoch is superseded by the
 /// manifest-committed checkpoint and is removed without replay.
 pub fn recover(paths: &StorePaths) -> Result<Recovered> {
-    let manifest = paths.read_manifest()?;
-    let (mut snapshot, epoch) = load_newest_valid_with_epoch(paths, &manifest)?;
-    let checkpoint_epoch = epoch.unwrap_or(0);
-    let mut source = if epoch.is_some() {
-        RecoverySource::Segment
-    } else {
-        RecoverySource::Empty
+    let (mut snapshot, checkpoint_source) = load_checkpoint_with_source(paths)?;
+    let checkpoint_epoch = checkpoint_source.epoch();
+    let mut source = match checkpoint_source {
+        CheckpointSource::Empty => RecoverySource::Empty,
+        CheckpointSource::Legacy { .. } => RecoverySource::Snapshot,
+        CheckpointSource::Segment { .. } => RecoverySource::Segment,
     };
     let path = wal_path(paths);
     if !path.is_file() {
@@ -569,6 +570,11 @@ pub fn recover(paths: &StorePaths) -> Result<Recovered> {
 /// Fold `snapshot` into a new checkpoint and reset the WAL to that epoch.
 pub fn checkpoint(paths: &StorePaths, snapshot: &Snapshot) -> Result<u64> {
     let epoch = crate::persistence::flush(paths, snapshot)?;
+    crate::persistence::write_snapshot(paths.index(), snapshot)?;
+    let mirror_epoch = paths.mirror_epoch();
+    let provenance = format!("{}\nepoch={epoch}\n", crate::format::MIRROR_EPOCH_HEADER);
+    abi_foundation::io::write_file_atomic(&mirror_epoch, provenance)
+        .map_err(|error| io_error(&mirror_epoch, &error))?;
     let path = wal_path(paths);
     match std::fs::remove_file(&path) {
         Ok(()) => {}
@@ -933,6 +939,111 @@ mod tests {
                 found: 3
             })
         ));
+    }
+
+    #[test]
+    fn legacy_snapshot_without_wal_reports_snapshot_source() {
+        let fixture = Fixture::new("abi_wal_legacy_snapshot_source");
+        let mut legacy = Snapshot::new();
+        legacy
+            .kv
+            .insert("legacy".to_string(), "readable".to_string());
+        crate::persistence::write_snapshot(fixture.paths().index(), &legacy)
+            .expect("legacy checkpoint");
+
+        let recovered = recover(&fixture.paths()).expect("recover legacy checkpoint");
+        assert_eq!(recovered.source, RecoverySource::Snapshot);
+        assert_eq!(recovered.checkpoint_epoch, 0);
+        assert_eq!(recovered.frames_applied, 0);
+        assert_eq!(
+            recovered.snapshot.kv.get("legacy").map(String::as_str),
+            Some("readable")
+        );
+    }
+
+    #[test]
+    fn legacy_checkpoint_is_recovered_then_refreshed_on_segment_cutover() {
+        let fixture = Fixture::new("abi_wal_legacy_checkpoint");
+        let mut legacy = Snapshot::new();
+        legacy.kv.insert(
+            "stale:multiway:experiment".to_string(),
+            "old-export".to_string(),
+        );
+        crate::persistence::write_snapshot(fixture.paths().index(), &legacy)
+            .expect("legacy checkpoint");
+        create_with_epoch(fixture.wal(), 0).expect("legacy wal");
+
+        let recovered = recover(&fixture.paths()).expect("recover legacy checkpoint");
+        assert_eq!(recovered.source, RecoverySource::Merged);
+        assert_eq!(recovered.checkpoint_epoch, 0);
+        assert_eq!(recovered.frames_applied, 0);
+        assert_eq!(
+            recovered
+                .snapshot
+                .kv
+                .get("stale:multiway:experiment")
+                .map(String::as_str),
+            Some("old-export")
+        );
+
+        let mut current = recovered.snapshot;
+        current.kv.remove("stale:multiway:experiment");
+        current.kv.insert(
+            "multiway:experiment:latest".to_string(),
+            "current-export".to_string(),
+        );
+        checkpoint(&fixture.paths(), &current).expect("cut over to segments");
+        assert!(
+            fixture.paths().index().exists(),
+            "the compatibility mirror must be refreshed after publication"
+        );
+        std::fs::remove_file(fixture.paths().manifest()).expect("simulate manifest loss");
+        let after_manifest_loss = recover(&fixture.paths()).expect("recover without manifest");
+        assert_eq!(after_manifest_loss.source, RecoverySource::Merged);
+        assert_eq!(after_manifest_loss.frames_applied, 0);
+        assert_eq!(
+            after_manifest_loss
+                .snapshot
+                .kv
+                .get("multiway:experiment:latest")
+                .map(String::as_str),
+            Some("current-export"),
+            "manifest loss must preserve the newly published checkpoint"
+        );
+        assert!(
+            !after_manifest_loss
+                .snapshot
+                .kv
+                .contains_key("stale:multiway:experiment"),
+            "manifest loss must not resurrect stale mirror data"
+        );
+    }
+
+    #[test]
+    fn mirror_epoch_preserves_a_newer_wal_delta_without_a_manifest() {
+        let fixture = Fixture::new("abi_wal_mirror_epoch");
+        let mut first = Snapshot::new();
+        first.kv.insert("base".to_string(), "epoch-0".to_string());
+        assert_eq!(
+            checkpoint(&fixture.paths(), &first).expect("epoch 0 checkpoint"),
+            0
+        );
+
+        let mut second = Snapshot::new();
+        second.kv.insert("base".to_string(), "epoch-1".to_string());
+        assert_eq!(
+            checkpoint(&fixture.paths(), &second).expect("epoch 1 checkpoint"),
+            1
+        );
+        append_kv(fixture.wal(), "delta", "after-epoch-1").expect("WAL delta");
+        std::fs::remove_file(fixture.paths().manifest()).expect("simulate manifest loss");
+
+        let recovered = recover(&fixture.paths()).expect("recover mirror plus matching WAL");
+        assert_eq!(recovered.source, RecoverySource::Merged);
+        assert_eq!(recovered.checkpoint_epoch, 1);
+        assert_eq!(recovered.frames_applied, 1);
+        assert_eq!(recovered.snapshot.kv["base"], "epoch-1");
+        assert_eq!(recovered.snapshot.kv["delta"], "after-epoch-1");
     }
 
     #[test]

@@ -1,0 +1,19 @@
+[package]
+name = "abi-ai"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "ABI framework AI: persona identity contracts, keyword routing, incremental persona generation, and constitutional governance."
+
+[dependencies]
+abi-foundation = { workspace = true }
+abi-telemetry = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# serde_json is also a runtime dep (JSONL dataset inspection).
+
+[lints]
+workspace = true

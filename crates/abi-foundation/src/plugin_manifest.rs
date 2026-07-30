@@ -53,6 +53,17 @@ pub enum ManifestError {
         /// The path that was not found.
         value: String,
     },
+    /// A `commands` or `context_providers` entry is not an object, or its
+    /// `name` is absent/empty/not a string, or an `aliases` element is not a
+    /// string.
+    ///
+    /// Zig raised its single `InvalidJson` for all of these; both map to
+    /// `InvalidManifest` at the plugin-manager boundary, so splitting the
+    /// variant out only makes the message more specific.
+    MalformedDeclaration {
+        /// `"commands"` or `"context_providers"`.
+        section: &'static str,
+    },
 }
 
 impl std::fmt::Display for ManifestError {
@@ -72,6 +83,9 @@ impl std::fmt::Display for ManifestError {
             Self::MissingEntryPoint { value } => {
                 write!(f, "entry_point {value:?} does not exist")
             }
+            Self::MalformedDeclaration { section } => {
+                write!(f, "abi-plugin.json {section} entry is malformed")
+            }
         }
     }
 }
@@ -90,6 +104,28 @@ pub const MANIFEST_FILE: &str = "abi-plugin.json";
 /// Largest manifest that will be read, matching the Zig 64 KiB cap.
 const MANIFEST_SIZE_LIMIT: u64 = 64 * 1024;
 
+/// A slash-command a plugin declares in its manifest.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ManifestCommand {
+    /// Command name. Required, and never empty.
+    pub name: String,
+    /// One-line summary. Empty when absent or not a string.
+    pub summary: String,
+    /// Alternate names for the command.
+    pub aliases: Vec<String>,
+}
+
+/// A context provider a plugin declares in its manifest.
+///
+/// The plugin manager calls each provider through `run("__context__:<name>")`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ManifestContextProvider {
+    /// Provider name. Required, and never empty.
+    pub name: String,
+    /// One-line summary. Empty when absent or not a string.
+    pub summary: String,
+}
+
 /// A validated `abi-plugin.json`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluginManifest {
@@ -103,6 +139,10 @@ pub struct PluginManifest {
     pub entry_point: String,
     /// The feature this plugin targets.
     pub target_feature: String,
+    /// Slash-commands this plugin declares. Empty when absent.
+    pub commands: Vec<ManifestCommand>,
+    /// Context providers this plugin declares. Empty when absent.
+    pub context_providers: Vec<ManifestContextProvider>,
 }
 
 /// The raw manifest shape, accepting both `snake_case` and `camelCase`.
@@ -118,6 +158,102 @@ struct RawManifest {
     entry_point: Option<String>,
     #[serde(alias = "targetFeature")]
     target_feature: Option<String>,
+    // Zig read these two with `obj.get("commands")` / `obj.get("context_providers")`
+    // and no camelCase fallback, so there is deliberately no alias here. They stay
+    // untyped because the Zig parser mixed strict and lenient rules per field —
+    // see `parse_commands`.
+    commands: Option<serde_json::Value>,
+    context_providers: Option<serde_json::Value>,
+}
+
+/// Read a required, non-empty `name` from a declaration object.
+///
+/// Strict, matching Zig: absent, non-string, and empty all fail.
+fn declaration_name(
+    entry: &serde_json::Value,
+    section: &'static str,
+) -> Result<String, ManifestError> {
+    let object = entry
+        .as_object()
+        .ok_or(ManifestError::MalformedDeclaration { section })?;
+    let name = object
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .ok_or(ManifestError::MalformedDeclaration { section })?;
+    if name.is_empty() {
+        return Err(ManifestError::MalformedDeclaration { section });
+    }
+    Ok(name.to_string())
+}
+
+/// Read an optional `summary`, coercing a non-string to `""`.
+///
+/// Lenient, matching Zig: a `summary` of `42` is not an error, it is empty.
+fn declaration_summary(entry: &serde_json::Value) -> String {
+    entry
+        .get("summary")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .to_string()
+}
+
+/// Parse the `commands` array.
+///
+/// A non-array value yields no commands rather than an error, matching Zig's
+/// `if (cmds_val != .array) break :blk &.{}`. Within an array, however, every
+/// entry must be an object with a non-empty string `name`, and every `aliases`
+/// element must be a string. An `aliases` value that is present but not an array
+/// is ignored, again matching Zig.
+fn parse_commands(
+    value: Option<&serde_json::Value>,
+) -> Result<Vec<ManifestCommand>, ManifestError> {
+    const SECTION: &str = "commands";
+    let Some(items) = value.and_then(serde_json::Value::as_array) else {
+        return Ok(Vec::new());
+    };
+
+    let mut commands = Vec::with_capacity(items.len());
+    for entry in items {
+        let name = declaration_name(entry, SECTION)?;
+        let summary = declaration_summary(entry);
+
+        let mut aliases = Vec::new();
+        if let Some(alias_items) = entry.get("aliases").and_then(serde_json::Value::as_array) {
+            for alias in alias_items {
+                let alias = alias
+                    .as_str()
+                    .ok_or(ManifestError::MalformedDeclaration { section: SECTION })?;
+                aliases.push(alias.to_string());
+            }
+        }
+
+        commands.push(ManifestCommand {
+            name,
+            summary,
+            aliases,
+        });
+    }
+    Ok(commands)
+}
+
+/// Parse the `context_providers` array, with the same array/entry rules as
+/// [`parse_commands`].
+fn parse_context_providers(
+    value: Option<&serde_json::Value>,
+) -> Result<Vec<ManifestContextProvider>, ManifestError> {
+    const SECTION: &str = "context_providers";
+    let Some(items) = value.and_then(serde_json::Value::as_array) else {
+        return Ok(Vec::new());
+    };
+
+    let mut providers = Vec::with_capacity(items.len());
+    for entry in items {
+        providers.push(ManifestContextProvider {
+            name: declaration_name(entry, SECTION)?,
+            summary: declaration_summary(entry),
+        });
+    }
+    Ok(providers)
 }
 
 /// Validate the plugin directory at `plugin_path`.
@@ -163,6 +299,8 @@ pub fn validate(plugin_path: impl AsRef<Path>) -> Result<PluginManifest, Manifes
         description,
         entry_point,
         target_feature,
+        commands: parse_commands(raw.commands.as_ref())?,
+        context_providers: parse_context_providers(raw.context_providers.as_ref())?,
     })
 }
 

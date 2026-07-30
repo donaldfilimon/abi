@@ -360,10 +360,8 @@ fn direct_help(args: &[String]) -> Option<Outcome> {
 #[must_use]
 pub fn run(args: &[String]) -> Outcome {
     let Some(command) = args.first() else {
-        return Outcome::stderr(
-            "error: Rust no-argument TUI launch is not yet ported\n".to_owned(),
-            1,
-        );
+        // Bare `abi` matches Zig: launch the diagnostics dashboard.
+        return crate::dashboard::run(&[]);
     };
 
     if is_help_token(command) {
@@ -373,17 +371,51 @@ pub fn run(args: &[String]) -> Outcome {
         };
     }
 
+    let resolved = command_name_for_shortcut(command).unwrap_or(command);
+    if resolved == "wdbx" && args.get(1).is_some_and(|name| name == "simulate") {
+        return crate::wdbx::run(&args[1..]);
+    }
+
     if let Some(outcome) = direct_help(args) {
         return outcome;
     }
 
-    let resolved = command_name_for_shortcut(command).unwrap_or(command);
     if find_command(resolved).is_none() {
         return unknown_command(command);
     }
 
     if resolved == "wdbx" {
         return crate::wdbx::run(&args[1..]);
+    }
+    if resolved == "scheduler" {
+        return crate::scheduler::run(&args[1..]);
+    }
+    if resolved == "auth" {
+        return crate::auth::run(&args[1..]);
+    }
+    if resolved == "backends" {
+        return crate::backends::run(&args[1..]);
+    }
+    if resolved == "plugin" {
+        return crate::plugin::run(&args[1..]);
+    }
+    if resolved == "complete" {
+        return crate::complete::run(&args[1..]);
+    }
+    if resolved == "train" {
+        return crate::train::run(&args[1..]);
+    }
+    if resolved == "nn" {
+        return crate::nn::run(&args[1..]);
+    }
+    if resolved == "dashboard" || resolved == "tui" {
+        return crate::dashboard::run(&args[1..]);
+    }
+    if resolved == "agent" {
+        return crate::agent::run(&args[1..]);
+    }
+    if resolved == "twilio" {
+        return crate::twilio::run(&args[1..]);
     }
 
     Outcome::stderr(
@@ -473,12 +505,72 @@ mod tests {
     }
 
     #[test]
-    fn unported_handlers_fail_honestly() {
-        let outcome = run(&args(&["backends"]));
-        assert_eq!(outcome.exit_code, 1);
-        assert_eq!(
-            outcome.stderr,
-            "error: Rust handler for `backends` is not yet ported\n"
+    fn auth_signin_without_token_fails_honestly() {
+        // Without ABI_AUTH_TOKEN and with empty non-TTY stdin, signin fails loudly
+        // rather than hanging or inventing a credential.
+        let outcome = run(&args(&["auth", "signin", "openai"]));
+        assert_eq!(outcome.exit_code, 1, "{}", outcome.stderr);
+        assert!(
+            outcome.stderr.contains("auth signin failed")
+                || outcome.stderr.contains("empty secret")
+                || outcome.stderr.contains("ABI_AUTH_TOKEN"),
+            "{}",
+            outcome.stderr
+        );
+    }
+
+    #[test]
+    fn twilio_simulate_is_attached() {
+        let outcome = run(&args(&["twilio", "simulate", "hello"]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(
+            outcome
+                .stdout
+                .contains("Twilio ConversationRelay simulation")
+        );
+    }
+
+    #[test]
+    fn agent_plan_is_attached() {
+        let outcome = run(&args(&["agent", "plan", "inspect WDBX"]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stdout.contains("agent=cli-agent"));
+        assert!(outcome.stdout.contains("mode=dry-run"));
+    }
+
+    #[test]
+    fn dashboard_once_is_attached() {
+        let outcome = run(&args(&["dashboard", "--once", "--plain"]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stderr.contains("ABI Diagnostics Dashboard"));
+        assert!(outcome.stderr.contains("System"));
+        assert!(outcome.stderr.contains("Plugins"));
+        assert!(outcome.stderr.contains("WDBX Storage"));
+        assert!(outcome.stderr.contains("Scheduler"));
+        assert!(outcome.stderr.contains("Memory"));
+    }
+
+    #[test]
+    fn nn_train_is_attached() {
+        let outcome = run(&args(&["nn", "train", "hello world hello world "]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stdout.contains("nn train:"));
+        assert!(outcome.stdout.contains("improved=true"));
+    }
+
+    #[test]
+    fn train_and_complete_are_attached() {
+        let train = run(&args(&["train", "example"]));
+        assert_eq!(train.exit_code, 0);
+        assert!(train.stdout.contains("training accepted"));
+
+        let complete = run(&args(&["complete", "hello world"]));
+        assert_eq!(complete.exit_code, 0);
+        assert!(complete.stdout.contains("profile="));
+        assert!(
+            complete.stdout.contains("Abbey:")
+                || complete.stdout.contains("Aviva")
+                || complete.stdout.contains("ABI")
         );
     }
 }

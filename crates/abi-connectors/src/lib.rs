@@ -44,17 +44,49 @@
 //! synchronized" hazard is gone.
 
 pub mod connector;
+pub mod discord_gateway;
+pub mod discord_routing;
+pub mod discord_ws;
+pub mod fm;
+pub mod local_bridge;
 pub mod payload;
 pub mod providers;
 pub mod sse;
 pub mod transport;
+pub mod twilio_relay;
 pub mod url;
 
 pub use connector::{ConnectorConfig, ConnectorError, Response, Result, TransportMode};
+pub use discord_gateway::{
+    API_BASE, DEFAULT_INTENTS, FakeTransport, GATEWAY_URL, Gateway, GatewayConfig, GatewayError,
+    GatewayStats, GatewayTransport, validate_discord_id, validate_message_content, validate_token,
+};
+pub use discord_routing::{
+    DiscordCommand, MAX_MESSAGE_CONTENT_BYTES, governance_summary, parse_discord_command,
+    prompt_summary, route_discord_message, truncate as truncate_discord_message,
+};
+pub use discord_ws::{
+    Frame, GATEWAY_HOST, GATEWAY_PATH, WsError, build_handshake_request, encode_masked_text_frame,
+    handshake_on_stream, key_b64_from_seed, try_parse_frame,
+};
+pub use fm::{
+    FmConfig, complete_live as fm_complete_live, fm_available, fm_bridge_linked, fm_config,
+};
+pub use local_bridge::{
+    LLAMA_CPP_DEFAULT_ENDPOINT, MLX_DEFAULT_ENDPOINT, complete_live as local_bridge_complete,
+    complete_live_streaming as local_bridge_complete_stream, endpoint_for as local_bridge_endpoint,
+    extract_completion as local_bridge_extract, health_check as local_bridge_health,
+    is_local_bridge_model,
+};
 pub use providers::{Client, DiscordClient, Provider, TwilioClient};
 pub use sse::{StreamChunk, collect_stream, parse_stream};
 pub use transport::{
     DefaultTransport, Header, Method, RecordingTransport, Request, Transport, UnavailableTransport,
+};
+pub use twilio_relay::{
+    ConversationMemory, ConversationRelayEvent, ConversationRelayResponse, EscalationPayload,
+    EscalationReason, EventKind, IntelligenceSignal, build_escalation_payload,
+    build_local_conversation_response, classify_escalation,
 };
 
 #[cfg(feature = "live")]

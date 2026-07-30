@@ -9,6 +9,7 @@ description = "ABI framework core: configuration, task scheduler, memory account
 
 [dependencies]
 abi-foundation = { workspace = true }
+abi-telemetry = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

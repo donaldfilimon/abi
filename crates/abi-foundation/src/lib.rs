@@ -24,6 +24,7 @@
 pub mod credentials;
 pub mod env;
 pub mod errors;
+pub mod hash_feature;
 pub mod http;
 pub mod io;
 pub mod json;
@@ -34,6 +35,9 @@ pub mod temp_path;
 pub mod text;
 pub mod time;
 pub mod validation;
+pub mod wyhash;
+
+pub use hash_feature::{Hash128, fnv1a_64, hash64, wyhash64, wyhash128};
 
 pub use errors::{AbiError, ErrorContext, Result};
 pub use logger::{Level, LogEntry, Logger};
