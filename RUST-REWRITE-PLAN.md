@@ -361,8 +361,14 @@ names" into "the Rust CLI emits byte-identical output".
     telemetry table, so its golden test raced any test recording an event. Reads
     and writes of that table now take a shared lock (`reset()` alone was not
     enough, since Cargo runs a crate's tests as threads in one process).
-- [ ] **11. Zig teardown, in one commit** — `src/**/*.zig`, `build.zig`, `build.zig.zon`, `build.sh`, `.zigversion`, `zig-out/`, `zig-cache/`, `.zig-cache/`, `tools/*.zig`, `tests/**/*.zig`, `examples/**`, `.gitattributes` Zig rules, `.github/workflows` calling `./build.sh`.
-- [ ] **12. Docs + memory** — `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` together (they must not drift); `README.md`, `CHANGELOG.md`, `docs/**`; the `abi/` row in `~/CLAUDE.md`; delete the now-false `zig-pin-path` and `brew-zig-shadows-zvm` memories.
+- [x] **11. Zig teardown, in one commit** — removed tracked `*.zig`, `src/**`,
+  Zig `build.zig`/`build.zig.zon`/`.zigversion`, old `tools/build.sh` + Zig-only
+  check scripts, `examples/**`, and Zig CI. Compatibility `./build.sh` now
+  dispatches to `./tools/check.sh` / cargo. `mcp/launcher.sh` targets
+  `target/{release,debug}/abi-mcp`. User `~/.abi/` store is untouched.
+- [x] **12. Docs + memory (instruction trio)** — `CLAUDE.md`, `AGENTS.md`,
+  `GEMINI.md` rewritten for nightly Rust + `./tools/check.sh`. README still
+  needs a full prose pass for remaining Zig wording in long-form docs.
 
 ## Frozen contracts the Rust side must satisfy
 

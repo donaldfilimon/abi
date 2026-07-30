@@ -1,98 +1,90 @@
 # AGENTS.md — abi
 
-Canonical instruction file. If this conflicts with `build.zig`, `tools/build.sh`, or source, trust the executable source. Sibling files `CLAUDE.md`/`GEMINI.md` are thin redirects here. Session-start checklist: `tasks/lessons.md`; active board: `tasks/todo.md`.
+Canonical instruction file for the **Rust (nightly)** ABI framework. Sibling
+files `CLAUDE.md` / `GEMINI.md` are thin redirects here. If anything conflicts
+with executable source (`Cargo.toml`, `tools/check.sh`, `crates/`), trust the
+source. Session-start checklist: `tasks/lessons.md`; active board: `tasks/todo.md`.
 
 ## Toolchain
-- Pinned to `0.17.0-dev.1442+972627084` (`.zigversion`). Use zvm/zigup; the wrapper does **not** switch. `tools/check_zigversion.sh` (wired into `check`) fails on drift vs `.github/workflows/ci.yml`.
-- On macOS: **use `./build.sh ...`** (→ `tools/build.sh`; Darwin Metal-linking entrypoint). `feat-foundationmodels` needs arm64 macOS + Xcode + macOS 26 SDK.
+
+- **Nightly Rust** via `rust-toolchain.toml`. Homebrew stable `cargo` shadows
+  rustup on this machine — **always** use `./tools/cargo.sh` (never bare
+  `cargo`). That wrapper also keeps Swiftly's `cc` from breaking the link step.
+- Primary gate: `./tools/check.sh` (fmt, clippy `-D warnings`, build, test, docs).
 
 ## Commands
+
 | Command | What it does |
 |---------|-------------|
-| `./build.sh check` | Primary gate: build, tests, lint, parity, feature-off stubs (overwrites `zig-out/bin/abi`), CLI smoke. Re-run `./build.sh cli` afterward to restore full binary. |
-| `./build.sh full-check` | check + integration + benchmarks + dashboard/agent TUI smoke + `tools/check_modernized_refs.sh` |
-| `./build.sh cli` / `mcp` | Build `zig-out/bin/abi` / `zig-out/bin/abi-mcp` |
-| `./build.sh test -Dtest-filter="<pattern>"` | Single test (use build option; `-- --test-filter` is silently ignored) |
-| `./build.sh test-{cli,plugins,contracts,mcp-contracts,mcp-server,integration,feature-contracts}` | Focused suites |
-| `./build.sh check-parity` | Verify mod/stub public-decl parity (run after any public API change) |
-| `./build.sh lint`/`fix` | Check/apply formatting |
-| `./build.sh cross-smoke` | Compile+link smoke for linux/windows/macos cross targets |
-| `.agents/skills/docs-validate/validate.sh` | Docs validation (CI `docs (mint validate)`) |
+| `./tools/check.sh` | Primary gate: format, clippy, build, workspace tests, docs |
+| `./tools/cargo.sh build -p abi-cli` | Build `target/debug/abi` |
+| `./tools/cargo.sh build -p abi-mcp` | Build `target/debug/abi-mcp` |
+| `./tools/cargo.sh test -p <crate> --lib -- <filter>` | Focused unit tests |
+| `./tools/cargo.sh fmt --all` | Apply rustfmt |
+| `./tools/cargo.sh clippy --workspace --all-targets -- -D warnings` | Lint |
 
-## Architecture (non-obvious from names)
-- Entrypoints: `src/main.zig` (CLI), `src/mcp/main.zig` (MCP server). Public API: `src/root.zig` (`@import("abi")`).
-- **Import boundary**: library modules under `src/features/`, `src/core/`, `src/foundation/` use **relative** imports only. Executables may `@import("abi")`: CLI (`src/main.zig` + `src/cli/**`) and the whole MCP module (`src/mcp/**` — its own Zig module root). MCP reaches `foundation.*` via `@import("abi").foundation.*` only; no MCP file reaches `abi.features`/`ai`/`wdbx` internals; nothing outside imports MCP internals. MCP↔WDBX REST framing duplication is intentional.
-- **Generated**: `src/plugin_registry.zig` is regenerated from `src/plugins/*/abi-plugin.json` at build time — never hand-edit. (See `tools/generate_plugin_registry.zig` and build.zig.)
-- Repo-root `mcp/` holds only launcher scripts (`launcher.sh` wired by `opencode.json`). Launcher **must** `cd` to repo root before `exec` — `abi-mcp` links with `@rpath` into `.zig-cache` (`libabi_fm_shim.dylib`); dyld needs cwd = repo root.
+Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
+
+## Architecture
+
+- Workspace crates under `crates/*`: `abi-foundation`, `abi-core`, `abi-ai`,
+  `abi-sea`, `abi-nn`, `abi-gpu`, `abi-wdbx`, `abi-connectors`, `abi-plugins`,
+  `abi-telemetry`, `abi-cli` (binary `abi`), `abi-mcp` (binary `abi-mcp`).
+- **MCP launcher** (`mcp/launcher.sh`): prefers `target/release/abi-mcp` then
+  `target/debug/abi-mcp`; optional `ABI_MCP_AUTO_BUILD=1`.
+- Golden fixtures under `tests/golden/` pin frozen CLI/MCP surfaces.
 
 ## Frozen surfaces (contract-tested — don't break)
-- **CLI (13)**: `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`. Do **not** resurrect legacy names.
-- **MCP (12)**: `ai_run`, `ai_complete`, `ai_learn`, `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`. Stdio JSON-RPC (64 KB cap, JSON depth 32). Loopback-only HTTP/SSE.
 
-## API & parity rules
-- Any public API change → update **both** `mod.zig` and `stub.zig`, then `./build.sh check-parity`. Parity scans column-0 `pub const`/`pub fn` only; struct methods are invisible.
-- 5 contract test files: `tests/contracts/{surface,feature_modules,mcp_tools,plugin_registry,public_docs}.zig`.
-
-## Test topology (not obvious from the file tree)
-- Most coverage is inline `test {}` blocks (~288 of 293 `src/**.zig` files). What *runs* depends on the target:
-- `test` = mod + connector + **cli** + **plugin** + feature-contract artifacts. **`test` does NOT include integration.**
-- **`check` runs `test` but NOT `test-integration`** — only `full-check` runs integration. A test reachable only from `integration_tests.zig` stays unverified in the primary gate.
-- Aggregators exist because inline tests would otherwise never run: CLI ships as an executable (`src/cli_test.zig`) and plugins load by path at runtime (`src/plugins_test.zig`). Adding a test under `src/cli/**` or `src/plugins/**` without the aggregator reaching it silently never executes.
-- `src/tests/*.zig` (e2e/stress) are pulled in only via `refAllDecls` from `src/integration_tests.zig` → `test-integration` → `full-check`.
-- Tests that write under `zig-out/` must create it; a bare `zig build test-integration` on a clean tree has no `zig-out` and fails with `FileNotFound`.
-
-## Zig 0.17 essentials (easy to miss)
-- `pub fn main(init: std.process.Init) !void`; `ArrayListUnmanaged(T).empty`; `std.mem.trimEnd`/`splitScalar`/`splitAny`/`splitSequence`; `foundation.time.unixMs()`.
-- Tests: inline `test {}`, end modules with `std.testing.refAllDecls(@This())`.
-- No silent `catch {}` in data/inference/persistence paths. `build_options.feat_*` for conditional compilation. Explicit `std.mem.Allocator` (no global).
-- **MemoryTracker**: track owned-and-freed scratch as `trackAllocNoTag`/`trackFreeNoTag` pairs; never track escaping buffers at the alloc site. `getTotalFreed() > 0` proves a balanced transient pair fired.
+- **CLI (13)**: `help`, `complete`, `train`, `agent`, `backends`, `plugin`,
+  `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`.
+- **MCP (12)**: `ai_run`, `ai_complete`, `ai_learn`, `ai_train`, `wdbx_query`,
+  `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`,
+  `plugin_list`, `wdbx_stats`, `plugin_run`. Stdio JSON-RPC (64 KB cap).
+  Loopback-only HTTP/SSE when enabled.
 
 ## Claims discipline
-No unproven claims (production FHE/AES/RBAC, multi-host sharding, QPS/latency/accuracy, K8s/H100, external stacks). WDBX demo modules are reference-grade, not production. Audit: `docs/contracts/external-claims-audit.mdx`.
+
+No unproven claims (production FHE/AES/RBAC, multi-host sharding, QPS/latency/
+accuracy, K8s/H100, native CUDA/ANE kernels). WDBX secure demos are
+reference-grade. GPU reports `accelerated=false` when kernels are not linked.
+`complete --live` is Anthropic-only across an explicit credential boundary;
+`apple-fm` discloses FoundationModels unavailability without the Swift FFI.
+
+## Store safety
+
+`~/.abi/` is the user's live WDBX store. Tests must not open the real path —
+use scratch `DurableStore` paths, `ABI_WDBX_PATH=:memory:`, or
+`ABI_WDBX_PERSIST=0`. Recheck content digests before commits that touch store I/O.
 
 ## CI & commits
-- Conventional Commits. **Never force-push `main`**. Keep `.zigversion` and CI `ZIG_VERSION` in sync.
-- Self-hosted macOS ARM64 runner for same-repo events; fork PRs use `macos-latest`. Same-repo jobs gated by `github.repository == 'donaldfilimon/abi'`.
-- Feature-stub smoke in `check` overwrites the `abi` binary — re-run `./build.sh cli` to restore.
 
-## Linux / non-macOS note
-Cross-compiles link cleanly (`./build.sh cross-smoke` / `tools/cross_smoke.sh`). Execution of cross binaries needs a Linux/Windows host. Green native suites on macOS: full `./build.sh check`.
-
-Gitignore gotcha: global `*.md` allowlist in effect — every new tracked markdown (e.g. `examples/*/README.md`) needs an explicit `!` entry or it is silently untracked. `tasks/goals.md` is intentionally untracked; use committed `tasks/todo.md`.
+- Conventional Commits. **Never force-push `main`**.
+- CI runs `./tools/check.sh` on nightly Rust (self-hosted macOS ARM64 for
+  same-repo events; hosted runners for fork PRs).
 
 ## Learned User Preferences
-- Prefer feature branches `cursor/*` from `origin/main`; do not commit/push directly to `main`; never force-push.
-- Land finished work via draft PR then merge (prefer `gh pr merge --squash`); return to main; remove merged `cursor/*` branches after.
-- AGENTS.md learned-only updates: append prefs onto `origin/main`.
-- "continue", "continue with all", "do all", "finalize", or "merge all into main" means broaden and keep going; a green gate alone is not a stop unless a stop was named.
-- Mid-task slash-skill attaches (`/review`, `/abi-skills`, `/self-improving-codebase-loop`, `/dispatching-parallel-agents`, etc.) win over inventing a parallel workflow.
-- Dual review asks (security and code quality) mean run both Bugbot and Security Review.
-- For ABI "test all features" / live verify, smoke `zig-out/bin/abi` (e.g. `backends`, representative commands) in addition to `./build.sh check` / `full-check`.
-- Verify interactive TUI with `.agents/skills/run-tui/tui.sh` (tmux pty); never prepend Homebrew zig ahead of pinned.
-- Honest status/demos only — never fake-complete honest stubs, ANE, audited FHE, SOTA compression, or prod multi-host sharding.
-- Refactors: prefer scoped tracks (strangler extracts with hub re-exports) over open-ended rewrites.
-- Skills/docs: full repo-relative paths in `.agents/` etc.; sync `.agents` → `.claude` via `.agents/skills/sync-clis/launch.sh`.
-- `/abi` → route implementation through the `abi` subagent.
+
+- Prefer feature branches `cursor/*` from `origin/main`; do not commit/push
+  directly to `main`; never force-push.
+- Land finished work via draft PR then merge (prefer `gh pr merge --squash`);
+  return to main; remove merged `cursor/*` branches after.
+- "continue", "continue with all", "do all", "finalize", or "merge all into main"
+  means broaden and keep going; a green gate alone is not a stop unless a stop
+  was named.
+- Honest status/demos only — never fake-complete honest stubs, ANE, audited FHE,
+  SOTA compression, or prod multi-host sharding.
+- For ABI "test all features" / live verify, smoke `target/debug/abi` (e.g.
+  `backends`, representative commands) in addition to `./tools/check.sh`.
 
 ## Learned Workspace Facts
-- Live code in `src/`; `modernized/` is scaffold only — `tools/check_modernized_refs.sh` (in full-check) rejects stale `src/...` pointers inside it.
-- Interactive `abi tui|dashboard|--tui` uses split layout; `--once` is stacked (different by design). Dashboard is digest only.
-- Plugin slash-commands dispatch via `__cmd__:<name>` (parallel to `__context__:<name>`).
-- WDBX borrowed vectors (SearchResult/RankedNode) are zero-copy; lifetime ends on next mutation.
-- `sl` skill-loop is external npm `@stylusnexus/skill-loop-cli@0.3.3` (npx); use manual + sync-clis if missing.
-- Metal details, shared foundation/http+json, and similar are reference only in Metal/CUDA stubs.
 
-## Common Pitfalls
-1. Circular imports: `@import("abi")` only from executables (CLI `src/main.zig`+`src/cli/**`, MCP `src/mcp/**`). Relative imports in `src/features/`, `src/core/`, `src/foundation/`.
-2. Path imports must include `.zig` extension.
-3. Empty `catch {}` forbidden in data/inference/persistence.
-4. `ArrayListUnmanaged(T).empty` (not `.init(allocator)`).
-5. Deprecated: `trimRight`→`trimEnd`; `split`→`splitScalar`/`splitAny`/`splitSequence`.
-6. Timestamps: `foundation.time.unixMs()`, never `std.time.milliTimestamp`.
-7. Public API change: always touch **both** mod.zig + stub.zig.
-8. macOS builds: prefer `./build.sh` (wrapper + Metal).
-9. Every module test block: `std.testing.refAllDecls(@This())`.
-10. Feature flags: `build_options.feat_*` at compile time (not runtime checks).
-11. MCP launcher: run via `mcp/launcher.sh` (or from repo root) — bare `zig-out/bin/abi-mcp` from another cwd fails dyld `@rpath` resolution for `libabi_fm_shim.dylib`.
+- Live code is Rust under `crates/`. The Zig tree was removed in the rewrite
+  teardown; historical references in docs/skills may still say Zig.
+- Interactive `abi tui|dashboard` is one-shot digest by default; `agent tui` is
+  line-mode (raw-mode not linked). Dashboard is digest only.
+- Plugin slash-commands dispatch via `__cmd__:<name>` (parallel to
+  `__context__:<name>`).
+- WDBX borrowed vectors are zero-copy; lifetime ends on next mutation.
 
-After any edit: `./build.sh check`.
+After any edit: `./tools/check.sh`.

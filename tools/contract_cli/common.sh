@@ -1,10 +1,18 @@
 # Contract CLI helpers — sourced by tools/run_contract_cli.sh
 export ABI_WDBX_PERSIST=0
 
-ABI="${ABI_EXE:-zig-out/bin/abi}"
+if [[ -n "${ABI_EXE:-}" ]]; then
+  ABI="$ABI_EXE"
+elif [[ -x target/release/abi ]]; then
+  ABI=target/release/abi
+elif [[ -x target/debug/abi ]]; then
+  ABI=target/debug/abi
+else
+  ABI=target/debug/abi
+fi
 
 if [[ ! -x "$ABI" ]]; then
-  echo "error: $ABI not found; run 'zig build cli' first" >&2
+  echo "error: $ABI not found; run './tools/cargo.sh build -p abi-cli' first" >&2
   exit 1
 fi
 
