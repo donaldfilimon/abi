@@ -106,6 +106,7 @@ pub use remote_compute::{
     dot_or_local_at, endpoint as remote_compute_endpoint, local_dot, parse_endpoint_port,
     read_dot_reply, serve_once as serve_remote_compute_once,
 };
+pub use rest::{RestConfig, RestServer};
 pub use retrieval::{
     RankedSpatialResult, RankedVector, hybrid_search_scoped, hybrid_search_with_persona,
     hybrid_spatial_search, without_vector,

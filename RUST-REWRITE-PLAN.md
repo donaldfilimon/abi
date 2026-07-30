@@ -290,9 +290,15 @@ names" into "the Rust CLI emits byte-identical output".
     `complete --neural` runs the in-process char-LM demo; `complete --live`
     is Anthropic-only with credential-store boundary + optional `--stream`
     SSE; `apple-fm` + `--confirm` reports honest FoundationModels unavailability.
-  - Still open (honest stubs / deferred): interactive raw-mode TUI, REST/cluster
-    listener CLI, interactive `auth signin`, Discord gateway/WS, full Twilio
-    ConversationRelay + MCP `connector_test twilio`, FoundationModels FFI.
+  - [x] **8e. WDBX listeners + text query.** `wdbx query <path> <text>` runs
+    hybrid semantic×temporal×causal×persona ranking via `abi_ai::text_embedding`
+    + `hybrid_search_*`. `wdbx api serve [port]` loopback REST (`RestServer`,
+    optional `ABI_WDBX_REST_TOKEN`). `wdbx cluster serve <port> [node] [host]`
+    loopback RPC (`ClusterRpcServer`, non-loopback requires token).
+    `wdbx gpu info` honest detection. Ctrl-C stop on both servers.
+  - Still open (honest stubs / deferred): Discord gateway/WS, full Twilio
+    ConversationRelay + MCP `connector_test twilio`, FoundationModels FFI,
+    complete `--soul` routing.
 - [x] **9a. `abi-mcp` protocol + stdio transport** — JSON-RPC envelope,
   structural pre-check (size/depth/object-root), the frozen 12-tool table
   (schemas pre-parsed so property order is preserved), declarative field

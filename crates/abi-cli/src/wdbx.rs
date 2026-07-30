@@ -6,9 +6,15 @@
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-use abi_wdbx::{DurableStore, HnswIndex, Snapshot, StorePaths, Wal};
+use abi_ai::text_embedding;
+use abi_wdbx::{
+    ClusterPolicy, ClusterRpcServer, DurableStore, HnswIndex, HybridScorer, Node, RestConfig,
+    RestServer, Snapshot, StorePaths, TemporalCausalGraph, Wal, hybrid_search_scoped,
+    hybrid_search_with_persona,
+};
 
 use crate::app::Outcome;
 use crate::usage::is_help_token;
@@ -380,9 +386,11 @@ fn query(args: &[String]) -> Outcome {
         if options.json {
             let path = serde_json::to_string(options.path).expect("a string always serializes");
             let query = serde_json::to_string(text).expect("a string always serializes");
+            let persona = options.persona.unwrap_or("all");
             return Outcome::stderr(
                 format!(
-                    "{{\"path\":{path},\"query\":{query},\"persona\":\"all\",\"ranking\":\"hybrid\",\"limit\":{},\"vectors\":0,\"results\":[]}}\n",
+                    "{{\"path\":{path},\"query\":{query},\"persona\":{},\"ranking\":\"hybrid\",\"limit\":{},\"vectors\":0,\"results\":[]}}\n",
+                    serde_json::to_string(persona).expect("string"),
                     options.limit
                 ),
                 0,
@@ -397,10 +405,121 @@ fn query(args: &[String]) -> Outcome {
         );
     }
 
-    Outcome::stderr(
-        "error: Rust WDBX text-query embedding handler is not yet ported\n".to_owned(),
-        1,
+    query_with_text(
+        &store,
+        options.path,
+        text,
+        options.persona,
+        options.limit,
+        options.json,
     )
+}
+
+/// Hybrid semantic×temporal×causal×persona ranking over a recovered store.
+fn query_with_text(
+    store: &DurableStore,
+    path: &str,
+    text: &str,
+    persona: Option<&str>,
+    limit: usize,
+    json: bool,
+) -> Outcome {
+    let query_vec = text_embedding(text);
+    let graph = TemporalCausalGraph::from_records(&store.snapshot().temporal);
+    let now_ms = abi_foundation::time::unix_ms();
+    let scorer = HybridScorer {
+        now_ms,
+        ..HybridScorer::new(now_ms)
+    };
+    let focus_id = store.snapshot().vectors.keys().next().copied().unwrap_or(1);
+
+    let ranked = if let Some(filter) = persona {
+        let filter_owned = filter.to_ascii_lowercase();
+        hybrid_search_scoped(store, &query_vec, limit, &graph, scorer, focus_id, |id| {
+            vector_persona_matches(store, id, &filter_owned)
+        })
+    } else {
+        hybrid_search_with_persona(store, &query_vec, limit, &graph, scorer, focus_id, |_id| {
+            0.5
+        })
+    };
+
+    let ranked = match ranked {
+        Ok(rows) => rows,
+        Err(detail) => return error("query failed", detail),
+    };
+
+    let persona_label = persona.unwrap_or("all");
+    if json {
+        let path_json = serde_json::to_string(path).expect("path serializes");
+        let query_json = serde_json::to_string(text).expect("query serializes");
+        let persona_json = serde_json::to_string(persona_label).expect("persona serializes");
+        let mut results = String::from("[");
+        for (i, row) in ranked.iter().enumerate() {
+            if i > 0 {
+                results.push(',');
+            }
+            let dims = row.vector.len();
+            let _ = write!(
+                results,
+                "{{\"id\":{},\"score\":{:.6},\"semantic\":{:.6},\"temporal\":{:.6},\"causal\":{:.6},\"persona\":{:.6},\"dims\":{dims}}}",
+                row.id,
+                row.score,
+                row.components.semantic,
+                row.components.temporal,
+                row.components.causal,
+                row.components.persona,
+            );
+        }
+        results.push(']');
+        return Outcome::stderr(
+            format!(
+                "{{\"path\":{path_json},\"query\":{query_json},\"persona\":{persona_json},\"ranking\":\"hybrid\",\"limit\":{limit},\"vectors\":{},\"results\":{results}}}\n",
+                store.stats().vectors
+            ),
+            0,
+        );
+    }
+
+    if ranked.is_empty() {
+        return Outcome::stderr(
+            format!("no hybrid matches in {path} for query (persona={persona_label})\n"),
+            0,
+        );
+    }
+
+    let mut out =
+        format!("query results (hybrid ranking, limit={limit}, persona={persona_label}):\n");
+    for (i, row) in ranked.iter().enumerate() {
+        let _ = writeln!(
+            out,
+            "  #{} id={} score={:.4} semantic={:.4} temporal={:.4} causal={:.4} persona={:.4} dims={}",
+            i + 1,
+            row.id,
+            row.score,
+            row.components.semantic,
+            row.components.temporal,
+            row.components.causal,
+            row.components.persona,
+            row.vector.len(),
+        );
+    }
+    Outcome::stderr(out, 0)
+}
+
+fn vector_persona_matches(store: &DurableStore, id: u64, filter_lower: &str) -> bool {
+    if let Some(label) = store.get(&format!("wdbx:profile:{id}")) {
+        return label.eq_ignore_ascii_case(filter_lower);
+    }
+    // Fall back to block profile tags that reference this vector as query or response.
+    for block in &store.snapshot().blocks {
+        if (block.query_id == id || block.response_id == id)
+            && block.profile.eq_ignore_ascii_case(filter_lower)
+        {
+            return true;
+        }
+    }
+    false
 }
 
 fn cluster_status() -> Outcome {
@@ -474,10 +593,162 @@ fn run_cluster(args: &[String]) -> Outcome {
             Ok(count) if count > 0 => cluster_demo(count),
             _ => usage(),
         },
-        [operation, ..] if operation == "serve" => Outcome::stderr(
-            "error: Rust WDBX cluster RPC server CLI is not yet ported\n".to_owned(),
-            1,
+        [operation, port] if operation == "serve" => cluster_serve(port, "0", "127.0.0.1"),
+        [operation, port, node] if operation == "serve" => cluster_serve(port, node, "127.0.0.1"),
+        [operation, port, node, host] if operation == "serve" => cluster_serve(port, node, host),
+        _ => usage(),
+    }
+}
+
+fn cluster_serve(port_raw: &str, node_raw: &str, host: &str) -> Outcome {
+    let Ok(port) = port_raw.parse::<u16>() else {
+        return usage();
+    };
+    let Ok(node_id) = node_raw.parse::<u32>() else {
+        return usage();
+    };
+    let policy = match ClusterPolicy::from_env() {
+        Ok(policy) => policy,
+        Err(detail) => return error("cluster serve failed", detail),
+    };
+    let mut server = match ClusterRpcServer::bind(host, port, Node::new(node_id), policy) {
+        Ok(server) => server,
+        Err(detail) => return error("cluster serve failed", detail),
+    };
+    let bound = match server.local_port() {
+        Ok(p) => p,
+        Err(detail) => return error("cluster serve failed", detail),
+    };
+    let auth = if std::env::var("ABI_WDBX_CLUSTER_TOKEN")
+        .ok()
+        .as_ref()
+        .is_some_and(|v| !v.is_empty())
+    {
+        "token=set"
+    } else {
+        "token=none (loopback only without token)"
+    };
+    eprintln!(
+        "wdbx cluster RPC serving on {host}:{bound} node={node_id} ({auth}); non-loopback requires ABI_WDBX_CLUSTER_TOKEN; front multi-host with TLS/mTLS proxy — not production sharding"
+    );
+
+    // Stop on Ctrl-C so operators and smoke scripts can tear down cleanly.
+    let stop = std::sync::Arc::new(AtomicBool::new(false));
+    let stop_flag = std::sync::Arc::clone(&stop);
+    let _ = ctrlc::set_handler(move || {
+        stop_flag.store(true, Ordering::SeqCst);
+    });
+
+    while !stop.load(Ordering::SeqCst) {
+        // Short accept timeout so Ctrl-C is observed without waiting forever.
+        if let Err(err) = server.serve_one() {
+            if stop.load(Ordering::SeqCst) {
+                break;
+            }
+            // Transient accept/read errors are logged; the listener stays up.
+            eprintln!("cluster RPC serve error: {err}");
+        }
+    }
+    Outcome::stderr("wdbx cluster RPC stopped\n".into(), 0)
+}
+
+fn open_default_store() -> Result<DurableStore, String> {
+    if let Ok(path) = std::env::var("ABI_WDBX_PATH") {
+        if path == ":memory:" {
+            return Err(
+                "ABI_WDBX_PATH=:memory: is not valid for durable REST/cluster serving".into(),
+            );
+        }
+        return DurableStore::open(StorePaths::new(path)).map_err(|e| e.to_string());
+    }
+    if matches!(
+        std::env::var("ABI_WDBX_PERSIST").as_deref(),
+        Ok("0" | "false" | "no" | "off")
+    ) {
+        return Err("WDBX persistence disabled (ABI_WDBX_PERSIST=0)".into());
+    }
+    let home = std::env::var("HOME").map_err(|_| "HOME is unset".to_string())?;
+    DurableStore::open(StorePaths::new(format!("{home}/.abi/wdbx"))).map_err(|e| e.to_string())
+}
+
+fn api_serve(port_raw: Option<&str>) -> Outcome {
+    let port: u16 = match port_raw {
+        None => 8081,
+        Some(raw) => match raw.parse() {
+            Ok(p) => p,
+            Err(_) => return usage(),
+        },
+    };
+    let store = match open_default_store() {
+        Ok(store) => store,
+        Err(detail) => return error("api serve failed", detail),
+    };
+    // Disclose TLS env presence without claiming native TLS termination.
+    if let Some(tls) = abi_wdbx::TlsConfig::from_env() {
+        let _ = tls;
+        eprintln!(
+            "note: ABI_WDBX_TLS_CERT/KEY present — native TLS termination is not linked; deploy behind nginx/Caddy/haproxy"
+        );
+    }
+    let config = RestConfig::from_env();
+    let auth = if config.bearer_token.is_some() {
+        "auth=bearer"
+    } else {
+        "auth=off"
+    };
+    let mut server = match RestServer::bind(port, store, config) {
+        Ok(server) => server,
+        Err(detail) => return error("api serve failed", detail),
+    };
+    let bound = match server.local_port() {
+        Ok(p) => p,
+        Err(detail) => return error("api serve failed", detail),
+    };
+    eprintln!(
+        "wdbx REST serving on 127.0.0.1:{bound} ({auth}); routes: POST /insert /query /verify, GET /health /stats; loopback only"
+    );
+
+    let stop = std::sync::Arc::new(AtomicBool::new(false));
+    let stop_flag = std::sync::Arc::clone(&stop);
+    let _ = ctrlc::set_handler(move || {
+        stop_flag.store(true, Ordering::SeqCst);
+    });
+
+    while !stop.load(Ordering::SeqCst) {
+        if let Err(err) = server.serve_one() {
+            if stop.load(Ordering::SeqCst) {
+                break;
+            }
+            eprintln!("wdbx REST serve error: {err}");
+        }
+    }
+    Outcome::stderr("wdbx REST stopped\n".into(), 0)
+}
+
+fn run_api(args: &[String]) -> Outcome {
+    match args {
+        [operation] if operation == "serve" => api_serve(None),
+        [operation, port] if operation == "serve" => api_serve(Some(port)),
+        _ => usage(),
+    }
+}
+
+fn gpu_info() -> Outcome {
+    let gpu = abi_gpu::detect_backend();
+    Outcome::stderr(
+        format!(
+            "gpu backend={} accelerated={} native_linked=false\nmessage={}\nnote: native kernels are not linked in the Rust port; vector ops use deterministic CPU SIMD fallback\n",
+            gpu.backend.name(),
+            gpu.accelerated,
+            gpu.message,
         ),
+        0,
+    )
+}
+
+fn run_gpu(args: &[String]) -> Outcome {
+    match args {
+        [operation] if operation == "info" => gpu_info(),
         _ => usage(),
     }
 }
@@ -853,10 +1124,8 @@ pub(crate) fn run(args: &[String]) -> Outcome {
         "cluster" => run_cluster(&args[1..]),
         "compute" => run_compute(&args[1..]),
         "secure" => run_secure(&args[1..]),
-        known if matches!(known, "gpu" | "api") => Outcome::stderr(
-            format!("error: Rust WDBX handler for `{known}` is not yet ported\n"),
-            1,
-        ),
+        "gpu" => run_gpu(&args[1..]),
+        "api" => run_api(&args[1..]),
         _ => usage(),
     }
 }
@@ -1046,6 +1315,132 @@ mod tests {
         ] {
             assert!(outcome.stderr.contains(marker), "missing {marker}");
         }
+    }
+
+    #[test]
+    fn text_query_ranks_inserted_vectors() {
+        let fixture = Fixture::new();
+        let raw_path = fixture.raw_path();
+        assert_eq!(
+            run(&["db".to_owned(), "init".to_owned(), raw_path.clone()]).exit_code,
+            0
+        );
+        let paths = paths_from_cli_base(&raw_path).expect("paths");
+        let mut store = DurableStore::open(paths).expect("open");
+        let a = text_embedding("hello memory abbey");
+        let b = text_embedding("completely unrelated tokens xyz");
+        let id_a = store.put_vector(&a).expect("put a");
+        let id_b = store.put_vector(&b).expect("put b");
+        store
+            .put(&format!("wdbx:profile:{id_a}"), "abbey")
+            .expect("profile a");
+        store
+            .put(&format!("wdbx:profile:{id_b}"), "aviva")
+            .expect("profile b");
+        store.add_temporal_node(id_a, 1_000).expect("temporal a");
+        store.add_temporal_node(id_b, 1_000).expect("temporal b");
+        drop(store);
+
+        let text = run(&[
+            "query".to_owned(),
+            raw_path.clone(),
+            "hello memory".to_owned(),
+            "--limit".to_owned(),
+            "2".to_owned(),
+        ]);
+        assert_eq!(text.exit_code, 0, "{}", text.stderr);
+        assert!(text.stderr.contains("hybrid ranking"), "{}", text.stderr);
+        assert!(text.stderr.contains("id="), "{}", text.stderr);
+
+        let json = run(&[
+            "query".to_owned(),
+            raw_path.clone(),
+            "hello memory".to_owned(),
+            "--json".to_owned(),
+            "--limit".to_owned(),
+            "2".to_owned(),
+        ]);
+        assert_eq!(json.exit_code, 0, "{}", json.stderr);
+        assert!(
+            json.stderr.contains("\"ranking\":\"hybrid\""),
+            "{}",
+            json.stderr
+        );
+        assert!(json.stderr.contains("\"results\":["), "{}", json.stderr);
+        let v: serde_json::Value =
+            serde_json::from_str(json.stderr.trim()).expect("json query parses");
+        assert_eq!(v["ranking"], "hybrid");
+        assert!(!v["results"].as_array().expect("results").is_empty());
+
+        let scoped = run(&[
+            "query".to_owned(),
+            raw_path,
+            "hello".to_owned(),
+            "abbey".to_owned(),
+            "--json".to_owned(),
+        ]);
+        assert_eq!(scoped.exit_code, 0, "{}", scoped.stderr);
+        assert!(scoped.stderr.contains("\"persona\":\"abbey\""));
+    }
+
+    #[test]
+    fn gpu_info_is_claim_honest() {
+        let outcome = run(&strings(&["gpu", "info"]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stderr.contains("native_linked=false"));
+        assert!(outcome.stderr.contains("accelerated="));
+    }
+
+    #[test]
+    fn rest_server_health_is_reachable_on_loopback() {
+        use std::io::{Read, Write};
+
+        let fixture = Fixture::new();
+        let paths = StorePaths {
+            dir: fixture.dir.clone(),
+            base: fixture.base.clone(),
+        };
+        abi_wdbx::segments::reset(&paths).ok();
+        let store = DurableStore::open(paths).expect("open");
+        let config = RestConfig {
+            bearer_token: None,
+            rate_limiter: abi_wdbx::RateLimiter::from_env(),
+        };
+        let mut server = RestServer::bind(0, store, config).expect("bind");
+        let port = server.local_port().expect("port");
+        let handle = std::thread::spawn(move || {
+            server.serve_one().expect("serve");
+        });
+        // Give the acceptor a moment to listen.
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        let mut stream =
+            std::net::TcpStream::connect(format!("127.0.0.1:{port}")).expect("connect");
+        stream
+            .write_all(b"GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+            .expect("write");
+        let mut buf = vec![0_u8; 4096];
+        let n = stream.read(&mut buf).expect("read");
+        let body = String::from_utf8_lossy(&buf[..n]);
+        assert!(
+            body.contains("200") || body.contains("ok") || body.contains("health"),
+            "unexpected health response: {body}"
+        );
+        handle.join().expect("server thread");
+    }
+
+    #[test]
+    fn cluster_rpc_server_accepts_loopback_vote() {
+        let policy = ClusterPolicy::from_values(None, None).expect("policy");
+        let mut server =
+            ClusterRpcServer::bind("127.0.0.1", 0, Node::new(0), policy).expect("bind");
+        let port = server.local_port().expect("port");
+        let handle = std::thread::spawn(move || {
+            server.serve_one().expect("serve");
+        });
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        let stream = abi_wdbx::dial_vote("127.0.0.1", port, 1, 0, None).expect("dial");
+        assert!(stream.is_some(), "vote should get a reply stream");
+        handle.join().expect("server thread");
     }
 
     #[test]
