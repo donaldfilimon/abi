@@ -19,7 +19,6 @@ pub use file::{CREDENTIALS_PATH_ENV, credentials_path};
 pub use keychain::{BACKEND_ENV, backend_is_keychain};
 pub use secret::Secret;
 
-#[cfg(unix)]
 pub use file::mode_of;
 
 use crate::errors::AbiError;

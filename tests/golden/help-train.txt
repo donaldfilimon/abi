@@ -1,0 +1,9 @@
+abi train <input>
+
+Run the AI pipeline compatibility trainer
+
+Arguments:
+  <input>             training input (required)
+
+Examples:
+  abi train "local routing note"

@@ -1,0 +1,13 @@
+abi help [--json|--completion <bash|zsh|fish>] [command] [subcommand]
+
+Show top-level, command, subcommand, shortcut, JSON, or shell-completion help
+
+--json prints typed command/subcommand metadata plus top-level shortcut and completion-shell metadata for automation and docs tooling. --completion emits a shell completion script for bash, zsh, or fish.
+
+Examples:
+  abi help --json
+  abi help --completion bash
+  abi help complete
+  abi help --tui
+  abi help wdbx cluster
+  abi help --json dashboard

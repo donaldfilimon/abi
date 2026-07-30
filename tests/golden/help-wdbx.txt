@@ -1,0 +1,31 @@
+abi wdbx <db|block|query|benchmark|simulate|cluster|compute|secure|gpu|api> ...
+
+Operate WDBX storage, WAL, blocks, stats, and demos
+
+Subcommands: db init|verify|compact, block insert|get, query [--limit/--json/--text/--persona], benchmark, simulate (bounded multiway rewriting experiments), cluster status|demo|serve, compute info, secure demo, gpu info, api serve. Query runs hybrid semantic×temporal×causal×persona ranking over a recovered store.
+
+Subcommands:
+  db           abi wdbx db <init|verify|compact> <path> [keep]
+               Manage segment checkpoints, WAL recovery, and snapshot integrity.
+  block        abi wdbx block <insert|get> <path> ...
+               Append or inspect SHA-linked conversation blocks in a WDBX checkpoint.
+  query        abi wdbx query <path> [text] [persona]
+               Print store stats or run semantic/persona-scoped retrieval over a recovered store.
+  benchmark    abi wdbx benchmark [count]
+               Measure local insert/search timing for the in-process vector store.
+  simulate     abi wdbx simulate --initial A --rule 'A->AB' --depth 5 [--format json|dot] [--output PATH] [--store PATH]
+               Run a bounded multiway (Wolfram-style) string-rewriting experiment with canonical JSON/DOT export and optional WDBX persistence.
+  cluster      abi wdbx cluster status | cluster demo [nodes] | cluster serve <port> [node] [host]
+               Run single-node status, in-process consensus demo, or authenticated cluster RPC serving.
+  compute      abi wdbx compute info
+               Report CPU/GPU/NPU/TPU backend selection and fallback state.
+  secure       abi wdbx secure demo
+               Demonstrate local compression plus reference homomorphic aggregation; not security-audited FHE.
+  gpu          abi wdbx gpu info
+               Report GPU backend capability and native-kernel status.
+  api          abi wdbx api serve [port]
+               Serve the loopback WDBX REST API; bearer token via ABI_WDBX_REST_TOKEN; TLS via ABI_WDBX_TLS_CERT/KEY (proxy-terminated).
+
+Examples:
+  abi wdbx db verify
+  abi wdbx query ./store.jsonl "local memory" --limit 5 --json

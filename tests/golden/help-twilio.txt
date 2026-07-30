@@ -1,0 +1,12 @@
+abi twilio simulate <input>
+
+Run a local Twilio voice-agent simulation
+
+Offline simulation only; live Twilio transport requires explicit connector credentials and live mode elsewhere.
+
+Arguments:
+  <command>             twilio subcommand (required) choices=simulate
+  <input>             simulation input (required)
+
+Examples:
+  abi twilio simulate "billing question"

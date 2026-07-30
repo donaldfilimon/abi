@@ -1,0 +1,11 @@
+abi scheduler status
+
+Report scheduler and memory tracker status
+
+Runs a one-shot scheduler status task and reports attached memory tracker counters.
+
+Arguments:
+  <command>             scheduler subcommand (required) choices=status
+
+Examples:
+  abi scheduler status

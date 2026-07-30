@@ -177,6 +177,16 @@ pub fn mode_of(path: impl AsRef<Path>) -> Result<u32, AbiError> {
     Ok(std::fs::metadata(path)?.permissions().mode() & 0o777)
 }
 
+/// Always `None` on Windows: there are no POSIX mode bits to report.
+///
+/// Present so `abi auth status` compiles and runs on Windows without a
+/// `cfg` at its own call site. Protection there comes from the DACL in
+/// [`super::windows_acl`], which is not expressible as a mode.
+#[cfg(not(unix))]
+pub fn mode_of(_path: impl AsRef<Path>) -> Result<u32, AbiError> {
+    Err(AbiError::UnsupportedOperation)
+}
+
 /// Grant full access only to the owner via a Windows DACL.
 ///
 /// Delegates to [`super::windows_acl`], which is a faithful port of the Zig

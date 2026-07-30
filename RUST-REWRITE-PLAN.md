@@ -49,25 +49,51 @@ rustup run nightly cargo …    # cargo 1.99.0-nightly / rustc 1.99.0-nightly
 `tools/cargo.sh` wraps this; `tools/check.sh` is the replacement gate. Do not
 call bare `cargo`.
 
-## Sequencing: delete as you go
+## Sequencing: port additively, delete once at the end
 
-Each vertical is ported *and* its Zig deleted in the same commit, so
-"remaining Zig" only ever decreases and any interruption leaves a coherent
-tree. Zig `foundation`/`core` files delete last, when their final Zig consumer
-does.
+**This reverses an earlier plan to delete each surface's Zig as it was ported.
+Do not re-adopt that; it does not work here.** `build.zig` wires the whole
+module graph through `src/root.zig`, and the test steps (`test-contracts`,
+`test-feature-contracts`, `check-parity`) walk all of it, so deleting any one
+directory breaks `zig build check` — and it stays broken until the last
+directory goes. From that first deletion onward there would be no running Zig
+implementation to compare against.
 
-- [ ] **0. Workspace** — cargo workspace, nightly pin, wrapper scripts, gate. Additive.
-- [ ] **1. `abi-foundation`** — env, errors, logger, json, io, http, credentials, keychain, validation, sync, temp_path, time, os, pool_allocator.
-- [ ] **2. `abi-core`** — config, registry, task, scheduler, memory.
-- [ ] **3. `abi-connectors`** — delete `src/connectors/`.
-- [ ] **4. `abi-wdbx`** — delete `src/features/wdbx/`.
-- [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`** — delete those three feature dirs.
+That oracle is worth more than a monotonically decreasing Zig count. So:
+
+- **Steps 2–10 are purely additive.** The Zig tree stays intact and
+  `./build.sh check` stays green, so behaviour can be diffed against a working
+  implementation at any point and every commit leaves a shippable repo.
+- **Step 11 deletes all Zig in one commit**, once `tools/check.sh` covers
+  everything the Zig gate did — including the golden fixtures below.
+
+### Golden fixtures — capture before deleting anything
+
+Captured at commit `919dad8` while the Zig gate was green; see
+`tests/golden/README.md`. They convert "the Rust CLI has the right command
+names" into "the Rust CLI emits byte-identical output".
+
+- `tests/golden/help.json` — the full 18 KB frozen CLI surface
+- `tests/golden/help.txt`, `help-<command>.txt` × 13
+- `tests/golden/completion.{bash,zsh,fish}`
+- `tests/golden/mcp-initialize.json`, `mcp-tools-list.json` — the 12 tools with
+  full input schemas, **in emitted order** (which is not declaration order:
+  `wdbx_stats` comes after `plugin_list`)
+- `tests/golden/wdbx-format.md` + synthetic `wdbx-sample.*` fixtures
+
+- [x] **0. Workspace** — cargo workspace, nightly pin, wrapper scripts, gate.
+- [x] **1. `abi-foundation`** — errors, env, time, temp_path, json, validation, logger, io, text, credentials (+file/keychain/secret/Windows ACL), http, system, plugin_manifest. 155 tests.
+- [x] **1b. Golden fixtures** — captured while the Zig gate was green.
+- [ ] **2. `abi-core`** — config, registry, task, scheduler, memory. **Decide the concurrency model here**: `scheduler_stats` and `scheduler_info` are 2 of the 12 frozen MCP tools, and their output shape follows from it. Getting this wrong means reworking wdbx and mcp.
+- [ ] **3. `abi-connectors`** — OpenAI, Anthropic, Grok, Discord (+gateway/ws), Twilio (+relay), HTTP, SSE, local bridge.
+- [ ] **4. `abi-wdbx`** — must read the existing on-disk format; see `tests/golden/wdbx-format.md`.
+- [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir, hash, metrics, telemetry, mobile, os_control.
-- [ ] **7. `abi-tui`** — delete `src/features/tui/`.
-- [ ] **8. `abi-cli`** — delete `src/cli/`, `src/main.zig`, `src/root.zig`.
-- [ ] **9. `abi-mcp`** — delete `src/mcp/`.
-- [ ] **10. `abi-plugins`** — delete `src/plugins/`, `src/plugin_registry.zig`.
-- [ ] **11. Zig teardown** — `build.zig`, `build.zig.zon`, `build.sh`, `.zigversion`, `zig-out/`, `zig-cache/`, `.zig-cache/`, `tools/*.zig`, `tests/**`, `examples/**`, `.gitattributes` Zig rules, `.github/workflows` calling `./build.sh`.
+- [ ] **7. `abi-tui`**
+- [ ] **8. `abi-cli`** — golden-tested against `help.json` / `help-*.txt` / `completion.*`.
+- [ ] **9. `abi-mcp`** — golden-tested against `mcp-tools-list.json`, order included.
+- [ ] **10. `abi-plugins`**
+- [ ] **11. Zig teardown, in one commit** — `src/**/*.zig`, `build.zig`, `build.zig.zon`, `build.sh`, `.zigversion`, `zig-out/`, `zig-cache/`, `.zig-cache/`, `tools/*.zig`, `tests/**/*.zig`, `examples/**`, `.gitattributes` Zig rules, `.github/workflows` calling `./build.sh`.
 - [ ] **12. Docs + memory** — `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` together (they must not drift); `README.md`, `CHANGELOG.md`, `docs/**`; the `abi/` row in `~/CLAUDE.md`; delete the now-false `zig-pin-path` and `brew-zig-shadows-zvm` memories.
 
 ## Frozen contracts the Rust side must satisfy

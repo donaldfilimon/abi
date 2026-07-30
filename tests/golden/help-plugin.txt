@@ -1,0 +1,20 @@
+abi plugin list | run <name> [input]
+
+Inspect or execute installed plugins
+
+The list path reads the generated plugin registry; run loads bundled plugins and dispatches by plugin name.
+
+Subcommands:
+  list         abi plugin list
+               Print the generated plugin registry with each installed plugin module.
+  run          abi plugin run <name> [input]
+               Run a bundled plugin by registry name with optional text input.
+
+Arguments:
+  <command>             plugin subcommand (required) choices=list|run
+  <name>             plugin name for run
+  <input>             optional plugin input
+
+Examples:
+  abi plugin list
+  abi plugin run hello "input"

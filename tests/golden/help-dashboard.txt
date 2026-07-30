@@ -1,0 +1,24 @@
+abi dashboard [--pane <pane>] [--plain|--no-color] [--compact] [--once] [--interval <ms>] [--json] [--list-panes]
+
+Render the diagnostics dashboard
+
+Alias of `abi tui` for the diagnostics dashboard. --pane selects the initially highlighted diagnostics pane; --plain/--no-color omit ANSI styling. --compact renders only the selected pane. --once forces one-shot output; --interval sets the interactive refresh cadence in milliseconds. --json emits one machine-readable snapshot. --list-panes prints pane names, titles, and hotkeys without launching the dashboard.
+
+Arguments:
+  --pane <value>       initial diagnostics pane choices=1|2|3|4|5|system|plugins|storage|wdbx|scheduler|memory
+  --plain              render without ANSI color/style escapes
+  --no-color           alias for --plain
+  --compact            render only the selected diagnostics pane
+  --once               force one-shot output even when stdin is a terminal
+  --interval <value>       interactive refresh interval in milliseconds (100-60000)
+  --json               emit one machine-readable JSON dashboard snapshot
+  --list-panes         print dashboard pane names, titles, and hotkeys
+
+Examples:
+  abi dashboard
+  abi dashboard --pane scheduler
+  abi dashboard --compact --pane scheduler
+  abi dashboard --plain --once
+  abi dashboard --interval 250
+  abi dashboard --json
+  abi dashboard --list-panes

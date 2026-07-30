@@ -1,0 +1,23 @@
+abi nn train "<text>" | train --jsonl <path> [--field <name>] | sample --text "<corpus>" --seed <char> --n <k>
+
+Run the miniature character-level demo trainer
+
+This is a small local demo trainer, not a production/LLM/distributed trainer.
+
+Subcommands:
+  train        abi nn train "<text>" | train --jsonl <path> [--field <name>]
+               Train the miniature local character model from inline text or a JSONL text field.
+  sample       abi nn sample --text "<corpus>" --seed <char> --n <k>
+               Train on <corpus>, then greedily emit k characters from the seed byte.
+
+Arguments:
+  <command>             nn subcommand (required) choices=train|sample
+  --jsonl <value>       JSONL training dataset path
+  --field <value>       JSONL text field (default: text)
+  --text <value>       sample corpus text
+  --seed <value>       sample seed character
+  --n <value>       sample character count
+  <input>             inline training text
+
+Examples:
+  abi nn sample --text "hello" --seed h --n 16
