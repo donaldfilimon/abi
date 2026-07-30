@@ -54,6 +54,9 @@ mod tests {
 
     #[test]
     fn status_matches_the_frozen_one_shot_shape() {
+        // The rendered report includes the whole process-global telemetry table,
+        // so no other test may record an event while this one runs.
+        let _telemetry = crate::telemetry_lock::acquire();
         abi_telemetry::reset();
         let outcome = run(&strings(&["status"]));
         assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);

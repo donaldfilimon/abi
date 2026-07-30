@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "abi-core",
  "abi-foundation",
+ "abi-plugins",
  "abi-telemetry",
  "abi-wdbx",
  "ctrlc",
@@ -54,8 +55,19 @@ dependencies = [
  "abi-connectors",
  "abi-core",
  "abi-foundation",
+ "abi-plugins",
  "abi-wdbx",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "abi-plugins"
+version = "0.1.0"
+dependencies = [
+ "abi-core",
+ "abi-foundation",
+ "abi-telemetry",
  "serde_json",
 ]
 

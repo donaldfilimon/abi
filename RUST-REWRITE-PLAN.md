@@ -218,7 +218,38 @@ names" into "the Rust CLI emits byte-identical output".
     itself once one does.
   - Still open (step 9b): the HTTP/SSE transport, and every tool currently
     stubbed above once its backing feature lands.
-- [ ] **10. `abi-plugins`**
+- [x] **10. `abi-plugins`** — all sixteen bundled plugins, the plugin manager,
+  and both listing surfaces. `abi plugin list | run` and the MCP `plugin_list` /
+  `plugin_run` tools are attached and byte-verified against the live Zig binary,
+  not just the fixtures: `plugin list` diffs identically, and all three MCP calls
+  (list, a `__cmd__:` run, an unknown-name error) are byte-identical including
+  `plugin_run`'s "Internal error" — Zig's `errorMessage` had no arm for
+  `error.PluginNotFound`, so it fell through to `else`.
+  - The two listings differ **by contract**, and both are golden-tested: MCP
+    emits declaration order (`telemetry-exporter` third), while the CLI renders
+    the registry alphabetically, because Zig built that list from a generated
+    file that walked the plugin directory.
+  - **mod/stub parity is preserved, not dropped.** Both `mod.rs` and `stub.rs`
+    implement a `Plugin` trait, so a missing item is a compile error, and
+    `assert_plugin_parity!` adds a `const` check that the four metadata constants
+    agree. That is strictly stronger than `tools/check_parity.zig`, which the
+    plan already recorded as a deliberate drop.
+  - Two disclosed deviations. (1) `entry_point` is `mod.rs`, not `mod.zig` — that
+    field names a file that will not exist after step 11, so the golden
+    assertions rewrite exactly that token and match every other byte. (2)
+    `load_bundled` reads a compiled-in table instead of resolving 16
+    repo-root-relative paths, so the frozen 16-plugin listing no longer depends
+    on the process's working directory (Zig silently emitted `count=0` when run
+    from elsewhere). A test parses all 16 on-disk manifests and asserts they
+    match the compiled-in table field by field, so the two cannot drift.
+  - `abi-foundation`'s manifest validator gained `commands` /
+    `context_providers`, reproducing Zig's per-field mix of strict rules (a
+    non-object entry or absent/empty `name` fails) and lenient ones (a
+    non-string `summary` becomes `""`; a non-array `aliases` is ignored).
+  - Fixed in passing: `abi scheduler status` renders the whole process-global
+    telemetry table, so its golden test raced any test recording an event. Reads
+    and writes of that table now take a shared lock (`reset()` alone was not
+    enough, since Cargo runs a crate's tests as threads in one process).
 - [ ] **11. Zig teardown, in one commit** — `src/**/*.zig`, `build.zig`, `build.zig.zon`, `build.sh`, `.zigversion`, `zig-out/`, `zig-cache/`, `.zig-cache/`, `tools/*.zig`, `tests/**/*.zig`, `examples/**`, `.gitattributes` Zig rules, `.github/workflows` calling `./build.sh`.
 - [ ] **12. Docs + memory** — `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` together (they must not drift); `README.md`, `CHANGELOG.md`, `docs/**`; the `abi/` row in `~/CLAUDE.md`; delete the now-false `zig-pin-path` and `brew-zig-shadows-zvm` memories.
 

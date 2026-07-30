@@ -1,23 +1,18 @@
 [package]
-name = "abi-cli"
+name = "abi-plugins"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "ABI command metadata, help rendering, and process dispatch."
-
-[[bin]]
-name = "abi"
-path = "src/main.rs"
+description = "ABI framework plugins: the sixteen bundled plugins, the mod/stub parity invariant, and the plugin manager shared by the CLI and MCP surfaces."
 
 [dependencies]
 abi-core = { workspace = true }
-abi-plugins = { workspace = true }
 abi-foundation = { workspace = true }
 abi-telemetry = { workspace = true }
-abi-wdbx = { path = "../abi-wdbx" }
-ctrlc = { workspace = true }
+
+[dev-dependencies]
 serde_json = { workspace = true }
 
 [lints]

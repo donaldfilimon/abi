@@ -398,6 +398,9 @@ pub fn run(args: &[String]) -> Outcome {
     if resolved == "backends" {
         return crate::backends::run(&args[1..]);
     }
+    if resolved == "plugin" {
+        return crate::plugin::run(&args[1..]);
+    }
 
     Outcome::stderr(
         format!("error: Rust handler for `{resolved}` is not yet ported\n"),

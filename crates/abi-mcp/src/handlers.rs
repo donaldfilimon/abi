@@ -316,8 +316,24 @@ pub fn handle_tools_call(state: McpState, params: Option<&Value>) -> Result<Valu
     }
 
     match tool_name {
-        "ai_run" | "ai_complete" | "ai_learn" | "ai_train" | "wdbx_query" | "gpu_status"
-        | "plugin_list" | "plugin_run" => Err(ToolError::NotYetPorted),
+        "ai_run" | "ai_complete" | "ai_learn" | "ai_train" | "wdbx_query" | "gpu_status" => {
+            Err(ToolError::NotYetPorted)
+        }
+        "plugin_list" => Ok(text_result(&crate::plugin_tools::plugin_list_text())),
+        "plugin_run" => {
+            let args = tool_arguments(params_obj)?;
+            let name = object_string(args, "name", ToolError::MissingPluginName)?;
+            // `input` is optional here: Zig fell back to "" rather than raising
+            // MissingInput, unlike `connector_test` above.
+            let input = object_string(args, "input", ToolError::MissingInput).unwrap_or("");
+            match crate::plugin_tools::run_plugin(name, input) {
+                Ok(text) => Ok(text_result(&text)),
+                // Zig's `errorMessage` had no arm for `error.PluginNotFound` or
+                // `error.FeatureDisabled`, so both fell through to its `else`
+                // branch and surfaced as "Internal error".
+                Err(_) => Err(ToolError::Internal),
+            }
+        }
         "scheduler_stats" | "scheduler_info" => Ok(text_result(&state.scheduler_stats_text())),
         "connector_test" => {
             let args = tool_arguments(params_obj)?;

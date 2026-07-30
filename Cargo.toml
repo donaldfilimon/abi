@@ -13,6 +13,7 @@ repository = "https://github.com/donaldfilimon/abi"
 abi-foundation = { path = "crates/abi-foundation" }
 abi-core = { path = "crates/abi-core" }
 abi-telemetry = { path = "crates/abi-telemetry" }
+abi-plugins = { path = "crates/abi-plugins" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }

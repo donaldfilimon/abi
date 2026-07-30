@@ -8,6 +8,7 @@
 pub mod connector_tools;
 pub mod handlers;
 pub mod middleware;
+pub mod plugin_tools;
 pub mod protocol;
 pub mod rpc;
 pub mod state;
