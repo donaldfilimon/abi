@@ -110,12 +110,19 @@ names" into "the Rust CLI emits byte-identical output".
   rollback journaling is now ported. A durable store facade now joins recovery,
   WAL-backed mutations, checkpoints and HNSW search. Manifest-authoritative
   retain-latest compaction and reset are also ported. The deterministic
-  in-process Raft-style election/replication/failover core is ported; its TCP
-  RPC transport remains open. The loopback-only REST
+  in-process Raft-style election/replication/failover core and its bounded TCP
+  RequestVote/AppendEntries transport are ported, including fixed-work
+  shared-secret authentication, peer allowlisting/reload, fail-closed
+  non-loopback binds, and real loopback quorum tests. The loopback-only REST
   surface is ported with its five routes, hybrid temporal/causal/persona
   re-ranking, optional fixed-work bearer authentication, 64 KiB request bound,
-  failed-auth-aware token bucket, and real-TCP tests. Full MVCC remains outside
-  the current Zig claim boundary; the remaining listed services stay open.
+  failed-auth-aware token bucket, and real-TCP tests. Compute backend selection,
+  runtime CPU feature detection, nightly portable-SIMD DOT with ragged-tail
+  handling, truthful ANE presence metadata, deterministic accelerator fallback,
+  and the bounded loopback remote-DOT reference transport are also ported. This
+  does not claim native CUDA/Vulkan/ANE execution or production remote TPU
+  dispatch. Full MVCC remains outside the current Zig claim boundary; the
+  remaining listed services stay open.
 - [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir, hash, metrics, telemetry, mobile, os_control.
 - [ ] **7. `abi-tui`**

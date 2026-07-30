@@ -370,12 +370,16 @@ mod tests {
         });
         assert!(apply_append(&mut direct.nodes[1], 1, b"hello"));
         assert!(apply_append(&mut direct.nodes[2], 1, b"hello"));
+        for node in &mut direct.nodes {
+            node.commit_index = 1;
+        }
 
         for (left, right) in driven.nodes().iter().zip(direct.nodes()) {
             assert_eq!(left.term, right.term);
             assert_eq!(left.voted_for, right.voted_for);
             assert_eq!(left.role, right.role);
             assert_eq!(left.log, right.log);
+            assert_eq!(left.commit_index, right.commit_index);
         }
     }
 
