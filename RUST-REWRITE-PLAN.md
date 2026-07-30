@@ -91,11 +91,15 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **1b. Golden fixtures** — captured while the Zig gate was green.
 - [x] **2. `abi-core`** — config, registry, task, scheduler, memory. Concurrency decided: **one-shot**, tasks run synchronously on the caller's thread (`mode=one-shot`, `running=0` at rest). Golden-tested against the captured `scheduler_stats` output. 79 tests.
 - [x] **3a. `abi-connectors` core** — connector types, URL/auth (HTTPS enforcement + host-boundary check), payload builders + byte-exact local synthesis, SSE parsing (both dialects), `Transport` trait with `ureq` live impl + `RecordingTransport`, clients for OpenAI/Anthropic/Grok/Discord/Twilio. 75 tests.
-- [ ] **3b. `abi-connectors` remainder** — Discord gateway + WS client, the
-  local OpenAI-compatible bridge, and the Apple `FoundationModels` shim still
-  need a WebSocket client / Swift FFI. **Twilio ConversationRelay local
-  builder is ported** (`twilio_relay.rs`) and wired to MCP `connector_test`
-  + CLI `twilio simulate` escalation.
+- [ ] **3b. `abi-connectors` remainder** — local OpenAI-compatible bridge and
+  Apple `FoundationModels` Swift FFI still open.
+  - [x] **Twilio ConversationRelay local builder** (`twilio_relay.rs`) + MCP
+    `connector_test` / CLI `twilio simulate`.
+  - [x] **Discord gateway + routing + WS framing** (`discord_routing.rs`,
+    `discord_gateway.rs`, `discord_ws.rs`): pure command routing, injectable
+    gateway loop + `FakeTransport` (Hello/Identify/heartbeat/MESSAGE_CREATE),
+    WebSocket handshake/frame helpers. Live `wss://` needs TLS proxy (not
+    linked; disclosed).
 - [x] **4a. `abi-wdbx` on-disk format** — records (all 6 types), both hash encodings, manifest, checkpoint load, chain verification. **Verified against the user's real 301-epoch store**: 327 blocks, chain verifies from genesis, 32-dim vectors. 56 tests.
 - [x] **4b. WDBX checkpoint salvage** — descending newest-valid recovery
   skips missing/corrupt active epochs without merging full checkpoints or
@@ -306,8 +310,11 @@ names" into "the Rust CLI emits byte-identical output".
   - [x] **8g. Twilio local relay + MCP `connector_test twilio`.** Shared
     ConversationRelay builder (setup/DTMF/interrupt/disconnect, escalation
     classification, memory recall). Live Twilio WebSocket relay remains open.
-  - Still open (honest stubs / deferred): Discord gateway/WS, FoundationModels
-    FFI, local OpenAI-compatible inference bridge, MCP HTTP/SSE transport.
+  - [x] **8h. Discord gateway/routing.** Offline-tested gateway loop + pure
+    `!help/status/prompt/governance` routing + WS framing. Live TLS not linked.
+  - Still open (honest stubs / deferred): FoundationModels FFI, local
+    OpenAI-compatible inference bridge, MCP HTTP/SSE transport, live Discord
+    `wss://` without external TLS proxy.
 - [x] **9a. `abi-mcp` protocol + stdio transport** — JSON-RPC envelope,
   structural pre-check (size/depth/object-root), the frozen 12-tool table
   (schemas pre-parsed so property order is preserved), declarative field

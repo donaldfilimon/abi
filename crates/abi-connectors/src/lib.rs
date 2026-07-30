@@ -44,6 +44,9 @@
 //! synchronized" hazard is gone.
 
 pub mod connector;
+pub mod discord_gateway;
+pub mod discord_routing;
+pub mod discord_ws;
 pub mod payload;
 pub mod providers;
 pub mod sse;
@@ -52,6 +55,18 @@ pub mod twilio_relay;
 pub mod url;
 
 pub use connector::{ConnectorConfig, ConnectorError, Response, Result, TransportMode};
+pub use discord_gateway::{
+    API_BASE, DEFAULT_INTENTS, FakeTransport, GATEWAY_URL, Gateway, GatewayConfig, GatewayError,
+    GatewayStats, GatewayTransport, validate_discord_id, validate_message_content, validate_token,
+};
+pub use discord_routing::{
+    DiscordCommand, MAX_MESSAGE_CONTENT_BYTES, governance_summary, parse_discord_command,
+    prompt_summary, route_discord_message, truncate as truncate_discord_message,
+};
+pub use discord_ws::{
+    Frame, GATEWAY_HOST, GATEWAY_PATH, WsError, build_handshake_request, encode_masked_text_frame,
+    handshake_on_stream, key_b64_from_seed, try_parse_frame,
+};
 pub use providers::{Client, DiscordClient, Provider, TwilioClient};
 pub use sse::{StreamChunk, collect_stream, parse_stream};
 pub use transport::{
