@@ -87,7 +87,8 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **2. `abi-core`** — config, registry, task, scheduler, memory. Concurrency decided: **one-shot**, tasks run synchronously on the caller's thread (`mode=one-shot`, `running=0` at rest). Golden-tested against the captured `scheduler_stats` output. 79 tests.
 - [x] **3a. `abi-connectors` core** — connector types, URL/auth (HTTPS enforcement + host-boundary check), payload builders + byte-exact local synthesis, SSE parsing (both dialects), `Transport` trait with `ureq` live impl + `RecordingTransport`, clients for OpenAI/Anthropic/Grok/Discord/Twilio. 75 tests.
 - [ ] **3b. `abi-connectors` remainder** — Discord gateway + WS client (`discord_gateway.zig` 483, `discord_ws_client.zig` 228, `discord_routing.zig` 126), Twilio relay (`twilio_relay.zig` 554), the local bridge (`local_bridge.zig` 236) and the Apple `FoundationModels` shim (`fm.zig` 217). These need a WebSocket client and a Swift FFI shim; ~1.8k Zig LOC.
-- [ ] **4. `abi-wdbx`** — must read the existing on-disk format; see `tests/golden/wdbx-format.md`.
+- [x] **4a. `abi-wdbx` on-disk format** — records (all 6 types), both hash encodings, manifest, checkpoint load, chain verification. **Verified against the user's real 301-epoch store**: 327 blocks, chain verifies from genesis, 32-dim vectors. 56 tests.
+- [ ] **4b. `abi-wdbx` remainder** — HNSW index + storage, MVCC/WAL/recovery, REST + cluster surfaces, rate limiter, compression/entropy/neural-compress, FHE + crypto_he demos, spatial 3-D octree, temporal graph, multiway engine, ANS, retrieval, remote compute. ~11k Zig LOC — the largest single block left.
 - [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir, hash, metrics, telemetry, mobile, os_control.
 - [ ] **7. `abi-tui`**

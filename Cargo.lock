@@ -35,6 +35,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "abi-wdbx"
+version = "0.1.0"
+dependencies = [
+ "abi-core",
+ "abi-foundation",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
