@@ -26,9 +26,8 @@
 //! - Training — `ai_train`, whose Zig output reports `backend=gpu-metal`; no Rust
 //!   GPU backend is linked, so that field will need the same explicit disclosure
 //!   `wdbx_stats`'s `backend` already carries (plan step 5d).
-//! - `point_neural_net`, `file_context`, `soul_layout`, `multimodal_fusion`,
-//!   `streaming`, and `orchestration` — none is on the path to the four MCP AI
-//!   tools.
+//! - `file_context` and soul routing (`point_net` / `soul`) are ported for the
+//!   CLI agent/complete paths; they are not on the four MCP AI tools.
 //!
 //! ## On the golden fixtures
 //!
@@ -48,7 +47,9 @@ pub mod incremental;
 pub mod keywords;
 pub mod models;
 pub mod modulator;
+pub mod point_net;
 pub mod router;
+pub mod soul;
 pub mod training;
 
 pub use completion::{CompletionResult, EmptyInputError, complete, complete_adaptive};
@@ -64,10 +65,12 @@ pub use identity::{
 };
 pub use incremental::{StreamChunk, StreamMode, generate_profile_incremental};
 pub use modulator::{AdaptiveModulator, STORE_KEY as MODULATOR_STORE_KEY};
+pub use point_net::{Point, PointNeuralNetwork, TopologyReport};
 pub use router::{
-    ProfileWeights, analyze_sentiment, explicit_profile_selector, route_profile,
+    ProfileWeights, analyze_sentiment, blend_weights, explicit_profile_selector, route_profile,
     select_best_profile,
 };
+pub use soul::{SoulError, SoulLayout, SoulRecord};
 pub use training::{
     DatasetFormat, DatasetSpec, DatasetSummary, TrainingConfig, TrainingError, TrainingResult,
     apply_store_persistence, parse_agent_profile, profile_embedding, train_inspect,
@@ -87,6 +90,64 @@ pub fn route_to_profile(profile: AgentProfile, input: &str) -> String {
 #[must_use]
 pub fn route_input(input: &str) -> String {
     route_to_profile(route_profile(input), input)
+}
+
+/// Route `input` with an optional soul-network blend (Zig `routeInputWithSoul`).
+///
+/// Explicit leading persona addresses still short-circuit. Without a network
+/// (or with a non-3-output / non-finite forward pass) keyword routing is
+/// preserved regardless of `blend_alpha`.
+#[must_use]
+pub fn route_with_soul(input: &str, net: Option<&PointNeuralNetwork>, blend_alpha: f32) -> String {
+    if let Some(profile) = explicit_profile_selector(input) {
+        return route_to_profile(profile, input);
+    }
+    let keyword = analyze_sentiment(input);
+    let mut neural = keyword;
+    if let Some(n) = net
+        && n.output_size() == 3
+    {
+        let point = Point::from_text(input);
+        if let Ok(output) = n.forward(&point.to_array())
+            && output.len() == 3
+            && output.iter().all(|v| v.is_finite())
+        {
+            let max_logit = output[0].max(output[1]).max(output[2]);
+            let mut exps = [0.0_f32; 3];
+            let mut sum = 0.0_f32;
+            for (i, o) in output.iter().enumerate() {
+                exps[i] = (o - max_logit).exp();
+                sum += exps[i];
+            }
+            if sum.is_finite() && sum > 0.0 {
+                neural = ProfileWeights {
+                    w_abbey: exps[0] / sum,
+                    w_aviva: exps[1] / sum,
+                    w_abi: exps[2] / sum,
+                };
+            }
+        }
+    }
+    let alpha = blend_alpha.clamp(0.0, 1.0);
+    let blended = blend_weights(keyword, neural, alpha);
+    route_to_profile(select_best_profile(blended), input)
+}
+
+#[cfg(test)]
+mod soul_route_tests {
+    use super::*;
+
+    #[test]
+    fn route_with_soul_without_net_matches_keyword_route() {
+        let input = "analyze the logical structure";
+        assert_eq!(route_with_soul(input, None, 1.0), route_input(input));
+    }
+
+    #[test]
+    fn explicit_address_overrides_soul_blend() {
+        let out = route_with_soul("Aviva, be direct.", None, 1.0);
+        assert!(out.starts_with("Aviva"), "{out}");
+    }
 }
 
 /// Run AI inference with internal profile routing — the MCP `ai_run` tool.

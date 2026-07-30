@@ -1,15 +1,17 @@
 //! `abi complete` — local completion, optional SEA `--learn`, neural demo,
-//! and explicit live Anthropic transport.
+//! soul-network blend, and explicit live Anthropic transport.
 //!
 //! Ported from the local and live paths of `src/cli/handlers/complete_handlers.zig`.
 //! `--live` is Anthropic-only (matching Zig). Apple `FoundationModels`
 //! (`apple-fm` + `--confirm`) reports honest unavailability (no Swift FFI).
-//! Soul routing remains honestly not-yet-ported.
+//! `--soul <file.json>` loads a `SoulLayout`, bootstraps a `[3, 8, 3]` point net,
+//! and blends with keyword routing via `--soul-alpha` (default 0.5).
 
 use std::fmt::Write as _;
 use std::io::Write as _;
+use std::path::Path;
 
-use abi_ai::{complete, models};
+use abi_ai::{PointNeuralNetwork, SoulLayout, complete, models, route_with_soul};
 use abi_connectors::{Client, ConnectorConfig, DefaultTransport, Provider, parse_stream};
 use abi_foundation::credentials::{self, CredentialField};
 use abi_sea::{LearnLoopConfig, run_learn_loop};
@@ -17,7 +19,7 @@ use abi_wdbx::{DurableStore, StorePaths};
 
 use crate::app::Outcome;
 
-const USAGE: &str = "usage: abi complete [--live] [--stream] [--learn] [--neural] [--model <id>] [--confirm] [--] <input>";
+const USAGE: &str = "usage: abi complete [--live] [--stream] [--learn] [--neural] [--soul <file>] [--soul-alpha <0..1>] [--model <id>] [--confirm] [--] <input>";
 
 /// Fields for the one-line-per-field completion metadata block.
 struct MetaReport<'a> {
@@ -385,6 +387,54 @@ fn run_live_complete(input: &str, model: &str, stream: bool) -> Outcome {
     }
 }
 
+fn run_soul(input: &str, soul_path: &str, blend_alpha: f32) -> Outcome {
+    if input.trim().is_empty() {
+        return Outcome::stderr("error: completion input must not be empty\n".into(), 1);
+    }
+    let path = Path::new(soul_path);
+    let json = match std::fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(err) => {
+            return Outcome::stderr(
+                format!("error: failed to read soul file '{soul_path}': {err}\n"),
+                1,
+            );
+        }
+    };
+    if json.len() > 64 * 1024 {
+        return Outcome::stderr("error: soul file exceeds 64 KiB limit\n".into(), 2);
+    }
+    let layout = match SoulLayout::from_json(&json) {
+        Ok(layout) => layout,
+        Err(err) => {
+            return Outcome::stderr(format!("error: soul layout: {err}\n"), 2);
+        }
+    };
+    let mut net = match PointNeuralNetwork::init(&[3, 8, 3], 0.01) {
+        Ok(net) => net,
+        Err(err) => {
+            return Outcome::stderr(format!("error: soul network init failed: {err}\n"), 1);
+        }
+    };
+    let (loss, report) = match layout.bootstrap(&mut net) {
+        Ok(v) => v,
+        Err(err) => {
+            return Outcome::stderr(format!("error: soul bootstrap failed: {err}\n"), 1);
+        }
+    };
+    let body = route_with_soul(input, Some(&net), blend_alpha);
+    let text = format!(
+        "model=soul-net profile_route=blended soul_alpha={blend_alpha:.3} bootstrap_loss={loss:.6} pruned={} records={}\n{body}\n",
+        report.pruned_count,
+        layout.records.len(),
+    );
+    Outcome {
+        stdout: text,
+        stderr: String::new(),
+        exit_code: 0,
+    }
+}
+
 /// Dispatch `abi complete …` (args after the command token).
 #[allow(clippy::too_many_lines)]
 pub(crate) fn run(args: &[String]) -> Outcome {
@@ -393,6 +443,8 @@ pub(crate) fn run(args: &[String]) -> Outcome {
     let mut live = false;
     let mut stream = false;
     let mut confirm = false;
+    let mut soul_path: Option<String> = None;
+    let mut soul_alpha: Option<f32> = None;
     let mut model = models::DEFAULT_MODEL.to_string();
     let mut input_parts: Vec<&str> = Vec::new();
     let mut saw_separator = false;
@@ -431,6 +483,42 @@ pub(crate) fn run(args: &[String]) -> Outcome {
                     i += 1;
                     continue;
                 }
+                "--soul" => {
+                    i += 1;
+                    let Some(value) = args.get(i) else {
+                        return Outcome::stderr(
+                            "error: --soul requires a JSON file path\n".into(),
+                            2,
+                        );
+                    };
+                    soul_path = Some(value.clone());
+                    i += 1;
+                    continue;
+                }
+                "--soul-alpha" => {
+                    i += 1;
+                    let Some(value) = args.get(i) else {
+                        return Outcome::stderr(
+                            "error: --soul-alpha requires a number in [0.0, 1.0]\n".into(),
+                            2,
+                        );
+                    };
+                    let Ok(alpha) = value.parse::<f32>() else {
+                        return Outcome::stderr(
+                            "error: --soul-alpha must be a number in [0.0, 1.0]\n".into(),
+                            2,
+                        );
+                    };
+                    if !(0.0..=1.0).contains(&alpha) {
+                        return Outcome::stderr(
+                            "error: --soul-alpha must be a number in [0.0, 1.0]\n".into(),
+                            2,
+                        );
+                    }
+                    soul_alpha = Some(alpha);
+                    i += 1;
+                    continue;
+                }
                 "--model" => {
                     i += 1;
                     let Some(value) = args.get(i) else {
@@ -439,14 +527,6 @@ pub(crate) fn run(args: &[String]) -> Outcome {
                     model = models::canonical(value).to_string();
                     i += 1;
                     continue;
-                }
-                "--soul" | "--soul-alpha" => {
-                    return Outcome::stderr(
-                        format!(
-                            "error: Rust handler for complete flag `{token}` is not yet ported\n"
-                        ),
-                        1,
-                    );
                 }
                 flag if flag.starts_with('-') => {
                     return Outcome::stderr(format!("error: {USAGE}\n"), 2);
@@ -460,6 +540,15 @@ pub(crate) fn run(args: &[String]) -> Outcome {
 
     if input_parts.is_empty() {
         return Outcome::stderr(format!("error: {USAGE}\n"), 2);
+    }
+    if soul_alpha.is_some() && soul_path.is_none() {
+        return Outcome::stderr("error: --soul-alpha requires --soul <file>\n".into(), 2);
+    }
+    if soul_path.is_some() && (neural || live || learn) {
+        return Outcome::stderr(
+            "error: --soul cannot combine with --neural, --live, or --learn\n".into(),
+            2,
+        );
     }
     if neural && (learn || live) {
         return Outcome::stderr(
@@ -483,6 +572,9 @@ pub(crate) fn run(args: &[String]) -> Outcome {
         );
     }
     let input = input_parts.join(" ");
+    if let Some(path) = soul_path {
+        return run_soul(&input, &path, soul_alpha.unwrap_or(0.5));
+    }
     if neural {
         return run_neural(&input);
     }
@@ -613,5 +705,67 @@ mod tests {
         let outcome = run(&["--stream".to_owned(), "hello".to_owned()]);
         assert_eq!(outcome.exit_code, 2);
         assert!(outcome.stderr.contains("--live"));
+    }
+
+    #[test]
+    fn soul_alpha_without_soul_is_usage() {
+        let outcome = run(&[
+            "--soul-alpha".to_owned(),
+            "0.3".to_owned(),
+            "hello".to_owned(),
+        ]);
+        assert_eq!(outcome.exit_code, 2);
+        assert!(outcome.stderr.contains("--soul"));
+    }
+
+    #[test]
+    fn soul_alpha_out_of_range_is_usage() {
+        let outcome = run(&[
+            "--soul".to_owned(),
+            "missing.json".to_owned(),
+            "--soul-alpha".to_owned(),
+            "1.5".to_owned(),
+            "hello".to_owned(),
+        ]);
+        assert_eq!(outcome.exit_code, 2);
+        assert!(outcome.stderr.contains("[0.0, 1.0]"));
+    }
+
+    #[test]
+    fn soul_complete_bootstraps_and_routes() {
+        let dir = std::env::temp_dir().join(format!(
+            "abi-soul-{}-{}",
+            std::process::id(),
+            abi_foundation::time::unix_ms()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("soul.json");
+        std::fs::write(
+            &path,
+            r#"[
+              {"label":"empathic teaching abbey"},
+              {"label":"direct expert aviva concise"},
+              {"label":"orchestration governance abi"}
+            ]"#,
+        )
+        .unwrap();
+        let outcome = run(&[
+            "--soul".to_owned(),
+            path.to_string_lossy().into_owned(),
+            "--soul-alpha".to_owned(),
+            "0.6".to_owned(),
+            "analyze the logical structure".to_owned(),
+        ]);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stdout.contains("model=soul-net"));
+        assert!(outcome.stdout.contains("soul_alpha=0.600"));
+        assert!(
+            outcome.stdout.contains("Abbey:")
+                || outcome.stdout.contains("Aviva")
+                || outcome.stdout.contains("ABI"),
+            "{}",
+            outcome.stdout
+        );
     }
 }

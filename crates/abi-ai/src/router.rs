@@ -12,12 +12,10 @@
 //! agree bit for bit. Widening to `f64` here would be a silent behavior change
 //! at near-ties, not an improvement.
 //!
-//! ## What is not ported here
-//!
-//! `routeInputWithSoul` (the `PointNeuralNetwork` blend) is deliberately
-//! absent — it is not on any of the four MCP AI tools. The pure
-//! [`crate::AdaptiveModulator`] lives in [`crate::modulator`]; store I/O for
-//! its weights is the SEA learn loop's concern.
+//! Soul-network blending lives in [`crate::route_with_soul`] (CLI `complete
+//! --soul`). The pure [`crate::AdaptiveModulator`] lives in
+//! [`crate::modulator`]; store I/O for its weights is the SEA learn loop's
+//! concern.
 
 use crate::identity::{
     AgentProfile, DEFAULT_ABBEY_WEIGHT, DEFAULT_ABI_WEIGHT, DEFAULT_AVIVA_WEIGHT,

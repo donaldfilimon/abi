@@ -296,9 +296,11 @@ names" into "the Rust CLI emits byte-identical output".
     optional `ABI_WDBX_REST_TOKEN`). `wdbx cluster serve <port> [node] [host]`
     loopback RPC (`ClusterRpcServer`, non-loopback requires token).
     `wdbx gpu info` honest detection. Ctrl-C stop on both servers.
+  - [x] **8f. complete `--soul`.** `SoulLayout` JSON + `[3,8,3]` point MLP
+    bootstrap and `route_with_soul` blend (`--soul-alpha`, default 0.5). Pure
+    (no WDBX writes during bootstrap). Explicit persona addresses still win.
   - Still open (honest stubs / deferred): Discord gateway/WS, full Twilio
-    ConversationRelay + MCP `connector_test twilio`, FoundationModels FFI,
-    complete `--soul` routing.
+    ConversationRelay + MCP `connector_test twilio`, FoundationModels FFI.
 - [x] **9a. `abi-mcp` protocol + stdio transport** — JSON-RPC envelope,
   structural pre-check (size/depth/object-root), the frozen 12-tool table
   (schemas pre-parsed so property order is preserved), declarative field
