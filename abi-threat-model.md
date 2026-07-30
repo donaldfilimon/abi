@@ -1,3 +1,5 @@
+> **Note (Rust rewrite):** executable paths below still reference the historical Zig tree (`src/**/*.zig`). Live code is now under `crates/`. Threat themes (loopback HTTP, credentials at rest, OS-control allowlist) still apply to the Rust ports.
+
 # ABI — Threat Model
 
 > Repository: `/Users/donaldfilimon/abi` (branch `main`). Scope: runtime behavior of the ABI Zig framework — CLI, MCP server, WDBX store + REST API, connectors, credentials/auth, OS-control, plugins. Build/CI and tests are called out separately and are largely out of scope for runtime risk.

@@ -1,12 +1,14 @@
-//! Diagnostics dashboard one-shot render (`abi dashboard` / `abi tui`).
+//! Diagnostics dashboard (`abi dashboard` / `abi tui`).
 //!
-//! Ported from the non-interactive path of `src/cli/handlers/dashboard.zig`.
-//! Interactive raw-mode refresh is **not** linked — every invocation produces
-//! a one-shot stacked digest (matching Zig's non-TTY / `--once` fallback).
-//! GPU fields use honest `abi-gpu` disclosure (native kernels not linked).
+//! One-shot stacked digest for non-TTY / `--once` / `--json`. On a TTY without
+//! those flags, enters a raw-mode refresh loop (q/Esc quit, r refresh, h/l and
+//! 1-5 pane select). GPU fields use honest `abi-gpu` disclosure (native kernels
+//! not linked).
 
 use std::fmt::Write as _;
+use std::io::{self, IsTerminal, Read, Write};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use abi_core::{MemoryTracker, Scheduler, TaskPriority};
 use abi_plugins::PluginManager;
@@ -89,6 +91,8 @@ struct DashboardState {
     refresh_interval_ms: i32,
     compact: bool,
     color: bool,
+    /// True when the render is for the interactive raw-mode loop footer.
+    interactive: bool,
 }
 
 fn dashboard_health(ds: &DashboardState) -> &'static str {
@@ -225,6 +229,111 @@ fn collect_state(options: &Options) -> DashboardState {
         refresh_interval_ms: options.refresh_interval_ms,
         compact: options.compact,
         color: options.color,
+        interactive: false,
+    }
+}
+
+fn clear_screen(out: &mut dyn Write) {
+    let _ = write!(out, "\x1b[2J\x1b[H");
+    let _ = out.flush();
+}
+
+/// Interactive raw-mode loop for a real TTY. Returns a final one-shot frame on exit
+/// (for capture) after restoring the terminal.
+fn run_interactive(options: Options) -> Outcome {
+    #[cfg(not(unix))]
+    {
+        let state = collect_state(&options);
+        let text = render_text(&state);
+        return Outcome::stderr(
+            format!(
+                "{text}\nnote: interactive raw-mode dashboard requires a Unix TTY; rendered one-shot.\n"
+            ),
+            0,
+        );
+    }
+
+    #[cfg(unix)]
+    {
+        let _raw = match crate::terminal::RawMode::enter() {
+            Ok(r) => r,
+            Err(err) => {
+                let state = collect_state(&options);
+                let text = render_text(&state);
+                return Outcome::stderr(
+                    format!("{text}\nnote: raw-mode unavailable ({err}); one-shot fallback.\n"),
+                    0,
+                );
+            }
+        };
+
+        let mut options = options;
+        let interval =
+            Duration::from_millis(u64::try_from(options.refresh_interval_ms).unwrap_or(1000));
+        let mut last_paint = Instant::now();
+        let mut force_paint = true;
+        let mut stderr = io::stderr();
+        let mut stdin = io::stdin();
+        let mut buf = [0_u8; 16];
+
+        loop {
+            if force_paint || last_paint.elapsed() >= interval {
+                let mut state = collect_state(&options);
+                state.interactive = true;
+                state.selected_pane = options.initial_pane.min(PANES.len() - 1);
+                clear_screen(&mut stderr);
+                let frame = render_text(&state);
+                let _ = write!(stderr, "{frame}");
+                let _ = stderr.flush();
+                last_paint = Instant::now();
+                force_paint = false;
+            }
+
+            match stdin.read(&mut buf) {
+                Ok(0) => {
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+                Ok(n) => {
+                    for &key in &buf[..n] {
+                        match key {
+                            b'q' | b'Q' | 0x1b => {
+                                let mut state = collect_state(&options);
+                                state.interactive = true;
+                                let frame = render_text(&state);
+                                return Outcome::stderr(frame, 0);
+                            }
+                            b'r' | b'R' => {
+                                force_paint = true;
+                            }
+                            b'h' | b'H' => {
+                                if options.initial_pane == 0 {
+                                    options.initial_pane = PANES.len() - 1;
+                                } else {
+                                    options.initial_pane -= 1;
+                                }
+                                force_paint = true;
+                            }
+                            b'l' | b'L' => {
+                                options.initial_pane = (options.initial_pane + 1) % PANES.len();
+                                force_paint = true;
+                            }
+                            b'1'..=b'5' => {
+                                options.initial_pane = usize::from(key - b'1');
+                                force_paint = true;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                Err(err) if err.kind() == io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+                Err(_) => {
+                    let state = collect_state(&options);
+                    return Outcome::stderr(render_text(&state), 0);
+                }
+            }
+        }
     }
 }
 
@@ -307,11 +416,14 @@ fn render_text(ds: &DashboardState) -> String {
     }
 
     let secs = f64::from(ds.refresh_interval_ms) / 1000.0;
-    // Zig interactive path says "live snapshot every 1s"; we always one-shot
-    // and disclose that interactive raw-mode is not linked.
+    let mode = if ds.interactive {
+        format!("interactive raw-mode (refresh every {secs:.1}s)")
+    } else {
+        format!("one-shot snapshot ({secs:.1}s refresh is CLI metadata only)")
+    };
     let _ = writeln!(
         out,
-        "\n[q/Esc] Quit  [r] Refresh  [h/l] Select  [1-5] Panes  one-shot snapshot (interactive not linked; {secs}s refresh is CLI metadata only)"
+        "\n[q/Esc] Quit  [r] Refresh  [h/l] Select  [1-5] Panes  {mode}"
     );
     out
 }
@@ -481,6 +593,16 @@ pub(crate) fn run(args: &[String]) -> Outcome {
 
     if options.list_panes {
         return Outcome::stderr(render_pane_list(&options), 0);
+    }
+
+    // One-shot for JSON, --once, or non-TTY stderr (scripts / CI / pipes).
+    let want_interactive = !options.force_one_shot
+        && options.format == Format::Text
+        && io::stderr().is_terminal()
+        && io::stdin().is_terminal();
+
+    if want_interactive {
+        return run_interactive(options);
     }
 
     let state = collect_state(&options);

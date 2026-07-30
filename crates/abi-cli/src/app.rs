@@ -360,10 +360,8 @@ fn direct_help(args: &[String]) -> Option<Outcome> {
 #[must_use]
 pub fn run(args: &[String]) -> Outcome {
     let Some(command) = args.first() else {
-        return Outcome::stderr(
-            "error: Rust no-argument TUI launch is not yet ported\n".to_owned(),
-            1,
-        );
+        // Bare `abi` matches Zig: launch the diagnostics dashboard.
+        return crate::dashboard::run(&[]);
     };
 
     if is_help_token(command) {
@@ -507,12 +505,15 @@ mod tests {
     }
 
     #[test]
-    fn unported_handlers_fail_honestly() {
-        // Interactive auth signin is still deferred with exit 1.
+    fn auth_signin_without_token_fails_honestly() {
+        // Without ABI_AUTH_TOKEN and with empty non-TTY stdin, signin fails loudly
+        // rather than hanging or inventing a credential.
         let outcome = run(&args(&["auth", "signin", "openai"]));
-        assert_eq!(outcome.exit_code, 1);
+        assert_eq!(outcome.exit_code, 1, "{}", outcome.stderr);
         assert!(
-            outcome.stderr.contains("not yet ported"),
+            outcome.stderr.contains("auth signin failed")
+                || outcome.stderr.contains("empty secret")
+                || outcome.stderr.contains("ABI_AUTH_TOKEN"),
             "{}",
             outcome.stderr
         );

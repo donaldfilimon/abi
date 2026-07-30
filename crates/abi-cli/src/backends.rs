@@ -42,8 +42,8 @@ const FEATURES: &[Feature] = &[
     },
     Feature {
         name: "accelerator",
-        implemented: false,
-        detail: "top-level Rust accelerator feature pending",
+        implemented: true,
+        detail: "compute backend selection via abi-wdbx (CPU SIMD + ANE metadata); native kernels not linked",
     },
     Feature {
         name: "shaders",
@@ -58,12 +58,12 @@ const FEATURES: &[Feature] = &[
     Feature {
         name: "tui",
         implemented: true,
-        detail: "one-shot dashboard/tui digest; interactive raw-mode not linked",
+        detail: "dashboard one-shot + TTY raw-mode refresh; agent tui line-mode REPL",
     },
     Feature {
         name: "os_control",
-        implemented: false,
-        detail: "Rust OS command policy pending",
+        implemented: true,
+        detail: "agent os dry-run/execute --confirm; allowlist true/pwd/ls/whoami/date",
     },
     Feature {
         name: "telemetry",

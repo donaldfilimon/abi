@@ -14,6 +14,7 @@ mod complete;
 mod dashboard;
 mod nn;
 mod plugin;
+mod terminal;
 mod train;
 mod twilio;
 

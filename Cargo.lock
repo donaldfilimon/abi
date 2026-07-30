@@ -26,6 +26,7 @@ dependencies = [
  "abi-telemetry",
  "abi-wdbx",
  "ctrlc",
+ "libc",
  "serde_json",
 ]
 

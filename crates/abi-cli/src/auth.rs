@@ -1,7 +1,9 @@
-//! Local credential-status and logout command handlers.
+//! Local credential status, logout, and signin handlers.
+
+use std::io::{self, BufRead, Write};
 
 use abi_foundation::credentials::{
-    self, Backend, CredentialField, backend_is_keychain, credentials_path,
+    self, Backend, CredentialField, Secret, backend_is_keychain, credentials_path,
 };
 
 use crate::app::Outcome;
@@ -9,7 +11,7 @@ use crate::app::Outcome;
 const AUTH_USAGE: &str = "usage: abi auth <signin|logout|status>";
 const STATUS_USAGE: &str = "usage: abi auth status";
 const LOGOUT_USAGE: &str = "usage: abi auth logout";
-const SIGNIN_USAGE: &str = "usage: abi auth signin <openai|anthropic|discord|grok|twilio>";
+const SIGNIN_USAGE: &str = "usage: abi auth signin <openai|anthropic|discord|grok|twilio>\n       (non-interactive: ABI_AUTH_TOKEN=<secret> abi auth signin <provider>)";
 
 fn usage(text: &str) -> Outcome {
     Outcome::stderr(format!("error: {text}\n"), 2)
@@ -100,6 +102,141 @@ fn logout() -> Outcome {
     )
 }
 
+fn field_for_provider(provider: &str) -> Option<CredentialField> {
+    match provider {
+        "openai" => Some(CredentialField::OPENAI_API_KEY),
+        "anthropic" => Some(CredentialField::ANTHROPIC_API_KEY),
+        "discord" => Some(CredentialField::DISCORD_TOKEN),
+        "grok" => Some(CredentialField::GROK_API_KEY),
+        _ => None,
+    }
+}
+
+/// Read a secret line. Prefer `ABI_AUTH_TOKEN` for non-interactive use.
+///
+/// On a TTY (Unix), echo is disabled for the duration of the read. Non-TTY
+/// stdin reads one line (for pipes). Empty input is rejected.
+fn read_secret(prompt: &str) -> Result<String, String> {
+    // Prefer foundation env overlay so tests can isolate with set_override.
+    if let Some(token) = abi_foundation::env::get("ABI_AUTH_TOKEN") {
+        let trimmed = token.trim().to_string();
+        if trimmed.is_empty() {
+            return Err("ABI_AUTH_TOKEN is empty".into());
+        }
+        return Ok(trimmed);
+    }
+
+    let mut stderr = io::stderr();
+    let _ = write!(stderr, "{prompt}");
+    let _ = stderr.flush();
+
+    #[cfg(unix)]
+    {
+        use std::io::IsTerminal;
+        if io::stdin().is_terminal() {
+            return crate::terminal::read_secret_line();
+        }
+    }
+
+    let mut line = String::new();
+    io::stdin()
+        .lock()
+        .read_line(&mut line)
+        .map_err(|e| format!("failed to read secret: {e}"))?;
+    let trimmed = line.trim().to_string();
+    if trimmed.is_empty() {
+        return Err("empty secret".into());
+    }
+    Ok(trimmed)
+}
+
+fn signin(provider: &str) -> Outcome {
+    if provider == "twilio" {
+        return signin_twilio();
+    }
+    let Some(field) = field_for_provider(provider) else {
+        return usage(SIGNIN_USAGE);
+    };
+    let secret = match read_secret(&format!("Enter {provider} credential: ")) {
+        Ok(s) => s,
+        Err(err) => {
+            return Outcome::stderr(format!("error: auth signin failed: {err}\n"), 1);
+        }
+    };
+    let mut creds = match credentials::load() {
+        Ok(c) => c,
+        Err(err) => return failure("signin", err),
+    };
+    creds.set(field, Some(Secret::new(secret)));
+    if let Err(err) = credentials::save(&creds) {
+        return failure("signin", err);
+    }
+    Outcome::stderr(
+        format!(
+            "Signed in to {provider}. Credential stored ({})\n",
+            backend_label()
+        ),
+        0,
+    )
+}
+
+fn signin_twilio() -> Outcome {
+    // Twilio needs SID + auth token. Non-interactive: ABI_AUTH_TOKEN="sid:token"
+    // or ABI_TWILIO_ACCOUNT_SID + ABI_AUTH_TOKEN.
+    let (sid, token) = if let Some(blob) = abi_foundation::env::get("ABI_AUTH_TOKEN") {
+        if let Some((sid, token)) = blob.split_once(':') {
+            let sid = sid.trim().to_string();
+            let token = token.trim().to_string();
+            if sid.is_empty() || token.is_empty() {
+                return Outcome::stderr(
+                    "error: auth signin failed: ABI_AUTH_TOKEN for twilio must be 'sid:token'\n"
+                        .into(),
+                    1,
+                );
+            }
+            (sid, token)
+        } else if let Some(sid) = abi_foundation::env::get("ABI_TWILIO_ACCOUNT_SID") {
+            (sid.trim().to_string(), blob.trim().to_string())
+        } else {
+            return Outcome::stderr(
+                "error: auth signin failed: twilio needs ABI_AUTH_TOKEN as 'sid:token' or ABI_TWILIO_ACCOUNT_SID + ABI_AUTH_TOKEN\n".into(),
+                1,
+            );
+        }
+    } else {
+        let sid = match read_secret("Enter Twilio account SID: ") {
+            Ok(s) => s,
+            Err(err) => {
+                return Outcome::stderr(format!("error: auth signin failed: {err}\n"), 1);
+            }
+        };
+        let token = match read_secret("Enter Twilio auth token: ") {
+            Ok(s) => s,
+            Err(err) => {
+                return Outcome::stderr(format!("error: auth signin failed: {err}\n"), 1);
+            }
+        };
+        (sid, token)
+    };
+
+    let mut creds = match credentials::load() {
+        Ok(c) => c,
+        Err(err) => return failure("signin", err),
+    };
+    creds.set(CredentialField::TWILIO_ACCOUNT_SID, Some(Secret::new(sid)));
+    creds.set(CredentialField::TWILIO_AUTH_TOKEN, Some(Secret::new(token)));
+    if let Err(err) = credentials::save(&creds) {
+        return failure("signin", err);
+    }
+    Outcome::stderr(
+        format!(
+            "Signed in to twilio. Credentials stored ({})\n",
+            backend_label()
+        ),
+        0,
+    )
+}
+
 /// Dispatch `abi auth`, excluding the top-level command token.
 pub(crate) fn run(args: &[String]) -> Outcome {
     match args {
@@ -114,10 +251,7 @@ pub(crate) fn run(args: &[String]) -> Outcome {
                     "openai" | "anthropic" | "discord" | "grok" | "twilio"
                 ) =>
         {
-            Outcome::stderr(
-                "error: Rust interactive `auth signin` is not yet ported\n".to_owned(),
-                1,
-            )
+            signin(service)
         }
         [command, ..] if command == "signin" => usage(SIGNIN_USAGE),
         _ => usage(AUTH_USAGE),
@@ -155,6 +289,8 @@ mod tests {
                 path.to_str().expect("UTF-8 test path"),
             );
             env::set_override(BACKEND_ENV, "file");
+            // Never inherit a caller's ABI_AUTH_TOKEN into auth unit tests.
+            env::set_override("ABI_AUTH_TOKEN", "");
             Self { path, _lock: lock }
         }
     }
@@ -164,6 +300,7 @@ mod tests {
             let _ = std::fs::remove_file(&self.path);
             env::clear_override(CREDENTIALS_PATH_ENV);
             env::clear_override(BACKEND_ENV);
+            env::clear_override("ABI_AUTH_TOKEN");
         }
     }
 
@@ -218,12 +355,44 @@ mod tests {
     }
 
     #[test]
-    fn grammar_errors_are_usage_errors_and_signin_is_explicitly_deferred() {
+    fn grammar_errors_are_usage_errors() {
         assert_eq!(run(&[]).exit_code, 2);
         assert_eq!(run(&args(&["status", "extra"])).exit_code, 2);
         assert_eq!(run(&args(&["signin", "unknown"])).exit_code, 2);
-        let signin = run(&args(&["signin", "openai"]));
-        assert_eq!(signin.exit_code, 1);
-        assert!(signin.stderr.contains("not yet ported"));
+    }
+
+    #[test]
+    fn signin_via_env_token_stores_credential() {
+        let environment = CredentialEnvironment::new();
+        env::set_override("ABI_AUTH_TOKEN", "sk-test-anthropic-key");
+        let outcome = run(&args(&["signin", "anthropic"]));
+        env::clear_override("ABI_AUTH_TOKEN");
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stderr.contains("Signed in to anthropic"));
+        let loaded = credentials::load().expect("load");
+        assert!(loaded.get(CredentialField::ANTHROPIC_API_KEY).is_some());
+        assert!(environment.path.is_file() || credentials_path().is_ok());
+    }
+
+    #[test]
+    fn signin_twilio_via_sid_token_blob() {
+        let _environment = CredentialEnvironment::new();
+        env::set_override("ABI_AUTH_TOKEN", "ACsid123:authtoken456");
+        let outcome = run(&args(&["signin", "twilio"]));
+        env::clear_override("ABI_AUTH_TOKEN");
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        let loaded = credentials::load().expect("load");
+        assert_eq!(
+            loaded
+                .get(CredentialField::TWILIO_ACCOUNT_SID)
+                .map(Secret::expose),
+            Some("ACsid123")
+        );
+        assert_eq!(
+            loaded
+                .get(CredentialField::TWILIO_AUTH_TOKEN)
+                .map(Secret::expose),
+            Some("authtoken456")
+        );
     }
 }
