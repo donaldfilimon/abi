@@ -84,8 +84,9 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **0. Workspace** — cargo workspace, nightly pin, wrapper scripts, gate.
 - [x] **1. `abi-foundation`** — errors, env, time, temp_path, json, validation, logger, io, text, credentials (+file/keychain/secret/Windows ACL), http, system, plugin_manifest. 155 tests.
 - [x] **1b. Golden fixtures** — captured while the Zig gate was green.
-- [ ] **2. `abi-core`** — config, registry, task, scheduler, memory. **Decide the concurrency model here**: `scheduler_stats` and `scheduler_info` are 2 of the 12 frozen MCP tools, and their output shape follows from it. Getting this wrong means reworking wdbx and mcp.
-- [ ] **3. `abi-connectors`** — OpenAI, Anthropic, Grok, Discord (+gateway/ws), Twilio (+relay), HTTP, SSE, local bridge.
+- [x] **2. `abi-core`** — config, registry, task, scheduler, memory. Concurrency decided: **one-shot**, tasks run synchronously on the caller's thread (`mode=one-shot`, `running=0` at rest). Golden-tested against the captured `scheduler_stats` output. 79 tests.
+- [x] **3a. `abi-connectors` core** — connector types, URL/auth (HTTPS enforcement + host-boundary check), payload builders + byte-exact local synthesis, SSE parsing (both dialects), `Transport` trait with `ureq` live impl + `RecordingTransport`, clients for OpenAI/Anthropic/Grok/Discord/Twilio. 75 tests.
+- [ ] **3b. `abi-connectors` remainder** — Discord gateway + WS client (`discord_gateway.zig` 483, `discord_ws_client.zig` 228, `discord_routing.zig` 126), Twilio relay (`twilio_relay.zig` 554), the local bridge (`local_bridge.zig` 236) and the Apple `FoundationModels` shim (`fm.zig` 217). These need a WebSocket client and a Swift FFI shim; ~1.8k Zig LOC.
 - [ ] **4. `abi-wdbx`** — must read the existing on-disk format; see `tests/golden/wdbx-format.md`.
 - [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
 - [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir, hash, metrics, telemetry, mobile, os_control.
