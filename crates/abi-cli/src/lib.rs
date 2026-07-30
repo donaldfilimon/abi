@@ -7,4 +7,8 @@
 pub mod app;
 pub mod usage;
 
+mod auth;
+mod backends;
+mod scheduler;
 mod wdbx;
+mod wdbx_simulate;

@@ -12,11 +12,13 @@ repository = "https://github.com/donaldfilimon/abi"
 [workspace.dependencies]
 abi-foundation = { path = "crates/abi-foundation" }
 abi-core = { path = "crates/abi-core" }
+abi-telemetry = { path = "crates/abi-telemetry" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.10"
 crc32fast = "1"
+ctrlc = "3"
 num-bigint = "0.4"
 num-traits = "0.2"
 thiserror = "2"

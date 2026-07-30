@@ -179,6 +179,7 @@ impl Inner {
 /// A one-shot, priority-ordered task scheduler.
 pub struct Scheduler {
     inner: Mutex<Inner>,
+    execution: Mutex<()>,
     memory_tracker: Option<Arc<MemoryTracker>>,
 }
 
@@ -197,6 +198,7 @@ impl Scheduler {
                 failed: 0,
                 cancelled: 0,
             }),
+            execution: Mutex::new(()),
             memory_tracker: None,
         }
     }
@@ -245,6 +247,7 @@ impl Scheduler {
         );
         inner.order.push(id);
         inner.queue.push(Queued { id, priority, work });
+        abi_telemetry::increment("scheduler.tasks.submitted", 1);
         id
     }
 
@@ -267,6 +270,7 @@ impl Scheduler {
         info.status = TaskStatus::Cancelled;
         info.completed_at = time::unix_ms();
         inner.cancelled += 1;
+        abi_telemetry::increment("scheduler.tasks.cancelled", 1);
         // The queue entry stays; `run_next` skips any entry whose record is no
         // longer Pending. Unlike Zig this cannot desynchronize the counters,
         // because `pending` is derived from the records rather than tracked
@@ -278,6 +282,10 @@ impl Scheduler {
     ///
     /// Returns the id that ran, or `None` when nothing is pending.
     pub fn run_next(&self) -> Result<Option<u64>, SchedulerError> {
+        let _execution = self
+            .execution
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let (id, work) = {
             let mut inner = self.lock();
             let mut picked = None;
@@ -317,6 +325,7 @@ impl Scheduler {
                     info.completed_at = finished_at;
                 }
                 inner.completed += 1;
+                abi_telemetry::increment("scheduler.tasks.completed", 1);
                 Ok(Some(id))
             }
             Err(message) => {
@@ -326,6 +335,7 @@ impl Scheduler {
                     info.error_msg = Some(message.clone());
                 }
                 inner.failed += 1;
+                abi_telemetry::increment("scheduler.tasks.failed", 1);
                 Err(SchedulerError::TaskFailed { id, message })
             }
         }
@@ -452,7 +462,10 @@ impl std::fmt::Debug for Scheduler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+    use std::sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering},
+        mpsc,
+    };
 
     fn noop() -> TaskFn {
         Box::new(|| Ok(()))
@@ -499,6 +512,59 @@ mod tests {
     fn run_next_on_an_empty_scheduler_returns_none() {
         let scheduler = Scheduler::new();
         assert_eq!(scheduler.run_next().expect("no error"), None);
+    }
+
+    #[test]
+    fn concurrent_callers_never_execute_more_than_one_task() {
+        let scheduler = Arc::new(Scheduler::new());
+        let second_started = Arc::new(AtomicBool::new(false));
+        let (first_started_tx, first_started_rx) = mpsc::sync_channel(0);
+        let (release_first_tx, release_first_rx) = mpsc::sync_channel(0);
+
+        scheduler.submit(
+            "first",
+            TaskPriority::Normal,
+            Box::new(move || {
+                first_started_tx.send(()).expect("signal first task");
+                release_first_rx.recv().expect("release first task");
+                Ok(())
+            }),
+        );
+        let second_started_in_task = Arc::clone(&second_started);
+        scheduler.submit(
+            "second",
+            TaskPriority::Normal,
+            Box::new(move || {
+                second_started_in_task.store(true, AtomicOrdering::SeqCst);
+                Ok(())
+            }),
+        );
+
+        let first_scheduler = Arc::clone(&scheduler);
+        let first_runner =
+            std::thread::spawn(move || first_scheduler.run_next().expect("first runner"));
+        first_started_rx.recv().expect("first task started");
+
+        let second_scheduler = Arc::clone(&scheduler);
+        let (second_ready_tx, second_ready_rx) = mpsc::sync_channel(0);
+        let second_runner = std::thread::spawn(move || {
+            second_ready_tx.send(()).expect("second caller ready");
+            second_scheduler.run_next().expect("second runner")
+        });
+        second_ready_rx.recv().expect("second caller ready");
+        assert!(matches!(
+            scheduler.execution.try_lock(),
+            Err(std::sync::TryLockError::WouldBlock)
+        ));
+        assert!(!second_started.load(AtomicOrdering::SeqCst));
+        assert_eq!(scheduler.stats().running, 1);
+        assert_eq!(scheduler.stats().pending, 1);
+
+        release_first_tx.send(()).expect("release first task");
+        assert_eq!(first_runner.join().expect("join first"), Some(1));
+        assert_eq!(second_runner.join().expect("join second"), Some(2));
+        assert!(second_started.load(AtomicOrdering::SeqCst));
+        assert_eq!(scheduler.stats().running, 0);
     }
 
     #[test]

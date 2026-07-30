@@ -12,7 +12,11 @@ name = "abi"
 path = "src/main.rs"
 
 [dependencies]
+abi-core = { workspace = true }
+abi-foundation = { workspace = true }
+abi-telemetry = { workspace = true }
 abi-wdbx = { path = "../abi-wdbx" }
+ctrlc = { workspace = true }
 serde_json = { workspace = true }
 
 [lints]

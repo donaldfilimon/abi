@@ -146,17 +146,45 @@ names" into "the Rust CLI emits byte-identical output".
   resume decoding, content-addressed WDBX persistence, and latest/config-hash
   retrieval are ported too; an opt-in integration test proves the representative
   Rust canonical export is byte-for-byte identical to the restored Zig oracle.
+  Durable recovery now also recognizes a legacy Zig single-file checkpoint when
+  no active segment manifest exists, so the next Rust checkpoint can migrate it
+  into the segmented layout without orphaning its records.
   TLS cert/key environment loading and accessibility validation are ported too,
   while preserving the disclosed-partial boundary: native TLS termination is
   not linked and non-loopback production hardening is not claimed.
 - [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
-- [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir, hash, metrics, telemetry, mobile, os_control.
+- [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir,
+  hash, metrics, telemetry, mobile, os_control.
+  - The bounded process-wide telemetry counter table and Prometheus text
+    rendering are ported as `abi-telemetry`; GPU and the remaining small
+    features are still open.
 - [ ] **7. `abi-tui`**
 - [x] **8a. `abi-cli` contract model** — frozen 13-command metadata,
   top-level help, shortcut resolution, and argument-free command help are
   golden-tested. This does **not** claim handler or full typed-help parity.
 - [ ] **8b. `abi-cli` executable** — typed/raw dispatch, all command handlers,
   full `help.json` / `help-*.txt`, and `completion.*` parity.
+  - A real nightly-Rust `abi` binary now owns process streams/exit codes,
+    top-level help/JSON/completions, suggestions, shortcuts, and explicit
+    not-yet-ported failures.
+  - WDBX `db`, `block`, stats/empty query modes, cluster status/demo, compute
+    info, secure demo, bounded `simulate`, and the captured HNSW benchmark are
+    attached. `simulate` includes config/rules files, hard bounds,
+    cancellation, canonical JSON/DOT, resume from JSON or WDBX, and WDBX
+    persistence. Help, dry-run, JSON, DOT, and stable summary bytes match Zig;
+    two-way Zig/Rust JSON and checkpoint resume produces one identical
+    canonical export. The benchmark preserves the oracle workload and report
+    shape without making cross-run performance claims.
+  - `scheduler status` is attached with byte-exact one-shot scheduler,
+    serialized task execution, MemoryTracker, and telemetry output. Local
+    `auth status` and `auth logout` are attached through the Rust credential
+    backend; interactive `auth signin` remains open.
+  - `backends` is attached with Rust build identity, explicit per-feature
+    migration status, CPU SIMD selection, and claim-honest native accelerator
+    fallback disclosure.
+  - Still open: vector-bearing query embedding, GPU reporting, REST and cluster
+    listener commands, interactive auth signin, and the other non-WDBX
+    top-level handlers.
 - [ ] **9. `abi-mcp`** — golden-tested against `mcp-tools-list.json`, order included.
 - [ ] **10. `abi-plugins`**
 - [ ] **11. Zig teardown, in one commit** — `src/**/*.zig`, `build.zig`, `build.zig.zon`, `build.sh`, `.zigversion`, `zig-out/`, `zig-cache/`, `.zig-cache/`, `tools/*.zig`, `tests/**/*.zig`, `examples/**`, `.gitattributes` Zig rules, `.github/workflows` calling `./build.sh`.

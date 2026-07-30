@@ -33,6 +33,9 @@ pub const SEGMENT_HEADER: &str = "# ABI-WDBX v1";
 /// Magic first line of the manifest.
 pub const MANIFEST_HEADER: &str = "# ABI-WDBX-SEGMENTS v1";
 
+/// Magic first line of the compatibility-mirror epoch sidecar.
+pub const MIRROR_EPOCH_HEADER: &str = "# ABI-WDBX-MIRROR-EPOCH v1";
+
 /// Prefix of the optional checksum trailer line.
 pub const CHECKSUM_PREFIX: &str = "# checksum:";
 
@@ -760,6 +763,12 @@ impl StorePaths {
         self.dir.join(format!("{}.manifest", self.base))
     }
 
+    /// Epoch provenance for the monolithic compatibility mirror.
+    #[must_use]
+    pub fn mirror_epoch(&self) -> PathBuf {
+        self.dir.join(format!("{}.mirror-epoch", self.base))
+    }
+
     /// The segment file for `epoch`.
     #[must_use]
     pub fn segment(&self, epoch: u64) -> PathBuf {
@@ -780,6 +789,52 @@ impl StorePaths {
                 message: e.to_string(),
             }),
         }
+    }
+
+    /// Read compatibility-mirror epoch provenance.
+    ///
+    /// A missing sidecar means epoch 0, which preserves readability of every
+    /// Zig-written monolithic snapshot.
+    pub fn read_mirror_epoch(&self) -> Result<u64> {
+        let path = self.mirror_epoch();
+        let content = match std::fs::read_to_string(&path) {
+            Ok(content) => content,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+            Err(error) => {
+                return Err(FormatError::Io {
+                    path,
+                    message: error.to_string(),
+                });
+            }
+        };
+        let mut lines = content.lines();
+        if lines.next() != Some(MIRROR_EPOCH_HEADER) {
+            return Err(FormatError::InvalidManifest {
+                reason: format!(
+                    "mirror epoch sidecar {} has an invalid header",
+                    path.display()
+                ),
+            });
+        }
+        let epoch = lines
+            .next()
+            .and_then(|line| line.strip_prefix("epoch="))
+            .and_then(|value| value.parse::<u64>().ok())
+            .ok_or_else(|| FormatError::InvalidManifest {
+                reason: format!(
+                    "mirror epoch sidecar {} has an invalid epoch",
+                    path.display()
+                ),
+            })?;
+        if lines.any(|line| !line.trim().is_empty()) {
+            return Err(FormatError::InvalidManifest {
+                reason: format!(
+                    "mirror epoch sidecar {} has unexpected content",
+                    path.display()
+                ),
+            });
+        }
+        Ok(epoch)
     }
 }
 
@@ -1160,6 +1215,10 @@ mod tests {
             PathBuf::from("/home/u/.abi/wdbx.manifest")
         );
         assert_eq!(
+            paths.mirror_epoch(),
+            PathBuf::from("/home/u/.abi/wdbx.mirror-epoch")
+        );
+        assert_eq!(
             paths.segment(42),
             PathBuf::from("/home/u/.abi/wdbx.seg.42.jsonl")
         );
@@ -1171,5 +1230,19 @@ mod tests {
         let dir = abi_foundation::temp_path::temp_file_path("abi_wdbx_no_manifest", "d");
         let paths = StorePaths::new(&dir);
         assert_eq!(paths.read_manifest().expect("no error"), Manifest::empty());
+    }
+
+    #[test]
+    fn mirror_epoch_defaults_legacy_to_zero_and_rejects_corruption() {
+        let dir = abi_foundation::temp_path::temp_file_path("abi_wdbx_mirror_epoch", "d");
+        let paths = StorePaths::new(&dir);
+        assert_eq!(paths.read_mirror_epoch().expect("legacy default"), 0);
+
+        std::fs::create_dir_all(&dir).expect("fixture directory");
+        std::fs::write(paths.mirror_epoch(), "not provenance\n").expect("corrupt sidecar");
+        assert!(matches!(
+            paths.read_mirror_epoch(),
+            Err(FormatError::InvalidManifest { .. })
+        ));
     }
 }

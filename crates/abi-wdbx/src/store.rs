@@ -382,6 +382,64 @@ pub fn load_newest_valid_with_epoch(
     newest_error.map_or_else(|| Ok((Snapshot::new(), None)), Err)
 }
 
+/// Which checkpoint layout supplied a recovered snapshot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckpointSource {
+    /// No checkpoint exists.
+    Empty,
+    /// The pre-manifest single-file Zig checkpoint.
+    Legacy {
+        /// Epoch recorded by a Rust mirror sidecar, or 0 for Zig snapshots.
+        epoch: u64,
+    },
+    /// A manifest-listed immutable segment.
+    Segment {
+        /// Published segment epoch.
+        epoch: u64,
+    },
+}
+
+impl CheckpointSource {
+    /// Epoch used to gate WAL replay.
+    #[must_use]
+    pub const fn epoch(self) -> u64 {
+        match self {
+            Self::Empty => 0,
+            Self::Legacy { epoch } | Self::Segment { epoch } => epoch,
+        }
+    }
+}
+
+/// Load the authoritative checkpoint, including the legacy Zig single-file
+/// layout only when no active manifest epochs exist.
+pub fn load_checkpoint_with_source(paths: &StorePaths) -> Result<(Snapshot, CheckpointSource)> {
+    let manifest = paths.read_manifest()?;
+    let (mut snapshot, epoch) = load_newest_valid_with_epoch(paths, &manifest)?;
+    if let Some(epoch) = epoch {
+        return Ok((snapshot, CheckpointSource::Segment { epoch }));
+    }
+    let legacy = paths.index();
+    if !manifest.active.is_empty() || !legacy.is_file() {
+        return Ok((snapshot, CheckpointSource::Empty));
+    }
+
+    let segment = read_segment(0, &legacy)?;
+    if segment.truncated_tail {
+        snapshot.stats.truncated_segments = 1;
+    }
+    for record in segment.records {
+        snapshot.apply(record);
+    }
+    snapshot.stats.epochs_loaded = 1;
+    snapshot.recount();
+    Ok((
+        snapshot,
+        CheckpointSource::Legacy {
+            epoch: paths.read_mirror_epoch()?,
+        },
+    ))
+}
+
 /// Layer **every** active segment into one snapshot.
 ///
 /// **Not the normal load path** — see the module docs. Segments are full

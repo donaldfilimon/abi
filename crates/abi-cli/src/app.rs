@@ -373,17 +373,30 @@ pub fn run(args: &[String]) -> Outcome {
         };
     }
 
+    let resolved = command_name_for_shortcut(command).unwrap_or(command);
+    if resolved == "wdbx" && args.get(1).is_some_and(|name| name == "simulate") {
+        return crate::wdbx::run(&args[1..]);
+    }
+
     if let Some(outcome) = direct_help(args) {
         return outcome;
     }
 
-    let resolved = command_name_for_shortcut(command).unwrap_or(command);
     if find_command(resolved).is_none() {
         return unknown_command(command);
     }
 
     if resolved == "wdbx" {
         return crate::wdbx::run(&args[1..]);
+    }
+    if resolved == "scheduler" {
+        return crate::scheduler::run(&args[1..]);
+    }
+    if resolved == "auth" {
+        return crate::auth::run(&args[1..]);
+    }
+    if resolved == "backends" {
+        return crate::backends::run(&args[1..]);
     }
 
     Outcome::stderr(
@@ -474,11 +487,11 @@ mod tests {
 
     #[test]
     fn unported_handlers_fail_honestly() {
-        let outcome = run(&args(&["backends"]));
+        let outcome = run(&args(&["train", "example"]));
         assert_eq!(outcome.exit_code, 1);
         assert_eq!(
             outcome.stderr,
-            "error: Rust handler for `backends` is not yet ported\n"
+            "error: Rust handler for `train` is not yet ported\n"
         );
     }
 }

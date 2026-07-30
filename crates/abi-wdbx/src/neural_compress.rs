@@ -21,21 +21,62 @@ impl std::fmt::Display for AutoencoderError {
 impl std::error::Error for AutoencoderError {}
 
 #[derive(Clone, Copy)]
-struct ReferenceRng(u64);
+struct ReferenceRng {
+    state: [u64; 4],
+}
 
 impl ReferenceRng {
+    fn new(seed: u64) -> Self {
+        let mut split_mix_state = seed;
+        let mut state = [0; 4];
+        for value in &mut state {
+            split_mix_state = split_mix_state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+            let mut mixed = split_mix_state;
+            mixed = (mixed ^ (mixed >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+            mixed = (mixed ^ (mixed >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+            *value = mixed ^ (mixed >> 31);
+        }
+        Self { state }
+    }
+
     fn next_u64(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut value = self.0;
-        value = (value ^ (value >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        value = (value ^ (value >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        value ^ (value >> 31)
+        let result = self.state[0]
+            .wrapping_add(self.state[3])
+            .rotate_left(23)
+            .wrapping_add(self.state[0]);
+        let temporary = self.state[1] << 17;
+        self.state[2] ^= self.state[0];
+        self.state[3] ^= self.state[1];
+        self.state[1] ^= self.state[2];
+        self.state[0] ^= self.state[3];
+        self.state[2] ^= temporary;
+        self.state[3] = self.state[3].rotate_left(45);
+        result
+    }
+
+    fn next_f32(&mut self) -> f32 {
+        let random = self.next_u64();
+        let mut leading_zeros = random.leading_zeros();
+        if leading_zeros >= 41 {
+            leading_zeros = 41 + self.next_u64().leading_zeros();
+            if leading_zeros == 105 {
+                leading_zeros += (u32::from_le_bytes(
+                    self.next_u64().to_le_bytes()[..4]
+                        .try_into()
+                        .expect("four bytes"),
+                ) | 0x7FF)
+                    .leading_zeros();
+            }
+        }
+        let mantissa =
+            u32::from_le_bytes(random.to_le_bytes()[..4].try_into().expect("four bytes"))
+                & 0x7F_FFFF;
+        let exponent = (126 - leading_zeros) << 23;
+        f32::from_bits(exponent | mantissa)
     }
 
     fn centered_weight(&mut self) -> f32 {
-        let bytes = self.next_u64().to_le_bytes();
-        let upper = u16::from_le_bytes([bytes[6], bytes[7]]);
-        (f32::from(upper) / 65_536.0 - 0.5) * 0.2
+        (self.next_f32() - 0.5) * 0.2
     }
 }
 
@@ -60,7 +101,7 @@ impl Autoencoder {
         if latent_dim == 0 || latent_dim >= input_dim {
             return Err(AutoencoderError::InvalidDimensions);
         }
-        let mut random = ReferenceRng(seed);
+        let mut random = ReferenceRng::new(seed);
         let encoder_weights = (0..latent_dim * input_dim)
             .map(|_| random.centered_weight())
             .collect();
@@ -312,7 +353,7 @@ mod tests {
             [-0.2, 0.3, 0.25, -0.15, 0.2, -0.1, 0.3, -0.25],
             [0.1, 0.1, -0.3, 0.3, 0.15, -0.2, 0.1, 0.2],
         ];
-        let storage = low_rank_dataset::<24, 8>(ReferenceRng(0xABCD_EF01), &basis);
+        let storage = low_rank_dataset::<24, 8>(ReferenceRng::new(0xABCD_EF01), &basis);
         let dataset: Vec<&[f32]> = storage.iter().map(<[f32; 8]>::as_slice).collect();
         let mut autoencoder = Autoencoder::new(8, 3, 0x00C0_FFEE).expect("codec");
         assert!((autoencoder.compression_ratio() - 8.0 / 3.0).abs() < 1e-6);
@@ -362,7 +403,7 @@ mod tests {
             [0.3, -0.2, 0.1, 0.2, -0.1, 0.15],
             [-0.1, 0.25, 0.2, -0.15, 0.2, -0.1],
         ];
-        let storage = low_rank_dataset::<16, 6>(ReferenceRng(0x5151_ABCD), &basis);
+        let storage = low_rank_dataset::<16, 6>(ReferenceRng::new(0x5151_ABCD), &basis);
         let dataset: Vec<&[f32]> = storage.iter().map(<[f32; 6]>::as_slice).collect();
         let mut autoencoder = Autoencoder::new(6, 2, 0x2727_BEEF).expect("codec");
         let before = dataset
@@ -401,5 +442,13 @@ mod tests {
             left_latent.map(f32::to_bits),
             right_latent.map(f32::to_bits)
         );
+    }
+
+    #[test]
+    fn reference_generator_matches_zig_xoshiro256_sequence() {
+        let mut random = ReferenceRng::new(0);
+        assert_eq!(random.next_u64(), 0x5317_5D61_490B_23DF);
+        assert_eq!(random.next_u64(), 0x61DA_6F3D_C380_D507);
+        assert_eq!(random.next_u64(), 0x5C0F_DF91_EC9A_7BFC);
     }
 }
