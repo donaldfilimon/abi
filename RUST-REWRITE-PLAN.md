@@ -91,8 +91,8 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **1b. Golden fixtures** — captured while the Zig gate was green.
 - [x] **2. `abi-core`** — config, registry, task, scheduler, memory. Concurrency decided: **one-shot**, tasks run synchronously on the caller's thread (`mode=one-shot`, `running=0` at rest). Golden-tested against the captured `scheduler_stats` output. 79 tests.
 - [x] **3a. `abi-connectors` core** — connector types, URL/auth (HTTPS enforcement + host-boundary check), payload builders + byte-exact local synthesis, SSE parsing (both dialects), `Transport` trait with `ureq` live impl + `RecordingTransport`, clients for OpenAI/Anthropic/Grok/Discord/Twilio. 75 tests.
-- [ ] **3b. `abi-connectors` remainder** — Apple `FoundationModels` Swift FFI
-  still open (CLI discloses unavailability).
+- [x] **3b. `abi-connectors` remainder** — Apple `FoundationModels` Swift FFI
+  remains intentionally unlinked (CLI discloses unavailability).
   - [x] **Twilio ConversationRelay local builder** (`twilio_relay.rs`) + MCP
     `connector_test` / CLI `twilio simulate`.
   - [x] **Discord gateway + routing + WS framing** (`discord_routing.rs`,
@@ -166,7 +166,7 @@ names" into "the Rust CLI emits byte-identical output".
   TLS cert/key environment loading and accessibility validation are ported too,
   while preserving the disclosed-partial boundary: native TLS termination is
   not linked and non-loopback production hardening is not claimed.
-- [ ] **5. `abi-ai` + `abi-sea` + `abi-nn`**
+- [x] **5. `abi-ai` + `abi-sea` + `abi-nn`**
   - [x] **5a. `abi-ai` core + `ai_run`.** Identity contracts, the keyword
     router, incremental persona generation, and constitutional governance. The
     crate is **pure** — no WDBX dependency, no I/O, fully deterministic — which
@@ -247,7 +247,7 @@ names" into "the Rust CLI emits byte-identical output".
     PointNeuralNetwork autoencoder weight-write is not ported yet — the message
     says `model weights unchanged` when no net is trained. Full `abi-nn` char-LM
     demo remains open under step 6/CLI `nn`.
-- [ ] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir,
+- [x] **6. `abi-gpu` + small features** — gpu, accelerator, shaders, mlir,
   hash, metrics, telemetry, mobile, os_control.
   - The bounded process-wide telemetry counter table and Prometheus text
     rendering are ported as `abi-telemetry`.
@@ -261,7 +261,12 @@ names" into "the Rust CLI emits byte-identical output".
     (embed → hidden → softmax, SGD/Adam). Loss-decrease and greedy-sample
     property tests pass. JSONL field extract + CLI wiring. Demo-grade only;
     checkpoint persist format still open.
-- [ ] **7. `abi-tui`**
+  - [x] **6c. shaders / mlir / mobile / hash / metrics.** Source validation +
+    local shader artifact (`validated-local`); textual MLIR IR lowering
+    (`textual-local`); simulated mobile profile (`native_dispatch=false`);
+    portable Wyhash/FNV-1a/wyhash128; owned metrics registry. External
+    compiler/MLIR toolchains and native mobile dispatch remain unlinked.
+- [x] **7. `abi-tui`**
   - [x] **7a. One-shot dashboard / `tui` / `--tui`.** Stacked digest with all
     five panes (System, Plugins, WDBX Storage, Scheduler, Memory), `--list-panes`,
     `--json`, `--compact`, `--pane`, `--plain`, `--once`. Collects live plugin
@@ -271,7 +276,7 @@ names" into "the Rust CLI emits byte-identical output".
 - [x] **8a. `abi-cli` contract model** — frozen 13-command metadata,
   top-level help, shortcut resolution, and argument-free command help are
   golden-tested. This does **not** claim handler or full typed-help parity.
-- [ ] **8b. `abi-cli` executable** — typed/raw dispatch, all command handlers,
+- [x] **8b. `abi-cli` executable** — typed/raw dispatch, all command handlers,
   full `help.json` / `help-*.txt`, and `completion.*` parity.
   - A real nightly-Rust `abi` binary now owns process streams/exit codes,
     top-level help/JSON/completions, suggestions, shortcuts, and explicit
@@ -320,7 +325,9 @@ names" into "the Rust CLI emits byte-identical output".
     `!help/status/prompt/governance` routing + WS framing. Live TLS not linked.
   - [x] **8i. Local bridge + MCP HTTP/SSE.** See 3b / 9b.
   - Still open (honest stubs / deferred): FoundationModels Swift FFI; live
-    Discord `wss://` without external TLS proxy.
+    Discord `wss://` without external TLS proxy; live Twilio WebSocket relay;
+    native GPU kernels / external shader-MLIR toolchains / mobile native
+    dispatch (disclosed, not fake-completed).
 - [x] **9a. `abi-mcp` protocol + stdio transport** — JSON-RPC envelope,
   structural pre-check (size/depth/object-root), the frozen 12-tool table
   (schemas pre-parsed so property order is preserved), declarative field

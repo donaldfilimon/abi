@@ -6,8 +6,22 @@
 //! elsewhere) so operators see the same *declared* surface as Zig, but
 //! `accelerated` is always `false` and the message says so.
 //!
-//! This is the MCP `gpu_status` backing implementation and the foundation for
-//! plan step 6's broader `abi-gpu` work.
+//! Also hosts the claim-honest **shaders**, **mlir**, and **mobile** report
+//! surfaces (validation / textual lowering / simulated profile — no external
+//! toolchains or native mobile dispatch).
+
+pub mod mlir;
+pub mod mobile;
+pub mod shaders;
+
+pub use mlir::{
+    Dialect, ModuleSpec, lower as lower_mlir, toolchain_status as mlir_toolchain_status,
+};
+pub use mobile::{device_profile as mobile_device_profile, status_line as mobile_status_line};
+pub use shaders::{
+    Language as ShaderLanguage, ShaderSource, compile as compile_shader,
+    compiler_status as shader_compiler_status,
+};
 
 use abi_wdbx::best_cpu_backend;
 

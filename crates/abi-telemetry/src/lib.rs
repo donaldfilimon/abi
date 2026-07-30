@@ -4,6 +4,10 @@
 //! insertion order is retained because the CLI Prometheus exposition is a
 //! captured compatibility surface.
 
+pub mod metrics;
+
+pub use metrics::{GaugeSnapshot, Metrics};
+
 use std::{
     fmt::Write as _,
     sync::{Mutex, OnceLock},

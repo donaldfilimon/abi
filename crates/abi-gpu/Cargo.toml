@@ -8,6 +8,7 @@ repository.workspace = true
 description = "Honest GPU/backend detection for the ABI framework. Native kernels are not linked; CPU fallback is always the effective path."
 
 [dependencies]
+abi-foundation = { path = "../abi-foundation" }
 abi-wdbx = { path = "../abi-wdbx" }
 
 [lints]

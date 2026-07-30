@@ -2,6 +2,12 @@
 
 use std::fmt::Write as _;
 
+use abi_gpu::mlir::{Dialect, ModuleSpec};
+use abi_gpu::{
+    ShaderLanguage, ShaderSource, compile_shader, detect_backend, lower_mlir,
+    mlir_toolchain_status, mobile_status_line, shader_compiler_status,
+};
+
 use crate::app::Outcome;
 
 const USAGE: &str = "usage: abi backends";
@@ -47,13 +53,13 @@ const FEATURES: &[Feature] = &[
     },
     Feature {
         name: "shaders",
-        implemented: false,
-        detail: "Rust shader validation pending",
+        implemented: true,
+        detail: "source validation + local artifact; external compiler toolchains not linked",
     },
     Feature {
         name: "mlir",
-        implemented: false,
-        detail: "Rust textual MLIR lowering pending",
+        implemented: true,
+        detail: "textual IR lowering; external MLIR/LLVM toolchains not linked",
     },
     Feature {
         name: "tui",
@@ -73,22 +79,22 @@ const FEATURES: &[Feature] = &[
     Feature {
         name: "foundationmodels",
         implemented: false,
-        detail: "Apple Foundation Models Rust bridge pending",
+        detail: "Apple Foundation Models Swift FFI not linked (complete --live --model apple-fm discloses)",
     },
     Feature {
         name: "hash",
-        implemented: false,
-        detail: "standalone Rust hashing feature pending",
+        implemented: true,
+        detail: "portable Wyhash (Zig-compatible) + FNV-1a + wyhash128",
     },
     Feature {
         name: "metrics",
-        implemented: false,
-        detail: "Rust metrics feature pending",
+        implemented: true,
+        detail: "owned counter/gauge registry + process-wide Prometheus telemetry",
     },
     Feature {
         name: "mobile",
-        implemented: false,
-        detail: "Rust mobile platform feature pending",
+        implemented: true,
+        detail: "platform detection + simulated profile; native_dispatch=false",
     },
 ];
 
@@ -124,9 +130,35 @@ fn report() -> String {
     }
 
     let best = abi_wdbx::best_cpu_backend();
+    let gpu = detect_backend();
+    let shader_status = shader_compiler_status();
+    let shader = compile_shader(ShaderSource {
+        name: "status",
+        language: ShaderLanguage::ZigKernel,
+        source: "fn main() void {}",
+    })
+    .expect("sample shader validation is deterministic");
+    let mlir_status = mlir_toolchain_status();
+    let lowered = lower_mlir(&ModuleSpec {
+        name: "status",
+        dialect: Dialect::Linalg,
+        operations: &["matmul"],
+    })
+    .expect("sample MLIR lowering is deterministic");
+    let hash_smoke = abi_foundation::hash64(b"abi-backends");
+    let mut metrics = abi_telemetry::Metrics::new();
+    metrics.increment("backends.report", 1);
+
     writeln!(
         output,
-        "\nCompute Backends:\n  Effective CPU:  {}  portable_simd_lanes={}\n  Native accelerator kernels: not linked",
+        "\nCompute Backends:\n  GPU:            {}  {}  accelerated={}\n  Native kernels  not linked  vectorized CPU fallback active\n  Effective CPU:  {}  portable_simd_lanes={}\n  Native accelerator kernels: not linked",
+        gpu.backend.name(),
+        if gpu.available { ENABLED } else { PENDING },
+        if gpu.accelerated {
+            "\x1b[32myes\x1b[0m"
+        } else {
+            "\x1b[90mno\x1b[0m"
+        },
         best.name(),
         abi_wdbx::simd_lanes()
     )
@@ -146,9 +178,24 @@ fn report() -> String {
     }
     writeln!(
         output,
-        "  Apple Neural Engine: hardware_present={} native_dispatch=false\n  Remote compute endpoint: {} (reference transport; local fallback, not production TPU)",
+        "  Apple Neural Engine: hardware_present={} native_dispatch=false\n  Remote compute endpoint: {} (reference transport; local fallback, not production TPU)\n  Shaders         {}  {}  (compiler available={})\n  MLIR            {} → {}  (toolchain available={})\n  Hash            wyhash64=0x{hash_smoke:x}  (Zig-compatible)\n  Metrics         registry counters={}  (enabled={})\n  Mobile          {}",
         abi_wdbx::ane_hardware_present(),
-        abi_wdbx::remote_compute_endpoint().as_deref().unwrap_or("none"),
+        abi_wdbx::remote_compute_endpoint()
+            .as_deref()
+            .unwrap_or("none"),
+        shader.language.name(),
+        if shader_status.available {
+            ENABLED
+        } else {
+            PENDING
+        },
+        shader_status.available,
+        lowered.dialect.name(),
+        lowered.target_backend,
+        mlir_status.available,
+        metrics.get_counter("backends.report").unwrap_or(0),
+        metrics.enabled(),
+        mobile_status_line(),
     )
     .expect("writing to a String cannot fail");
     output
@@ -175,12 +222,19 @@ mod tests {
         assert!(output.stderr.contains("Rust nightly"));
         assert!(output.stderr.contains("wdbx               \u{1b}[32m✓"));
         assert!(output.stderr.contains("gpu                \u{1b}[32m✓"));
+        assert!(output.stderr.contains("shaders            \u{1b}[32m✓"));
+        assert!(output.stderr.contains("mlir               \u{1b}[32m✓"));
+        assert!(output.stderr.contains("hash               \u{1b}[32m✓"));
+        assert!(output.stderr.contains("metrics            \u{1b}[32m✓"));
+        assert!(output.stderr.contains("mobile             \u{1b}[32m✓"));
         assert!(
             output
                 .stderr
                 .contains("Native accelerator kernels: not linked")
         );
+        assert!(output.stderr.contains("native_dispatch=false"));
         assert!(!output.stderr.contains("native=true"));
+        assert!(!output.stderr.contains("accelerated=\u{1b}[32myes"));
     }
 
     #[test]
