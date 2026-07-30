@@ -12,7 +12,7 @@ cd "$REPO_ROOT"
 ABI="$REPO_ROOT/target/debug/abi"
 PROFILE="${1:-abi}"
 META="${2:-{\"note\":\"wdbx-roundtrip\"}}"
-STORE="$REPO_ROOT/zig-out/skill-wdbx-roundtrip.jsonl"
+STORE="$REPO_ROOT/target/abi-smoke/skill-wdbx-roundtrip.jsonl"
 fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 step() { local label="$1"; shift; local -a markers=(); local a

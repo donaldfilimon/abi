@@ -28,13 +28,14 @@ ABI="$REPO_ROOT/target/debug/abi"
 fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 
+# The Rust port compiles SEA unconditionally: there is no `-Dfeat-sea` build
+# flag to mirror, so --sea only changes the label, not the build.
 if [ "$SEA" -eq 1 ]; then
-    say "build cli with -Dfeat-sea=true"
-    build_ok() { zig build cli -Dfeat-sea=true; }
+    say "build cli (--sea: SEA is always compiled in)"
 else
-    say "build cli (default feat-sea=true)"
-    build_ok() { ./tools/cargo.sh build -p abi-cli; }
+    say "build cli"
 fi
+build_ok() { ./tools/cargo.sh build -p abi-cli; }
 if build_ok; then echo "[ok] build"; else echo "[FAIL] build"; exit 1; fi
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
 
