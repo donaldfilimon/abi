@@ -527,6 +527,39 @@ impl Engine<'_> {
         None
     }
 
+    /// Drain the current frontier at `child_depth`, one candidate at a time.
+    ///
+    /// Returns `Some(termination)` on cancellation, deadline expiry, a
+    /// corrupt cursor, or whatever [`Engine::expand_one`] reports; `None`
+    /// once every frontier entry at this depth has been expanded.
+    fn process_frontier(&mut self, child_depth: u32) -> Option<Termination> {
+        while usize::try_from(self.result.cursor).unwrap_or(usize::MAX) < self.result.frontier.len()
+        {
+            if self.cancel.is_some_and(|flag| flag.load(Ordering::Acquire)) {
+                return Some(Termination::Cancelled);
+            }
+            if self
+                .deadline
+                .is_some_and(|deadline| Instant::now() >= deadline)
+            {
+                return Some(Termination::Deadline);
+            }
+            let Some(source) = self
+                .result
+                .frontier
+                .get(self.result.cursor as usize)
+                .copied()
+            else {
+                return Some(Termination::InvariantFailure);
+            };
+            if let Some(termination) = self.expand_one(source, child_depth) {
+                return Some(termination);
+            }
+            self.result.cursor += 1;
+        }
+        None
+    }
+
     fn evolve(&mut self) {
         let started = Instant::now();
         loop {
@@ -540,38 +573,10 @@ impl Engine<'_> {
                 break;
             }
             let child_depth = self.result.resume_depth + 1;
-            while usize::try_from(self.result.cursor).unwrap_or(usize::MAX)
-                < self.result.frontier.len()
-            {
-                if self.cancel.is_some_and(|flag| flag.load(Ordering::Acquire)) {
-                    self.result.termination = Termination::Cancelled;
-                    self.result.elapsed += started.elapsed();
-                    return;
-                }
-                if self
-                    .deadline
-                    .is_some_and(|deadline| Instant::now() >= deadline)
-                {
-                    self.result.termination = Termination::Deadline;
-                    self.result.elapsed += started.elapsed();
-                    return;
-                }
-                let Some(source) = self
-                    .result
-                    .frontier
-                    .get(self.result.cursor as usize)
-                    .copied()
-                else {
-                    self.result.termination = Termination::InvariantFailure;
-                    self.result.elapsed += started.elapsed();
-                    return;
-                };
-                if let Some(termination) = self.expand_one(source, child_depth) {
-                    self.result.termination = termination;
-                    self.result.elapsed += started.elapsed();
-                    return;
-                }
-                self.result.cursor += 1;
+            if let Some(termination) = self.process_frontier(child_depth) {
+                self.result.termination = termination;
+                self.result.elapsed += started.elapsed();
+                return;
             }
             self.result.frontier = std::mem::take(&mut self.result.next_frontier);
             self.result.cursor = 0;
