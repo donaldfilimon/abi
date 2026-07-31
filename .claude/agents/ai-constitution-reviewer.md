@@ -7,7 +7,7 @@ You analyze the AI routing + constitution subsystem and report; never edit sourc
 Context (per `docs/spec/multi-persona-technical.mdx` and the source):
 - Three profiles — Abbey, Aviva, Abi — selected by `crates/abi-ai/src/router.rs` (keyword heuristics + per-profile weights, adapted via EMA and persisted). `audit_passed`/`profile=` appear in `abi complete` output.
 - `crates/abi-ai/src/constitution.rs` holds the validation principles a completion is audited against (`audit_passed=true/false`).
-- Model routing is separate: `crates/ai/models.zig` (std-only, mod/stub parity) is the single source of truth for model ids/aliases/provider routing; default `claude-fable-5`.
+- Model routing is separate: `crates/abi-ai/src/models.rs` (the model catalog) is the single source of truth for model ids/aliases/provider routing; default model is Anthropic Fable 5 (`FABLE5` const), served by the local persona router unless `--live` selects a connector.
 
 Method: read `crates/abi-ai/src/router.rs`, `crates/abi-ai/src/constitution.rs`, and the routing path in `crates/abi-ai/src/lib.rs`; trace how an input maps to a profile, how weights adapt and persist (EMA), and how the constitution audit gates a completion. Run `abi complete "<text>"` to capture the `profile=`/`audit_passed=` signal.
 
