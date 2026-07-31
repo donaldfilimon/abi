@@ -1,5 +1,7 @@
 # ABI Skill-Set Completion Implementation Plan
 
+> **Archived:** Historical plan retained for context. Live work is tracked in `tasks/todo.md`. Zig steps are obsolete; the Rust nightly tree under `crates/` is source of truth.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Complete every skill referenced by abi's config (`.opencode.json` skills array + `slash_commands` + `superpowers.plugins`) so each has a real `SKILL.md` body with valid frontmatter and honest-stub framing; remove the six dead repo-root `abi-superpower-*` orphans; and add a reusable frontmatter validator + final sync/gate.

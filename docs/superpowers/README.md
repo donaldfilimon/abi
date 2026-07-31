@@ -5,9 +5,9 @@ Working and historical planning docs for agent workflows. **Not** listed in
 
 | Path | Role |
 | ---- | ---- |
-| [`plans/`](plans/) | Dated implementation plans (may be completed or in-flight) |
+| [`plans/`](plans/) | Active / Rust-era implementation plans |
 | [`specs/`](specs/) | Design drafts pending review or landing |
-| [`archive/`](archive/) | Superseded plans/specs — historical only |
+| [`archive/`](archive/) | Superseded plans/specs — historical only (includes completed Zig-era waves) |
 
 Published layout and claim boundaries: [Docs layout](../README.md). Active board:
 `tasks/todo.md`.

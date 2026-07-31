@@ -1,5 +1,7 @@
 # Approach-1 Waves A–C Implementation Plan
 
+> **Archived:** Historical plan retained for context. Live work is tracked in `tasks/todo.md`. Zig steps are obsolete; the Rust nightly tree under `crates/` is source of truth.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Status (2026-07-16):** Waves **A–C source work largely complete**. Remaining open items are **optional/deferred** product follow-ons or environment-dependent smokes — not Approach-1 code gates. Do **not** claim ANE / native GPU / production FHE done.

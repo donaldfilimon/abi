@@ -1,5 +1,7 @@
 # Mintlify Docs Hub Implementation Plan
 
+> **Archived:** Historical plan retained for context. Live work is tracked in `tasks/todo.md`. Zig steps are obsolete; the Rust nightly tree under `crates/` is source of truth.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Status: Completed** (hub Cards + nav landed; index hygiene closed `da2221cc` on `cursor/agent-orch-skill-docs-hygiene`). Do not re-implement the hub. Do not claim tools-split or Phase 3 product work from this plan.

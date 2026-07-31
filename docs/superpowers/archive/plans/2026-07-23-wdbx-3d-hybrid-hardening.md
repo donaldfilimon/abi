@@ -1,5 +1,7 @@
 # WDBX 3D-Spatial + Hybrid-Retrieval Hardening Implementation Plan
 
+> **Archived:** Historical plan retained for context. Live work is tracked in `tasks/todo.md`. Zig steps are obsolete; the Rust nightly tree under `crates/` is source of truth.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (` - [x] `) syntax for tracking.
 
 **Goal:** Close the 3 real gaps found in `src/features/wdbx/` against the WDBX 3D-spatial/hybrid-retrieval spec (real spatial index structure, combined semantic+3D query, runnable example + cross-compile docs) without touching anything that already satisfies it.

@@ -1,5 +1,7 @@
 # ABI Phase 2 Completion + MCP Transport Depth Implementation Plan
 
+> **Archived:** Historical plan retained for context. Live work is tracked in `tasks/todo.md`. Zig steps are obsolete; the Rust nightly tree under `crates/` is source of truth.
+
 **Status:** Completed on 2026-07-09. The tracked implementation also includes
 the follow-on local `agent multi|spawn|browser` orchestration slice. The local
 `analysis/abi/AI_NATIVE_SPEC.md` copy records the default P0 decision but remains

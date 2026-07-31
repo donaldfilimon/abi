@@ -21,9 +21,9 @@ use abi_connectors::{
 };
 use abi_foundation::credentials::{self, CredentialField};
 use abi_sea::{LearnLoopConfig, run_learn_loop};
-use abi_wdbx::{DurableStore, StorePaths};
 
 use crate::app::Outcome;
+use crate::util;
 
 const USAGE: &str = "usage: abi complete [--live] [--stream] [--learn] [--neural] [--soul <file>] [--soul-alpha <0..1>] [--model <id>] [--confirm] [--] <input>";
 
@@ -44,24 +44,6 @@ struct MetaReport<'a> {
     block_hex: Option<&'a str>,
     wdbx_status: Option<&'a str>,
     output: &'a str,
-}
-
-/// Resolve the durable store the same way MCP does, or `None` for in-memory.
-fn open_store() -> Option<DurableStore> {
-    if let Ok(path) = std::env::var("ABI_WDBX_PATH") {
-        if path == ":memory:" {
-            return None;
-        }
-        return DurableStore::open(StorePaths::new(path)).ok();
-    }
-    if matches!(
-        std::env::var("ABI_WDBX_PERSIST").as_deref(),
-        Ok("0" | "false" | "no" | "off")
-    ) {
-        return None;
-    }
-    let home = std::env::var("HOME").ok()?;
-    DurableStore::open(StorePaths::new(format!("{home}/.abi/wdbx"))).ok()
 }
 
 fn render_local(report: &MetaReport<'_>) -> String {
@@ -116,7 +98,7 @@ fn run_local(input: &str, model: &str) -> Outcome {
         return Outcome::stderr("error: completion input must not be empty\n".to_owned(), 1);
     };
 
-    let mut store = open_store();
+    let mut store = util::open_store();
     let (persisted, qid, rid, hex, kv, vectors, blocks, status) =
         if let Some(store) = store.as_mut() {
             let before = store.stats();
@@ -196,7 +178,7 @@ fn run_local(input: &str, model: &str) -> Outcome {
 }
 
 fn run_learn(input: &str, model: &str) -> Outcome {
-    let Some(mut store) = open_store() else {
+    let Some(mut store) = util::open_store() else {
         return run_local(input, model);
     };
     let before = store.stats();
@@ -533,9 +515,22 @@ fn run_soul(input: &str, soul_path: &str, blend_alpha: f32) -> Outcome {
     }
 }
 
-/// Dispatch `abi complete …` (args after the command token).
+/// Parsed `abi complete` flags after the command token.
+#[allow(clippy::struct_excessive_bools)]
+struct CompleteRequest {
+    learn: bool,
+    neural: bool,
+    live: bool,
+    stream: bool,
+    confirm: bool,
+    soul_path: Option<String>,
+    soul_alpha: Option<f32>,
+    model: String,
+    input: String,
+}
+
 #[allow(clippy::too_many_lines)]
-pub(crate) fn run(args: &[String]) -> Outcome {
+fn parse_complete_args(args: &[String]) -> Result<CompleteRequest, Outcome> {
     let mut learn = false;
     let mut neural = false;
     let mut live = false;
@@ -584,10 +579,10 @@ pub(crate) fn run(args: &[String]) -> Outcome {
                 "--soul" => {
                     i += 1;
                     let Some(value) = args.get(i) else {
-                        return Outcome::stderr(
+                        return Err(Outcome::stderr(
                             "error: --soul requires a JSON file path\n".into(),
                             2,
-                        );
+                        ));
                     };
                     soul_path = Some(value.clone());
                     i += 1;
@@ -596,22 +591,22 @@ pub(crate) fn run(args: &[String]) -> Outcome {
                 "--soul-alpha" => {
                     i += 1;
                     let Some(value) = args.get(i) else {
-                        return Outcome::stderr(
+                        return Err(Outcome::stderr(
                             "error: --soul-alpha requires a number in [0.0, 1.0]\n".into(),
                             2,
-                        );
+                        ));
                     };
                     let Ok(alpha) = value.parse::<f32>() else {
-                        return Outcome::stderr(
+                        return Err(Outcome::stderr(
                             "error: --soul-alpha must be a number in [0.0, 1.0]\n".into(),
                             2,
-                        );
+                        ));
                     };
                     if !(0.0..=1.0).contains(&alpha) {
-                        return Outcome::stderr(
+                        return Err(Outcome::stderr(
                             "error: --soul-alpha must be a number in [0.0, 1.0]\n".into(),
                             2,
-                        );
+                        ));
                     }
                     soul_alpha = Some(alpha);
                     i += 1;
@@ -620,14 +615,14 @@ pub(crate) fn run(args: &[String]) -> Outcome {
                 "--model" => {
                     i += 1;
                     let Some(value) = args.get(i) else {
-                        return Outcome::stderr(format!("error: {USAGE}\n"), 2);
+                        return Err(Outcome::stderr(format!("error: {USAGE}\n"), 2));
                     };
                     model = models::canonical(value).to_string();
                     i += 1;
                     continue;
                 }
                 flag if flag.starts_with('-') => {
-                    return Outcome::stderr(format!("error: {USAGE}\n"), 2);
+                    return Err(Outcome::stderr(format!("error: {USAGE}\n"), 2));
                 }
                 _ => {}
             }
@@ -637,56 +632,77 @@ pub(crate) fn run(args: &[String]) -> Outcome {
     }
 
     if input_parts.is_empty() {
-        return Outcome::stderr(format!("error: {USAGE}\n"), 2);
+        return Err(Outcome::stderr(format!("error: {USAGE}\n"), 2));
     }
     if soul_alpha.is_some() && soul_path.is_none() {
-        return Outcome::stderr("error: --soul-alpha requires --soul <file>\n".into(), 2);
+        return Err(Outcome::stderr(
+            "error: --soul-alpha requires --soul <file>\n".into(),
+            2,
+        ));
     }
     if soul_path.is_some() && (neural || live || learn) {
-        return Outcome::stderr(
+        return Err(Outcome::stderr(
             "error: --soul cannot combine with --neural, --live, or --learn\n".into(),
             2,
-        );
+        ));
     }
     if neural && (learn || live) {
-        return Outcome::stderr(
+        return Err(Outcome::stderr(
             "error: --neural cannot combine with --live or --learn\n".into(),
             2,
-        );
+        ));
     }
     if neural && model != models::DEFAULT_MODEL {
-        return Outcome::stderr(
+        return Err(Outcome::stderr(
             "error: --neural is mutually exclusive with --model\n".into(),
             2,
-        );
+        ));
     }
-    let input = input_parts.join(" ");
-    if let Some(path) = soul_path {
-        return run_soul(&input, &path, soul_alpha.unwrap_or(0.5));
+    Ok(CompleteRequest {
+        learn,
+        neural,
+        live,
+        stream,
+        confirm,
+        soul_path,
+        soul_alpha,
+        model,
+        input: input_parts.join(" "),
+    })
+}
+
+/// Dispatch `abi complete …` (args after the command token).
+pub(crate) fn run(args: &[String]) -> Outcome {
+    let req = match parse_complete_args(args) {
+        Ok(req) => req,
+        Err(outcome) => return outcome,
+    };
+    if let Some(path) = req.soul_path {
+        return run_soul(&req.input, &path, req.soul_alpha.unwrap_or(0.5));
     }
-    if neural {
-        return run_neural(&input);
+    if req.neural {
+        return run_neural(&req.input);
     }
-    if live {
-        if models::provider_of(&model) == models::Provider::Fm {
-            return run_fm_complete(&input, &model, confirm);
+    if req.live {
+        if models::provider_of(&req.model) == models::Provider::Fm {
+            return run_fm_complete(&req.input, &req.model, req.confirm);
         }
-        return run_live_complete(&input, &model, stream);
+        return run_live_complete(&req.input, &req.model, req.stream);
     }
     // Local OpenAI-compatible bridge (llama/ollama/mlx/…) — explicit model id.
-    if is_local_bridge_model(&model) {
-        return run_local_bridge(&input, &model, stream);
+    if is_local_bridge_model(&req.model) {
+        return run_local_bridge(&req.input, &req.model, req.stream);
     }
-    if stream {
+    if req.stream {
         return Outcome::stderr(
             "error: --stream requires --live (Anthropic SSE) or a local-bridge --model id\n".into(),
             2,
         );
     }
-    if learn {
-        run_learn(&input, &model)
+    if req.learn {
+        run_learn(&req.input, &req.model)
     } else {
-        run_local(&input, &model)
+        run_local(&req.input, &req.model)
     }
 }
 

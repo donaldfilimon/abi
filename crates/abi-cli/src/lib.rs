@@ -13,10 +13,12 @@ mod backends;
 mod complete;
 mod dashboard;
 mod nn;
+mod os;
 mod plugin;
 mod terminal;
 mod train;
 mod twilio;
+mod util;
 
 /// Serialization for tests that read or write the process-global telemetry table.
 ///
