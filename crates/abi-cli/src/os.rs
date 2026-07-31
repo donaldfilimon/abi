@@ -1,9 +1,16 @@
 //! `abi agent os` — OS command execution with timeout, env filtering, and audit.
 //!
-//! Dry-run and execute both gate on the allowlist (`true`, `pwd`, `ls`,
-//! `whoami`, `date`). Execute (`--confirm`) adds a 30-second timeout and
-//! filtered environment variables.
+//! **Dry-run is read-only by design and accepts any command.** It never spawns
+//! a process; it renders the plan and discloses whether `execute` would permit
+//! the command. **Execute (`--confirm`) is the gated path** — it still refuses
+//! anything outside the allowlist (`true`, `pwd`, `ls`, `whoami`, `date`), and
+//! adds a 30-second timeout plus filtered environment variables.
+//!
+//! Splitting the two matters: describing a command is not running it, so
+//! denying `dry-run rm -rf /` bought no safety while making the planning path
+//! useless for anything the allowlist had not already blessed.
 
+use std::fmt::Write as _;
 use std::io::Read as _;
 use std::time::{Duration, Instant};
 
@@ -141,7 +148,10 @@ pub(crate) fn os_cmd(args: &[String]) -> Outcome {
     let cmd = rest[0].as_str();
     let cmd_args: Vec<&str> = rest[1..].iter().map(String::as_str).collect();
 
-    if !OS_ALLOWED.contains(&cmd) {
+    let permitted = OS_ALLOWED.contains(&cmd);
+
+    // Execute is the gated path. Dry-run falls through: it only describes.
+    if execute && !permitted {
         return Outcome::stderr("error: command denied by os-control policy\n".into(), 1);
     }
 
@@ -155,8 +165,25 @@ pub(crate) fn os_cmd(args: &[String]) -> Outcome {
         .join(", ");
 
     if dry_run {
-        let out =
-            format!("dry-run: cwd=\"{cwd}\" argv=[{argv_list}] resolved_argv=[\"{resolved}\"]\n");
+        // `resolve_command_path` echoes the input for anything it does not know
+        // an absolute path for, so say "unresolved" rather than implying the
+        // bare name would be found on PATH.
+        let resolved_field = if permitted {
+            format!("resolved_argv=[\"{resolved}\"]")
+        } else {
+            format!("resolved_argv=[\"{resolved}\"] (unresolved)")
+        };
+        let policy = if permitted { "allowed" } else { "denied" };
+        let mut out =
+            format!("dry-run: cwd=\"{cwd}\" argv=[{argv_list}] {resolved_field} policy={policy}\n");
+        if !permitted {
+            let allowed = OS_ALLOWED.join(", ");
+            let _ = writeln!(
+                out,
+                "note: execute would refuse — \"{cmd}\" is not in the os-control allowlist ({allowed})"
+            );
+        }
+        // Planning succeeded even when the plan is one `execute` would reject.
         return Outcome {
             stdout: out,
             stderr: String::new(),
@@ -191,15 +218,46 @@ mod tests {
     use super::*;
 
     #[test]
-    fn os_dry_run_allows_ls_and_denies_rm() {
+    fn os_dry_run_marks_an_allowlisted_command_allowed() {
         let ok = os_cmd(&["dry-run".into(), "ls".into()]);
         assert_eq!(ok.exit_code, 0, "{}", ok.stderr);
         assert!(ok.stdout.contains("dry-run:"));
         assert!(ok.stdout.contains("argv=[\"ls\"]"));
+        assert!(ok.stdout.contains("policy=allowed"));
+        assert!(!ok.stdout.contains("unresolved"));
+        assert!(!ok.stdout.contains("note:"));
+    }
 
-        let bad = os_cmd(&["dry-run".into(), "rm".into()]);
-        assert_eq!(bad.exit_code, 1);
-        assert!(bad.stderr.contains("denied"));
+    #[test]
+    fn os_dry_run_describes_a_denied_command_without_running_it() {
+        // Read-only by design: planning `rm -rf /tmp/x` must succeed and say
+        // plainly that execute would refuse it. Nothing is spawned here.
+        let planned = os_cmd(&[
+            "dry-run".into(),
+            "rm".into(),
+            "-rf".into(),
+            "/tmp/abi-nonexistent".into(),
+        ]);
+        assert_eq!(planned.exit_code, 0, "{}", planned.stderr);
+        assert!(planned.stderr.is_empty());
+        assert!(
+            planned
+                .stdout
+                .contains("argv=[\"rm\", \"-rf\", \"/tmp/abi-nonexistent\"]")
+        );
+        assert!(planned.stdout.contains("policy=denied"));
+        assert!(planned.stdout.contains("(unresolved)"));
+        assert!(planned.stdout.contains("execute would refuse"));
+        assert!(planned.stdout.contains("whoami"), "lists the allowlist");
+    }
+
+    #[test]
+    fn os_execute_still_refuses_anything_off_the_allowlist() {
+        // Broadening dry-run must not broaden the path that actually spawns.
+        let denied = os_cmd(&["execute".into(), "--confirm".into(), "rm".into()]);
+        assert_eq!(denied.exit_code, 1);
+        assert!(denied.stderr.contains("denied by os-control policy"));
+        assert!(denied.stdout.is_empty());
     }
 
     #[test]

@@ -51,6 +51,19 @@ See `docs/superpowers/plans/2026-07-31-rust-647-followups.md`.
 
 ---
 
+## OS control (goal: "Improve OS control safety and flexibility")
+
+| Item | Status | Notes |
+| ---- | ------ | ----- |
+| 30s execute timeout | ✅ | `exec_command_with_timeout`; stdout/stderr drained on threads so a chatty command cannot deadlock the pipe before the timeout |
+| Env filtering | ✅ | `env_clear()` then re-add only non-`ABI_*` / `*SECRET*` / `*TOKEN*` / `*KEY*` / `*PASSWORD*` / `*CREDENTIAL*` |
+| Dry-run accepts any command | ✅ | Read-only by design; emits `policy=allowed\|denied` + allowlist note. Execute stays gated |
+| Configurable timeout | ⚪ | Fixed 30s constant today |
+| WDBX audit block for executed commands | ⚪ | Currently a single `[os-cmd]` stderr line, not persisted |
+| `~/.abi/os-policy.toml` | ⚪ | Allowlist is a hardcoded `OS_ALLOWED` const |
+
+---
+
 ## Docs hygiene
 
 | Item | Status | Notes |

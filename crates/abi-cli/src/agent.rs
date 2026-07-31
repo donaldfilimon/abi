@@ -712,17 +712,8 @@ mod tests {
         assert!(outcome.stdout.contains("[ABI]"));
     }
 
-    #[test]
-    fn os_dry_run_allows_ls_and_denies_rm() {
-        let ok = os::os_cmd(&["dry-run".into(), "ls".into()]);
-        assert_eq!(ok.exit_code, 0, "{}", ok.stderr);
-        assert!(ok.stdout.contains("dry-run:"));
-        assert!(ok.stdout.contains("argv=[\"ls\"]"));
-
-        let bad = os::os_cmd(&["dry-run".into(), "rm".into()]);
-        assert_eq!(bad.exit_code, 1);
-        assert!(bad.stderr.contains("denied"));
-    }
+    // Dry-run/execute policy behavior is covered by the tests that live next to
+    // it in `crate::os`; this module only checks the dispatch wiring below.
 
     #[test]
     fn os_execute_requires_confirm() {
