@@ -81,7 +81,7 @@ public exposure.
   `abi-telemetry`, `abi-cli`, `abi-mcp`).
 - Prefer explicit `Result` / typed errors; no silent swallow on persistence,
   inference, or connector paths.
-- Plugin mod/stub parity is a Rust trait + compile-time check (not a Zig script).
+- Plugin mod/stub parity is a Rust trait + compile-time check (see `crates/abi-plugins`).
 
 **Commands cheat sheet:**
 | Goal | Command |

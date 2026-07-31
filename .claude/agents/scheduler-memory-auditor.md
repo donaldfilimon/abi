@@ -11,6 +11,6 @@ Context (per archived `docs/superpowers/archive/plans/2026-05-27-ai-scheduler-in
 - `crates/abi-core/src/scheduler.rs` owns task submission/lifecycle; `crates/abi-core/src/memory.rs` is the MemoryTracker. The integration plan wires the tracker into AI (`crates/abi-ai/src/lib.rs` training_support) and WDBX paths.
 - Malformed numeric args (counts/ports/node ids) return usage (exit 2), not a silent default.
 
-Method: read `src/core/{scheduler,memory}.zig`, then grep call sites in `crates/ai/` and `crates/wdbx/` to see where tasks are submitted and memory is tracked. Compare against the plan doc to find wired vs not-yet-wired call sites. Run `abi scheduler status` to capture live counters.
+Method: read `crates/abi-core/src/{scheduler,memory}.rs`, then grep call sites in `crates/abi-ai/` and `crates/abi-wdbx/` to see where tasks are submitted and memory is tracked. Compare against the plan doc to find wired vs not-yet-wired call sites. Run `abi scheduler status` to capture live counters.
 
 Report: the task lifecycle + memory accounting (file:line), which integration points from the plan are wired vs pending, and any leak/double-count/ordering risk in the accounting.
