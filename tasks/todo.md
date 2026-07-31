@@ -31,7 +31,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 | `crates/abi-cli/src/wdbx.rs` split | ✅ | Thin `wdbx/mod.rs` + `db`/`block`/`query`/`cluster`/`api`/`benchmark`/`compute`/`secure`/`gpu`; goldens byte-identical. |
 | `crates/abi-wdbx/src/format.rs` split | ✅ | Facade + `hash`/`record`/`segment`/`manifest`; 34 format tests green. |
 | `crates/abi-wdbx/src/wal.rs` dedup | ✅ | Shared `Mutation` serde enum for all `append_*` frames. |
-| `crates/abi-cli/src/agent.rs` decomposition | ◑ | `util::open_store` + `os` module extracted (timeout/env filter). Line-mode REPL still in `agent.rs` (`repl.rs` extract exists but unwired). |
+| `crates/abi-cli/src/agent.rs` decomposition | ◑ | `util::open_store` + `os` module extracted (timeout/env filter). Line-mode REPL still lives inline in `agent.rs` (no `repl.rs` yet). |
 | `crates/abi-cli/src/complete.rs` split | ✅ | `parse_complete_args` + `CompleteRequest` separated from dispatch. |
 
 > Each row: pure refactor, no behavior change. `./tools/check.sh` green + golden fixtures byte-identical before marking ✅.
