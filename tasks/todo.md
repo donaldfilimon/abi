@@ -23,6 +23,21 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ---
 
+## Cleanup / refactor backlog (goal: "Cleanup and refactor Rust 2024 nightly abi codebase")
+
+| Item | Status | Notes |
+| ---- | ------ | ----- |
+| `crates/abi-wdbx/src/multiway.rs` decomposition | ✅ | `evolve()`'s frontier-draining loop extracted to `process_frontier()`; elapsed-time bookkeeping now happens once instead of at 4 duplicated early-return sites. 12/12 multiway tests + full gate green. |
+| `crates/abi-cli/src/wdbx.rs` split | ⚪ | ~1476 lines / 41 free fns → `db.rs`, `block.rs`, `query.rs`, `cluster.rs` |
+| `crates/abi-wdbx/src/format.rs` split | ⚪ | ~1248 lines; separate Hash/Record/Segment/Manifest into own modules |
+| `crates/abi-wdbx/src/wal.rs` dedup | ⚪ | ~1102 lines; 7 `append_*` fns each redefine an identical `Mutation` struct — factor to one shared type |
+| `crates/abi-cli/src/agent.rs` decomposition | ⚪ | ~1052 lines |
+| `crates/abi-cli/src/complete.rs` split | ⚪ | ~856 lines; 154-line `run()` mixes arg-parse, validation, dispatch — split into stages |
+
+> Each row: pure refactor, no behavior change. `./tools/check.sh` green + golden fixtures byte-identical before marking ✅.
+
+---
+
 ## Disclosed residuals (do NOT fake-complete)
 
 | Item | Status | Constraint |
