@@ -12,7 +12,10 @@ ABI is a **nightly Rust** framework for local AI service orchestration, semantic
 vector storage (WDBX), claim-honest GPU capability reporting, and an MCP server.
 The Zig implementation that used to live under `src/` has been fully replaced;
 see `RUST-REWRITE-PLAN.md` for the port history if you find stale Zig references
-in older docs.
+in older docs. All live code is under `crates/` — the surviving root `src/`
+holds only a `plugins/.central-synced` marker, not source. Note that
+`.github/copilot-instructions.md` has **not** been ported and still describes the
+Zig build (`zig build`, `-Dfeat-*`, `src/features/`); ignore it.
 
 ## Toolchain — read this before running anything
 
@@ -31,7 +34,8 @@ in older docs.
 | `./build.sh check` | Thin compat wrapper → `./tools/check.sh` |
 | `./tools/cargo.sh build -p abi-cli` | Build `target/debug/abi` |
 | `./tools/cargo.sh build -p abi-mcp` | Build `target/debug/abi-mcp` |
-| `./tools/cargo.sh test -p <crate> --lib -- <filter>` | Focused unit tests, e.g. `./tools/cargo.sh test -p abi-wdbx --lib -- wal::` |
+| `./tools/cargo.sh test -p <crate> --lib -- <filter>` | Focused **unit** tests (in-module `#[cfg(test)]`), e.g. `./tools/cargo.sh test -p abi-wdbx --lib -- wal::` |
+| `./tools/cargo.sh test -p <crate> --test <name>` | A single **integration** test target under `crates/<crate>/tests/`, e.g. `--test golden`. `--lib` cannot reach these. |
 | `./tools/cargo.sh test --workspace` | Full test suite (also run by `check.sh`) |
 | `./tools/cargo.sh fmt --all` | Apply rustfmt |
 | `./tools/cargo.sh clippy --workspace --all-targets -- -D warnings` | Lint, matching the gate exactly |
@@ -58,22 +62,23 @@ $ABI wdbx stats
 
 ## Architecture
 
-Cargo workspace, one crate per concern, under `crates/*`. Dependency direction
-runs roughly top-to-bottom (later crates depend on earlier ones):
+Cargo workspace, one crate per concern, under `crates/*`, listed in dependency
+order — every crate depends only on crates above it. (Confirm with
+`grep -oE '^abi-[a-z]+' crates/<crate>/Cargo.toml` rather than trusting prose.)
 
 | Crate | Role |
 |---|---|
 | `abi-foundation` | Shared primitives (errors, env, time, validation, JSON, logging). No dependency on any other ABI crate — everything builds on this. |
-| `abi-core` | Config, task scheduler, memory accounting, plugin registry. Depends only on `abi-foundation`. |
-| `abi-telemetry` | Bounded, process-wide counters; insertion order preserved because CLI Prometheus exposition is a captured compatibility surface. |
-| `abi-ai` | Persona identity, routing (Abbey/Aviva/Abi), generation, governance/constitution. **Pure**: no WDBX dependency, no I/O, fully deterministic — this is what makes `ai_run` byte-reproducible and golden-testable. |
-| `abi-sea` | SEA (Sparse Evidence Attention) self-learning loop: recalls prior WDBX records relevant to an input, prepends them as context, runs adaptive completion, updates persona-router weights. |
-| `abi-nn` | Tiny character-level neural-net demo trainer — explicitly **not** a production LLM, not distributed. |
-| `abi-gpu` | Claim-honest GPU/accelerator backend detection. Metal preferred on macOS; `accelerated=true` only when the optional `metal-kernels` feature actually links and initializes a Metal DOT pipeline, otherwise deterministic CPU SIMD fallback with `accelerated=false`. Also hosts claim-honest shaders/MLIR/mobile report surfaces. |
-| `abi-wdbx` | The vector store: on-disk format, checkpoint publication/salvage, CRC-framed WAL recovery, exact-search + layered HNSW index, durable store integration, loopback REST, reference-scoped cluster protocol, 3-D spatial index, and reference quantization/Huffman/rANS/autoencoder codecs. This is the largest and most contract-sensitive crate (~14k LOC). |
+| `abi-telemetry` | Bounded, process-wide counters; insertion order preserved because CLI Prometheus exposition is a captured compatibility surface. No ABI dependencies. |
+| `abi-nn` | Tiny character-level neural-net demo trainer — explicitly **not** a production LLM, not distributed. No ABI dependencies. |
+| `abi-core` | Config, task scheduler, memory accounting, plugin registry. Depends on `abi-foundation` + `abi-telemetry`. |
 | `abi-connectors` | External-service connectors (OpenAI, Anthropic, Grok, Discord, Twilio) built around a `Transport` trait. Every connector has a local and a live transport — see "The local/live split" below. |
+| `abi-ai` | Persona identity, routing (Abbey/Aviva/Abi), generation, governance/constitution, and the model catalog (`models.rs`, default `claude-fable-5`). **Pure**: no WDBX dependency, no I/O, fully deterministic — this is what makes `ai_run` byte-reproducible and golden-testable. |
 | `abi-plugins` | The 16 bundled plugins plus the plugin manager. Each plugin ships as a compiled-in `mod.rs`/`stub.rs` pair under `crates/abi-plugins/plugins/`, checked with `assert_plugin_parity!`. `abi plugin run` and the MCP `plugin_run` tool dispatch through the same `PluginManager` over the same `BUNDLED` table. |
-| `abi-cli` (bin `abi`) | Command metadata, help rendering, process dispatch. The help surface is a stable, golden-tested contract boundary. |
+| `abi-wdbx` | The vector store: on-disk format, checkpoint publication/salvage, CRC-framed WAL recovery, exact-search + layered HNSW index, durable store integration, loopback REST, reference-scoped cluster protocol, 3-D spatial index, and reference quantization/Huffman/rANS/autoencoder codecs. This is the largest and most contract-sensitive crate (~14k LOC). |
+| `abi-gpu` | Claim-honest GPU/accelerator backend detection — note it depends on `abi-wdbx`, not the reverse. Metal preferred on macOS; the `metal-kernels` feature is **on by default**, but `accelerated=true` additionally requires the Metal DOT pipeline to actually link and initialize at runtime — otherwise deterministic CPU SIMD fallback with `accelerated=false`. Also hosts claim-honest shaders/MLIR/mobile report surfaces. |
+| `abi-sea` | SEA (Sparse Evidence Attention) self-learning loop: recalls prior WDBX records relevant to an input, prepends them as context, runs adaptive completion, updates persona-router weights. |
+| `abi-cli` (bin `abi`) | Command metadata, help rendering, process dispatch. Depends on every crate above. The help surface is a stable, golden-tested contract boundary. |
 | `abi-mcp` (bin `abi-mcp`) | JSON-RPC MCP server: the frozen 12-tool surface over stdio (primary, 64 KB frame cap) plus optional loopback-only HTTP/SSE. |
 
 ### The local/live split (connectors)
@@ -96,8 +101,18 @@ timeout, and escapes TwiML/form payloads before dispatch either way.
   `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`.
 - Golden fixtures pinning these live under `tests/golden/` (help text, MCP
   JSON-RPC call/response pairs, WDBX sample segments/manifest, shell completion
-  scripts for bash/zsh/fish/PowerShell). Changing frozen-surface output means
+  scripts for bash/zsh/fish — `powershell` is explicitly rejected as a
+  malformed shell argument, see `app.rs`). Changing frozen-surface output means
   updating the corresponding golden file deliberately, not incidentally.
+- The fixtures are pulled in with `include_str!`/`include_bytes!`, so editing a
+  file under `tests/golden/` requires a rebuild, not just a re-run. The
+  assertions live in:
+  - `crates/abi-cli/tests/golden.rs`, `crates/abi-cli/tests/process.rs` — CLI
+    help text/JSON, `backends`, completion scripts.
+  - `crates/abi-mcp/src/rpc.rs` — `initialize`, `tools/list` (tool order is
+    contract order, **not** alphabetical — see `handlers.rs`), `tools/call`.
+  - `crates/abi-core/tests/golden_scheduler.rs`, `crates/abi-core/src/registry.rs`
+    — scheduler status and the 16-plugin listing.
 
 ## Claims discipline
 
@@ -114,6 +129,29 @@ native CUDA/ANE kernels. Concretely:
   than fabricating a reply.
 - See `docs/contracts/external-claims-audit.mdx` for the full policy before
   writing docs/README/CHANGELOG copy that describes capabilities.
+
+## Environment variables
+
+`crates/abi-foundation/src/env.rs` is the single registry for every `ABI_*` var —
+constants plus the `get`/`get_or`/`get_bool`/`get_parsed` accessors and the
+`set_override`/`reset_overrides`/`lock_for_test` hooks tests use instead of
+mutating the real process environment. Add new vars there; don't scatter raw
+`std::env::var` calls.
+
+| Var | Effect |
+|---|---|
+| `ABI_WDBX_PATH` | Store path; `:memory:` for a non-persisting store |
+| `ABI_WDBX_PERSIST` | `0` disables persistence |
+| `ABI_WDBX_ALLOW_MEMORY_FALLBACK` | Permit falling back to memory when the path is unusable |
+| `ABI_WDBX_REST_PORT` / `ABI_WDBX_REST_TOKEN` | Loopback REST listener port / bearer token |
+| `ABI_WDBX_RATE_LIMIT_CAPACITY` / `ABI_WDBX_RATE_LIMIT_REFILL` | REST token-bucket tuning |
+| `ABI_WDBX_TLS_CERT` / `ABI_WDBX_TLS_KEY` | REST TLS material |
+| `ABI_WDBX_CLUSTER_PEERS` / `ABI_WDBX_CLUSTER_TOKEN` | Reference cluster peer list / shared token |
+| `ABI_MCP_HTTP_PORT` / `ABI_MCP_HTTP_TOKEN` | Loopback MCP HTTP/SSE port / bearer token (stdio stays tokenless) |
+| `ABI_LLAMA_CPP_ENDPOINT` / `ABI_MLX_ENDPOINT` | Local inference endpoints |
+| `ABI_MCP_AUTO_BUILD` | `mcp/launcher.sh` only — build the server on demand |
+
+Bearer tokens here are loopback-only hardening, not a TLS substitute.
 
 ## Store safety
 
@@ -137,14 +175,21 @@ existing golden fixtures still cover the new path.
 
 ## Code quality hotspots
 
-These files exceed 1000 lines and warrant decomposing before large edits
-rather than growing further in place:
+Re-measure before trusting this table — it goes stale as work lands
+(`find crates -name '*.rs' -exec wc -l {} + | sort -rn | head`).
+
+Over 1000 lines; decompose before adding to them:
 
 | File | Lines | Notes |
 |---|---|---|
-| `crates/abi-wdbx/src/multiway.rs` | ~1738 | `evolve()` is a 52-line loop with 13 exits; manual JSON serialization throughout |
-| `crates/abi-cli/src/wdbx.rs` | ~1476 | 41 free functions in one flat file; natural split is `db.rs`/`block.rs`/`query.rs`/`cluster.rs` |
-| `crates/abi-wdbx/src/format.rs` | ~1248 | Four domain types (Hash, Record, Segment, Manifest) coiled into one file |
-| `crates/abi-wdbx/src/wal.rs` | ~1102 | Seven `append_*` functions each redefine an identical `#[derive(Serialize)] struct Mutation` |
-| `crates/abi-cli/src/agent.rs` | ~1052 | `open_store()` already extracted to `crate::util` (was duplicated with `complete.rs`) |
-| `crates/abi-cli/src/complete.rs` | ~856 | 154-line `run()` mixes arg-parse, validation, and dispatch |
+| `crates/abi-wdbx/src/multiway.rs` | ~1743 | Manual JSON serialization throughout; the `evolve()` frontier loop has been extracted to a helper |
+| `crates/abi-wdbx/src/wal.rs` | ~1057 | Seven `append_*` functions each redefine an identical `#[derive(Serialize)] struct Mutation` |
+
+Watch list (850–1000 lines — not yet over the line, but the next candidates):
+`crates/abi-cli/src/agent.rs` (~951), `crates/abi-wdbx/src/hnsw.rs` (~941),
+`crates/abi-wdbx/src/store.rs` (~933), `crates/abi-cli/src/complete.rs` (~896),
+`crates/abi-core/src/scheduler.rs` (~883).
+
+Already split — don't recreate the flat versions: `crates/abi-cli/src/wdbx.rs` is
+now the `wdbx/` module directory, and `crates/abi-wdbx/src/format.rs` is down to
+~444 lines.
