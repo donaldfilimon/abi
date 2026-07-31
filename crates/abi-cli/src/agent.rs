@@ -15,13 +15,12 @@ use abi_ai::{
     training_vectors,
 };
 use abi_core::{MemoryTracker, Scheduler, TaskPriority};
-use abi_wdbx::{DurableStore, StorePaths};
 
 use crate::app::Outcome;
+use crate::os;
+use crate::util;
 
 const USAGE: &str = "usage: abi agent <plan|train|tui|multi|spawn|browser|os> ...";
-
-const OS_ALLOWED: &[&str] = &["true", "pwd", "ls", "whoami", "date"];
 
 fn print_scheduler_stats(out: &mut String, stats: abi_core::Stats) {
     let _ = writeln!(
@@ -33,23 +32,6 @@ fn print_scheduler_stats(out: &mut String, stats: abi_core::Stats) {
 
 fn print_memory_stats(out: &mut String, peak: usize, records: usize) {
     let _ = writeln!(out, "memory (tracker): peak={peak}B records={records}");
-}
-
-fn open_store() -> Option<DurableStore> {
-    if let Ok(path) = std::env::var("ABI_WDBX_PATH") {
-        if path == ":memory:" {
-            return None;
-        }
-        return DurableStore::open(StorePaths::new(path)).ok();
-    }
-    if matches!(
-        std::env::var("ABI_WDBX_PERSIST").as_deref(),
-        Ok("0" | "false" | "no" | "off")
-    ) {
-        return None;
-    }
-    let home = std::env::var("HOME").ok()?;
-    DurableStore::open(StorePaths::new(format!("{home}/.abi/wdbx"))).ok()
 }
 
 fn plan(input: &str) -> Outcome {
@@ -154,7 +136,7 @@ fn train_profile(profile_arg: &str) -> Outcome {
     }
     let _ = scheduler.run_all();
 
-    let mut store = open_store();
+    let mut store = util::open_store();
     let mut out = String::from("training executed via scheduler (real tasks, not demos)\n");
     print_scheduler_stats(&mut out, scheduler.stats());
     print_memory_stats(&mut out, tracker.peak_usage(), tracker.record_count());
@@ -195,108 +177,6 @@ fn train_profile(profile_arg: &str) -> Outcome {
         stdout: out,
         stderr: String::new(),
         exit_code: 0,
-    }
-}
-
-fn resolve_allowlisted(cmd: &str) -> Option<&'static str> {
-    match cmd {
-        "true" => Some("/usr/bin/true"),
-        "pwd" => Some("/bin/pwd"),
-        "ls" => Some("/bin/ls"),
-        "whoami" => Some("/usr/bin/whoami"),
-        "date" => Some("/bin/date"),
-        _ => None,
-    }
-}
-
-fn os_cmd(args: &[String]) -> Outcome {
-    if args.is_empty() {
-        return Outcome::stderr(
-            "error: usage: abi agent os <dry-run|execute --confirm> <cmd> [args...]\n".into(),
-            2,
-        );
-    }
-    let mode = args[0].as_str();
-    let execute = mode == "execute";
-    let dry_run = mode == "dry-run";
-    if !execute && !dry_run {
-        return Outcome::stderr(
-            "error: usage: abi agent os <dry-run|execute --confirm> <cmd> [args...]\n".into(),
-            2,
-        );
-    }
-    let rest = if execute {
-        if args.len() < 2 || args[1] != "--confirm" {
-            return Outcome::stderr(
-                "error: usage: abi agent os execute --confirm <cmd> [args...]\n".into(),
-                2,
-            );
-        }
-        &args[2..]
-    } else {
-        &args[1..]
-    };
-    if rest.is_empty() {
-        return Outcome::stderr(
-            "error: usage: abi agent os <dry-run|execute --confirm> <cmd> [args...]\n".into(),
-            2,
-        );
-    }
-    let cmd = rest[0].as_str();
-    let cmd_args: Vec<&str> = rest[1..].iter().map(String::as_str).collect();
-
-    if !OS_ALLOWED.contains(&cmd) {
-        return Outcome::stderr("error: command denied by os-control policy\n".into(), 1);
-    }
-
-    let Some(resolved) = resolve_allowlisted(cmd) else {
-        return Outcome::stderr("error: command denied by os-control policy\n".into(), 1);
-    };
-
-    let cwd = std::env::current_dir().map_or_else(|_| ".".into(), |p| p.display().to_string());
-
-    if dry_run {
-        let argv_list = std::iter::once(cmd)
-            .chain(cmd_args.iter().copied())
-            .map(|s| format!("\"{s}\""))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let out =
-            format!("dry-run: cwd=\"{cwd}\" argv=[{argv_list}] resolved_argv=[\"{resolved}\"]\n");
-        return Outcome {
-            stdout: out,
-            stderr: String::new(),
-            exit_code: 0,
-        };
-    }
-
-    // execute --confirm: still refuse by default in this slice for safety unless
-    // the allow-list command is one of the read-only probes. We only run true/pwd/whoami/date/ls.
-    let mut command = std::process::Command::new(resolved);
-    command.args(&cmd_args);
-    command.current_dir(&cwd);
-    match command.output() {
-        Ok(output) => {
-            let mut text = String::new();
-            text.push_str(&String::from_utf8_lossy(&output.stdout));
-            if !output.stderr.is_empty() {
-                text.push_str(&String::from_utf8_lossy(&output.stderr));
-            }
-            if text.is_empty() {
-                text = format!(
-                    "executed {cmd} exit={}\n",
-                    output.status.code().unwrap_or(-1)
-                );
-            }
-            let code = output.status.code().unwrap_or(1);
-            let exit_code = u8::try_from(code).unwrap_or(1);
-            Outcome {
-                stdout: text,
-                stderr: String::new(),
-                exit_code,
-            }
-        }
-        Err(err) => Outcome::stderr(format!("error: failed to execute: {err}\n"), 1),
     }
 }
 
@@ -783,7 +663,7 @@ pub(crate) fn run(args: &[String]) -> Outcome {
             }
             train_profile(&args[1])
         }
-        "os" => os_cmd(&args[1..]),
+        "os" => os::os_cmd(&args[1..]),
         "browser" => browser(&args[1..]),
         "spawn" => spawn(&args[1..]),
         "tui" => agent_tui_line_mode(),
@@ -834,19 +714,19 @@ mod tests {
 
     #[test]
     fn os_dry_run_allows_ls_and_denies_rm() {
-        let ok = os_cmd(&["dry-run".into(), "ls".into()]);
+        let ok = os::os_cmd(&["dry-run".into(), "ls".into()]);
         assert_eq!(ok.exit_code, 0, "{}", ok.stderr);
         assert!(ok.stdout.contains("dry-run:"));
         assert!(ok.stdout.contains("argv=[\"ls\"]"));
 
-        let bad = os_cmd(&["dry-run".into(), "rm".into()]);
+        let bad = os::os_cmd(&["dry-run".into(), "rm".into()]);
         assert_eq!(bad.exit_code, 1);
         assert!(bad.stderr.contains("denied"));
     }
 
     #[test]
     fn os_execute_requires_confirm() {
-        let outcome = os_cmd(&["execute".into(), "ls".into()]);
+        let outcome = os::os_cmd(&["execute".into(), "ls".into()]);
         assert_eq!(outcome.exit_code, 2);
         assert!(outcome.stderr.contains("--confirm"));
     }

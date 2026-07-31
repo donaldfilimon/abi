@@ -1,5 +1,7 @@
 # Issue #647 — Refactor/Completion Wave Plan (verified 2026-07-22)
 
+> **Archived:** Historical plan retained for context. Live work is tracked in `tasks/todo.md`. Zig steps are obsolete; the Rust nightly tree under `crates/` is source of truth.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. One task per `cursor/` branch, squash-merge to `main`, `./build.sh check` green before every PR.
 
 **Goal:** Run the next ABI refactor/completion wave as a verified, low-risk sequence instead of a broad rewrite.

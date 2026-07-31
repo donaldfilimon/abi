@@ -1,5 +1,7 @@
 # Plan: Priority A G1–G5 — commit, review, land
 
+> **Archived:** Historical plan retained for context. Live work is tracked in `tasks/todo.md`. Zig steps are obsolete; the Rust nightly tree under `crates/` is source of truth.
+
 **Date:** 2026-07-14  
 **Branch:** `feat/priority-a-g1-g5` (from `a2e36b28`)  
 **Status:** Implementation already present in working tree (verified `./build.sh check` 39/39). SDD executes **scoped verify + atomic commits + task reviews + final branch review**.

@@ -28,13 +28,34 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 | Item | Status | Notes |
 | ---- | ------ | ----- |
 | `crates/abi-wdbx/src/multiway.rs` decomposition | ✅ | `evolve()`'s frontier-draining loop extracted to `process_frontier()`; elapsed-time bookkeeping now happens once instead of at 4 duplicated early-return sites. 12/12 multiway tests + full gate green. |
-| `crates/abi-cli/src/wdbx.rs` split | ⚪ | ~1476 lines / 41 free fns → `db.rs`, `block.rs`, `query.rs`, `cluster.rs` |
-| `crates/abi-wdbx/src/format.rs` split | ⚪ | ~1248 lines; separate Hash/Record/Segment/Manifest into own modules |
-| `crates/abi-wdbx/src/wal.rs` dedup | ⚪ | ~1102 lines; 7 `append_*` fns each redefine an identical `Mutation` struct — factor to one shared type |
-| `crates/abi-cli/src/agent.rs` decomposition | ⚪ | ~1052 lines |
-| `crates/abi-cli/src/complete.rs` split | ⚪ | ~856 lines; 154-line `run()` mixes arg-parse, validation, dispatch — split into stages |
+| `crates/abi-cli/src/wdbx.rs` split | ✅ | Thin `wdbx/mod.rs` + `db`/`block`/`query`/`cluster`/`api`/`benchmark`/`compute`/`secure`/`gpu`; goldens byte-identical. |
+| `crates/abi-wdbx/src/format.rs` split | ✅ | Facade + `hash`/`record`/`segment`/`manifest`; 34 format tests green. |
+| `crates/abi-wdbx/src/wal.rs` dedup | ✅ | Shared `Mutation` serde enum for all `append_*` frames. |
+| `crates/abi-cli/src/agent.rs` decomposition | ◑ | `util::open_store` + `os` module extracted (timeout/env filter). Line-mode REPL still in `agent.rs` (`repl.rs` extract exists but unwired). |
+| `crates/abi-cli/src/complete.rs` split | ✅ | `parse_complete_args` + `CompleteRequest` separated from dispatch. |
 
 > Each row: pure refactor, no behavior change. `./tools/check.sh` green + golden fixtures byte-identical before marking ✅.
+
+---
+
+## #647 Rust-rescoped (optional hardening)
+
+See `docs/superpowers/plans/2026-07-31-rust-647-followups.md`.
+
+| Item | Status | Notes |
+| ---- | ------ | ----- |
+| Lock-across-I/O audit (REST/cluster/MCP) | ✅ | No lock held across TCP I/O; rate-limiter mutex is math-only |
+| MCP malformed/empty bearer contracts | ✅ | `abi-mcp` HTTP tests cover empty/Basic/wrong-case/no-space |
+| DurableStore concurrency regression test | ⚪ | Optional |
+| Bench regression gate in `check.sh` | ⚪ | Optional |
+
+---
+
+## Docs hygiene
+
+| Item | Status | Notes |
+| ---- | ------ | ----- |
+| Archive completed Zig-era `docs/superpowers/plans/*` | ✅ | Moved under `docs/superpowers/archive/plans/` with Archived banners |
 
 ---
 

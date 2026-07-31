@@ -361,4 +361,34 @@ mod tests {
             assert!(resp.contains("401"), "{resp}");
         });
     }
+
+    #[test]
+    fn malformed_and_empty_bearer_schemes_are_unauthorized() {
+        use std::io::Write;
+        with_server(Some("local-token"), |port| {
+            let body = r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#;
+            for auth in [
+                "Authorization: Bearer \r\n",
+                "Authorization: Basic local-token\r\n",
+                "Authorization: bearer local-token\r\n",
+                "Authorization: Bearerlocal-token\r\n",
+            ] {
+                let mut stream = TcpStream::connect(format!("127.0.0.1:{port}")).expect("connect");
+                let req = format!(
+                    "POST /message HTTP/1.1\r\n{auth}Content-Length: {}\r\n\r\n{body}",
+                    body.len()
+                );
+                stream.write_all(req.as_bytes()).expect("write");
+                let resp = read_http(&mut stream);
+                assert!(
+                    resp.contains("401"),
+                    "expected 401 for auth header {auth:?}, got {resp}"
+                );
+                assert!(
+                    !resp.contains("local-token"),
+                    "response must not echo the configured token: {resp}"
+                );
+            }
+        });
+    }
 }

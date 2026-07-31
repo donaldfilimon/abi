@@ -282,34 +282,46 @@ pub fn append_record(path: impl AsRef<Path>, json: &str) -> Result<()> {
     Ok(())
 }
 
+/// Shared JSON shape for every appendable WAL mutation.
+///
+/// Serde's externally-tagged `type` field matches the Zig/Rust WAL frame payload
+/// (`{"type":"kv",...}`, `{"type":"vector",...}`, …).
+#[derive(Serialize)]
+#[serde(tag = "type")]
+enum Mutation<'a> {
+    #[serde(rename = "kv")]
+    Kv { key: &'a str, value: &'a str },
+    #[serde(rename = "vector")]
+    Vector { id: u64, values: &'a [f32] },
+    #[serde(rename = "block")]
+    Block {
+        profile: &'a str,
+        query_id: u64,
+        response_id: u64,
+        metadata: &'a str,
+        timestamp_ms: i64,
+    },
+    #[serde(rename = "spatial")]
+    Spatial {
+        id: u64,
+        x: f32,
+        y: f32,
+        z: f32,
+        payload: &'a str,
+    },
+    #[serde(rename = "temporal_node")]
+    TemporalNode { id: u64, timestamp_ms: i64 },
+    #[serde(rename = "temporal_edge")]
+    TemporalEdge { cause: u64, effect: u64 },
+}
+
 /// Append a key/value mutation.
 pub fn append_kv(path: impl AsRef<Path>, key: &str, value: &str) -> Result<()> {
-    #[derive(Serialize)]
-    struct Mutation<'a> {
-        #[serde(rename = "type")]
-        kind: &'static str,
-        key: &'a str,
-        value: &'a str,
-    }
-    append_json(
-        path,
-        &Mutation {
-            kind: "kv",
-            key,
-            value,
-        },
-    )
+    append_json(path, &Mutation::Kv { key, value })
 }
 
 /// Append a vector mutation with its absolute id.
 pub fn append_vector(path: impl AsRef<Path>, id: u64, values: &[f32]) -> Result<()> {
-    #[derive(Serialize)]
-    struct Mutation<'a> {
-        #[serde(rename = "type")]
-        kind: &'static str,
-        id: u64,
-        values: &'a [f32],
-    }
     if values.is_empty()
         || values.len() > MAX_VECTOR_DIMENSIONS
         || values.iter().any(|value| !value.is_finite())
@@ -319,14 +331,7 @@ pub fn append_vector(path: impl AsRef<Path>, id: u64, values: &[f32]) -> Result<
             reason: "vector dimensions/components are invalid".to_string(),
         });
     }
-    append_json(
-        path,
-        &Mutation {
-            kind: "vector",
-            id,
-            values,
-        },
-    )
+    append_json(path, &Mutation::Vector { id, values })
 }
 
 /// Append an audit-block mutation with an explicit timestamp.
@@ -338,16 +343,6 @@ pub fn append_block(
     metadata: &str,
     timestamp_ms: i64,
 ) -> Result<()> {
-    #[derive(Serialize)]
-    struct Mutation<'a> {
-        #[serde(rename = "type")]
-        kind: &'static str,
-        profile: &'a str,
-        query_id: u64,
-        response_id: u64,
-        metadata: &'a str,
-        timestamp_ms: i64,
-    }
     if profile.is_empty() || query_id > u64::from(u32::MAX) || response_id > u64::from(u32::MAX) {
         return Err(WalError::Corruption {
             line: None,
@@ -356,8 +351,7 @@ pub fn append_block(
     }
     append_json(
         path,
-        &Mutation {
-            kind: "block",
+        &Mutation::Block {
             profile,
             query_id,
             response_id,
@@ -405,16 +399,6 @@ pub fn build_block(
 
 /// Append a spatial mutation.
 pub fn append_spatial(path: impl AsRef<Path>, record: &SpatialRecord) -> Result<()> {
-    #[derive(Serialize)]
-    struct Mutation<'a> {
-        #[serde(rename = "type")]
-        kind: &'static str,
-        id: u64,
-        x: f32,
-        y: f32,
-        z: f32,
-        payload: &'a str,
-    }
     if !record.x.is_finite() || !record.y.is_finite() || !record.z.is_finite() {
         return Err(WalError::Corruption {
             line: None,
@@ -423,8 +407,7 @@ pub fn append_spatial(path: impl AsRef<Path>, record: &SpatialRecord) -> Result<
     }
     append_json(
         path,
-        &Mutation {
-            kind: "spatial",
+        &Mutation::Spatial {
             id: record.id,
             x: record.x,
             y: record.y,
@@ -436,40 +419,12 @@ pub fn append_spatial(path: impl AsRef<Path>, record: &SpatialRecord) -> Result<
 
 /// Append a temporal-node mutation.
 pub fn append_temporal_node(path: impl AsRef<Path>, id: u64, timestamp_ms: i64) -> Result<()> {
-    #[derive(Serialize)]
-    struct Mutation {
-        #[serde(rename = "type")]
-        kind: &'static str,
-        id: u64,
-        timestamp_ms: i64,
-    }
-    append_json(
-        path,
-        &Mutation {
-            kind: "temporal_node",
-            id,
-            timestamp_ms,
-        },
-    )
+    append_json(path, &Mutation::TemporalNode { id, timestamp_ms })
 }
 
 /// Append a temporal-edge mutation.
 pub fn append_temporal_edge(path: impl AsRef<Path>, cause: u64, effect: u64) -> Result<()> {
-    #[derive(Serialize)]
-    struct Mutation {
-        #[serde(rename = "type")]
-        kind: &'static str,
-        cause: u64,
-        effect: u64,
-    }
-    append_json(
-        path,
-        &Mutation {
-            kind: "temporal_edge",
-            cause,
-            effect,
-        },
-    )
+    append_json(path, &Mutation::TemporalEdge { cause, effect })
 }
 
 /// Read only the WAL base epoch. Missing files are legacy epoch 0.

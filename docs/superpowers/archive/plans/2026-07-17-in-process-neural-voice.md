@@ -1,5 +1,7 @@
 # In-Process Neural Voice (`--neural` flag) Implementation Plan
 
+> **Archived:** Historical plan retained for context. Live work is tracked in `tasks/todo.md`. Zig steps are obsolete; the Rust nightly tree under `crates/` is source of truth.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Wire the existing pure-Zig char-level LM (`src/features/nn/`) into `abi complete` as an honest, small, in-process neural voice behind a `--neural` flag, using a bundled pre-trained checkpoint.
