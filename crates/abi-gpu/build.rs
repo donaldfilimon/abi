@@ -1,7 +1,7 @@
 //! Compile the Metal DOT shim on arm64 macOS when `metal-kernels` is enabled.
 
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn main() {
@@ -70,9 +70,22 @@ fn main() {
     println!("cargo:rustc-link-lib=framework=Metal");
     println!("cargo:rustc-link-lib=framework=Foundation");
 
-    if let Some(dir) = out_dir.ancestors().nth(3).map(PathBuf::from) {
+    if let Some(dir) = profile_dir(&out_dir) {
         let dest = dir.join("libabi_metal_dot.dylib");
         let _ = std::fs::copy(&dylib, &dest);
         println!("cargo:rustc-link-search=native={}", dir.display());
     }
+}
+
+/// `target/<profile>` for an `OUT_DIR`, located by structure rather than depth.
+///
+/// See the twin helper in `abi-connectors/build.rs`: cargo nests `OUT_DIR`
+/// differently across releases, so a fixed ancestor count silently drops the
+/// dylib one directory away from where `@loader_path` resolves it.
+fn profile_dir(out_dir: &Path) -> Option<PathBuf> {
+    out_dir
+        .ancestors()
+        .find(|dir| dir.file_name().is_some_and(|name| name == "build"))
+        .and_then(Path::parent)
+        .map(PathBuf::from)
 }

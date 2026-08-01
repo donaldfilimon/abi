@@ -6,7 +6,7 @@
 //! when the `foundationmodels` feature is on.
 
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn main() {
@@ -68,15 +68,29 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}", out_dir.display());
     println!("cargo:rustc-link-lib=dylib=abi_fm_shim");
-    // Also search/copy beside target/{debug,release} for `./target/debug/abi`.
-    if env::var("PROFILE").is_ok() {
-        // OUT_DIR is .../target/<profile>/build/<pkg>/out
-        if let Some(dir) = out_dir.ancestors().nth(3).map(PathBuf::from) {
-            let dest = dir.join("libabi_fm_shim.dylib");
-            std::fs::copy(&dylib, &dest).unwrap_or_else(|err| {
-                panic!("copy libabi_fm_shim.dylib to {}: {err}", dest.display());
-            });
-            println!("cargo:rustc-link-search=native={}", dir.display());
-        }
+    // Also search/copy beside target/{debug,release} so the plain
+    // `./target/debug/abi` binary can resolve `@loader_path/...`.
+    if let Some(dir) = profile_dir(&out_dir) {
+        let dest = dir.join("libabi_fm_shim.dylib");
+        std::fs::copy(&dylib, &dest).unwrap_or_else(|err| {
+            panic!("copy libabi_fm_shim.dylib to {}: {err}", dest.display());
+        });
+        println!("cargo:rustc-link-search=native={}", dir.display());
     }
+}
+
+/// `target/<profile>` for an `OUT_DIR`, located by structure rather than depth.
+///
+/// Counting a fixed number of ancestors breaks silently when cargo changes the
+/// layout under `build/`: 1.99.0-nightly nests `build/<pkg>/<hash>/out` where
+/// older releases used `build/<pkg>-<hash>/out`, so a hard-coded `nth(3)`
+/// resolves to `target/<profile>/build` and the dylib lands one directory away
+/// from where `@loader_path` looks. `target/<profile>` is always the parent of
+/// the `build` component, whatever sits beneath it.
+fn profile_dir(out_dir: &Path) -> Option<PathBuf> {
+    out_dir
+        .ancestors()
+        .find(|dir| dir.file_name().is_some_and(|name| name == "build"))
+        .and_then(Path::parent)
+        .map(PathBuf::from)
 }
