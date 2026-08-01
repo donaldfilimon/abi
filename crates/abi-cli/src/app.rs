@@ -572,6 +572,12 @@ mod tests {
 
     #[test]
     fn train_and_complete_are_attached() {
+        // `complete` resolves the durable store, so this is the one dispatch
+        // test that reads `ABI_WDBX_PATH`. Take the shared lock: os::tests
+        // installs a process-global override pointing at its own scratch
+        // store, and opening that store here would steal its writer lock.
+        let _guard = abi_foundation::env::lock_for_test();
+
         let train = run(&args(&["train", "example"]));
         assert_eq!(train.exit_code, 0);
         assert!(train.stdout.contains("training accepted"));

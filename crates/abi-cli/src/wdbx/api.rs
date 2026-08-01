@@ -24,7 +24,9 @@ fn open_default_store() -> Result<DurableStore, String> {
     ) {
         return Err("WDBX persistence disabled (ABI_WDBX_PERSIST=0)".into());
     }
-    let home = std::env::var("HOME").map_err(|_| "HOME is unset".to_string())?;
+    // Shared with `util::open_store_result` so the lib-test build's refusal to
+    // touch the operator's live `~/.abi/` store covers this path too.
+    let home = crate::util::default_store_home().ok_or_else(|| "HOME is unset".to_string())?;
     DurableStore::open(StorePaths::new(format!("{home}/.abi/wdbx"))).map_err(|e| e.to_string())
 }
 
