@@ -1,5 +1,13 @@
-[mcp_servers]
-
+model_reasoning_summary = "auto"
 [mcp_servers.abi-mcp]
 command = "./mcp/launcher.sh"
 args = ["stdio"]
+
+[mcp_servers.skill-loop]
+command = "npx"
+args = [
+    "-y",
+    "-p",
+    "@stylusnexus/skill-loop-cli@0.3.3",
+    "skill-loop-mcp",
+]

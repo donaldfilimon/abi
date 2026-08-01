@@ -149,6 +149,7 @@ mutating the real process environment. Add new vars there; don't scatter raw
 | `ABI_WDBX_CLUSTER_PEERS` / `ABI_WDBX_CLUSTER_TOKEN` | Reference cluster peer list / shared token |
 | `ABI_MCP_HTTP_PORT` / `ABI_MCP_HTTP_TOKEN` | Loopback MCP HTTP/SSE port / bearer token (stdio stays tokenless) |
 | `ABI_LLAMA_CPP_ENDPOINT` / `ABI_MLX_ENDPOINT` | Local inference endpoints |
+| `ABI_OS_POLICY` | Override the `abi agent os` policy file (default `~/.abi/os-policy.toml`); tests set it so they never read the user's real policy |
 | `ABI_MCP_AUTO_BUILD` | `mcp/launcher.sh` only — build the server on demand |
 
 Bearer tokens here are loopback-only hardening, not a TLS substitute.
@@ -186,10 +187,12 @@ Over 1000 lines; decompose before adding to them:
 | `crates/abi-wdbx/src/wal.rs` | ~1057 | Seven `append_*` functions each redefine an identical `#[derive(Serialize)] struct Mutation` |
 
 Watch list (850–1000 lines — not yet over the line, but the next candidates):
-`crates/abi-cli/src/agent.rs` (~951), `crates/abi-wdbx/src/hnsw.rs` (~941),
-`crates/abi-wdbx/src/store.rs` (~933), `crates/abi-cli/src/complete.rs` (~896),
-`crates/abi-core/src/scheduler.rs` (~883).
+`crates/abi-wdbx/src/hnsw.rs` (~941), `crates/abi-wdbx/src/store.rs` (~933),
+`crates/abi-cli/src/complete.rs` (~896), `crates/abi-core/src/scheduler.rs`
+(~883).
 
 Already split — don't recreate the flat versions: `crates/abi-cli/src/wdbx.rs` is
-now the `wdbx/` module directory, and `crates/abi-wdbx/src/format.rs` is down to
-~444 lines.
+now the `wdbx/` module directory, `crates/abi-wdbx/src/format.rs` is down to
+~444 lines, and `crates/abi-cli/src/agent.rs` is down to ~520 (the line-mode
+REPL moved to `repl.rs`; `os.rs` owns command execution with `os/policy.rs` +
+`os/audit.rs` beside it).

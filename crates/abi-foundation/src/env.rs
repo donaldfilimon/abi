@@ -149,6 +149,10 @@ pub const WDBX_RATE_LIMIT_REFILL: &str = "ABI_WDBX_RATE_LIMIT_REFILL";
 pub const LLAMA_CPP_ENDPOINT: &str = "ABI_LLAMA_CPP_ENDPOINT";
 /// Endpoint for a local MLX server.
 pub const MLX_ENDPOINT: &str = "ABI_MLX_ENDPOINT";
+/// Override for the `abi agent os` policy file. Defaults to
+/// `~/.abi/os-policy.toml`. Tests set this so they never read the user's real
+/// policy — the same discipline `ABI_WDBX_PATH` provides for the store.
+pub const OS_POLICY_PATH: &str = "ABI_OS_POLICY";
 
 #[cfg(test)]
 mod tests {
@@ -219,5 +223,6 @@ mod tests {
         assert_eq!(WDBX_REST_TOKEN, "ABI_WDBX_REST_TOKEN");
         assert_eq!(WDBX_PATH, "ABI_WDBX_PATH");
         assert_eq!(WDBX_ALLOW_MEMORY_FALLBACK, "ABI_WDBX_ALLOW_MEMORY_FALLBACK");
+        assert_eq!(OS_POLICY_PATH, "ABI_OS_POLICY");
     }
 }

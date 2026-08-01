@@ -10,6 +10,7 @@ use crate::wal::{
     append_temporal_node, append_vector, build_block, checkpoint, create_with_epoch, recover,
     wal_path,
 };
+use std::fs::{File, OpenOptions, TryLockError};
 
 /// A durable-store mutation or recovery failure.
 #[derive(Debug)]
@@ -24,6 +25,18 @@ pub enum DurableError {
     InvalidKey,
     /// No next vector id can be represented.
     VectorIdOverflow,
+    /// Another process or thread already owns the store's writer session.
+    WriterBusy {
+        /// Advisory lock file identifying the store.
+        path: std::path::PathBuf,
+    },
+    /// The store's advisory writer lock could not be opened or acquired.
+    WriterLock {
+        /// Advisory lock file identifying the store.
+        path: std::path::PathBuf,
+        /// Underlying I/O detail.
+        message: String,
+    },
 }
 
 impl std::fmt::Display for DurableError {
@@ -34,6 +47,16 @@ impl std::fmt::Display for DurableError {
             Self::Segment(error) => write!(formatter, "{error}"),
             Self::InvalidKey => formatter.write_str("key must not be empty"),
             Self::VectorIdOverflow => formatter.write_str("vector id space is exhausted"),
+            Self::WriterBusy { path } => {
+                write!(formatter, "WDBX writer already open for {}", path.display())
+            }
+            Self::WriterLock { path, message } => {
+                write!(
+                    formatter,
+                    "cannot lock WDBX writer {}: {message}",
+                    path.display()
+                )
+            }
         }
     }
 }
@@ -44,7 +67,10 @@ impl std::error::Error for DurableError {
             Self::Wal(error) => Some(error),
             Self::Hnsw(error) => Some(error),
             Self::Segment(error) => Some(error),
-            Self::InvalidKey | Self::VectorIdOverflow => None,
+            Self::InvalidKey
+            | Self::VectorIdOverflow
+            | Self::WriterBusy { .. }
+            | Self::WriterLock { .. } => None,
         }
     }
 }
@@ -73,6 +99,9 @@ pub type Result<T> = std::result::Result<T, DurableError>;
 /// A recovered WDBX snapshot with WAL-backed mutations and HNSW search.
 #[derive(Debug)]
 pub struct DurableStore {
+    // Kept open for the complete session so the OS releases the advisory
+    // exclusive lock automatically on drop, including process termination.
+    _writer_lock: File,
     paths: StorePaths,
     snapshot: Snapshot,
     index: Option<HnswIndex>,
@@ -88,6 +117,7 @@ impl DurableStore {
     /// A torn WAL is immediately folded into a fresh checkpoint before further
     /// appends, so a partial final frame can never be extended into corruption.
     pub fn open(paths: StorePaths) -> Result<Self> {
+        let writer_lock = acquire_writer_lock(&paths)?;
         let recovered = recover(&paths)?;
         let mut snapshot = recovered.snapshot;
         let mut checkpoint_epoch = recovered.checkpoint_epoch;
@@ -114,6 +144,7 @@ impl DurableStore {
         snapshot.recount();
 
         Ok(Self {
+            _writer_lock: writer_lock,
             paths,
             snapshot,
             index,
@@ -325,6 +356,32 @@ impl DurableStore {
     }
 }
 
+fn acquire_writer_lock(paths: &StorePaths) -> Result<File> {
+    std::fs::create_dir_all(&paths.dir).map_err(|error| DurableError::WriterLock {
+        path: paths.dir.clone(),
+        message: error.to_string(),
+    })?;
+    let path = paths.dir.join(format!("{}.writer.lock", paths.base));
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)
+        .map_err(|error| DurableError::WriterLock {
+            path: path.clone(),
+            message: error.to_string(),
+        })?;
+    match file.try_lock() {
+        Ok(()) => Ok(file),
+        Err(TryLockError::WouldBlock) => Err(DurableError::WriterBusy { path }),
+        Err(TryLockError::Error(error)) => Err(DurableError::WriterLock {
+            path,
+            message: error.to_string(),
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -380,6 +437,31 @@ mod tests {
         assert_eq!(store.next_vector_id(), 3);
         let results = store.search(&[1.0, 0.0], 1).expect("search");
         assert_eq!(results[0].id, 1);
+    }
+
+    #[test]
+    fn one_writer_session_excludes_concurrent_opens_and_releases_on_drop() {
+        const ATTEMPTS: usize = 50;
+
+        let fixture = Fixture::new("abi_durable_single_writer");
+        let owner = DurableStore::open(fixture.paths.clone()).expect("first writer owns lock");
+        let handles: Vec<_> = (0..ATTEMPTS)
+            .map(|_| {
+                let paths = fixture.paths.clone();
+                std::thread::spawn(move || {
+                    matches!(
+                        DurableStore::open(paths),
+                        Err(DurableError::WriterBusy { .. })
+                    )
+                })
+            })
+            .collect();
+        for handle in handles {
+            assert!(handle.join().expect("contending writer thread"));
+        }
+
+        drop(owner);
+        DurableStore::open(fixture.paths.clone()).expect("drop releases writer lock");
     }
 
     #[test]
