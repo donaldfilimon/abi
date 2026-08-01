@@ -2,19 +2,26 @@
 
 use std::process::{Command, Output};
 
-fn run(arguments: &[&str]) -> Output {
+/// The spawned executable is a non-test build, so the `cfg(test)` refusal in
+/// `util::default_store_home` does not apply to it: left alone it would resolve
+/// `$HOME/.abi/wdbx` and write into the operator's live store. Pin every spawn
+/// at `:memory:` instead. It is set before `envs` so a caller can still choose
+/// its own store path.
+fn spawn(arguments: &[&str], environment: &[(&str, &str)]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_abi"))
-        .args(arguments)
-        .output()
-        .expect("Rust abi executable should run")
-}
-
-fn run_with_env(arguments: &[&str], environment: &[(&str, &str)]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_abi"))
+        .env("ABI_WDBX_PATH", ":memory:")
         .args(arguments)
         .envs(environment.iter().copied())
         .output()
         .expect("Rust abi executable should run")
+}
+
+fn run(arguments: &[&str]) -> Output {
+    spawn(arguments, &[])
+}
+
+fn run_with_env(arguments: &[&str], environment: &[(&str, &str)]) -> Output {
+    spawn(arguments, environment)
 }
 
 #[test]
@@ -198,4 +205,40 @@ fn auth_status_and_logout_cross_the_real_process_boundary() {
     assert!(logout.stdout.is_empty());
     assert_eq!(logout.stderr, b"Logged out. Credentials cleared.\n");
     assert!(!path.exists());
+}
+
+/// Guards the `ABI_WDBX_PATH` pin in [`spawn`]: `abi complete` resolves the
+/// durable store, and the spawned binary is a non-test build that the
+/// `cfg(test)` refusal in `util::default_store_home` cannot reach. Without the
+/// pin the child writes `.abi/wdbx/{wdbx.wal, wdbx.writer.lock}` under `HOME` —
+/// here a scratch directory, so removing the pin fails this test rather than
+/// touching the operator's live store.
+#[test]
+fn a_spawned_store_command_writes_nothing_under_home() {
+    let home = std::env::temp_dir().join(format!(
+        "abi-home-process-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after epoch")
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&home).expect("scratch home");
+    let home_text = home.to_str().expect("UTF-8 temporary path");
+
+    // `spawn` sets the pin before `envs`, so `HOME` layers on top of it.
+    let completed = run_with_env(&["complete", "hello"], &[("HOME", home_text)]);
+
+    let leaked = home.join(".abi").exists();
+    let _ = std::fs::remove_dir_all(&home);
+
+    // The success assertions are load-bearing: a child that failed to start
+    // would also create nothing, and pass this test for the wrong reason.
+    assert!(
+        completed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&completed.stderr)
+    );
+    assert!(String::from_utf8_lossy(&completed.stdout).contains("profile="));
+    assert!(!leaked, "a spawned abi created state under HOME");
 }
