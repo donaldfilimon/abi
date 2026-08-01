@@ -30,6 +30,9 @@ step "build"
 step "tests"
 "${CARGO}" test --workspace
 
+step "benchmark regression (same-system local guard)"
+./tools/bench_regress.sh
+
 step "docs (broken intra-doc links are errors)"
 RUSTDOCFLAGS="-D warnings" "${CARGO}" doc --workspace --no-deps --quiet
 

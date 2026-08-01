@@ -707,6 +707,55 @@ mod tests {
     }
 
     #[test]
+    fn repeated_query_joined_teardown_and_reopen_preserve_searchability() {
+        const ITERATIONS: usize = 50;
+
+        let fixture = Fixture::new("abi_rest_tcp_teardown");
+        {
+            let mut store = fixture.open();
+            assert_eq!(store.put_vector(&[1.0, 0.0]).expect("seed vector"), 1);
+        }
+
+        for iteration in 0..ITERATIONS {
+            let config = RestConfig {
+                bearer_token: None,
+                rate_limiter: RateLimiter::new(1, 0, 0),
+            };
+            let mut server = RestServer::bind(0, fixture.open(), config).expect("bind");
+            let port = server.local_port().expect("port");
+            let handle = thread::spawn(move || {
+                server.serve_one().expect("serve query");
+                server
+            });
+
+            let body = br#"{"vector":[1.0,0.0],"limit":1}"#;
+            let header = format!(
+                "POST /query HTTP/1.1\r\nContent-Length: {}\r\n\r\n",
+                body.len()
+            );
+            let response = exchange(port, &[header.as_bytes(), body]);
+            assert!(
+                response.starts_with("HTTP/1.1 200 OK"),
+                "iteration {iteration}: {response}"
+            );
+            let response_body = find_body(response.as_bytes()).expect("query response body");
+            let value: Value = serde_json::from_slice(response_body).expect("query response json");
+            assert_eq!(value["results"][0]["id"], 1, "iteration {iteration}");
+
+            // Joining transfers the server (and its DurableStore) back to this
+            // thread. Dropping it before reopening is the real Rust teardown
+            // boundary: no borrow can outlive the owner, while WAL/file-handle
+            // cleanup still has to make the next open and search succeed.
+            drop(handle.join().expect("server thread"));
+            let reopened = fixture.open();
+            let results = reopened
+                .search(&[1.0, 0.0], 1)
+                .expect("search after teardown");
+            assert_eq!(results[0].id, 1, "iteration {iteration}");
+        }
+    }
+
+    #[test]
     fn real_tcp_rejects_incomplete_and_oversize_requests() {
         let fixture = Fixture::new("abi_rest_tcp_bounds");
         let config = RestConfig {
