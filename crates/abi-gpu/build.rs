@@ -70,9 +70,15 @@ fn main() {
     println!("cargo:rustc-link-lib=framework=Metal");
     println!("cargo:rustc-link-lib=framework=Foundation");
 
+    // Copy beside target/{debug,release} so the plain `./target/debug/abi`
+    // binary can resolve `@loader_path/...`. A discarded error here would have
+    // no build-time symptom — the first sign would be a dyld abort at runtime —
+    // so fail loudly instead.
     if let Some(dir) = profile_dir(&out_dir) {
         let dest = dir.join("libabi_metal_dot.dylib");
-        let _ = std::fs::copy(&dylib, &dest);
+        std::fs::copy(&dylib, &dest).unwrap_or_else(|err| {
+            panic!("copy libabi_metal_dot.dylib to {}: {err}", dest.display());
+        });
         println!("cargo:rustc-link-search=native={}", dir.display());
     }
 }
