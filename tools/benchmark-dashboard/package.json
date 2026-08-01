@@ -1,0 +1,13 @@
+{
+  "name": "abi-benchmark-dashboard",
+  "version": "0.1.0",
+  "description": "ABI Benchmark Dashboard - Sample latency visualization",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Open index.html in browser'",
+    "build": "echo 'Static site - no build needed'"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^1.0.0"
+  }
+}
