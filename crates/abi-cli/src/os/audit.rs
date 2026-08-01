@@ -96,11 +96,12 @@ mod tests {
 
     fn scratch_store(tag: &str) -> (DurableStore, std::path::PathBuf) {
         // Never `~/.abi/`: a scratch path under the temp dir, unique per test.
-        let dir = std::env::temp_dir().join(format!(
-            "abi-os-audit-{tag}-{}-{:?}",
-            std::process::id(),
-            std::thread::current().id()
-        ));
+        // PID+ThreadId alone can collide with a leftover dir from a *panicked*
+        // prior run (the libtest thread pool reuses ThreadIds, and a panic
+        // skips this test's own cleanup) — the shared counter-based helper
+        // guarantees no collision with anything this process has made before.
+        let dir =
+            abi_foundation::temp_path::temp_file_path(&format!("abi-os-audit-{tag}"), "store");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("scratch dir");
         let store = DurableStore::open(abi_wdbx::StorePaths::new(dir.display().to_string()))

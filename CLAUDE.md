@@ -41,9 +41,11 @@ Zig build (`zig build`, `-Dfeat-*`, `src/features/`); ignore it.
 | `./tools/cargo.sh clippy --workspace --all-targets -- -D warnings` | Lint, matching the gate exactly |
 | `./mcp/launcher.sh` | Launch the MCP server; prefers `target/release/abi-mcp` then `target/debug/abi-mcp`; run from repo root (or via the launcher) so `@loader_path` resolves `libabi_fm_shim.dylib` on arm64 macOS; set `ABI_MCP_AUTO_BUILD=1` to build on demand |
 
-There is no separate lint-only or build-only CI — `./tools/check.sh` **is** CI
-(GitHub Actions is billing-locked on this repo, so it's also the only gate that
-actually runs). Treat a red `check.sh` as blocking.
+There is no separate lint-only or build-only CI — `.github/workflows/ci.yml`
+runs `./tools/check.sh` on a self-hosted macOS ARM64 runner for trusted
+same-repo pushes/PRs (fork PRs stay on GitHub-hosted runners only; see
+`.github/self-hosted-runner.md`). Treat a red `check.sh` — locally or in CI —
+as blocking.
 
 ### Local smoke walkthrough
 

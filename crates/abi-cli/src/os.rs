@@ -519,13 +519,14 @@ mod tests {
     #[test]
     fn execute_and_timeout_audits_reach_the_scratch_store_but_dry_run_does_not() {
         let _guard = abi_foundation::env::lock_for_test();
-        let dir = std::env::temp_dir().join(format!(
-            "abi-os-dispatch-audit-{}-{:?}",
-            std::process::id(),
-            std::thread::current().id()
-        ));
+        // PID+ThreadId alone can collide with a leftover dir from a *panicked*
+        // prior run (the libtest thread pool reuses ThreadIds); the shared
+        // counter-based helper guarantees no collision with anything this
+        // process has made before.
+        let dir = abi_foundation::temp_path::temp_file_path("abi-os-dispatch-audit", "store");
         let policy_path = dir.join("os-policy.toml");
         let store_path = dir.join("store");
+        let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("scratch dir");
         std::fs::write(&policy_path, "allow = [\"true\"]\ntimeout_secs = 1\n")
             .expect("policy file");
