@@ -46,7 +46,7 @@ See `docs/superpowers/plans/2026-07-31-rust-647-followups.md`.
 | ---- | ------ | ----- |
 | Lock-across-I/O audit (REST/cluster/MCP) | ✅ | No lock held across TCP I/O; rate-limiter mutex is math-only |
 | MCP malformed/empty bearer contracts | ✅ | `abi-mcp` HTTP tests cover empty/Basic/wrong-case/no-space |
-| DurableStore concurrency regression test | ✅ | `DurableStore` holds a lifetime-scoped advisory writer lock; 50 concurrent opens return `WriterBusy`, drop releases the lock, and 50 real REST query → joined teardown → reopen/search lifecycles stay green. |
+| DurableStore concurrency regression test | ✅ | `DurableStore` holds a lifetime-scoped advisory writer lock; 50 concurrent opens return `WriterBusy`, drop releases the lock, and 50 real REST query → joined teardown → reopen/search lifecycles stay green. `open` also waits out a transient `WouldBlock` (50 ms budget, 1 ms steps) so the fork/exec window that duplicates the lock fd into a child cannot masquerade as contention; a genuinely held lock still reports `WriterBusy`. |
 | Bench regression gate in `check.sh` | ✅ | `tools/bench_regress.sh`: live Rust HNSW insert/search workload, best p50 of 5, 25% local debug threshold; same OS/arch baseline required (other host classes disclose `SKIP`). Deterministic pass/fail hooks prove the comparator. |
 
 ---
@@ -90,7 +90,7 @@ See `docs/superpowers/plans/2026-07-31-rust-647-followups.md`.
 | ---- | ------ | ----- |
 | Live Discord/Twilio TLS clients | ✅ | rustls `wss://` via `abi-connectors::tls_ws`; offline process-local TLS peer tests |
 | Metal DOT kernels | ✅ | `metal-kernels` feature; `accelerated=true` when init succeeds; CPU oracle test |
-| Windows credential ACL CI | ✅ | `cfg(windows)` tests + `windows-acl` job on `windows-latest` |
+| Windows credential ACL CI | ◑ | `cfg(windows)` tests are written and the `windows-acl` job is configured on `windows-latest`, but it has **never executed**: every GitHub-hosted job is refused at dispatch with *"The job was not started because your account is locked due to a billing issue."* (~3s, zero steps). The ACL behavior is therefore unproven at runtime on any host. Re-verify and restore ✅ only after a hosted run actually reports steps. |
 | True incremental NN sampler | ✅ | `SampleState::step` + demo GGUF load/sample |
 
 ---

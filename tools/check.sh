@@ -2,8 +2,9 @@
 # The repository gate — successor to `./build.sh check`.
 #
 # Covers the same ground the Zig gate did: format, lint, build, tests, and the
-# frozen-contract checks. GitHub Actions on this repo is billing-locked, so this
-# is the only gate that actually runs; treat a red result as blocking.
+# frozen-contract checks. CI runs this same script on the self-hosted macOS
+# ARM64 runner; the GitHub-hosted jobs beside it are refused at dispatch while
+# the account is billing-locked. Treat a red result as blocking.
 #
 # Always invoked through tools/cargo.sh, never bare `cargo` — see that script for
 # why that distinction matters here.

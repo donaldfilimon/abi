@@ -41,9 +41,16 @@ Zig build (`zig build`, `-Dfeat-*`, `src/features/`); ignore it.
 | `./tools/cargo.sh clippy --workspace --all-targets -- -D warnings` | Lint, matching the gate exactly |
 | `./mcp/launcher.sh` | Launch the MCP server; prefers `target/release/abi-mcp` then `target/debug/abi-mcp`; run from repo root (or via the launcher) so `@loader_path` resolves `libabi_fm_shim.dylib` on arm64 macOS; set `ABI_MCP_AUTO_BUILD=1` to build on demand |
 
-There is no separate lint-only or build-only CI — `./tools/check.sh` **is** CI
-(GitHub Actions is billing-locked on this repo, so it's also the only gate that
-actually runs). Treat a red `check.sh` as blocking.
+There is no separate lint-only or build-only CI — `.github/workflows/ci.yml`
+runs `./tools/check.sh` on a **self-hosted macOS ARM64 runner** for trusted
+same-repo pushes/PRs, and that job does execute (see
+`.github/self-hosted-runner.md`). The **GitHub-hosted** jobs in the same
+workflow do not: `windows credential ACL` (`windows-latest`) and the fork-PR
+`check-hosted` fallback (`macos-latest`) are refused at dispatch with *"The job
+was not started because your account is locked due to a billing issue."* — they
+complete in ~3s having run zero steps. So a red hosted job is a billing signal,
+not a code signal, and nothing verified only by a hosted job may be described as
+covered. Treat a red self-hosted `check.sh` — locally or in CI — as blocking.
 
 ### Local smoke walkthrough
 
@@ -57,8 +64,11 @@ $ABI scheduler status
 $ABI dashboard --once --plain
 $ABI complete "summarize ABI scheduler status"
 $ABI agent plan "stage a safe WDBX refactor"
-$ABI wdbx stats
+$ABI wdbx query "$(mktemp -d)/store"   # store stats as JSON; `wdbx stats` is not a command
 ```
+
+The `complete` / `agent` lines above touch the store, so prefix them with
+`ABI_WDBX_PATH=:memory:` unless you actually mean to write to `~/.abi/`.
 
 ## Architecture
 
