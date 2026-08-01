@@ -71,9 +71,9 @@ fn main() {
     println!("cargo:rustc-link-lib=framework=Foundation");
 
     // Copy beside target/{debug,release} so the plain `./target/debug/abi`
-    // binary can resolve `@loader_path/...`. A failed copy has no build-time
-    // symptom — the first sign is a dyld abort at runtime — so fail loudly here
-    // rather than discarding the error.
+    // binary can resolve `@loader_path/...`. A discarded error here would have
+    // no build-time symptom — the first sign would be a dyld abort at runtime —
+    // so fail loudly instead.
     if let Some(dir) = profile_dir(&out_dir) {
         let dest = dir.join("libabi_metal_dot.dylib");
         std::fs::copy(&dylib, &dest).unwrap_or_else(|err| {
