@@ -372,15 +372,45 @@ fn acquire_writer_lock(paths: &StorePaths) -> Result<File> {
             path: path.clone(),
             message: error.to_string(),
         })?;
-    match file.try_lock() {
-        Ok(()) => Ok(file),
-        Err(TryLockError::WouldBlock) => Err(DurableError::WriterBusy { path }),
-        Err(TryLockError::Error(error)) => Err(DurableError::WriterLock {
-            path,
-            message: error.to_string(),
-        }),
+    // `WouldBlock` does not always mean a real writer owns the store. The lock
+    // lives on the open file description, so a `fork` anywhere in this process
+    // duplicates it into the child; the duplicate only disappears when the
+    // child reaches `exec` and O_CLOEXEC closes it. A store dropped just before
+    // an unrelated `Command::spawn` therefore stays locked for the width of
+    // that fork/exec window — sub-millisecond, but long enough to fail a
+    // reopen. `abi agent os execute` hits this directly: it holds the audit
+    // store open while spawning the command it audits.
+    //
+    // So retry `WouldBlock` for a budget far wider than that window and far
+    // narrower than a human notices. A genuinely held lock outlives the budget
+    // and still reports `WriterBusy`. A real filesystem error is never retried.
+    let deadline = std::time::Instant::now() + WRITER_LOCK_RETRY_BUDGET;
+    loop {
+        match file.try_lock() {
+            Ok(()) => return Ok(file),
+            Err(TryLockError::WouldBlock) => {
+                if std::time::Instant::now() >= deadline {
+                    return Err(DurableError::WriterBusy { path });
+                }
+                std::thread::sleep(WRITER_LOCK_RETRY_STEP);
+            }
+            Err(TryLockError::Error(error)) => {
+                return Err(DurableError::WriterLock {
+                    path,
+                    message: error.to_string(),
+                });
+            }
+        }
     }
 }
+
+/// How long [`acquire_writer_lock`] tolerates a `WouldBlock` before declaring
+/// the store busy. Measured fork/exec windows clear on the first 1 ms retry;
+/// this leaves two orders of magnitude of headroom on a loaded machine.
+const WRITER_LOCK_RETRY_BUDGET: std::time::Duration = std::time::Duration::from_millis(50);
+
+/// Poll interval while waiting out a transient `WouldBlock`.
+const WRITER_LOCK_RETRY_STEP: std::time::Duration = std::time::Duration::from_millis(1);
 
 #[cfg(test)]
 mod tests {
@@ -462,6 +492,41 @@ mod tests {
 
         drop(owner);
         DurableStore::open(fixture.paths.clone()).expect("drop releases writer lock");
+    }
+
+    #[test]
+    fn a_lock_released_moments_later_is_waited_out_rather_than_reported_busy() {
+        // A `fork` in this process duplicates the advisory lock's file
+        // descriptor into the child until it reaches `exec`, so a store that
+        // has already been dropped can still read as locked for a moment.
+        // Standing in for that here: an owner released shortly after the
+        // reopen begins. Without the retry budget this open fails outright.
+        const HELD_FOR: std::time::Duration = std::time::Duration::from_millis(10);
+
+        let fixture = Fixture::new("abi_durable_transient_lock");
+        let owner = DurableStore::open(fixture.paths.clone()).expect("owner takes the lock");
+        let (locked_tx, locked_rx) = std::sync::mpsc::channel();
+        let releaser = std::thread::spawn(move || {
+            locked_tx.send(()).expect("signal that the lock is held");
+            std::thread::sleep(HELD_FOR);
+            drop(owner);
+        });
+        locked_rx.recv().expect("owner reported the lock held");
+
+        let started = std::time::Instant::now();
+        let reopened = DurableStore::open(fixture.paths.clone());
+        let waited = started.elapsed();
+        releaser.join().expect("releaser thread");
+
+        assert!(
+            reopened.is_ok(),
+            "a lock released within the retry budget must not surface as busy: {:?}",
+            reopened.err()
+        );
+        assert!(
+            waited < WRITER_LOCK_RETRY_BUDGET * 2,
+            "waited {waited:?}, which is past the budget rather than inside it"
+        );
     }
 
     #[test]
