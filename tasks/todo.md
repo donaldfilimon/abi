@@ -61,6 +61,9 @@ See `docs/superpowers/plans/2026-07-31-rust-647-followups.md`.
 | Configurable timeout | ✅ | `timeout_secs` in the policy file, bounded 1..=3600; default stays 30s |
 | WDBX audit block for executed commands | ✅ | `os/audit.rs` appends vector + `os-cmd:<id>` KV + audit block per **executed** command (never dry-run), including killed timeouts (`timed_out=true`, exit 124). Store injected so tests use a scratch path. Intentional no-store and open/write failures are disclosed distinctly on the `[os-cmd]` line. |
 | `~/.abi/os-policy.toml` | ✅ | `os/policy.rs`, strict TOML subset. **Narrow-only**: `allow` is intersected with the compiled `CEILING`, so the file can never grant a command the binary does not already permit. Unknown, duplicate, and malformed keys fail closed. Path overridable via `ABI_OS_POLICY`. |
+| CI flake: `os::audit`/`os` scratch-store `WriterBusy` | ✅ | 2026-08-01: two tests built their scratch dir from `{pid}-{thread_id:?}`, which a panicked prior run's leftover lock dir can collide with once the libtest thread pool reuses that `ThreadId`. Switched both to `abi_foundation::temp_path::temp_file_path()` (PID + per-process counter). `./tools/check.sh` green. |
+
+**Disclosed, not fixed:** the same ad hoc `temp_dir().join(format!("..{pid}-{thread:?}"))` scratch-path pattern (not `temp_file_path`) also appears in `nn.rs`, `complete.rs`, `wdbx_simulate.rs`, `wdbx/mod.rs`, and `abi-wdbx/src/retrieval.rs`. None have been observed to flake; left untouched per "smallest verified slice" rather than swept into a broad rename.
 
 ---
 
