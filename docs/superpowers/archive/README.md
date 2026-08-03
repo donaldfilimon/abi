@@ -4,9 +4,12 @@ This directory holds **historical** plans and specs from the superpowers-era wor
 
 | Path | Role |
 | ---- | ---- |
-| `plans/` | Completed implementation plans (scheduler, skills, Mintlify migration) |
-| `specs/ABI-MASTER-SPEC.md` | Superseded master spec; claims and architecture now live in `docs/spec/` + `docs/contracts/` |
+| `plans/` | Completed implementation plans, including the pre-Rust Phase D cutover record |
+| `specs/` | Superseded Zig architecture and master specifications |
 
-**Do not** treat files here as current contracts, roadmaps, or public claim sources. Active work: `tasks/todo.md`, `docs/spec/wdbx-north-star.mdx`. Executable truth: `src/`, `build.zig`, `tests/contracts/`, `./build.sh check`.
+**Do not** treat files here as current contracts, roadmaps, or public claim
+sources. Active work: `tasks/todo.md` and `docs/spec/wdbx-north-star.mdx`.
+Executable truth: `Cargo.toml`, `crates/`, `tests/golden/`, and
+`./tools/check.sh`.
 
 Mintlify `docs/docs.json` intentionally omits this tree from navigation.

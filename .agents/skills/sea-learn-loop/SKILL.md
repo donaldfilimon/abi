@@ -25,14 +25,16 @@ not change the build path.
 It builds the CLI, points `ABI_WDBX_PATH` at a scratch store under
 `target/skill-scratch/` (never the live `~/.abi/`), runs
 `abi complete --learn "<input>"`, and asserts the markers `learn=true`,
-`model=`, `evidence_count=` (plus a soft `persisted=true` check). Prints
+`requested_model=`, `provider=local`, `generation_engine=persona-template`, and
+`evidence_count=` (plus a soft `persisted=true` check). Prints
 `RESULT: PASS — SEA learn loop ran.` (exit 0) or a FAIL count.
 
 ## Gotchas
 - **`evidence_count=0` is not necessarily a failure** — with SEA on, the scratch
   store may simply have no matching evidence yet.
-- The model line shows the catalog default (`claude-fable-5`); `--learn` is local
-  (WDBX metadata), not a live API call — no credentials needed.
+- The requested-model line shows the catalog default (`claude-fable-5`) while
+  `provider=local` and `generation_engine=persona-template` establish that
+  `--learn` is not a live API call; no credentials are needed.
 - First build may compile the workspace; later `./tools/cargo.sh build -p abi-cli` runs
   are incremental.
 

@@ -86,20 +86,17 @@ For multi-worker execution use `multi` or `spawn`. For claim-honest browser plan
 | `abi agent browser [--url <url>] [--execute --confirm] <task>` | Browser planning |
 | `abi agent plan <input>` | Single-agent planning |
 
-## Feature Gates
-
-Requires `feat-ai=true` (default). When AI is disabled, stubs preserve public symbols and return explicit degraded behavior. The scheduler lives in unconditional `src/core/` — there is no `feat-scheduler` flag.
-
 ## Claim Boundary
 
-Per `docs/contracts/external-claims-audit.mdx` and `docs/spec/abi-refactor-design.mdx` §5.4:
+Per `docs/contracts/external-claims-audit.mdx` and `docs/spec/multi-persona-technical.mdx`:
 - ✅ Local scheduler-backed multi-worker orchestration
 - ✅ Fixed trio + custom workers (≤32)
 - ✅ Browser planning with honest `embedded_browser=false`
 - ❌ NOT distributed agents
 - ❌ NOT embedded browser (real nav = external MCP)
 - ❌ NOT additional MCP tools (frozen 12-tool surface)
-- ❌ NOT autonomous daemon (background = synchronous `runAll()`)
+- ❌ NOT an autonomous daemon (`--background` is a compatibility label for a
+  synchronous, fully drained local batch)
 
 ## Implementation Notes
 

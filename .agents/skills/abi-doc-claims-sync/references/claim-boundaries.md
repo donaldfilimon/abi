@@ -9,7 +9,7 @@ Authoritative policy files:
 
 Safe repo-backed wording:
 
-- ABI is a Zig 0.17 local AI orchestration framework with deterministic Abbey/Aviva/Abi profile routing.
+- ABI is a nightly-Rust local AI orchestration framework with deterministic Abbey/Aviva/Abi profile routing.
 - WDBX is an in-process vector/key-value/block store with segment checkpoints, WAL recovery, temporal/causal records, HNSW-style cosine search, and hybrid ranking where wired.
 - CLI and MCP surfaces are frozen and contract-tested.
 - MCP stdio is local IPC; optional HTTP/SSE is loopback and can require `ABI_MCP_HTTP_TOKEN`.
@@ -38,5 +38,5 @@ Instruction-file sync checklist:
 - WDBX grammar including `db compact`, `cluster serve <port> [node] [host]`, and `api serve [port]`.
 - MCP 12-tool names and transport details.
 - Feature flags and FoundationModels gating.
-- Zig 0.17 idioms and `.zigversion` vs active `zig` caveat.
+- Nightly-Rust idioms and `./tools/cargo.sh` vs bare `cargo` caveat.
 - `./build.sh check`, `full-check`, docs validation, parity, and cross-smoke guidance.

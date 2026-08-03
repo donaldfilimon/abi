@@ -27,11 +27,9 @@
           "spec/multi-persona-technical",
           "spec/wdbx-north-star",
           "spec/agent-wdbx-architecture",
-          "spec/abi-refactor-design",
           "spec/wdbx-multiway",
           "spec/non-loopback-rest-threat-review",
-          "spec/cluster-mtls-ops",
-          "spec/phase-d-cutover-plan"
+          "spec/cluster-mtls-ops"
         ]
       },
       {

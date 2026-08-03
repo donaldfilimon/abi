@@ -440,6 +440,29 @@ pub fn run(args: &[String]) -> Outcome {
 mod tests {
     use super::*;
 
+    struct IsolatedStore {
+        path: std::path::PathBuf,
+    }
+
+    impl Drop for IsolatedStore {
+        fn drop(&mut self) {
+            abi_foundation::env::clear_override(abi_foundation::env::WDBX_PATH);
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn with_isolated_store<T>(body: impl FnOnce(&std::path::Path) -> T) -> T {
+        let _guard = abi_foundation::env::lock_for_test();
+        let isolated = IsolatedStore {
+            path: abi_foundation::temp_path::temp_file_path("abi-cli-app-test", "store"),
+        };
+        abi_foundation::env::set_override(
+            abi_foundation::env::WDBX_PATH,
+            &isolated.path.display().to_string(),
+        );
+        body(&isolated.path)
+    }
+
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(ToString::to_string).collect()
     }
@@ -572,18 +595,22 @@ mod tests {
 
     #[test]
     fn train_and_complete_are_attached() {
-        // `complete` resolves the durable store, so this is the one dispatch
-        // test that reads `ABI_WDBX_PATH`. Take the shared lock: os::tests
-        // installs a process-global override pointing at its own scratch
-        // store, and opening that store here would steal its writer lock.
-        let _guard = abi_foundation::env::lock_for_test();
-
         let train = run(&args(&["train", "example"]));
         assert_eq!(train.exit_code, 0);
         assert!(train.stdout.contains("training accepted"));
 
-        let complete = run(&args(&["complete", "hello world"]));
+        // The helper holds the shared environment lock while `complete` reads
+        // ABI_WDBX_PATH, so parallel store tests cannot redirect this call.
+        let complete = with_isolated_store(|store_path| {
+            let outcome = run(&args(&["complete", "hello world"]));
+            assert!(
+                store_path.exists(),
+                "completion should write only to its isolated test store"
+            );
+            outcome
+        });
         assert_eq!(complete.exit_code, 0);
+        assert!(complete.stdout.contains("persisted=true"));
         assert!(complete.stdout.contains("profile="));
         assert!(
             complete.stdout.contains("Abbey:")

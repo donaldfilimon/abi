@@ -17,7 +17,8 @@ Validation layers for modernization: behavioral parity, modern quality, structur
 
 - `.agents/skills/refactor-validation/references/validation-checklist.md`
 
-Run the validation skill + modern-refactorer agent review as final step.
+Run the validation skill plus a Rust-aware `abi` or `refactor-planner` agent
+review as the final step.
 
 Base directory for this skill: /Users/donaldfilimon/abi/.claude/skills/refactor-validation
 Relative paths in this skill (e.g., references/) are relative to this base directory.
