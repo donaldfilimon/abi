@@ -43,8 +43,8 @@ const VETO_REFUSAL: &str =
 /// A completed turn, before persistence.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CompletionResult {
-    /// The model identifier echoed back (not currently resolved against a
-    /// catalog — see the module docs on scope).
+    /// The caller-requested model identifier. Local completion does not invoke
+    /// that model; it selects and renders an in-process persona template.
     pub model: String,
     /// The persona that generated `output`.
     pub selected_profile: AgentProfile,
@@ -178,7 +178,9 @@ pub fn metadata_json(
         "{\"kind\":\"completion\",\"persistence\":\"explicit_store_result\",\"authority\":\"inferred\",\"epistemic_status\":\"generated_output\",\"model\":",
     );
     push_json_string(&mut out, &result.model);
-    out.push_str(",\"profile\":");
+    out.push_str(",\"requested_model\":");
+    push_json_string(&mut out, &result.model);
+    out.push_str(",\"provider\":\"local\",\"transport\":\"in-process\",\"generation_engine\":\"persona-template\",\"policy_scope\":\"lexical-signal\",\"profile\":");
     push_json_string(&mut out, result.selected_profile.label());
     // Manual append keeps field order fixed and avoids an intermediate String.
     let _ = write!(
@@ -264,7 +266,7 @@ mod tests {
         let result = complete("hello world", "claude-fable-5").unwrap();
         let json = metadata_json("hello world", &result, 655, 656);
         let expected = format!(
-            "{{\"kind\":\"completion\",\"persistence\":\"explicit_store_result\",\"authority\":\"inferred\",\"epistemic_status\":\"generated_output\",\"model\":\"claude-fable-5\",\"profile\":\"abbey\",\"audit_passed\":true,\"audit_vetoed\":false,\"escore\":1.000,\"input_bytes\":11,\"output_bytes\":{},\"query_vector_id\":655,\"response_vector_id\":656}}",
+            "{{\"kind\":\"completion\",\"persistence\":\"explicit_store_result\",\"authority\":\"inferred\",\"epistemic_status\":\"generated_output\",\"model\":\"claude-fable-5\",\"requested_model\":\"claude-fable-5\",\"provider\":\"local\",\"transport\":\"in-process\",\"generation_engine\":\"persona-template\",\"policy_scope\":\"lexical-signal\",\"profile\":\"abbey\",\"audit_passed\":true,\"audit_vetoed\":false,\"escore\":1.000,\"input_bytes\":11,\"output_bytes\":{},\"query_vector_id\":655,\"response_vector_id\":656}}",
             result.output.len()
         );
         assert_eq!(json, expected);
@@ -273,6 +275,7 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
         assert_eq!(parsed["query_vector_id"], 655);
         assert_eq!(parsed["escore"], 1.0);
+        assert_eq!(parsed["model"], parsed["requested_model"]);
     }
 
     #[test]
@@ -286,7 +289,7 @@ mod tests {
         let json = metadata_json("in", &result, 1, 2);
         let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
         assert_eq!(
-            parsed["model"],
+            parsed["requested_model"],
             "quote\"back\\slash\nline\rreturn\ttab\x01ctrl"
         );
     }
@@ -304,7 +307,7 @@ mod tests {
         };
         let json = metadata_json("in", &result, 1, 2);
         let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
-        assert_eq!(parsed["model"], "café 日本語 emoji 🎉");
+        assert_eq!(parsed["requested_model"], "café 日本語 emoji 🎉");
     }
 
     #[test]

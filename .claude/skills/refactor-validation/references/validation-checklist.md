@@ -21,4 +21,5 @@ Use before declaring any modernization complete.
 - [ ] Documentation and types reflect the new design
 - [ ] Dead code from old approach removed (after cutover)
 
-Run the validation skill + modern-refactorer agent review as final step.
+Run the validation skill plus a Rust-aware `abi` or `refactor-planner` agent
+review as the final step.

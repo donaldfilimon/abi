@@ -7,24 +7,26 @@ This file describes conventions for writing and contributing docs for the ABI pr
 - Published Mintlify docs live in `docs/` (see [`docs/README.md`](README.md)).
 - Tutorials and research notes live in `docs/tutorials/` and `docs/research/`.
 
-## Doc comment style for Zig
+## Rustdoc style
 
-- Summary line (1 sentence)
-- Longer description paragraph(s)
-- `Parameters:` list for function inputs
-- `Returns:` description
-- `Errors:` list (if applicable)
+- Start with a one-sentence summary.
+- Add details only when the contract or invariants are not obvious from the
+  signature.
+- Use `# Errors`, `# Panics`, and `# Safety` sections when they apply.
+- Keep examples executable where practical; use `no_run` only when the example
+  requires an external service or operator-owned path.
 
 Example:
 
-```zig
-/// Compute the answer to life.
+```rust
+/// Computes a deterministic embedding for local retrieval.
 ///
-/// Parameters:
-///   - allocator: allocator to use
-///   - input: the input string
+/// # Errors
 ///
-/// Returns: Zig string containing the answer
+/// Returns [`EmbeddingError::EmptyInput`] when `input` is empty.
+pub fn embed(input: &str) -> Result<Vec<f32>, EmbeddingError> {
+    // implementation
+}
 ```
 
 ## How to preview docs
@@ -32,9 +34,12 @@ Example:
 - Mintlify site: `cd docs && npx mint@latest dev`
 - CI validation: `.agents/skills/docs-validate/validate.sh`
 
-## Formatting
+## Validation
 
-- Run project formatter: `./build.sh fix`
+- Format Rust: `./tools/cargo.sh fmt --all`.
+- Run the primary repository gate: `./tools/check.sh`.
+- After changing `docs/`, run `.agents/skills/docs-validate/validate.sh` with an
+  LTS Node runtime.
 
 ## Submitting docs
 

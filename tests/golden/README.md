@@ -99,15 +99,13 @@ Zig : epoch=306 kv=262 vectors=663 blocks=330 spatial=0 temporal_nodes=3 tempora
 Rust:           kv=262 vectors=663 blocks=330 spatial=0 temporal_nodes=3 temporal_edges=2 chain verifies
 ```
 
-Reproduce with:
+The original cross-implementation capture is historical and is not directly
+reproducible after the Zig tree was removed. Do not point tests or automation at
+`~/.abi/wdbx`. New compatibility captures must first copy an operator-approved
+store into a disposable scratch directory and run only against that copy.
 
-```bash
-./zig-out/bin/abi wdbx db verify ~/.abi/wdbx
-ABI_WDBX_REAL_STORE_TEST=1 ./tools/cargo.sh test -p abi-wdbx --test real_store -- --nocapture
-```
-
-**Caveat on these numbers.** Capturing the `ai_complete` / `ai_learn` / `ai_train`
-success paths above *wrote to the live store* — those tools report
+**Historical caveat on these numbers.** Capturing the `ai_complete` / `ai_learn` / `ai_train`
+success paths above *wrote to the live store*; those tools reported
 `persisted=true`. The store went from epoch 300 to 306, gaining 6 kv entries, 9
 vectors, 3 blocks, and the first 3 temporal nodes / 2 temporal edges it had ever
 held. Appends only, and the chain still verifies, but it means the counts here

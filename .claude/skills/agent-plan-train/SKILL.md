@@ -30,7 +30,6 @@ description: Plan and execute ABI repo work from current TODOs, roadmap/spec doc
 # optional; codex abi-mega plugin only:
 #   abi_inventory --repo /Users/donaldfilimon/abi
 ./tools/cargo.sh --version
-./tools/check.sh --summary all
 ./tools/check.sh
 ```
 

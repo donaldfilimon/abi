@@ -11,14 +11,15 @@ It is **not** stranded branch work and does **not** ship inside `abi` releases.
 - Generated inventory: `/Users/donaldfilimon/plugins/abi-mega/assets/abi-current-inventory.md`
 
 The plugin is an operator-local Codex artifact. It does not replace repository
-source, tests, or docs. When the plugin and repo disagree, trust `build.zig`,
-`tools/`, `src/`, contract tests, and the current Markdown sources in this repo.
-Zig pin for repo gates remains `.zigversion` (`0.17.0-dev.1442+972627084`).
+source, tests, or docs. When the plugin and repo disagree, trust `Cargo.toml`,
+`crates/`, `tools/check.sh`, golden/contract tests, and the current
+Markdown sources in this repo. ABI now uses nightly Rust; always invoke Cargo
+through `./tools/cargo.sh`.
 
 ## Included Skills
 
-- `abi-goal-orchestrator`: turns `tasks/todo.md`, roadmap/spec docs, and Zig
-  0.17 repo rules into executable implementation slices.
+- `abi-goal-orchestrator`: turns `tasks/todo.md`, roadmap/spec docs, and
+  nightly-Rust repo rules into executable implementation slices.
 - `abi-doc-claims-sync`: keeps README/docs/instruction claims aligned with
   executable behavior and `docs/contracts/external-claims-audit.mdx`.
 - `abi-surface-validator`: runs focused ABI CLI, MCP, WDBX, TUI, and docs gates.

@@ -1,5 +1,6 @@
 //! Process-level compatibility tests for the Rust `abi` executable.
 
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 /// The spawned executable is a non-test build, so the `cfg(test)` refusal in
@@ -14,6 +15,66 @@ fn spawn(arguments: &[&str], environment: &[(&str, &str)]) -> Output {
         .envs(environment.iter().copied())
         .output()
         .expect("Rust abi executable should run")
+}
+
+struct IsolatedStore {
+    path: PathBuf,
+}
+
+impl IsolatedStore {
+    fn new(prefix: &str) -> Self {
+        Self {
+            path: abi_foundation::temp_path::temp_file_path(prefix, "store"),
+        }
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for IsolatedStore {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
+    }
+}
+
+#[test]
+fn process_harness_honors_an_isolated_store_override() {
+    let fake_home = IsolatedStore::new("abi-cli-process-home");
+    let store = IsolatedStore::new("abi-cli-process-test");
+    let fake_home_text = fake_home.path().to_str().expect("UTF-8 temporary HOME");
+    let store_text = store.path().to_str().expect("UTF-8 temporary store");
+    let output = spawn(
+        &["complete", "isolated store regression"],
+        &[("HOME", fake_home_text), ("ABI_WDBX_PATH", store_text)],
+    );
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("persisted=true"),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(
+        store.path().exists(),
+        "isolated WDBX store should be created"
+    );
+    assert!(
+        !fake_home.path().join(".abi").exists(),
+        "the CLI test must not open HOME/.abi"
+    );
+
+    let persisted = abi_wdbx::DurableStore::open(abi_wdbx::StorePaths::new(store.path()))
+        .expect("reopen isolated process-test store");
+    let stats = persisted.stats();
+    assert_eq!(stats.kv_entries, 1);
+    assert_eq!(stats.vectors, 2);
+    assert_eq!(stats.blocks, 1);
 }
 
 fn run(arguments: &[&str]) -> Output {

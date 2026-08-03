@@ -274,8 +274,9 @@ fn spawn(args: &[String]) -> Outcome {
         None => vec![abi_ai::default_spawn_spec()],
     };
 
-    // One scheduler task per worker, named `agent:spawn:<worker>` as Zig did, so
-    // `completed=` reflects the real fan-out rather than always reading 1.
+    // Compatibility scheduler markers preserve the legacy accounting shape.
+    // The actual local template batch below is synchronous and does not run in
+    // these marker closures.
     let scheduler = Scheduler::new();
     for spec in &specs {
         scheduler.submit(
@@ -292,11 +293,12 @@ fn spawn(args: &[String]) -> Outcome {
 
     let mut out = String::new();
     if background {
-        // Zig printed the submitted task ids before the aggregated results. Ids
-        // are 1-based and assigned in spec order by the scheduler.
-        let _ = writeln!(out, "submitted background agent tasks:");
+        let _ = writeln!(out, "compatibility_mode=background-requested");
+        let _ = writeln!(out, "execution=synchronous-local-batch");
+        let _ = writeln!(out, "durable_jobs=false");
+        let _ = writeln!(out, "scheduler_marker_tasks:");
         for (index, spec) in specs.iter().enumerate() {
-            let _ = writeln!(out, "  task_id={} worker={}", index + 1, spec.name);
+            let _ = writeln!(out, "  marker_task_id={} worker={}", index + 1, spec.name);
         }
     }
     let _ = writeln!(out, "{}", batch.aggregated);
@@ -455,21 +457,27 @@ mod tests {
     }
 
     #[test]
-    fn spawn_background_lists_task_ids_before_the_results() {
+    fn spawn_background_compatibility_mode_discloses_synchronous_execution() {
         let args = ["--background", "--workers", "a|A;b|B", "t"].map(String::from);
         let outcome = spawn(&args);
         assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
         let ids = outcome
             .stdout
-            .find("submitted background agent tasks:")
-            .expect("the background header is present");
+            .find("compatibility_mode=background-requested")
+            .expect("the compatibility header is present");
         let banner = outcome
             .stdout
             .find("=== CUSTOM MULTI-AGENT RESULTS ===")
             .expect("the banner is present");
-        assert!(ids < banner, "task ids must precede the aggregated results");
-        assert!(outcome.stdout.contains("task_id=1 worker=a"));
-        assert!(outcome.stdout.contains("task_id=2 worker=b"));
+        assert!(
+            ids < banner,
+            "marker ids must precede the aggregated results"
+        );
+        assert!(outcome.stdout.contains("execution=synchronous-local-batch"));
+        assert!(outcome.stdout.contains("durable_jobs=false"));
+        assert!(outcome.stdout.contains("marker_task_id=1 worker=a"));
+        assert!(outcome.stdout.contains("marker_task_id=2 worker=b"));
+        assert!(!outcome.stdout.contains("submitted background agent tasks"));
     }
 
     #[test]

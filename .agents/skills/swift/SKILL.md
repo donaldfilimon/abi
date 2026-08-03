@@ -4,7 +4,7 @@ description: >-
   This skill should be used when the user runs /swift, or asks about fixing Swift
   builds on this Mac, Xcode vs swiftly/TOOLCHAINS, SwiftData macro errors,
   AbbeyBot/AbbeyServer/AbbeyCompanion, DiscordBM, verify-all / AbbeyBot smoke, or
-  Swift 6.4 / macOS 27 SPM for those packages. Do not use for Zig/abi or general
+  Swift 6.4 / macOS 27 SPM for those packages. Do not use for Rust/abi or general
   Swift language tutorials.
 version: 0.1.0
 ---
@@ -16,7 +16,7 @@ General Swift language knowledge is assumed; this skill encodes **machine- and r
 
 ## When not to use
 
-- Zig / `~/abi` work — use ABI project skills instead.
+- Rust / `~/abi` work — use ABI project skills instead.
 - Pure Swift language or concurrency Q&A with no Mac toolchain or AbbeyBot context.
 
 ## Hard toolchain rules

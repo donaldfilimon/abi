@@ -7,17 +7,17 @@ description: "Claim-honest ops guidance for ABI WDBX cluster RPC transit encrypt
 
 **Status:** Partial / disclosed ops guidance. This is **not** a production multi-host cluster claim and **not** a sharding design.
 
-**Evidence:** `src/features/wdbx/cluster.zig`, `src/features/wdbx/cluster_rpc.zig`, `abi wdbx cluster serve`, `docs/spec/wdbx-north-star.mdx` §3.5, `docs/spec/non-loopback-rest-threat-review.mdx`.
+**Evidence:** `crates/abi-wdbx/src/cluster.rs`, `crates/abi-wdbx/src/cluster_rpc.rs`, `abi wdbx cluster serve`, `docs/spec/wdbx-north-star.mdx` §3.5, `docs/spec/non-loopback-rest-threat-review.mdx`.
 
 ## What exists today
 
 | Control | Behavior |
 | ------- | -------- |
-| Transport | Real TCP RequestVote / AppendEntries (`cluster_rpc.zig`), loopback-tested |
+| Transport | Real TCP RequestVote / AppendEntries (`cluster_rpc.rs`), loopback-tested |
 | Auth | Shared secret frames via `ABI_WDBX_CLUSTER_TOKEN` (required for non-loopback binds) |
 | Peers | Optional allowlist `ABI_WDBX_CLUSTER_PEERS` (comma-separated node ids) |
 | TLS / mTLS | **Not linked in-process** — front with a TLS/mTLS-terminating proxy |
-| Membership | Runtime peer-set reload via `ClusterPolicy.withPeers` (loopback-tested); no dynamic join/leave wire protocol |
+| Membership | Runtime peer-set reload via `ClusterPolicy::with_peers` / `set_peers` (loopback-tested); no dynamic join/leave wire protocol |
 | Sharding | **Not implemented** (stays Proposed) |
 
 ## Threat model (routable cluster RPC)
@@ -33,7 +33,7 @@ description: "Claim-honest ops guidance for ABI WDBX cluster RPC transit encrypt
 | Decision | Outcome |
 | -------- | ------- |
 | Native TLS/mTLS in ABI cluster RPC | **Deferred.** Prefer stunnel / nginx stream / Envoy / Caddy with mutual TLS to loopback `cluster serve` ports. |
-| Dynamic membership | **Partial.** `ClusterPolicy.withPeers` allows runtime peer-allowlist reload between serve rounds (loopback-tested). A wire-level join/leave protocol with heartbeat/log-catchup stays Proposed. |
+| Dynamic membership | **Partial.** `ClusterPolicy::with_peers` allows runtime peer-allowlist reload between serve rounds (loopback-tested). A wire-level join/leave protocol with heartbeat/log-catchup stays Proposed. |
 | Data sharding | **Proposed / non-goal for this doc.** Do not schedule as “complete.” |
 | Supported ops mode | Loopback multi-node demos and carefully controlled LAN binds behind mTLS proxy + token + peers. |
 
@@ -41,12 +41,12 @@ description: "Claim-honest ops guidance for ABI WDBX cluster RPC transit encrypt
 
 1. Prefer `127.0.0.1` for demos (`abi wdbx cluster serve <port>`).
 2. For any non-loopback bind: set a strong `ABI_WDBX_CLUSTER_TOKEN`; set `ABI_WDBX_CLUSTER_PEERS`.
-3. Terminate **mTLS** at the proxy; keep Zig listeners on loopback.
+3. Terminate **mTLS** at the proxy; keep ABI listeners on loopback.
 4. Do not claim production multi-host, HA, or sharding from this surface.
 5. Pair with the REST/MCP HTTP review when the same host also exposes HTTP.
 
 ## Residual Proposed work
 
 - Native TLS or mTLS linked and contract-tested on `cluster_rpc`.
-- Dynamic membership wire protocol (join/leave with heartbeat + log-catchup) — `withPeers` reload is the first step; the wire protocol stays Proposed.
+- Dynamic membership wire protocol (join/leave with heartbeat + log-catchup) — `with_peers` reload is the first step; the wire protocol stays Proposed.
 - Production multi-host runbooks (still not sharding).

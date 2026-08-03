@@ -91,7 +91,7 @@ pub fn report(store: Option<&mut DurableStore>, input: &str, model: &str, now_ms
     let after = store.stats();
 
     let mut out = format!(
-        "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} kv_entries={} vectors={} blocks={} total_kv_entries={} total_vectors={} total_blocks={}",
+        "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} kv_entries={} vectors={} blocks={} total_kv_entries={} total_vectors={} total_blocks={}",
         result.model,
         result.selected_profile.label(),
         result.audit.passed,
@@ -130,7 +130,7 @@ pub fn report(store: Option<&mut DurableStore>, input: &str, model: &str, now_ms
 /// the persisted-record ids.
 fn report_unpersisted(result: &abi_ai::CompletionResult, status: &str) -> String {
     format!(
-        "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted=false kv_entries=0 vectors=0 blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={status}: {}",
+        "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted=false kv_entries=0 vectors=0 blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={status}: {}",
         result.model,
         result.selected_profile.label(),
         result.audit.passed,
@@ -234,7 +234,7 @@ pub fn report_learn(
             return "error: completion input must not be empty".to_string();
         };
         return format!(
-            "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted=false evidence_count=0 adapted=false kv_entries=0 vectors=0 blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={NO_STORE_STATUS}: {}",
+            "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted=false evidence_count=0 adapted=false kv_entries=0 vectors=0 blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={NO_STORE_STATUS}: {}",
             result.model,
             result.selected_profile.label(),
             result.audit.passed,
@@ -264,7 +264,7 @@ pub fn report_learn(
     let persisted = learned.persisted.is_some();
 
     let mut out = format!(
-        "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} evidence_count={} adapted={} kv_entries={} vectors={} blocks={} total_kv_entries={} total_vectors={} total_blocks={}",
+        "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} evidence_count={} adapted={} kv_entries={} vectors={} blocks={} total_kv_entries={} total_vectors={} total_blocks={}",
         result.model,
         result.selected_profile.label(),
         result.audit.passed,
@@ -550,7 +550,7 @@ mod tests {
     fn no_store_reports_the_disclosed_unpersisted_status() {
         let output = report(None, "hello world", "claude-fable-5", FIXED_NOW_MS);
         assert!(output.starts_with(
-            "model=claude-fable-5 profile=abbey audit_passed=true audit_escore=1.000 audit_vetoed=false persisted=false"
+            "requested_model=claude-fable-5 provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile=abbey audit_passed=true audit_escore=1.000 audit_vetoed=false persisted=false"
         ));
         assert!(output.contains("kv_entries=0 vectors=0 blocks=0"));
         assert!(output.contains(&format!("wdbx_status={NO_STORE_STATUS}")));
