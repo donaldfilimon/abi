@@ -18,6 +18,8 @@ abi-ai = { path = "crates/abi-ai" }
 abi-sea = { path = "crates/abi-sea" }
 abi-gpu = { path = "crates/abi-gpu" }
 abi-nn = { path = "crates/abi-nn" }
+abi-connectors = { path = "crates/abi-connectors" }
+abi-wdbx = { path = "crates/abi-wdbx" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }

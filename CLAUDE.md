@@ -194,7 +194,7 @@ Over 1000 lines; decompose before adding to them:
 | File | Lines | Notes |
 |---|---|---|
 | `crates/abi-wdbx/src/multiway.rs` | ~1743 | Manual JSON serialization throughout; the `evolve()` frontier loop has been extracted to a helper |
-| `crates/abi-wdbx/src/wal.rs` | ~1057 | Seven `append_*` functions each redefine an identical `#[derive(Serialize)] struct Mutation` |
+| `crates/abi-wdbx/src/wal.rs` | ~1057 | Mutation dedup landed (shared `enum Mutation<'a>` + `append_json` helper); remaining size is inherent WAL surface |
 
 Watch list (850–1000 lines — not yet over the line, but the next candidates):
 `crates/abi-wdbx/src/hnsw.rs` (~941), `crates/abi-wdbx/src/store.rs` (~933),

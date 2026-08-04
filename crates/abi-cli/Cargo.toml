@@ -20,8 +20,8 @@ abi-ai = { workspace = true }
 abi-sea = { workspace = true }
 abi-nn = { workspace = true }
 abi-gpu = { workspace = true }
-abi-connectors = { path = "../abi-connectors" }
-abi-wdbx = { path = "../abi-wdbx" }
+abi-connectors = { workspace = true }
+abi-wdbx = { workspace = true }
 ctrlc = { workspace = true }
 serde_json = { workspace = true }
 libc = "0.2"
