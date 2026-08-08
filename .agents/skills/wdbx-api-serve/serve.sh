@@ -14,7 +14,15 @@ PORT="${1:-8091}"
 PORT2=$((PORT + 1))
 fail=0
 PIDS=()
-cleanup() { for p in "${PIDS[@]:-}"; do kill "$p" 2>/dev/null || true; done; }
+SCRATCH=$(mktemp -d "${TMPDIR:-/tmp}/abi-wdbx-api-skill.XXXXXX")
+STORE="$SCRATCH/store"
+cleanup() {
+  for p in "${PIDS[@]:-}"; do
+    kill "$p" 2>/dev/null || true
+    wait "$p" 2>/dev/null || true
+  done
+  rm -rf -- "$SCRATCH"
+}
 trap cleanup EXIT
 say() { printf '\n=== %s ===\n' "$*"; }
 mark() { grep -qF -- "$2" <<<"$1" && echo "[ok] $3" || { echo "[FAIL] $3 (missing: $2)"; fail=$((fail+1)); }; }
@@ -26,7 +34,7 @@ say "build cli"
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
 
 say "launch WDBX REST (no auth) on :$PORT"
-"$ABI" wdbx api serve "$PORT" >/dev/null 2>&1 & PIDS+=($!)
+ABI_WDBX_PATH="$STORE" "$ABI" wdbx api serve "$PORT" >/dev/null 2>&1 & PIDS+=($!)
 wait_up "$PORT" || { echo "[FAIL] server did not come up on :$PORT"; fail=$((fail+1)); }
 
 say "GET /health + GET /stats"
@@ -36,7 +44,7 @@ stats=$(curl -s "http://127.0.0.1:$PORT/stats"); printf 'stats: %s\n' "$stats"
 mark "$stats" '"backend"' "/stats returns store stats"
 
 say "bearer auth (ABI_WDBX_REST_TOKEN) on :$PORT2"
-ABI_WDBX_REST_TOKEN=probe-tok "$ABI" wdbx api serve "$PORT2" >/dev/null 2>&1 & PIDS+=($!)
+ABI_WDBX_PATH="$STORE" ABI_WDBX_REST_TOKEN=probe-tok "$ABI" wdbx api serve "$PORT2" >/dev/null 2>&1 & PIDS+=($!)
 wait_up "$PORT2" >/dev/null 2>&1 || true
 c_none=$(code "http://127.0.0.1:$PORT2/health")
 c_wrong=$(code -H "Authorization: Bearer nope" "http://127.0.0.1:$PORT2/health")

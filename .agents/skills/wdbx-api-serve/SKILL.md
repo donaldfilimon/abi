@@ -23,9 +23,8 @@ Fully local, loopback only.
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count. Both servers are killed on exit.
 
-Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — REST endpoints
-`/insert /query /verify /health /stats` listen on loopback; auth off by default;
-bearer enforcement is exactly 401/401/200.
+Current Rust driver: uses an isolated `ABI_WDBX_PATH`, proves loopback health
+and stats, then checks bearer enforcement is exactly 401/401/200.
 
 ## Gotchas
 - ⚠️ **Loopback + local hardening only.** The listener binds `127.0.0.1`;
@@ -36,8 +35,8 @@ bearer enforcement is exactly 401/401/200.
   `pgrep -f 'abi wdbx api serve'` returns nothing after a run.
 - `auth=off` in the startup log is expected when `ABI_WDBX_REST_TOKEN` is unset;
   it flips to `auth=on` when the env var is present.
-- `/stats` reports `backend:metal mode:native_gpu` — that's the linked-Metal /
-  vectorized-CPU-fallback status, not a live GPU claim (see `backend-diagnostics`).
+- `/stats` reports the backend label separately from `mode=cpu_fallback`; a
+  `metal` label alone is not evidence that a kernel executed.
 - For a source-level tour of the REST routing core (`rest.rs` `route`) and the
   WAL/checkpoint substrate, use the `wdbx-explorer` subagent.
 
@@ -46,4 +45,4 @@ bearer enforcement is exactly 401/401/200.
 |---|---|
 | `build` FAIL | Check nightly via `./tools/cargo.sh --version`, then `./tools/check.sh`. |
 | `server did not come up` | Port in use — pass a free base port; or the build didn't produce the binary. |
-| bearer test all 200 | `ABI_WDBX_REST_TOKEN` not being read — check `crates/abi-wdbx/src/rest.rs` (`loadBearerToken`/`hasBearerToken`). |
+| bearer test all 200 | `ABI_WDBX_REST_TOKEN` is not being enforced — check `RestConfig::from_env` and `abi_foundation::http::has_bearer_token`. |

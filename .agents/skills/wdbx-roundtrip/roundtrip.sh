@@ -12,7 +12,10 @@ cd "$REPO_ROOT"
 ABI="$REPO_ROOT/target/debug/abi"
 PROFILE="${1:-abi}"
 META="${2:-{\"note\":\"wdbx-roundtrip\"}}"
-STORE="$REPO_ROOT/target/skill-wdbx-roundtrip.jsonl"
+SCRATCH=$(mktemp -d "${TMPDIR:-/tmp}/abi-wdbx-roundtrip-skill.XXXXXX")
+STORE="$SCRATCH/store"
+cleanup() { rm -rf -- "$SCRATCH"; }
+trap cleanup EXIT
 fail=0
 say() { printf '\n=== %s ===\n' "$*"; }
 step() { local label="$1"; shift; local -a markers=(); local a
@@ -27,14 +30,11 @@ step() { local label="$1"; shift; local -a markers=(); local a
 say "build cli"
 ./tools/cargo.sh build -p abi-cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
-rm -f "$STORE"
-
-say "wdbx db init";      step "init"   "initialized empty WDBX" -- "$ABI" wdbx db init "$STORE"
+say "wdbx db init";      step "init"   "initialized empty WDBX v2" -- "$ABI" wdbx db init "$STORE"
 say "wdbx block insert"; step "insert" "appended block:" "blocks=1" -- "$ABI" wdbx block insert "$STORE" "$PROFILE" "$META"
 say "wdbx query";        step "query"  '"blocks":1' -- "$ABI" wdbx query "$STORE"
-say "wdbx db verify";    step "verify" "checkpoint OK:" "chain_valid=true" -- "$ABI" wdbx db verify "$STORE"
+say "wdbx db verify";    step "verify" "v2 verify OK:" "merged_chain_valid=true" -- "$ABI" wdbx db verify "$STORE"
 
-rm -f "$STORE"
 say "summary"; echo "failed checks: $fail"
 [ "$fail" -eq 0 ] && echo "RESULT: PASS — WDBX persistence round-trip verified." || echo "RESULT: FAIL — $fail check(s)."
 exit "$fail"

@@ -18,8 +18,8 @@ Builds the CLI, runs `abi twilio simulate "<utterance>"` (asserts
 `abi auth status` (asserts `Authentication Status:`). Prints `RESULT: PASS`
 (exit 0) or a FAIL count.
 
-Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — local Twilio
-sim responds + reports `escalation: false`; auth status lists all providers.
+Current Rust driver: checks the local Twilio simulation response/escalation
+shape plus credential status without selecting a live transport.
 
 ## Gotchas
 - ⚠️ **Local only by design.** This exercises the deterministic local connector
@@ -33,4 +33,4 @@ sim responds + reports `escalation: false`; auth status lists all providers.
 | Symptom | Fix |
 |---|---|
 | `build` FAIL | `./tools/check.sh`. |
-| missing `Twilio ConversationRelay simulation` | grammar drift — check `src/cli/handlers` twilio path + `crates/abi-connectors/src/twilio.rs`. |
+| missing `Twilio ConversationRelay simulation` | grammar drift — check `crates/abi-cli/src/twilio.rs` and `crates/abi-connectors/src/twilio.rs`. |

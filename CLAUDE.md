@@ -189,22 +189,18 @@ existing golden fixtures still cover the new path.
 Re-measure before trusting this table — it goes stale as work lands
 (`find crates -name '*.rs' -exec wc -l {} + | sort -rn | head`).
 
-Over 1000 lines; decompose before adding to them:
-
-| File | Lines | Notes |
-|---|---|---|
-| `crates/abi-wdbx/src/multiway.rs` | ~1743 | Manual JSON serialization throughout; the `evolve()` frontier loop has been extracted to a helper |
-| `crates/abi-wdbx/src/wal.rs` | ~1057 | Mutation dedup landed (shared `enum Mutation<'a>` + `append_json` helper); remaining size is inherent WAL surface |
-
-Watch list (850–1000 lines — not yet over the line, but the next candidates):
-`crates/abi-wdbx/src/hnsw.rs` (~941), `crates/abi-wdbx/src/store.rs` (~933),
-`crates/abi-cli/src/complete.rs` (~903), `crates/abi-core/src/scheduler.rs`
-(~883). Next in line below the band: `crates/abi-cli/src/wdbx_simulate.rs`
-(~827) and `crates/abi-wdbx/src/rest.rs` (~800).
+`tools/check_rust_sizes.sh` rejects Rust modules over 1,000 lines and rejects
+`crates/abi-cli/src/main.rs` over 200. Current watch list (900–1000 lines):
+`crates/abi-wdbx/src/hnsw.rs` (958), `crates/abi-wdbx/src/store.rs` (933),
+`crates/abi-cli/src/dashboard.rs` (932), `crates/abi-wdbx/src/multiway.rs`
+(930), `crates/abi-wdbx/src/v2/lifecycle.rs` (921), and
+`crates/abi-cli/src/complete.rs` (904). Re-measure before trusting these numbers.
 
 Already split — don't recreate the flat versions: `crates/abi-cli/src/wdbx.rs` is
 now the `wdbx/` module directory, `crates/abi-wdbx/src/format.rs` is down to
 ~444 lines, and `crates/abi-cli/src/agent.rs` is down to ~520 (the line-mode
 REPL moved to `repl.rs`; its raw editor/TTY transport is isolated in
 `repl_editor.rs`; `os.rs` owns command execution with `os/policy.rs` +
-`os/audit.rs` beside it).
+`os/audit.rs` beside it). Scheduler tests live under `scheduler/tests.rs`;
+multiway export/resume logic and tests live under `multiway/`; WAL tests live
+under `wal/tests.rs`.

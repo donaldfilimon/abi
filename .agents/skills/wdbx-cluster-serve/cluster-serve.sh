@@ -30,7 +30,7 @@ say "build cli"
 ./tools/cargo.sh build -p abi-cli >/dev/null 2>&1 && echo "[ok] build" || { echo "[FAIL] build"; exit 1; }
 [ -x "$ABI" ] || { echo "[FAIL] $ABI not produced"; exit 1; }
 
-MARKER="serving consensus RPC on 127.0.0.1:$PORT"
+MARKER="wdbx cluster RPC serving on 127.0.0.1:$PORT"
 
 say "launch WDBX consensus node on 127.0.0.1:$PORT"
 "$ABI" wdbx cluster serve "$PORT" >"$LOG" 2>&1 &

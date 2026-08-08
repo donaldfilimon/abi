@@ -28,8 +28,9 @@ Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
 ## Architecture
 
 - Workspace crates under `crates/*`: `abi-foundation`, `abi-core`, `abi-ai`,
-  `abi-sea`, `abi-nn`, `abi-gpu`, `abi-wdbx`, `abi-connectors`, `abi-plugins`,
-  `abi-telemetry`, `abi-cli` (binary `abi`), `abi-mcp` (binary `abi-mcp`).
+  `abi-sea`, `abi-nn`, `abi-compute` (cycle-free compute contracts/CPU SIMD),
+  `abi-gpu`, `abi-wdbx`, `abi-connectors`, `abi-plugins`, `abi-telemetry`,
+  `abi-cli` (binary `abi`), `abi-mcp` (binary `abi-mcp`).
 - **MCP launcher** (`mcp/launcher.sh`): prefers `target/release/abi-mcp` then
   `target/debug/abi-mcp`; optional `ABI_MCP_AUTO_BUILD=1`.
 - Golden fixtures under `tests/golden/` pin frozen CLI/MCP surfaces.
@@ -96,6 +97,8 @@ use scratch `DurableStore` paths, `ABI_WDBX_PATH=:memory:`, or
   redirected input.
 - Plugin slash-commands dispatch via `__cmd__:<name>` (parallel to
   `__context__:<name>`).
-- WDBX borrowed vectors are zero-copy; lifetime ends on next mutation.
+- Legacy v1 WDBX borrowed vectors are mutation-scoped. V2/versioned search
+  views retain immutable `Arc` segment/index snapshots and remain valid across
+  later journal or segment publication.
 
 After any edit: `./tools/check.sh`.
