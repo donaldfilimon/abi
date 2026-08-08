@@ -135,8 +135,9 @@ pub use temporal::{
 };
 pub use tls_config::{TLS_CERT_ENV, TLS_KEY_ENV, TlsConfig};
 pub use v2::{
-    CausalHeads, ConflictSet, RecordId, V2Error, V2Mutation, V2Snapshot, V2Store, Version,
-    VersionedSnapshot, open_versioned_read_only,
+    CausalHeads, CommittedTransaction, CompactionReport, ConflictSet, RecordId, SegmentCodecKind,
+    SegmentCodecPolicy, V2Error, V2Mutation, V2Snapshot, V2Store, Version, VersionedSnapshot,
+    open_versioned_read_only,
 };
 pub use versioned::{VersionedError, VersionedSearchResult, VersionedStats, VersionedStore};
 pub use wal::{Recovered, RecoverySource, Wal, WalError};

@@ -1,17 +1,29 @@
 //! Immutable authenticated v2 compaction segments.
+//!
+//! Format 1 is the original exact `V2Snapshot` JSON image and remains readable
+//! byte-for-byte. Format 2 separates vector values from their causal metadata
+//! and may reference one independently authenticated learned-codec artifact.
 
+mod artifact;
+mod codec;
+
+use self::artifact::{read_artifact, write_artifact};
+use self::codec::{EncodedSnapshotV2, SegmentCodecDescriptor, decode_snapshot, prepare_snapshot};
+pub use self::codec::{SegmentCodecKind, SegmentCodecPolicy};
 use super::{
     CausalHeads, ObjectKind, ObjectSecurity, V2Error, V2Snapshot, atomic_write, open_object,
     seal_object,
 };
+use crate::codecs::CodecMetrics;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
-const SEGMENT_FORMAT_VERSION: u8 = 1;
+const LEGACY_SEGMENT_FORMAT_VERSION: u8 = 1;
+const CODEC_SEGMENT_FORMAT_VERSION: u8 = 2;
 
 /// Result of publishing one immutable compaction segment.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CompactionReport {
     /// Published immutable object path.
     pub path: PathBuf,
@@ -23,51 +35,101 @@ pub struct CompactionReport {
     pub encrypted: bool,
     /// Whether the segment header is signed.
     pub signed: bool,
+    /// Vector representation declared by the segment.
+    pub codec: SegmentCodecKind,
+    /// Content-addressed learned artifact, when the codec requires one.
+    pub artifact_id: Option<String>,
+    /// Training quality evidence stored with the artifact.
+    pub codec_metrics: Option<CodecMetrics>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SegmentImage {
+struct SegmentImageV1 {
     format_version: u8,
     covered_heads: CausalHeads,
     snapshot: V2Snapshot,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct SegmentImageV2 {
+    format_version: u8,
+    covered_heads: CausalHeads,
+    codec: SegmentCodecDescriptor,
+    snapshot: EncodedSnapshotV2,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+struct SegmentVersionProbe {
+    format_version: u8,
+}
+
+/// Preserve the original exact format-1 writer used by ordinary compaction.
 pub(super) fn write_segment(
     root: &Path,
     snapshot: &V2Snapshot,
     security: &ObjectSecurity,
 ) -> Result<CompactionReport, V2Error> {
-    let directory = root.join("segments");
-    std::fs::create_dir_all(&directory).map_err(|error| io_error(&directory, &error))?;
-    let object_id = format!("segment-{}", Uuid::new_v4());
-    let path = directory.join(format!("{object_id}.object"));
-    let image = SegmentImage {
-        format_version: SEGMENT_FORMAT_VERSION,
+    let image = SegmentImageV1 {
+        format_version: LEGACY_SEGMENT_FORMAT_VERSION,
         covered_heads: snapshot.heads.clone(),
         snapshot: snapshot.clone(),
     };
-    let plaintext = serde_json::to_vec(&image).map_err(|error| corrupt(&path, error))?;
-    let encoded = seal_object(ObjectKind::Segment, &object_id, &plaintext, security)
-        .map_err(|error| security_error(&path, error))?;
-    atomic_write(&path, &encoded)?;
-
-    // Publication succeeds only after reopening the exact bytes through the
-    // authentication path and comparing the canonical decoded image.
-    let verified = read_segment(&path, security, false)?;
-    if verified.object_id != object_id || verified.image != image {
-        return Err(V2Error::CorruptJournal {
-            path,
-            line: 0,
-            reason: "published segment verification mismatch".into(),
-        });
+    let plaintext =
+        serde_json::to_vec(&image).map_err(|error| corrupt(&root.join("segments"), error))?;
+    let verified = publish_segment(root, &plaintext, security)?;
+    if verified.snapshot != *snapshot
+        || verified.covered_heads != image.covered_heads
+        || verified.codec.kind != SegmentCodecKind::None
+    {
+        remove_failed_publication(&verified.path);
+        return Err(corrupt(
+            &verified.path,
+            "published exact segment verification mismatch",
+        ));
     }
-    Ok(CompactionReport {
-        path,
-        object_id,
-        covered_heads: image.covered_heads,
-        encrypted: verified.encrypted,
-        signed: verified.signed,
-    })
+    Ok(report_from_verified(verified))
+}
+
+/// Publish a format-2 segment using an explicit representation policy.
+///
+/// `None` is exact. PQ and autoencoder policies are intentionally lossy and
+/// must be selected explicitly by a caller; ordinary compaction never invokes
+/// this function.
+pub(super) fn write_segment_with_codec(
+    root: &Path,
+    snapshot: &V2Snapshot,
+    security: &ObjectSecurity,
+    policy: SegmentCodecPolicy,
+) -> Result<CompactionReport, V2Error> {
+    let prepared = prepare_snapshot(snapshot, policy)
+        .map_err(|error| codec_write_error("prepare segment", error))?;
+    let artifact = prepared
+        .artifact
+        .as_ref()
+        .map(|payload| write_artifact(root, payload, security))
+        .transpose()?;
+    let descriptor = SegmentCodecDescriptor::new(prepared.kind, artifact)?;
+    let expected_metrics = descriptor.metrics().cloned();
+    let image = SegmentImageV2 {
+        format_version: CODEC_SEGMENT_FORMAT_VERSION,
+        covered_heads: snapshot.heads.clone(),
+        codec: descriptor,
+        snapshot: prepared.snapshot,
+    };
+    let plaintext =
+        serde_json::to_vec(&image).map_err(|error| corrupt(&root.join("segments"), error))?;
+    let verified = publish_segment(root, &plaintext, security)?;
+    if verified.covered_heads != image.covered_heads
+        || verified.codec.kind != image.codec.kind
+        || verified.codec_metrics != expected_metrics
+    {
+        remove_failed_publication(&verified.path);
+        return Err(corrupt(
+            &verified.path,
+            "published codec segment verification mismatch",
+        ));
+    }
+    Ok(report_from_verified(verified))
 }
 
 pub(super) fn load_segment(
@@ -96,9 +158,9 @@ pub(super) fn load_segment(
     let Some(selected) = candidates
         .iter()
         .filter(|candidate| {
-            candidates.iter().all(|other| {
-                heads_cover(&candidate.image.covered_heads, &other.image.covered_heads)
-            })
+            candidates
+                .iter()
+                .all(|other| heads_cover(&candidate.covered_heads, &other.covered_heads))
         })
         .max_by(|left, right| left.object_id.cmp(&right.object_id))
     else {
@@ -106,14 +168,44 @@ pub(super) fn load_segment(
         // coverage of the other. Replaying all journals is conservative.
         return Ok(None);
     };
-    Ok(Some(selected.image.snapshot.clone()))
+    Ok(Some(selected.snapshot.clone()))
 }
 
 struct DecodedSegment {
+    path: PathBuf,
     object_id: String,
-    image: SegmentImage,
+    covered_heads: CausalHeads,
+    snapshot: V2Snapshot,
+    codec: SegmentCodecDescriptor,
+    codec_metrics: Option<CodecMetrics>,
     encrypted: bool,
     signed: bool,
+}
+
+fn publish_segment(
+    root: &Path,
+    plaintext: &[u8],
+    security: &ObjectSecurity,
+) -> Result<DecodedSegment, V2Error> {
+    let directory = root.join("segments");
+    std::fs::create_dir_all(&directory).map_err(|error| io_error(&directory, &error))?;
+    let object_id = format!("segment-{}", Uuid::new_v4());
+    let path = directory.join(format!("{object_id}.object"));
+    let encoded = seal_object(ObjectKind::Segment, &object_id, plaintext, security)
+        .map_err(|error| security_error(&path, error))?;
+    atomic_write(&path, &encoded)?;
+    let verified = match read_segment(&path, security, false) {
+        Ok(verified) => verified,
+        Err(error) => {
+            remove_failed_publication(&path);
+            return Err(error);
+        }
+    };
+    if verified.object_id != object_id {
+        remove_failed_publication(&path);
+        return Err(corrupt(&path, "published segment identity mismatch"));
+    }
+    Ok(verified)
 }
 
 fn read_segment(
@@ -125,43 +217,96 @@ fn read_segment(
     let opened = open_object(&encoded, security, require_signature)
         .map_err(|error| security_error(path, error))?;
     if opened.kind != ObjectKind::Segment {
-        return Err(V2Error::CorruptJournal {
-            path: path.to_path_buf(),
-            line: 0,
-            reason: "immutable object kind is not segment".into(),
-        });
+        return Err(corrupt(path, "immutable object kind is not segment"));
     }
     let expected_id = path
         .file_stem()
         .and_then(|stem| stem.to_str())
-        .ok_or_else(|| V2Error::CorruptJournal {
-            path: path.to_path_buf(),
-            line: 0,
-            reason: "segment filename is not valid UTF-8".into(),
-        })?;
+        .ok_or_else(|| corrupt(path, "segment filename is not valid UTF-8"))?;
     if opened.object_id != expected_id {
-        return Err(V2Error::CorruptJournal {
-            path: path.to_path_buf(),
-            line: 0,
-            reason: "segment identity does not match its filename".into(),
-        });
+        return Err(corrupt(
+            path,
+            "segment identity does not match its filename",
+        ));
     }
-    let image: SegmentImage =
+    let probe: SegmentVersionProbe =
         serde_json::from_slice(&opened.plaintext).map_err(|error| corrupt(path, error))?;
-    if image.format_version != SEGMENT_FORMAT_VERSION || image.covered_heads != image.snapshot.heads
-    {
-        return Err(V2Error::CorruptJournal {
-            path: path.to_path_buf(),
-            line: 0,
-            reason: "segment version or causal coverage mismatch".into(),
-        });
+    match probe.format_version {
+        LEGACY_SEGMENT_FORMAT_VERSION => {
+            let image: SegmentImageV1 =
+                serde_json::from_slice(&opened.plaintext).map_err(|error| corrupt(path, error))?;
+            if image.covered_heads != image.snapshot.heads {
+                return Err(corrupt(path, "segment causal coverage mismatch"));
+            }
+            Ok(DecodedSegment {
+                path: path.to_path_buf(),
+                object_id: opened.object_id,
+                covered_heads: image.covered_heads,
+                snapshot: image.snapshot,
+                codec: SegmentCodecDescriptor::none(),
+                codec_metrics: None,
+                encrypted: opened.encrypted,
+                signed: opened.signed,
+            })
+        }
+        CODEC_SEGMENT_FORMAT_VERSION => {
+            let image: SegmentImageV2 =
+                serde_json::from_slice(&opened.plaintext).map_err(|error| corrupt(path, error))?;
+            image.codec.validate()?;
+            let payload = image
+                .codec
+                .artifact
+                .as_ref()
+                .map(|reference| {
+                    read_artifact(
+                        path,
+                        reference,
+                        security,
+                        require_signature,
+                        opened.encrypted,
+                        opened.signed,
+                    )
+                })
+                .transpose()?;
+            let snapshot = decode_snapshot(image.snapshot, &image.codec, payload.as_ref())
+                .map_err(|error| corrupt(path, error))?;
+            if image.covered_heads != snapshot.heads {
+                return Err(corrupt(path, "segment causal coverage mismatch"));
+            }
+            let metrics = image.codec.metrics().cloned();
+            Ok(DecodedSegment {
+                path: path.to_path_buf(),
+                object_id: opened.object_id,
+                covered_heads: image.covered_heads,
+                snapshot,
+                codec: image.codec,
+                codec_metrics: metrics,
+                encrypted: opened.encrypted,
+                signed: opened.signed,
+            })
+        }
+        version => Err(corrupt(
+            path,
+            format!("unsupported immutable segment format version {version}"),
+        )),
     }
-    Ok(DecodedSegment {
-        object_id: opened.object_id,
-        image,
-        encrypted: opened.encrypted,
-        signed: opened.signed,
-    })
+}
+
+fn report_from_verified(verified: DecodedSegment) -> CompactionReport {
+    CompactionReport {
+        path: verified.path,
+        object_id: verified.object_id,
+        covered_heads: verified.covered_heads,
+        encrypted: verified.encrypted,
+        signed: verified.signed,
+        codec: verified.codec.kind,
+        artifact_id: verified
+            .codec
+            .artifact
+            .as_ref()
+            .map(|artifact| artifact.object_id.clone()),
+        codec_metrics: verified.codec_metrics,
+    }
 }
 
 fn heads_cover(candidate: &CausalHeads, other: &CausalHeads) -> bool {
@@ -170,6 +315,17 @@ fn heads_cover(candidate: &CausalHeads, other: &CausalHeads) -> bool {
             .get(writer)
             .is_some_and(|candidate_sequence| candidate_sequence >= sequence)
     })
+}
+
+fn codec_write_error(action: &str, error: impl std::fmt::Display) -> V2Error {
+    V2Error::InvalidMutation(format!("{action}: {error}"))
+}
+
+fn remove_failed_publication(path: &Path) {
+    // The path contains a fresh random segment UUID allocated by this call, so
+    // bounded cleanup cannot remove a pre-existing object. Artifact objects
+    // remain immutable and may be conservatively retained as harmless orphans.
+    let _ = std::fs::remove_file(path);
 }
 
 fn corrupt(path: &Path, error: impl std::fmt::Display) -> V2Error {
@@ -195,31 +351,5 @@ fn io_error(path: &Path, error: &std::io::Error) -> V2Error {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn incomparable_segments_fall_back_until_one_frontier_covers_both() {
-        let root = abi_foundation::temp_path::temp_file_path("wdbx-v2-segments", "store");
-        let security = ObjectSecurity::plaintext();
-        let left_writer = Uuid::new_v4();
-        let right_writer = Uuid::new_v4();
-        let mut left = V2Snapshot::default();
-        left.heads.insert(left_writer, 1);
-        let mut right = V2Snapshot::default();
-        right.heads.insert(right_writer, 1);
-        write_segment(&root, &left, &security).unwrap();
-        write_segment(&root, &right, &security).unwrap();
-        assert!(load_segment(&root, &security, false).unwrap().is_none());
-
-        let mut covering = V2Snapshot::default();
-        covering.heads.insert(left_writer, 1);
-        covering.heads.insert(right_writer, 1);
-        write_segment(&root, &covering, &security).unwrap();
-        assert_eq!(
-            load_segment(&root, &security, false).unwrap().unwrap(),
-            covering
-        );
-        std::fs::remove_dir_all(root).unwrap();
-    }
-}
+#[path = "segment/tests.rs"]
+mod tests;

@@ -829,7 +829,7 @@ fn discard_rekey_staging(paths: &StorePaths) -> Result<(), MigrationError> {
 
 fn initialize_v2_root(root: &Path) -> Result<(), MigrationError> {
     std::fs::create_dir_all(root).map_err(|error| io_error(root, &error))?;
-    for child in ["journals", "heads", "segments", "leases"] {
+    for child in ["journals", "heads", "segments", "artifacts", "leases"] {
         let directory = root.join(child);
         std::fs::create_dir_all(&directory).map_err(|error| io_error(&directory, &error))?;
     }

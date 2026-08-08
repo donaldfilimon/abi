@@ -8,9 +8,10 @@
 
 use crate::hnsw::{HnswError, HnswIndex};
 use crate::v2::{
-    CompactionReport, ConflictSet, MigrationError, MigrationReport, RecordId, V2AuditBlock,
-    V2Error, V2Mutation, V2SearchResult, V2Snapshot, V2SpatialRecord, V2Store, V2TemporalKind,
-    V2TemporalRecord, V2VectorIndex, VersionedSnapshot, open_versioned_writable,
+    CommittedTransaction, CompactionReport, ConflictSet, MigrationError, MigrationReport, RecordId,
+    SegmentCodecPolicy, V2AuditBlock, V2Error, V2Mutation, V2SearchResult, V2Snapshot,
+    V2SpatialRecord, V2Store, V2TemporalKind, V2TemporalRecord, V2VectorIndex, VersionedSnapshot,
+    open_versioned_writable,
 };
 use crate::{Snapshot, StorePaths};
 use serde::Serialize;
@@ -320,6 +321,34 @@ impl VersionedStore {
         Ok(self.inner.resolve(key, version_ids, value)?)
     }
 
+    /// Commit arbitrary v2 mutations and return their exact portable envelope.
+    ///
+    /// A writable `VersionedStore` is always v2; opening a v1 source first
+    /// performs the verified migration rather than exposing legacy writes.
+    pub fn commit_export(
+        &mut self,
+        mutations: Vec<V2Mutation>,
+    ) -> Result<CommittedTransaction, VersionedError> {
+        Ok(self.inner.commit_export(mutations)?)
+    }
+
+    /// Export one published v2 transaction without resealing it.
+    pub fn export_transaction(
+        &self,
+        writer_id: Uuid,
+        sequence: u64,
+    ) -> Result<CommittedTransaction, VersionedError> {
+        Ok(self.inner.export_transaction(writer_id, sequence)?)
+    }
+
+    /// Verify and import one exact committed v2 transaction.
+    pub fn import_committed(
+        &mut self,
+        transaction: &CommittedTransaction,
+    ) -> Result<Uuid, VersionedError> {
+        Ok(self.inner.import_committed(transaction)?)
+    }
+
     /// Insert a vector under a fresh UUID identity.
     pub fn put_vector(&mut self, values: &[f32]) -> Result<RecordId, VersionedError> {
         let id = RecordId::new_v2();
@@ -445,6 +474,14 @@ impl VersionedStore {
     /// Publish an immutable segment covering the observed causal frontier.
     pub fn compact(&mut self) -> Result<CompactionReport, VersionedError> {
         Ok(self.inner.compact()?)
+    }
+
+    /// Compact using an explicit v2 vector-codec policy.
+    pub fn compact_with_codec(
+        &mut self,
+        policy: SegmentCodecPolicy,
+    ) -> Result<CompactionReport, VersionedError> {
+        Ok(self.inner.compact_with_codec(policy)?)
     }
 }
 
@@ -615,5 +652,33 @@ mod tests {
             payload: String::new(),
         };
         std::fs::remove_dir_all(paths.dir).unwrap();
+    }
+
+    #[test]
+    fn facade_exposes_exact_transaction_portability_and_explicit_compaction() {
+        let source_paths = scratch("wdbx-versioned-portable-source");
+        let target_paths = scratch("wdbx-versioned-portable-target");
+        let mut source = VersionedStore::open(source_paths.clone()).unwrap();
+        let portable = source
+            .commit_export(vec![V2Mutation::PutKv {
+                key: "facade-portable".into(),
+                value: "exact".into(),
+            }])
+            .unwrap();
+        assert_eq!(
+            source
+                .export_transaction(portable.writer_id(), portable.sequence())
+                .unwrap(),
+            portable
+        );
+
+        let mut target = VersionedStore::open(target_paths.clone()).unwrap();
+        target.import_committed(&portable).unwrap();
+        assert_eq!(target.get("facade-portable").as_deref(), Some("exact"));
+        let report = target.compact_with_codec(SegmentCodecPolicy::None).unwrap();
+        assert_eq!(report.codec, crate::v2::SegmentCodecKind::None);
+        assert_eq!(target.get("facade-portable").as_deref(), Some("exact"));
+        std::fs::remove_dir_all(source_paths.dir).unwrap();
+        std::fs::remove_dir_all(target_paths.dir).unwrap();
     }
 }

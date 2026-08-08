@@ -10,6 +10,7 @@
 mod index;
 mod lease;
 mod lifecycle;
+mod replication;
 mod security;
 mod segment;
 mod types;
@@ -20,12 +21,13 @@ pub use lifecycle::{
     VersionedSnapshot, gc_versioned, migration_status, open_versioned_read_only,
     open_versioned_writable, rekey_versioned, verify_versioned,
 };
+pub use replication::CommittedTransaction;
 pub use security::{
     ABI_WDBX_ENCRYPTION_KEY_FILE, ABI_WDBX_SIGNING_KEY_FILE, ABI_WDBX_VERIFY_KEY_FILE, KeyMaterial,
     ObjectKind, ObjectSecurity, OpenedObject, SecurityError, generate_key_material, open_object,
     seal_object, write_key_material,
 };
-pub use segment::CompactionReport;
+pub use segment::{CompactionReport, SegmentCodecKind, SegmentCodecPolicy};
 pub use types::{
     CausalHeads, ConflictSet, MAX_V2_VECTOR_DIMENSIONS, RecordId, V2AuditBlock, V2Error,
     V2Mutation, V2Snapshot, V2SpatialRecord, V2TemporalKind, V2TemporalRecord, Version,
@@ -94,6 +96,7 @@ impl V2Store {
         ensure_dir(&root.join("journals"))?;
         ensure_dir(&root.join("heads"))?;
         ensure_dir(&root.join("segments"))?;
+        ensure_dir(&root.join("artifacts"))?;
         ensure_dir(&root.join("leases"))?;
         let version_path = root.join("VERSION");
         if !version_path.exists()
@@ -239,6 +242,22 @@ impl V2Store {
     pub fn compact(&mut self) -> Result<CompactionReport, V2Error> {
         self.refresh()?;
         segment::write_segment(&self.root, &self.snapshot, &self.security)
+    }
+
+    /// Publish an immutable segment with an explicit vector-codec policy.
+    ///
+    /// Learned codecs are lossy and therefore never selected by ordinary
+    /// [`Self::compact`]. The post-publication refresh makes this store's next
+    /// snapshot use the same authenticated decoded representation as reopen.
+    pub fn compact_with_codec(
+        &mut self,
+        policy: SegmentCodecPolicy,
+    ) -> Result<CompactionReport, V2Error> {
+        self.refresh()?;
+        let report =
+            segment::write_segment_with_codec(&self.root, &self.snapshot, &self.security, policy)?;
+        self.refresh()?;
+        Ok(report)
     }
 
     #[cfg(test)]
