@@ -4,11 +4,13 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+mod local_demo;
+
 use crate::app::Outcome;
-use abi_wdbx::{ClusterPolicy, ClusterRpcServer, Node};
+use abi_wdbx::{ClusterPolicy, ClusterRpcServer, Node, StorePaths, VersionedStore};
 use std::fmt::Write;
 
-pub(crate) const CLUSTER_HELP: &str = "usage: abi wdbx cluster <status|demo|serve> ...\n\nRun single-node status, in-process consensus demo, or authenticated cluster RPC serving.\n";
+pub(crate) const CLUSTER_HELP: &str = "usage: abi wdbx cluster <status|demo|local-demo|serve> ...\n\nRun single-node status, in-process consensus demo, authenticated local multi-process proof, or cluster RPC serving.\n";
 
 fn cluster_status() -> Outcome {
     let mut cluster = match abi_wdbx::Cluster::new(1) {
@@ -81,6 +83,20 @@ pub(crate) fn run_cluster(args: &[String]) -> Outcome {
             Ok(count) if count > 0 => cluster_demo(count),
             _ => super::usage(),
         },
+        [operation] if operation == "local-demo" => local_demo::run(3, false),
+        [operation, flag] if operation == "local-demo" && flag == "--json" => {
+            local_demo::run(3, true)
+        }
+        [operation, count] if operation == "local-demo" => match count.parse::<usize>() {
+            Ok(count @ 3..=9) => local_demo::run(count, false),
+            _ => super::usage(),
+        },
+        [operation, count, flag] if operation == "local-demo" && flag == "--json" => {
+            match count.parse::<usize>() {
+                Ok(count @ 3..=9) => local_demo::run(count, true),
+                _ => super::usage(),
+            }
+        }
         [operation, port] if operation == "serve" => cluster_serve(port, "0", "127.0.0.1"),
         [operation, port, node] if operation == "serve" => cluster_serve(port, node, "127.0.0.1"),
         [operation, port, node, host] if operation == "serve" => cluster_serve(port, node, host),
@@ -99,10 +115,22 @@ fn cluster_serve(port_raw: &str, node_raw: &str, host: &str) -> Outcome {
         Ok(policy) => policy,
         Err(detail) => return super::error("cluster serve failed", detail),
     };
-    let mut server = match ClusterRpcServer::bind(host, port, Node::new(node_id), policy) {
-        Ok(server) => server,
+    let store_root = abi_foundation::temp_path::temp_file_path(
+        &format!("abi-wdbx-cluster-node-{node_id}"),
+        "store",
+    );
+    let store = match VersionedStore::open(StorePaths::new(&store_root)) {
+        Ok(store) => store,
         Err(detail) => return super::error("cluster serve failed", detail),
     };
+    let mut server =
+        match ClusterRpcServer::bind_with_store(host, port, Node::new(node_id), policy, store) {
+            Ok(server) => server,
+            Err(detail) => {
+                let _ = std::fs::remove_dir_all(&store_root);
+                return super::error("cluster serve failed", detail);
+            }
+        };
     let bound = match server.local_port() {
         Ok(p) => p,
         Err(detail) => return super::error("cluster serve failed", detail),
@@ -127,7 +155,7 @@ fn cluster_serve(port_raw: &str, node_raw: &str, host: &str) -> Outcome {
         stop_flag.store(true, Ordering::SeqCst);
     });
 
-    while !stop.load(Ordering::SeqCst) {
+    while !stop.load(Ordering::SeqCst) && !server.shutdown_requested() {
         // Short accept timeout so Ctrl-C is observed without waiting forever.
         if let Err(err) = server.serve_one() {
             if stop.load(Ordering::SeqCst) {
@@ -137,5 +165,7 @@ fn cluster_serve(port_raw: &str, node_raw: &str, host: &str) -> Outcome {
             eprintln!("cluster RPC serve error: {err}");
         }
     }
+    drop(server);
+    let _ = std::fs::remove_dir_all(store_root);
     Outcome::stderr("wdbx cluster RPC stopped\n".into(), 0)
 }

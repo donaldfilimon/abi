@@ -356,7 +356,7 @@ impl DurableStore {
     }
 }
 
-fn acquire_writer_lock(paths: &StorePaths) -> Result<File> {
+pub(crate) fn acquire_writer_lock(paths: &StorePaths) -> Result<File> {
     std::fs::create_dir_all(&paths.dir).map_err(|error| DurableError::WriterLock {
         path: paths.dir.clone(),
         message: error.to_string(),

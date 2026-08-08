@@ -22,19 +22,18 @@ single-node `cluster status`. Loopback-only by design.
 .agents/skills/wdbx-cluster-serve/cluster-serve.sh 8095     # override the port
 ```
 It builds the CLI, launches `abi wdbx cluster serve <port>` in the background, and asserts the
-readiness marker `serving consensus RPC on 127.0.0.1:<port>` (printed to stderr before the accept
+readiness marker `wdbx cluster RPC serving on 127.0.0.1:<port>` (printed to stderr before the accept
 loop blocks), an open port, and no bind/panic error — then kills the node via an `EXIT` trap.
 Prints `RESULT: PASS — WDBX cluster node served consensus RPC on loopback.` (exit 0) or
 `RESULT: FAIL — N check(s).`
 
-Historical verification: **PASS** — marker printed, port `8092` accepting, node torn down with no
-lingering process, on Zig master `0.17.0-dev.1099`.
+Current Rust driver: requires the readiness marker and accepting loopback port,
+then tears the node down and checks for bind/panic failures.
 
 ## Gotchas
-- **Loopback-only.** The driver binds `127.0.0.1`. The RPC transport is **unauthenticated** — any
-  peer that reaches the port can forge votes/log entries. `abi wdbx cluster serve <port> 0.0.0.0`
-  (or a routable IP) exists for multi-host, and the CLI warns loudly, but do **not** bind non-loopback
-  without a threat review (see `abi-threat-model.md`, "WDBX consensus listener"). This skill never does.
+- **Loopback-only.** The driver binds `127.0.0.1` in compatibility mode. A
+  non-loopback bind fails closed unless `ABI_WDBX_CLUSTER_TOKEN` is configured,
+  but the reference transport still has no TLS and is not production multi-host.
 - **The node runs until killed.** It blocks in the accept loop; the driver always kills it on exit
   (`EXIT` trap). Re-run leaves nothing behind — confirm with `pgrep -f 'abi wdbx cluster serve'`.
 - **Pick a free port.** A bound port fails the bind and the driver reports FAIL; pass a different `$1`.
@@ -45,6 +44,6 @@ lingering process, on Zig master `0.17.0-dev.1099`.
 |---|---|
 | `build` FAIL | Run `./tools/check.sh` for the real error. |
 | no readiness marker / `bind … failed` | Port in use or privileged — pick a higher free port (`8095`). |
-| missing marker string | CLI grammar drifted — check `crates/abi-cli/src/wdbx.rs` `clusterServe`. |
+| missing marker string | CLI grammar drifted — check `crates/abi-cli/src/wdbx/cluster.rs`. |
 
 For source-level questions about the consensus/RPC internals, use the `wdbx-explorer` subagent.

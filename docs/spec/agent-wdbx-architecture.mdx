@@ -76,10 +76,12 @@ the output.
 
 ## WDBX storage path
 
-`DurableStore` owns one writer session for a store path. Mutations append WAL
-records; checkpoints publish immutable segment epochs through a manifest.
-Recovery loads the newest valid checkpoint and folds matching WAL deltas
-forward. The store supports:
+`VersionedStore` is the writable product boundary. New stores use v2; a first
+write to v1 performs verified migration and retains a byte-exact backup, while
+read-only v1 inspection remains non-mutating. V2 writers publish independent
+causal journals and immutable snapshots without a shared writer-session lock.
+`DurableStore` remains the v1 compatibility reader/migration fixture. The
+versioned product surface supports:
 
 - key/value records and completion metadata;
 - vectors with exact and HNSW-style cosine search;

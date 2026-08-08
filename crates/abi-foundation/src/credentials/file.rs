@@ -157,6 +157,38 @@ fn write_restricted(path: &Path, data: &[u8]) -> Result<(), AbiError> {
     Ok(())
 }
 
+/// Create a new owner-only secret file without replacing an existing path.
+///
+/// Permissions are established before bytes are written. On Windows the same
+/// owner-only DACL used by credential persistence is applied; a DACL failure
+/// removes the newly created file rather than leaving secret material behind.
+pub fn write_owner_only_file_new(path: impl AsRef<Path>, data: &[u8]) -> Result<(), AbiError> {
+    use std::io::Write as _;
+
+    let path = path.as_ref();
+    ensure_parent_dir(path)?;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.mode(0o600);
+    }
+    let mut file = options.open(path)?;
+    set_mode(path, 0o600)?;
+    if let Err(error) = file.write_all(data).and_then(|()| file.sync_all()) {
+        drop(file);
+        let _ = std::fs::remove_file(path);
+        return Err(error.into());
+    }
+    drop(file);
+    if let Err(error) = set_mode(path, 0o600).and_then(|()| apply_windows_owner_only_acl(path)) {
+        let _ = std::fs::remove_file(path);
+        return Err(error);
+    }
+    Ok(())
+}
+
 #[cfg(unix)]
 fn set_mode(path: &Path, mode: u32) -> Result<(), AbiError> {
     use std::os::unix::fs::PermissionsExt as _;
@@ -165,6 +197,7 @@ fn set_mode(path: &Path, mode: u32) -> Result<(), AbiError> {
 }
 
 #[cfg(not(unix))]
+#[allow(clippy::unnecessary_wraps)]
 fn set_mode(_path: &Path, _mode: u32) -> Result<(), AbiError> {
     // No POSIX mode bits; Windows relies on the DACL below instead.
     Ok(())

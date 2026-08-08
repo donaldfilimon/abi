@@ -101,8 +101,8 @@ mod tests {
     use crate::wdbx::query::backend_label;
     use abi_ai::text_embedding;
     use abi_wdbx::{
-        ClusterPolicy, ClusterRpcServer, DurableStore, Node, RestConfig, RestServer, Snapshot,
-        StorePaths,
+        ClusterPolicy, ClusterRpcServer, Node, RestConfig, RestServer, Snapshot, StorePaths,
+        VersionedStore,
     };
     use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -155,6 +155,151 @@ mod tests {
         );
         assert_eq!(run(&[]).exit_code, 2);
         assert_eq!(run(&strings(&["unknown"])).exit_code, 2);
+    }
+
+    #[test]
+    fn keygen_creates_owner_only_files_without_printing_or_overwriting_keys() {
+        let fixture = Fixture::new();
+        let key_dir = fixture.dir.join("keys");
+        let key_dir_string = key_dir.to_string_lossy().into_owned();
+        let generated = run(&strings(&["db", "keygen", &key_dir_string]));
+        assert_eq!(generated.exit_code, 0, "{}", generated.stderr);
+        assert!(generated.stderr.contains("key bytes not displayed"));
+        for name in ["encryption.key", "signing.key", "verify.key"] {
+            let path = key_dir.join(name);
+            let bytes = std::fs::read(&path).unwrap();
+            assert_eq!(bytes.len(), 32);
+            assert!(!generated.stderr.contains(&format!("{bytes:?}")));
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt as _;
+                assert_eq!(
+                    std::fs::metadata(path).unwrap().permissions().mode() & 0o077,
+                    0
+                );
+            }
+        }
+        let repeated = run(&strings(&["db", "keygen", &key_dir_string]));
+        assert_eq!(repeated.exit_code, 1);
+        assert!(repeated.stderr.contains("refusing to overwrite"));
+    }
+
+    #[test]
+    fn migration_status_and_dry_run_leave_v1_byte_exact_and_inactive() {
+        let fixture = Fixture::new();
+        let raw_path = fixture.raw_path();
+        let paths = paths_from_cli_base(&raw_path).unwrap();
+        abi_wdbx::persistence::flush(&paths, &Snapshot::new()).unwrap();
+        let capture = || {
+            std::fs::read_dir(&fixture.dir)
+                .unwrap()
+                .filter_map(Result::ok)
+                .filter(|entry| entry.path().is_file())
+                .map(|entry| (entry.file_name(), std::fs::read(entry.path()).unwrap()))
+                .collect::<std::collections::BTreeMap<_, _>>()
+        };
+        let before = capture();
+        let status = run(&strings(&["db", "migration-status", &raw_path]));
+        assert_eq!(status.exit_code, 0, "{}", status.stderr);
+        assert!(status.stderr.contains("format=v1"));
+        let dry_run = run(&strings(&["db", "migration-dry-run", &raw_path]));
+        assert_eq!(dry_run.exit_code, 0, "{}", dry_run.stderr);
+        assert!(dry_run.stderr.contains("would_migrate=true"));
+        assert!(dry_run.stderr.contains("mutated=false"));
+        assert_eq!(capture(), before);
+        assert!(
+            !fixture
+                .dir
+                .join(format!("{}.active", fixture.base))
+                .exists()
+        );
+    }
+
+    #[test]
+    fn v2_gc_requires_confirmation_and_preserves_recovered_state() {
+        let fixture = Fixture::new();
+        let raw_path = fixture.raw_path();
+        let paths = paths_from_cli_base(&raw_path).unwrap();
+        let (mut store, _) = abi_wdbx::v2::open_versioned_writable(&paths).unwrap();
+        store
+            .commit(vec![abi_wdbx::v2::V2Mutation::PutKv {
+                key: "gc".into(),
+                value: "kept".into(),
+            }])
+            .unwrap();
+        drop(store);
+        assert_eq!(run(&strings(&["db", "gc", &raw_path])).exit_code, 2);
+        let collected = run(&strings(&["db", "gc", &raw_path, "--confirm"]));
+        assert_eq!(collected.exit_code, 0, "{}", collected.stderr);
+        assert!(collected.stderr.contains("prior_generations_retained=true"));
+        let (reopened, _) = abi_wdbx::v2::open_versioned_writable(&paths).unwrap();
+        assert_eq!(
+            reopened.snapshot().get("gc").unwrap().preferred.value,
+            "kept"
+        );
+    }
+
+    #[test]
+    fn rekey_requires_confirmation_and_preserves_the_causal_snapshot() {
+        let fixture = Fixture::new();
+        let raw_path = fixture.raw_path();
+        let paths = paths_from_cli_base(&raw_path).unwrap();
+        let (mut store, initial) = abi_wdbx::v2::open_versioned_writable(&paths).unwrap();
+        store
+            .commit(vec![abi_wdbx::v2::V2Mutation::PutKv {
+                key: "rekeyed".into(),
+                value: "preserved".into(),
+            }])
+            .unwrap();
+        drop(store);
+        let verified = run(&strings(&["db", "verify", &raw_path]));
+        assert_eq!(verified.exit_code, 0, "{}", verified.stderr);
+        assert!(verified.stderr.contains("v2 verify OK"));
+        let unsigned = run(&strings(&[
+            "db",
+            "verify",
+            &raw_path,
+            "--require-signature",
+        ]));
+        assert_eq!(unsigned.exit_code, 1);
+        assert!(unsigned.stderr.contains("signature is required"));
+        let key_dir = fixture.dir.join("replacement-keys");
+        let key_dir_string = key_dir.to_string_lossy().into_owned();
+        assert_eq!(
+            run(&strings(&["db", "keygen", &key_dir_string])).exit_code,
+            0
+        );
+        assert_eq!(
+            run(&strings(&["db", "rekey", &raw_path, &key_dir_string])).exit_code,
+            2
+        );
+        let outcome = run(&strings(&[
+            "db",
+            "rekey",
+            &raw_path,
+            &key_dir_string,
+            "--confirm",
+        ]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stderr.contains("retained=true"));
+        assert!(initial.generation.is_dir());
+
+        let abi_wdbx::v2::MigrationStatus::V2 { generation, .. } =
+            abi_wdbx::v2::migration_status(&paths).unwrap()
+        else {
+            panic!("rekey must leave v2 active");
+        };
+        let replacement = abi_wdbx::v2::ObjectSecurity::from_key_files(
+            Some(&key_dir.join("encryption.key")),
+            Some(&key_dir.join("signing.key")),
+            Some(&key_dir.join("verify.key")),
+        )
+        .unwrap();
+        let reopened = abi_wdbx::v2::V2Store::open_with_security(generation, replacement).unwrap();
+        assert_eq!(
+            reopened.snapshot().get("rekeyed").unwrap().preferred.value,
+            "preserved"
+        );
     }
 
     #[test]
@@ -215,7 +360,7 @@ mod tests {
         assert_eq!(
             stats.stderr,
             format!(
-                "{{\"kv_entries\":0,\"vectors\":0,\"blocks\":0,\"spatial_records\":0,\"temporal_nodes\":0,\"temporal_edges\":0,\"vector_dimensions\":null,\"next_vector_id\":1,\"backend\":\"{}\",\"mode\":\"cpu_fallback\"}}\n",
+                "{{\"kv_entries\":0,\"vectors\":0,\"blocks\":0,\"spatial_records\":0,\"temporal_nodes\":0,\"temporal_edges\":0,\"vector_dimensions\":null,\"next_vector_id\":null,\"backend\":\"{}\",\"mode\":\"cpu_fallback\",\"format_version\":2}}\n",
                 backend_label()
             )
         );
@@ -263,7 +408,9 @@ mod tests {
     fn compute_report_discloses_cpu_fallback() {
         let outcome = run(&strings(&["compute", "info"]));
         assert_eq!(outcome.exit_code, 0);
-        assert!(outcome.stderr.contains("native dispatch not linked"));
+        assert!(outcome.stderr.contains("CPU fallback"));
+        assert!(outcome.stderr.contains("service_available="));
+        assert!(outcome.stderr.contains("runtime_verified="));
         assert!(outcome.stderr.contains("native=false"));
         assert!(outcome.stderr.contains("request npu-ane -> effective=cpu-"));
         assert!(outcome.stderr.contains("not production TPU"));
@@ -289,6 +436,38 @@ mod tests {
     }
 
     #[test]
+    fn secure_additive_feature_surfaces_are_explicit_when_disabled() {
+        let dghv = run(&strings(&["secure", "dghv-bootstrap"]));
+        if cfg!(feature = "experimental-dghv-bootstrap") {
+            assert_eq!(dghv.exit_code, 0, "{}", dghv.stderr);
+            assert!(
+                dghv.stderr
+                    .contains("secret-key-assisted educational refresh")
+            );
+            assert!(dghv.stderr.contains("xor=[0, 1, 1, 0]"));
+            assert!(dghv.stderr.contains("and=[0, 0, 0, 1]"));
+            assert!(dghv.stderr.contains("nand=[1, 1, 1, 0]"));
+            assert!(dghv.stderr.contains("fresh_ciphertexts=true"));
+        } else {
+            assert_eq!(dghv.exit_code, 1);
+            assert!(dghv.stderr.contains("dghv-bootstrap: disabled"));
+        }
+        assert!(dghv.stderr.contains("cryptographic_bootstrapping=false"));
+        assert!(dghv.stderr.contains("security_audited=false"));
+
+        let tfhe = run(&strings(&["secure", "tfhe"]));
+        if cfg!(feature = "full-fhe") {
+            assert_eq!(tfhe.exit_code, 0, "{}", tfhe.stderr);
+            assert!(tfhe.stderr.contains("version=1.7.0"));
+            assert!(tfhe.stderr.contains("programmable_bootstrap_match=true"));
+        } else {
+            assert_eq!(tfhe.exit_code, 1);
+            assert!(tfhe.stderr.contains("tfhe: disabled"));
+        }
+        assert!(tfhe.stderr.contains("ABI_independent_audit=false"));
+    }
+
+    #[test]
     fn text_query_ranks_inserted_vectors() {
         let fixture = Fixture::new();
         let raw_path = fixture.raw_path();
@@ -297,7 +476,7 @@ mod tests {
             0
         );
         let paths = paths_from_cli_base(&raw_path).expect("paths");
-        let mut store = DurableStore::open(paths).expect("open");
+        let mut store = VersionedStore::open(paths).expect("open");
         let a = text_embedding("hello memory abbey");
         let b = text_embedding("completely unrelated tokens xyz");
         let id_a = store.put_vector(&a).expect("put a");
@@ -368,6 +547,31 @@ mod tests {
     }
 
     #[test]
+    fn compute_info_separates_build_and_runtime_evidence() {
+        let outcome = run(&strings(&["compute", "info"]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        for field in [
+            "compiled=",
+            "available=",
+            "initialized=",
+            "executed=",
+            "runtime_verified=",
+        ] {
+            assert!(outcome.stderr.contains(field), "{}", outcome.stderr);
+        }
+        assert!(
+            outcome
+                .stderr
+                .contains("requested_compute_units=cpuAndNeuralEngine")
+        );
+        assert!(outcome.stderr.contains("runtime_residency_verified=false"));
+        assert!(
+            outcome.stderr.contains("GPU fallback active")
+                || outcome.stderr.contains("Metal numerical execution matched")
+        );
+    }
+
+    #[test]
     fn rest_server_health_is_reachable_on_loopback() {
         use std::io::{Read, Write};
 
@@ -377,7 +581,7 @@ mod tests {
             base: fixture.base.clone(),
         };
         abi_wdbx::segments::reset(&paths).ok();
-        let store = DurableStore::open(paths).expect("open");
+        let store = VersionedStore::open(paths).expect("open");
         let config = RestConfig {
             bearer_token: None,
             rate_limiter: abi_wdbx::RateLimiter::from_env(),
@@ -420,10 +624,92 @@ mod tests {
     }
 
     #[test]
-    fn compact_rejects_zero_at_the_grammar_boundary() {
-        let outcome = run(&strings(&["db", "compact", "unused", "0"]));
-        assert_eq!(outcome.exit_code, 2);
-        assert_eq!(outcome.stderr, USAGE);
+    fn compact_codec_parser_is_strict() {
+        for args in [
+            &["db", "compact", "unused", "0"][..],
+            &["db", "compact", "unused", "--codec"][..],
+            &["db", "compact", "unused", "--codec", "unknown"][..],
+            &["db", "compact", "unused", "--codec", "none", "extra"][..],
+            &["db", "compact", "unused", "--other", "none"][..],
+        ] {
+            let outcome = run(&strings(args));
+            assert_eq!(outcome.exit_code, 2);
+            assert_eq!(outcome.stderr, USAGE);
+        }
+    }
+
+    #[test]
+    fn compact_none_publishes_an_exact_v2_segment() {
+        let fixture = Fixture::new();
+        let raw_path = fixture.raw_path();
+        let paths = paths_from_cli_base(&raw_path).unwrap();
+        let mut store = VersionedStore::open(paths.clone()).unwrap();
+        let id = store.put_vector(&[1.0, -0.0, 0.25]).unwrap();
+        let before = store.get_vector(id).unwrap().preferred.value;
+        drop(store);
+
+        let outcome = run(&strings(&["db", "compact", &raw_path]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(
+            outcome
+                .stderr
+                .contains("codec=none lossy=false artifact=none")
+        );
+        assert!(!outcome.stderr.contains("lossy-vector-reconstruction"));
+        let explicit = run(&strings(&["db", "compact", &raw_path, "--codec", "none"]));
+        assert_eq!(explicit.exit_code, 0, "{}", explicit.stderr);
+        assert!(explicit.stderr.contains("codec=none lossy=false"));
+
+        let reopened = VersionedStore::open(paths).unwrap();
+        let after = reopened.get_vector(id).unwrap().preferred.value;
+        assert_eq!(
+            before
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            after
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn learned_compaction_is_explicitly_lossy_and_reports_quality_evidence() {
+        for codec in ["pq", "autoencoder"] {
+            let fixture = Fixture::new();
+            let raw_path = fixture.raw_path();
+            let paths = paths_from_cli_base(&raw_path).unwrap();
+            let mut store = VersionedStore::open(paths.clone()).unwrap();
+            store.put("metadata", "preserved").unwrap();
+            for index in 0_u8..8 {
+                let value = f32::from(index) / 8.0;
+                store
+                    .put_vector(&[value, value * value, value.sin(), value.cos()])
+                    .unwrap();
+            }
+            drop(store);
+
+            let outcome = run(&strings(&["db", "compact", &raw_path, "--codec", codec]));
+            assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+            assert!(
+                outcome
+                    .stderr
+                    .contains(&format!("codec={codec} lossy=true"))
+            );
+            assert!(
+                outcome
+                    .stderr
+                    .contains("warning=lossy-vector-reconstruction")
+            );
+            assert!(outcome.stderr.contains("reconstruction_mse="));
+            assert!(outcome.stderr.contains("compression_ratio="));
+            assert!(outcome.stderr.contains("recall_at_k="));
+
+            let reopened = VersionedStore::open(paths).unwrap();
+            assert_eq!(reopened.get("metadata").as_deref(), Some("preserved"));
+            assert_eq!(reopened.stats().vectors, 8);
+        }
     }
 
     #[test]

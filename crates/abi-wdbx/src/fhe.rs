@@ -1,7 +1,14 @@
 //! DGHV-style reference somewhat-homomorphic encryption for encrypted bits.
 //!
 //! The parameters are correctness-test parameters, not cryptographically secure
-//! sizes. The scheme is not bootstrapped or security-audited.
+//! sizes. The scheme is not bootstrapped or security-audited. The optional
+//! `experimental-dghv-bootstrap` feature adds a deliberately named
+//! secret-key-assisted educational refresh. That experiment is **not**
+//! cryptographic bootstrapping and provides no protection for real data.
+
+#[cfg(feature = "full-fhe")]
+#[path = "tfhe_demo.rs"]
+pub mod tfhe_demo;
 
 use num_bigint::BigUint;
 use num_traits::{One, ToPrimitive};
@@ -90,6 +97,35 @@ pub fn dghv_add(keypair: &DghvKeypair, left: &DghvCipher, right: &DghvCipher) ->
 #[must_use]
 pub fn dghv_mul(keypair: &DghvKeypair, left: &DghvCipher, right: &DghvCipher) -> DghvCipher {
     (left * right) % &keypair.x0
+}
+
+/// Re-encrypt a bit after decrypting it with the secret key.
+///
+/// This function exists only for the explicitly enabled educational DGHV
+/// experiment. It is **not cryptographic bootstrapping**: it requires the
+/// secret key, is not security-audited, and must not be used to protect data.
+#[cfg(feature = "experimental-dghv-bootstrap")]
+pub fn dghv_secret_key_assisted_refresh(
+    keypair: &DghvKeypair,
+    random: &mut DghvRng,
+    cipher: &DghvCipher,
+) -> DghvCipher {
+    dghv_encrypt(keypair, random, dghv_decrypt(keypair, cipher))
+}
+
+/// Evaluate NAND and re-encrypt its plaintext result with fresh noise.
+///
+/// This is a secret-key-assisted educational refresh, **not cryptographic
+/// bootstrapping**. It is unaudited and provides no security guarantee.
+#[cfg(feature = "experimental-dghv-bootstrap")]
+pub fn dghv_secret_key_assisted_nand(
+    keypair: &DghvKeypair,
+    random: &mut DghvRng,
+    left: &DghvCipher,
+    right: &DghvCipher,
+) -> DghvCipher {
+    let encrypted_and = dghv_mul(keypair, left, right);
+    dghv_encrypt(keypair, random, !dghv_decrypt(keypair, &encrypted_and))
 }
 
 #[cfg(test)]
@@ -201,5 +237,37 @@ mod tests {
             dghv_encrypt(&left_key, &mut left, true),
             dghv_encrypt(&right_key, &mut right, true)
         );
+    }
+
+    #[cfg(feature = "experimental-dghv-bootstrap")]
+    #[test]
+    fn educational_refresh_has_complete_truth_tables_and_fresh_ciphertexts() {
+        let mut random = DghvRng::new(0xD6_48_52_45_46_52_45_53);
+        let keypair = dghv_keygen(&mut random);
+        for left in [false, true] {
+            for right in [false, true] {
+                let encrypted_left = dghv_encrypt(&keypair, &mut random, left);
+                let encrypted_right = dghv_encrypt(&keypair, &mut random, right);
+                let sum_cipher = dghv_add(&keypair, &encrypted_left, &encrypted_right);
+                let product_cipher = dghv_mul(&keypair, &encrypted_left, &encrypted_right);
+                let refreshed_negation = dghv_secret_key_assisted_nand(
+                    &keypair,
+                    &mut random,
+                    &encrypted_left,
+                    &encrypted_right,
+                );
+                assert_eq!(dghv_decrypt(&keypair, &sum_cipher), left ^ right);
+                assert_eq!(dghv_decrypt(&keypair, &product_cipher), left & right);
+                assert_eq!(dghv_decrypt(&keypair, &refreshed_negation), !(left & right));
+            }
+        }
+
+        let encrypted = dghv_encrypt(&keypair, &mut random, true);
+        let refreshed_once = dghv_secret_key_assisted_refresh(&keypair, &mut random, &encrypted);
+        let refreshed_twice = dghv_secret_key_assisted_refresh(&keypair, &mut random, &encrypted);
+        assert!(dghv_decrypt(&keypair, &refreshed_once));
+        assert!(dghv_decrypt(&keypair, &refreshed_twice));
+        assert_ne!(encrypted, refreshed_once);
+        assert_ne!(refreshed_once, refreshed_twice);
     }
 }

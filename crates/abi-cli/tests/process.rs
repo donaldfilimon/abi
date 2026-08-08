@@ -70,7 +70,7 @@ fn process_harness_honors_an_isolated_store_override() {
         "the CLI test must not open HOME/.abi"
     );
 
-    let persisted = abi_wdbx::DurableStore::open(abi_wdbx::StorePaths::new(store.path()))
+    let persisted = abi_wdbx::VersionedStore::open(abi_wdbx::StorePaths::new(store.path()))
         .expect("reopen isolated process-test store");
     let stats = persisted.stats();
     assert_eq!(stats.kv_entries, 1);
@@ -215,6 +215,29 @@ fn direct_help_and_exit_codes_cross_the_real_process_boundary() {
 }
 
 #[test]
+fn nested_wdbx_help_uses_the_live_v2_grammar() {
+    let output = run(&["wdbx", "db", "--help"]);
+    assert!(output.status.success());
+    assert_eq!(output.stdout, [] as [u8; 0]);
+    let help = String::from_utf8_lossy(&output.stderr);
+    for current_operation in [
+        "--codec none|pq|autoencoder",
+        "--require-signature",
+        "migration-status",
+        "migration-dry-run",
+        "keygen",
+        "rekey",
+        "gc",
+    ] {
+        assert!(
+            help.contains(current_operation),
+            "missing live WDBX operation {current_operation:?} in {help}"
+        );
+    }
+    assert!(!help.contains("[keep]"), "obsolete compact grammar: {help}");
+}
+
+#[test]
 fn simulate_and_scheduler_cross_the_real_process_boundary() {
     let simulate_help = run(&["wdbx", "simulate", "--help", "ignored-like-zig"]);
     assert!(simulate_help.status.success());
@@ -261,6 +284,40 @@ fn simulate_and_scheduler_cross_the_real_process_boundary() {
         invalid.stderr,
         b"simulate: --depth: 'nope' is not a valid non-negative integer\n"
     );
+}
+
+#[test]
+fn authenticated_cluster_local_demo_uses_real_children_and_redacts_runtime_state() {
+    let output = run(&["wdbx", "cluster", "local-demo", "3", "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stderr, [] as [u8; 0]);
+    let proof: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("local proof JSON");
+    assert_eq!(proof["proof"], "authenticated_local_multi_process");
+    assert_eq!(
+        proof["storage_proof_scope"],
+        "isolated_child_process_exact_transaction_replicas"
+    );
+    assert_eq!(proof["nodes"], 3);
+    assert_eq!(proof["election"]["votes"], 3);
+    assert_eq!(proof["replicated_write"]["acknowledgements"], 3);
+    assert_eq!(proof["failover"]["term"], 2);
+    assert_eq!(proof["shard_placement_verified"], true);
+    assert_eq!(proof["conflicts_observed"], true);
+    assert_eq!(proof["read_repair_completed"], true);
+    assert_eq!(proof["children_reaped"], true);
+    let rendered = String::from_utf8_lossy(&output.stdout);
+    assert!(!rendered.contains("127.0.0.1"));
+    assert!(!rendered.contains("ABI_WDBX_CLUSTER_TOKEN"));
+
+    for invalid in ["0", "2", "10", "nope"] {
+        let rejected = run(&["wdbx", "cluster", "local-demo", invalid, "--json"]);
+        assert_eq!(rejected.status.code(), Some(2), "node count {invalid}");
+    }
 }
 
 #[test]

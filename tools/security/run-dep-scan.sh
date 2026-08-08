@@ -1,15 +1,28 @@
 #!/usr/bin/env sh
-set -e
+set -eu
 
-echo "Dependency scan helper - prints recommended commands (no API keys or secrets included)"
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+cd "$repo_root"
 
-echo "# 1. GitHub CodeQL (recommended):"
-echo "# - https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors"
-echo "# Example: use actions/codeql-analysis in GitHub Actions"
+if command -v cargo-audit >/dev/null 2>&1; then
+    echo "dependency-scan: RUN cargo-audit ($(cargo-audit --version))"
+    echo "dependency-scan: scoped exceptions RUSTSEC-2025-0141,RUSTSEC-2024-0436 (optional pinned TFHE-rs transitives)"
+    exec ./tools/cargo.sh audit --deny warnings \
+        --ignore RUSTSEC-2025-0141 \
+        --ignore RUSTSEC-2024-0436
+fi
 
-echo "# 2. OSSF Scorecard (quick hardening checks)"
-echo "# Example local run: scorecard --repo=<repo>"
+if command -v cargo-deny >/dev/null 2>&1; then
+    echo "dependency-scan: RUN cargo-deny ($(cargo-deny --version))"
+    exec ./tools/cargo.sh deny check advisories bans licenses sources
+fi
 
-echo "# 3. Dependabot: enable in repository settings for dependency updates"
+echo "dependency-scan: SKIP — install cargo-audit or cargo-deny; no dependency scanner ran" >&2
+echo "dependency-scan: DAST, Semgrep, Guardian, and hosted CodeQL are separate evidence" >&2
 
-echo "Done. Please enable the preferred scanners in repository settings or in CI."
+if [ "${ABI_DEP_SCAN_REQUIRE:-0}" = "1" ]; then
+    echo "dependency-scan: FAIL — ABI_DEP_SCAN_REQUIRE=1" >&2
+    exit 2
+fi
+
+exit 0

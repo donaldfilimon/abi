@@ -25,8 +25,8 @@ Session-start checklist and conventions for agents working on this repo.
 
 ### Crate layout
 - Live code under `crates/*` (`abi-foundation`, `abi-core`, `abi-ai`, `abi-sea`,
-  `abi-nn`, `abi-gpu`, `abi-wdbx`, `abi-connectors`, `abi-plugins`,
-  `abi-telemetry`, `abi-cli`, `abi-mcp`).
+  `abi-nn`, `abi-compute`, `abi-gpu`, `abi-wdbx`, `abi-wdbx-gateway`,
+  `abi-connectors`, `abi-plugins`, `abi-telemetry`, `abi-cli`, `abi-mcp`).
 - Frozen CLI (13) and MCP (12) surfaces — see `AGENTS.md`.
 - Golden fixtures under `tests/golden/` pin help/MCP contracts.
 
@@ -71,8 +71,10 @@ when kernels are not linked. WDBX secure demos are reference-grade. Audit:
 
 1. **Bare `cargo`** — always `./tools/cargo.sh` (nightly pin + link environment).
 2. **Opening `~/.abi/` in tests** — use scratch / in-memory env vars.
-3. **Fake-completing residuals** — Metal/CUDA kernels, live Discord/Twilio TLS
-   without proxy, production FHE/sharding stay disclosed Partial.
+3. **Fake-completing residuals** — CUDA/Vulkan runtime, verified ANE residency,
+   production FHE/sharding, and separate-host deployment stay disclosed Partial.
+   Metal numerical paths and Discord/Twilio rustls clients are Current only at
+   their locally tested boundaries.
 4. **Expanding frozen surfaces** without golden + contract updates.
 5. **MCP launcher** — prefer `mcp/launcher.sh` (or run from repo root) so
    `target/{release,debug}/abi-mcp` and the FM dylib resolve.

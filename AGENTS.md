@@ -28,8 +28,9 @@ Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
 ## Architecture
 
 - Workspace crates under `crates/*`: `abi-foundation`, `abi-core`, `abi-ai`,
-  `abi-sea`, `abi-nn`, `abi-gpu`, `abi-wdbx`, `abi-connectors`, `abi-plugins`,
-  `abi-telemetry`, `abi-cli` (binary `abi`), `abi-mcp` (binary `abi-mcp`).
+  `abi-sea`, `abi-nn`, `abi-compute` (cycle-free compute contracts/CPU SIMD),
+  `abi-gpu`, `abi-wdbx`, `abi-connectors`, `abi-plugins`, `abi-telemetry`,
+  `abi-cli` (binary `abi`), `abi-mcp` (binary `abi-mcp`).
 - **MCP launcher** (`mcp/launcher.sh`): prefers `target/release/abi-mcp` then
   `target/debug/abi-mcp`; optional `ABI_MCP_AUTO_BUILD=1`.
 - Golden fixtures under `tests/golden/` pin frozen CLI/MCP surfaces.
@@ -47,9 +48,11 @@ Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
 
 ## Claims discipline
 
-No unproven claims (production FHE/AES/RBAC, multi-host sharding, QPS/latency/
-accuracy, K8s/H100, native CUDA/ANE kernels). WDBX secure demos are
-reference-grade. GPU reports `accelerated=false` when kernels are not linked.
+No unproven claims (production FHE/AES/RBAC, production multi-host deployment,
+QPS/latency/accuracy, K8s/H100, CUDA/Vulkan runtime, or ANE residency). Metal
+execution is local-runtime scoped. CoreML has output-checked tiny-model inference
+under a `.cpuAndNeuralEngine` request, but no placement/residency proof. WDBX secure
+demos are reference-grade. GPU reports `accelerated=false` when kernels are not linked.
 `complete --live` is Anthropic-only for HTTP providers; `apple-fm --confirm`
 uses the FoundationModels Swift shim on arm64 macOS when Apple Intelligence is
 ready, otherwise discloses unavailability (never fabricates a reply).
@@ -96,6 +99,8 @@ use scratch `DurableStore` paths, `ABI_WDBX_PATH=:memory:`, or
   redirected input.
 - Plugin slash-commands dispatch via `__cmd__:<name>` (parallel to
   `__context__:<name>`).
-- WDBX borrowed vectors are zero-copy; lifetime ends on next mutation.
+- Legacy v1 WDBX borrowed vectors are mutation-scoped. V2/versioned search
+  views retain immutable `Arc` segment/index snapshots and remain valid across
+  later journal or segment publication.
 
 After any edit: `./tools/check.sh`.

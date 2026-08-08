@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package abi.wdbx.gateway.v1;
+
+service WdbxGateway {
+  rpc PutVector(PutVectorRequest) returns (PutVectorResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc PutKv(PutKvRequest) returns (PutKvResponse);
+  rpc GetKv(GetKvRequest) returns (GetKvResponse);
+  rpc ResolveConflict(ResolveConflictRequest) returns (ResolveConflictResponse);
+  rpc Stats(StatsRequest) returns (StatsResponse);
+  rpc MembershipChange(MembershipChangeRequest) returns (MembershipChangeResponse);
+  rpc WatchMutations(WatchMutationsRequest) returns (stream MutationEvent);
+}
+
+message VectorInput { repeated float values = 1; }
+message PutVectorRequest { repeated VectorInput vectors = 1; }
+message PutVectorResponse { repeated string ids = 1; }
+
+message SearchRequest {
+  repeated float query = 1;
+  uint32 limit = 2;
+}
+message SearchHit {
+  string id = 1;
+  float score = 2;
+}
+message SearchResponse { repeated SearchHit hits = 1; }
+
+message KvEntry {
+  string key = 1;
+  string value = 2;
+}
+message PutKvRequest { repeated KvEntry entries = 1; }
+message PutKvResponse { repeated string transaction_ids = 1; }
+message GetKvRequest { string key = 1; }
+message GetKvResponse {
+  bool found = 1;
+  string value = 2;
+  repeated string version_ids = 3;
+}
+
+message ResolveConflictRequest {
+  string key = 1;
+  repeated string version_ids = 2;
+  string value = 3;
+}
+message ResolveConflictResponse { string transaction_id = 1; }
+
+message StatsRequest {}
+message StatsResponse {
+  uint64 kv_entries = 1;
+  uint64 vectors = 2;
+  uint64 blocks = 3;
+  uint64 spatial_records = 4;
+  uint64 temporal_nodes = 5;
+  uint64 temporal_edges = 6;
+  uint64 members = 7;
+}
+
+enum MembershipAction {
+  MEMBERSHIP_ACTION_UNSPECIFIED = 0;
+  MEMBERSHIP_ACTION_ADD = 1;
+  MEMBERSHIP_ACTION_REMOVE = 2;
+}
+message MembershipChangeRequest {
+  // Durable signed gateway-local lineage; not separate-host cluster consensus.
+  MembershipAction action = 1;
+  string node_id = 2;
+  string endpoint = 3;
+}
+message MembershipChangeResponse {
+  bool changed = 1;
+  uint64 members = 2;
+  uint64 generation = 3;
+  string head_digest = 4;
+  bool tombstoned = 5;
+}
+
+message WatchMutationsRequest {}
+message MutationEvent {
+  uint64 sequence = 1;
+  string kind = 2;
+  string transaction_id = 3;
+  uint32 item_count = 4;
+  int64 unix_ms = 5;
+}

@@ -144,7 +144,7 @@ CLI commands (`wdbx db *`) recover WAL-ahead state before read/write:
 |---------|-------------|
 | `db init <path>` | Create new segment-backed store |
 | `db verify <path>` | Full integrity check (checkpoint + WAL + block chain) |
-| `db compact <path> [keep]` | Retain newest N segment checkpoints |
+| `db compact <path> [--codec none|pq|autoencoder]` | Publish and verify an immutable v2 generation; `none` is exact, learned codecs are explicitly lossy and report quality evidence |
 | `block insert <path> <profile> <metadata>` | Write segment checkpoint + WAL |
 | `block get <path>` | Read latest block |
 | `query <path> [text] [persona]` | Stats, hybrid search, or persona-isolated retrieval |

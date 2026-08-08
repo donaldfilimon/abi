@@ -7,6 +7,11 @@ license.workspace = true
 repository.workspace = true
 description = "ABI command metadata, help rendering, and process dispatch."
 
+[features]
+default = []
+experimental-dghv-bootstrap = ["abi-wdbx/experimental-dghv-bootstrap"]
+full-fhe = ["abi-wdbx/full-fhe"]
+
 [[bin]]
 name = "abi"
 path = "src/main.rs"
@@ -17,6 +22,7 @@ abi-plugins = { workspace = true }
 abi-foundation = { workspace = true }
 abi-telemetry = { workspace = true }
 abi-ai = { workspace = true }
+abi-compute = { workspace = true }
 abi-sea = { workspace = true }
 abi-nn = { workspace = true }
 abi-gpu = { workspace = true }
@@ -24,6 +30,7 @@ abi-connectors = { workspace = true }
 abi-wdbx = { workspace = true }
 ctrlc = { workspace = true }
 serde_json = { workspace = true }
+uuid = { workspace = true }
 libc = "0.2"
 unicode-width = { workspace = true }
 

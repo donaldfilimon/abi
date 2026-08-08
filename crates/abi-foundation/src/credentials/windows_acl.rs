@@ -27,8 +27,9 @@ use std::path::Path;
 
 use windows_sys::Win32::Foundation::{ERROR_SUCCESS, LocalFree};
 use windows_sys::Win32::Security::Authorization::{
-    ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1, SE_FILE_OBJECT,
-    SetNamedSecurityInfoW,
+    ConvertSecurityDescriptorToStringSecurityDescriptorW,
+    ConvertStringSecurityDescriptorToSecurityDescriptorW, GetNamedSecurityInfoW, SDDL_REVISION_1,
+    SE_FILE_OBJECT, SetNamedSecurityInfoW,
 };
 use windows_sys::Win32::Security::{
     DACL_SECURITY_INFORMATION, GetSecurityDescriptorDacl, PSECURITY_DESCRIPTOR,
@@ -69,6 +70,75 @@ pub fn apply(path: &Path) -> Result<(), AbiError> {
     }
 
     result
+}
+
+/// Verify that an existing file has the exact protected owner-only DACL ABI
+/// applies to newly created credential and private-key files.
+pub fn is_owner_only(path: &Path) -> Result<bool, AbiError> {
+    let mut path_w: Vec<u16> = path.as_os_str().encode_wide().collect();
+    path_w.push(0);
+    let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
+
+    // SAFETY: `path_w` is NUL-terminated, unused SID/ACL outputs are null,
+    // and `descriptor` is a valid out-pointer released with LocalFree below.
+    let status = unsafe {
+        GetNamedSecurityInfoW(
+            path_w.as_ptr(),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &raw mut descriptor,
+        )
+    };
+    if status != ERROR_SUCCESS || descriptor.is_null() {
+        return Err(AbiError::PermissionDenied);
+    }
+
+    let result = descriptor_dacl_sddl(descriptor);
+    // SAFETY: GetNamedSecurityInfoW allocates the descriptor with LocalAlloc.
+    unsafe {
+        LocalFree(descriptor.cast());
+    }
+    result.map(|sddl| sddl_is_owner_only(&sddl))
+}
+
+fn descriptor_dacl_sddl(descriptor: PSECURITY_DESCRIPTOR) -> Result<String, AbiError> {
+    let mut text = std::ptr::null_mut();
+    let mut length = 0_u32;
+    // SAFETY: `descriptor` is live and both outputs are valid. Windows owns
+    // the returned NUL-terminated UTF-16 buffer until LocalFree below.
+    let converted = unsafe {
+        ConvertSecurityDescriptorToStringSecurityDescriptorW(
+            descriptor,
+            SDDL_REVISION_1,
+            DACL_SECURITY_INFORMATION,
+            &raw mut text,
+            &raw mut length,
+        )
+    };
+    if converted == 0 || text.is_null() || length == 0 || length > 4096 {
+        if !text.is_null() {
+            // SAFETY: a non-null buffer was allocated by the conversion API.
+            unsafe { LocalFree(text.cast()) };
+        }
+        return Err(AbiError::PermissionDenied);
+    }
+    // SAFETY: the API reports `length` UTF-16 code units including or
+    // excluding the terminator depending on Windows version; trim NUL below.
+    let units = unsafe { std::slice::from_raw_parts(text, length as usize) };
+    let value = String::from_utf16_lossy(units)
+        .trim_end_matches('\0')
+        .to_owned();
+    // SAFETY: the buffer came from the conversion API and is freed once.
+    unsafe { LocalFree(text.cast()) };
+    Ok(value)
+}
+
+fn sddl_is_owner_only(sddl: &str) -> bool {
+    sddl == "D:P(A;;FA;;;OW)"
 }
 
 fn apply_descriptor(path_w: &mut [u16], descriptor: PSECURITY_DESCRIPTOR) -> Result<(), AbiError> {
@@ -113,6 +183,7 @@ fn apply_descriptor(path_w: &mut [u16], descriptor: PSECURITY_DESCRIPTOR) -> Res
 #[cfg(all(test, windows))]
 mod tests {
     use super::*;
+    use crate::credentials::{CredentialField, Credentials, Secret};
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -125,14 +196,13 @@ mod tests {
         let path = std::env::temp_dir().join(format!("abi-acl-test-{ns}.json"));
         fs::write(&path, br#"{"openai_api_key":"x"}"#).expect("write");
         apply(&path).expect("apply owner-only DACL must succeed on Windows");
+        assert!(is_owner_only(&path).expect("inspect owner-only DACL"));
         // Re-apply is idempotent.
         apply(&path).expect("second apply");
         let meta = fs::metadata(&path).expect("meta");
         assert!(meta.is_file());
         assert!(meta.len() > 0);
         // save_to_path also routes through apply — exercise it end-to-end.
-        use crate::credentials::{CredentialField, Credentials};
-        use crate::secret::Secret;
         let mut creds = Credentials::default();
         creds.set(
             CredentialField::OPENAI_API_KEY,
@@ -142,5 +212,18 @@ mod tests {
         let body = fs::read_to_string(&path).expect("read back");
         assert!(body.contains("openai_api_key"));
         let _ = fs::remove_file(&path);
+    }
+}
+
+#[cfg(test)]
+mod policy_tests {
+    use super::sddl_is_owner_only;
+
+    #[test]
+    fn exact_owner_only_policy_rejects_extra_or_inherited_access() {
+        assert!(sddl_is_owner_only("D:P(A;;FA;;;OW)"));
+        assert!(!sddl_is_owner_only("D:(A;;FA;;;OW)"));
+        assert!(!sddl_is_owner_only("D:P(A;;FA;;;OW)(A;;FR;;;WD)"));
+        assert!(!sddl_is_owner_only("D:P(A;;FA;;;SY)"));
     }
 }

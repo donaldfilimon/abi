@@ -5,18 +5,18 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::app::Outcome;
-use abi_wdbx::{DurableStore, RestConfig, RestServer, StorePaths};
+use abi_wdbx::{RestConfig, RestServer, StorePaths, VersionedStore};
 
 pub(crate) const API_HELP: &str = "usage: abi wdbx api serve [port]\n\nServe the loopback WDBX REST API.\n\nEnv:\n  ABI_WDBX_REST_TOKEN     Optional bearer token for request auth.\n  ABI_WDBX_TLS_CERT       Path to PEM certificate (TLS config / proxy deployment).\n  ABI_WDBX_TLS_KEY        Path to PEM private key (TLS config / proxy deployment).\n\nTLS: native termination is not linked; deploy behind nginx/Caddy/haproxy.\n";
 
-fn open_default_store() -> Result<DurableStore, String> {
+fn open_default_store() -> Result<VersionedStore, String> {
     if let Ok(path) = std::env::var("ABI_WDBX_PATH") {
         if path == ":memory:" {
             return Err(
                 "ABI_WDBX_PATH=:memory: is not valid for durable REST/cluster serving".into(),
             );
         }
-        return DurableStore::open(StorePaths::new(path)).map_err(|e| e.to_string());
+        return VersionedStore::open(StorePaths::new(path)).map_err(|e| e.to_string());
     }
     if matches!(
         std::env::var("ABI_WDBX_PERSIST").as_deref(),
@@ -27,7 +27,7 @@ fn open_default_store() -> Result<DurableStore, String> {
     // Shared with `util::open_store_result` so the lib-test build's refusal to
     // touch the operator's live `~/.abi/` store covers this path too.
     let home = crate::util::default_store_home().ok_or_else(|| "HOME is unset".to_string())?;
-    DurableStore::open(StorePaths::new(format!("{home}/.abi/wdbx"))).map_err(|e| e.to_string())
+    VersionedStore::open(StorePaths::new(format!("{home}/.abi/wdbx"))).map_err(|e| e.to_string())
 }
 
 fn api_serve(port_raw: Option<&str>) -> Outcome {

@@ -20,8 +20,8 @@ Builds the CLI and drives `abi nn train` + `abi nn sample`. Evidence is the
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count.
 
-Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — training reports
-`initial_loss`/`final_loss`/`steps` and `nn sample` emits a generated string.
+Current Rust driver: requires real train-loss/step markers and a generated
+sample while deliberately avoiding a fixed numerical-quality claim.
 
 ## Gotchas
 - ⚠️ **Demo, not a production trainer.** `nn` is a pure-Rust hand-derived-backprop

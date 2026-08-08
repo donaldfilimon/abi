@@ -41,5 +41,5 @@ Prints `RESULT: PASS` (exit 0) or `RESULT: FAIL` with the missing assertion (exi
 | `usage: abi scheduler status` | You used `stats`/`info`/bare `scheduler`; the CLI word is `status`. |
 | `completed=0` / `total_tasks=0` | The probe task didn't run — inspect `crates/abi-core/src/scheduler.rs`; use the `scheduler-memory-auditor` subagent to audit submission/completion accounting. |
 
-Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — one probe task
-submitted and completed, telemetry block emitted, `stats`/`info` correctly rejected.
+Current Rust driver: requires one submitted/completed probe, zero failures, the
+Prometheus completion counter, and rejection of the MCP-only `stats` spelling.

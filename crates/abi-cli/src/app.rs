@@ -338,6 +338,10 @@ fn direct_help(args: &[String]) -> Option<Outcome> {
         });
     }
 
+    if resolved == "wdbx" && args.len() == 3 && is_help_token(&args[2]) {
+        return Some(crate::wdbx::run(&args[1..]));
+    }
+
     if args.len() == 3
         && is_help_token(&args[2])
         && let Some(rendered) = render_subcommand_help(resolved, &args[1])

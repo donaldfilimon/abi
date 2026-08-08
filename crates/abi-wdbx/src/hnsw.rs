@@ -78,7 +78,15 @@ pub struct VectorStorage {
 impl VectorStorage {
     /// Create empty storage with fixed dimensions.
     pub fn new(dimensions: usize) -> Result<Self, HnswError> {
-        if dimensions == 0 || dimensions > crate::wal::MAX_VECTOR_DIMENSIONS {
+        Self::new_with_limit(dimensions, crate::wal::MAX_VECTOR_DIMENSIONS)
+    }
+
+    /// Create storage with an explicit format-version dimension ceiling.
+    pub(crate) fn new_with_limit(
+        dimensions: usize,
+        max_dimensions: usize,
+    ) -> Result<Self, HnswError> {
+        if dimensions == 0 || dimensions > max_dimensions {
             return Err(HnswError::InvalidDimensions { dimensions });
         }
         Ok(Self {
@@ -218,8 +226,17 @@ impl HnswIndex {
 
     /// Create an index with an explicit deterministic level seed.
     pub fn with_seed(dimensions: usize, seed: u64) -> Result<Self, HnswError> {
+        Self::with_seed_and_limit(dimensions, seed, crate::wal::MAX_VECTOR_DIMENSIONS)
+    }
+
+    /// Construct an index using a format-version-specific dimension ceiling.
+    pub(crate) fn with_seed_and_limit(
+        dimensions: usize,
+        seed: u64,
+        max_dimensions: usize,
+    ) -> Result<Self, HnswError> {
         Ok(Self {
-            storage: VectorStorage::new(dimensions)?,
+            storage: VectorStorage::new_with_limit(dimensions, max_dimensions)?,
             nodes: Vec::new(),
             entry_node: None,
             max_level: 0,

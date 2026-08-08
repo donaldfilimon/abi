@@ -1,5 +1,3 @@
-#![feature(portable_simd)]
-
 //! WDBX: the ABI framework's vector store.
 //!
 //! Step 4 of the Zig→Rust port. This crate now covers the **on-disk format**,
@@ -33,6 +31,7 @@
 pub mod ans;
 pub mod cluster;
 pub mod cluster_rpc;
+pub mod codecs;
 pub mod compression;
 pub mod compute;
 pub mod crypto_he;
@@ -60,20 +59,37 @@ pub mod spatial;
 pub mod store;
 pub mod temporal;
 pub mod tls_config;
+pub mod v2;
+pub mod versioned;
 pub mod wal;
 
 pub use ans::{AnsEncoded, AnsError, AnsMode, ans_decode, ans_encode, ans_encode_order1};
 pub use cluster::{
-    AppendReply, Cluster, ClusterError, LogEntry, Node, Role, VoteReply, apply_append, apply_vote,
+    AppendReply, Cluster, ClusterDataError, ClusterError, KvReadResult, LogEntry, MembershipChange,
+    MembershipError, MembershipLedger, MembershipRecord, Node, NodeDescriptor, NodeState,
+    RebalancePlan, RebalanceProgress, RebalanceStep, RepairAction, RepairPlan, ReplicaSearchHit,
+    ReplicaTransport, ReplicationReceipt, Role, SignedMembershipRecord, TransportApplyError,
+    TransportError, VoteReply, apply_append, apply_vote, build_rebalance_plan, read_kv_fanout,
+    replicate_committed, resume_rebalance, search_fanout, sign_membership_record,
 };
 pub use cluster_rpc::{
-    ClusterAuth, ClusterPolicy, ClusterRpcServer, RpcError, dial_append, dial_vote,
-    read_append_reply, read_vote_reply,
+    CLUSTER_RPC_TIMEOUT, ClusterAuth, ClusterDataRequest, ClusterDataResponse, ClusterKvState,
+    ClusterPolicy, ClusterRpcServer, MAX_CLUSTER_DATA_FRAME_SIZE, RpcError, dial_append, dial_data,
+    dial_shutdown, dial_vote, read_append_reply, read_data_reply, read_shutdown_reply,
+    read_vote_reply,
+};
+pub use codecs::{
+    AutoencoderArchitectureV1, AutoencoderArtifactV1, AutoencoderConfigV1, CodecError,
+    CodecMetrics, CodecRecord, NormalizationParamsV1, PersistedAutoencoderV1, PqArtifactV1,
+    PqConfigV1, ProductQuantizerV1, codec_source_digest, train_autoencoder_v1,
+    train_product_quantizer_v1,
 };
 pub use compression::{CompressionError, Quantized, dequantize, max_error, quantize};
 pub use compute::{
-    Backend, Capability, ComputeError, Selection, ane_hardware_present, best_cpu_backend,
-    capabilities, dot, select, simd_lanes,
+    Accelerator, Backend, Capability, CapabilityEvidence, CapabilityInvariantError,
+    CapabilityState, ComputeError, CpuBackend, ScoredIndex, Selection, ane_hardware_present,
+    baseline_capability_states, best_cpu_backend, capabilities, cosine, dot, norm, select,
+    simd_lanes, top_k,
 };
 pub use crypto_he::{HE_MODULUS, HeCipher, HeError, HeKey, he_add};
 pub use durable::{DurableError, DurableStore};
@@ -125,4 +141,10 @@ pub use temporal::{
     HybridScorer, RankedNode, ScoreComponents, TemporalCausalGraph, hybrid_search, temporal_weight,
 };
 pub use tls_config::{TLS_CERT_ENV, TLS_KEY_ENV, TlsConfig};
+pub use v2::{
+    CausalHeads, CommittedTransaction, CompactionReport, ConflictSet, RecordId, SegmentCodecKind,
+    SegmentCodecPolicy, V2Error, V2Mutation, V2Snapshot, V2Store, Version, VersionedSnapshot,
+    open_versioned_read_only,
+};
+pub use versioned::{VersionedError, VersionedSearchResult, VersionedStats, VersionedStore};
 pub use wal::{Recovered, RecoverySource, Wal, WalError};

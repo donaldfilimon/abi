@@ -4,7 +4,7 @@
 //! scheduler and one long-lived WDBX session for the process's lifetime,
 //! guarded by double-checked atomics. The Rust port instead opens fresh per
 //! call: `wdbx_stats` is read-only, and `ai_complete` opens, mutates, and
-//! drops its own [`DurableStore`] so concurrent tool calls do not share a
+//! drops its own [`VersionedStore`] so concurrent tool calls do not share a
 //! live writer. A shared long-lived session would only pay for itself once a
 //! tool needs cross-call store state (for example SEA modulator weights) or
 //! once lock contention on the WAL becomes measurable.
@@ -12,7 +12,7 @@
 use std::path::PathBuf;
 
 use abi_core::Scheduler;
-use abi_wdbx::{DurableStore, StorePaths};
+use abi_wdbx::{StorePaths, VersionedStore, open_versioned_read_only};
 
 /// Home-dir env var, Windows-aware.
 #[cfg(windows)]
@@ -114,15 +114,14 @@ impl McpState {
     /// and hosts with an unreadable `~/.abi/` must still answer `tools/call`.
     pub fn wdbx_stats_text(&self) -> Result<String, WdbxStatsError> {
         let store = match resolve_wdbx_base_path() {
-            Some(base) => match DurableStore::open(StorePaths::new(base)) {
-                Ok(store) => store,
+            Some(base) => match open_versioned_read_only(&StorePaths::new(base)) {
+                Ok(snapshot) => snapshot,
                 Err(_) => return Ok(unavailable_stats_text()),
             },
             None => return Ok(in_memory_stats_text()),
         };
         let stats = store.stats();
         let dims = store
-            .snapshot()
             .vector_dimensions()
             .map_or_else(|| "null".to_string(), |d| d.to_string());
         Ok(format!(
@@ -147,9 +146,9 @@ fn unavailable_stats_text() -> String {
 /// way `wdbx_stats_text` does. Returns `Ok(None)` rather than an error for the
 /// in-memory case — callers that need to mutate a store decide separately
 /// whether "no persistence configured" is itself an error for them.
-pub(crate) fn open_wdbx_store() -> Result<Option<abi_wdbx::DurableStore>, WdbxStatsError> {
+pub(crate) fn open_wdbx_store() -> Result<Option<VersionedStore>, WdbxStatsError> {
     match resolve_wdbx_base_path() {
-        Some(base) => DurableStore::open(StorePaths::new(base))
+        Some(base) => VersionedStore::open(StorePaths::new(base))
             .map(Some)
             .map_err(|_| WdbxStatsError),
         None => Ok(None),

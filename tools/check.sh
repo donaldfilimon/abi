@@ -19,6 +19,9 @@ step "rustc / cargo versions"
 "${CARGO}" --version
 "${CARGO}" rustc --version -- --version 2>/dev/null | head -1 || true
 
+step "Rust source size limits"
+bash ./tools/check_rust_sizes.sh
+
 step "format (check only)"
 "${CARGO}" fmt --all -- --check
 

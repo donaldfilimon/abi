@@ -84,9 +84,9 @@ pub struct TrainingResult {
     /// Acceleration backend name. Honest: no Rust GPU is linked → `"cpu"`.
     pub acceleration_backend: &'static str,
     /// Stored query vector id, when the store path ran.
-    pub query_vector_id: Option<u64>,
+    pub query_vector_id: Option<String>,
     /// Stored response vector id, when the store path ran.
-    pub response_vector_id: Option<u64>,
+    pub response_vector_id: Option<String>,
 }
 
 /// Summary of a dataset inspection.
@@ -319,14 +319,14 @@ pub fn train_inspect(
 #[must_use]
 pub fn apply_store_persistence(
     result: TrainingResult,
-    query_id: u64,
-    response_id: u64,
+    query_id: impl std::fmt::Display,
+    response_id: impl std::fmt::Display,
 ) -> TrainingResult {
     let dataset_records = result.records_stored;
     TrainingResult {
         records_stored: 1,
-        query_vector_id: Some(query_id),
-        response_vector_id: Some(response_id),
+        query_vector_id: Some(query_id.to_string()),
+        response_vector_id: Some(response_id.to_string()),
         message: format!("training metadata recorded in wdbx; dataset_records={dataset_records}"),
         ..result
     }
@@ -336,8 +336,8 @@ pub fn apply_store_persistence(
 #[must_use]
 pub fn training_store_value(
     config: &TrainingConfig,
-    query_id: u64,
-    response_id: u64,
+    query_id: impl std::fmt::Display,
+    response_id: impl std::fmt::Display,
     backend: &str,
 ) -> String {
     format!(
@@ -455,8 +455,8 @@ mod tests {
         };
         let updated = apply_store_persistence(result, 10, 11);
         assert_eq!(updated.records_stored, 1);
-        assert_eq!(updated.query_vector_id, Some(10));
-        assert_eq!(updated.response_vector_id, Some(11));
+        assert_eq!(updated.query_vector_id.as_deref(), Some("10"));
+        assert_eq!(updated.response_vector_id.as_deref(), Some("11"));
         assert_eq!(
             updated.message,
             "training metadata recorded in wdbx; dataset_records=0"

@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx --package=@stylusnexus/skill-loop skill-loop-claude post-hook"
+            "command": "npx -y -p @stylusnexus/skill-loop-cli@0.3.3 skill-loop-claude post-hook"
           }
         ]
       }
@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx --package=@stylusnexus/skill-loop skill-loop-claude pre-hook"
+            "command": "npx -y -p @stylusnexus/skill-loop-cli@0.3.3 skill-loop-claude pre-hook"
           }
         ]
       }
