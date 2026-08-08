@@ -25,6 +25,7 @@ abi-wdbx = { workspace = true }
 ctrlc = { workspace = true }
 serde_json = { workspace = true }
 libc = "0.2"
+unicode-width = { workspace = true }
 
 [lints]
 workspace = true

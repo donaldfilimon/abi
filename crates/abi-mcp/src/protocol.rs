@@ -3,7 +3,7 @@
 //!
 //! Ported from `src/mcp/protocol.zig`.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 /// Same bound the HTTP transport enforces on a request body
@@ -23,11 +23,23 @@ pub struct JsonRpcRequest {
     /// The MCP method name, e.g. `"tools/call"`.
     pub method: String,
     /// The caller's correlation id. Absent for notifications.
-    #[serde(default)]
+    ///
+    /// The custom deserializer is load-bearing: Serde's ordinary
+    /// `Option<Value>` handling maps both an absent field and an explicit JSON
+    /// `null` to `None`. JSON-RPC assigns different meanings to those cases, so
+    /// an explicit `null` must survive as `Some(Value::Null)`.
+    #[serde(default, deserialize_with = "deserialize_present_id")]
     pub id: Option<Value>,
     /// Method-specific parameters.
     #[serde(default)]
     pub params: Option<Value>,
+}
+
+fn deserialize_present_id<'de, D>(deserializer: D) -> Result<Option<Value>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Value::deserialize(deserializer).map(Some)
 }
 
 /// The `error` member of a JSON-RPC response.
@@ -56,6 +68,8 @@ pub enum McpMethod {
     Ping,
     /// Request server shutdown.
     Shutdown,
+    /// Client lifecycle notification sent after initialization completes.
+    NotificationsInitialized,
     /// Any method name not recognized above.
     Unknown,
 }
@@ -72,6 +86,7 @@ impl McpMethod {
             "prompts/list" => Self::PromptsList,
             "ping" => Self::Ping,
             "shutdown" => Self::Shutdown,
+            "notifications/initialized" => Self::NotificationsInitialized,
             _ => Self::Unknown,
         }
     }
@@ -161,8 +176,25 @@ mod tests {
         assert_eq!(McpMethod::parse("tools/call"), McpMethod::ToolsCall);
         assert_eq!(McpMethod::parse("tools/list"), McpMethod::ToolsList);
         assert_eq!(McpMethod::parse("ping"), McpMethod::Ping);
+        assert_eq!(
+            McpMethod::parse("notifications/initialized"),
+            McpMethod::NotificationsInitialized
+        );
         assert_eq!(McpMethod::parse("tools/run"), McpMethod::Unknown);
         assert_eq!(McpMethod::parse(""), McpMethod::Unknown);
+    }
+
+    #[test]
+    fn request_id_preserves_absent_versus_explicit_null() {
+        let notification: JsonRpcRequest =
+            serde_json::from_str(r#"{"jsonrpc":"2.0","method":"ping"}"#)
+                .expect("notification parses");
+        assert!(notification.id.is_none());
+
+        let explicit_null: JsonRpcRequest =
+            serde_json::from_str(r#"{"jsonrpc":"2.0","id":null,"method":"ping"}"#)
+                .expect("null id parses");
+        assert_eq!(explicit_null.id, Some(Value::Null));
     }
 
     #[test]

@@ -64,7 +64,7 @@ const FEATURES: &[Feature] = &[
     Feature {
         name: "tui",
         implemented: true,
-        detail: "dashboard one-shot + TTY raw-mode refresh; agent tui line-mode REPL",
+        detail: "dashboard + bounded agent REPL use raw mode on TTYs; deterministic one-shot/line fallbacks for redirected input",
     },
     Feature {
         name: "os_control",

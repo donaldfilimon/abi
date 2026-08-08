@@ -46,8 +46,9 @@ fn request_error_response(error: RequestError) -> RpcResponse {
 
 /// Process one JSON-RPC request line and return the response to write back.
 ///
-/// `None` for a line that is empty after trimming — the stdio transport skips
-/// writing anything for those, matching Zig's `processRequest` early return.
+/// `None` for an empty line or a valid notification. Notifications are still
+/// dispatched so their side effects occur, but JSON-RPC forbids writing a
+/// response to them.
 #[must_use]
 pub fn process(state: McpState, line: &str) -> Option<RpcResponse> {
     if line.is_empty() {
@@ -63,10 +64,19 @@ pub fn process(state: McpState, line: &str) -> Option<RpcResponse> {
         Err(_) => return Some(parse_error("Parse error")),
     };
 
+    let is_notification = request.id.is_none();
     let id = request.id.clone().unwrap_or(Value::Null);
 
     if request.jsonrpc != "2.0" {
         return Some(err(&id, -32600, "Invalid Request"));
+    }
+
+    // MCP 2024-11-05 narrows JSON-RPC's request id to a string or integer.
+    // Most importantly, an explicit null is an invalid request, not a
+    // notification; field presence was preserved during deserialization so it
+    // receives an error response instead of being silently suppressed.
+    if !is_notification && !is_valid_mcp_request_id(&id) {
+        return Some(err(&Value::Null, -32600, "Invalid Request"));
     }
 
     let method = McpMethod::parse(&request.method);
@@ -78,12 +88,24 @@ pub fn process(state: McpState, line: &str) -> Option<RpcResponse> {
             Err(tool_error) => err(&id, -32603, tool_error.message()),
         },
         McpMethod::Ping => ok(&id, &json!({})),
-        McpMethod::Shutdown => ok(&id, &Value::Null),
+        McpMethod::Shutdown | McpMethod::NotificationsInitialized => ok(&id, &Value::Null),
         McpMethod::ResourcesList => ok(&id, &json!({"resources": []})),
         McpMethod::PromptsList => ok(&id, &json!({"prompts": []})),
         McpMethod::Unknown => err(&id, -32601, ToolError::UnknownTool.message()),
     };
-    Some(response)
+    if is_notification {
+        None
+    } else {
+        Some(response)
+    }
+}
+
+fn is_valid_mcp_request_id(id: &Value) -> bool {
+    match id {
+        Value::String(_) => true,
+        Value::Number(number) => number.as_i64().is_some() || number.as_u64().is_some(),
+        _ => false,
+    }
 }
 
 #[cfg(test)]
@@ -123,14 +145,46 @@ mod tests {
     }
 
     #[test]
+    fn notifications_are_dispatched_without_a_response() {
+        assert!(
+            process(
+                McpState::new(),
+                r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#
+            )
+            .is_none()
+        );
+        assert!(process(McpState::new(), r#"{"jsonrpc":"2.0","method":"ping"}"#).is_none());
+        assert!(
+            process(
+                McpState::new(),
+                r#"{"jsonrpc":"2.0","method":"unknown-notification"}"#
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn explicit_null_and_non_mcp_ids_are_invalid_requests_not_notifications() {
+        for line in [
+            r#"{"jsonrpc":"2.0","id":null,"method":"ping"}"#,
+            r#"{"jsonrpc":"2.0","id":1.5,"method":"ping"}"#,
+            r#"{"jsonrpc":"2.0","id":{},"method":"ping"}"#,
+        ] {
+            let response = process(McpState::new(), line).expect("invalid request responds");
+            assert_eq!(response.0["id"], Value::Null, "{line}");
+            assert_eq!(response.0["error"]["code"], json!(-32600), "{line}");
+        }
+    }
+
+    #[test]
     fn rejects_invalid_requests() {
         assert_eq!(resp("not json")["error"]["message"], json!("Parse error"));
         assert_eq!(
-            resp(r#"{"jsonrpc":"1.0","method":"ping"}"#)["error"]["message"],
+            resp(r#"{"jsonrpc":"1.0","id":1,"method":"ping"}"#)["error"]["message"],
             json!("Invalid Request")
         );
         assert_eq!(
-            resp(r#"{"jsonrpc":"2.0","method":"unknown"}"#)["error"]["message"],
+            resp(r#"{"jsonrpc":"2.0","id":1,"method":"unknown"}"#)["error"]["message"],
             json!("Method not found")
         );
     }

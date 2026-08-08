@@ -18,9 +18,6 @@ use crate::usage::{
 const HELP_USAGE: &str =
     "usage: abi help [--json|--completion <bash|zsh|fish>] [command] [subcommand]";
 const HELP_JSON: &str = include_str!("../../../tests/golden/help.json");
-const BASH_COMPLETION: &str = include_str!("../../../tests/golden/completion.bash");
-const ZSH_COMPLETION: &str = include_str!("../../../tests/golden/completion.zsh");
-const FISH_COMPLETION: &str = include_str!("../../../tests/golden/completion.fish");
 
 fn captured_command_help(name: &str) -> Option<&'static str> {
     match name {
@@ -102,15 +99,6 @@ fn parse_help_request(args: &[String]) -> Result<HelpRequest<'_>, ()> {
         index += 1;
     }
     Ok(request)
-}
-
-fn completion(shell: &str) -> Option<&'static str> {
-    match shell {
-        "bash" => Some(BASH_COMPLETION),
-        "zsh" => Some(ZSH_COMPLETION),
-        "fish" => Some(FISH_COMPLETION),
-        _ => None,
-    }
 }
 
 fn captured_help() -> Value {
@@ -288,9 +276,7 @@ fn run_help(request: &HelpRequest<'_>) -> Outcome {
             return Outcome::stderr(usage_error(HELP_USAGE).0, 2);
         }
         return Outcome::stderr(
-            completion(shell)
-                .expect("the parser accepts only supported shells")
-                .to_owned(),
+            crate::completion::render(shell).expect("the parser accepts only supported shells"),
             0,
         );
     }
@@ -482,9 +468,15 @@ mod tests {
     fn global_json_and_completions_are_byte_exact() {
         assert_eq!(run(&args(&["help", "--json"])).stderr, HELP_JSON);
         for (shell, expected) in [
-            ("bash", BASH_COMPLETION),
-            ("zsh", ZSH_COMPLETION),
-            ("fish", FISH_COMPLETION),
+            (
+                "bash",
+                include_str!("../../../tests/golden/completion.bash"),
+            ),
+            ("zsh", include_str!("../../../tests/golden/completion.zsh")),
+            (
+                "fish",
+                include_str!("../../../tests/golden/completion.fish"),
+            ),
         ] {
             assert_eq!(
                 run(&args(&["help", "--completion", shell])).stderr,

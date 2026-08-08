@@ -1,23 +1,41 @@
-//! `abi agent tui` — the line-mode agent REPL.
+//! `abi agent tui` — agent REPL with a small dependency-free TTY editor.
 //!
-//! Interactive raw-mode TUI is **not linked**. This is the honest non-TTY
-//! fallback: read stdin lines until EOF, dispatch `/slash` commands, and
-//! complete free text through the local persona router with budgeted
-//! `file_context`. Extracted from `agent.rs` so that module owns dispatch and
-//! the one-shot subcommands while REPL state and slash handling live here.
+//! Real TTYs get bounded history, UTF-8-safe cursor editing, and completion.
+//! Pipes retain the deterministic `BufRead::lines` fallback: read until EOF,
+//! dispatch `/slash` commands, and complete free text through the local
+//! persona router with budgeted `file_context`.
 
 use std::fmt::Write as _;
 
 use abi_ai::{analyze_sentiment, route_to_profile, select_best_profile};
 
 use crate::app::Outcome;
+use crate::repl_editor::{EditorState, InteractiveRead, read_interactive_line};
 
-const TUI_HELP: &str = "\
+const LINE_MODE_HELP: &str = "\
 ABI agent line-mode (interactive raw TUI not linked)
 commands:
   /help              this text
   /model <id>        switch the completion model (alias-resolved)
   /profile           show profile routing status
+  /quit /exit /q     leave the REPL
+  /status /stat      session counters and model
+  /context           file_context / open-file summary
+  /history /hist     recent turn previews
+  /reset             clear history and bump session id
+  /features /feat    build-time feature migration flags
+  /clear /cls        clear screen (ANSI)
+  free text          local persona completion with file_context
+";
+
+const TTY_HELP: &str = "\
+ABI agent REPL (TTY editor; deterministic line-mode on pipes)
+commands:
+  /help              this text
+  /model <id>        switch the completion model (alias-resolved)
+  /profile           show profile routing status
+  /sea [on|off|status|toggle]
+                     show or change the session-local SEA toggle
   /quit /exit /q     leave the REPL
   /status /stat      session counters and model
   /context           file_context / open-file summary
@@ -61,6 +79,10 @@ struct LineModeState {
     /// non-catalog id (Zig accepted any `validModelId` string, not only known
     /// catalog entries), which has no `'static` lifetime to borrow.
     model: String,
+    /// Session-local only. This toggle changes REPL routing metadata and never
+    /// contacts a live service or mutates the durable SEA store.
+    sea_enabled: bool,
+    interactive: bool,
 }
 
 enum SlashAction {
@@ -68,38 +90,79 @@ enum SlashAction {
     Continue,
 }
 
-fn emit_line(responses: &mut String, stdout: &mut std::io::Stdout, line: &str) {
+fn emit_line(responses: &mut Option<String>, stdout: &mut std::io::Stdout, line: &str) {
     use std::io::Write;
-    let _ = writeln!(responses, "{line}");
+    if let Some(responses) = responses {
+        let _ = writeln!(responses, "{line}");
+    }
     let _ = writeln!(stdout, "{line}");
     let _ = stdout.flush();
 }
 
-fn slash_status(state: &LineModeState, responses: &mut String, stdout: &mut std::io::Stdout) {
+fn slash_status(
+    state: &LineModeState,
+    responses: &mut Option<String>,
+    stdout: &mut std::io::Stdout,
+) {
     // `session_id=`, not `session=`: matches Zig's `formatStatusLine`.
     emit_line(
         responses,
         stdout,
         &format!(
-            "status: session_id={} turns={} history={} model={} provider={} sea=off live=off store=off mode=line",
+            "status: session_id={} turns={} history={} model={} provider={} sea={} live=off store=off mode={}",
             state.session_id,
             state.turn_count,
             state.history.len(),
             state.model,
             abi_ai::models::provider_of(&state.model).label(),
+            if state.sea_enabled { "on" } else { "off" },
+            if state.interactive { "editor" } else { "line" },
         ),
     );
 }
 
 /// `/profile`: report the routing mode and current model. Ported from Zig's
 /// `showProfileStatus`.
-fn slash_profile(state: &LineModeState, responses: &mut String, stdout: &mut std::io::Stdout) {
+fn slash_profile(
+    state: &LineModeState,
+    responses: &mut Option<String>,
+    stdout: &mut std::io::Stdout,
+) {
     emit_line(
         responses,
         stdout,
         &format!(
             "profile: adaptive router active; model={}; turns={}",
             state.model, state.turn_count
+        ),
+    );
+}
+
+fn slash_sea(
+    state: &mut LineModeState,
+    arg: &str,
+    responses: &mut Option<String>,
+    stdout: &mut std::io::Stdout,
+) {
+    let next = match arg.to_ascii_lowercase().as_str() {
+        "" | "status" => None,
+        "on" => Some(true),
+        "off" => Some(false),
+        "toggle" => Some(!state.sea_enabled),
+        _ => {
+            emit_line(responses, stdout, "usage: /sea [on|off|status|toggle]");
+            return;
+        }
+    };
+    if let Some(enabled) = next {
+        state.sea_enabled = enabled;
+    }
+    emit_line(
+        responses,
+        stdout,
+        &format!(
+            "sea: {} (session-local; live services=off)",
+            if state.sea_enabled { "on" } else { "off" }
         ),
     );
 }
@@ -115,7 +178,7 @@ fn slash_profile(state: &LineModeState, responses: &mut String, stdout: &mut std
 fn slash_model(
     state: &mut LineModeState,
     arg: &str,
-    responses: &mut String,
+    responses: &mut Option<String>,
     stdout: &mut std::io::Stdout,
 ) {
     if arg.is_empty() {
@@ -137,7 +200,7 @@ fn slash_model(
     emit_line(responses, stdout, &format!("model set to {}", state.model));
 }
 
-fn slash_context(responses: &mut String, stdout: &mut std::io::Stdout) {
+fn slash_context(responses: &mut Option<String>, stdout: &mut std::io::Stdout) {
     let sample = abi_ai::build_agent_context(
         "(context probe)",
         std::path::Path::new("."),
@@ -159,7 +222,11 @@ fn slash_context(responses: &mut String, stdout: &mut std::io::Stdout) {
     );
 }
 
-fn slash_history(state: &LineModeState, responses: &mut String, stdout: &mut std::io::Stdout) {
+fn slash_history(
+    state: &LineModeState,
+    responses: &mut Option<String>,
+    stdout: &mut std::io::Stdout,
+) {
     if state.history.is_empty() {
         emit_line(responses, stdout, "history: (empty)");
         return;
@@ -182,7 +249,7 @@ fn slash_history(state: &LineModeState, responses: &mut String, stdout: &mut std
 fn handle_slash(
     trimmed: &str,
     state: &mut LineModeState,
-    responses: &mut String,
+    responses: &mut Option<String>,
     stdout: &mut std::io::Stdout,
 ) -> SlashAction {
     use std::io::Write;
@@ -202,7 +269,12 @@ fn handle_slash(
     match cmd.as_str() {
         "/quit" | "/exit" | "/q" => SlashAction::Quit,
         "/help" | "/h" => {
-            emit_line(responses, stdout, TUI_HELP.trim_end());
+            let help = if state.interactive {
+                TTY_HELP
+            } else {
+                LINE_MODE_HELP
+            };
+            emit_line(responses, stdout, help.trim_end());
             SlashAction::Continue
         }
         "/model" => {
@@ -211,6 +283,10 @@ fn handle_slash(
         }
         "/profile" => {
             slash_profile(state, responses, stdout);
+            SlashAction::Continue
+        }
+        "/sea" => {
+            slash_sea(state, arg, responses, stdout);
             SlashAction::Continue
         }
         "/status" | "/stat" => {
@@ -260,70 +336,58 @@ fn handle_slash(
     }
 }
 
-/// Line-mode agent REPL for non-TTY / scripted use.
-///
-/// Reads stdin lines until EOF; each non-empty line is completed via the local
-/// persona router with budgeted `file_context`. Interactive raw-mode TUI is not
-/// linked — this is the honest non-TTY fallback Zig also takes when stdin is
-/// not a terminal.
-pub(crate) fn line_mode() -> Outcome {
-    use std::io::{BufRead, Write};
-
-    let stdin = std::io::stdin();
-    let mut stdout = std::io::stdout();
-    let mut banner = String::new();
-    let _ = writeln!(
-        banner,
-        "ABI agent line-mode (interactive raw TUI not linked). Type a prompt or /help; empty line or EOF to quit."
-    );
-    let _ = stdout.write_all(banner.as_bytes());
-    let _ = stdout.flush();
-
-    let mut responses = String::new();
-    let root = std::path::Path::new(".");
-    let mut state = LineModeState {
+fn new_state(interactive: bool) -> LineModeState {
+    LineModeState {
         session_id: abi_foundation::time::unix_ms(),
         turn_count: 0,
         history: Vec::new(),
         model: abi_ai::models::DEFAULT_MODEL.to_string(),
-    };
-
-    for line in stdin.lock().lines() {
-        let Ok(line) = line else { break };
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            break;
-        }
-        if trimmed.starts_with('/') {
-            if matches!(
-                handle_slash(trimmed, &mut state, &mut responses, &mut stdout),
-                SlashAction::Quit
-            ) {
-                break;
-            }
-            continue;
-        }
-
-        let augmented = abi_ai::build_agent_context(
-            trimmed,
-            root,
-            abi_ai::DEFAULT_BUDGET_BYTES,
-            &abi_ai::AgentContextOptions {
-                include_tree: true,
-                include_git_diff: true,
-                git_stat_only: true,
-                ..abi_ai::AgentContextOptions::default()
-            },
-        );
-        let selected = select_best_profile(analyze_sentiment(trimmed));
-        let body = route_to_profile(selected, &augmented);
-        state.turn_count += 1;
-        state.history.push(format!("{trimmed} → {body}"));
-        emit_line(&mut responses, &mut stdout, &body);
-        let _ = writeln!(responses);
-        let _ = writeln!(stdout);
-        let _ = stdout.flush();
+        sea_enabled: false,
+        interactive,
     }
+}
+
+fn handle_input(
+    line: &str,
+    state: &mut LineModeState,
+    responses: &mut Option<String>,
+    stdout: &mut std::io::Stdout,
+) -> SlashAction {
+    use std::io::Write;
+
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return SlashAction::Quit;
+    }
+    if trimmed.starts_with('/') {
+        return handle_slash(trimmed, state, responses, stdout);
+    }
+
+    let augmented = abi_ai::build_agent_context(
+        trimmed,
+        std::path::Path::new("."),
+        abi_ai::DEFAULT_BUDGET_BYTES,
+        &abi_ai::AgentContextOptions {
+            include_tree: true,
+            include_git_diff: true,
+            git_stat_only: true,
+            ..abi_ai::AgentContextOptions::default()
+        },
+    );
+    let selected = select_best_profile(analyze_sentiment(trimmed));
+    let body = route_to_profile(selected, &augmented);
+    state.turn_count += 1;
+    state.history.push(format!("{trimmed} → {body}"));
+    emit_line(responses, stdout, &body);
+    if let Some(responses) = responses {
+        let _ = writeln!(responses);
+    }
+    let _ = writeln!(stdout);
+    let _ = stdout.flush();
+    SlashAction::Continue
+}
+
+fn finish_outcome(responses: String) -> Outcome {
     if responses.is_empty() {
         return Outcome {
             stdout: "ABI agent line-mode ready (no input lines).\n".into(),
@@ -338,6 +402,90 @@ pub(crate) fn line_mode() -> Outcome {
     }
 }
 
+/// Deterministic non-TTY path. Its `BufRead::lines` and empty-line behavior is
+/// deliberately kept separate from the raw editor.
+fn buffered_line_mode() -> Outcome {
+    use std::io::{BufRead, Write};
+
+    let stdin = std::io::stdin();
+    let mut stdout = std::io::stdout();
+    let mut banner = String::new();
+    let _ = writeln!(
+        banner,
+        "ABI agent line-mode (interactive raw TUI not linked). Type a prompt or /help; empty line or EOF to quit."
+    );
+    let _ = stdout.write_all(banner.as_bytes());
+    let _ = stdout.flush();
+
+    let mut responses = Some(String::new());
+    let mut state = new_state(false);
+
+    for line in stdin.lock().lines() {
+        let Ok(line) = line else { break };
+        if matches!(
+            handle_input(&line, &mut state, &mut responses, &mut stdout),
+            SlashAction::Quit
+        ) {
+            break;
+        }
+    }
+    finish_outcome(responses.expect("buffered mode captures responses"))
+}
+
+fn interactive_mode() -> Outcome {
+    use std::io::Write;
+
+    let _raw = match crate::terminal::RawMode::enter() {
+        Ok(raw) => raw,
+        Err(err) => {
+            let _ = writeln!(
+                std::io::stderr(),
+                "note: raw editor unavailable ({err}); using buffered line-mode"
+            );
+            return buffered_line_mode();
+        }
+    };
+    let mut stdin = std::io::stdin();
+    let mut stdout = std::io::stdout();
+    let _ = writeln!(
+        stdout,
+        "ABI agent TTY editor. Type a prompt or /help; empty line, Ctrl-D, or Ctrl-C to quit."
+    );
+    let _ = stdout.flush();
+
+    let mut state = new_state(true);
+    let mut editor = EditorState::default();
+    let mut decoder = crate::terminal::KeyDecoder::default();
+    let mut responses = None;
+    while let InteractiveRead::Line(line) =
+        read_interactive_line(&mut stdin, &mut stdout, &mut editor, &mut decoder)
+    {
+        if matches!(
+            handle_input(&line, &mut state, &mut responses, &mut stdout),
+            SlashAction::Quit
+        ) {
+            break;
+        }
+    }
+    Outcome {
+        stdout: String::new(),
+        stderr: String::new(),
+        exit_code: 0,
+    }
+}
+
+/// Agent REPL entrypoint: raw editor on a real TTY, deterministic line reads
+/// for redirected/scripted input.
+pub(crate) fn line_mode() -> Outcome {
+    use std::io::IsTerminal;
+
+    if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+        interactive_mode()
+    } else {
+        buffered_line_mode()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -348,20 +496,20 @@ mod tests {
             turn_count: 0,
             history: Vec::new(),
             model: model.to_owned(),
+            sea_enabled: false,
+            interactive: false,
         }
     }
 
     /// Dispatch one REPL line and return only what it wrote to `responses`.
     ///
-    /// `handle_slash` also writes to a live `std::io::Stdout`, so this prints
-    /// during a `cargo test` run without `--nocapture` shows nothing — libtest
-    /// captures it — but running with `--nocapture` will show duplicate lines.
-    /// That is a property of the REPL loop under test, not of the test.
+    /// Unit dispatch selects the same capture path used by redirected input;
+    /// interactive mode selects `None` and therefore only streams once.
     fn dispatch(line: &str, state: &mut LineModeState) -> String {
-        let mut responses = String::new();
+        let mut responses = Some(String::new());
         let mut stdout = std::io::stdout();
         handle_slash(line, state, &mut responses, &mut stdout);
-        responses
+        responses.expect("unit dispatch captures responses")
     }
 
     #[test]
@@ -421,9 +569,22 @@ mod tests {
     }
 
     #[test]
+    fn sea_toggle_is_session_local_and_reflected_in_status() {
+        let mut state = line_mode_state("abi-local");
+        assert!(dispatch("/sea", &mut state).contains("sea: off"));
+        assert!(dispatch("/sea on", &mut state).contains("sea: on"));
+        assert!(state.sea_enabled);
+        assert!(dispatch("/status", &mut state).contains("sea=on"));
+        assert!(dispatch("/sea toggle", &mut state).contains("sea: off"));
+        assert!(!state.sea_enabled);
+    }
+
+    #[test]
     fn help_lists_the_model_and_profile_commands() {
-        assert!(TUI_HELP.contains("/model"));
-        assert!(TUI_HELP.contains("/profile"));
+        assert!(LINE_MODE_HELP.contains("/model"));
+        assert!(TTY_HELP.contains("/profile"));
+        assert!(!LINE_MODE_HELP.contains("/sea"));
+        assert!(TTY_HELP.contains("/sea"));
     }
 
     #[test]

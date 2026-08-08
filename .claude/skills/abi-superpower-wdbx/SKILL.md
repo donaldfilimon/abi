@@ -26,52 +26,53 @@ Exposes WDBX vector store as a superpower for opencode.
 ## Actions
 
 ### insert
-Insert vectors/blocks into store:
+Initialize a store and append a block:
 ```
-/abi-superpower-wdbx insert --path ./data --input "text to embed"
+abi wdbx db init ./data
+abi wdbx block insert ./data abbey '{"note":"text to embed"}'
 ```
 
 ### query
 Semantic/persona-scoped retrieval:
 ```
-/abi-superpower-wdbx query --path ./data --query "search text" --persona abbey
+abi wdbx query ./data "search text" abbey
 ```
 
 ### stats
 Show store statistics:
 ```
-/abi-superpower-wdbx stats --path ./data
+abi wdbx query ./data
 ```
 
 ### compact
 Retain newest segments:
 ```
-/abi-superpower-wdbx compact --path ./data --keep 5
+abi wdbx db compact ./data 5
 ```
 
 ### benchmark
 Insert/search timing:
 ```
-/abi-superpower-wdbx benchmark --path ./data --count 1000
+abi wdbx benchmark 1000
 ```
 
 ### secure
 Run compression + homomorphic demo:
 ```
-/abi-superpower-wdbx secure
+abi wdbx secure demo
 ```
 
 ### cluster
 Consensus demo or serve:
 ```
-/abi-superpower-wdbx cluster --mode demo --nodes 3
-/abi-superpower-wdbx cluster --mode serve --port 8080
+abi wdbx cluster demo 3
+abi wdbx cluster serve 8090 node1 127.0.0.1
 ```
 
 ### api
 Serve REST API:
 ```
-/abi-superpower-wdbx api --port 8081
+abi wdbx api serve 8081
 ```
 
 ## Implementation
@@ -82,6 +83,9 @@ Maps to:
 - `crates/abi-wdbx/src/rest.rs` - REST server
 - `crates/abi-wdbx/src/cluster_rpc.rs` - Raft consensus
 
-## Feature Gate
+## Build and runtime boundary
 
-Requires `feat-wdbx=true` (default). When disabled, returns `FeatureDisabled`.
+`abi-wdbx` is a normal Rust workspace crate; there is no `feat-wdbx` switch or
+`FeatureDisabled` stub. Use the real `abi wdbx` subcommands shown by
+`abi wdbx help`. Tests must use a scratch path or disable persistence so they
+never open the user's live `~/.abi` store.

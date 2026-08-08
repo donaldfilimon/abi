@@ -20,43 +20,17 @@ superpower:
 
 Exposes WDBX security/compression demos as a superpower. All are **reference-grade, not production** — explicitly disclosed in `docs/spec/wdbx-north-star.mdx` §2 and `docs/contracts/external-claims-audit.mdx`.
 
-## Actions
+## Real CLI action
 
-### compression
-Int8 embedding quantization (~4× compression):
-```
-/abi-superpower-wdbx-secure compression --vectors '[[0.1,0.2],[0.3,0.4]]'
-```
+The public CLI deliberately exposes one combined reference demonstration:
 
-### entropy
-Exact order-0 Huffman entropy coding (NOT ANS/arithmetic):
-```
-/abi-superpower-wdbx-secure entropy --data "compressible text data"
+```bash
+abi wdbx secure demo
 ```
 
-### neural
-In-process trained autoencoder codec (reference, NOT SOTA):
-```
-/abi-superpower-wdbx-secure neural --vectors '[[0.1,0.2,0.3],[0.4,0.5,0.6]]'
-```
-
-### he
-Additive single-key homomorphic encryption (NOT multi-key/FHE):
-```
-/abi-superpower-wdbx-secure he --data "aggregate values"
-```
-
-### fhe
-DGHV somewhat-homomorphic encryption — encrypted add (XOR) + multiply (AND), depth-3 tested (reference parameters, NOT security-audited):
-```
-/abi-superpower-wdbx-secure fhe --data "encrypted computation"
-```
-
-### demo
-Run full secure demo (all of the above):
-```
-/abi-superpower-wdbx-secure demo
-```
+Int8 quantization, order-0 Huffman, the reference autoencoder, additive HE,
+and DGHV somewhat-homomorphic operations are library components exercised by
+that demo and their crate tests. They are not separate production CLI tools.
 
 ## Implementation
 
@@ -88,9 +62,11 @@ Per `docs/spec/wdbx-north-star.mdx` §2 and `docs/contracts/external-claims-audi
 abi wdbx secure demo
 ```
 
-## Feature Gates
+## Build and runtime boundary
 
-Requires `feat-wdbx=true` (default). When disabled, returns `FeatureDisabled`.
+`abi-wdbx` is a normal Rust workspace crate; there is no `feat-wdbx` switch or
+`FeatureDisabled` stub. The public CLI intentionally exposes the combined
+`abi wdbx secure demo`, not separate production cryptography commands.
 
 ## Testing
 

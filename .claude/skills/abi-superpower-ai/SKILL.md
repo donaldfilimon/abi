@@ -1,60 +1,45 @@
 ---
 name: abi-superpower-ai
-description: AI completion and SEA learning superpower. Run completions, training, streaming, and adaptive learning.
-superpower:
-  command: "execute"
-  parameters:
-    - name: "action"
-      type: "string"
-      enum: ["complete", "train", "learn", "stream", "status"]
-      description: "AI action"
-    - name: "input"
-      type: "string"
-      description: "Input prompt"
-    - name: "model"
-      type: "string"
-      description: "Model ID (e.g., claude-fable-5)"
-    - name: "profile"
-      type: "string"
-      enum: ["abbey", "aviva", "abi", "all"]
-      description: "Agent profile for training"
+description: AI completion and SEA learning guide. Maps completion, streaming, training, and learning requests to real ABI CLI paths.
 ---
 
 # ABI Superpower: AI
 
-Exposes AI completion, SEA learning, and training as a superpower.
+Maps AI completion, SEA learning, and training to the real CLI. There is no
+`/abi-superpower-ai` binary or slash command.
 
 ## Actions
 
 ### complete
 Run completion with optional streaming:
-```
-/abi-superpower-ai complete --input "explain Zig 0.17" --model claude-fable-5
-/abi-superpower-ai complete --input "code review" --learn --stream
+```bash
+./target/debug/abi complete --model claude-fable-5 "explain the Rust workspace"
+./target/debug/abi complete --learn --stream "code review"
 ```
 
 ### train
 Train agent profiles against WDBX:
-```
-/abi-superpower-ai train --profile abbey --dataset /path/to/dataset.jsonl
+```bash
+./target/debug/abi agent train abbey
 ```
 
 ### learn
 Run SEA self-learning loop:
-```
-/abi-superpower-ai learn --input "task" --evidence-limit 10
+```bash
+SEA_STORE=$(mktemp -d)
+ABI_WDBX_PATH="$SEA_STORE" ./target/debug/abi complete --learn "task"
 ```
 
 ### stream
 Stream completion tokens:
-```
-/abi-superpower-ai stream --input "write a function" --model local
+```bash
+./target/debug/abi complete --stream --model claude-fable-5 "write a function"
 ```
 
 ### status
 Show current AI configuration:
-```
-/abi-superpower-ai status
+```bash
+./target/debug/abi backends
 ```
 
 ## Profiles
@@ -70,11 +55,13 @@ in `docs/spec/abbey-core-identity.mdx`; the labels are not model-quality claims.
 ## Implementation
 
 Maps to:
-- `crates/abi-ai/src/completion.rs` - `completeWithStore()`, `completeWithStoreAdaptive()`
-- `crates/abi-sea/src/learn_loop.rs` - `runLearnLoop()`, evidence recall
+- `crates/abi-ai/src/completion.rs` - deterministic completion and persistence helpers
+- `crates/abi-sea/src/learn_loop.rs` - `run_learn_loop`, evidence recall
 - `crates/abi-ai/src/constitution.rs` - 6-principle audit
 - `crates/abi-ai/src/router.rs` - sentiment analysis, profile selection
 
-## Feature Gate
+## Runtime Boundary
 
-Requires `feat-ai=true` and `feat-sea=true` (both default).
+The Rust workspace always links the local AI/SEA paths. Live HTTP completion is
+Anthropic-only and requires explicit credentials; local mode is deterministic
+persona-template generation, not a production model-quality claim.

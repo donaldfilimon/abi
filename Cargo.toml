@@ -31,6 +31,7 @@ num-traits = "0.2"
 thiserror = "2"
 wyhash = "0.5"
 zeroize = { version = "1", features = ["derive"] }
+unicode-width = "0.2"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

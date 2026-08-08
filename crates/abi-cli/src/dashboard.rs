@@ -266,6 +266,94 @@ fn clear_screen(out: &mut dyn Write) {
     let _ = out.flush();
 }
 
+fn cycle_pane(selected: usize, backwards: bool) -> usize {
+    if backwards {
+        selected.checked_sub(1).unwrap_or(PANES.len() - 1)
+    } else {
+        (selected + 1) % PANES.len()
+    }
+}
+
+fn pane_height(ds: &DashboardState, pane: usize) -> usize {
+    match PANES[pane].0 {
+        "system" => 5,
+        "plugins" => {
+            let shown = ds.plugin_names.len().min(MAX_PLUGIN_ROWS);
+            3 + shown + usize::from(ds.plugin_names.len() > shown)
+        }
+        "storage" | "scheduler" => 7,
+        "memory" => 6,
+        _ => 0,
+    }
+}
+
+/// Map a one-based terminal cell to the pane occupying it in `render_text`.
+/// The dashboard begins at row 1, its title band consumes four rows, and every
+/// pane includes its header/content/bottom-border rows. Clicks outside the
+/// 70-column dashboard or on the footer are ignored.
+fn pane_at_position(ds: &DashboardState, column: u16, row: u16) -> Option<usize> {
+    let column = usize::from(column);
+    let row = usize::from(row);
+    if !(1..=DIAG_WIDTH + 2).contains(&column) || row < 5 {
+        return None;
+    }
+
+    let mut first_row = 5;
+    for pane in 0..PANES.len() {
+        if ds.compact && pane != ds.selected_pane {
+            continue;
+        }
+        let end_row = first_row + pane_height(ds, pane);
+        if (first_row..end_row).contains(&row) {
+            return Some(pane);
+        }
+        first_row = end_row;
+    }
+    None
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InputAction {
+    Quit,
+    Repaint,
+    Ignore,
+}
+
+fn apply_interactive_input(
+    key: crate::terminal::Key,
+    mouse: Option<crate::terminal::MouseEvent>,
+    options: &mut Options,
+) -> InputAction {
+    use crate::terminal::Key;
+
+    if let Some(event) = mouse
+        && event.is_primary_press()
+    {
+        let state = collect_state(options);
+        if let Some(pane) = pane_at_position(&state, event.column, event.row) {
+            options.initial_pane = pane;
+            return InputAction::Repaint;
+        }
+    }
+    match key {
+        Key::Char('q' | 'Q') | Key::Escape | Key::Interrupt | Key::Eof => InputAction::Quit,
+        Key::Char('r' | 'R') => InputAction::Repaint,
+        Key::Char('h' | 'H') | Key::Left | Key::BackTab => {
+            options.initial_pane = cycle_pane(options.initial_pane, true);
+            InputAction::Repaint
+        }
+        Key::Char('l' | 'L') | Key::Right | Key::Tab => {
+            options.initial_pane = cycle_pane(options.initial_pane, false);
+            InputAction::Repaint
+        }
+        Key::Char(key @ '1'..='5') => {
+            options.initial_pane = usize::from(key as u8 - b'1');
+            InputAction::Repaint
+        }
+        _ => InputAction::Ignore,
+    }
+}
+
 /// Interactive raw-mode loop for a real TTY. Returns a final one-shot frame on exit
 /// (for capture) after restoring the terminal.
 fn run_interactive(options: Options) -> Outcome {
@@ -294,6 +382,21 @@ fn run_interactive(options: Options) -> Outcome {
                 );
             }
         };
+        // Declared after `_raw` so Rust drops this guard first: mouse reporting
+        // is disabled before canonical terminal mode is restored.
+        let _mouse = match crate::terminal::MouseCapture::enter(io::stderr()) {
+            Ok(capture) => capture,
+            Err(err) => {
+                let state = collect_state(&options);
+                let text = render_text(&state);
+                return Outcome::stderr(
+                    format!(
+                        "{text}\nnote: mouse capture unavailable ({err}); one-shot fallback.\n"
+                    ),
+                    0,
+                );
+            }
+        };
 
         let mut options = options;
         let interval =
@@ -303,6 +406,7 @@ fn run_interactive(options: Options) -> Outcome {
         let mut stderr = io::stderr();
         let mut stdin = io::stdin();
         let mut buf = [0_u8; 16];
+        let mut decoder = crate::terminal::KeyDecoder::default();
 
         loop {
             if force_paint || last_paint.elapsed() >= interval {
@@ -322,36 +426,7 @@ fn run_interactive(options: Options) -> Outcome {
                     std::thread::sleep(Duration::from_millis(20));
                 }
                 Ok(n) => {
-                    for &key in &buf[..n] {
-                        match key {
-                            b'q' | b'Q' | 0x1b => {
-                                let mut state = collect_state(&options);
-                                state.interactive = true;
-                                let frame = render_text(&state);
-                                return Outcome::stderr(frame, 0);
-                            }
-                            b'r' | b'R' => {
-                                force_paint = true;
-                            }
-                            b'h' | b'H' => {
-                                if options.initial_pane == 0 {
-                                    options.initial_pane = PANES.len() - 1;
-                                } else {
-                                    options.initial_pane -= 1;
-                                }
-                                force_paint = true;
-                            }
-                            b'l' | b'L' => {
-                                options.initial_pane = (options.initial_pane + 1) % PANES.len();
-                                force_paint = true;
-                            }
-                            b'1'..=b'5' => {
-                                options.initial_pane = usize::from(key - b'1');
-                                force_paint = true;
-                            }
-                            _ => {}
-                        }
-                    }
+                    decoder.push(&buf[..n]);
                 }
                 Err(err) if err.kind() == io::ErrorKind::WouldBlock => {
                     std::thread::sleep(Duration::from_millis(20));
@@ -359,6 +434,19 @@ fn run_interactive(options: Options) -> Outcome {
                 Err(_) => {
                     let state = collect_state(&options);
                     return Outcome::stderr(render_text(&state), 0);
+                }
+            }
+
+            while let Some(key) = decoder.next_key() {
+                match apply_interactive_input(key, decoder.take_mouse_event(), &mut options) {
+                    InputAction::Quit => {
+                        let mut state = collect_state(&options);
+                        state.interactive = true;
+                        let frame = render_text(&state);
+                        return Outcome::stderr(frame, 0);
+                    }
+                    InputAction::Repaint => force_paint = true,
+                    InputAction::Ignore => {}
                 }
             }
         }
@@ -451,7 +539,7 @@ fn render_text(ds: &DashboardState) -> String {
     };
     let _ = writeln!(
         out,
-        "\n[q/Esc] Quit  [r] Refresh  [h/l] Select  [1-5] Panes  {mode}"
+        "\n[q/Esc] Quit  [r] Refresh  [mouse/Tab/Shift-Tab or h/l] Select  [1-5] Panes  {mode}"
     );
     out
 }
@@ -763,6 +851,77 @@ mod tests {
         assert_eq!(pane_index_for_token("storage"), Some(2));
         assert_eq!(pane_index_for_token("memory"), Some(4));
         assert_eq!(pane_index_for_token("nope"), None);
+    }
+
+    #[test]
+    fn pane_cycle_wraps_in_both_directions() {
+        assert_eq!(cycle_pane(0, false), 1);
+        assert_eq!(cycle_pane(PANES.len() - 1, false), 0);
+        assert_eq!(cycle_pane(1, true), 0);
+        assert_eq!(cycle_pane(0, true), PANES.len() - 1);
+    }
+
+    #[test]
+    fn mouse_hit_testing_tracks_rendered_pane_rows_and_bounds() {
+        let state = collect_state(&Options::default());
+        for (row, expected) in [(5, 0), (10, 1), (20, 2), (27, 3), (34, 4)] {
+            assert_eq!(
+                pane_at_position(&state, 2, row),
+                Some(expected),
+                "row={row}"
+            );
+        }
+        assert_eq!(pane_at_position(&state, 2, 39), Some(4));
+        assert_eq!(pane_at_position(&state, 2, 40), None);
+        assert_eq!(pane_at_position(&state, 0, 5), None);
+        let outside = u16::try_from(DIAG_WIDTH + 3).expect("dashboard width fits u16");
+        assert_eq!(pane_at_position(&state, outside, 5), None);
+    }
+
+    #[test]
+    fn compact_mouse_hit_testing_exposes_only_the_visible_pane() {
+        let options = Options {
+            compact: true,
+            initial_pane: 3,
+            ..Options::default()
+        };
+        let state = collect_state(&options);
+        assert_eq!(pane_at_position(&state, 2, 5), Some(3));
+        assert_eq!(pane_at_position(&state, 2, 11), Some(3));
+        assert_eq!(pane_at_position(&state, 2, 12), None);
+    }
+
+    #[test]
+    fn only_primary_mouse_presses_change_focus() {
+        use crate::terminal::{Key, MouseEvent};
+
+        let mut options = Options::default();
+        let click = MouseEvent {
+            button: 0,
+            column: 2,
+            row: 10,
+            pressed: true,
+        };
+        assert_eq!(
+            apply_interactive_input(Key::Other, Some(click), &mut options),
+            InputAction::Repaint
+        );
+        assert_eq!(options.initial_pane, 1);
+
+        for ignored in [
+            MouseEvent {
+                pressed: false,
+                ..click
+            },
+            MouseEvent { button: 2, ..click },
+            MouseEvent { row: 40, ..click },
+        ] {
+            assert_eq!(
+                apply_interactive_input(Key::Other, Some(ignored), &mut options),
+                InputAction::Ignore
+            );
+            assert_eq!(options.initial_pane, 1);
+        }
     }
 
     #[test]

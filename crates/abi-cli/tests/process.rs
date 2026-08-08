@@ -1,7 +1,8 @@
 //! Process-level compatibility tests for the Rust `abi` executable.
 
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 /// The spawned executable is a non-test build, so the `cfg(test)` refusal in
 /// `util::default_store_home` does not apply to it: left alone it would resolve
@@ -83,6 +84,36 @@ fn run(arguments: &[&str]) -> Output {
 
 fn run_with_env(arguments: &[&str], environment: &[(&str, &str)]) -> Output {
     spawn(arguments, environment)
+}
+
+fn run_with_stdin(arguments: &[&str], input: &[u8]) -> Output {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_abi"))
+        .env("ABI_WDBX_PATH", ":memory:")
+        .args(arguments)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Rust abi executable should start");
+    child
+        .stdin
+        .take()
+        .expect("piped stdin")
+        .write_all(input)
+        .expect("write redirected REPL input");
+    child.wait_with_output().expect("wait for Rust abi")
+}
+
+#[test]
+fn redirected_agent_tui_preserves_the_legacy_help_bytes() {
+    const HELP: &str = "ABI agent line-mode (interactive raw TUI not linked)\ncommands:\n  /help              this text\n  /model <id>        switch the completion model (alias-resolved)\n  /profile           show profile routing status\n  /quit /exit /q     leave the REPL\n  /status /stat      session counters and model\n  /context           file_context / open-file summary\n  /history /hist     recent turn previews\n  /reset             clear history and bump session id\n  /features /feat    build-time feature migration flags\n  /clear /cls        clear screen (ANSI)\n  free text          local persona completion with file_context\n";
+    let output = run_with_stdin(&["agent", "tui"], b"/help\n/quit\n");
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    let expected = format!(
+        "ABI agent line-mode (interactive raw TUI not linked). Type a prompt or /help; empty line or EOF to quit.\n{HELP}{HELP}"
+    );
+    assert_eq!(output.stdout, expected.as_bytes());
 }
 
 #[test]

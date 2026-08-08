@@ -1,28 +1,12 @@
 ---
 name: sea
 description: SEA (Sparse Evidence Attention) learning superpower. Evidence-augmented completion with task-aware scoring and adaptive modulation.
-superpower:
-  command: "execute"
-  parameters:
-    - name: "action"
-      type: "string"
-      enum: ["complete", "learn", "adaptive", "evidence"]
-      description: "SEA action"
-    - name: "input"
-      type: "string"
-      description: "Input prompt"
-    - name: "task"
-      type: "string"
-      enum: ["writing", "coding", "math", "analysis", "creative", "debug"]
-      description: "Task type for adaptive scoring"
-    - name: "evidence_limit"
-      type: "integer"
-      description: "Max evidence references (0-100)"
 ---
 
 # SEA Superpower Plugin
 
-Core SEA capabilities for OpenCode within the ABI framework.
+Claim-honest routing to SEA through the real ABI CLI. This skill does not add a
+`/abi-superpower-sea` binary or standalone adaptive/evidence commands.
 
 ## Capabilities
 
@@ -39,28 +23,23 @@ Core SEA capabilities for OpenCode within the ABI framework.
 - Runtime lifecycle management
 - Configuration and settings management
 
-## Actions
+## Real CLI path
 
-### complete
-Evidence-augmented completion with 8-signal scorer:
+```bash
+SEA_STORE=$(mktemp -d)
+ABI_WDBX_PATH="$SEA_STORE" ./target/debug/abi complete --learn "explain bias"
 ```
-/abi-superpower-sea complete --input "explain bias" --task writing --evidence-limit 20
-```
 
-### learn
-Train SEA modulator with evidence recall.
-
-### adaptive
-Adaptive completion with EMA weights.
-
-### evidence
-Search and rank evidence for input.
+Task class is inferred. The public CLI does not expose `--task` or
+`--evidence-limit`; MCP `ai_learn` accepts a capped `evidence_limit` up to 100.
 
 ## SEA Architecture
 
-- 8 Signal Types: semantic, temporal, causal, persona, consistency, novelty, relevance, coherence
-- Task-Aware Weighting, AdaptiveModulator (EMA alpha=0.3) in WDBX
-- Evidence Budget
+- 8 signals: semantic, keyword, metadata, recency, authority, graph,
+  contradiction, and task fit
+- Code repair, project recall, and benchmark review adjust baseline weights;
+  all inferred task classes affect task-fit scoring
+- Deterministic record/token/cluster/prompt budgets and a 100-candidate cap
 
 ## Implementation
 
@@ -70,6 +49,8 @@ Maps to:
 - `crates/abi-ai/src/constitution.rs`
 - `crates/abi-wdbx/src/store.rs`
 
-## Feature Gate
+## Runtime Boundary
 
-Requires `feat-sea=true` (default).
+SEA is linked into the Rust workspace and selected by `--learn`. Tests and
+smokes must use a scratch store; `ABI_WDBX_PATH=:memory:` selects the no-store
+fallback and does not prove evidence recall.

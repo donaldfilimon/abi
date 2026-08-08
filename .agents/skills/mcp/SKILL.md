@@ -1,6 +1,6 @@
 ---
 name: mcp
-description: Plan abi MCP server work — the 12-tool JSON-RPC 2.0 surface over stdio plus optional loopback HTTP/SSE. Use when asked about abi-mcp, the tool list, transports, or middleware. Routes to mcp-smoke, abi-superpower-mcp, and abi-mcp-transport. Loopback-only; non-loopback HTTP hardening is a disclosed gap.
+description: Plan abi MCP server work — the 12-tool JSON-RPC 2.0 stdio surface plus its custom loopback HTTP compatibility listener. Use for abi-mcp, tools, transports, or middleware.
 ---
 
 # mcp
@@ -23,8 +23,10 @@ Entry point for the abi MCP server (`crates/abi-mcp/src/`). Routes to specialist
   twilio, grok}; `ai_train` tool arg `format` ∈ {jsonl, csv, text}.
 
 ## Honest boundary
-Stdio exits on stdin EOF (not a long-lived daemon). Optional HTTP/SSE is
-loopback-only (`127.0.0.1:8080`, `ABI_MCP_HTTP_PORT` / `ABI_MCP_HTTP_TOKEN`).
-Non-loopback hardening (TLS/authz/rate-limit) is **not** done — deploy behind
-a TLS-terminating proxy. `handlers.errorMessage` normalizes every `anyhow/thiserror / crate errors`
-so `@errorName` never leaks on either transport.
+Stdio exits on stdin EOF (not a long-lived daemon). Startup also attempts the
+custom loopback listener (`127.0.0.1:8080` by default, configured with
+`ABI_MCP_HTTP_PORT` / `ABI_MCP_HTTP_TOKEN`); bind failure leaves stdio running.
+`GET /sse` emits one discovery event and closes, while `POST /message` handles
+one JSON-RPC message per connection. This is not conforming persistent MCP
+HTTP+SSE, and non-loopback serving is not supported. Rust handlers return
+bounded JSON-RPC errors without exposing internal error chains.

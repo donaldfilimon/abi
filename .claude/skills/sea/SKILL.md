@@ -5,14 +5,14 @@ description: Plan abi SEA (Sparse Evidence Attention) self-learning work — evi
 
 # sea
 
-Entry point for abi's SEA self-learning loop (`crates/abi-ai/src/`). Routes:
+Entry point for abi's SEA self-learning loop (`crates/abi-sea/src/`). Routes:
 
 | You want to… | Use |
 | --- | --- |
 | Drive `abi complete --learn` end-to-end | `sea-learn-loop` |
 | Deep-dive SEA scoring / adaptive modulation | `abi-superpower-sea` |
 | Constitution audit (observability-only) | `abi-superpower-constitution` |
-| Toggle SEA in the REPL (`/learn`) | `sea-learning-controller` |
+| Run learning or inspect the REPL's session-only `/sea` preference | `sea-learning-controller` |
 
 ## Facts that constrain any SEA plan
 - SEA = evidence-augmented self-learning completion with an 8-signal scorer +
@@ -25,8 +25,8 @@ Entry point for abi's SEA self-learning loop (`crates/abi-ai/src/`). Routes:
   sets `audit_passed` / `audit_vetoed` / `escore`, warns via std.log on violation,
   but `complete` / `run` still return the response. Safety+privacy hard-veto
   only when either < 0.5.
-- The live EMA path is `completeAdaptive` / `completeWithStoreAdaptive` via
-  `runLearnLoop` only; there is no separate `routeInputAdaptive` wrapper.
+- The live EMA path runs through `abi-sea::run_learn_loop`; there is no separate
+  public adaptive-routing command.
 
 ## Honest boundary
 No accuracy / energy / learning-gain claims without a repo benchmark.

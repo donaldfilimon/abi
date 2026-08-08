@@ -7,9 +7,9 @@ description: Build, launch, and drive the abi nightly-Rust project — the `abi`
 
 `abi` is a **nightly Rust** framework that builds two binaries: a CLI
 (`target/debug/abi`) and an MCP server (`target/debug/abi-mcp`, JSON-RPC 2.0 over
-stdio + optional loopback HTTP/SSE). Both are **non-interactive and
-headless-friendly** — the driver builds them and drives the real binaries
-end-to-end.
+stdio plus an automatically attempted custom loopback HTTP listener). The MCP
+listener's one-event `/sse` response is not persistent MCP HTTP+SSE. The driver
+builds and exercises the real binaries end-to-end.
 
 **Paths below are relative to the repo root.** The driver lives at
 `.agents/skills/run-abi/smoke.sh` and resolves the repo root from its own location.

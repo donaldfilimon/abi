@@ -12,7 +12,9 @@ Safe repo-backed wording:
 - ABI is a nightly-Rust local AI orchestration framework with deterministic Abbey/Aviva/Abi profile routing.
 - WDBX is an in-process vector/key-value/block store with segment checkpoints, WAL recovery, temporal/causal records, HNSW-style cosine search, and hybrid ranking where wired.
 - CLI and MCP surfaces are frozen and contract-tested.
-- MCP stdio is local IPC; optional HTTP/SSE is loopback and can require `ABI_MCP_HTTP_TOKEN`.
+- MCP stdio is local IPC. Startup also attempts a custom loopback HTTP listener
+  that can require `ABI_MCP_HTTP_TOKEN`; its one-event `/sse` discovery response
+  is not persistent MCP HTTP+SSE.
 - WDBX REST is loopback and can require `ABI_WDBX_REST_TOKEN`.
 - WDBX cluster RPC uses real TCP RequestVote/AppendEntries, supports `ABI_WDBX_CLUSTER_TOKEN`, optional `ABI_WDBX_CLUSTER_PEERS`, and refuses non-loopback binds without a token.
 - GPU support includes capability/status reporting and vector operations with

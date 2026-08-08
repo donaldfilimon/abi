@@ -21,30 +21,20 @@ superpower:
 
 Exposes the 6-principle constitutional audit as a superpower. **Observability-only, not a gate** — sets `audit_passed`/`audit_vetoed`/`escore` in metadata and logs warnings, but `complete`/`run` still return the response.
 
-## Actions
+## Real access path
 
-### audit
-Run full constitutional audit on a response:
-```
-/abi-superpower-constitution audit --response "Your response text here" --profile abbey
-```
-Returns:
+ABI does not expose `/abi-superpower-constitution` or a standalone constitution
+CLI command. The audit runs inside completion flows; exercise it with
+`abi complete <input>` or the MCP `ai_complete` / `ai_run` / `ai_learn` tools
+and inspect the returned/stored metadata:
+
 - `audit_passed` (bool)
 - `audit_vetoed` (bool) — hard veto if safety OR privacy < 0.5
 - `escore` (f32) — weighted constitutional score
 - Per-principle scores (0.0-1.0)
 
-### evaluate
-Evaluate a response against a specific principle:
-```
-/abi-superpower-constitution evaluate --response "response" --principle safety
-```
-
-### principles
-List the 6 constitutional principles:
-```
-/abi-superpower-constitution principles
-```
+Direct per-principle evaluation is a Rust library/test surface, not a public
+slash command.
 
 ## The 6 Principles
 

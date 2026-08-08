@@ -41,7 +41,9 @@ Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
 - **MCP (12)**: `ai_run`, `ai_complete`, `ai_learn`, `ai_train`, `wdbx_query`,
   `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`,
   `plugin_list`, `wdbx_stats`, `plugin_run`. Stdio JSON-RPC (64 KB cap).
-  Loopback-only HTTP/SSE when enabled.
+  A loopback-only custom HTTP compatibility listener is attempted at startup;
+  bind failure leaves stdio running. Its one-event `/sse` discovery response
+  is not persistent MCP HTTP+SSE.
 
 ## Claims discipline
 
@@ -89,8 +91,9 @@ use scratch `DurableStore` paths, `ABI_WDBX_PATH=:memory:`, or
   `modern-refactor/` scaffolds were removed; historical archive docs may still
   mention Zig.
 - Interactive `abi dashboard|tui` enters raw-mode on a TTY (one-shot for
-  `--once`/`--json`/non-TTY); `agent tui` is line-mode (raw-mode editor not
-  linked).
+  `--once`/`--json`/non-TTY); `agent tui` uses a bounded raw-mode editor only
+  when stdin and stdout are TTYs, with the deterministic legacy line mode for
+  redirected input.
 - Plugin slash-commands dispatch via `__cmd__:<name>` (parallel to
   `__context__:<name>`).
 - WDBX borrowed vectors are zero-copy; lifetime ends on next mutation.

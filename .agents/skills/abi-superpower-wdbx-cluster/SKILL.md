@@ -31,29 +31,28 @@ Exposes WDBX consensus/cluster capabilities as a superpower. **Honest scope**: I
 ### status
 Show in-process Raft state-machine status (single node that elects itself leader):
 ```
-/abi-superpower-wdbx-cluster status
+abi wdbx cluster status
 ```
 
 ### demo
 Run in-process consensus demo (election, quorum replication, failover):
 ```
-/abi-superpower-wdbx-cluster demo --nodes 3
+abi wdbx cluster demo 3
 ```
 
 ### serve
 Serve a networked consensus RPC node:
 ```
-/abi-superpower-wdbx-cluster serve --port 8090 --node-id node1 --host 127.0.0.1
+abi wdbx cluster serve 8090 node1 127.0.0.1
 ```
 - Loopback (`127.0.0.1`) allowed by default
 - Non-loopback bind **refuses to start** without `ABI_WDBX_CLUSTER_TOKEN`
 - Optional peer allowlist via `ABI_WDBX_CLUSTER_PEERS` (comma-separated node IDs)
 
-### rpc-test
-Run authenticated loopback multi-node vote+append round (verifies quorum and peer logs):
-```
-/abi-superpower-wdbx-cluster rpc-test
-```
+### RPC tests
+
+Authenticated loopback vote/append coverage lives in the `abi-wdbx` test
+suite. There is no public `rpc-test` CLI subcommand.
 
 ## Architecture
 
@@ -79,9 +78,11 @@ Run authenticated loopback multi-node vote+append round (verifies quorum and pee
 | Data sharding | Partition vectors/keys across nodes |
 | Cross-host transport tests | Currently loopback-only |
 
-## Feature Gates
+## Build and runtime boundary
 
-Requires `feat-wdbx=true` (default). When disabled, returns `FeatureDisabled`.
+`abi-wdbx` is a normal Rust workspace crate; there is no `feat-wdbx` switch or
+`FeatureDisabled` stub. The real CLI surface is `abi wdbx cluster
+status|demo|serve`; `rpc-test` is not a public CLI subcommand.
 
 ## Claim Boundary
 
