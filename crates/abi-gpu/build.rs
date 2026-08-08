@@ -1,4 +1,4 @@
-//! Compile the Metal DOT shim on arm64 macOS when `metal-kernels` is enabled.
+//! Compile Apple accelerator helpers and record optional toolchain detection.
 
 use std::env;
 use std::path::{Path, PathBuf};
@@ -7,12 +7,29 @@ use std::process::Command;
 fn main() {
     println!("cargo:rerun-if-changed=native/metal_dot.swift");
     println!("cargo:rerun-if-env-changed=ABI_METAL_KERNELS_FORCE");
+    println!("cargo:rerun-if-env-changed=PATH");
+
+    let cuda_detected = command_succeeds("nvcc", &["--version"]);
+    let vulkan_detected =
+        command_succeeds("glslc", &["--version"]) || command_succeeds("vulkaninfo", &["--summary"]);
+    println!(
+        "cargo:rustc-env=ABI_CUDA_TOOLCHAIN_DETECTED={}",
+        if cuda_detected { "true" } else { "false" }
+    );
+    println!(
+        "cargo:rustc-env=ABI_VULKAN_TOOLCHAIN_DETECTED={}",
+        if vulkan_detected { "true" } else { "false" }
+    );
 
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     let metal = env::var("CARGO_FEATURE_METAL_KERNELS").is_ok();
+    let coreml = env::var("CARGO_FEATURE_COREML_ANE").is_ok();
 
-    if !(metal && target_os == "macos" && (target_arch == "aarch64" || target_arch == "x86_64")) {
+    if !((metal || coreml)
+        && target_os == "macos"
+        && (target_arch == "aarch64" || target_arch == "x86_64"))
+    {
         return;
     }
 
@@ -50,6 +67,8 @@ fn main() {
             &sdk_path,
             "-framework",
             "Metal",
+            "-framework",
+            "CoreML",
             "-Xlinker",
             "-install_name",
             "-Xlinker",
@@ -68,6 +87,7 @@ fn main() {
     println!("cargo:rustc-link-search=native={}", out_dir.display());
     println!("cargo:rustc-link-lib=dylib=abi_metal_dot");
     println!("cargo:rustc-link-lib=framework=Metal");
+    println!("cargo:rustc-link-lib=framework=CoreML");
     println!("cargo:rustc-link-lib=framework=Foundation");
 
     // Copy beside target/{debug,release} so the plain `./target/debug/abi`
@@ -81,6 +101,13 @@ fn main() {
         });
         println!("cargo:rustc-link-search=native={}", dir.display());
     }
+}
+
+fn command_succeeds(program: &str, arguments: &[&str]) -> bool {
+    Command::new(program)
+        .args(arguments)
+        .output()
+        .is_ok_and(|output| output.status.success())
 }
 
 /// `target/<profile>` for an `OUT_DIR`, located by structure rather than depth.

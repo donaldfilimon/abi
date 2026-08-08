@@ -7,11 +7,16 @@
 //! Also hosts claim-honest **shaders**, **mlir**, and **mobile** report
 //! surfaces (validation / textual lowering / simulated profile).
 
+pub mod adapters;
 pub mod metal_kernels;
 pub mod mlir;
 pub mod mobile;
 pub mod shaders;
 
+pub use adapters::{
+    CoreMlAneAccelerator, CudaAccelerator, MetalAccelerator, VulkanAccelerator,
+    accelerator_capability_states, cuda_toolchain_detected, vulkan_toolchain_detected,
+};
 pub use mlir::{
     Dialect, ModuleSpec, lower as lower_mlir, toolchain_status as mlir_toolchain_status,
 };
