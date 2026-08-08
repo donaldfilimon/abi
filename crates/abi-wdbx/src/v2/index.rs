@@ -2,6 +2,8 @@
 
 use super::{MAX_V2_VECTOR_DIMENSIONS, RecordId, V2Snapshot};
 use crate::hnsw::{HnswError, HnswIndex};
+use abi_compute::Accelerator;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 /// One mutation-safe v2 vector match.
@@ -102,12 +104,134 @@ impl V2VectorIndex {
         });
         Ok(results)
     }
+
+    /// Search the complete immutable vector batch through a selected accelerator.
+    ///
+    /// The adapter is responsible for deterministic CPU-oracle fallback. WDBX
+    /// validates the returned dense positions before translating them back to
+    /// stable public identities and retaining this index's immutable snapshot.
+    pub fn search_with_accelerator(
+        &self,
+        query: &[f32],
+        limit: usize,
+        accelerator: &dyn Accelerator,
+    ) -> Result<Vec<V2SearchResult>, HnswError> {
+        if query.len() != self.dimensions() {
+            return Err(HnswError::DimensionMismatch {
+                expected: self.dimensions(),
+                found: query.len(),
+            });
+        }
+        let candidates = self
+            .slots
+            .iter()
+            .map(|id| {
+                self.snapshot
+                    .preferred_vector(*id)
+                    .expect("the index snapshot contains every dense slot")
+            })
+            .collect::<Vec<_>>();
+        let ranked = accelerator
+            .top_k(query, &candidates, limit.min(candidates.len()))
+            .map_err(|_| HnswError::DimensionMismatch {
+                expected: self.dimensions(),
+                found: query.len(),
+            })?;
+        let mut seen = BTreeSet::new();
+        let mut results = Vec::with_capacity(ranked.len());
+        for result in ranked {
+            if result.index >= self.slots.len()
+                || !result.score.is_finite()
+                || !seen.insert(result.index)
+            {
+                return Err(HnswError::CorruptGraph {
+                    reason: "accelerator returned an invalid dense ranking".into(),
+                });
+            }
+            results.push(V2SearchResult {
+                id: self.slots[result.index],
+                score: result.score,
+                snapshot: Arc::clone(&self.snapshot),
+            });
+        }
+        results.sort_by(|left, right| {
+            right
+                .score
+                .total_cmp(&left.score)
+                .then_with(|| left.id.cmp(&right.id))
+        });
+        Ok(results)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::v2::{V2Mutation, V2Store};
+    use abi_compute::{
+        Backend, CapabilityEvidence, CapabilityState, ComputeError, CpuBackend, ScoredIndex,
+    };
+
+    #[derive(Debug, Default)]
+    struct TestAccelerator {
+        cpu: CpuBackend,
+    }
+
+    impl Accelerator for TestAccelerator {
+        fn backend(&self) -> Backend {
+            Backend::GpuMetal
+        }
+
+        fn capability(&self) -> CapabilityState {
+            CapabilityState::new(
+                Backend::GpuMetal,
+                CapabilityEvidence::new()
+                    .with_compiled(true)
+                    .with_available(true)
+                    .with_initialized(true),
+                "test accelerator",
+            )
+            .unwrap()
+        }
+
+        fn dot(&self, left: &[f32], right: &[f32]) -> Result<f32, ComputeError> {
+            self.cpu.dot(left, right)
+        }
+    }
+
+    #[derive(Debug)]
+    struct InvalidAccelerator;
+
+    impl Accelerator for InvalidAccelerator {
+        fn backend(&self) -> Backend {
+            Backend::GpuMetal
+        }
+
+        fn capability(&self) -> CapabilityState {
+            CapabilityState::new(
+                Backend::GpuMetal,
+                CapabilityEvidence::new().with_compiled(true),
+                "invalid test adapter",
+            )
+            .unwrap()
+        }
+
+        fn dot(&self, _left: &[f32], _right: &[f32]) -> Result<f32, ComputeError> {
+            Ok(0.0)
+        }
+
+        fn top_k(
+            &self,
+            _query: &[f32],
+            _candidates: &[&[f32]],
+            _limit: usize,
+        ) -> Result<Vec<ScoredIndex>, ComputeError> {
+            Ok(vec![ScoredIndex {
+                index: usize::MAX,
+                score: f32::NAN,
+            }])
+        }
+    }
 
     #[test]
     fn dense_slots_preserve_public_ids_and_snapshot_lifetimes() {
@@ -156,6 +280,68 @@ mod tests {
         assert_eq!(index.dimensions(), 4096);
         assert_eq!(index.search(&vec![0.25; 4096], 1).unwrap().len(), 1);
         assert!(HnswIndex::new(4096).is_err(), "v1 remains capped at 128");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accelerator_batch_search_preserves_ids_ties_and_snapshot_lifetime() {
+        let root = abi_foundation::temp_path::temp_file_path("wdbx-v2-accelerated-index", "store");
+        let mut store = V2Store::open(&root).unwrap();
+        let first = RecordId::V2(uuid::Uuid::from_u128(1));
+        let second = RecordId::V2(uuid::Uuid::from_u128(2));
+        let unrelated = RecordId::V2(uuid::Uuid::from_u128(3));
+        store
+            .commit(vec![
+                V2Mutation::PutVector {
+                    id: second,
+                    values: vec![2.0, 0.0],
+                },
+                V2Mutation::PutVector {
+                    id: unrelated,
+                    values: vec![0.0, 1.0],
+                },
+                V2Mutation::PutVector {
+                    id: first,
+                    values: vec![1.0, 0.0],
+                },
+            ])
+            .unwrap();
+        let index = V2VectorIndex::from_snapshot(store.snapshot()).unwrap();
+        let accelerator = TestAccelerator::default();
+        let results = index
+            .search_with_accelerator(&[1.0, 0.0], 2, &accelerator)
+            .unwrap();
+        assert_eq!(
+            results.iter().map(|result| result.id).collect::<Vec<_>>(),
+            [first, second]
+        );
+        assert_eq!(results[0].vector(), [1.0, 0.0]);
+
+        store
+            .commit(vec![V2Mutation::PutVector {
+                id: RecordId::new_v2(),
+                values: vec![0.5, 0.5],
+            }])
+            .unwrap();
+        assert_eq!(results[0].vector(), [1.0, 0.0]);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accelerator_batch_search_rejects_invalid_adapter_rankings() {
+        let root = abi_foundation::temp_path::temp_file_path("wdbx-v2-invalid-adapter", "store");
+        let mut store = V2Store::open(&root).unwrap();
+        store
+            .commit(vec![V2Mutation::PutVector {
+                id: RecordId::new_v2(),
+                values: vec![1.0, 0.0],
+            }])
+            .unwrap();
+        let index = V2VectorIndex::from_snapshot(store.snapshot()).unwrap();
+        assert!(matches!(
+            index.search_with_accelerator(&[1.0, 0.0], 1, &InvalidAccelerator),
+            Err(HnswError::CorruptGraph { .. })
+        ));
         std::fs::remove_dir_all(root).unwrap();
     }
 }
