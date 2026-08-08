@@ -405,6 +405,7 @@ fn append_frames(path: &Path, frames: &[JournalFrame]) -> Result<(), V2Error> {
 
 fn recover(root: &Path) -> Result<V2Snapshot, V2Error> {
     let mut snapshot = V2Snapshot::default();
+    let published = published_heads(root)?;
     let journal_dir = root.join("journals");
     let mut journals: Vec<_> = std::fs::read_dir(&journal_dir)
         .map_err(|error| io_error(&journal_dir, &error))?
@@ -417,12 +418,42 @@ fn recover(root: &Path) -> Result<V2Snapshot, V2Error> {
         .collect();
     journals.sort();
     for journal in journals {
-        replay_journal(&journal, &mut snapshot)?;
+        replay_journal(&journal, &published, &mut snapshot)?;
     }
     Ok(snapshot)
 }
 
-fn replay_journal(path: &Path, snapshot: &mut V2Snapshot) -> Result<(), V2Error> {
+fn published_heads(root: &Path) -> Result<CausalHeads, V2Error> {
+    let head_dir = root.join("heads");
+    let mut heads = CausalHeads::new();
+    for entry in std::fs::read_dir(&head_dir).map_err(|error| io_error(&head_dir, &error))? {
+        let entry = entry.map_err(|error| io_error(&head_dir, &error))?;
+        let path = entry.path();
+        if path.extension().is_none_or(|extension| extension != "head") {
+            continue;
+        }
+        let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) else {
+            continue;
+        };
+        let Some((writer, sequence)) = stem.rsplit_once('-') else {
+            continue;
+        };
+        let (Ok(writer), Ok(sequence)) = (Uuid::parse_str(writer), sequence.parse::<u64>()) else {
+            continue;
+        };
+        heads
+            .entry(writer)
+            .and_modify(|current| *current = (*current).max(sequence))
+            .or_insert(sequence);
+    }
+    Ok(heads)
+}
+
+fn replay_journal(
+    path: &Path,
+    published: &CausalHeads,
+    snapshot: &mut V2Snapshot,
+) -> Result<(), V2Error> {
     let content = std::fs::read_to_string(path).map_err(|error| io_error(path, &error))?;
     let mut pending: Option<(BeginFrame, Vec<V2Mutation>)> = None;
     // A concurrent writer or crashed process may leave bytes after the final
@@ -478,6 +509,15 @@ fn replay_journal(path: &Path, snapshot: &mut V2Snapshot) -> Result<(), V2Error>
                 let expected = transaction_hash(&begin, &mutations)?;
                 if expected != found {
                     return corrupt(path, line_number, "transaction hash mismatch");
+                }
+                if published
+                    .get(&begin.writer_id)
+                    .is_none_or(|sequence| begin.sequence > *sequence)
+                {
+                    // Durability alone is insufficient: until this writer's
+                    // own atomic head object exists, the transaction is not
+                    // published and therefore not visible.
+                    continue;
                 }
                 apply_transaction(snapshot, &begin, mutations);
             }
@@ -604,6 +644,7 @@ mod tests {
             ],
         )
         .unwrap();
+        atomic_write(&right.head_path(1), b"committed\n").unwrap();
         right.refresh().unwrap();
         let set = right.snapshot().get("k").unwrap();
         assert_eq!(set.conflicts.len(), 1);
@@ -711,6 +752,47 @@ mod tests {
             panic!("tampered commit must not open");
         };
         assert!(error.to_string().contains("transaction hash mismatch"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_synced_commit_is_invisible_until_its_writer_head_is_published() {
+        let root = scratch();
+        let mut store = V2Store::open(&root).unwrap();
+        let begin = BeginFrame {
+            writer_id: store.writer_id,
+            transaction_id: Uuid::new_v4(),
+            sequence: 1,
+            observed_heads: CausalHeads::new(),
+        };
+        let mutations = vec![V2Mutation::PutKv {
+            key: "unpublished".into(),
+            value: "hidden".into(),
+        }];
+        let hash = transaction_hash(&begin, &mutations).unwrap();
+        append_frames(
+            &store.journal_path(),
+            &[
+                JournalFrame::Begin(begin.clone()),
+                JournalFrame::Mutation {
+                    transaction_id: begin.transaction_id,
+                    mutation: mutations[0].clone(),
+                },
+                JournalFrame::Commit {
+                    transaction_id: begin.transaction_id,
+                    transaction_hash: hash,
+                },
+            ],
+        )
+        .unwrap();
+        store.refresh().unwrap();
+        assert!(store.snapshot().get("unpublished").is_none());
+        atomic_write(&store.head_path(1), b"committed\n").unwrap();
+        store.refresh().unwrap();
+        assert_eq!(
+            store.snapshot().get("unpublished").unwrap().preferred.value,
+            "hidden"
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 
