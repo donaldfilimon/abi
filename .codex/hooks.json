@@ -2,6 +2,16 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" && bash \"$root/.claude/hooks/block-force-push-main.sh\"",
+            "statusMessage": "guard force-push to main"
+          }
+        ]
+      },
+      {
         "matcher": ".*",
         "hooks": [
           {
@@ -17,8 +27,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *.zig) zig fmt \"$f\";; esac; } 2>/dev/null || true",
-            "statusMessage": "zig fmt"
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *.rs) tb=\"$(dirname \"$(rustup which --toolchain nightly cargo)\")\"; if [ -x \"$tb/rustfmt\" ]; then \"$tb/rustfmt\" --edition 2024 \"$f\"; fi;; esac; } 2>/dev/null || true",
+            "statusMessage": "rustfmt (nightly)"
           }
         ]
       },
