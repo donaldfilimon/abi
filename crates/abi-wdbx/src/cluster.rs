@@ -2,8 +2,18 @@
 //!
 //! This ports the reference-scoped state machine from `cluster.zig`: caller
 //! driven elections, configured-size majority quorum, replication, simulated
-//! failure and failover. It deliberately does not claim full Raft, durable
-//! consensus, dynamic membership, sharding, or production multi-host operation.
+//! failure and failover. Signed membership records and rendezvous shard
+//! placement are additive coordination primitives; they are not yet integrated
+//! into durable consensus, data movement, or production multi-host operation.
+
+mod membership;
+mod placement;
+
+pub use membership::{
+    MembershipChange, MembershipError, MembershipLedger, MembershipRecord, NodeDescriptor,
+    NodeState, SignedMembershipRecord, sign_membership_record,
+};
+pub use placement::{DEFAULT_REPLICATION_FACTOR, rendezvous_replicas};
 
 /// A node's current consensus role.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
