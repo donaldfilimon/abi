@@ -7,6 +7,10 @@ pub enum AutoencoderError {
     InvalidDimensions,
     /// A caller-provided input or output buffer has the wrong length.
     DimensionMismatch,
+    /// Persisted weights, biases, or caller inputs contain non-finite values.
+    NonFinite,
+    /// Persisted parameter buffers do not match the declared architecture.
+    InvalidParameters,
 }
 
 impl std::fmt::Display for AutoencoderError {
@@ -14,6 +18,8 @@ impl std::fmt::Display for AutoencoderError {
         match self {
             Self::InvalidDimensions => formatter.write_str("invalid autoencoder dimensions"),
             Self::DimensionMismatch => formatter.write_str("autoencoder buffer dimensions differ"),
+            Self::NonFinite => formatter.write_str("autoencoder values must be finite"),
+            Self::InvalidParameters => formatter.write_str("autoencoder parameters are invalid"),
         }
     }
 }
@@ -23,6 +29,14 @@ impl std::error::Error for AutoencoderError {}
 #[derive(Clone, Copy)]
 struct ReferenceRng {
     state: [u64; 4],
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct AutoencoderParameters {
+    pub(crate) encoder_weights: Vec<f32>,
+    pub(crate) encoder_bias: Vec<f32>,
+    pub(crate) decoder_weights: Vec<f32>,
+    pub(crate) decoder_bias: Vec<f32>,
 }
 
 impl ReferenceRng {
@@ -134,6 +148,54 @@ impl Autoencoder {
         self.latent_dim
     }
 
+    pub(crate) fn parameters(&self) -> AutoencoderParameters {
+        AutoencoderParameters {
+            encoder_weights: self.encoder_weights.clone(),
+            encoder_bias: self.encoder_bias.clone(),
+            decoder_weights: self.decoder_weights.clone(),
+            decoder_bias: self.decoder_bias.clone(),
+        }
+    }
+
+    pub(crate) fn from_parameters(
+        input_dim: usize,
+        latent_dim: usize,
+        parameters: AutoencoderParameters,
+    ) -> Result<Self, AutoencoderError> {
+        if latent_dim == 0 || latent_dim >= input_dim || input_dim == 0 {
+            return Err(AutoencoderError::InvalidDimensions);
+        }
+        if parameters.encoder_weights.len() != input_dim * latent_dim
+            || parameters.encoder_bias.len() != latent_dim
+            || parameters.decoder_weights.len() != input_dim * latent_dim
+            || parameters.decoder_bias.len() != input_dim
+        {
+            return Err(AutoencoderError::InvalidParameters);
+        }
+        if parameters
+            .encoder_weights
+            .iter()
+            .chain(&parameters.encoder_bias)
+            .chain(&parameters.decoder_weights)
+            .chain(&parameters.decoder_bias)
+            .any(|value| !value.is_finite())
+        {
+            return Err(AutoencoderError::NonFinite);
+        }
+        Ok(Self {
+            input_dim,
+            latent_dim,
+            encoder_weights: parameters.encoder_weights,
+            encoder_bias: parameters.encoder_bias,
+            decoder_weights: parameters.decoder_weights,
+            decoder_bias: parameters.decoder_bias,
+            hidden: vec![0.0; latent_dim],
+            reconstruction: vec![0.0; input_dim],
+            reconstruction_gradient: vec![0.0; input_dim],
+            hidden_pre_gradient: vec![0.0; latent_dim],
+        })
+    }
+
     /// Input floats divided by latent floats.
     #[must_use]
     #[allow(clippy::cast_precision_loss)]
@@ -145,6 +207,9 @@ impl Autoencoder {
     pub fn encode_into(&self, input: &[f32], latent: &mut [f32]) -> Result<(), AutoencoderError> {
         if input.len() != self.input_dim || latent.len() != self.latent_dim {
             return Err(AutoencoderError::DimensionMismatch);
+        }
+        if input.iter().any(|value| !value.is_finite()) {
+            return Err(AutoencoderError::NonFinite);
         }
         encode_raw(
             self.input_dim,
@@ -162,6 +227,9 @@ impl Autoencoder {
         if latent.len() != self.latent_dim || output.len() != self.input_dim {
             return Err(AutoencoderError::DimensionMismatch);
         }
+        if latent.iter().any(|value| !value.is_finite()) {
+            return Err(AutoencoderError::NonFinite);
+        }
         decode_raw(
             self.input_dim,
             self.latent_dim,
@@ -177,6 +245,9 @@ impl Autoencoder {
     pub fn reconstruction_mse(&mut self, input: &[f32]) -> Result<f32, AutoencoderError> {
         if input.len() != self.input_dim {
             return Err(AutoencoderError::DimensionMismatch);
+        }
+        if input.iter().any(|value| !value.is_finite()) {
+            return Err(AutoencoderError::NonFinite);
         }
         encode_raw(
             self.input_dim,
@@ -205,6 +276,9 @@ impl Autoencoder {
     ) -> Result<f32, AutoencoderError> {
         if input.len() != self.input_dim {
             return Err(AutoencoderError::DimensionMismatch);
+        }
+        if input.iter().any(|value| !value.is_finite()) || !learning_rate.is_finite() {
+            return Err(AutoencoderError::NonFinite);
         }
         encode_raw(
             self.input_dim,

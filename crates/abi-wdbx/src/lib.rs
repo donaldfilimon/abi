@@ -31,6 +31,7 @@
 pub mod ans;
 pub mod cluster;
 pub mod cluster_rpc;
+pub mod codecs;
 pub mod compression;
 pub mod compute;
 pub mod crypto_he;
@@ -69,6 +70,12 @@ pub use cluster::{
 pub use cluster_rpc::{
     ClusterAuth, ClusterPolicy, ClusterRpcServer, RpcError, dial_append, dial_vote,
     read_append_reply, read_vote_reply,
+};
+pub use codecs::{
+    AutoencoderArchitectureV1, AutoencoderArtifactV1, AutoencoderConfigV1, CodecError,
+    CodecMetrics, CodecRecord, NormalizationParamsV1, PersistedAutoencoderV1, PqArtifactV1,
+    PqConfigV1, ProductQuantizerV1, codec_source_digest, train_autoencoder_v1,
+    train_product_quantizer_v1,
 };
 pub use compression::{CompressionError, Quantized, dequantize, max_error, quantize};
 pub use compute::{
