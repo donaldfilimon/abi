@@ -15,7 +15,7 @@ mod secret;
 #[cfg(windows)]
 mod windows_acl;
 
-pub use file::{CREDENTIALS_PATH_ENV, credentials_path};
+pub use file::{CREDENTIALS_PATH_ENV, credentials_path, write_owner_only_file_new};
 pub use keychain::{BACKEND_ENV, backend_is_keychain};
 pub use secret::Secret;
 

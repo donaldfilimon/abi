@@ -2,17 +2,25 @@
 //!
 //! V2 deliberately lives beside the legacy checkpoint/WAL reader. Each writer
 //! owns one append-only journal and publishes only its own head file, so no
-//! shared manifest or process-wide writer lock is required. A transaction is
-//! visible only after a hash-covered commit frame has been durably appended.
+//! shared manifest or process-wide writer lock is required. New journals store
+//! every committed transaction in an independently authenticated object; the
+//! legacy plaintext JSONL v2 journal remains readable. A transaction is visible
+//! only after its hash-covered object is durable and its writer head is published.
 
 mod index;
 mod lifecycle;
+mod security;
 mod types;
 
 pub use index::{V2SearchResult, V2VectorIndex};
 pub use lifecycle::{
     MigrationError, MigrationReport, MigrationStatus, VersionedSnapshot, migration_status,
     open_versioned_read_only, open_versioned_writable,
+};
+pub use security::{
+    ABI_WDBX_ENCRYPTION_KEY_FILE, ABI_WDBX_SIGNING_KEY_FILE, ABI_WDBX_VERIFY_KEY_FILE, KeyMaterial,
+    ObjectKind, ObjectSecurity, OpenedObject, SecurityError, generate_key_material, open_object,
+    seal_object, write_key_material,
 };
 pub use types::{
     CausalHeads, ConflictSet, MAX_V2_VECTOR_DIMENSIONS, RecordId, V2AuditBlock, V2Error,
@@ -27,6 +35,8 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use uuid::Uuid;
+
+const MAX_JOURNAL_OBJECT_BYTES: usize = 128 * 1024 * 1024 + 32 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BeginFrame {
@@ -56,11 +66,24 @@ pub struct V2Store {
     writer_id: Uuid,
     next_sequence: u64,
     snapshot: Arc<V2Snapshot>,
+    security: ObjectSecurity,
 }
 
 impl V2Store {
     /// Open or create a v2 directory and recover every writer journal.
     pub fn open(root: impl Into<PathBuf>) -> Result<Self, V2Error> {
+        let security = ObjectSecurity::from_env().map_err(|error| V2Error::Security {
+            path: PathBuf::from("<configured-key-file>"),
+            reason: error.to_string(),
+        })?;
+        Self::open_with_security(root, security)
+    }
+
+    /// Open with explicit object-security policy instead of process environment keys.
+    pub fn open_with_security(
+        root: impl Into<PathBuf>,
+        security: ObjectSecurity,
+    ) -> Result<Self, V2Error> {
         let root = root.into();
         ensure_dir(&root)?;
         ensure_dir(&root.join("journals"))?;
@@ -81,12 +104,13 @@ impl V2Store {
             });
         }
         let writer_id = Uuid::new_v4();
-        let snapshot = Arc::new(recover(&root)?);
+        let snapshot = Arc::new(recover(&root, &security)?);
         Ok(Self {
             root,
             writer_id,
             next_sequence: 1,
             snapshot,
+            security,
         })
     }
 
@@ -104,7 +128,7 @@ impl V2Store {
 
     /// Rescan all journals and atomically replace the in-process view.
     pub fn refresh(&mut self) -> Result<(), V2Error> {
-        self.snapshot = Arc::new(recover(&self.root)?);
+        self.snapshot = Arc::new(recover(&self.root, &self.security)?);
         self.next_sequence = self
             .snapshot
             .heads
@@ -146,7 +170,12 @@ impl V2Store {
             transaction_id,
             transaction_hash: hash,
         });
-        append_frames(&self.journal_path(), &frames)?;
+        append_journal_object(
+            &self.object_journal_path(),
+            &begin_object_id(&frames)?,
+            &frames,
+            &self.security,
+        )?;
         atomic_write(&self.head_path(self.next_sequence), b"committed\n")?;
         self.next_sequence = self.next_sequence.saturating_add(1);
         self.refresh()?;
@@ -177,10 +206,17 @@ impl V2Store {
         }])
     }
 
+    #[cfg(test)]
     fn journal_path(&self) -> PathBuf {
         self.root
             .join("journals")
             .join(format!("{}.jsonl", self.writer_id))
+    }
+
+    fn object_journal_path(&self) -> PathBuf {
+        self.root
+            .join("journals")
+            .join(format!("{}.objects", self.writer_id))
     }
 
     fn head_path(&self, sequence: u64) -> PathBuf {
@@ -258,6 +294,7 @@ fn transaction_hash(begin: &BeginFrame, mutations: &[V2Mutation]) -> Result<Stri
     Ok(format!("{:x}", Sha256::digest(bytes)))
 }
 
+#[cfg(test)]
 fn append_frames(path: &Path, frames: &[JournalFrame]) -> Result<(), V2Error> {
     let mut file = OpenOptions::new()
         .create(true)
@@ -276,7 +313,53 @@ fn append_frames(path: &Path, frames: &[JournalFrame]) -> Result<(), V2Error> {
     file.sync_all().map_err(|error| io_error(path, &error))
 }
 
-fn recover(root: &Path) -> Result<V2Snapshot, V2Error> {
+fn begin_object_id(frames: &[JournalFrame]) -> Result<String, V2Error> {
+    let Some(JournalFrame::Begin(begin)) = frames.first() else {
+        return Err(V2Error::InvalidMutation(
+            "journal object must begin with a begin frame".into(),
+        ));
+    };
+    Ok(format!(
+        "{}:{:020}:{}",
+        begin.writer_id, begin.sequence, begin.transaction_id
+    ))
+}
+
+fn append_journal_object(
+    path: &Path,
+    object_id: &str,
+    frames: &[JournalFrame],
+    security: &ObjectSecurity,
+) -> Result<(), V2Error> {
+    let plaintext = serde_json::to_vec(frames).map_err(|error| V2Error::CorruptJournal {
+        path: path.to_path_buf(),
+        line: 0,
+        reason: error.to_string(),
+    })?;
+    let encoded =
+        seal_object(ObjectKind::Journal, object_id, &plaintext, security).map_err(|error| {
+            V2Error::Security {
+                path: path.to_path_buf(),
+                reason: error.to_string(),
+            }
+        })?;
+    let length = u64::try_from(encoded.len()).map_err(|_| V2Error::CorruptJournal {
+        path: path.to_path_buf(),
+        line: 0,
+        reason: "journal object length overflow".into(),
+    })?;
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|error| io_error(path, &error))?;
+    file.write_all(&length.to_be_bytes())
+        .and_then(|()| file.write_all(&encoded))
+        .map_err(|error| io_error(path, &error))?;
+    file.sync_all().map_err(|error| io_error(path, &error))
+}
+
+fn recover(root: &Path, security: &ObjectSecurity) -> Result<V2Snapshot, V2Error> {
     let mut snapshot = V2Snapshot::default();
     let published = published_heads(root)?;
     let journal_dir = root.join("journals");
@@ -286,12 +369,19 @@ fn recover(root: &Path) -> Result<V2Snapshot, V2Error> {
         .map(|entry| entry.path())
         .filter(|path| {
             path.extension()
-                .is_some_and(|extension| extension == "jsonl")
+                .is_some_and(|extension| extension == "jsonl" || extension == "objects")
         })
         .collect();
     journals.sort();
     for journal in journals {
-        replay_journal(&journal, &published, &mut snapshot)?;
+        if journal
+            .extension()
+            .is_some_and(|extension| extension == "objects")
+        {
+            replay_object_journal(&journal, &published, &mut snapshot, security)?;
+        } else {
+            replay_journal(&journal, &published, &mut snapshot)?;
+        }
     }
     Ok(snapshot)
 }
@@ -328,12 +418,12 @@ fn replay_journal(
     snapshot: &mut V2Snapshot,
 ) -> Result<(), V2Error> {
     let content = std::fs::read_to_string(path).map_err(|error| io_error(path, &error))?;
-    let mut pending: Option<(BeginFrame, Vec<V2Mutation>)> = None;
     // A concurrent writer or crashed process may leave bytes after the final
     // newline. Those bytes are not a frame yet and therefore cannot be
     // corruption or visible state. Every newline-terminated frame still fails
     // closed below if its JSON, ordering, sequence, or hash is invalid.
     let complete_len = content.rfind('\n').map_or(0, |index| index + 1);
+    let mut frames = Vec::new();
     for (index, line) in content[..complete_len].lines().enumerate() {
         let line_number = index + 1;
         if line.trim().is_empty() {
@@ -345,6 +435,108 @@ fn replay_journal(
                 line: line_number,
                 reason: error.to_string(),
             })?;
+        frames.push((line_number, frame));
+    }
+    process_frames(path, published, snapshot, frames, true)
+}
+
+fn replay_object_journal(
+    path: &Path,
+    published: &CausalHeads,
+    snapshot: &mut V2Snapshot,
+    security: &ObjectSecurity,
+) -> Result<(), V2Error> {
+    let bytes = std::fs::read(path).map_err(|error| io_error(path, &error))?;
+    let mut offset = 0_usize;
+    let mut object_number = 0_usize;
+    loop {
+        let Some(prefix_end) = offset.checked_add(8) else {
+            return corrupt(path, object_number + 1, "journal object offset overflow");
+        };
+        let Some(prefix) = bytes.get(offset..prefix_end) else {
+            break;
+        };
+        let length = usize::try_from(u64::from_be_bytes(
+            prefix
+                .try_into()
+                .expect("journal length prefix is exactly eight bytes"),
+        ))
+        .map_err(|_| V2Error::CorruptJournal {
+            path: path.to_path_buf(),
+            line: object_number + 1,
+            reason: "journal object length overflow".into(),
+        })?;
+        if length == 0 || length > MAX_JOURNAL_OBJECT_BYTES {
+            return corrupt(
+                path,
+                object_number + 1,
+                "journal object exceeds the size limit",
+            );
+        }
+        let Some(object_end) = prefix_end.checked_add(length) else {
+            return corrupt(path, object_number + 1, "journal object offset overflow");
+        };
+        let Some(encoded) = bytes.get(prefix_end..object_end) else {
+            // A crash between the length prefix and complete envelope leaves an
+            // unpublished tail. The writer head is not created until after sync.
+            break;
+        };
+        object_number += 1;
+        let opened = open_object(encoded, security, false).map_err(|error| V2Error::Security {
+            path: path.to_path_buf(),
+            reason: error.to_string(),
+        })?;
+        if opened.kind != ObjectKind::Journal {
+            return corrupt(path, object_number, "object kind is not journal");
+        }
+        let frames: Vec<JournalFrame> =
+            serde_json::from_slice(&opened.plaintext).map_err(|error| V2Error::CorruptJournal {
+                path: path.to_path_buf(),
+                line: object_number,
+                reason: error.to_string(),
+            })?;
+        let begin_count = frames
+            .iter()
+            .filter(|frame| matches!(frame, JournalFrame::Begin(_)))
+            .count();
+        let commit_count = frames
+            .iter()
+            .filter(|frame| matches!(frame, JournalFrame::Commit { .. }))
+            .count();
+        if begin_count != 1
+            || commit_count != 1
+            || !matches!(frames.first(), Some(JournalFrame::Begin(_)))
+            || !matches!(frames.last(), Some(JournalFrame::Commit { .. }))
+        {
+            return corrupt(
+                path,
+                object_number,
+                "journal object must contain exactly one complete transaction",
+            );
+        }
+        if begin_object_id(&frames)? != opened.object_id {
+            return corrupt(path, object_number, "journal object identity mismatch");
+        }
+        let numbered = frames
+            .into_iter()
+            .enumerate()
+            .map(|(index, frame)| (index + 1, frame))
+            .collect();
+        process_frames(path, published, snapshot, numbered, false)?;
+        offset = object_end;
+    }
+    Ok(())
+}
+
+fn process_frames(
+    path: &Path,
+    published: &CausalHeads,
+    snapshot: &mut V2Snapshot,
+    frames: Vec<(usize, JournalFrame)>,
+    allow_incomplete_tail: bool,
+) -> Result<(), V2Error> {
+    let mut pending: Option<(BeginFrame, Vec<V2Mutation>)> = None;
+    for (line_number, frame) in frames {
         match frame {
             JournalFrame::Begin(begin) => {
                 if pending.is_some() {
@@ -396,7 +588,10 @@ fn replay_journal(
             }
         }
     }
-    // A crash may leave a begin/mutation suffix. It is intentionally invisible.
+    if pending.is_some() && !allow_incomplete_tail {
+        return corrupt(path, 0, "journal object has no commit frame");
+    }
+    // A legacy JSONL crash may leave a begin/mutation suffix. It is invisible.
     Ok(())
 }
 
@@ -489,255 +684,4 @@ fn io_error(path: &Path, error: &std::io::Error) -> V2Error {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use abi_foundation::temp_path::temp_file_path;
-    use std::sync::{Arc, Barrier};
-
-    fn scratch() -> PathBuf {
-        temp_file_path("wdbx-v2", "store")
-    }
-
-    #[test]
-    fn record_ids_keep_legacy_numbers_and_v2_strings() {
-        assert_eq!(serde_json::to_string(&RecordId::Legacy(7)).unwrap(), "7");
-        let id = RecordId::new_v2();
-        let json = serde_json::to_string(&id).unwrap();
-        assert!(json.starts_with('"'));
-        assert_eq!(serde_json::from_str::<RecordId>(&json).unwrap(), id);
-    }
-
-    #[test]
-    fn concurrent_writers_surface_conflicts_and_resolution_dominates_them() {
-        let root = scratch();
-        let mut left = V2Store::open(&root).unwrap();
-        let mut right = V2Store::open(&root).unwrap();
-        left.commit(vec![V2Mutation::PutKv {
-            key: "k".into(),
-            value: "left".into(),
-        }])
-        .unwrap();
-        // Force right's observation back to its open-time empty frontier to model
-        // a genuinely concurrent transaction written without refreshing peers.
-        let right_begin = BeginFrame {
-            writer_id: right.writer_id,
-            transaction_id: Uuid::new_v4(),
-            sequence: 1,
-            observed_heads: CausalHeads::new(),
-        };
-        let mutations = vec![V2Mutation::PutKv {
-            key: "k".into(),
-            value: "right".into(),
-        }];
-        let hash = transaction_hash(&right_begin, &mutations).unwrap();
-        append_frames(
-            &right.journal_path(),
-            &[
-                JournalFrame::Begin(right_begin.clone()),
-                JournalFrame::Mutation {
-                    transaction_id: right_begin.transaction_id,
-                    mutation: mutations[0].clone(),
-                },
-                JournalFrame::Commit {
-                    transaction_id: right_begin.transaction_id,
-                    transaction_hash: hash,
-                },
-            ],
-        )
-        .unwrap();
-        atomic_write(&right.head_path(1), b"committed\n").unwrap();
-        right.refresh().unwrap();
-        let set = right.snapshot().get("k").unwrap();
-        assert_eq!(set.conflicts.len(), 1);
-        let ids = [set.preferred.version_id, set.conflicts[0].version_id];
-        right.resolve("k", &ids, "resolved".into()).unwrap();
-        let resolved = right.snapshot().get("k").unwrap();
-        assert_eq!(resolved.preferred.value, "resolved");
-        assert_eq!(resolved.conflicts.len(), 0);
-        std::fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn incomplete_transaction_is_ignored_and_old_views_survive_mutation() {
-        let root = scratch();
-        let mut store = V2Store::open(&root).unwrap();
-        store
-            .commit(vec![V2Mutation::PutKv {
-                key: "k".into(),
-                value: "old".into(),
-            }])
-            .unwrap();
-        let old = store.snapshot();
-        let begin = JournalFrame::Begin(BeginFrame {
-            writer_id: store.writer_id,
-            transaction_id: Uuid::new_v4(),
-            sequence: 2,
-            observed_heads: old.heads.clone(),
-        });
-        append_frames(&store.journal_path(), &[begin]).unwrap();
-        store.refresh().unwrap();
-        assert_eq!(store.snapshot().get("k").unwrap().preferred.value, "old");
-        store
-            .commit(vec![V2Mutation::PutKv {
-                key: "k".into(),
-                value: "new".into(),
-            }])
-            .unwrap_err();
-        assert_eq!(old.get("k").unwrap().preferred.value, "old");
-        std::fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn v2_accepts_4096_dimensions_but_rejects_bad_vectors() {
-        let root = scratch();
-        let mut store = V2Store::open(&root).unwrap();
-        let id = RecordId::new_v2();
-        store
-            .commit(vec![V2Mutation::PutVector {
-                id,
-                values: vec![0.25; 4096],
-            }])
-            .unwrap();
-        assert_eq!(
-            store
-                .snapshot()
-                .get_vector(id)
-                .unwrap()
-                .preferred
-                .value
-                .len(),
-            4096
-        );
-        assert!(
-            store
-                .commit(vec![V2Mutation::PutVector {
-                    id: RecordId::new_v2(),
-                    values: vec![]
-                }])
-                .is_err()
-        );
-        assert!(
-            store
-                .commit(vec![V2Mutation::PutVector {
-                    id: RecordId::new_v2(),
-                    values: vec![f32::NAN]
-                }])
-                .is_err()
-        );
-        std::fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn a_tampered_committed_transaction_fails_closed() {
-        let root = scratch();
-        let mut store = V2Store::open(&root).unwrap();
-        store
-            .commit(vec![V2Mutation::PutKv {
-                key: "k".into(),
-                value: "value".into(),
-            }])
-            .unwrap();
-        let journal = store.journal_path();
-        drop(store);
-        let mut content = std::fs::read_to_string(&journal).unwrap();
-        let marker = "\"transaction_hash\":\"";
-        let hash_start = content.find(marker).unwrap() + marker.len();
-        let replacement = if content.as_bytes()[hash_start] == b'0' {
-            "1"
-        } else {
-            "0"
-        };
-        content.replace_range(hash_start..=hash_start, replacement);
-        std::fs::write(&journal, content).unwrap();
-        let Err(error) = V2Store::open(&root) else {
-            panic!("tampered commit must not open");
-        };
-        assert!(error.to_string().contains("transaction hash mismatch"));
-        std::fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn a_synced_commit_is_invisible_until_its_writer_head_is_published() {
-        let root = scratch();
-        let mut store = V2Store::open(&root).unwrap();
-        let begin = BeginFrame {
-            writer_id: store.writer_id,
-            transaction_id: Uuid::new_v4(),
-            sequence: 1,
-            observed_heads: CausalHeads::new(),
-        };
-        let mutations = vec![V2Mutation::PutKv {
-            key: "unpublished".into(),
-            value: "hidden".into(),
-        }];
-        let hash = transaction_hash(&begin, &mutations).unwrap();
-        append_frames(
-            &store.journal_path(),
-            &[
-                JournalFrame::Begin(begin.clone()),
-                JournalFrame::Mutation {
-                    transaction_id: begin.transaction_id,
-                    mutation: mutations[0].clone(),
-                },
-                JournalFrame::Commit {
-                    transaction_id: begin.transaction_id,
-                    transaction_hash: hash,
-                },
-            ],
-        )
-        .unwrap();
-        store.refresh().unwrap();
-        assert!(store.snapshot().get("unpublished").is_none());
-        atomic_write(&store.head_path(1), b"committed\n").unwrap();
-        store.refresh().unwrap();
-        assert_eq!(
-            store.snapshot().get("unpublished").unwrap().preferred.value,
-            "hidden"
-        );
-        std::fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn fifty_independent_writers_recover_every_commit_without_a_global_lock() {
-        let root = scratch();
-        let barrier = Arc::new(Barrier::new(50));
-        let mut workers = Vec::new();
-        for index in 0_u16..50 {
-            let root = root.clone();
-            let barrier = Arc::clone(&barrier);
-            workers.push(std::thread::spawn(move || {
-                let mut store = V2Store::open(root).unwrap();
-                barrier.wait();
-                store
-                    .commit(vec![
-                        V2Mutation::PutKv {
-                            key: format!("writer-{index}"),
-                            value: index.to_string(),
-                        },
-                        V2Mutation::PutVector {
-                            id: RecordId::new_v2(),
-                            values: vec![f32::from(index), 1.0],
-                        },
-                    ])
-                    .unwrap();
-            }));
-        }
-        for worker in workers {
-            worker.join().unwrap();
-        }
-        let recovered = V2Store::open(&root).unwrap().snapshot();
-        assert_eq!(recovered.committed_transactions(), 50);
-        assert_eq!(recovered.vector_ids().count(), 50);
-        for index in 0_u16..50 {
-            assert_eq!(
-                recovered
-                    .get(&format!("writer-{index}"))
-                    .unwrap()
-                    .preferred
-                    .value,
-                index.to_string()
-            );
-        }
-        std::fs::remove_dir_all(root).unwrap();
-    }
-}
+mod tests;

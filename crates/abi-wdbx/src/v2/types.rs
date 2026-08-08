@@ -291,6 +291,14 @@ pub enum V2Error {
         /// Verification failure.
         reason: String,
     },
+    /// An authenticated journal object could not be opened or verified.
+    #[error("WDBX v2 security failure for {path}: {reason}")]
+    Security {
+        /// Journal object stream being accessed.
+        path: std::path::PathBuf,
+        /// Redacted key, framing, or authentication failure.
+        reason: String,
+    },
     /// A mutation was rejected before any bytes were appended.
     #[error("invalid WDBX v2 mutation: {0}")]
     InvalidMutation(String),

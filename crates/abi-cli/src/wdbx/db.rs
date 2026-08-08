@@ -5,10 +5,51 @@
 use crate::app::Outcome;
 use crate::usage::is_help_token;
 use crate::wdbx::paths_from_cli_base;
+use abi_wdbx::v2::{
+    ABI_WDBX_ENCRYPTION_KEY_FILE, ABI_WDBX_SIGNING_KEY_FILE, ABI_WDBX_VERIFY_KEY_FILE,
+    generate_key_material, write_key_material,
+};
 use abi_wdbx::{Snapshot, Wal};
 use std::fmt::Write;
+use std::path::Path;
 
-pub(crate) const DB_HELP: &str = "usage: abi wdbx db <init|verify|compact> <path> [keep]\n\nManage segment checkpoints, WAL recovery, and snapshot integrity.\n";
+pub(crate) const DB_HELP: &str = "usage: abi wdbx db <init|verify|compact> <path> [keep]\n       abi wdbx db keygen <directory>\n\nManage segment checkpoints, WAL recovery, snapshot integrity, and v2 object keys.\n";
+
+fn keygen(directory: &str) -> Outcome {
+    let directory = Path::new(directory);
+    if let Err(detail) = std::fs::create_dir_all(directory) {
+        return super::error("keygen failed", detail);
+    }
+    let targets = [
+        directory.join("encryption.key"),
+        directory.join("signing.key"),
+        directory.join("verify.key"),
+    ];
+    if let Some(existing) = targets.iter().find(|path| path.exists()) {
+        return super::error(
+            "keygen failed",
+            format!("refusing to overwrite {}", existing.display()),
+        );
+    }
+    let (encryption, signing, verifying) = generate_key_material();
+    for (path, material) in targets.iter().zip([&encryption, &signing, &verifying]) {
+        if let Err(detail) = write_key_material(path, material) {
+            for created in targets.iter().take_while(|created| *created != path) {
+                std::fs::remove_file(created).ok();
+            }
+            return super::error("keygen failed", detail);
+        }
+    }
+    Outcome::stderr(
+        format!(
+            "generated WDBX v2 keys (key bytes not displayed)\n{ABI_WDBX_ENCRYPTION_KEY_FILE}={}\n{ABI_WDBX_SIGNING_KEY_FILE}={}\n{ABI_WDBX_VERIFY_KEY_FILE}={}\n",
+            targets[0].display(),
+            targets[1].display(),
+            targets[2].display()
+        ),
+        0,
+    )
+}
 
 fn init_db(raw_path: &str) -> Outcome {
     let paths = match paths_from_cli_base(raw_path) {
@@ -153,6 +194,7 @@ pub(crate) fn run_db(args: &[String]) -> Outcome {
     match args {
         [operation, path] if operation == "init" => init_db(path),
         [operation, path] if operation == "verify" => verify_db(path),
+        [operation, directory] if operation == "keygen" => keygen(directory),
         [operation, path] if operation == "compact" => compact_db(path, 2),
         [operation, path, keep] if operation == "compact" => match keep.parse::<usize>() {
             Ok(keep) if keep > 0 => compact_db(path, keep),

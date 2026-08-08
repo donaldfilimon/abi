@@ -33,6 +33,8 @@ wyhash = "0.5"
 zeroize = { version = "1", features = ["derive"] }
 unicode-width = "0.2"
 uuid = { version = "1", features = ["serde", "v4", "v5"] }
+chacha20poly1305 = { version = "0.11", features = ["getrandom"] }
+ed25519-dalek = "3"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

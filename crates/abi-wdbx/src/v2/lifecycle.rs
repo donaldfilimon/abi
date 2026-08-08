@@ -6,8 +6,8 @@
 //! authoritative store.
 
 use super::{
-    RecordId, V2AuditBlock, V2Error, V2Mutation, V2Snapshot, V2SpatialRecord, V2Store,
-    V2TemporalKind, V2TemporalRecord,
+    ObjectSecurity, RecordId, V2AuditBlock, V2Error, V2Mutation, V2Snapshot, V2SpatialRecord,
+    V2Store, V2TemporalKind, V2TemporalRecord,
 };
 use crate::durable::acquire_writer_lock;
 use crate::store::{CheckpointSource, Snapshot, load_checkpoint_with_source};
@@ -135,9 +135,16 @@ pub fn open_versioned_read_only(paths: &StorePaths) -> Result<VersionedSnapshot,
         MigrationStatus::V1 { .. } => Ok(VersionedSnapshot::V1(Arc::new(
             recover_v1_read_only(paths)?.snapshot,
         ))),
-        MigrationStatus::V2 { generation, .. } => Ok(VersionedSnapshot::V2(Arc::new(
-            super::recover(&generation)?,
-        ))),
+        MigrationStatus::V2 { generation, .. } => {
+            let security = ObjectSecurity::from_env().map_err(|error| V2Error::Security {
+                path: generation.clone(),
+                reason: error.to_string(),
+            })?;
+            Ok(VersionedSnapshot::V2(Arc::new(super::recover(
+                &generation,
+                &security,
+            )?)))
+        }
     }
 }
 

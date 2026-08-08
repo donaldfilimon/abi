@@ -158,6 +158,33 @@ mod tests {
     }
 
     #[test]
+    fn keygen_creates_owner_only_files_without_printing_or_overwriting_keys() {
+        let fixture = Fixture::new();
+        let key_dir = fixture.dir.join("keys");
+        let key_dir_string = key_dir.to_string_lossy().into_owned();
+        let generated = run(&strings(&["db", "keygen", &key_dir_string]));
+        assert_eq!(generated.exit_code, 0, "{}", generated.stderr);
+        assert!(generated.stderr.contains("key bytes not displayed"));
+        for name in ["encryption.key", "signing.key", "verify.key"] {
+            let path = key_dir.join(name);
+            let bytes = std::fs::read(&path).unwrap();
+            assert_eq!(bytes.len(), 32);
+            assert!(!generated.stderr.contains(&format!("{bytes:?}")));
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt as _;
+                assert_eq!(
+                    std::fs::metadata(path).unwrap().permissions().mode() & 0o077,
+                    0
+                );
+            }
+        }
+        let repeated = run(&strings(&["db", "keygen", &key_dir_string]));
+        assert_eq!(repeated.exit_code, 1);
+        assert!(repeated.stderr.contains("refusing to overwrite"));
+    }
+
+    #[test]
     fn init_insert_get_and_verify_round_trip() {
         let fixture = Fixture::new();
         let raw_path = fixture.raw_path();
