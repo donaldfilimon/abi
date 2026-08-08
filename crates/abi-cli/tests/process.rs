@@ -215,6 +215,29 @@ fn direct_help_and_exit_codes_cross_the_real_process_boundary() {
 }
 
 #[test]
+fn nested_wdbx_help_uses_the_live_v2_grammar() {
+    let output = run(&["wdbx", "db", "--help"]);
+    assert!(output.status.success());
+    assert_eq!(output.stdout, [] as [u8; 0]);
+    let help = String::from_utf8_lossy(&output.stderr);
+    for current_operation in [
+        "--codec none|pq|autoencoder",
+        "--require-signature",
+        "migration-status",
+        "migration-dry-run",
+        "keygen",
+        "rekey",
+        "gc",
+    ] {
+        assert!(
+            help.contains(current_operation),
+            "missing live WDBX operation {current_operation:?} in {help}"
+        );
+    }
+    assert!(!help.contains("[keep]"), "obsolete compact grammar: {help}");
+}
+
+#[test]
 fn simulate_and_scheduler_cross_the_real_process_boundary() {
     let simulate_help = run(&["wdbx", "simulate", "--help", "ignored-like-zig"]);
     assert!(simulate_help.status.success());
