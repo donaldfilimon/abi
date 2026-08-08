@@ -11,6 +11,10 @@ use abi_foundation::http::fixed_work_eq;
 use std::collections::BTreeSet;
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream};
+use std::time::Duration;
+
+/// Connect/read/write deadline for the bounded reference transport.
+pub const CLUSTER_RPC_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Shared-secret configuration.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -179,6 +183,9 @@ enum Request<'line> {
         data: &'line str,
         supplied: Option<&'line str>,
     },
+    Shutdown {
+        supplied: Option<&'line str>,
+    },
     Unknown,
 }
 
@@ -210,6 +217,11 @@ fn parse_request(line: &str) -> Result<Request<'_>, RpcError> {
                 supplied: Some(token),
             });
         }
+        if command == "SHUTDOWN" {
+            return Ok(Request::Shutdown {
+                supplied: Some(token),
+            });
+        }
         return Ok(Request::Unknown);
     }
     if let Some(vote) = line.strip_prefix("VOTE ") {
@@ -238,6 +250,7 @@ pub struct ClusterRpcServer {
     listener: TcpListener,
     node: Node,
     policy: ClusterPolicy,
+    shutdown_requested: bool,
 }
 
 impl ClusterRpcServer {
@@ -256,6 +269,7 @@ impl ClusterRpcServer {
             listener,
             node,
             policy,
+            shutdown_requested: false,
         })
     }
 
@@ -270,6 +284,12 @@ impl ClusterRpcServer {
         &self.node
     }
 
+    /// Whether an authenticated shutdown request was accepted.
+    #[must_use]
+    pub const fn shutdown_requested(&self) -> bool {
+        self.shutdown_requested
+    }
+
     /// Replace peer membership for subsequent requests.
     pub fn set_peers(&mut self, peers: Option<BTreeSet<u32>>) {
         self.policy = self.policy.clone().with_peers(peers);
@@ -278,6 +298,8 @@ impl ClusterRpcServer {
     /// Accept, authorize, apply and answer one RPC.
     pub fn serve_one(&mut self) -> Result<(), RpcError> {
         let (mut stream, _) = self.listener.accept()?;
+        stream.set_read_timeout(Some(CLUSTER_RPC_TIMEOUT))?;
+        stream.set_write_timeout(Some(CLUSTER_RPC_TIMEOUT))?;
         let mut buffer = [0; MAX_LINE_SIZE];
         let line = read_line(&mut stream, &mut buffer)?;
         let line = std::str::from_utf8(line).map_err(|_| RpcError::MalformedRequest)?;
@@ -318,6 +340,14 @@ impl ClusterRpcServer {
                     format!("NACK {}\n", self.node.term)
                 }
             }
+            Request::Shutdown { supplied } => {
+                if self.policy.auth.enabled() && self.policy.auth.matches(supplied) {
+                    self.shutdown_requested = true;
+                    format!("BYE {}\n", self.node.term)
+                } else {
+                    format!("DENIED {}\n", self.node.term)
+                }
+            }
             Request::Unknown => "ERR 0\n".to_string(),
         };
         write_line(&mut stream, response.as_bytes())?;
@@ -326,11 +356,12 @@ impl ClusterRpcServer {
 
     /// Serve until interrupted.
     pub fn run(&mut self) -> Result<(), RpcError> {
-        loop {
+        while !self.shutdown_requested {
             if let Err(error) = self.serve_one() {
                 eprintln!("cluster RPC serve error: {error}");
             }
         }
+        Ok(())
     }
 }
 
@@ -368,14 +399,24 @@ pub fn dial_append(
     dial(host, port, &message)
 }
 
+/// Send an authenticated graceful-shutdown request.
+pub fn dial_shutdown(host: &str, port: u16, token: &str) -> Result<Option<TcpStream>, RpcError> {
+    if token.is_empty() {
+        return Err(RpcError::InvalidToken);
+    }
+    dial(host, port, &format!("AUTH {token} SHUTDOWN\n"))
+}
+
 fn dial(host: &str, port: u16, message: &str) -> Result<Option<TcpStream>, RpcError> {
     let address = match parse_host(host) {
         Ok(address) => SocketAddr::new(address, port),
         Err(_) => return Ok(None),
     };
-    let Ok(mut stream) = TcpStream::connect(address) else {
+    let Ok(mut stream) = TcpStream::connect_timeout(&address, CLUSTER_RPC_TIMEOUT) else {
         return Ok(None);
     };
+    stream.set_read_timeout(Some(CLUSTER_RPC_TIMEOUT))?;
+    stream.set_write_timeout(Some(CLUSTER_RPC_TIMEOUT))?;
     write_line(&mut stream, message.as_bytes())?;
     Ok(Some(stream))
 }
@@ -396,6 +437,12 @@ pub fn read_append_reply(mut stream: TcpStream) -> Result<AppendReply, RpcError>
         ack: verb == "ACK",
         term,
     })
+}
+
+/// Read an authenticated graceful-shutdown acknowledgement.
+pub fn read_shutdown_reply(mut stream: TcpStream) -> Result<bool, RpcError> {
+    let (verb, _) = read_reply(&mut stream)?;
+    Ok(verb == "BYE")
 }
 
 fn read_reply(stream: &mut TcpStream) -> Result<(String, u64), RpcError> {
@@ -642,5 +689,29 @@ mod tests {
                 .iter()
                 .all(|server| server.node().log[0].data == b"set loop=true")
         );
+    }
+
+    #[test]
+    fn graceful_shutdown_requires_authentication_and_stops_the_server() {
+        let policy = ClusterPolicy::from_values(Some("secret"), Some("0,1")).expect("policy");
+        let mut server =
+            ClusterRpcServer::bind("127.0.0.1", 0, Node::new(1), policy).expect("bind");
+        let port = server.local_port().expect("port");
+        let handle = thread::spawn(move || {
+            server.serve_one().expect("wrong shutdown token");
+            assert!(!server.shutdown_requested());
+            server.serve_one().expect("authenticated shutdown");
+            server
+        });
+
+        let denied = dial_shutdown("127.0.0.1", port, "wrong")
+            .expect("dial")
+            .expect("reachable");
+        assert!(!read_shutdown_reply(denied).expect("denied reply"));
+        let accepted = dial_shutdown("127.0.0.1", port, "secret")
+            .expect("dial")
+            .expect("reachable");
+        assert!(read_shutdown_reply(accepted).expect("accepted reply"));
+        assert!(handle.join().expect("server").shutdown_requested());
     }
 }

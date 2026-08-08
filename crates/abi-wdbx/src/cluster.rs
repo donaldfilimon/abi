@@ -8,12 +8,26 @@
 
 mod membership;
 mod placement;
+mod rebalance;
+mod repair;
+mod replication;
+
+#[cfg(test)]
+mod tests;
 
 pub use membership::{
     MembershipChange, MembershipError, MembershipLedger, MembershipRecord, NodeDescriptor,
     NodeState, SignedMembershipRecord, sign_membership_record,
 };
 pub use placement::{DEFAULT_REPLICATION_FACTOR, rendezvous_replicas};
+pub use rebalance::{
+    RebalancePlan, RebalanceProgress, RebalanceStep, build_rebalance_plan, resume_rebalance,
+};
+pub use repair::{KvReadResult, RepairAction, RepairPlan, TransportApplyError, read_kv_fanout};
+pub use replication::{
+    ClusterDataError, ReplicaSearchHit, ReplicaTransport, ReplicationReceipt, TransportError,
+    replicate_committed, search_fanout,
+};
 
 /// A node's current consensus role.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -304,106 +318,4 @@ pub fn apply_append(node: &mut Node, term: u64, data: &[u8]) -> bool {
         data: data.to_vec(),
     });
     true
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn single_leader_is_elected_with_a_configured_quorum() {
-        let mut cluster = Cluster::new(3).expect("cluster");
-        assert!(cluster.start_election(0).expect("election"));
-        let leader = cluster.leader().expect("leader");
-        assert_eq!(leader.id, 0);
-        assert_eq!(leader.term, 1);
-        assert_eq!(
-            cluster
-                .nodes()
-                .iter()
-                .filter(|node| node.role == Role::Leader)
-                .count(),
-            1
-        );
-    }
-
-    #[test]
-    fn replication_reaches_every_alive_replica_and_commits() {
-        let mut cluster = Cluster::new(3).expect("cluster");
-        cluster.start_election(0).expect("election");
-        assert_eq!(cluster.replicate(b"set x=1").expect("replicate"), 3);
-        for node in cluster.nodes() {
-            assert_eq!(node.log.len(), 1);
-            assert_eq!(node.commit_index, 1);
-            assert_eq!(node.log[0].data, b"set x=1");
-        }
-    }
-
-    #[test]
-    fn leader_failover_uses_a_higher_term_and_surviving_majority() {
-        let mut cluster = Cluster::new(3).expect("cluster");
-        cluster.start_election(0).expect("election");
-        cluster.replicate(b"a").expect("replicate");
-        cluster.fail_node(0).expect("fail");
-        assert!(cluster.leader().is_none());
-        assert!(cluster.start_election(1).expect("re-election"));
-        assert_eq!(cluster.leader().expect("leader").term, 2);
-        assert_eq!(cluster.replicate(b"b").expect("replicate"), 2);
-    }
-
-    #[test]
-    fn configured_quorum_is_not_redefined_after_failures() {
-        let mut cluster = Cluster::new(3).expect("cluster");
-        cluster.start_election(0).expect("election");
-        cluster.fail_node(0).expect("fail");
-        cluster.fail_node(1).expect("fail");
-        assert!(!cluster.start_election(2).expect("failed election"));
-        assert_eq!(cluster.replicate(b"c"), Err(ClusterError::NoLeader));
-    }
-
-    #[test]
-    fn primitives_match_the_cluster_driver() {
-        let mut driven = Cluster::new(3).expect("cluster");
-        driven.start_election(0).expect("election");
-        driven.replicate(b"hello").expect("replicate");
-
-        let mut direct = Cluster::new(3).expect("cluster");
-        direct.nodes[0].term = 1;
-        direct.nodes[0].role = Role::Candidate;
-        direct.nodes[0].voted_for = Some(0);
-        assert!(apply_vote(&mut direct.nodes[1], 1, 0));
-        assert!(apply_vote(&mut direct.nodes[2], 1, 0));
-        direct.nodes[0].role = Role::Leader;
-        direct.nodes[0].log.push(LogEntry {
-            term: 1,
-            data: b"hello".to_vec(),
-        });
-        assert!(apply_append(&mut direct.nodes[1], 1, b"hello"));
-        assert!(apply_append(&mut direct.nodes[2], 1, b"hello"));
-        for node in &mut direct.nodes {
-            node.commit_index = 1;
-        }
-
-        for (left, right) in driven.nodes().iter().zip(direct.nodes()) {
-            assert_eq!(left.term, right.term);
-            assert_eq!(left.voted_for, right.voted_for);
-            assert_eq!(left.role, right.role);
-            assert_eq!(left.log, right.log);
-            assert_eq!(left.commit_index, right.commit_index);
-        }
-    }
-
-    #[test]
-    fn status_line_matches_the_cli_shape() {
-        let mut cluster = Cluster::new(1).expect("cluster");
-        assert_eq!(
-            cluster.status_line(),
-            "nodes=1 alive=1 quorum=1 leader=none term=0 commit_index=0"
-        );
-        assert!(cluster.start_election(0).expect("election"));
-        assert_eq!(
-            cluster.status_line(),
-            "nodes=1 alive=1 quorum=1 leader=0 term=1 commit_index=0"
-        );
-    }
 }

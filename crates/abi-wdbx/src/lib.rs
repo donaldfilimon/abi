@@ -65,11 +65,15 @@ pub mod wal;
 
 pub use ans::{AnsEncoded, AnsError, AnsMode, ans_decode, ans_encode, ans_encode_order1};
 pub use cluster::{
-    AppendReply, Cluster, ClusterError, LogEntry, Node, Role, VoteReply, apply_append, apply_vote,
+    AppendReply, Cluster, ClusterDataError, ClusterError, KvReadResult, LogEntry, Node,
+    RebalancePlan, RebalanceProgress, RebalanceStep, RepairAction, RepairPlan, ReplicaSearchHit,
+    ReplicaTransport, ReplicationReceipt, Role, TransportApplyError, TransportError, VoteReply,
+    apply_append, apply_vote, build_rebalance_plan, read_kv_fanout, replicate_committed,
+    resume_rebalance, search_fanout,
 };
 pub use cluster_rpc::{
-    ClusterAuth, ClusterPolicy, ClusterRpcServer, RpcError, dial_append, dial_vote,
-    read_append_reply, read_vote_reply,
+    CLUSTER_RPC_TIMEOUT, ClusterAuth, ClusterPolicy, ClusterRpcServer, RpcError, dial_append,
+    dial_shutdown, dial_vote, read_append_reply, read_shutdown_reply, read_vote_reply,
 };
 pub use codecs::{
     AutoencoderArchitectureV1, AutoencoderArtifactV1, AutoencoderConfigV1, CodecError,

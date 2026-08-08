@@ -29,6 +29,7 @@ abi-connectors = { workspace = true }
 abi-wdbx = { workspace = true }
 ctrlc = { workspace = true }
 serde_json = { workspace = true }
+uuid = { workspace = true }
 libc = "0.2"
 unicode-width = { workspace = true }
 

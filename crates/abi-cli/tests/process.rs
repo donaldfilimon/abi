@@ -264,6 +264,40 @@ fn simulate_and_scheduler_cross_the_real_process_boundary() {
 }
 
 #[test]
+fn authenticated_cluster_local_demo_uses_real_children_and_redacts_runtime_state() {
+    let output = run(&["wdbx", "cluster", "local-demo", "3", "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stderr, [] as [u8; 0]);
+    let proof: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("local proof JSON");
+    assert_eq!(proof["proof"], "authenticated_local_multi_process");
+    assert_eq!(
+        proof["storage_proof_scope"],
+        "isolated_in_process_exact_transaction_replicas"
+    );
+    assert_eq!(proof["nodes"], 3);
+    assert_eq!(proof["election"]["votes"], 3);
+    assert_eq!(proof["replicated_write"]["acknowledgements"], 3);
+    assert_eq!(proof["failover"]["term"], 2);
+    assert_eq!(proof["shard_placement_verified"], true);
+    assert_eq!(proof["conflicts_observed"], true);
+    assert_eq!(proof["read_repair_completed"], true);
+    assert_eq!(proof["children_reaped"], true);
+    let rendered = String::from_utf8_lossy(&output.stdout);
+    assert!(!rendered.contains("127.0.0.1"));
+    assert!(!rendered.contains("ABI_WDBX_CLUSTER_TOKEN"));
+
+    for invalid in ["0", "2", "10", "nope"] {
+        let rejected = run(&["wdbx", "cluster", "local-demo", invalid, "--json"]);
+        assert_eq!(rejected.status.code(), Some(2), "node count {invalid}");
+    }
+}
+
+#[test]
 fn auth_status_and_logout_cross_the_real_process_boundary() {
     let path = std::env::temp_dir().join(format!(
         "abi-auth-process-{}-{}.json",
