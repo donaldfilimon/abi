@@ -21,7 +21,7 @@ pub use shaders::{
     compiler_status as shader_compiler_status,
 };
 
-use abi_wdbx::best_cpu_backend;
+use abi_compute::best_cpu_backend;
 
 /// Declared GPU backends, matching Zig's `Backend` enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

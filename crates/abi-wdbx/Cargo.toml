@@ -8,6 +8,7 @@ repository.workspace = true
 description = "WDBX vector store for the ABI framework: on-disk segment format, MVCC epoch layering, and the audit chain."
 
 [dependencies]
+abi-compute = { workspace = true }
 abi-foundation = { workspace = true }
 abi-core = { workspace = true }
 serde = { workspace = true }

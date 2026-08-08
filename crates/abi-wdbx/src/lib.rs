@@ -1,5 +1,3 @@
-#![feature(portable_simd)]
-
 //! WDBX: the ABI framework's vector store.
 //!
 //! Step 4 of the Zig→Rust port. This crate now covers the **on-disk format**,
@@ -74,8 +72,10 @@ pub use cluster_rpc::{
 };
 pub use compression::{CompressionError, Quantized, dequantize, max_error, quantize};
 pub use compute::{
-    Backend, Capability, ComputeError, Selection, ane_hardware_present, best_cpu_backend,
-    capabilities, dot, select, simd_lanes,
+    Accelerator, Backend, Capability, CapabilityEvidence, CapabilityInvariantError,
+    CapabilityState, ComputeError, CpuBackend, ScoredIndex, Selection, ane_hardware_present,
+    baseline_capability_states, best_cpu_backend, capabilities, cosine, dot, norm, select,
+    simd_lanes, top_k,
 };
 pub use crypto_he::{HE_MODULUS, HeCipher, HeError, HeKey, he_add};
 pub use durable::{DurableError, DurableStore};

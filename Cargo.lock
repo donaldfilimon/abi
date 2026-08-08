@@ -33,6 +33,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "abi-compute"
+version = "0.1.0"
+
+[[package]]
 name = "abi-connectors"
 version = "0.1.0"
 dependencies = [
@@ -74,8 +78,8 @@ dependencies = [
 name = "abi-gpu"
 version = "0.1.0"
 dependencies = [
+ "abi-compute",
  "abi-foundation",
- "abi-wdbx",
 ]
 
 [[package]]
@@ -131,6 +135,7 @@ version = "0.1.0"
 name = "abi-wdbx"
 version = "0.1.0"
 dependencies = [
+ "abi-compute",
  "abi-core",
  "abi-foundation",
  "chacha20poly1305",
