@@ -1,6 +1,6 @@
 ---
 name: mcp
-description: MCP server and client superpower. JSON-RPC tools, stdio transport, HTTP/SSE loopback, authentication.
+description: ABI MCP JSON-RPC server skill for the frozen 12-tool stdio surface and custom loopback HTTP compatibility listener.
 superpower:
   command: "execute"
   parameters:
@@ -40,26 +40,28 @@ Core MCP capabilities for OpenCode within the ABI framework.
 ### serve
 Start MCP server on stdio:
 ```
-/abi-superpower-mcp serve
+./mcp/launcher.sh stdio
 ```
 
 ### tools
 List all 12 frozen tools:
-```
-/abi-superpower-mcp tools
+```bash
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | ./target/debug/abi-mcp
 ```
 
 ### call
 Invoke a tool with arguments:
-```
-/abi-superpower-mcp call --tool ai_complete --args '{"input": "hello"}'
+```bash
+printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ai_complete","arguments":{"input":"hello"}}}' | ./target/debug/abi-mcp
 ```
 
 ### auth
-Configure bearer tokens.
+Configure the optional HTTP bearer token with `ABI_MCP_HTTP_TOKEN` before
+launch. Stdio stays tokenless.
 
 ### health
-Check server health.
+There is no dedicated health command; send a JSON-RPC `ping` or `initialize`
+request over stdio.
 
 ## Frozen Tool Surface (12 tools)
 
@@ -70,8 +72,11 @@ ai_run, ai_complete, ai_learn, ai_train, wdbx_query, scheduler_stats, scheduler_
 Maps to:
 - `crates/abi-mcp/src/main.rs` - JSON-RPC 2.0 server
 - `crates/abi-mcp/src/handlers.rs` - 12 tool implementations
-- `crates/abi-mcp/src/http.rs` - Loopback HTTP/SSE
+- `crates/abi-mcp/src/http.rs` - Custom loopback HTTP compatibility path
 
-## Feature Gates
+## Build and protocol boundary
 
-- `feat-ai`, `feat-wdbx`, `feat-metrics`, `feat-tui` as appropriate for each tool.
+All twelve handlers are built into `abi-mcp`; the historical `feat-*` switches
+do not exist in this Rust workspace. The loopback listener is attempted at
+startup, bind failure leaves stdio running, and one-event `GET /sse` is not a
+persistent conforming MCP HTTP+SSE transport.

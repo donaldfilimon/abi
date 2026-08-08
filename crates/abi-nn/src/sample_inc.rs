@@ -149,6 +149,5 @@ mod tests {
         let b = SampleState::start(&model, b'w', 12).finish(&model);
         assert_eq!(a, b);
         assert_eq!(a.len(), 12);
-        assert!(!a.is_empty());
     }
 }

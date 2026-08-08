@@ -1,31 +1,34 @@
 ---
 name: sea-learning-controller
-description: Toggle SEA (Sparse Evidence Attention) self-learning mode. Maps to `/learn` slash command in abi agent tui.
+description: Run or inspect SEA (Sparse Evidence Attention) learning through the real `abi complete --learn` path. The agent REPL has only a session-local `/sea` preference and no `/learn` command.
 ---
 
 # SEA Learning Controller
 
-Toggles the SEA adaptive learning loop on/off for the current session.
+Routes SEA learning to the real CLI and keeps the REPL boundary explicit.
 
 ## Usage
 
-```
-/learn [on|off|toggle]
+```bash
+SEA_STORE=$(mktemp -d)
+ABI_WDBX_PATH="$SEA_STORE" ./target/debug/abi complete --learn "review evidence"
 ```
 
 ## States
 
-- `on` - Enable SEA adaptive completions with evidence recall
-- `off` - Use base completion without learning
-- `toggle` - Switch current state
+- `abi complete --learn` opens the configured durable store, recalls evidence,
+  and updates the adaptive modulator.
+- `abi complete` without `--learn` uses the base completion route.
+- `/sea on|off|status|toggle` in `abi agent tui` is session-local metadata only;
+  it reports `live services=off` and never opens WDBX.
 
 ## Implementation
 
-Controls `ReplConfig.learn_mode` in `crates/abi-cli/src/terminal.rs`:
-- When on: `complete --learn --stream` uses `completeWithStoreAdaptive`
-- Persists `AdaptiveModulator` weights (EMA, alpha=0.3) to WDBX key `modulator:weights`
-- 8-signal scorer with task-aware weighting (7 task types)
+Maps to `crates/abi-cli/src/complete.rs` and `crates/abi-sea/src/learn_loop.rs`.
+The durable path persists modulator weights under `modulator:weights`; tests and
+smokes must use a scratch store and never the user's live `~/.abi` path.
 
 ## Skill Integration
 
-Maps to `abi agent tui` REPL `/learn` command and `abi complete --learn` CLI flag.
+There is no `/learn` REPL command. Use `abi complete --learn` for actual evidence
+recall; use `/sea` only to inspect or change the session-local REPL preference.

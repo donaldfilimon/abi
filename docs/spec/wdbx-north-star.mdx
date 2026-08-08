@@ -26,7 +26,7 @@ WDBX Runtime
  ├─ Compute Layer       (Partial — CPU SIMD via std::simd + optional macOS Metal DOT + CPU fallback + CPU/GPU parity path; ANE detection; TPU remote-dispatch transport)
  ├─ Security Layer      (Partial — SHA-256 chain + snapshot checksum + DGHV add/multiply SHE)
  ├─ Cluster Layer       (Partial — in-process Raft + networked RPC transport over loopback)
- └─ Transport Layer     (Partial — stdio/JSON-RPC + loopback HTTP/SSE + REST + cluster/remote-compute RPC)
+ └─ Transport Layer     (Partial — stdio/JSON-RPC + custom one-event MCP loopback HTTP compatibility + REST + cluster/remote-compute RPC)
 ```
 
 ---
@@ -79,7 +79,7 @@ Each north-star capability mapped to honest repo state. Evidence is a pointer to
 - **Proposed:** production multi-host deployment, TLS/mTLS or equivalent fronting network policy, dynamic membership, and data sharding/partitioning across nodes. Until those are exercised, ABI is **not** a production distributed multi-host system, and sharding is unbuilt. Ops decision record: `docs/spec/cluster-mtls-ops.mdx` (proxy mTLS preferred; native TLS deferred; membership static; sharding Proposed).
 
 ### 3.6 Transport Layer
-- **Current:** MCP JSON-RPC 2.0 over stdio (64 KB request cap + shared JSON nesting depth bound) + optional loopback HTTP/SSE (`GET /sse`, `POST /message`) on `127.0.0.1:8080`, with optional bearer-token enforcement via `ABI_MCP_HTTP_TOKEN` (fixed-work compare); incomplete HTTP bodies rejected (400) rather than dispatched; durable WDBX open for MCP **fail-closed** unless `ABI_WDBX_ALLOW_MEMORY_FALLBACK` is set; **WDBX REST listener** (`rest.rs`) serving `POST /insert /query /verify` and `GET /health /stats` on a loopback port (`abi wdbx api serve [port]`, default 8081), with a unit-tested routing core and optional bearer-token enforcement via `ABI_WDBX_REST_TOKEN` (same incomplete-body + fixed-work bearer behavior).
+- **Current:** MCP JSON-RPC 2.0 over stdio (64 KB request cap + shared JSON nesting depth bound) plus an automatically attempted custom loopback HTTP compatibility listener (`GET /sse`, `POST /message`) on `127.0.0.1:8080`; bind failure leaves stdio running. `GET /sse` emits one discovery event and closes, so this is not persistent conforming MCP HTTP+SSE. The listener supports optional bearer-token enforcement via `ABI_MCP_HTTP_TOKEN` (fixed-work compare), and incomplete HTTP bodies are rejected (400) rather than dispatched. Durable WDBX open for MCP is **fail-closed** unless `ABI_WDBX_ALLOW_MEMORY_FALLBACK` is set. The **WDBX REST listener** (`rest.rs`) serves `POST /insert /query /verify` and `GET /health /stats` on a loopback port (`abi wdbx api serve [port]`, default 8081), with a unit-tested routing core and optional bearer-token enforcement via `ABI_WDBX_REST_TOKEN` (same incomplete-body + fixed-work bearer behavior).
 - **Current (added):** cluster consensus RPC and remote-compute dispatch over TCP (`cluster_rpc.rs`, `remote_compute.rs`), loopback-tested via a shared `net_line` framing helper. Cluster RPC supports `AUTH <token>` RequestVote/AppendEntries frames via `ABI_WDBX_CLUSTER_TOKEN` and optional node-id allowlisting through `ABI_WDBX_CLUSTER_PEERS`.
 - **Proposed:** gRPC, WebSocket streaming; hardening the listeners for non-loopback/production use (TLS, authz, rate limiting, origin defense). See `docs/spec/non-loopback-rest-threat-review.mdx` for the claim-honest ops decision record (proxy TLS preferred; native TLS deferred; non-loopback not a supported product mode without explicit threat acceptance).
 

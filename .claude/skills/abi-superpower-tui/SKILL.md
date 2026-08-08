@@ -61,26 +61,35 @@ hotkeys / Tab — there is no separate `pane --focus` CLI.
 
 ## Slash Commands (in `abi agent tui` REPL)
 
-- `/open <path>` - Load file into context
-- `/diff` - Git diff
-- `/commit` - Git commit
-- `/context` - Show context state
-- `/features` - Feature flags
-- `/learn` - Toggle SEA learning
-- `/save <name>` - Save session
-- `/load <name>` - Load session
-- `/status` - Agent status
-- `/reset` - Clear history
+- `/help` - Show the REPL command surface
+- `/model <id>` - Select a known model or a bounded free-form model ID
+- `/profile` - Report the adaptive profile/router state
+- `/sea [on|off|status|toggle]` - Change session-local SEA preference only
+- `/status` - Report session, model, SEA, and live/store boundaries
+- `/context` - Report the bounded local context summary
+- `/history` - Print in-session prompt history
+- `/reset` - Clear in-session history and turn count
+- `/features` - Print locally available feature disclosures
+- `/clear` - Clear the terminal display
+- `/quit` - Exit (`/exit` and `/q` are aliases)
+
+The REPL does not currently implement `/open`, `/diff`, `/commit`, `/learn`,
+`/save`, or `/load`. Evidence-augmented completion is the separate
+`abi complete --learn` path.
 
 ## Implementation
 
 Maps to:
-- `crates/abi-cli/src/terminal.rs` - REPL with line editor (`abi agent tui`)
+- `crates/abi-cli/src/repl.rs` - REPL commands, session state, and line editor
 - `crates/abi-cli/src/dashboard.rs` - Split-pane dashboard (`abi tui` / `abi dashboard`)
-- `crates/abi-cli/src/terminal.rs` - CSI decode, cursor, history
+- `crates/abi-cli/src/terminal.rs` - Raw-mode guard and incremental key decoder
 - `.agents/skills/run-tui/tui.sh` - Interactive pty driver
 - `.agents/skills/dashboard-smoke/dashboard.sh` - Headless one-shot smoke
 
-## Feature Gate
+## Runtime Boundary
 
-Requires `feat-tui=true` (default).
+The Rust `abi-cli` build always includes these surfaces. The dashboard refresh
+loop and raw editor require a Unix terminal; `--once`, `--json`, and redirected
+REPL input remain deterministic non-interactive paths. Dashboard panes support
+bounded keyboard navigation and primary-button SGR mouse selection; capture is
+disabled by a drop guard before terminal modes are restored.

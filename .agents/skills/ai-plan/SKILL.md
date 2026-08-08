@@ -14,7 +14,7 @@ specialist skills instead of duplicating them:
 | Drive the SEA self-learning loop (`abi complete --learn`) | `sea-learn-loop` |
 | Plan + train an agent (`abi agent plan` / `train`) | `agent-plan-train` |
 | Deep-dive AI routing/constitution/SEA | `abi-superpower-ai`, `abi-superpower-sea`, `abi-superpower-constitution` |
-| Toggle SEA mode in the REPL | `sea-learning-controller` (`/learn`) |
+| Run SEA learning, or inspect the REPL's session-only preference | `sea-learning-controller` (`abi complete --learn`; `/sea` is metadata only) |
 
 ## Facts that constrain any AI plan (from source, not marketing)
 - Default model `claude-fable-5`; `crates/abi-ai/src/models.rs` is the single

@@ -1,6 +1,6 @@
 ---
 name: tui
-description: Plan abi TUI/dashboard work — the interactive diagnostics dashboard and agent REPL. Use when asked about abi tui / dashboard, pane splits, slash commands, or session save/load. Routes to run-tui, dashboard-smoke, and abi-superpower-tui. A headless fallback exists; tmux is only for the interactive refresh loop.
+description: Plan abi TUI/dashboard work — the interactive diagnostics dashboard and agent REPL. Use when asked about abi tui / dashboard, pane selection, slash commands, or the raw-mode editor. Routes to run-tui, dashboard-smoke, and abi-superpower-tui. A headless fallback exists; tmux is only for the interactive refresh loop.
 ---
 
 # tui
@@ -16,19 +16,20 @@ Routes:
 
 ## REPL slash commands (agent TUI, not OpenCode config)
 
-Implemented in `crates/abi-cli/src/terminal.rs` (see `abi-superpower-tui`). Companion
-skills document the agent-side helpers: `/open`→file-context-loader,
-`/diff`→git-diff-integration, `/commit`→git-commit-integration,
-`/context`→context-state-reporter, `/features`→feature-flag-display,
-`/learn`→sea-learning-controller, `/save`→session-persister,
-`/load`→session-restorer, `/status`→agent-status-reporter,
-`/reset`→context-resetter. Plugin-provided commands come from each plugin's
-`crates/abi-plugins/plugins/*/abi-plugin.json` `commands` field. Repo OpenCode config is `opencode.json` (no
-`slash_commands` key).
+Implemented in `crates/abi-cli/src/repl.rs` (see `abi-superpower-tui`). The
+current built-in commands are `/help`, `/model`, `/profile`,
+`/sea [on|off|status|toggle]`, `/status`, `/context`, `/history`, `/reset`,
+`/features`, `/clear`, and `/quit` (with documented aliases). `/sea` is
+session-local and reports that live services are off; it does not open WDBX or
+run `abi complete --learn`. Plugin manifest commands are a separate plugin
+runtime surface and are not automatically installed into this REPL.
 
 ## Gotchas
 - `dashboard-smoke` reads stdin from `/dev/null` to force the non-interactive
   fallback; the only surface that needs a real terminal is the interactive
   refresh loop (`run-tui` uses tmux).
+- The dashboard supports Tab/Right/`l`, Shift-Tab/Left/`h`, direct `1`–`5`,
+  and primary-button SGR mouse selection. Mouse reports are bounded and the
+  capture guard disables reporting before raw terminal state is restored.
 - `@file` mentions are sandboxed to cwd (8 KB budget; rejects `..` / absolute /
   symlink escape) via `crates/abi-ai/src/file_context.rs`.

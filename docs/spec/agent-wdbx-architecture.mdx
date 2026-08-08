@@ -33,8 +33,9 @@ flowchart TD
     WDBX --> IDX[HNSW and hybrid retrieval]
 ```
 
-Both binaries are local-first. MCP uses JSON-RPC over stdio and can expose an
-optional loopback HTTP/SSE transport. WDBX REST and cluster RPC have their own
+Both binaries are local-first. MCP uses JSON-RPC over stdio and automatically
+attempts a custom loopback HTTP compatibility listener. Its
+one-event `/sse` response is not persistent MCP HTTP+SSE. WDBX REST and cluster RPC have their own
 explicit bind, token, and claim boundaries.
 
 ## Ownership
@@ -42,7 +43,7 @@ explicit bind, token, and claim boundaries.
 | Layer | Source | Responsibility |
 | --- | --- | --- |
 | CLI | `crates/abi-cli/` | Frozen command dispatch, one-shot diagnostics, local completion, and WDBX operations |
-| MCP | `crates/abi-mcp/` | Frozen tool dispatch, stdio JSON-RPC, optional loopback HTTP/SSE |
+| MCP | `crates/abi-mcp/` | Frozen tool dispatch, stdio JSON-RPC, and a best-effort custom loopback HTTP compatibility listener |
 | AI | `crates/abi-ai/` | Profiles, deterministic routing, local templates, lexical constitution signal, model catalog, orchestration records |
 | SEA | `crates/abi-sea/` | Query planning, evidence scoring/selection, bounded prompt augmentation, adaptive-router persistence |
 | Core | `crates/abi-core/` | One-process scheduler, task accounting, registry, and memory tracking |
@@ -104,8 +105,10 @@ durable background-agent system.
 
 ## Security and deployment boundary
 
-- MCP HTTP/SSE and WDBX REST are loopback-oriented. Bearer tokens are local
-  hardening, not complete authorization or TLS.
+- The automatically attempted custom MCP loopback HTTP compatibility listener
+  and WDBX REST are loopback-oriented. The MCP `/sse` response is one event,
+  not persistent conforming MCP HTTP+SSE. Bearer tokens are local hardening,
+  not complete authorization or TLS.
 - Cluster RPC is real TCP RequestVote/AppendEntries with optional token and
   peer allowlist controls. Production multi-host deployment and sharding are
   not proven.

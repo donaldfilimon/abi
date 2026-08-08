@@ -249,6 +249,6 @@ mod tests {
         );
 
         clear().expect("clear");
-        assert!(load().expect("load after clear").is_empty());
+        assert_eq!(load().expect("load after clear").len(), 0);
     }
 }

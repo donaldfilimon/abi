@@ -257,7 +257,7 @@ mod tests {
     fn parses_a_segment_containing_only_its_magic_line() {
         // Several real segments look exactly like this.
         let segment = parse_segment(3, &segment_path(), "# ABI-WDBX v1\n").expect("parses");
-        assert!(segment.records.is_empty());
+        assert_eq!(segment.records.len(), 0);
         assert!(!segment.truncated_tail);
         assert_eq!(segment.epoch, 3);
     }

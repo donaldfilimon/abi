@@ -149,7 +149,7 @@ mod tests {
             before.kv_entries + 1,
             "one metadata entry"
         );
-        assert!(!rec.block_hash.is_empty());
+        assert_ne!(rec.block_hash, "");
 
         let stored = store
             .get(&format!("os-cmd:{}", rec.vector_id))

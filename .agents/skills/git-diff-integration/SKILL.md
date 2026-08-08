@@ -1,6 +1,6 @@
 ---
 name: git-diff-integration
-description: Show git diff of working tree or staged changes. Maps to `/diff` slash command in abi agent tui.
+description: Review Git diffs through the agent workflow. This is not an `abi agent tui` slash command.
 ---
 
 # Git Diff Integration
@@ -9,8 +9,8 @@ Shows git diff for context-aware agent operations.
 
 ## Usage
 
-```
-/diff [options]
+```bash
+git diff [options]
 ```
 
 ## Options
@@ -21,8 +21,9 @@ Shows git diff for context-aware agent operations.
 
 ## Implementation
 
-Runs `git diff` via std.process and formats output for agent consumption.
+The agent invokes read-only Git directly. ABI's Rust REPL does not execute Git.
 
 ## Skill Integration
 
-Used in `abi agent tui` REPL for `/diff` command to show current changes before committing.
+There is no `/diff` command in `abi agent tui`; use this skill or read-only Git
+outside the ABI binary.

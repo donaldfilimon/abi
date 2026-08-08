@@ -63,6 +63,8 @@ Maps to:
 - `crates/abi-wdbx/src/rest.rs`
 - `crates/abi-wdbx/src/cluster_rpc.rs`
 
-## Feature Gate
+## Build and runtime boundary
 
-Requires `feat-wdbx=true` (default).
+`abi-wdbx` is a normal Rust workspace crate; there is no `feat-wdbx` switch.
+Use the real `abi wdbx` subcommands shown by `abi wdbx help`, with scratch
+stores for tests.

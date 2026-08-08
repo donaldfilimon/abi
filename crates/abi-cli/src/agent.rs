@@ -1,11 +1,10 @@
-//! `abi agent` — planning, multi-persona, train, OS control, and line-mode TUI.
+//! `abi agent` — planning, multi-persona, train, OS control, and agent REPL.
 //!
 //! Ported from the claim-honest subset of `src/cli/handlers/agent_*.zig` and
-//! the non-TTY REPL path. `plan` / `multi` use budgeted `file_context`
-//! (workspace tree + git diff --stat). Interactive raw-mode TUI is not linked;
-//! `agent tui` is the honest line-mode fallback (slash commands + local
-//! completion), which lives in [`crate::repl`] — this module owns dispatch and
-//! the one-shot subcommands.
+//! the REPL path. `plan` / `multi` use budgeted `file_context`, including a
+//! workspace tree and git diff --stat. `agent tui` uses a bounded editor on a TTY and preserves
+//! the deterministic line-mode fallback for redirected input. Both live in
+//! [`crate::repl`]; this module owns dispatch and the one-shot subcommands.
 
 use std::fmt::Write as _;
 use std::sync::Arc;

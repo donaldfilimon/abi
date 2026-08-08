@@ -479,7 +479,7 @@ mod tests {
         // Verbatim from Zig's "parse worker specs without hints frees safely".
         let specs = parse_worker_specs("scout|Explore pages").expect("valid spec");
         assert_eq!(specs.len(), 1);
-        assert!(specs[0].tool_hints.is_empty());
+        assert_eq!(specs[0].tool_hints.len(), 0);
         assert_eq!(format_tool_hints(&specs[0].tool_hints), "none");
     }
 

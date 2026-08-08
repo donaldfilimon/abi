@@ -171,7 +171,7 @@ mod tests {
             match complete_live("Reply with the single word: ok", fm_config()) {
                 Ok(resp) => {
                     assert_eq!(resp.status, 200);
-                    assert!(!resp.body.is_empty());
+                    assert_ne!(resp.body, "");
                 }
                 Err(ConnectorError::FmSessionFailed) => {}
                 Err(other) => panic!("unexpected error with ready model: {other}"),

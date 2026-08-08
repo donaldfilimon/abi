@@ -1,6 +1,6 @@
 ---
 name: git-commit-integration
-description: Create git commit with conventional commit format. Maps to `/commit` slash command in abi agent tui.
+description: Create reviewed conventional Git commits through the agent workflow. This is not an `abi agent tui` slash command.
 ---
 
 # Git Commit Integration
@@ -9,8 +9,8 @@ Creates properly formatted git commits for the abi project.
 
 ## Usage
 
-```
-/commit [message]
+```bash
+git commit -m "type(scope): description"
 ```
 
 ## Features
@@ -22,8 +22,10 @@ Creates properly formatted git commits for the abi project.
 
 ## Implementation
 
-Uses `git commit` with validation of commit message format.
+The agent stages reviewed paths explicitly and invokes Git directly. ABI's Rust
+REPL does not execute Git.
 
 ## Skill Integration
 
-Maps to `abi agent tui` REPL `/commit` command for seamless workflow.
+There is no `/commit` command in `abi agent tui`; use this skill outside the ABI
+binary after reviewing the exact staged diff.

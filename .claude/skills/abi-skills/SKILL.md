@@ -18,16 +18,19 @@ Codex plugin.
   `.agents/skills/sync-clis/launch.sh`.
 - OpenCode: `.opencode/skills` is a symlink to `.agents/skills`.
 - Codex home skills: `~/.codex/skills/<name>/SKILL.md` are installed explicitly.
-- ABI bundled plugins: 16 build-time fixtures under `crates/abi-plugins/plugins/` (includes
-  `tui-plugin`); verify them with `.agents/skills/plugin-runtime-tester/plugins.sh`.
+- ABI bundled plugins: 16 build-time fixtures under
+  `crates/abi-plugins/plugins/` (including `tui-plugin`); verify manifest,
+  registry, and runtime-dispatch agreement with
+  `.agents/skills/plugin-runtime-tester/plugins.sh`.
 - ABI Mega source: `~/plugins/abi-mega/`; marketplace registration alone does not
   prove that the current version is installed.
 - Live Rust pin: read repo-root `rust-toolchain.toml`. Always use `./tools/cargo.sh`
   (Homebrew stable `cargo` may shadow rustup nightly).
 
-`crates/abi-plugins/plugins/` is intentionally absent and is rejected by
-`modern-refactor/scripts/verify-phase1-scope.sh`. Do not recreate it as a health
-check. Use the runtime tester plus the repository gates.
+The retired root `src/` implementation tree is fully absent. Do not recreate
+the Zig-era tree as a health check. The live Rust fixtures are
+`crates/abi-plugins/plugins/` and must remain in manifest/compile-time/runtime
+parity.
 
 ## Skill Loop
 
@@ -62,8 +65,9 @@ live telemetry, not durable capability claims.
    process moves the checkout, stop and use an isolated worktree.
 2. **Select the toolchain locally** — use `./tools/cargo.sh` for all ABI gates
    (Homebrew stable `cargo` may shadow rustup nightly).
-3. **Establish a baseline** — run `./tools/check.sh` without a PTY. Afterward,
-   run `./tools/cargo.sh build -p abi-cli` because feature-stub smoke overwrites `target/debug/abi`.
+3. **Establish a baseline** — run `./tools/check.sh` without a PTY. Build
+   `abi-cli` explicitly before user-facing smoke so the executable being tested
+   is current and the evidence names the binary-producing command.
 4. **Refresh ABI Mega evidence**:
    - `~/plugins/abi-mega/skills/abi-goal-orchestrator/scripts/refresh-inventory.sh`
    - `~/plugins/abi-mega/skills/abi-markdown-auditor/scripts/scan-markdown.sh`

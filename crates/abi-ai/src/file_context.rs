@@ -500,12 +500,12 @@ mod tests {
 
     #[test]
     fn parse_file_mentions_ignores_email() {
-        assert!(parse_file_mentions("contact user@example.com").is_empty());
+        assert_eq!(parse_file_mentions("contact user@example.com").len(), 0);
     }
 
     #[test]
     fn parse_file_mentions_requires_dot_or_slash() {
-        assert!(parse_file_mentions("hello @world end").is_empty());
+        assert_eq!(parse_file_mentions("hello @world end").len(), 0);
     }
 
     #[test]

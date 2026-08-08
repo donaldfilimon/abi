@@ -253,7 +253,7 @@ mod tests {
         assert_eq!(p.allow, vec!["pwd", "ls"]);
         assert!(p.permits("pwd"));
         assert!(!p.permits("whoami"), "narrowing must actually remove");
-        assert!(p.ignored.is_empty());
+        assert_eq!(p.ignored.len(), 0);
     }
 
     #[test]
@@ -275,7 +275,7 @@ mod tests {
     #[test]
     fn an_empty_allow_list_denies_everything_and_is_not_a_reset() {
         let p = parse("allow = []\n").expect("parses");
-        assert!(p.allow.is_empty());
+        assert_eq!(p.allow.len(), 0);
         for cmd in CEILING {
             assert!(!p.permits(cmd), "{cmd} must be denied");
         }

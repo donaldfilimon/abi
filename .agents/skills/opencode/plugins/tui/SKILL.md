@@ -76,26 +76,28 @@ hotkeys / Tab — there is no separate `pane --focus` CLI.
 
 ## Slash Commands (in `abi agent tui` REPL)
 
-- `/open <path>` - Load file into context
-- `/diff` - Git diff
-- `/commit` - Git commit
-- `/context` - Show context state
-- `/features` - Feature flags
-- `/learn` - Toggle SEA learning
-- `/save <name>` - Save session
-- `/load <name>` - Load session
-- `/status` - Agent status
-- `/reset` - Clear history
+- `/help` - Show the REPL command surface
+- `/model <id>` - Select a model
+- `/profile` - Report adaptive profile state
+- `/sea [on|off|status|toggle]` - Change session-local preference only
+- `/status`, `/context`, `/history`, `/reset`, `/features`, `/clear`, `/quit`
+
+The REPL does not implement `/open`, `/diff`, `/commit`, `/learn`, `/save`, or
+`/load`. Actual evidence recall is the separate `abi complete --learn` path.
 
 ## Implementation
 
 Maps to:
-- `crates/abi-cli/src/terminal.rs` - REPL with line editor (`abi agent tui`)
+- `crates/abi-cli/src/repl.rs` - REPL commands and session state
+- `crates/abi-cli/src/repl_editor.rs` - bounded line editor and raw input loop
 - `crates/abi-cli/src/dashboard.rs` - Split-pane dashboard (`abi tui` / `abi dashboard`)
-- `crates/abi-cli/src/terminal.rs` - CSI decode, cursor, history
+- `crates/abi-cli/src/terminal.rs` - raw-mode guard and key decoder
 - `.agents/skills/run-tui/tui.sh` - Interactive pty driver
 - `.agents/skills/dashboard-smoke/dashboard.sh` - Headless one-shot smoke
 
-## Feature Gate
+## Runtime Boundary
 
-Requires `feat-tui=true` (default).
+The Rust CLI always includes these surfaces. Raw mode requires a Unix TTY;
+redirected input and dashboard `--once`/`--json` use deterministic fallbacks.
+Dashboard panes support bounded keyboard navigation and primary-button SGR
+mouse selection, with capture cleanup on every exit path.

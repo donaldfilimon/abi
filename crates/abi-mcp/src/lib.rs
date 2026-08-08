@@ -1,7 +1,8 @@
 //! The ABI MCP server: JSON-RPC protocol, the frozen 12-tool surface, and the
-//! stdio + loopback HTTP/SSE transports.
+//! stdio plus a custom one-request-per-connection loopback HTTP compatibility
+//! transport with one-shot SSE endpoint discovery.
 //!
-//! Ported from `src/mcp/`. HTTP/SSE listens on `127.0.0.1` only
+//! Ported from `src/mcp/`. The optional HTTP listener binds `127.0.0.1` only
 //! (`ABI_MCP_HTTP_PORT`, optional `ABI_MCP_HTTP_TOKEN`).
 
 pub mod ai_tools;

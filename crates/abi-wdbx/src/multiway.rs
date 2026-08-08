@@ -727,6 +727,9 @@ pub fn export_multiway_json(
     metrics: &MultiwayMetrics,
 ) -> Result<String, MultiwayExportError> {
     let mut output = String::new();
+    // `zig_version` is frozen at the value the retired Zig implementation
+    // emitted: it is part of the canonical export byte stream, so changing it
+    // would break export_hash/golden-fixture compatibility. Do not update.
     output.push_str("{\"format\":\"");
     output.push_str(MULTIWAY_FORMAT_VERSION);
     output.push_str("\",\"zig_version\":\"0.17.0-dev.1442+972627084\",\"config\":");
@@ -1009,6 +1012,8 @@ pub fn persist_multiway(
     store.put(&format!("multiway:experiment:{config_hash}"), export_json)?;
     store.put(MULTIWAY_EXPORT_KEY_LATEST, export_json)?;
 
+    // `zig_version` frozen for canonical-format compatibility — see export
+    // comment above; changing it breaks stored metadata comparisons.
     let metadata = format!(
         "{{\"kind\":\"multiway_experiment\",\"config_hash\":\"{}\",\"export_hash\":\"{}\",\"states\":{},\"events\":{},\"termination\":\"{}\",\"complete\":{},\"zig_version\":\"0.17.0-dev.1442+972627084\"}}",
         config_hash,
@@ -1580,7 +1585,7 @@ mod tests {
         let depth_result = run_multiway(&depth, None);
         assert_eq!(depth_result.termination, Termination::MaxDepth);
         assert!(!depth_result.complete);
-        assert!(!depth_result.frontier.is_empty());
+        assert_ne!(depth_result.frontier.len(), 0);
         assert!(
             depth_result
                 .states

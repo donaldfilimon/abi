@@ -34,13 +34,13 @@ Exposes local multi-agent orchestration as a superpower. **Honest scope**: Sched
 ### multi
 Run fixed Abbey/Aviva/Abi trio via scheduler:
 ```
-/abi-superpower-agent-orchestration multi --input "analyze the architecture"
+abi agent multi "analyze the architecture"
 ```
 
 ### spawn
 Run custom workers parsed from `name|instructions|hints` (semicolon-separated):
 ```
-/abi-superpower-agent-orchestration spawn --input "refactor module" --workers "reviewer|find bugs|plan;optimizer|improve performance|explore"
+abi agent spawn --workers "reviewer|find bugs|plan;optimizer|improve performance|explore" "refactor module"
 ```
 Options:
 - `--background` — prints task IDs before `runAll()` (synchronous completion, NOT a detached daemon)
@@ -48,7 +48,7 @@ Options:
 ### browser
 Emit claim-honest local plan (`embedded_browser=false`, `delegation_hint=external-mcp-playwright`):
 ```
-/abi-superpower-agent-orchestration browser --input "navigate to github.com" --url "https://github.com"
+abi agent browser --url "https://github.com" "navigate to github.com"
 ```
 Options:
 - `--execute --confirm` — REQUIRES literal `--confirm` token; local planner only runs dry-run; real navigation = external MCP step
@@ -56,7 +56,7 @@ Options:
 ### plan
 Single-agent dry-run planning via the scheduler (maps to `abi agent plan`, not a multi-worker dry-run):
 ```
-/abi-superpower-agent-orchestration plan --input "inspect WDBX persistence"
+abi agent plan "inspect WDBX persistence"
 ```
 For multi-worker execution use `multi` or `spawn`. For claim-honest browser planning without navigation use `browser` (still runs a local dry-run planner worker after printing the plan).
 

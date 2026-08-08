@@ -377,7 +377,7 @@ pub fn handle_tools_call(state: McpState, params: Option<&Value>) -> Result<Valu
             let model = object_string(args, "model", ToolError::MissingModel)
                 .unwrap_or(abi_ai::models::DEFAULT_MODEL);
             // Optional integer; middleware only validates string fields.
-            let evidence_limit = object_integer(args, "evidence_limit").unwrap_or(5);
+            let evidence_limit = bounded_evidence_limit(args);
             match crate::ai_tools::run_learn(input, model, evidence_limit) {
                 Ok(text) => Ok(text_result(&text)),
                 Err(_) => Err(ToolError::Internal),
@@ -427,6 +427,12 @@ fn text_result(text: &str) -> Value {
     json!({ "content": [{ "type": "text", "text": text }] })
 }
 
+fn bounded_evidence_limit(args: &Map<String, Value>) -> usize {
+    object_integer(args, "evidence_limit")
+        .unwrap_or(5)
+        .min(abi_sea::evidence::MAX_EVIDENCE_LIMIT)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -468,5 +474,18 @@ mod tests {
                 "plugin_run",
             ]
         );
+    }
+
+    #[test]
+    fn public_ai_learn_evidence_limit_is_hard_capped() {
+        let huge = json!({"evidence_limit": u64::MAX});
+        let requested = huge.as_object().unwrap();
+        assert_eq!(
+            bounded_evidence_limit(requested),
+            abi_sea::evidence::MAX_EVIDENCE_LIMIT
+        );
+
+        let absent = Map::new();
+        assert_eq!(bounded_evidence_limit(&absent), 5);
     }
 }

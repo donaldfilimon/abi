@@ -221,7 +221,7 @@ mod tests {
     fn missing_file_loads_as_empty_credentials() {
         let path = scratch("abi_credentials_missing");
         let creds = load_from_path(&path).expect("missing file is not an error");
-        assert!(creds.is_empty());
+        assert_eq!(creds.len(), 0);
         for field in CREDENTIAL_FIELDS {
             assert!(creds.get(*field).is_none(), "{} should be unset", field.key);
         }

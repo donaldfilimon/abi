@@ -1,6 +1,6 @@
 ---
 name: abi-superpower-mcp
-description: MCP server and client superpower. JSON-RPC tools, stdio transport, HTTP/SSE loopback, authentication.
+description: ABI MCP JSON-RPC server skill for the frozen 12-tool stdio surface and custom loopback HTTP compatibility listener.
 superpower:
   command: "execute"
   parameters:
@@ -25,33 +25,31 @@ Exposes the MCP server and tool surface as a superpower.
 ### serve
 Start MCP server on stdio:
 ```
-/abi-superpower-mcp serve
+./mcp/launcher.sh stdio
 ```
 
 ### tools
 List all 12 frozen tools:
-```
-/abi-superpower-mcp tools
+```bash
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | ./target/debug/abi-mcp
 ```
 
 ### call
 Invoke a tool with arguments:
-```
-/abi-superpower-mcp call --tool ai_complete --args '{"input": "hello"}'
-/abi-superpower-mcp call --tool wdbx_query --args '{"query": "vector search"}'
+```bash
+printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ai_complete","arguments":{"input":"hello"}}}' | ./target/debug/abi-mcp
 ```
 
 ### auth
-Configure bearer tokens:
+The automatically attempted custom loopback listener can require an exact
+bearer token configured before launch:
 ```
-/abi-superpower-mcp auth --mcp-token <token> --wdbx-token <token>
+ABI_MCP_HTTP_TOKEN=local-secret ./target/debug/abi-mcp
 ```
 
 ### health
-Check server health:
-```
-/abi-superpower-mcp health
-```
+There is no dedicated health command. Use a JSON-RPC `ping` or `initialize`
+request over stdio; the HTTP listener is only a custom compatibility surface.
 
 ## Frozen Tool Surface (12 tools)
 
@@ -73,12 +71,13 @@ Check server health:
 Maps to:
 - `crates/abi-mcp/src/main.rs` - JSON-RPC 2.0 server
 - `crates/abi-mcp/src/handlers.rs` - 12 tool implementations
-- `crates/abi-mcp/src/http.rs` - Loopback HTTP/SSE
+- `crates/abi-mcp/src/http.rs` - Custom loopback HTTP compatibility path
 - `crates/abi-mcp/src/middleware.rs` - Arg validation, size limits
 
-## Feature Gates
+## Build and protocol boundary
 
-- `feat-ai` for ai_* tools
-- `feat-wdbx` for wdbx_* tools
-- `feat-metrics` for scheduler_* tools
-- `feat-tui` for plugin_* tools
+The twelve handlers are built into `abi-mcp`; the historical `feat-ai`,
+`feat-wdbx`, `feat-metrics`, and `feat-tui` switches do not exist in this Rust
+workspace. The loopback listener is attempted at process startup and bind
+failure leaves stdio running. `GET /sse` emits one discovery event and closes;
+this is not a persistent conforming MCP HTTP+SSE transport.

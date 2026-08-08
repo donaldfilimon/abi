@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn get_and_set_roundtrip() {
         let mut creds = Credentials::new();
-        assert!(creds.is_empty());
+        assert_eq!(creds.len(), 0);
 
         creds.set(CredentialField::OPENAI_API_KEY, Some(Secret::new("sk-1")));
         assert_eq!(creds.len(), 1);
@@ -221,7 +221,7 @@ mod tests {
         creds.set(CredentialField::DISCORD_TOKEN, Some(Secret::new("tok")));
         creds.set(CredentialField::DISCORD_TOKEN, None);
         assert!(creds.get(CredentialField::DISCORD_TOKEN).is_none());
-        assert!(creds.is_empty());
+        assert_eq!(creds.len(), 0);
     }
 
     #[test]
