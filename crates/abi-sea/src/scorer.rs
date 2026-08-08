@@ -303,7 +303,7 @@ mod tests {
         ];
         let selection = select_sea_candidates(candidates, SeaOptions::default());
         assert_eq!(selection.selected_ids, vec![4, 9]);
-        assert!(selection.rejected_ids.is_empty());
+        assert_eq!(selection.rejected_ids, [] as [u64; 0]);
         assert_eq!(selection.total_estimated_tokens, 6);
     }
 

@@ -1052,6 +1052,6 @@ mod tests {
         assert_eq!(epoch, 0);
         let wal = Wal::read(fixture.wal()).expect("fresh wal");
         assert_eq!(wal.base_epoch, 0);
-        assert!(wal.is_empty());
+        assert_eq!(wal.len(), 0);
     }
 }

@@ -109,7 +109,7 @@ fn redirected_agent_tui_preserves_the_legacy_help_bytes() {
     const HELP: &str = "ABI agent line-mode (interactive raw TUI not linked)\ncommands:\n  /help              this text\n  /model <id>        switch the completion model (alias-resolved)\n  /profile           show profile routing status\n  /quit /exit /q     leave the REPL\n  /status /stat      session counters and model\n  /context           file_context / open-file summary\n  /history /hist     recent turn previews\n  /reset             clear history and bump session id\n  /features /feat    build-time feature migration flags\n  /clear /cls        clear screen (ANSI)\n  free text          local persona completion with file_context\n";
     let output = run_with_stdin(&["agent", "tui"], b"/help\n/quit\n");
     assert!(output.status.success());
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     let expected = format!(
         "ABI agent line-mode (interactive raw TUI not linked). Type a prompt or /help; empty line or EOF to quit.\n{HELP}{HELP}"
     );
@@ -120,7 +120,7 @@ fn redirected_agent_tui_preserves_the_legacy_help_bytes() {
 fn top_level_help_matches_the_zig_capture_on_stderr() {
     let output = run(&["help"]);
     assert!(output.status.success());
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, [] as [u8; 0]);
     assert_eq!(
         output.stderr,
         include_bytes!("../../../tests/golden/help.txt")
@@ -131,7 +131,7 @@ fn top_level_help_matches_the_zig_capture_on_stderr() {
 fn json_and_shell_completion_match_the_zig_captures() {
     let json = run(&["help", "--json"]);
     assert!(json.status.success());
-    assert!(json.stdout.is_empty());
+    assert_eq!(json.stdout, [] as [u8; 0]);
     assert_eq!(
         json.stderr,
         include_bytes!("../../../tests/golden/help.json")
@@ -153,7 +153,7 @@ fn json_and_shell_completion_match_the_zig_captures() {
     ] {
         let completion = run(&["help", "--completion", shell]);
         assert!(completion.status.success());
-        assert!(completion.stdout.is_empty());
+        assert_eq!(completion.stdout, [] as [u8; 0]);
         assert_eq!(completion.stderr, expected);
     }
 }
@@ -162,7 +162,7 @@ fn json_and_shell_completion_match_the_zig_captures() {
 fn direct_help_and_exit_codes_cross_the_real_process_boundary() {
     let help = run(&["backends", "--help"]);
     assert!(help.status.success());
-    assert!(help.stdout.is_empty());
+    assert_eq!(help.stdout, [] as [u8; 0]);
     assert_eq!(
         help.stderr,
         include_bytes!("../../../tests/golden/help-backends.txt")
@@ -170,7 +170,7 @@ fn direct_help_and_exit_codes_cross_the_real_process_boundary() {
 
     let backends = run(&["backends"]);
     assert!(backends.status.success());
-    assert!(backends.stdout.is_empty());
+    assert_eq!(backends.stdout, [] as [u8; 0]);
     assert!(
         backends
             .stderr
@@ -185,7 +185,7 @@ fn direct_help_and_exit_codes_cross_the_real_process_boundary() {
 
     let unknown = run(&["complte"]);
     assert_eq!(unknown.status.code(), Some(2));
-    assert!(unknown.stdout.is_empty());
+    assert_eq!(unknown.stdout, [] as [u8; 0]);
     assert!(String::from_utf8_lossy(&unknown.stderr).contains("hint: did you mean `complete`?"));
 
     let twilio = run(&["twilio", "simulate", "hi"]);
@@ -218,7 +218,7 @@ fn direct_help_and_exit_codes_cross_the_real_process_boundary() {
 fn simulate_and_scheduler_cross_the_real_process_boundary() {
     let simulate_help = run(&["wdbx", "simulate", "--help", "ignored-like-zig"]);
     assert!(simulate_help.status.success());
-    assert!(simulate_help.stdout.is_empty());
+    assert_eq!(simulate_help.stdout, [] as [u8; 0]);
     assert!(
         simulate_help
             .stderr
@@ -239,7 +239,7 @@ fn simulate_and_scheduler_cross_the_real_process_boundary() {
         "--quiet",
     ]);
     assert!(simulation.status.success());
-    assert!(simulation.stdout.is_empty());
+    assert_eq!(simulation.stdout, [] as [u8; 0]);
     let json: serde_json::Value =
         serde_json::from_slice(&simulation.stderr).expect("canonical JSON on stderr");
     assert_eq!(json["format"], "abi-multiway-v1");
@@ -248,7 +248,7 @@ fn simulate_and_scheduler_cross_the_real_process_boundary() {
 
     let scheduler = run(&["scheduler", "status"]);
     assert!(scheduler.status.success());
-    assert!(scheduler.stdout.is_empty());
+    assert_eq!(scheduler.stdout, [] as [u8; 0]);
     assert_eq!(
         scheduler.stderr,
         include_bytes!("../../../tests/golden/scheduler-status.txt")
@@ -256,7 +256,7 @@ fn simulate_and_scheduler_cross_the_real_process_boundary() {
 
     let invalid = run(&["wdbx", "simulate", "--depth", "nope"]);
     assert_eq!(invalid.status.code(), Some(2));
-    assert!(invalid.stdout.is_empty());
+    assert_eq!(invalid.stdout, [] as [u8; 0]);
     assert_eq!(
         invalid.stderr,
         b"simulate: --depth: 'nope' is not a valid non-negative integer\n"
@@ -286,7 +286,7 @@ fn auth_status_and_logout_cross_the_real_process_boundary() {
 
     let status = run_with_env(&["auth", "status"], &environment);
     assert!(status.status.success());
-    assert!(status.stdout.is_empty());
+    assert_eq!(status.stdout, [] as [u8; 0]);
     assert_eq!(
         status.stderr,
         b"Authentication Status:\n  Backend:   file (~/.abi/credentials.json)\n  OpenAI:    configured\n  Anthropic: not configured\n  Discord:   not configured\n  Grok:      not configured\n  Twilio:    not configured\n"
@@ -294,7 +294,7 @@ fn auth_status_and_logout_cross_the_real_process_boundary() {
 
     let logout = run_with_env(&["auth", "logout"], &environment);
     assert!(logout.status.success());
-    assert!(logout.stdout.is_empty());
+    assert_eq!(logout.stdout, [] as [u8; 0]);
     assert_eq!(logout.stderr, b"Logged out. Credentials cleared.\n");
     assert!(!path.exists());
 }

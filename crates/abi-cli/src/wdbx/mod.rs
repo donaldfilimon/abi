@@ -341,7 +341,7 @@ mod tests {
         let v: serde_json::Value =
             serde_json::from_str(json.stderr.trim()).expect("json query parses");
         assert_eq!(v["ranking"], "hybrid");
-        assert!(!v["results"].as_array().expect("results").is_empty());
+        assert_ne!(v["results"].as_array().expect("results").len(), 0);
 
         let scoped = run(&[
             "query".to_owned(),

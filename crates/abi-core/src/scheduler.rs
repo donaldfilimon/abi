@@ -479,7 +479,6 @@ mod tests {
     #[test]
     fn a_new_scheduler_is_empty() {
         let scheduler = Scheduler::new();
-        assert!(scheduler.is_empty());
         assert_eq!(scheduler.stats(), Stats::default());
     }
 

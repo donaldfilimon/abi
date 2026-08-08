@@ -387,7 +387,6 @@ mod tests {
     #[test]
     fn a_new_registry_is_empty() {
         let registry = Registry::new();
-        assert!(registry.is_empty());
         assert_eq!(registry.plugin_count(), 0);
     }
 

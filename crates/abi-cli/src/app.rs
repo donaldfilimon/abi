@@ -457,7 +457,7 @@ mod tests {
     fn help_is_emitted_on_stderr() {
         let outcome = run(&args(&["help"]));
         assert_eq!(outcome.exit_code, 0);
-        assert!(outcome.stdout.is_empty());
+        assert_eq!(outcome.stdout, "");
         assert_eq!(
             outcome.stderr,
             include_str!("../../../tests/golden/help.txt")

@@ -59,7 +59,7 @@ mod tests {
         // TMPDIR is shared with `tmpdir_override_is_honoured_on_unix`.
         let _guard = env::lock_for_test();
         let dir = temp_dir();
-        assert!(!dir.as_os_str().is_empty());
+        assert_ne!(dir.as_os_str(), std::ffi::OsStr::new(""));
         assert!(dir.is_dir(), "{} should be a directory", dir.display());
     }
 

@@ -504,7 +504,7 @@ mod tests {
         let server = handle.join().expect("server");
         assert_eq!(server.node().term, 5);
         assert_eq!(server.node().voted_for, None);
-        assert!(server.node().log.is_empty());
+        assert_eq!(server.node().log.len(), 0);
     }
 
     #[test]
@@ -535,7 +535,7 @@ mod tests {
 
         let server = handle.join().expect("server");
         assert_eq!(server.node().term, 9);
-        assert!(server.node().log.is_empty());
+        assert_eq!(server.node().log.len(), 0);
     }
 
     #[test]
@@ -573,7 +573,7 @@ mod tests {
             .expect("reachable");
         server.serve_one().expect("append");
         assert!(read_append_reply(append).expect("reply").ack);
-        assert!(server.node().log[0].data.is_empty());
+        assert_eq!(server.node().log[0].data.len(), 0);
     }
 
     #[test]

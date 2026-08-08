@@ -828,9 +828,9 @@ mod tests {
     #[test]
     fn empty_and_zero_limit_searches_return_no_results() {
         let mut index = HnswIndex::new(2).expect("index");
-        assert!(index.search(&[1.0, 0.0], 3).expect("empty").is_empty());
+        assert_eq!(index.search(&[1.0, 0.0], 3).expect("empty").len(), 0);
         index.insert(1, &[1.0, 0.0]).expect("insert");
-        assert!(index.search(&[1.0, 0.0], 0).expect("zero").is_empty());
+        assert_eq!(index.search(&[1.0, 0.0], 0).expect("zero").len(), 0);
     }
 
     #[test]

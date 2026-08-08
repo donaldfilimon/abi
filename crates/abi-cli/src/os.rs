@@ -469,7 +469,7 @@ mod tests {
                 "/tmp/abi-nonexistent".into(),
             ]);
             assert_eq!(planned.exit_code, 0, "{}", planned.stderr);
-            assert!(planned.stderr.is_empty());
+            assert_eq!(planned.stderr, "");
             assert!(
                 planned
                     .stdout
@@ -489,7 +489,7 @@ mod tests {
             let denied = os_cmd(&["execute".into(), "--confirm".into(), "rm".into()]);
             assert_eq!(denied.exit_code, 1);
             assert!(denied.stderr.contains("denied by os-control policy"));
-            assert!(denied.stdout.is_empty());
+            assert_eq!(denied.stdout, "");
         });
     }
 

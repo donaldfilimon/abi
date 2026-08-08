@@ -608,7 +608,7 @@ mod tests {
         let dir = Scratch::new();
         let store = DurableStore::open(StorePaths::new(&dir.0)).unwrap();
         let ctx = gather_evidence(&store, "hello", 5);
-        assert!(ctx.is_empty());
+        assert_eq!(ctx.items.len(), 0);
         assert_eq!(augment_prompt("hello", &ctx), "hello");
     }
 
@@ -703,7 +703,7 @@ mod tests {
         let dir = Scratch::new();
         let mut store = DurableStore::open(StorePaths::new(&dir.0)).unwrap();
         store.put_vector(&text_embedding("orphan vector")).unwrap();
-        assert!(gather_evidence(&store, "orphan vector", 5).is_empty());
+        assert_eq!(gather_evidence(&store, "orphan vector", 5).items.len(), 0);
     }
 
     #[test]

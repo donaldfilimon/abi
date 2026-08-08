@@ -241,7 +241,7 @@ mod tests {
     fn report_is_claim_honest_about_the_partial_rust_cutover() {
         let output = run(&[]);
         assert_eq!(output.exit_code, 0);
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout, "");
         assert!(output.stderr.contains("Rust nightly"));
         assert!(output.stderr.contains("wdbx               \u{1b}[32m✓"));
         assert!(output.stderr.contains("gpu                \u{1b}[32m✓"));

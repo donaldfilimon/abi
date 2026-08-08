@@ -155,7 +155,7 @@ mod tests {
     #[test]
     fn empty_lines_produce_no_response() {
         let lines = run("\n\n");
-        assert!(lines.is_empty());
+        assert_eq!(lines, [] as [std::string::String; 0]);
     }
 
     #[test]

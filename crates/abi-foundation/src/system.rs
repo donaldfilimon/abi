@@ -263,7 +263,7 @@ mod tests {
     #[test]
     fn hostname_is_never_empty() {
         let name = hostname();
-        assert!(!name.is_empty());
+        assert_ne!(name, "");
     }
 
     #[test]
@@ -281,7 +281,7 @@ mod tests {
         assert_eq!(info.platform, platform());
         assert_eq!(info.arch, arch());
         assert!(info.cpu_count >= 1);
-        assert!(!info.hostname.is_empty());
+        assert_ne!(info.hostname, "");
     }
 
     #[test]

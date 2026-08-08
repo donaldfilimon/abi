@@ -195,7 +195,6 @@ impl MvccSnapshot {
     }
 
     /// Iterate in append order without observing later writes.
-    #[must_use]
     pub fn iter(&self) -> impl ExactSizeIterator<Item = &Arc<MvccBlock>> {
         self.blocks.iter()
     }

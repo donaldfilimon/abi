@@ -310,6 +310,6 @@ mod tests {
 
     #[test]
     fn effective_cpu_backend_is_nonempty() {
-        assert!(!effective_cpu_backend_name().is_empty());
+        assert_ne!(effective_cpu_backend_name(), "");
     }
 }

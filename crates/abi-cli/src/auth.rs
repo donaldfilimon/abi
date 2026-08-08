@@ -348,7 +348,7 @@ mod tests {
 
         let outcome = run(&args(&["status"]));
         assert_eq!(outcome.exit_code, 1);
-        assert!(outcome.stdout.is_empty());
+        assert_eq!(outcome.stdout, "");
         assert!(outcome.stderr.starts_with(
             "Authentication Status:\n  Backend:   file (~/.abi/credentials.json)\nerror:"
         ));

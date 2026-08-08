@@ -1585,7 +1585,7 @@ mod tests {
         let depth_result = run_multiway(&depth, None);
         assert_eq!(depth_result.termination, Termination::MaxDepth);
         assert!(!depth_result.complete);
-        assert!(!depth_result.frontier.is_empty());
+        assert_ne!(depth_result.frontier.len(), 0);
         assert!(
             depth_result
                 .states

@@ -208,7 +208,6 @@ mod tests {
     fn new_logger_starts_empty_at_the_given_level() {
         let logger = Logger::new(Level::Debug);
         assert_eq!(logger.level(), Level::Debug);
-        assert!(logger.is_empty());
         assert_eq!(logger.len(), 0);
     }
 
