@@ -408,7 +408,9 @@ mod tests {
     fn compute_report_discloses_cpu_fallback() {
         let outcome = run(&strings(&["compute", "info"]));
         assert_eq!(outcome.exit_code, 0);
-        assert!(outcome.stderr.contains("native dispatch not linked"));
+        assert!(outcome.stderr.contains("CPU fallback"));
+        assert!(outcome.stderr.contains("service_available="));
+        assert!(outcome.stderr.contains("runtime_verified="));
         assert!(outcome.stderr.contains("native=false"));
         assert!(outcome.stderr.contains("request npu-ane -> effective=cpu-"));
         assert!(outcome.stderr.contains("not production TPU"));
@@ -545,6 +547,31 @@ mod tests {
     }
 
     #[test]
+    fn compute_info_separates_build_and_runtime_evidence() {
+        let outcome = run(&strings(&["compute", "info"]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        for field in [
+            "compiled=",
+            "available=",
+            "initialized=",
+            "executed=",
+            "runtime_verified=",
+        ] {
+            assert!(outcome.stderr.contains(field), "{}", outcome.stderr);
+        }
+        assert!(
+            outcome
+                .stderr
+                .contains("requested_compute_units=cpuAndNeuralEngine")
+        );
+        assert!(outcome.stderr.contains("runtime_residency_verified=false"));
+        assert!(
+            outcome.stderr.contains("GPU fallback active")
+                || outcome.stderr.contains("Metal numerical execution matched")
+        );
+    }
+
+    #[test]
     fn rest_server_health_is_reachable_on_loopback() {
         use std::io::{Read, Write};
 
@@ -597,10 +624,92 @@ mod tests {
     }
 
     #[test]
-    fn compact_rejects_zero_at_the_grammar_boundary() {
-        let outcome = run(&strings(&["db", "compact", "unused", "0"]));
-        assert_eq!(outcome.exit_code, 2);
-        assert_eq!(outcome.stderr, USAGE);
+    fn compact_codec_parser_is_strict() {
+        for args in [
+            &["db", "compact", "unused", "0"][..],
+            &["db", "compact", "unused", "--codec"][..],
+            &["db", "compact", "unused", "--codec", "unknown"][..],
+            &["db", "compact", "unused", "--codec", "none", "extra"][..],
+            &["db", "compact", "unused", "--other", "none"][..],
+        ] {
+            let outcome = run(&strings(args));
+            assert_eq!(outcome.exit_code, 2);
+            assert_eq!(outcome.stderr, USAGE);
+        }
+    }
+
+    #[test]
+    fn compact_none_publishes_an_exact_v2_segment() {
+        let fixture = Fixture::new();
+        let raw_path = fixture.raw_path();
+        let paths = paths_from_cli_base(&raw_path).unwrap();
+        let mut store = VersionedStore::open(paths.clone()).unwrap();
+        let id = store.put_vector(&[1.0, -0.0, 0.25]).unwrap();
+        let before = store.get_vector(id).unwrap().preferred.value;
+        drop(store);
+
+        let outcome = run(&strings(&["db", "compact", &raw_path]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(
+            outcome
+                .stderr
+                .contains("codec=none lossy=false artifact=none")
+        );
+        assert!(!outcome.stderr.contains("lossy-vector-reconstruction"));
+        let explicit = run(&strings(&["db", "compact", &raw_path, "--codec", "none"]));
+        assert_eq!(explicit.exit_code, 0, "{}", explicit.stderr);
+        assert!(explicit.stderr.contains("codec=none lossy=false"));
+
+        let reopened = VersionedStore::open(paths).unwrap();
+        let after = reopened.get_vector(id).unwrap().preferred.value;
+        assert_eq!(
+            before
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            after
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn learned_compaction_is_explicitly_lossy_and_reports_quality_evidence() {
+        for codec in ["pq", "autoencoder"] {
+            let fixture = Fixture::new();
+            let raw_path = fixture.raw_path();
+            let paths = paths_from_cli_base(&raw_path).unwrap();
+            let mut store = VersionedStore::open(paths.clone()).unwrap();
+            store.put("metadata", "preserved").unwrap();
+            for index in 0_u8..8 {
+                let value = f32::from(index) / 8.0;
+                store
+                    .put_vector(&[value, value * value, value.sin(), value.cos()])
+                    .unwrap();
+            }
+            drop(store);
+
+            let outcome = run(&strings(&["db", "compact", &raw_path, "--codec", codec]));
+            assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+            assert!(
+                outcome
+                    .stderr
+                    .contains(&format!("codec={codec} lossy=true"))
+            );
+            assert!(
+                outcome
+                    .stderr
+                    .contains("warning=lossy-vector-reconstruction")
+            );
+            assert!(outcome.stderr.contains("reconstruction_mse="));
+            assert!(outcome.stderr.contains("compression_ratio="));
+            assert!(outcome.stderr.contains("recall_at_k="));
+
+            let reopened = VersionedStore::open(paths).unwrap();
+            assert_eq!(reopened.get("metadata").as_deref(), Some("preserved"));
+            assert_eq!(reopened.stats().vectors, 8);
+        }
     }
 
     #[test]

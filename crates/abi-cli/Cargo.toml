@@ -22,6 +22,7 @@ abi-plugins = { workspace = true }
 abi-foundation = { workspace = true }
 abi-telemetry = { workspace = true }
 abi-ai = { workspace = true }
+abi-compute = { workspace = true }
 abi-sea = { workspace = true }
 abi-nn = { workspace = true }
 abi-gpu = { workspace = true }

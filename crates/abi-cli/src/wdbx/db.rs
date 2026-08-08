@@ -5,17 +5,20 @@
 use crate::app::Outcome;
 use crate::usage::is_help_token;
 use crate::wdbx::paths_from_cli_base;
-use abi_wdbx::Wal;
 use abi_wdbx::v2::{
     ABI_WDBX_ENCRYPTION_KEY_FILE, ABI_WDBX_SIGNING_KEY_FILE, ABI_WDBX_VERIFY_KEY_FILE,
     MigrationStatus, ObjectSecurity, VersionedSnapshot, gc_versioned, generate_key_material,
     migration_status, open_versioned_read_only, rekey_versioned, verify_versioned,
     write_key_material,
 };
+use abi_wdbx::{
+    AutoencoderConfigV1, CompactionReport, PqConfigV1, SegmentCodecKind, SegmentCodecPolicy,
+    VersionedStore, Wal,
+};
 use std::fmt::Write;
 use std::path::Path;
 
-pub(crate) const DB_HELP: &str = "usage: abi wdbx db <init|verify|compact> <path> [keep]\n       abi wdbx db verify <path> --require-signature\n       abi wdbx db migration-status <path>\n       abi wdbx db migration-dry-run <path>\n       abi wdbx db keygen <directory>\n       abi wdbx db rekey <path> <new-key-directory> --confirm\n       abi wdbx db gc <path> --confirm\n\nManage segment checkpoints, WAL recovery, snapshot integrity, and v2 object keys.\n";
+pub(crate) const DB_HELP: &str = "usage: abi wdbx db <init|verify> <path>\n       abi wdbx db compact <path> [--codec none|pq|autoencoder]\n       abi wdbx db verify <path> --require-signature\n       abi wdbx db migration-status <path>\n       abi wdbx db migration-dry-run <path>\n       abi wdbx db keygen <directory>\n       abi wdbx db rekey <path> <new-key-directory> --confirm\n       abi wdbx db gc <path> --confirm\n\nManage segment checkpoints, WAL recovery, snapshot integrity, and v2 object keys.\nCodec none preserves vector bits exactly. PQ and autoencoder are explicit lossy vector representations and report persisted quality evidence.\n";
 
 fn keygen(directory: &str) -> Outcome {
     let directory = Path::new(directory);
@@ -301,27 +304,99 @@ fn gc(raw_path: &str) -> Outcome {
     )
 }
 
-fn compact_db(raw_path: &str, keep_latest: usize) -> Outcome {
+fn codec_label(codec: SegmentCodecKind) -> &'static str {
+    match codec {
+        SegmentCodecKind::None => "none",
+        SegmentCodecKind::Pq => "pq",
+        SegmentCodecKind::Autoencoder => "autoencoder",
+    }
+}
+
+fn learned_codec_policy(
+    store: &VersionedStore,
+    codec: SegmentCodecKind,
+) -> Result<SegmentCodecPolicy, String> {
+    if codec == SegmentCodecKind::None {
+        return Ok(SegmentCodecPolicy::None);
+    }
+    let snapshot = store.snapshot();
+    let dimensions = snapshot.vector_dimensions().ok_or_else(|| {
+        "lossy codec compaction requires a non-empty, single-dimension vector space".to_owned()
+    })?;
+    let records = snapshot.vector_count();
+    if records < 2 {
+        return Err("lossy codec compaction requires at least two vector records".to_owned());
+    }
+    let recall_k = records.saturating_sub(1).min(3);
+    match codec {
+        SegmentCodecKind::None => Ok(SegmentCodecPolicy::None),
+        SegmentCodecKind::Pq => Ok(SegmentCodecPolicy::Pq(PqConfigV1 {
+            dimensions,
+            subspaces: dimensions.min(3),
+            centroids: records.min(8),
+            iterations: 20,
+            seed: 0xD15C_A11E,
+            recall_k,
+        })),
+        SegmentCodecKind::Autoencoder if dimensions < 2 => {
+            Err("autoencoder compaction requires vectors with at least two dimensions".to_owned())
+        }
+        SegmentCodecKind::Autoencoder => Ok(SegmentCodecPolicy::Autoencoder(AutoencoderConfigV1 {
+            input_dimensions: dimensions,
+            latent_dimensions: (dimensions / 2).max(1),
+            seed: 0xA070_EC0D,
+            epochs: 200,
+            learning_rate: 0.08,
+            recall_k,
+        })),
+    }
+}
+
+fn compaction_report(raw_path: &str, report: &CompactionReport) -> String {
+    let codec = codec_label(report.codec);
+    let lossy = report.codec != SegmentCodecKind::None;
+    let artifact = report.artifact_id.as_deref().unwrap_or("none");
+    let mut output = format!(
+        "compacted WDBX v2: path={raw_path} segment={} object_id={} codec={codec} lossy={lossy} artifact={artifact} encrypted={} signed={} covered_writer_heads={}",
+        report.path.display(),
+        report.object_id,
+        report.encrypted,
+        report.signed,
+        report.covered_heads.len()
+    );
+    if let Some(metrics) = &report.codec_metrics {
+        write!(
+            output,
+            " warning=lossy-vector-reconstruction reconstruction_mse={} compression_ratio={} recall_at_k={} recall_k={}",
+            metrics.reconstruction_mse,
+            metrics.compression_ratio,
+            metrics.recall_at_k,
+            metrics.recall_k
+        )
+        .expect("writing to a String cannot fail");
+    }
+    output.push('\n');
+    output
+}
+
+fn compact_db(raw_path: &str, codec: SegmentCodecKind) -> Outcome {
     let paths = match paths_from_cli_base(raw_path) {
         Ok(paths) => paths,
         Err(detail) => return super::error("compact FAILED", detail),
     };
-    let result = match abi_wdbx::segments::compact_retain_latest(&paths, keep_latest) {
-        Ok(result) => result,
+    let mut store = match VersionedStore::open(paths) {
+        Ok(store) => store,
         Err(detail) => return super::error(&format!("compact FAILED: {raw_path}"), detail),
     };
-    let latest = result
-        .latest_epoch
-        .map_or_else(|| "none".to_owned(), |epoch| epoch.to_string());
-    let mut report = format!(
-        "compacted WDBX segments: path={raw_path} keep_latest={} before={} after={} deleted={} latest_epoch={latest}",
-        result.keep_latest, result.before, result.after, result.deleted
-    );
-    if let Some(watermark) = result.watermark_epoch {
-        write!(report, " watermark_epoch={watermark}").expect("writing to a String cannot fail");
-    }
-    report.push('\n');
-    Outcome::stderr(report, 0)
+    let policy = match learned_codec_policy(&store, codec) {
+        Ok(policy) => policy,
+        Err(detail) => return super::error(&format!("compact FAILED: {raw_path}"), detail),
+    };
+    let report = match store.compact_with_codec(policy) {
+        Ok(report) => report,
+        Err(detail) => return super::error(&format!("compact FAILED: {raw_path}"), detail),
+    };
+    Outcome::stderr(compaction_report(raw_path, &report), 0)
 }
 
 pub(crate) fn run_db(args: &[String]) -> Outcome {
@@ -343,11 +418,15 @@ pub(crate) fn run_db(args: &[String]) -> Outcome {
             rekey(path, key_directory)
         }
         [operation, path, confirm] if operation == "gc" && confirm == "--confirm" => gc(path),
-        [operation, path] if operation == "compact" => compact_db(path, 2),
-        [operation, path, keep] if operation == "compact" => match keep.parse::<usize>() {
-            Ok(keep) if keep > 0 => compact_db(path, keep),
-            _ => super::usage(),
-        },
+        [operation, path] if operation == "compact" => compact_db(path, SegmentCodecKind::None),
+        [operation, path, flag, codec] if operation == "compact" && flag == "--codec" => {
+            match codec.as_str() {
+                "none" => compact_db(path, SegmentCodecKind::None),
+                "pq" => compact_db(path, SegmentCodecKind::Pq),
+                "autoencoder" => compact_db(path, SegmentCodecKind::Autoencoder),
+                _ => super::usage(),
+            }
+        }
         _ => super::usage(),
     }
 }

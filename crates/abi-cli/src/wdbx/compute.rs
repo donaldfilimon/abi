@@ -3,18 +3,23 @@
 //! Split from the flat `wdbx` CLI module; dispatch lives in `super::run`.
 
 use crate::app::Outcome;
+use abi_compute::{Accelerator as _, CapabilityState};
 use std::fmt::Write;
 
 pub(crate) const COMPUTE_HELP: &str = "usage: abi wdbx compute info\n\nReport CPU/GPU/NPU/TPU backend selection and fallback state.\n";
 
 fn compute_info() -> Outcome {
-    let mut report = String::from(
-        "compute backends (native dispatch not linked in this build; CPU fallback active):\n",
-    );
+    let metal = abi_gpu::MetalAccelerator::new();
+    let query = [1.0_f32, 0.0];
+    let matching = [1.0_f32, 0.0];
+    let unrelated = [0.0_f32, 1.0];
+    let probe = metal.top_k(&query, &[&matching, &unrelated], 2);
+
+    let mut report = String::from("compute capability evidence (CPU fallback is deterministic):\n");
     for capability in abi_wdbx::capabilities() {
         writeln!(
             report,
-            "  {:<10} class={:<3} available={} native={}",
+            "  compat {:<10} class={:<3} service_available={} native={}",
             capability.backend.name(),
             capability.backend.class(),
             capability.available,
@@ -22,11 +27,23 @@ fn compute_info() -> Outcome {
         )
         .expect("writing to a String cannot fail");
     }
+    for state in [
+        metal.capability(),
+        abi_gpu::CudaAccelerator::new().capability(),
+        abi_gpu::VulkanAccelerator::new().capability(),
+        abi_gpu::CoreMlAneAccelerator::new().capability(),
+    ] {
+        write_capability_state(&mut report, state);
+    }
+    if let Err(detail) = probe {
+        writeln!(report, "metal oracle probe: error={detail}")
+            .expect("writing to a String cannot fail");
+    }
     let best = abi_wdbx::best_cpu_backend();
     let selection = abi_wdbx::select(abi_wdbx::Backend::NpuAne);
     writeln!(
         report,
-        "dynamic selection: best_cpu={}; request npu-ane -> effective={} ({})",
+        "legacy selection: best_cpu={}; request npu-ane -> effective={} ({})",
         best.name(),
         selection.effective.name(),
         selection.message
@@ -34,7 +51,7 @@ fn compute_info() -> Outcome {
     .expect("writing to a String cannot fail");
     writeln!(
         report,
-        "apple neural engine: hardware_present={} native_dispatch=false (CoreML/ANE path requires Apple frameworks, not linked; CPU fallback)",
+        "apple neural engine: hardware_present={} requested_compute_units=cpuAndNeuralEngine; inference_executed=false runtime_residency_verified=false",
         abi_wdbx::ane_hardware_present()
     )
     .expect("writing to a String cannot fail");
@@ -64,6 +81,21 @@ fn compute_info() -> Outcome {
         }
     }
     Outcome::stderr(report, 0)
+}
+
+fn write_capability_state(report: &mut String, state: CapabilityState) {
+    writeln!(
+        report,
+        "  evidence {:<10} compiled={} available={} initialized={} executed={} runtime_verified={} message={}",
+        state.backend().name(),
+        state.compiled(),
+        state.available(),
+        state.initialized(),
+        state.executed(),
+        state.runtime_verified(),
+        state.message(),
+    )
+    .expect("writing to a String cannot fail");
 }
 
 pub(crate) fn run_compute(args: &[String]) -> Outcome {
