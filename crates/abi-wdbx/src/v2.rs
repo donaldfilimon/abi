@@ -5,189 +5,28 @@
 //! shared manifest or process-wide writer lock is required. A transaction is
 //! visible only after a hash-covered commit frame has been durably appended.
 
+mod index;
+mod lifecycle;
+mod types;
+
+pub use index::{V2SearchResult, V2VectorIndex};
+pub use lifecycle::{
+    MigrationError, MigrationReport, MigrationStatus, VersionedSnapshot, migration_status,
+    open_versioned_read_only, open_versioned_writable,
+};
+pub use types::{
+    CausalHeads, ConflictSet, MAX_V2_VECTOR_DIMENSIONS, RecordId, V2AuditBlock, V2Error,
+    V2Mutation, V2Snapshot, V2SpatialRecord, V2TemporalKind, V2TemporalRecord, Version,
+};
+
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fs::OpenOptions;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use uuid::Uuid;
-
-/// Historical numeric identities and v2 UUID identities share one public type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum RecordId {
-    /// Identity read from a v1 store or accepted at a compatibility boundary.
-    Legacy(u64),
-    /// Stable v2 identity, serialized as a UUID string.
-    V2(Uuid),
-}
-
-impl RecordId {
-    /// Allocate a new v2 identity.
-    #[must_use]
-    pub fn new_v2() -> Self {
-        Self::V2(Uuid::new_v4())
-    }
-}
-
-impl std::fmt::Display for RecordId {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Legacy(id) => write!(formatter, "{id}"),
-            Self::V2(id) => write!(formatter, "{id}"),
-        }
-    }
-}
-
-/// Highest committed sequence observed for each writer.
-pub type CausalHeads = BTreeMap<Uuid, u64>;
-
-/// Maximum vector width accepted by v2 stores.
-pub const MAX_V2_VECTOR_DIMENSIONS: usize = 4096;
-
-/// A mutation carried by one causal transaction.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum V2Mutation {
-    /// Write one key/value version.
-    PutKv {
-        /// Logical key.
-        key: String,
-        /// Versioned value.
-        value: String,
-    },
-    /// Write one vector under a stable public identity.
-    PutVector {
-        /// Stable public vector identity.
-        id: RecordId,
-        /// Finite vector components.
-        values: Vec<f32>,
-    },
-}
-
-/// One committed multi-version value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Version<T> {
-    /// Stable version identity used by explicit conflict resolution.
-    pub version_id: Uuid,
-    /// Writer that created this value.
-    pub writer_id: Uuid,
-    /// Writer-local committed sequence.
-    pub sequence: u64,
-    /// Causal frontier observed before the transaction was written.
-    pub observed_heads: CausalHeads,
-    /// Stored value.
-    pub value: T,
-}
-
-impl<T> Version<T> {
-    fn dominates<U>(&self, other: &Version<U>) -> bool {
-        self.writer_id == other.writer_id && self.sequence >= other.sequence
-            || self
-                .observed_heads
-                .get(&other.writer_id)
-                .is_some_and(|sequence| *sequence >= other.sequence)
-    }
-}
-
-/// Preferred current version plus every unresolved concurrent version.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ConflictSet<T> {
-    /// Deterministic preferred version. Preference is presentation only; it
-    /// does not resolve or discard the other versions.
-    pub preferred: Version<T>,
-    /// Concurrent current versions in deterministic identity order.
-    pub conflicts: Vec<Version<T>>,
-}
-
-/// Immutable recovered v2 state. Views retain an `Arc` to this snapshot.
-#[derive(Debug, Clone, Default)]
-pub struct V2Snapshot {
-    heads: CausalHeads,
-    kv: BTreeMap<String, Vec<Version<String>>>,
-    vectors: BTreeMap<RecordId, Vec<Version<Vec<f32>>>>,
-    committed_transactions: usize,
-}
-
-impl V2Snapshot {
-    /// Causal frontier represented by this snapshot.
-    #[must_use]
-    pub fn heads(&self) -> &CausalHeads {
-        &self.heads
-    }
-
-    /// Number of verified committed transactions replayed.
-    #[must_use]
-    pub fn committed_transactions(&self) -> usize {
-        self.committed_transactions
-    }
-
-    /// Return the maximal causal versions for a key.
-    #[must_use]
-    pub fn get(&self, key: &str) -> Option<ConflictSet<String>> {
-        current_versions(self.kv.get(key)?)
-    }
-
-    /// Return the maximal causal versions for one vector identity.
-    #[must_use]
-    pub fn get_vector(&self, id: RecordId) -> Option<ConflictSet<Vec<f32>>> {
-        current_versions(self.vectors.get(&id)?)
-    }
-
-    /// All stable vector identities in this immutable view.
-    pub fn vector_ids(&self) -> impl Iterator<Item = RecordId> + '_ {
-        self.vectors.keys().copied()
-    }
-}
-
-fn current_versions<T: Clone>(versions: &[Version<T>]) -> Option<ConflictSet<T>> {
-    let mut current: Vec<_> = versions
-        .iter()
-        .filter(|candidate| {
-            !versions
-                .iter()
-                .any(|other| other.version_id != candidate.version_id && other.dominates(candidate))
-        })
-        .cloned()
-        .collect();
-    current.sort_by_key(|version| version.version_id);
-    let preferred = current.pop()?;
-    Some(ConflictSet {
-        preferred,
-        conflicts: current,
-    })
-}
-
-/// V2 persistence or validation failure.
-#[derive(Debug, thiserror::Error)]
-pub enum V2Error {
-    /// Filesystem operation failed.
-    #[error("WDBX v2 I/O failed for {path}: {message}")]
-    Io {
-        /// Object being accessed.
-        path: PathBuf,
-        /// Underlying I/O detail.
-        message: String,
-    },
-    /// A committed journal transaction was malformed or failed verification.
-    #[error("WDBX v2 journal {path} is corrupt at line {line}: {reason}")]
-    CorruptJournal {
-        /// Journal being replayed.
-        path: PathBuf,
-        /// One-based frame line.
-        line: usize,
-        /// Verification failure.
-        reason: String,
-    },
-    /// A mutation was rejected before any bytes were appended.
-    #[error("invalid WDBX v2 mutation: {0}")]
-    InvalidMutation(String),
-    /// Explicit resolution did not name exactly the current conflicting set.
-    #[error("conflict resolution set does not match the current versions")]
-    StaleResolution,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BeginFrame {
@@ -227,21 +66,19 @@ impl V2Store {
         ensure_dir(&root.join("journals"))?;
         ensure_dir(&root.join("heads"))?;
         let version_path = root.join("VERSION");
-        if !version_path.exists() {
-            match OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(&version_path)
-            {
-                Ok(mut file) => {
-                    file.write_all(b"ABI-WDBX 2\n")
-                        .map_err(|error| io_error(&version_path, &error))?;
-                    file.sync_all()
-                        .map_err(|error| io_error(&version_path, &error))?;
-                }
-                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-                Err(error) => return Err(io_error(&version_path, &error)),
-            }
+        if !version_path.exists()
+            && let Err(error) = atomic_write(&version_path, b"ABI-WDBX 2\n")
+            && !version_path.exists()
+        {
+            return Err(error);
+        }
+        let found =
+            std::fs::read(&version_path).map_err(|error| io_error(&version_path, &error))?;
+        if found != b"ABI-WDBX 2\n" {
+            return Err(V2Error::UnsupportedVersion {
+                path: version_path,
+                found: String::from_utf8_lossy(&found).into_owned(),
+            });
         }
         let writer_id = Uuid::new_v4();
         let snapshot = Arc::new(recover(&root)?);
@@ -373,10 +210,46 @@ fn validate_mutations(mutations: &[V2Mutation]) -> Result<(), V2Error> {
                     "vectors must contain only finite values".into(),
                 ));
             }
+            V2Mutation::PutSpatial { record }
+                if [record.x, record.y, record.z]
+                    .iter()
+                    .any(|value| !value.is_finite()) =>
+            {
+                return Err(V2Error::InvalidMutation(
+                    "spatial coordinates must contain only finite values".into(),
+                ));
+            }
+            V2Mutation::PutTemporal { key, .. } if key.is_empty() => {
+                return Err(V2Error::InvalidMutation(
+                    "temporal keys must not be empty".into(),
+                ));
+            }
+            V2Mutation::PutAudit { block }
+                if !valid_hash(&block.hash)
+                    || block.parents.iter().any(|parent| !valid_hash(parent)) =>
+            {
+                return Err(V2Error::InvalidMutation(
+                    "audit hashes must be 64 lowercase hexadecimal characters".into(),
+                ));
+            }
+            V2Mutation::PutAudit { block }
+                if block.parents.iter().any(|parent| parent == &block.hash) =>
+            {
+                return Err(V2Error::InvalidMutation(
+                    "an audit block cannot name itself as a parent".into(),
+                ));
+            }
             _ => {}
         }
     }
     Ok(())
+}
+
+fn valid_hash(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 fn transaction_hash(begin: &BeginFrame, mutations: &[V2Mutation]) -> Result<String, V2Error> {
@@ -546,6 +419,34 @@ fn apply_transaction(snapshot: &mut V2Snapshot, begin: &BeginFrame, mutations: V
                     observed_heads: begin.observed_heads.clone(),
                     value: values,
                 });
+            }
+            V2Mutation::PutSpatial { record } => {
+                snapshot
+                    .spatial
+                    .entry(record.id)
+                    .or_default()
+                    .push(Version {
+                        version_id,
+                        writer_id: begin.writer_id,
+                        sequence: begin.sequence,
+                        observed_heads: begin.observed_heads.clone(),
+                        value: record,
+                    });
+            }
+            V2Mutation::PutTemporal { key, record } => {
+                snapshot.temporal.entry(key).or_default().push(Version {
+                    version_id,
+                    writer_id: begin.writer_id,
+                    sequence: begin.sequence,
+                    observed_heads: begin.observed_heads.clone(),
+                    value: record,
+                });
+            }
+            V2Mutation::PutAudit { block } => {
+                if !snapshot.audit.contains_key(&block.hash) {
+                    snapshot.audit_order.push(block.hash.clone());
+                }
+                snapshot.audit.insert(block.hash.clone(), block);
             }
         }
     }
