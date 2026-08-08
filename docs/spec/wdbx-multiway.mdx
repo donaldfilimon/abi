@@ -88,8 +88,9 @@ Configurable per experiment: `max_depth`, `max_states`, `max_events`, `max_paylo
 
 ## WDBX persistence layout
 
-`persist_multiway` writes experiments through `DurableStore` and then creates a
-checkpoint; it does not introduce a second storage architecture:
+`persist_multiway` writes experiments through the v2 `VersionedStore` facade
+and publishes a covering immutable segment; it does not introduce a second
+storage architecture:
 
 - **Canonical states** — each payload stored content-addressed under `multiway:state:<sha256-hex>`. Identical payloads across experiments share one entry (no duplicate payloads).
 - **Experiment export** — the full canonical JSON (config, config hash, rules,

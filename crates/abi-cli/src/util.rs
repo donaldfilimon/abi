@@ -1,18 +1,18 @@
 //! Shared CLI utilities.
 
-use abi_wdbx::{DurableStore, StorePaths};
+use abi_wdbx::{StorePaths, VersionedError, VersionedStore};
 
 /// Resolve the durable store the same way MCP does.
 ///
 /// `Ok(None)` means persistence was deliberately disabled or no home path is
 /// available. An actual open/recovery/lock failure remains an error so callers
 /// can disclose it instead of misreporting `no-store`.
-pub(crate) fn open_store_result() -> Result<Option<DurableStore>, abi_wdbx::DurableError> {
+pub(crate) fn open_store_result() -> Result<Option<VersionedStore>, VersionedError> {
     if let Some(path) = abi_foundation::env::get(abi_foundation::env::WDBX_PATH) {
         if path == ":memory:" {
             return Ok(None);
         }
-        return DurableStore::open(StorePaths::new(path)).map(Some);
+        return VersionedStore::open(StorePaths::new(path)).map(Some);
     }
     if abi_foundation::env::get(abi_foundation::env::WDBX_PERSIST)
         .is_some_and(|value| matches!(value.as_str(), "0" | "false" | "no" | "off"))
@@ -22,7 +22,7 @@ pub(crate) fn open_store_result() -> Result<Option<DurableStore>, abi_wdbx::Dura
     let Some(home) = default_store_home() else {
         return Ok(None);
     };
-    DurableStore::open(StorePaths::new(format!("{home}/.abi/wdbx"))).map(Some)
+    VersionedStore::open(StorePaths::new(format!("{home}/.abi/wdbx"))).map(Some)
 }
 
 /// Home directory backing the default `~/.abi/wdbx` store.
@@ -44,7 +44,7 @@ pub(crate) fn default_store_home() -> Option<String> {
 /// Compatibility helper for completion/training paths that already disclose
 /// persistence only as available/unavailable. Security-sensitive callers such
 /// as OS audit should use [`open_store_result`] and preserve the error detail.
-pub(crate) fn open_store() -> Option<DurableStore> {
+pub(crate) fn open_store() -> Option<VersionedStore> {
     open_store_result().ok().flatten()
 }
 

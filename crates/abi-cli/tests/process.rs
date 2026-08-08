@@ -70,7 +70,7 @@ fn process_harness_honors_an_isolated_store_override() {
         "the CLI test must not open HOME/.abi"
     );
 
-    let persisted = abi_wdbx::DurableStore::open(abi_wdbx::StorePaths::new(store.path()))
+    let persisted = abi_wdbx::VersionedStore::open(abi_wdbx::StorePaths::new(store.path()))
         .expect("reopen isolated process-test store");
     let stats = persisted.stats();
     assert_eq!(stats.kv_entries, 1);

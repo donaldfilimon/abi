@@ -21,6 +21,7 @@ use abi_connectors::{
 };
 use abi_foundation::credentials::{self, CredentialField};
 use abi_sea::{LearnLoopConfig, run_learn_loop};
+use abi_wdbx::RecordId;
 
 use crate::app::Outcome;
 use crate::util;
@@ -39,8 +40,8 @@ struct MetaReport<'a> {
     kv: usize,
     vectors: usize,
     blocks: usize,
-    query_id: Option<u64>,
-    response_id: Option<u64>,
+    query_id: Option<RecordId>,
+    response_id: Option<RecordId>,
     block_hex: Option<&'a str>,
     wdbx_status: Option<&'a str>,
     output: &'a str,
@@ -110,7 +111,7 @@ fn run_local(input: &str, model: &str) -> Outcome {
                 (Some(q), Some(r)) => {
                     let metadata = abi_ai::completion::metadata_json(input, &result, q, r);
                     let key = abi_ai::completion::metadata_key(q);
-                    store.put(&key, &metadata).ok().and_then(|()| {
+                    store.put(&key, &metadata).ok().and_then(|_| {
                         store
                             .add_block(
                                 result.selected_profile.label(),
@@ -120,7 +121,7 @@ fn run_local(input: &str, model: &str) -> Outcome {
                                 abi_foundation::time::unix_ms(),
                             )
                             .ok()
-                            .map(|block| (q, r, block.hash.to_hex()))
+                            .map(|block| (q, r, block.hash))
                     })
                 }
                 _ => None,

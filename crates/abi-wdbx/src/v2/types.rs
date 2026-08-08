@@ -23,6 +23,12 @@ impl RecordId {
     }
 }
 
+impl From<u64> for RecordId {
+    fn from(id: u64) -> Self {
+        Self::Legacy(id)
+    }
+}
+
 impl std::fmt::Display for RecordId {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -148,7 +154,7 @@ pub struct Version<T> {
 
 impl<T> Version<T> {
     pub(super) fn dominates<U>(&self, other: &Version<U>) -> bool {
-        self.writer_id == other.writer_id && self.sequence >= other.sequence
+        self.writer_id == other.writer_id && self.sequence > other.sequence
             || self
                 .observed_heads
                 .get(&other.writer_id)
@@ -192,10 +198,68 @@ impl V2Snapshot {
         self.committed_transactions
     }
 
+    /// Number of logical key/value entries. Concurrent versions count as one key.
+    #[must_use]
+    pub fn kv_count(&self) -> usize {
+        self.kv.len()
+    }
+
+    /// Number of stable vector identities. Concurrent versions count as one identity.
+    #[must_use]
+    pub fn vector_count(&self) -> usize {
+        self.vectors.len()
+    }
+
+    /// Number of stable spatial identities. Concurrent versions count as one identity.
+    #[must_use]
+    pub fn spatial_count(&self) -> usize {
+        self.spatial.len()
+    }
+
+    /// Number of temporal logical keys of one kind, using the preferred current
+    /// version only for presentation while preserving conflicts in the store.
+    #[must_use]
+    pub fn temporal_count(&self, kind: V2TemporalKind) -> usize {
+        self.temporal
+            .values()
+            .filter_map(|versions| preferred_version(versions))
+            .filter(|version| version.value.kind == kind)
+            .count()
+    }
+
+    /// Number of immutable audit DAG blocks.
+    #[must_use]
+    pub fn audit_count(&self) -> usize {
+        self.audit.len()
+    }
+
+    /// Shared vector dimensionality when all preferred current vectors agree.
+    /// Empty or mixed-dimension snapshots return `None`.
+    #[must_use]
+    pub fn vector_dimensions(&self) -> Option<usize> {
+        let mut dimensions = None;
+        for versions in self.vectors.values() {
+            let width = preferred_version(versions)?.value.len();
+            match dimensions {
+                None => dimensions = Some(width),
+                Some(existing) if existing == width => {}
+                Some(_) => return None,
+            }
+        }
+        dimensions
+    }
+
     /// Return the maximal causal versions for a key.
     #[must_use]
     pub fn get(&self, key: &str) -> Option<ConflictSet<String>> {
         current_versions(self.kv.get(key)?)
+    }
+
+    /// Borrow the deterministic preferred key/value version without resolving
+    /// or discarding concurrent values.
+    #[must_use]
+    pub fn preferred_value(&self, key: &str) -> Option<&str> {
+        preferred_version(self.kv.get(key)?).map(|version| version.value.as_str())
     }
 
     /// Return the maximal causal versions for one vector identity.
@@ -229,9 +293,105 @@ impl V2Snapshot {
             .filter_map(|hash| self.audit.get(hash))
     }
 
+    /// Current audit-DAG heads in deterministic hash order.
+    #[must_use]
+    pub fn audit_heads(&self) -> Vec<String> {
+        let parents = self
+            .audit
+            .values()
+            .flat_map(|block| block.parents.iter().cloned())
+            .collect::<std::collections::BTreeSet<_>>();
+        self.audit
+            .keys()
+            .filter(|hash| !parents.contains(*hash))
+            .cloned()
+            .collect()
+    }
+
+    /// Verify that every audit parent exists and that parent edges form a DAG.
+    pub fn verify_audit_dag(&self) -> Result<(), String> {
+        fn visit(
+            hash: &str,
+            blocks: &BTreeMap<String, V2AuditBlock>,
+            visiting: &mut std::collections::BTreeSet<String>,
+            visited: &mut std::collections::BTreeSet<String>,
+        ) -> Result<(), String> {
+            if visited.contains(hash) {
+                return Ok(());
+            }
+            if !visiting.insert(hash.to_owned()) {
+                return Err(format!("audit cycle reaches {hash}"));
+            }
+            let block = blocks
+                .get(hash)
+                .ok_or_else(|| format!("missing audit block {hash}"))?;
+            for parent in &block.parents {
+                if !blocks.contains_key(parent) {
+                    return Err(format!("audit block {hash} has missing parent {parent}"));
+                }
+                visit(parent, blocks, visiting, visited)?;
+            }
+            visiting.remove(hash);
+            visited.insert(hash.to_owned());
+            Ok(())
+        }
+
+        let mut visiting = std::collections::BTreeSet::new();
+        let mut visited = std::collections::BTreeSet::new();
+        for hash in self.audit.keys() {
+            visit(hash, &self.audit, &mut visiting, &mut visited)?;
+        }
+        Ok(())
+    }
+
+    /// Preferred current spatial values in stable identity order.
+    #[must_use]
+    pub fn preferred_spatial_records(&self) -> Vec<&V2SpatialRecord> {
+        self.spatial
+            .values()
+            .filter_map(|versions| preferred_version(versions))
+            .map(|version| &version.value)
+            .collect()
+    }
+
+    /// Preferred current temporal values in logical-key order.
+    #[must_use]
+    pub fn preferred_temporal_records(&self) -> Vec<&V2TemporalRecord> {
+        self.temporal
+            .values()
+            .filter_map(|versions| preferred_version(versions))
+            .map(|version| &version.value)
+            .collect()
+    }
+
     /// All stable vector identities in this immutable view.
     pub fn vector_ids(&self) -> impl Iterator<Item = RecordId> + '_ {
         self.vectors.keys().copied()
+    }
+
+    /// Choose a deterministic vector at the recovered causal frontier.
+    ///
+    /// A later same-writer version or a version that observed another writer's
+    /// head dominates that older vector. Concurrent maximal vectors are all
+    /// retained; this presentation-only selector breaks their tie by version
+    /// identity and then stable record identity.
+    #[must_use]
+    pub fn causal_focus_vector_id(&self) -> Option<RecordId> {
+        let candidates = self
+            .vectors
+            .iter()
+            .filter_map(|(id, versions)| preferred_version(versions).map(|version| (*id, version)))
+            .collect::<Vec<_>>();
+        candidates
+            .iter()
+            .copied()
+            .filter(|(_, candidate)| {
+                !candidates.iter().any(|(_, other)| {
+                    other.version_id != candidate.version_id && other.dominates(candidate)
+                })
+            })
+            .max_by_key(|(id, version)| (version.version_id, *id))
+            .map(|(id, _)| id)
     }
 
     /// Retain this snapshot behind an `Arc` for mutation-safe consumers.

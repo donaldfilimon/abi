@@ -3,7 +3,7 @@
 //! Ported from `src/features/sea/evidence.zig`.
 
 use abi_ai::{PROFILE_LABELS, text_embedding};
-use abi_wdbx::DurableStore;
+use abi_wdbx::{RecordId, VersionedStore};
 use serde_json::{Map, Value};
 
 use crate::query_plan::{QueryPlan, infer};
@@ -37,7 +37,7 @@ const UNKNOWN_PROFILE: &str = "unknown";
 #[derive(Debug, Clone, PartialEq)]
 pub struct EvidenceItem {
     /// Vector id of the hit.
-    pub vector_id: u64,
+    pub vector_id: RecordId,
     /// Persona label (`abbey`/`aviva`/`abi`/`unknown`).
     pub profile_label: &'static str,
     /// Forced-to-inferred authority for generic-store records.
@@ -161,14 +161,14 @@ impl Default for ParsedStoredMetadata {
 
 /// Gather evidence, inferring a plan from `input`.
 #[must_use]
-pub fn gather_evidence(store: &DurableStore, input: &str, limit: usize) -> EvidenceContext {
+pub fn gather_evidence(store: &VersionedStore, input: &str, limit: usize) -> EvidenceContext {
     gather_evidence_with_plan(store, input, limit, &infer(input))
 }
 
 /// Gather evidence under an explicit plan.
 #[must_use]
 pub fn gather_evidence_with_plan(
-    store: &DurableStore,
+    store: &VersionedStore,
     input: &str,
     limit: usize,
     plan: &QueryPlan,
@@ -194,7 +194,7 @@ pub fn gather_evidence_with_plan(
     let snapshot = store.snapshot();
     let mut block_timestamp_by_query = std::collections::BTreeMap::new();
     let mut latest_timestamp_ms = None;
-    for block in &snapshot.blocks {
+    for block in snapshot.audit_blocks() {
         latest_timestamp_ms = latest_timestamp_ms.max(Some(block.timestamp_ms));
         block_timestamp_by_query
             .entry(block.query_id)
@@ -212,16 +212,10 @@ pub fn gather_evidence_with_plan(
         let Some(metadata) = store.get(&key) else {
             continue;
         };
-        let parsed = parse_stored_metadata(metadata);
+        let parsed = parse_stored_metadata(&metadata);
         let block_timestamp_ms = block_timestamp_by_query.get(&hit.id).copied();
         latest_timestamp_ms = latest_timestamp_ms.max(parsed.updated_ms.or(block_timestamp_ms));
-        recalled.push((
-            hit.id,
-            hit.score,
-            metadata.to_owned(),
-            parsed,
-            block_timestamp_ms,
-        ));
+        recalled.push((hit.id, hit.score, metadata, parsed, block_timestamp_ms));
     }
 
     let weights = adjust_weights_for_task(DEFAULT_SEA_WEIGHTS, plan.task);
@@ -581,7 +575,7 @@ pub fn augment_prompt_with_limit(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use abi_wdbx::{DurableStore, StorePaths};
+    use abi_wdbx::{RecordId, StorePaths, VersionedStore};
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -606,7 +600,7 @@ mod tests {
     #[test]
     fn empty_store_yields_empty_context_and_passthrough_prompt() {
         let dir = Scratch::new();
-        let store = DurableStore::open(StorePaths::new(&dir.0)).unwrap();
+        let store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
         let ctx = gather_evidence(&store, "hello", 5);
         assert_eq!(ctx.items.len(), 0);
         assert_eq!(augment_prompt("hello", &ctx), "hello");
@@ -659,13 +653,15 @@ mod tests {
     #[test]
     fn recalls_a_stored_completion_with_resolved_persona() {
         let dir = Scratch::new();
-        let mut store = DurableStore::open(StorePaths::new(&dir.0)).unwrap();
+        let mut store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
         let input = "fix the abi compiler bug";
         let embedding = text_embedding(input);
         let id = store.put_vector(&embedding).unwrap();
         let metadata = r#"{"profile":"aviva","authority":"system_pinned","kind":"code_fact","project":"abi","importance":0.8,"supersedes":4,"source_uri":"file:///repo","tags":["compiler"],"text":"the compiler fix is deterministic"}"#;
         store.put(&format!("completion:{id}"), metadata).unwrap();
-        store.add_block("aviva", id, 0, metadata, 2_000).unwrap();
+        store
+            .add_block("aviva", id, RecordId::Legacy(0), metadata, 2_000)
+            .unwrap();
 
         let ctx = gather_evidence(&store, input, 5);
         assert_eq!(ctx.items.len(), 1);
@@ -687,7 +683,7 @@ mod tests {
     #[test]
     fn unrecognized_profile_maps_to_unknown() {
         let dir = Scratch::new();
-        let mut store = DurableStore::open(StorePaths::new(&dir.0)).unwrap();
+        let mut store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
         let embedding = text_embedding("a mystery turn");
         let id = store.put_vector(&embedding).unwrap();
         store
@@ -701,7 +697,7 @@ mod tests {
     #[test]
     fn missing_metadata_is_not_admitted_as_evidence() {
         let dir = Scratch::new();
-        let mut store = DurableStore::open(StorePaths::new(&dir.0)).unwrap();
+        let mut store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
         store.put_vector(&text_embedding("orphan vector")).unwrap();
         assert_eq!(gather_evidence(&store, "orphan vector", 5).items.len(), 0);
     }
@@ -709,7 +705,7 @@ mod tests {
     #[test]
     fn malformed_metadata_is_bounded_and_low_trust() {
         let dir = Scratch::new();
-        let mut store = DurableStore::open(StorePaths::new(&dir.0)).unwrap();
+        let mut store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
         let id = store
             .put_vector(&text_embedding("malformed evidence"))
             .unwrap();
@@ -729,7 +725,7 @@ mod tests {
     #[test]
     fn contradiction_records_surface_the_explicit_signal() {
         let dir = Scratch::new();
-        let mut store = DurableStore::open(StorePaths::new(&dir.0)).unwrap();
+        let mut store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
         let id = store
             .put_vector(&text_embedding("benchmark conflict"))
             .unwrap();
@@ -748,7 +744,7 @@ mod tests {
     #[test]
     fn metadata_timestamps_define_relative_recency_without_audit_blocks() {
         let dir = Scratch::new();
-        let mut store = DurableStore::open(StorePaths::new(&dir.0)).unwrap();
+        let mut store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
         let embedding = text_embedding("metadata timestamp evidence");
         let older = store.put_vector(&embedding).unwrap();
         let newer = store.put_vector(&embedding).unwrap();
@@ -783,7 +779,7 @@ mod tests {
     #[test]
     fn equal_scores_are_ordered_by_stable_vector_id() {
         let dir = Scratch::new();
-        let mut store = DurableStore::open(StorePaths::new(&dir.0)).unwrap();
+        let mut store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
         let embedding = text_embedding("same deterministic evidence");
         let first = store.put_vector(&embedding).unwrap();
         let second = store.put_vector(&embedding).unwrap();
@@ -793,12 +789,14 @@ mod tests {
             .put(&format!("completion:{second}"), metadata)
             .unwrap();
         let ctx = gather_evidence(&store, "same deterministic evidence", 5);
+        let mut expected = vec![first, second];
+        expected.sort();
         assert_eq!(
             ctx.items
                 .iter()
                 .map(|item| item.vector_id)
                 .collect::<Vec<_>>(),
-            vec![first, second]
+            expected
         );
     }
 
@@ -806,7 +804,7 @@ mod tests {
     fn augment_prompt_caps_preamble() {
         let items: Vec<_> = (0..8)
             .map(|i| EvidenceItem {
-                vector_id: i,
+                vector_id: RecordId::Legacy(i),
                 profile_label: "abbey",
                 authority: Authority::Inferred,
                 kind: MemoryKind::Note,
@@ -830,7 +828,7 @@ mod tests {
 
         let ctx = EvidenceContext {
             items: vec![EvidenceItem {
-                vector_id: 7,
+                vector_id: RecordId::Legacy(7),
                 profile_label: "abi",
                 authority: Authority::Inferred,
                 kind: MemoryKind::Summary,

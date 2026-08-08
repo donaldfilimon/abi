@@ -101,8 +101,8 @@ mod tests {
     use crate::wdbx::query::backend_label;
     use abi_ai::text_embedding;
     use abi_wdbx::{
-        ClusterPolicy, ClusterRpcServer, DurableStore, Node, RestConfig, RestServer, Snapshot,
-        StorePaths,
+        ClusterPolicy, ClusterRpcServer, Node, RestConfig, RestServer, Snapshot, StorePaths,
+        VersionedStore,
     };
     use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -188,7 +188,8 @@ mod tests {
     fn migration_status_and_dry_run_leave_v1_byte_exact_and_inactive() {
         let fixture = Fixture::new();
         let raw_path = fixture.raw_path();
-        assert_eq!(run(&strings(&["db", "init", &raw_path])).exit_code, 0);
+        let paths = paths_from_cli_base(&raw_path).unwrap();
+        abi_wdbx::persistence::flush(&paths, &Snapshot::new()).unwrap();
         let capture = || {
             std::fs::read_dir(&fixture.dir)
                 .unwrap()
@@ -359,7 +360,7 @@ mod tests {
         assert_eq!(
             stats.stderr,
             format!(
-                "{{\"kv_entries\":0,\"vectors\":0,\"blocks\":0,\"spatial_records\":0,\"temporal_nodes\":0,\"temporal_edges\":0,\"vector_dimensions\":null,\"next_vector_id\":1,\"backend\":\"{}\",\"mode\":\"cpu_fallback\"}}\n",
+                "{{\"kv_entries\":0,\"vectors\":0,\"blocks\":0,\"spatial_records\":0,\"temporal_nodes\":0,\"temporal_edges\":0,\"vector_dimensions\":null,\"next_vector_id\":null,\"backend\":\"{}\",\"mode\":\"cpu_fallback\",\"format_version\":2}}\n",
                 backend_label()
             )
         );
@@ -441,7 +442,7 @@ mod tests {
             0
         );
         let paths = paths_from_cli_base(&raw_path).expect("paths");
-        let mut store = DurableStore::open(paths).expect("open");
+        let mut store = VersionedStore::open(paths).expect("open");
         let a = text_embedding("hello memory abbey");
         let b = text_embedding("completely unrelated tokens xyz");
         let id_a = store.put_vector(&a).expect("put a");
@@ -521,7 +522,7 @@ mod tests {
             base: fixture.base.clone(),
         };
         abi_wdbx::segments::reset(&paths).ok();
-        let store = DurableStore::open(paths).expect("open");
+        let store = VersionedStore::open(paths).expect("open");
         let config = RestConfig {
             bearer_token: None,
             rate_limiter: abi_wdbx::RateLimiter::from_env(),

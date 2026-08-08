@@ -23,5 +23,8 @@ abi-wdbx = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+[dev-dependencies]
+uuid = { workspace = true }
+
 [lints]
 workspace = true

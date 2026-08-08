@@ -6,7 +6,7 @@ use crate::app::Outcome;
 use crate::usage::is_help_token;
 use crate::wdbx::paths_from_cli_base;
 use abi_foundation::time::unix_ms;
-use abi_wdbx::DurableStore;
+use abi_wdbx::{RecordId, VersionedSnapshot, VersionedStore, open_versioned_read_only};
 
 pub(crate) const BLOCK_HELP: &str = "usage: abi wdbx block <insert|get> <path> ...\n\nAppend or inspect SHA-linked conversation blocks in a WDBX checkpoint.\n";
 
@@ -15,23 +15,29 @@ fn insert_block(raw_path: &str, profile: &str, metadata: &str) -> Outcome {
         Ok(paths) => paths,
         Err(detail) => return super::error("block insert failed", detail),
     };
-    let mut store = match DurableStore::open(paths) {
+    let mut store = match VersionedStore::open(paths) {
         Ok(store) => store,
         Err(detail) => return super::error(&format!("error: {raw_path}"), detail),
     };
     let timestamp_ms = unix_ms();
-    let block = match store.add_block(profile, 0, 0, metadata, timestamp_ms) {
+    let block = match store.add_block(
+        profile,
+        RecordId::new_v2(),
+        RecordId::new_v2(),
+        metadata,
+        timestamp_ms,
+    ) {
         Ok(block) => block,
         Err(detail) => return super::error("block insert failed", detail),
     };
-    if let Err(detail) = store.checkpoint() {
+    if let Err(detail) = store.compact() {
         return super::error("block insert failed", detail);
     }
     Outcome::stderr(
         format!(
             "appended block: profile={profile} blocks={} hash={}\n",
             store.stats().blocks,
-            block.hash.to_hex()
+            block.hash
         ),
         0,
     )
@@ -42,25 +48,47 @@ fn get_block(raw_path: &str) -> Outcome {
         Ok(paths) => paths,
         Err(detail) => return super::error("block get failed", detail),
     };
-    let store = match DurableStore::open(paths) {
-        Ok(store) => store,
+    let snapshot = match open_versioned_read_only(&paths) {
+        Ok(snapshot) => snapshot,
         Err(detail) => return super::error(&format!("error: {raw_path}"), detail),
     };
-    let Some(block) = store.snapshot().blocks.last() else {
-        return Outcome::stderr(format!("no blocks in {raw_path}\n"), 0);
-    };
-    Outcome::stderr(
-        format!(
-            "block: profile={} query_id={} response_id={} timestamp_ms={}\n  hash={}\n  metadata={}\n",
-            block.profile,
-            block.query_id,
-            block.response_id,
-            block.timestamp_ms,
-            block.hash.to_hex(),
-            block.metadata
-        ),
-        0,
-    )
+    match snapshot {
+        VersionedSnapshot::Empty => Outcome::stderr(format!("no blocks in {raw_path}\n"), 0),
+        VersionedSnapshot::V1(snapshot) => {
+            let Some(block) = snapshot.blocks.last() else {
+                return Outcome::stderr(format!("no blocks in {raw_path}\n"), 0);
+            };
+            Outcome::stderr(
+                format!(
+                    "block: profile={} query_id={} response_id={} timestamp_ms={}\n  hash={}\n  metadata={}\n",
+                    block.profile,
+                    block.query_id,
+                    block.response_id,
+                    block.timestamp_ms,
+                    block.hash.to_hex(),
+                    block.metadata
+                ),
+                0,
+            )
+        }
+        VersionedSnapshot::V2(snapshot) => {
+            let Some(block) = snapshot.audit_blocks().last() else {
+                return Outcome::stderr(format!("no blocks in {raw_path}\n"), 0);
+            };
+            Outcome::stderr(
+                format!(
+                    "block: profile={} query_id={} response_id={} timestamp_ms={}\n  hash={}\n  metadata={}\n",
+                    block.profile,
+                    block.query_id,
+                    block.response_id,
+                    block.timestamp_ms,
+                    block.hash,
+                    block.metadata
+                ),
+                0,
+            )
+        }
+    }
 }
 
 pub(crate) fn run_block(args: &[String]) -> Outcome {

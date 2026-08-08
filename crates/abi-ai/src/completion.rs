@@ -144,9 +144,9 @@ pub struct PersistedCompletion {
     /// The completion this record describes.
     pub result: CompletionResult,
     /// The stored query vector's id.
-    pub query_vector_id: u64,
+    pub query_vector_id: String,
     /// The stored response vector's id.
-    pub response_vector_id: u64,
+    pub response_vector_id: String,
     /// The metadata JSON, ready to store under [`metadata_key`].
     pub metadata_json: String,
 }
@@ -156,7 +156,7 @@ pub struct PersistedCompletion {
 /// Per the committed contract (`docs/contracts/public-api.mdx`): "stores JSON
 /// completion metadata under `completion:<query_vector_id>`".
 #[must_use]
-pub fn metadata_key(query_vector_id: u64) -> String {
+pub fn metadata_key(query_vector_id: impl std::fmt::Display) -> String {
     format!("{COMPLETION_KEY_PREFIX}{query_vector_id}")
 }
 
@@ -171,8 +171,8 @@ pub fn metadata_key(query_vector_id: u64) -> String {
 pub fn metadata_json(
     input: &str,
     result: &CompletionResult,
-    query_vector_id: u64,
-    response_vector_id: u64,
+    query_vector_id: impl serde::Serialize,
+    response_vector_id: impl serde::Serialize,
 ) -> String {
     let mut out = String::from(
         "{\"kind\":\"completion\",\"persistence\":\"explicit_store_result\",\"authority\":\"inferred\",\"epistemic_status\":\"generated_output\",\"model\":",
@@ -185,15 +185,17 @@ pub fn metadata_json(
     // Manual append keeps field order fixed and avoids an intermediate String.
     let _ = write!(
         out,
-        ",\"audit_passed\":{},\"audit_vetoed\":{},\"escore\":{:.3},\"input_bytes\":{},\"output_bytes\":{},\"query_vector_id\":{},\"response_vector_id\":{}}}",
+        ",\"audit_passed\":{},\"audit_vetoed\":{},\"escore\":{:.3},\"input_bytes\":{},\"output_bytes\":{},\"query_vector_id\":",
         result.audit.passed,
         result.audit.vetoed,
         result.audit.escore,
         input.len(),
         result.output.len(),
-        query_vector_id,
-        response_vector_id,
     );
+    out.push_str(&serde_json::to_string(&query_vector_id).expect("vector identity serializes"));
+    out.push_str(",\"response_vector_id\":");
+    out.push_str(&serde_json::to_string(&response_vector_id).expect("vector identity serializes"));
+    out.push('}');
     out
 }
 

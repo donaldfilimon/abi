@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "abi-foundation",
  "abi-telemetry",
+ "serde",
  "serde_json",
 ]
 
@@ -91,6 +92,7 @@ dependencies = [
  "abi-wdbx",
  "serde",
  "serde_json",
+ "uuid",
 ]
 
 [[package]]

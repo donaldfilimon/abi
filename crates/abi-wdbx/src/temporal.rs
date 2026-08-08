@@ -6,7 +6,8 @@
 //! `semantic * temporal * causal * persona`.
 
 use crate::format::{TemporalKind, TemporalRecord};
-use crate::{DurableError, DurableStore};
+use crate::v2::{V2TemporalKind, V2TemporalRecord};
+use crate::{DurableError, DurableStore, RecordId};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 /// One hybrid score split into its observable REST components.
@@ -34,7 +35,7 @@ impl ScoreComponents {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RankedNode {
     /// Durable vector id.
-    pub id: u64,
+    pub id: RecordId,
     /// Combined ranking score.
     pub score: f32,
     /// Individual factors used to compute `score`.
@@ -56,8 +57,8 @@ pub fn temporal_weight(now_ms: i64, timestamp_ms: i64, half_life_ms: i64) -> f32
 /// In-memory undirected reachability view of persisted causal records.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TemporalCausalGraph {
-    timestamps: BTreeMap<u64, i64>,
-    adjacency: BTreeMap<u64, BTreeSet<u64>>,
+    timestamps: BTreeMap<RecordId, i64>,
+    adjacency: BTreeMap<RecordId, BTreeSet<RecordId>>,
 }
 
 impl TemporalCausalGraph {
@@ -77,11 +78,45 @@ impl TemporalCausalGraph {
                     let Some(timestamp_ms) = json_i64(record, "timestamp_ms") else {
                         continue;
                     };
-                    graph.add_node(id, timestamp_ms);
+                    graph.add_node(RecordId::Legacy(id), timestamp_ms);
                 }
                 TemporalKind::Edge => {
                     let cause = json_u64(record, "cause").or_else(|| json_u64(record, "from"));
                     let effect = json_u64(record, "effect").or_else(|| json_u64(record, "to"));
+                    if let (Some(cause), Some(effect)) = (cause, effect) {
+                        graph.add_causal_edge(RecordId::Legacy(cause), RecordId::Legacy(effect));
+                    }
+                }
+            }
+        }
+        graph
+    }
+
+    /// Reconstruct a graph from preferred current v2 temporal values. Record
+    /// identities remain UUID strings rather than being projected to dense IDs.
+    #[must_use]
+    pub fn from_v2_records(records: &[&V2TemporalRecord]) -> Self {
+        let mut graph = Self::default();
+        for record in records {
+            match record.kind {
+                V2TemporalKind::Node => {
+                    let Some(id) = json_record_id(record, "id") else {
+                        continue;
+                    };
+                    let Some(timestamp_ms) = record
+                        .fields
+                        .get("timestamp_ms")
+                        .and_then(serde_json::Value::as_i64)
+                    else {
+                        continue;
+                    };
+                    graph.add_node(id, timestamp_ms);
+                }
+                V2TemporalKind::Edge => {
+                    let cause =
+                        json_record_id(record, "cause").or_else(|| json_record_id(record, "from"));
+                    let effect =
+                        json_record_id(record, "effect").or_else(|| json_record_id(record, "to"));
                     if let (Some(cause), Some(effect)) = (cause, effect) {
                         graph.add_causal_edge(cause, effect);
                     }
@@ -92,15 +127,17 @@ impl TemporalCausalGraph {
     }
 
     /// Insert or replace a node timestamp.
-    pub fn add_node(&mut self, id: u64, timestamp_ms: i64) {
-        self.timestamps.insert(id, timestamp_ms);
+    pub fn add_node(&mut self, id: impl Into<RecordId>, timestamp_ms: i64) {
+        self.timestamps.insert(id.into(), timestamp_ms);
     }
 
     /// Add an undirected reachability edge.
     ///
     /// Self-edges are ignored, matching the fact that they add no useful
     /// reachability information to a recovered graph.
-    pub fn add_causal_edge(&mut self, cause: u64, effect: u64) {
+    pub fn add_causal_edge(&mut self, cause: impl Into<RecordId>, effect: impl Into<RecordId>) {
+        let cause = cause.into();
+        let effect = effect.into();
         if cause == effect {
             return;
         }
@@ -110,8 +147,8 @@ impl TemporalCausalGraph {
 
     /// Timestamp for a node, when one was persisted.
     #[must_use]
-    pub fn timestamp_for(&self, id: u64) -> Option<i64> {
-        self.timestamps.get(&id).copied()
+    pub fn timestamp_for(&self, id: impl Into<RecordId>) -> Option<i64> {
+        self.timestamps.get(&id.into()).copied()
     }
 
     /// Unique undirected edge count.
@@ -125,7 +162,14 @@ impl TemporalCausalGraph {
 
     /// Breadth-first hop distance, bounded by `max_hops`.
     #[must_use]
-    pub fn hop_distance(&self, from: u64, to: u64, max_hops: u32) -> Option<u32> {
+    pub fn hop_distance(
+        &self,
+        from: impl Into<RecordId>,
+        to: impl Into<RecordId>,
+        max_hops: u32,
+    ) -> Option<u32> {
+        let from = from.into();
+        let to = to.into();
         if from == to {
             return Some(0);
         }
@@ -180,7 +224,14 @@ impl HybridScorer {
 
     /// Causal proximity for one candidate.
     #[must_use]
-    pub fn causal_weight(self, graph: &TemporalCausalGraph, focus_id: u64, node_id: u64) -> f32 {
+    pub fn causal_weight(
+        self,
+        graph: &TemporalCausalGraph,
+        focus_id: impl Into<RecordId>,
+        node_id: impl Into<RecordId>,
+    ) -> f32 {
+        let focus_id = focus_id.into();
+        let node_id = node_id.into();
         let Some(hops) = graph.hop_distance(focus_id, node_id, self.max_hops) else {
             return self.causal_floor;
         };
@@ -195,11 +246,13 @@ impl HybridScorer {
     pub fn score(
         self,
         graph: &TemporalCausalGraph,
-        focus_id: u64,
-        node_id: u64,
+        focus_id: impl Into<RecordId>,
+        node_id: impl Into<RecordId>,
         semantic: f32,
         persona: f32,
     ) -> ScoreComponents {
+        let focus_id = focus_id.into();
+        let node_id = node_id.into();
         let timestamp_ms = graph.timestamp_for(node_id).unwrap_or(self.now_ms);
         ScoreComponents {
             semantic: semantic.clamp(0.0, 1.0),
@@ -218,15 +271,16 @@ pub fn hybrid_search(
     now_ms: i64,
 ) -> Result<Vec<RankedNode>, DurableError> {
     let graph = TemporalCausalGraph::from_records(&store.snapshot().temporal);
-    let focus_id = store.next_vector_id().saturating_sub(1).max(1);
+    let focus_id = RecordId::Legacy(store.next_vector_id().saturating_sub(1).max(1));
     let scorer = HybridScorer::new(now_ms);
     let mut ranked = store
         .search(query, limit)?
         .into_iter()
         .map(|result| {
-            let components = scorer.score(&graph, focus_id, result.id, result.score, 0.5);
+            let id = RecordId::Legacy(result.id);
+            let components = scorer.score(&graph, focus_id, id, result.score, 0.5);
             RankedNode {
-                id: result.id,
+                id,
                 score: components.combined(),
                 components,
             }
@@ -238,6 +292,10 @@ pub fn hybrid_search(
 
 fn json_u64(record: &TemporalRecord, field: &str) -> Option<u64> {
     record.fields.get(field).and_then(serde_json::Value::as_u64)
+}
+
+fn json_record_id(record: &V2TemporalRecord, field: &str) -> Option<RecordId> {
+    serde_json::from_value(record.fields.get(field)?.clone()).ok()
 }
 
 fn json_i64(record: &TemporalRecord, field: &str) -> Option<i64> {

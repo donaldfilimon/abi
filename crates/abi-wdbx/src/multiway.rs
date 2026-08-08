@@ -950,8 +950,10 @@ pub const MULTIWAY_EXPORT_KEY_LATEST: &str = "multiway:experiment:latest";
 pub enum MultiwayPersistError {
     /// Canonical export/config failure.
     Export(MultiwayExportError),
-    /// WDBX recovery, WAL, or checkpoint failure.
-    Durable(crate::DurableError),
+    /// Writable version detection, migration, or commit failure.
+    Versioned(crate::VersionedError),
+    /// Read-only version detection or recovery failure.
+    Read(crate::v2::MigrationError),
     /// A byte payload cannot be represented by the current string-valued KV format.
     NonUtf8State,
     /// No experiment exists under the requested key.
@@ -962,7 +964,8 @@ impl fmt::Display for MultiwayPersistError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Export(error) => write!(formatter, "{error}"),
-            Self::Durable(error) => write!(formatter, "{error}"),
+            Self::Versioned(error) => write!(formatter, "{error}"),
+            Self::Read(error) => write!(formatter, "{error}"),
             Self::NonUtf8State => {
                 formatter.write_str("multiway state is not valid UTF-8 for WDBX KV storage")
             }
@@ -975,7 +978,8 @@ impl std::error::Error for MultiwayPersistError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Export(error) => Some(error),
-            Self::Durable(error) => Some(error),
+            Self::Versioned(error) => Some(error),
+            Self::Read(error) => Some(error),
             Self::NonUtf8State | Self::ExperimentNotFound => None,
         }
     }
@@ -987,9 +991,15 @@ impl From<MultiwayExportError> for MultiwayPersistError {
     }
 }
 
-impl From<crate::DurableError> for MultiwayPersistError {
-    fn from(error: crate::DurableError) -> Self {
-        Self::Durable(error)
+impl From<crate::VersionedError> for MultiwayPersistError {
+    fn from(error: crate::VersionedError) -> Self {
+        Self::Versioned(error)
+    }
+}
+
+impl From<crate::v2::MigrationError> for MultiwayPersistError {
+    fn from(error: crate::v2::MigrationError) -> Self {
+        Self::Read(error)
     }
 }
 
@@ -1000,7 +1010,7 @@ pub fn persist_multiway(
     result: &MultiwayResult,
     export_json: &str,
 ) -> Result<(), MultiwayPersistError> {
-    let mut store = crate::DurableStore::open(paths)?;
+    let mut store = crate::VersionedStore::open(paths)?;
     for state in &result.states {
         let payload =
             std::str::from_utf8(&state.payload).map_err(|_| MultiwayPersistError::NonUtf8State)?;
@@ -1023,23 +1033,29 @@ pub fn persist_multiway(
         result.termination.label(),
         result.complete,
     );
-    store.add_block("multiway", 0, 0, &metadata, abi_foundation::time::unix_ms())?;
-    store.checkpoint()?;
+    store.add_block(
+        "multiway",
+        crate::RecordId::new_v2(),
+        crate::RecordId::new_v2(),
+        &metadata,
+        abi_foundation::time::unix_ms(),
+    )?;
+    store.compact()?;
     Ok(())
 }
 
 /// Load a canonical export by config hash, or the latest alias when absent.
 pub fn load_multiway_export(
-    paths: crate::StorePaths,
+    paths: &crate::StorePaths,
     config_hash_hex: Option<&str>,
 ) -> Result<String, MultiwayPersistError> {
-    let store = crate::DurableStore::open(paths)?;
+    let snapshot = crate::open_versioned_read_only(paths)?;
     let key = config_hash_hex.map_or_else(
         || MULTIWAY_EXPORT_KEY_LATEST.to_owned(),
         |hash| format!("multiway:experiment:{hash}"),
     );
-    store
-        .get(&key)
+    snapshot
+        .preferred_value(&key)
         .map(str::to_owned)
         .ok_or(MultiwayPersistError::ExperimentNotFound)
 }
@@ -1724,23 +1740,20 @@ mod tests {
         let export = export_multiway_json(&config, &result, &compute_multiway_metrics(&result))
             .expect("export");
         persist_multiway(paths.clone(), &config, &result, &export).expect("persist");
-        assert_eq!(
-            load_multiway_export(paths.clone(), None).expect("latest"),
-            export
-        );
+        assert_eq!(load_multiway_export(&paths, None).expect("latest"), export);
         let config_hash = super::hex_hash(multiway_config_hash(&config).expect("config hash"));
         assert_eq!(
-            load_multiway_export(paths.clone(), Some(&config_hash)).expect("by hash"),
+            load_multiway_export(&paths, Some(&config_hash)).expect("by hash"),
             export
         );
-        let reopened = crate::DurableStore::open(paths).expect("reopen");
+        let reopened = crate::VersionedStore::open(paths).expect("reopen");
         assert!(reopened.stats().blocks >= 1);
         assert_eq!(
             reopened.get(&format!(
                 "multiway:state:{}",
                 super::hex_hash(result.states[0].hash)
             )),
-            Some("A")
+            Some("A".to_owned())
         );
 
         std::fs::remove_dir_all(directory).expect("cleanup");

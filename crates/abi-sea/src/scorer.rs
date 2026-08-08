@@ -4,6 +4,7 @@
 //! these candidates from durable WDBX records before applying this combiner.
 
 use crate::query_plan::TaskType;
+use abi_wdbx::RecordId;
 
 /// Eight orthogonal scoring signals.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -69,7 +70,7 @@ impl Default for SeaWeights {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SeaCandidate {
     /// Stable WDBX vector id.
-    pub record_id: u64,
+    pub record_id: RecordId,
     /// Diversity cluster id.
     pub cluster_id: u8,
     /// Estimated token cost of admitting this candidate.
@@ -108,9 +109,9 @@ impl Default for SeaOptions {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SeaSelection {
     /// Admitted record ids.
-    pub selected_ids: Vec<u64>,
+    pub selected_ids: Vec<RecordId>,
     /// Rejected record ids.
-    pub rejected_ids: Vec<u64>,
+    pub rejected_ids: Vec<RecordId>,
     /// Total estimated tokens of the admitted set.
     pub total_estimated_tokens: usize,
     /// Human-readable reason.
@@ -257,7 +258,7 @@ mod tests {
     fn selection_respects_record_budget() {
         let candidates: Vec<_> = (0..10)
             .map(|i| SeaCandidate {
-                record_id: i,
+                record_id: RecordId::Legacy(i),
                 cluster_id: u8::try_from(i).unwrap_or(8),
                 estimated_tokens: 10,
                 signals: SeaSignals::default(),
@@ -280,21 +281,21 @@ mod tests {
     fn selection_is_deterministic_and_deduplicates_vector_ids() {
         let candidates = vec![
             SeaCandidate {
-                record_id: 9,
+                record_id: RecordId::Legacy(9),
                 cluster_id: 0,
                 estimated_tokens: 3,
                 signals: SeaSignals::default(),
                 final_score: 0.8,
             },
             SeaCandidate {
-                record_id: 4,
+                record_id: RecordId::Legacy(4),
                 cluster_id: 1,
                 estimated_tokens: 3,
                 signals: SeaSignals::default(),
                 final_score: 0.8,
             },
             SeaCandidate {
-                record_id: 4,
+                record_id: RecordId::Legacy(4),
                 cluster_id: 2,
                 estimated_tokens: 100,
                 signals: SeaSignals::default(),
@@ -302,8 +303,11 @@ mod tests {
             },
         ];
         let selection = select_sea_candidates(candidates, SeaOptions::default());
-        assert_eq!(selection.selected_ids, vec![4, 9]);
-        assert_eq!(selection.rejected_ids, [] as [u64; 0]);
+        assert_eq!(
+            selection.selected_ids,
+            vec![RecordId::Legacy(4), RecordId::Legacy(9)]
+        );
+        assert_eq!(selection.rejected_ids, Vec::<RecordId>::new());
         assert_eq!(selection.total_estimated_tokens, 6);
     }
 
@@ -311,21 +315,21 @@ mod tests {
     fn selection_respects_token_and_cluster_budgets() {
         let candidates = vec![
             SeaCandidate {
-                record_id: 1,
+                record_id: RecordId::Legacy(1),
                 cluster_id: 0,
                 estimated_tokens: 6,
                 signals: SeaSignals::default(),
                 final_score: 0.90,
             },
             SeaCandidate {
-                record_id: 2,
+                record_id: RecordId::Legacy(2),
                 cluster_id: 0,
                 estimated_tokens: 2,
                 signals: SeaSignals::default(),
                 final_score: 0.80,
             },
             SeaCandidate {
-                record_id: 3,
+                record_id: RecordId::Legacy(3),
                 cluster_id: 1,
                 estimated_tokens: usize::MAX,
                 signals: SeaSignals::default(),
@@ -341,8 +345,11 @@ mod tests {
                 ..SeaOptions::default()
             },
         );
-        assert_eq!(selection.selected_ids, vec![1]);
-        assert_eq!(selection.rejected_ids, vec![2, 3]);
+        assert_eq!(selection.selected_ids, vec![RecordId::Legacy(1)]);
+        assert_eq!(
+            selection.rejected_ids,
+            vec![RecordId::Legacy(2), RecordId::Legacy(3)]
+        );
         assert_eq!(selection.total_estimated_tokens, 6);
     }
 }

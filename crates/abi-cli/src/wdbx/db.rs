@@ -5,13 +5,13 @@
 use crate::app::Outcome;
 use crate::usage::is_help_token;
 use crate::wdbx::paths_from_cli_base;
+use abi_wdbx::Wal;
 use abi_wdbx::v2::{
     ABI_WDBX_ENCRYPTION_KEY_FILE, ABI_WDBX_SIGNING_KEY_FILE, ABI_WDBX_VERIFY_KEY_FILE,
     MigrationStatus, ObjectSecurity, VersionedSnapshot, gc_versioned, generate_key_material,
     migration_status, open_versioned_read_only, rekey_versioned, verify_versioned,
     write_key_material,
 };
-use abi_wdbx::{Snapshot, Wal};
 use std::fmt::Write;
 use std::path::Path;
 
@@ -88,33 +88,23 @@ fn init_db(raw_path: &str) -> Outcome {
         Ok(paths) => paths,
         Err(detail) => return super::error("db init failed", detail),
     };
-    if let Err(detail) = std::fs::create_dir_all(&paths.dir) {
-        return super::error("db init failed", detail);
+    match migration_status(&paths) {
+        Ok(MigrationStatus::Empty) => {}
+        Ok(MigrationStatus::V1 { .. } | MigrationStatus::V2 { .. }) => {
+            return super::error(
+                "db init failed",
+                "refusing to replace an initialized store; choose a new path",
+            );
+        }
+        Err(detail) => return super::error("db init failed", detail),
     }
-    if let Err(detail) = abi_wdbx::segments::reset(&paths) {
-        return super::error("db init failed", detail);
-    }
-    if let Err(detail) = std::fs::remove_file(paths.index())
-        && detail.kind() != std::io::ErrorKind::NotFound
-    {
-        return super::error("db init failed", detail);
-    }
-    if let Err(detail) = std::fs::remove_file(paths.mirror_epoch())
-        && detail.kind() != std::io::ErrorKind::NotFound
-    {
-        return super::error("db init failed", detail);
-    }
-    let wal = abi_wdbx::wal::wal_path(&paths);
-    if let Err(detail) = std::fs::remove_file(&wal)
-        && detail.kind() != std::io::ErrorKind::NotFound
-    {
-        return super::error("db init failed", detail);
-    }
-    if let Err(detail) = abi_wdbx::persistence::flush(&paths, &Snapshot::new()) {
-        return super::error("db init failed", detail);
-    }
+    let store = match abi_wdbx::VersionedStore::open(paths) {
+        Ok(store) => store,
+        Err(detail) => return super::error("db init failed", detail),
+    };
+    drop(store);
     Outcome::stderr(
-        format!("initialized empty WDBX segment checkpoint at {raw_path}\n"),
+        format!("initialized empty WDBX v2 store at {raw_path}\n"),
         0,
     )
 }
@@ -208,15 +198,15 @@ fn verify_v2(raw_path: &str, paths: &abi_wdbx::StorePaths, require_signature: bo
     };
     Outcome::stderr(
         format!(
-            "v2 verify OK: path={raw_path} require_signature={} writer_heads={} transactions={} kv={} vectors={} spatial={} temporal={} blocks={} recovered_digest={}\n",
+            "v2 verify OK: path={raw_path} require_signature={} writer_heads={} transactions={} kv={} vectors={} blocks={} spatial={} temporal={} merged_chain_valid=true recovered_digest={}\n",
             report.required_signature,
             report.writer_heads,
             report.committed_transactions,
             report.kv_keys,
             report.vectors,
+            report.audit_blocks,
             report.spatial,
             report.temporal,
-            report.audit_blocks,
             report.recovered_digest
         ),
         0,

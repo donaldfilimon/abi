@@ -16,6 +16,49 @@ fn record_ids_keep_legacy_numbers_and_v2_strings() {
 }
 
 #[test]
+fn mutations_in_one_transaction_are_causal_peers() {
+    let root = scratch();
+    let mut store = V2Store::open(&root).unwrap();
+    let first = RecordId::new_v2();
+    let second = RecordId::new_v2();
+    store
+        .commit(vec![
+            V2Mutation::PutVector {
+                id: first,
+                values: vec![1.0, 0.0],
+            },
+            V2Mutation::PutVector {
+                id: second,
+                values: vec![0.0, 1.0],
+            },
+            V2Mutation::PutKv {
+                key: "peer-key".into(),
+                value: "first".into(),
+            },
+            V2Mutation::PutKv {
+                key: "peer-key".into(),
+                value: "second".into(),
+            },
+        ])
+        .unwrap();
+
+    let snapshot = store.snapshot();
+    assert_eq!(snapshot.vector_count(), 2);
+    assert!(snapshot.get_vector(first).is_some());
+    assert!(snapshot.get_vector(second).is_some());
+    assert!(matches!(
+        snapshot.causal_focus_vector_id(),
+        Some(id) if id == first || id == second
+    ));
+    let values = snapshot.get("peer-key").unwrap();
+    assert_eq!(values.conflicts.len(), 1);
+    let mut visible = vec![values.preferred.value, values.conflicts[0].value.clone()];
+    visible.sort();
+    assert_eq!(visible, ["first", "second"]);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn concurrent_writers_surface_conflicts_and_resolution_dominates_them() {
     let root = scratch();
     let mut left = V2Store::open(&root).unwrap();

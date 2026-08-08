@@ -150,13 +150,29 @@ impl V2Store {
 
     /// Commit one or more mutations under the currently observed frontier.
     pub fn commit(&mut self, mutations: Vec<V2Mutation>) -> Result<Uuid, V2Error> {
+        self.refresh()?;
+        self.commit_refreshed(mutations)
+    }
+
+    /// Refresh once, build mutations from that exact immutable frontier, and
+    /// commit without a second refresh changing the causal observation.
+    pub(crate) fn commit_with_snapshot<E, F>(&mut self, build: F) -> Result<Uuid, E>
+    where
+        E: From<V2Error>,
+        F: FnOnce(&V2Snapshot) -> Result<Vec<V2Mutation>, E>,
+    {
+        self.refresh().map_err(E::from)?;
+        let mutations = build(&self.snapshot)?;
+        self.commit_refreshed(mutations).map_err(E::from)
+    }
+
+    fn commit_refreshed(&mut self, mutations: Vec<V2Mutation>) -> Result<Uuid, V2Error> {
         validate_mutations(&mutations)?;
         if mutations.is_empty() {
             return Err(V2Error::InvalidMutation(
                 "transactions must contain at least one mutation".into(),
             ));
         }
-        self.refresh()?;
         let transaction_id = Uuid::new_v4();
         let begin = BeginFrame {
             writer_id: self.writer_id,
@@ -198,21 +214,22 @@ impl V2Store {
         version_ids: &[Uuid],
         value: String,
     ) -> Result<Uuid, V2Error> {
-        self.refresh()?;
-        let Some(current) = self.snapshot.get(key) else {
-            return Err(V2Error::StaleResolution);
-        };
-        let expected: BTreeSet<_> = std::iter::once(current.preferred.version_id)
-            .chain(current.conflicts.iter().map(|version| version.version_id))
-            .collect();
-        let provided: BTreeSet<_> = version_ids.iter().copied().collect();
-        if expected != provided || expected.len() < 2 {
-            return Err(V2Error::StaleResolution);
-        }
-        self.commit(vec![V2Mutation::PutKv {
-            key: key.to_string(),
-            value,
-        }])
+        self.commit_with_snapshot::<V2Error, _>(|snapshot| {
+            let Some(current) = snapshot.get(key) else {
+                return Err(V2Error::StaleResolution);
+            };
+            let expected: BTreeSet<_> = std::iter::once(current.preferred.version_id)
+                .chain(current.conflicts.iter().map(|version| version.version_id))
+                .collect();
+            let provided: BTreeSet<_> = version_ids.iter().copied().collect();
+            if expected != provided || expected.len() < 2 {
+                return Err(V2Error::StaleResolution);
+            }
+            Ok(vec![V2Mutation::PutKv {
+                key: key.to_string(),
+                value,
+            }])
+        })
     }
 
     /// Publish an immutable snapshot covering the currently observed heads.
@@ -716,7 +733,14 @@ fn corrupt<T>(path: &Path, line: usize, reason: &str) -> Result<T, V2Error> {
 }
 
 fn ensure_dir(path: &Path) -> Result<(), V2Error> {
-    std::fs::create_dir_all(path).map_err(|error| io_error(path, &error))
+    std::fs::create_dir_all(path).map_err(|error| io_error(path, &error))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
+            .map_err(|error| io_error(path, &error))?;
+    }
+    Ok(())
 }
 
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), V2Error> {

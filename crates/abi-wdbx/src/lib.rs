@@ -61,6 +61,7 @@ pub mod store;
 pub mod temporal;
 pub mod tls_config;
 pub mod v2;
+pub mod versioned;
 pub mod wal;
 
 pub use ans::{AnsEncoded, AnsError, AnsMode, ans_decode, ans_encode, ans_encode_order1};
@@ -128,5 +129,7 @@ pub use temporal::{
 pub use tls_config::{TLS_CERT_ENV, TLS_KEY_ENV, TlsConfig};
 pub use v2::{
     CausalHeads, ConflictSet, RecordId, V2Error, V2Mutation, V2Snapshot, V2Store, Version,
+    VersionedSnapshot, open_versioned_read_only,
 };
+pub use versioned::{VersionedError, VersionedSearchResult, VersionedStats, VersionedStore};
 pub use wal::{Recovered, RecoverySource, Wal, WalError};
