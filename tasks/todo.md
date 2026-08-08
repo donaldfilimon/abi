@@ -76,12 +76,11 @@ See `docs/superpowers/archive/plans/2026-07-31-rust-647-followups.md`.
 | Scratch-path hardening for the os-control audit tests | ✅ | 2026-08-01: the two tests built their scratch dir from `{pid}-{thread_id:?}`; both now use `abi_foundation::temp_path::temp_file_path()` (PID + per-process counter), which cannot collide with anything this process made earlier. Hygiene, kept on its own merits. |
 | CI flake: `os::audit`/`os` scratch-store `WriterBusy` | ✅ | Fixed by the writer-lock retry in [#772](https://github.com/donaldfilimon/abi/pull/772), **not** by the row above. Measured head-to-head, same harness (`os::` at `--test-threads 8`, 40 runs each): scratch-path hardening alone still failed **3/40**; the writer-lock retry alone and both together failed **0/40**. The "leftover dir from a panicked run / `ThreadId` reuse" theory is not reachable — a dead process cannot hold an `flock` (the kernel releases it at exit) and `scratch_store` already called `remove_dir_all` first. The real holder is live and transient: a `fork` duplicates the lock's fd into the child until `exec` closes it via O_CLOEXEC, which is why renaming the path cannot help. |
 
-**Disclosed, not fixed:** two `nn.rs` fixtures still use PID-only scratch
-directory names. The earlier five-file inventory is no longer current:
-`wdbx_simulate.rs`, `wdbx/mod.rs`, and `abi-wdbx/src/retrieval.rs` use
-per-process counters, while `complete.rs` includes a wall-clock component. None
-has been observed to flake; the two NN fixtures remain a bounded hygiene slice,
-not evidence of the fixed writer-lock race.
+**Closed 2026-08-08:** both `abi-cli/src/nn.rs` fixtures and the additional
+`abi-nn/src/checkpoint.rs` fixture now use
+`abi_foundation::temp_path::temp_file_path` (PID + monotonic process counter)
+with explicit cleanup. This is collision hygiene, not evidence for the earlier
+writer-lock race.
 
 ---
 
@@ -90,6 +89,7 @@ not evidence of the fixed writer-lock race.
 | Item | Status | Notes |
 | ---- | ------ | ----- |
 | Archive completed Zig-era `docs/superpowers/plans/*` | ✅ | Moved under `docs/superpowers/archive/plans/` with Archived banners |
+| Executable dependency-security scan helper | ✅ | `tools/security/run-dep-scan.sh` runs installed `cargo-audit` or `cargo-deny`, otherwise emits an explicit SKIP; `ABI_DEP_SCAN_REQUIRE=1` makes missing tooling fail closed. The local RustSec scan has no vulnerability advisories after replacing the unmaintained PEM parser/server edge; two explicitly disclosed unmaintained transitive crates remain isolated behind optional TFHE-rs. |
 
 ---
 
@@ -97,12 +97,12 @@ not evidence of the fixed writer-lock race.
 
 | Item | Status | Constraint |
 | ---- | ------ | ---------- |
-| Native accelerator execution | ◑ | Metal dot/cosine/norm/batch-cosine paths are locally scoped and only count after initialization plus CPU-oracle verification. CoreML proves a `.cpuAndNeuralEngine` request only, not inference placement or ANE residency. CUDA/Vulkan adapters compile/report capability but have no verified runtime execution. |
+| Native accelerator execution | ◑ | Metal dot/cosine/norm/batch-cosine paths are locally scoped and only count after initialization plus CPU-oracle verification. CoreML loads and executes an output-checked tiny model under a `.cpuAndNeuralEngine` request; placement and ANE residency remain unverified. CUDA/Vulkan adapters compile/report capability but have no verified runtime execution. |
 | External shader / MLIR toolchains | ◑ | Validation / textual IR only |
 | Mobile `native_dispatch` | ◑ | Simulated desktop profile |
 | Production FHE / multi-host sharding | ◑ | DGHV educational refresh and optional TFHE-rs demos are reference-scoped and have no independent cryptographic audit. Exact replication/read repair/rebalance and `cluster local-demo` are single-host multi-process proof, not production multi-host deployment. |
 | Full ggml/llama.cpp | ◑ | Demo GGUF container only (char-LM payload) |
-| WDBX v2 causal multi-writer program | ◑ | The local product path now includes causal per-writer journals, verified migration with retained backup, authenticated transaction/segment objects, retained-generation rekey, confirmation-gated GC, exact committed-transaction export/import, accelerator-backed batch search with deterministic CPU parity, and exact single-host replica/read-repair/rebalance proof. A 50-process crash/compaction stress test recovers every reported commit and surfaces all recovered conflicts. Deterministic versioned PQ and persisted-autoencoder artifacts are integrated into segment codecs with validation and quality metrics. `abi-compute` supplies cycle-free accelerator contracts and five-state evidence. Additive credential-provider evidence covers the existing macOS Keychain and Windows protected-file paths while Linux Secret Service remains an unavailable stub. The integrated gateway supplies bounded authenticated gRPC plus metadata-only WebSocket events with local TLS/mTLS runtime tests. Remaining boundaries: production separate-host deployment, hosted/Windows/Linux runtime proof, Linux Secret Service implementation, DAST, and independent crypto/security review. |
+| WDBX v2 causal multi-writer program | ◑ | The local product path now includes causal per-writer journals, verified migration with retained backup, authenticated transaction/segment objects, retained-generation rekey, confirmation-gated GC, exact committed-transaction export/import, accelerator-backed batch search with deterministic CPU parity, and exact single-host replica/read-repair/rebalance proof. A 50-process crash/compaction stress test recovers every reported commit and surfaces all recovered conflicts. Deterministic versioned PQ and persisted-autoencoder artifacts are integrated into segment codecs with validation and quality metrics. `abi-compute` supplies cycle-free accelerator contracts and five-state evidence. Additive credential-provider evidence covers the existing macOS Keychain and Windows protected-file paths plus a target-gated, in-process Linux Secret Service implementation. Linux source and tests cross-compile, but no Linux daemon round trip is claimed and the default auth backend is unchanged. The integrated gateway supplies bounded authenticated gRPC plus metadata-only WebSocket events with local TLS/mTLS runtime tests. Remaining boundaries: production separate-host deployment, hosted/Windows/Linux runtime proof, DAST, and independent crypto/security review. |
 
 ---
 

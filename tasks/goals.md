@@ -36,7 +36,7 @@ status: done
 - Completion requires an integrated behavioral contract, focused tests, documentation/claims validation, and runtime evidence; aspirational distributed, multimodal, security, memory, or benchmark properties must remain explicitly labeled until verified.
 - Landed through PRs #720-#722: canonical identity/specification and claim matrix; Abbey-primary/Aviva-direct/ABI-orchestration routing; exact explicit persona selection; WDBX/SEA provenance minimization, structured trust parsing, authority-weighted deterministic ranking; fixed-trio role alignment; agent/skill mirrors and contract coverage.
 - Verification: independent check-work PASS after correcting four findings; merged-main `./build.sh full-check` 48/48; pinned primary gate, feature-off matrix, parity, integration, benchmarks, TUI/CLI smoke, cross-smoke CI, Mintlify validation, and skill checks all green.
-- Final integration: local `main` == `origin/main` at `2987eec`; aspirational distributed/multimodal/security/benchmark capabilities remain explicitly Current/Partial/Proposed rather than claimed complete.
+- Historical integration evidence: local `main` matched `origin/main` at `2987eec` when this goal closed. Later verified local-only capability waves intentionally moved local `main` ahead; aspirational distributed/multimodal/security/benchmark capabilities remain explicitly Current/Partial/Proposed rather than claimed complete.
 
 ## Complete and perfect all ~/abi
 status: done
@@ -44,7 +44,7 @@ status: done
 - **Rust rewrite on `main` (2026-07-30):** PR #756 → `34c35d5`; gate is `./tools/check.sh` (nightly). Zig tree removed.
 - **Hygiene closeout:** critical agent skills/smoke drivers (`goals`, `run-abi`, `mcp-smoke`, `complete-base`, `nn-demo`) teach Rust gates; `nn` demo JSON checkpoint (`--out` / `--checkpoint`).
 - **Definition of done met:** default branch Rust-only; `./tools/check.sh` green; 13 CLI + 12 MCP live; store safety + claim discipline documented; residuals permanently labeled Partial on `tasks/todo.md`.
-- Permanent product Partial (new goals if pursued): ggml/true incremental sampler, native GPU kernels, live Discord/Twilio TLS without proxy, Windows runtime CI, Phase D cutover, native TLS termination.
+- Permanent product Partial (new goals if pursued): full ggml/llama.cpp, broader native CUDA/Vulkan execution, Windows runtime CI, production separate-host cluster deployment, and native cluster TLS termination. The incremental sampler and Discord/Twilio rustls paths subsequently shipped and are no longer residuals.
 
 ## Fix run-abi smoke test failure
 status: done
@@ -54,15 +54,15 @@ status: done
 ## Implement TUI/CLI North-Star Features
 status: done
 - Ported to Rust on `main` via rewrite: agent line-mode TUI, dashboard one-shot + raw-mode, file_context (`@file`/tree/git), complete local/live/bridge/neural/soul, Anthropic SSE + local-bridge SSE.
-- Residual product (not this goal): ggml/neural true incremental sampler; pane-split chat+diffs REPL; live remote TUI beyond current SSE paths.
+- Residual product (not this goal): full ggml/llama.cpp; pane-split chat+diffs REPL; live remote TUI beyond current SSE paths. The bounded incremental sampler subsequently shipped.
 
 ## Extract TUI dashboard_render helpers
 status: done
-- Moved composition/split/ANSI fit helpers into `dashboard_render.zig`; wired widgets/panes; 5 characterizing tests; `./build.sh check` + dashboard filter green
+- Historical Zig implementation: composition/split/ANSI fit helpers moved into `dashboard_render.zig` with five characterizing tests. The current Rust dashboard is decomposed under `crates/abi-cli/src/dashboard/` and is gated by `./tools/check.sh`.
 
 ## Integrate and maintain modern-refactor skills
 status: done
-- Updated all 5 modern-refactor skills (and copies) to ABI conventions, frontmatter, base dir notes.
+- Historical pre-Rust skill wave: updated the then-current modern-refactor skills and mirrors to ABI conventions, frontmatter, and base-dir notes. The canonical repository skills are now Rust-oriented under `.agents/skills/` and synchronized by the repository tooling.
 - Synced via sync-clis to .claude and .grok.
 - Updated lessons.md, goals.md, instruction files consistency.
 - Ran full skill scan (59 skills), build check.
@@ -70,7 +70,7 @@ status: done
 ## External claims audit (Drive collateral vs. repo)
 status: done
 - Full content lives in `docs/contracts/external-claims-audit.mdx` (Toolchain, WDBX, block/spatial, AI profiles, MCP/CLI, GPU, shaders/MLIR, connectors, roadmap demos, "Claims To Remove Or Downgrade", reusable external-delta paragraph).
-- Re-verified 2026-07-18 against source (spot-check): `.zigversion` `0.17.0-dev.1398+cb5635714`; Metal `cosine_parts_kernel` + multi-pass `reduce_sum_kernel`; frozen CLI/MCP surfaces in `usage.zig` / `handlers.zig` / `tests/contracts/surface.zig`; `ans.zig` + `incremental.zig` present; MCP bearer path via `ABI_MCP_HTTP_TOKEN`. Downgrade table still correct (no sharding/QPS/AES/RBAC/H100/cert claims as current).
+- Historical 2026-07-18 Zig snapshot retained for provenance. Current evidence lives in the Rust `abi-cli`, `abi-mcp`, `abi-wdbx`, `abi-compute`, `abi-gpu`, and `abi-ai` crates; the downgrade table remains authoritative for production sharding/QPS/AES/RBAC/H100/cert claims.
 - Re-open only if Drive collateral or major capability docs drift again.
 
 ## Merge all branches into main
@@ -164,7 +164,7 @@ status: done
 - Not a rewrite: no new features, no claims changes, no touching the store-safety or claims-discipline rules in `AGENTS.md`.
 - **Slice 1 landed (branch hygiene, 2026-07-30):** pruned 11 fully-merged local branches (5 stale `cursor/*` + 6 `worktree-agent-*`, all 0 commits ahead of `main`); 49 → 38 local branches. No code touched, no gate needed.
 - **Audit finding — do NOT bulk-merge:** `chore/zig-residual-agent-tooling`, `cursor/agent-spawn-workers`, `cursor/cloud-agent-*`, `cursor/ce-setup` (and likely `cursor/metal-vectorops-clamp`, `cursor/self-improve-review-loop-8e79`, `cursor/abi-skills-health-062909`) branch from *before* the Rust-rewrite product work. Merging them would delete shipped code: `abi-connectors/src/tls_ws.rs` (653 lines), Metal kernel files, `abi-ai/src/orchestration.rs` (676 lines), `abi-nn/src/{gguf_demo,sample_inc}.rs` — all `✅` in `tasks/todo.md`. Treat as dead ends; cherry-pick only if something specific is still wanted.
-- **Blocked residual:** 6 agent worktrees under `.claude/worktrees/` (+ `~/abi-fix2`) still pin pre-rewrite `fix/*` / `docs/*` branches; `git worktree remove` is denied by the sandbox classifier, so they need manual removal. Dirty Zig-file edits from two of them are saved as patches in the session scratchpad.
+- **Resolved 2026-08-08:** the stale `.claude/worktrees/` and `~/abi-fix2` entries are gone. `git worktree list --porcelain` now contains only the primary `/Users/donaldfilimon/abi` worktree; no old Zig edits were applied to the Rust tree.
 - **Slice 2 landed (2026-07-30):** `crates/abi-wdbx/src/multiway.rs` `evolve()` — extracted the frontier-draining inner loop into `process_frontier() -> Option<Termination>`; elapsed-time bookkeeping now happens once instead of at 4 duplicated early-return sites. 12/12 multiway unit tests (byte-deterministic export-hash + resume oracles) + full `./tools/check.sh` green before and after. Landed via PR [#767](https://github.com/donaldfilimon/abi/pull/767), squash-merged to `main`.
 - **Slices 3–6 landed (2026-07-31):** `wdbx.rs` split, `format.rs` split, `wal.rs` `Mutation` dedup, and `complete.rs` arg-parse/dispatch separation all closed with goldens byte-identical. The stale "next slice: wdbx.rs split" note that stood here was contradicted by `tasks/todo.md` — corrected.
 - **Slice 7 landed (2026-07-31) — last acceptance gap closed:** the line-mode REPL moved out of `crates/abi-cli/src/agent.rs` into `crates/abi-cli/src/repl.rs` (help text, `valid_model_id`, `LineModeState`, ten slash handlers, the stdin loop, and the eight tests that only exercise them). `agent_tui_line_mode` → `repl::line_mode()`; no logic changed. agent.rs 942 → 520 lines, off the hotspot watch list; repl.rs is 442. Verified pure before moving: no item was referenced outside `agent.rs` and no golden pins REPL text. `./tools/check.sh` green, goldens byte-identical, and `abi agent tui` fed `/status /model fable-5 /profile /help /quit` emits the same bytes.

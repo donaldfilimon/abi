@@ -1,6 +1,6 @@
 ---
 name: abi-superpower-wdbx-compute
-description: WDBX compute superpower. Cycle-free accelerator contracts, deterministic CPU SIMD fallback, scoped Metal execution, request-only CoreML evidence, and honest CUDA/Vulkan boundaries.
+description: WDBX compute superpower. Cycle-free accelerator contracts, deterministic CPU SIMD fallback, scoped Metal execution, output-checked CoreML inference, and honest CUDA/Vulkan boundaries.
 superpower:
   command: "execute"
   parameters:
@@ -22,8 +22,9 @@ superpower:
 Exposes the cycle-free `abi-compute` accelerator contract and WDBX selector.
 Unsupported or unverified paths degrade to deterministic CPU SIMD. Supported
 macOS builds can execute Metal dot/cosine/norm/batch-cosine; capability becomes
-runtime-verified only after successful CPU-oracle parity. CoreML evidence is a
-`.cpuAndNeuralEngine` request only. CUDA/Vulkan runtime remains unverified.
+runtime-verified only after successful CPU-oracle parity. CoreML evidence is an
+output-checked tiny-model inference under a `.cpuAndNeuralEngine` request, not
+placement or residency proof. CUDA/Vulkan runtime remains unverified.
 
 ## Actions
 
@@ -36,7 +37,7 @@ abi wdbx compute info
 Output includes:
 - CPU: scalar, AVX2, AVX-512, NEON through Rust `std::simd`
 - GPU: Metal/CUDA/Vulkan five-state evidence; compilation is not execution
-- NPU: ANE hardware presence plus request-only CoreML evidence, not residency
+- NPU: ANE hardware presence plus output-checked CoreML inference, not residency
 - TPU: Report-only endpoint metadata (`ABI_REMOTE_COMPUTE_ENDPOINT`) plus a
   separately tested reference TCP transport
 
@@ -64,7 +65,7 @@ service or a general WDBX offload path.
 | Metal | Supported macOS builds | Scoped | Dot/cosine/norm/batch-cosine; runtime-verified only after CPU-oracle agreement, otherwise CPU fallback |
 | CUDA | Adapter may compile | ❌ Unverified | Compilation/tool detection does not prove runtime initialization or execution |
 | Vulkan | Adapter may compile | ❌ Unverified | Compilation/tool detection does not prove loader/device execution |
-| CoreML / ANE | Optional request helper | ❌ Residency unverified | Requests `.cpuAndNeuralEngine`; does not prove inference placement or ANE residency |
+| CoreML / ANE | Optional inference helper | ❌ Residency unverified | Executes an output-checked tiny model under `.cpuAndNeuralEngine`; does not prove inference placement or ANE residency |
 | Remote accelerator | Reference DOT only | Scoped probe | `remote_compute.rs` has an authenticated, timeout-bounded transport; the explicit environment endpoint is probed by `compute info` with deterministic CPU fallback |
 
 ## Implementation
@@ -73,7 +74,7 @@ service or a general WDBX offload path.
 |-----------|--------|------|
 | Contracts / CPU SIMD | `crates/abi-compute/src/` | Object-safe accelerator, five-state evidence, deterministic SIMD/top-k |
 | WDBX batch search | `crates/abi-wdbx/src/v2/index.rs` | Accelerator injection with result validation and CPU parity/fallback |
-| GPU adapters | `crates/abi-gpu/src/{adapters,metal_kernels}.rs` | Metal execution/oracle; CUDA/Vulkan unverified; CoreML request-only |
+| GPU adapters | `crates/abi-gpu/src/{adapters,metal_kernels}.rs` | Metal execution/oracle; CUDA/Vulkan unverified; CoreML output-checked without residency claim |
 | NPU Detection | `crates/abi-compute/src/backend.rs` | `ane_hardware_present()` — hardware metadata only |
 | Remote accelerator | `crates/abi-wdbx/src/remote_compute.rs` | Authenticated bounded reference DOT transport; `compute info` probes an explicitly configured endpoint and otherwise does no network I/O |
 | Selection parity tests | `crates/abi-compute/src/cpu.rs`, `crates/abi-wdbx/src/v2/index.rs` | Accelerator requests preserve CPU-reference results |
@@ -97,10 +98,10 @@ Per `docs/spec/wdbx-north-star.mdx` §3.3 and `docs/contracts/external-claims-au
 - ✅ Cycle-free object-safe accelerator contract and five-state evidence
 - ✅ CPU SIMD parity across accelerator requests and fallback
 - ✅ Scoped Metal numerical execution when initialized and oracle-verified
-- ✅ ANE hardware detection and CoreML request reporting
+- ✅ ANE hardware detection and output-checked CoreML tiny-model inference
 - ✅ Reference loopback TCP DOT transport with local fallback
 - ⚠️ Metal execution remains supported-host/runtime scoped; availability alone is not execution evidence
 - ❌ CUDA/Vulkan runtime execution is not verified
-- ❌ CoreML request is not inference placement or ANE residency
+- ❌ CoreML inference under a compute-unit request is not placement or ANE residency
 - ⚠️ `ABI_REMOTE_COMPUTE_ENDPOINT` drives only a bounded reference DOT probe with deterministic CPU fallback; it is not general WDBX offload or production remote acceleration
 - ❌ No blanket accelerator speedup claim without reproducible benchmark evidence

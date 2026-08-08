@@ -50,7 +50,8 @@ Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
 
 No unproven claims (production FHE/AES/RBAC, production multi-host deployment,
 QPS/latency/accuracy, K8s/H100, CUDA/Vulkan runtime, or ANE residency). Metal
-execution is local-runtime scoped; CoreML is request-only evidence. WDBX secure
+execution is local-runtime scoped. CoreML has output-checked tiny-model inference
+under a `.cpuAndNeuralEngine` request, but no placement/residency proof. WDBX secure
 demos are reference-grade. GPU reports `accelerated=false` when kernels are not linked.
 `complete --live` is Anthropic-only for HTTP providers; `apple-fm --confirm`
 uses the FoundationModels Swift shim on arm64 macOS when Apple Intelligence is

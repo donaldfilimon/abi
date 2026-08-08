@@ -17,6 +17,9 @@ item count, sequence, and time. They never include vectors, keys, or KV values.
 Queues, requests, batches, values, rates, blocking jobs, idle time, and streams
 are bounded.
 
-`MembershipChange` is intentionally **gateway-local reference state**. It is
-not the WDBX signed membership ledger, is not durable, and does not claim a
-consensus or authenticated cluster-membership change.
+`MembershipChange` uses WDBX's canonical signed membership records and a
+store-local owner-protected signing keypair. The bounded lineage is replayed
+and signature-verified on restart; responses include its generation, head
+digest, and tombstone state. It remains **gateway-local**: this is durable
+authenticated local state, not separate-host consensus, production cluster
+membership, or operator-managed signing-key lifecycle evidence.
