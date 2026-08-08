@@ -102,6 +102,7 @@ not evidence of the fixed writer-lock race.
 | Mobile `native_dispatch` | ◑ | Simulated desktop profile |
 | Production FHE / multi-host sharding | ◑ | Reference demos / ops guidance only |
 | Full ggml/llama.cpp | ◑ | Demo GGUF container only (char-LM payload) |
+| WDBX v2 causal multi-writer program | ◑ | `abi-wdbx::v2` now has legacy/UUID `RecordId`, per-writer append-only journals, hash-covered commit frames, causal conflict retention/explicit resolution, immutable `Arc` snapshots, 4,096-dimension validation, and a 50-writer stress test. Automatic v1 migration, crypto/signing, codecs, FHE/accelerator wiring, compaction/GC, gateway, and authenticated cluster proof are not yet implemented. |
 
 ---
 

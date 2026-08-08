@@ -60,6 +60,7 @@ pub mod spatial;
 pub mod store;
 pub mod temporal;
 pub mod tls_config;
+pub mod v2;
 pub mod wal;
 
 pub use ans::{AnsEncoded, AnsError, AnsMode, ans_decode, ans_encode, ans_encode_order1};
@@ -125,4 +126,7 @@ pub use temporal::{
     HybridScorer, RankedNode, ScoreComponents, TemporalCausalGraph, hybrid_search, temporal_weight,
 };
 pub use tls_config::{TLS_CERT_ENV, TLS_KEY_ENV, TlsConfig};
+pub use v2::{
+    CausalHeads, ConflictSet, RecordId, V2Error, V2Mutation, V2Snapshot, V2Store, Version,
+};
 pub use wal::{Recovered, RecoverySource, Wal, WalError};
