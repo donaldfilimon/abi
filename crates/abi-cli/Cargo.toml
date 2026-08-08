@@ -7,6 +7,11 @@ license.workspace = true
 repository.workspace = true
 description = "ABI command metadata, help rendering, and process dispatch."
 
+[features]
+default = []
+experimental-dghv-bootstrap = ["abi-wdbx/experimental-dghv-bootstrap"]
+full-fhe = ["abi-wdbx/full-fhe"]
+
 [[bin]]
 name = "abi"
 path = "src/main.rs"

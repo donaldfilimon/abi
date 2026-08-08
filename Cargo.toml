@@ -36,6 +36,7 @@ unicode-width = "0.2"
 uuid = { version = "1", features = ["serde", "v4", "v5"] }
 chacha20poly1305 = { version = "0.11", features = ["getrandom"] }
 ed25519-dalek = "3"
+tfhe = { version = "=1.7.0", default-features = false, features = ["boolean", "integer", "shortint"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

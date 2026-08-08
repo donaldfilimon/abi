@@ -434,6 +434,38 @@ mod tests {
     }
 
     #[test]
+    fn secure_additive_feature_surfaces_are_explicit_when_disabled() {
+        let dghv = run(&strings(&["secure", "dghv-bootstrap"]));
+        if cfg!(feature = "experimental-dghv-bootstrap") {
+            assert_eq!(dghv.exit_code, 0, "{}", dghv.stderr);
+            assert!(
+                dghv.stderr
+                    .contains("secret-key-assisted educational refresh")
+            );
+            assert!(dghv.stderr.contains("xor=[0, 1, 1, 0]"));
+            assert!(dghv.stderr.contains("and=[0, 0, 0, 1]"));
+            assert!(dghv.stderr.contains("nand=[1, 1, 1, 0]"));
+            assert!(dghv.stderr.contains("fresh_ciphertexts=true"));
+        } else {
+            assert_eq!(dghv.exit_code, 1);
+            assert!(dghv.stderr.contains("dghv-bootstrap: disabled"));
+        }
+        assert!(dghv.stderr.contains("cryptographic_bootstrapping=false"));
+        assert!(dghv.stderr.contains("security_audited=false"));
+
+        let tfhe = run(&strings(&["secure", "tfhe"]));
+        if cfg!(feature = "full-fhe") {
+            assert_eq!(tfhe.exit_code, 0, "{}", tfhe.stderr);
+            assert!(tfhe.stderr.contains("version=1.7.0"));
+            assert!(tfhe.stderr.contains("programmable_bootstrap_match=true"));
+        } else {
+            assert_eq!(tfhe.exit_code, 1);
+            assert!(tfhe.stderr.contains("tfhe: disabled"));
+        }
+        assert!(tfhe.stderr.contains("ABI_independent_audit=false"));
+    }
+
+    #[test]
     fn text_query_ranks_inserted_vectors() {
         let fixture = Fixture::new();
         let raw_path = fixture.raw_path();
