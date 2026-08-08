@@ -1,18 +1,51 @@
 //! Public WDBX v2 identities, causal values, and immutable snapshot model.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
 /// Historical numeric identities and v2 UUID identities share one public type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(untagged)]
 pub enum RecordId {
     /// Identity read from a v1 store or accepted at a compatibility boundary.
     Legacy(u64),
     /// Stable v2 identity, serialized as a UUID string.
     V2(Uuid),
+}
+
+impl<'de> Deserialize<'de> for RecordId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct RecordIdVisitor;
+
+        impl serde::de::Visitor<'_> for RecordIdVisitor {
+            type Value = RecordId;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a legacy integer ID or UUID string")
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> {
+                Ok(RecordId::Legacy(value))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                value
+                    .parse::<u64>()
+                    .map(RecordId::Legacy)
+                    .or_else(|_| Uuid::parse_str(value).map(RecordId::V2).map_err(E::custom))
+            }
+        }
+
+        deserializer.deserialize_any(RecordIdVisitor)
+    }
 }
 
 impl RecordId {
@@ -476,4 +509,38 @@ pub enum V2Error {
     /// Explicit resolution did not name exactly the current conflicting set.
     #[error("conflict resolution set does not match the current versions")]
     StaleResolution,
+}
+
+#[cfg(test)]
+mod record_id_tests {
+    use super::*;
+
+    #[test]
+    fn record_ids_preserve_value_encoding_and_accept_json_map_keys() {
+        let uuid = Uuid::from_u128(0xAB1);
+        assert_eq!(serde_json::to_string(&RecordId::Legacy(42)).unwrap(), "42");
+        assert_eq!(
+            serde_json::to_string(&RecordId::V2(uuid)).unwrap(),
+            format!("\"{uuid}\"")
+        );
+        assert_eq!(
+            serde_json::from_str::<RecordId>("42").unwrap(),
+            RecordId::Legacy(42)
+        );
+        assert_eq!(
+            serde_json::from_str::<RecordId>("\"42\"").unwrap(),
+            RecordId::Legacy(42)
+        );
+        assert_eq!(
+            serde_json::from_str::<RecordId>(&format!("\"{uuid}\"")).unwrap(),
+            RecordId::V2(uuid)
+        );
+
+        let map = BTreeMap::from([(RecordId::Legacy(42), "legacy"), (RecordId::V2(uuid), "v2")]);
+        let encoded = serde_json::to_string(&map).unwrap();
+        assert_eq!(
+            serde_json::from_str::<BTreeMap<RecordId, &str>>(&encoded).unwrap(),
+            map
+        );
+    }
 }
