@@ -151,6 +151,55 @@ fn rekey_refuses_active_writers_then_atomically_activates_verified_generation() 
 }
 
 #[test]
+fn confirmed_gc_requires_no_live_writer_and_keeps_one_covering_segment() {
+    let paths = scratch("wdbx-v2-gc");
+    let (mut store, opened) = open_versioned_writable(&paths).unwrap();
+    store
+        .commit(vec![V2Mutation::PutKv {
+            key: "gc-key".into(),
+            value: "retained".into(),
+        }])
+        .unwrap();
+    store.compact().unwrap();
+    assert!(gc_versioned(&paths, false).is_err());
+    let Err(error) = gc_versioned(&paths, true) else {
+        panic!("a live writer must prevent garbage collection");
+    };
+    assert!(error.to_string().contains("active writer lease"));
+    drop(store);
+
+    let report = gc_versioned(&paths, true).unwrap();
+    assert_eq!(report.generation, opened.generation);
+    assert!(report.removed_objects >= 3);
+    assert!(report.removed_bytes > 0);
+    assert_eq!(
+        std::fs::read_dir(report.generation.join("journals"))
+            .unwrap()
+            .count(),
+        0
+    );
+    assert_eq!(
+        std::fs::read_dir(report.generation.join("heads"))
+            .unwrap()
+            .count(),
+        0
+    );
+    assert_eq!(
+        std::fs::read_dir(report.generation.join("segments"))
+            .unwrap()
+            .count(),
+        1
+    );
+    let reopened = V2Store::open(&report.generation).unwrap();
+    assert_eq!(
+        reopened.snapshot().get("gc-key").unwrap().preferred.value,
+        "retained"
+    );
+    drop(reopened);
+    std::fs::remove_dir_all(paths.dir).unwrap();
+}
+
+#[test]
 fn wal_ahead_and_torn_tail_migrate_only_committed_v1_frames() {
     let paths = scratch("wdbx-v2-migration-wal-ahead");
     let mut store = DurableStore::open(paths.clone()).unwrap();

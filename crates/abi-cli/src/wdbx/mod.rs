@@ -215,6 +215,30 @@ mod tests {
     }
 
     #[test]
+    fn v2_gc_requires_confirmation_and_preserves_recovered_state() {
+        let fixture = Fixture::new();
+        let raw_path = fixture.raw_path();
+        let paths = paths_from_cli_base(&raw_path).unwrap();
+        let (mut store, _) = abi_wdbx::v2::open_versioned_writable(&paths).unwrap();
+        store
+            .commit(vec![abi_wdbx::v2::V2Mutation::PutKv {
+                key: "gc".into(),
+                value: "kept".into(),
+            }])
+            .unwrap();
+        drop(store);
+        assert_eq!(run(&strings(&["db", "gc", &raw_path])).exit_code, 2);
+        let collected = run(&strings(&["db", "gc", &raw_path, "--confirm"]));
+        assert_eq!(collected.exit_code, 0, "{}", collected.stderr);
+        assert!(collected.stderr.contains("prior_generations_retained=true"));
+        let (reopened, _) = abi_wdbx::v2::open_versioned_writable(&paths).unwrap();
+        assert_eq!(
+            reopened.snapshot().get("gc").unwrap().preferred.value,
+            "kept"
+        );
+    }
+
+    #[test]
     fn rekey_requires_confirmation_and_preserves_the_causal_snapshot() {
         let fixture = Fixture::new();
         let raw_path = fixture.raw_path();

@@ -169,6 +169,26 @@ fn a_tampered_committed_transaction_fails_closed() {
 }
 
 #[test]
+fn a_published_head_without_its_transaction_fails_closed() {
+    let root = scratch();
+    let mut store = V2Store::open(&root).unwrap();
+    store
+        .commit(vec![V2Mutation::PutKv {
+            key: "missing".into(),
+            value: "journal".into(),
+        }])
+        .unwrap();
+    let journal = store.object_journal_path();
+    drop(store);
+    std::fs::remove_file(journal).unwrap();
+    let Err(error) = V2Store::open(&root) else {
+        panic!("a published head cannot outlive all recoverable state");
+    };
+    assert!(error.to_string().contains("has no recoverable transaction"));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn encrypted_signed_journals_recover_and_hide_plaintext() {
     let root = scratch();
     let (encryption, signing, verifying) = generate_key_material();

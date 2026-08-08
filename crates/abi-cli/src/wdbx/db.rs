@@ -7,14 +7,15 @@ use crate::usage::is_help_token;
 use crate::wdbx::paths_from_cli_base;
 use abi_wdbx::v2::{
     ABI_WDBX_ENCRYPTION_KEY_FILE, ABI_WDBX_SIGNING_KEY_FILE, ABI_WDBX_VERIFY_KEY_FILE,
-    MigrationStatus, ObjectSecurity, VersionedSnapshot, generate_key_material, migration_status,
-    open_versioned_read_only, rekey_versioned, verify_versioned, write_key_material,
+    MigrationStatus, ObjectSecurity, VersionedSnapshot, gc_versioned, generate_key_material,
+    migration_status, open_versioned_read_only, rekey_versioned, verify_versioned,
+    write_key_material,
 };
 use abi_wdbx::{Snapshot, Wal};
 use std::fmt::Write;
 use std::path::Path;
 
-pub(crate) const DB_HELP: &str = "usage: abi wdbx db <init|verify|compact> <path> [keep]\n       abi wdbx db verify <path> --require-signature\n       abi wdbx db migration-status <path>\n       abi wdbx db migration-dry-run <path>\n       abi wdbx db keygen <directory>\n       abi wdbx db rekey <path> <new-key-directory> --confirm\n\nManage segment checkpoints, WAL recovery, snapshot integrity, and v2 object keys.\n";
+pub(crate) const DB_HELP: &str = "usage: abi wdbx db <init|verify|compact> <path> [keep]\n       abi wdbx db verify <path> --require-signature\n       abi wdbx db migration-status <path>\n       abi wdbx db migration-dry-run <path>\n       abi wdbx db keygen <directory>\n       abi wdbx db rekey <path> <new-key-directory> --confirm\n       abi wdbx db gc <path> --confirm\n\nManage segment checkpoints, WAL recovery, snapshot integrity, and v2 object keys.\n";
 
 fn keygen(directory: &str) -> Outcome {
     let directory = Path::new(directory);
@@ -289,6 +290,27 @@ fn migration_dry_run(raw_path: &str) -> Outcome {
     Outcome::stderr(report, 0)
 }
 
+fn gc(raw_path: &str) -> Outcome {
+    let paths = match paths_from_cli_base(raw_path) {
+        Ok(paths) => paths,
+        Err(detail) => return super::error("gc failed", detail),
+    };
+    let report = match gc_versioned(&paths, true) {
+        Ok(report) => report,
+        Err(detail) => return super::error("gc failed", detail),
+    };
+    Outcome::stderr(
+        format!(
+            "garbage-collected WDBX v2 generation: path={} retained_segment={} removed_objects={} removed_bytes={} prior_generations_retained=true\n",
+            report.generation.display(),
+            report.retained_segment.display(),
+            report.removed_objects,
+            report.removed_bytes
+        ),
+        0,
+    )
+}
+
 fn compact_db(raw_path: &str, keep_latest: usize) -> Outcome {
     let paths = match paths_from_cli_base(raw_path) {
         Ok(paths) => paths,
@@ -330,6 +352,7 @@ pub(crate) fn run_db(args: &[String]) -> Outcome {
         {
             rekey(path, key_directory)
         }
+        [operation, path, confirm] if operation == "gc" && confirm == "--confirm" => gc(path),
         [operation, path] if operation == "compact" => compact_db(path, 2),
         [operation, path, keep] if operation == "compact" => match keep.parse::<usize>() {
             Ok(keep) if keep > 0 => compact_db(path, keep),

@@ -131,6 +131,19 @@ pub struct VerificationReport {
     pub audit_blocks: usize,
 }
 
+/// Objects reclaimed by an explicitly confirmed, coverage-verified v2 GC.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GcReport {
+    /// Active generation cleaned in place.
+    pub generation: PathBuf,
+    /// Newly published segment that covers the recovered frontier.
+    pub retained_segment: PathBuf,
+    /// Dominated journal, head, and older-segment objects removed.
+    pub removed_objects: usize,
+    /// Sum of removed regular-file sizes.
+    pub removed_bytes: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Activation {
     version: u8,
@@ -314,6 +327,84 @@ pub fn verify_versioned(
         spatial: snapshot.spatial.len(),
         temporal: snapshot.temporal.len(),
         audit_blocks: snapshot.audit.len(),
+    })
+}
+
+/// Reclaim objects dominated by one newly verified covering segment.
+///
+/// This never removes v1 backups, prior rekey generations, unknown files, or
+/// anything outside the active generation.
+pub fn gc_versioned(paths: &StorePaths, confirm: bool) -> Result<GcReport, MigrationError> {
+    if !confirm {
+        return Err(MigrationError::InvalidActivation(
+            "v2 garbage collection requires explicit confirmation".into(),
+        ));
+    }
+    let MigrationStatus::V2 { generation, .. } = migration_status(paths)? else {
+        return Err(MigrationError::InvalidActivation(
+            "garbage collection requires an active WDBX v2 generation".into(),
+        ));
+    };
+    let maintenance = super::lease::begin_maintenance(&generation)?;
+    let security = ObjectSecurity::from_env().map_err(|error| V2Error::Security {
+        path: generation.clone(),
+        reason: error.to_string(),
+    })?;
+    let source = super::recover(&generation, &security)?;
+    let covering = super::segment::write_segment(&generation, &source, &security)?;
+    if super::recover(&generation, &security)? != source {
+        return Err(MigrationError::Verification(
+            "covering segment changed recovered state before garbage collection".into(),
+        ));
+    }
+
+    let mut removed_objects = 0_usize;
+    let mut removed_bytes = 0_u64;
+    for (directory, extensions) in [
+        (generation.join("journals"), &["objects", "jsonl"][..]),
+        (generation.join("heads"), &["head"][..]),
+        (generation.join("segments"), &["object"][..]),
+    ] {
+        if !directory.is_dir() {
+            continue;
+        }
+        let mut paths: Vec<_> = std::fs::read_dir(&directory)
+            .map_err(|error| io_error(&directory, &error))?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.is_file()
+                    && path
+                        .extension()
+                        .and_then(|extension| extension.to_str())
+                        .is_some_and(|extension| extensions.contains(&extension))
+            })
+            .collect();
+        paths.sort();
+        for path in paths {
+            if path == covering.path {
+                continue;
+            }
+            removed_bytes = removed_bytes.saturating_add(
+                std::fs::metadata(&path)
+                    .map_err(|error| io_error(&path, &error))?
+                    .len(),
+            );
+            std::fs::remove_file(&path).map_err(|error| io_error(&path, &error))?;
+            removed_objects = removed_objects.saturating_add(1);
+        }
+    }
+    if super::recover(&generation, &security)? != source {
+        return Err(MigrationError::Verification(
+            "retained covering segment did not survive post-GC recovery".into(),
+        ));
+    }
+    drop(maintenance);
+    Ok(GcReport {
+        generation,
+        retained_segment: covering.path,
+        removed_objects,
+        removed_bytes,
     })
 }
 

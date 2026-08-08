@@ -16,9 +16,9 @@ mod types;
 
 pub use index::{V2SearchResult, V2VectorIndex};
 pub use lifecycle::{
-    MigrationError, MigrationReport, MigrationStatus, RekeyReport, VerificationReport,
-    VersionedSnapshot, migration_status, open_versioned_read_only, open_versioned_writable,
-    rekey_versioned, verify_versioned,
+    GcReport, MigrationError, MigrationReport, MigrationStatus, RekeyReport, VerificationReport,
+    VersionedSnapshot, gc_versioned, migration_status, open_versioned_read_only,
+    open_versioned_writable, rekey_versioned, verify_versioned,
 };
 pub use security::{
     ABI_WDBX_ENCRYPTION_KEY_FILE, ABI_WDBX_SIGNING_KEY_FILE, ABI_WDBX_VERIFY_KEY_FILE, KeyMaterial,
@@ -420,6 +420,17 @@ fn recover_with_policy(
                 });
             }
             replay_journal(&journal, &published, &mut snapshot)?;
+        }
+    }
+    for (writer, sequence) in &published {
+        if snapshot.heads.get(writer).copied().unwrap_or(0) < *sequence {
+            return Err(V2Error::CorruptJournal {
+                path: root.join("heads"),
+                line: 0,
+                reason: format!(
+                    "published head {writer}:{sequence} has no recoverable transaction"
+                ),
+            });
         }
     }
     Ok(snapshot)
