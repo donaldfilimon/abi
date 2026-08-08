@@ -54,6 +54,7 @@ impl std::fmt::Debug for KeyMaterial {
 }
 
 /// Optional encryption/signing/verification keys for one object operation.
+#[derive(Clone)]
 pub struct ObjectSecurity {
     encryption: Option<Zeroizing<[u8; 32]>>,
     signing: Option<SigningKey>,
@@ -89,6 +90,38 @@ impl ObjectSecurity {
         let signing = env_key(ABI_WDBX_SIGNING_KEY_FILE, KeyKind::Signing)?
             .map(|material| SigningKey::from_bytes(&material.bytes));
         let configured_verifying = env_key(ABI_WDBX_VERIFY_KEY_FILE, KeyKind::Verifying)?
+            .map(|material| {
+                VerifyingKey::from_bytes(&material.bytes)
+                    .map_err(|error| SecurityError::InvalidKey(error.to_string()))
+            })
+            .transpose()?;
+        validate_signing_pair(signing.as_ref(), configured_verifying.as_ref())?;
+        let verifying =
+            configured_verifying.or_else(|| signing.as_ref().map(SigningKey::verifying_key));
+        Ok(Self {
+            encryption,
+            signing,
+            verifying,
+        })
+    }
+
+    /// Load an explicit encryption/signing/verifying key-file set.
+    pub fn from_key_files(
+        encryption: Option<&Path>,
+        signing: Option<&Path>,
+        verifying: Option<&Path>,
+    ) -> Result<Self, SecurityError> {
+        let encryption = encryption
+            .map(|path| read_key_file(path, KeyKind::Encryption))
+            .transpose()?
+            .map(|material| material.bytes);
+        let signing = signing
+            .map(|path| read_key_file(path, KeyKind::Signing))
+            .transpose()?
+            .map(|material| SigningKey::from_bytes(&material.bytes));
+        let configured_verifying = verifying
+            .map(|path| read_key_file(path, KeyKind::Verifying))
+            .transpose()?
             .map(|material| {
                 VerifyingKey::from_bytes(&material.bytes)
                     .map_err(|error| SecurityError::InvalidKey(error.to_string()))

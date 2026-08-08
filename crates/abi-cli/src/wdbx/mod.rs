@@ -185,6 +185,99 @@ mod tests {
     }
 
     #[test]
+    fn migration_status_and_dry_run_leave_v1_byte_exact_and_inactive() {
+        let fixture = Fixture::new();
+        let raw_path = fixture.raw_path();
+        assert_eq!(run(&strings(&["db", "init", &raw_path])).exit_code, 0);
+        let capture = || {
+            std::fs::read_dir(&fixture.dir)
+                .unwrap()
+                .filter_map(Result::ok)
+                .filter(|entry| entry.path().is_file())
+                .map(|entry| (entry.file_name(), std::fs::read(entry.path()).unwrap()))
+                .collect::<std::collections::BTreeMap<_, _>>()
+        };
+        let before = capture();
+        let status = run(&strings(&["db", "migration-status", &raw_path]));
+        assert_eq!(status.exit_code, 0, "{}", status.stderr);
+        assert!(status.stderr.contains("format=v1"));
+        let dry_run = run(&strings(&["db", "migration-dry-run", &raw_path]));
+        assert_eq!(dry_run.exit_code, 0, "{}", dry_run.stderr);
+        assert!(dry_run.stderr.contains("would_migrate=true"));
+        assert!(dry_run.stderr.contains("mutated=false"));
+        assert_eq!(capture(), before);
+        assert!(
+            !fixture
+                .dir
+                .join(format!("{}.active", fixture.base))
+                .exists()
+        );
+    }
+
+    #[test]
+    fn rekey_requires_confirmation_and_preserves_the_causal_snapshot() {
+        let fixture = Fixture::new();
+        let raw_path = fixture.raw_path();
+        let paths = paths_from_cli_base(&raw_path).unwrap();
+        let (mut store, initial) = abi_wdbx::v2::open_versioned_writable(&paths).unwrap();
+        store
+            .commit(vec![abi_wdbx::v2::V2Mutation::PutKv {
+                key: "rekeyed".into(),
+                value: "preserved".into(),
+            }])
+            .unwrap();
+        drop(store);
+        let verified = run(&strings(&["db", "verify", &raw_path]));
+        assert_eq!(verified.exit_code, 0, "{}", verified.stderr);
+        assert!(verified.stderr.contains("v2 verify OK"));
+        let unsigned = run(&strings(&[
+            "db",
+            "verify",
+            &raw_path,
+            "--require-signature",
+        ]));
+        assert_eq!(unsigned.exit_code, 1);
+        assert!(unsigned.stderr.contains("signature is required"));
+        let key_dir = fixture.dir.join("replacement-keys");
+        let key_dir_string = key_dir.to_string_lossy().into_owned();
+        assert_eq!(
+            run(&strings(&["db", "keygen", &key_dir_string])).exit_code,
+            0
+        );
+        assert_eq!(
+            run(&strings(&["db", "rekey", &raw_path, &key_dir_string])).exit_code,
+            2
+        );
+        let outcome = run(&strings(&[
+            "db",
+            "rekey",
+            &raw_path,
+            &key_dir_string,
+            "--confirm",
+        ]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        assert!(outcome.stderr.contains("retained=true"));
+        assert!(initial.generation.is_dir());
+
+        let abi_wdbx::v2::MigrationStatus::V2 { generation, .. } =
+            abi_wdbx::v2::migration_status(&paths).unwrap()
+        else {
+            panic!("rekey must leave v2 active");
+        };
+        let replacement = abi_wdbx::v2::ObjectSecurity::from_key_files(
+            Some(&key_dir.join("encryption.key")),
+            Some(&key_dir.join("signing.key")),
+            Some(&key_dir.join("verify.key")),
+        )
+        .unwrap();
+        let reopened = abi_wdbx::v2::V2Store::open_with_security(generation, replacement).unwrap();
+        assert_eq!(
+            reopened.snapshot().get("rekeyed").unwrap().preferred.value,
+            "preserved"
+        );
+    }
+
+    #[test]
     fn init_insert_get_and_verify_round_trip() {
         let fixture = Fixture::new();
         let raw_path = fixture.raw_path();

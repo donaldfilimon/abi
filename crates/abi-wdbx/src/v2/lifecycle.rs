@@ -93,6 +93,44 @@ pub struct MigrationReport {
     pub digest: String,
 }
 
+/// Verified generation replacement produced by an explicit rekey operation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RekeyReport {
+    /// Previously active generation, retained without modification.
+    pub previous_generation: PathBuf,
+    /// Newly activated generation.
+    pub generation: PathBuf,
+    /// Full causal snapshot digest compared before activation.
+    pub digest: String,
+}
+
+/// Read-only verification summary for an active v2 generation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerificationReport {
+    /// Verified active generation.
+    pub generation: PathBuf,
+    /// Whether every immutable object was required to carry a signature.
+    pub required_signature: bool,
+    /// Activation digest recorded when the generation was published.
+    pub activation_digest: String,
+    /// Digest of the fully recovered causal snapshot.
+    pub recovered_digest: String,
+    /// Number of writer heads in the recovered frontier.
+    pub writer_heads: usize,
+    /// Number of committed transactions represented by the snapshot.
+    pub committed_transactions: usize,
+    /// Logical key count, including conflict sets as one key each.
+    pub kv_keys: usize,
+    /// Stable vector identity count.
+    pub vectors: usize,
+    /// Spatial identity count.
+    pub spatial: usize,
+    /// Temporal logical-key count.
+    pub temporal: usize,
+    /// Immutable audit block count.
+    pub audit_blocks: usize,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Activation {
     version: u8,
@@ -176,6 +214,107 @@ pub fn open_versioned_writable(
         MigrationStatus::Empty => create_empty_v2(paths),
         MigrationStatus::V1 { .. } => migrate_v1(paths),
     }
+}
+
+/// Re-encrypt/re-sign an active v2 store through verified generation replacement.
+///
+/// The caller supplies replacement keys explicitly. Current-generation keys are
+/// loaded from the documented environment variables. No source or replacement
+/// generation is deleted by this operation.
+pub fn rekey_versioned(
+    paths: &StorePaths,
+    replacement_security: ObjectSecurity,
+) -> Result<(V2Store, RekeyReport), MigrationError> {
+    ensure_parent(paths)?;
+    let MigrationStatus::V2 {
+        generation: previous_generation,
+        backup,
+        ..
+    } = migration_status(paths)?
+    else {
+        return Err(MigrationError::InvalidActivation(
+            "rekey requires an active WDBX v2 generation".into(),
+        ));
+    };
+    discard_rekey_staging(paths)?;
+    let maintenance = super::lease::begin_maintenance(&previous_generation)?;
+    let current_security = ObjectSecurity::from_env().map_err(|error| V2Error::Security {
+        path: previous_generation.clone(),
+        reason: error.to_string(),
+    })?;
+    let source = super::recover(&previous_generation, &current_security)?;
+    let digest = snapshot_digest(&source)?;
+
+    let nonce = Uuid::new_v4();
+    let staging_name = format!(".{}.rekey-{nonce}", paths.base);
+    let staging = paths.dir.join(&staging_name);
+    initialize_v2_root(&staging)?;
+    super::segment::write_segment(&staging, &source, &replacement_security)?;
+    let replacement = super::recover(&staging, &replacement_security)?;
+    if source != replacement || digest != snapshot_digest(&replacement)? {
+        return Err(MigrationError::Verification(
+            "rekey replacement changed causal heads, versions, records, or digest".into(),
+        ));
+    }
+
+    let generation_name = format!("{}.v2-{nonce}", paths.base);
+    let generation = paths.dir.join(&generation_name);
+    std::fs::rename(&staging, &generation).map_err(|error| io_error(&generation, &error))?;
+    let backup_name = backup.as_deref().map(file_name_string).transpose()?;
+    publish_activation(
+        paths,
+        &Activation {
+            version: 2,
+            generation: generation_name,
+            backup: backup_name,
+            digest: digest.clone(),
+        },
+    )?;
+    drop(maintenance);
+    let store = V2Store::open_with_security(&generation, replacement_security)?;
+    Ok((
+        store,
+        RekeyReport {
+            previous_generation,
+            generation,
+            digest,
+        },
+    ))
+}
+
+/// Authenticate and causally replay the active v2 generation without mutation.
+pub fn verify_versioned(
+    paths: &StorePaths,
+    require_signature: bool,
+) -> Result<VerificationReport, MigrationError> {
+    let MigrationStatus::V2 {
+        generation,
+        digest: activation_digest,
+        ..
+    } = migration_status(paths)?
+    else {
+        return Err(MigrationError::InvalidActivation(
+            "signature-aware verification requires an active WDBX v2 generation".into(),
+        ));
+    };
+    let security = ObjectSecurity::from_env().map_err(|error| V2Error::Security {
+        path: generation.clone(),
+        reason: error.to_string(),
+    })?;
+    let snapshot = super::recover_with_policy(&generation, &security, require_signature)?;
+    Ok(VerificationReport {
+        generation,
+        required_signature: require_signature,
+        activation_digest,
+        recovered_digest: snapshot_digest(&snapshot)?,
+        writer_heads: snapshot.heads.len(),
+        committed_transactions: snapshot.committed_transactions,
+        kv_keys: snapshot.kv.len(),
+        vectors: snapshot.vectors.len(),
+        spatial: snapshot.spatial.len(),
+        temporal: snapshot.temporal.len(),
+        audit_blocks: snapshot.audit.len(),
+    })
 }
 
 fn create_empty_v2(paths: &StorePaths) -> Result<(V2Store, MigrationReport), MigrationError> {
@@ -579,6 +718,40 @@ fn discard_unpublished_generations(paths: &StorePaths) -> Result<(), MigrationEr
     Ok(())
 }
 
+fn discard_rekey_staging(paths: &StorePaths) -> Result<(), MigrationError> {
+    if !paths.dir.is_dir() {
+        return Ok(());
+    }
+    let prefix = format!(".{}.rekey-", paths.base);
+    for entry in std::fs::read_dir(&paths.dir).map_err(|error| io_error(&paths.dir, &error))? {
+        let entry = entry.map_err(|error| io_error(&paths.dir, &error))?;
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if path.is_dir() && name.starts_with(&prefix) {
+            std::fs::remove_dir_all(&path).map_err(|error| io_error(&path, &error))?;
+        }
+    }
+    Ok(())
+}
+
+fn initialize_v2_root(root: &Path) -> Result<(), MigrationError> {
+    std::fs::create_dir_all(root).map_err(|error| io_error(root, &error))?;
+    for child in ["journals", "heads", "segments", "leases"] {
+        let directory = root.join(child);
+        std::fs::create_dir_all(&directory).map_err(|error| io_error(&directory, &error))?;
+    }
+    super::atomic_write(&root.join("VERSION"), b"ABI-WDBX 2\n")?;
+    Ok(())
+}
+
+fn snapshot_digest(snapshot: &V2Snapshot) -> Result<String, MigrationError> {
+    let bytes = serde_json::to_vec(snapshot)
+        .map_err(|error| MigrationError::Verification(error.to_string()))?;
+    Ok(format!("{:x}", Sha256::digest(bytes)))
+}
+
 fn publish_activation(paths: &StorePaths, activation: &Activation) -> Result<(), MigrationError> {
     let mut bytes = ACTIVE_HEADER.as_bytes().to_vec();
     serde_json::to_writer(&mut bytes, activation)
@@ -653,224 +826,5 @@ fn io_error(path: &Path, error: &std::io::Error) -> MigrationError {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{DurableStore, SpatialRecord};
-    use std::io::Write as _;
-
-    fn scratch(name: &str) -> StorePaths {
-        StorePaths::new(abi_foundation::temp_path::temp_file_path(name, "store"))
-    }
-
-    #[test]
-    fn read_only_v1_open_does_not_remove_a_stale_wal() {
-        let paths = scratch("wdbx-v2-read-only");
-        let mut first = Snapshot::new();
-        first.kv.insert("old".into(), "one".into());
-        crate::persistence::flush(&paths, &first).unwrap();
-        crate::wal::create_with_epoch(wal_path(&paths), 0).unwrap();
-        crate::wal::append_kv(wal_path(&paths), "stale", "delta").unwrap();
-        let mut second = Snapshot::new();
-        second.kv.insert("new".into(), "two".into());
-        crate::persistence::flush(&paths, &second).unwrap();
-        let before = std::fs::read(wal_path(&paths)).unwrap();
-
-        let VersionedSnapshot::V1(snapshot) = open_versioned_read_only(&paths).unwrap() else {
-            panic!("expected v1");
-        };
-        assert_eq!(snapshot.kv, second.kv);
-        assert_eq!(std::fs::read(wal_path(&paths)).unwrap(), before);
-        std::fs::remove_dir_all(paths.dir).unwrap();
-    }
-
-    #[test]
-    fn writable_open_migrates_every_v1_family_and_keeps_a_byte_exact_backup() {
-        let paths = scratch("wdbx-v2-migration");
-        let mut store = DurableStore::open(paths.clone()).unwrap();
-        store.put("key", "value").unwrap();
-        let query = store.put_vector(&[1.0, 0.0]).unwrap();
-        let response = store.put_vector(&[0.0, 1.0]).unwrap();
-        store
-            .add_block("abbey", query, response, "meta", 42)
-            .unwrap();
-        store
-            .put_spatial(SpatialRecord {
-                id: 9,
-                x: 1.0,
-                y: 2.0,
-                z: 3.0,
-                payload: "point".into(),
-            })
-            .unwrap();
-        store.add_temporal_node(9, 42).unwrap();
-        store.add_temporal_edge(9, 10).unwrap();
-        store.checkpoint().unwrap();
-        drop(store);
-        let originals = v1_objects(&paths).unwrap();
-        let original_bytes: BTreeMap<_, _> = originals
-            .iter()
-            .map(|path| {
-                (
-                    path.file_name().unwrap().to_owned(),
-                    std::fs::read(path).unwrap(),
-                )
-            })
-            .collect();
-
-        let (store, report) = open_versioned_writable(&paths).unwrap();
-        assert!(report.migrated);
-        let backup = report.backup.as_ref().unwrap();
-        for (name, bytes) in original_bytes {
-            assert_eq!(std::fs::read(backup.join(&name)).unwrap(), bytes);
-            assert_eq!(std::fs::read(paths.dir.join(name)).unwrap(), bytes);
-        }
-        let snapshot = store.snapshot();
-        assert_eq!(snapshot.get("key").unwrap().preferred.value, "value");
-        assert_eq!(
-            snapshot
-                .get_vector(RecordId::Legacy(query))
-                .unwrap()
-                .preferred
-                .value,
-            [1.0, 0.0]
-        );
-        assert_eq!(snapshot.audit_blocks().count(), 1);
-        assert!(snapshot.get_spatial(RecordId::Legacy(9)).is_some());
-        assert_eq!(snapshot.temporal.len(), 2);
-        assert!(matches!(
-            migration_status(&paths).unwrap(),
-            MigrationStatus::V2 { .. }
-        ));
-        std::fs::remove_dir_all(paths.dir).unwrap();
-    }
-
-    #[test]
-    fn wal_ahead_and_torn_tail_migrate_only_committed_v1_frames() {
-        let paths = scratch("wdbx-v2-migration-wal-ahead");
-        let mut store = DurableStore::open(paths.clone()).unwrap();
-        store.put("checkpoint-free", "wal-value").unwrap();
-        drop(store);
-        let wal = wal_path(&paths);
-        let mut file = std::fs::OpenOptions::new().append(true).open(&wal).unwrap();
-        file.write_all(b"dead").unwrap();
-        file.sync_all().unwrap();
-        let before = std::fs::read(&wal).unwrap();
-
-        let (store, report) = open_versioned_writable(&paths).unwrap();
-        assert!(report.migrated);
-        assert_eq!(
-            store
-                .snapshot()
-                .get("checkpoint-free")
-                .unwrap()
-                .preferred
-                .value,
-            "wal-value"
-        );
-        assert_eq!(std::fs::read(&wal).unwrap(), before);
-        std::fs::remove_dir_all(paths.dir).unwrap();
-    }
-
-    #[test]
-    fn legacy_monolithic_snapshot_migrates_without_a_manifest() {
-        let paths = scratch("wdbx-v2-migration-legacy-snapshot");
-        std::fs::create_dir_all(&paths.dir).unwrap();
-        let mut snapshot = Snapshot::new();
-        snapshot.kv.insert("legacy".into(), "snapshot".into());
-        snapshot.vectors.insert(41, vec![0.5, 0.25]);
-        snapshot.recount();
-        crate::persistence::write_snapshot(paths.index(), &snapshot).unwrap();
-        assert!(!paths.manifest().exists());
-
-        let (store, report) = open_versioned_writable(&paths).unwrap();
-        assert!(report.migrated);
-        assert_eq!(
-            store.snapshot().get("legacy").unwrap().preferred.value,
-            "snapshot"
-        );
-        assert!(store.snapshot().get_vector(RecordId::Legacy(41)).is_some());
-        std::fs::remove_dir_all(paths.dir).unwrap();
-    }
-
-    #[test]
-    fn retry_discards_only_unpublished_v2_temporary_generations() {
-        let paths = scratch("wdbx-v2-migration-restart");
-        std::fs::create_dir_all(&paths.dir).unwrap();
-        let stale_staging = paths.dir.join(format!(".{}.migration-stale", paths.base));
-        let stale_generation = paths.dir.join(format!("{}.v2-stale", paths.base));
-        let retained_backup = paths
-            .dir
-            .join(format!("{}.v1-backup-retainedZ", paths.base));
-        std::fs::create_dir_all(&stale_staging).unwrap();
-        std::fs::create_dir_all(&stale_generation).unwrap();
-        std::fs::create_dir_all(&retained_backup).unwrap();
-
-        let (_store, _report) = open_versioned_writable(&paths).unwrap();
-        assert!(!stale_staging.exists());
-        assert!(!stale_generation.exists());
-        assert!(retained_backup.exists());
-        std::fs::remove_dir_all(paths.dir).unwrap();
-    }
-
-    #[test]
-    fn activation_rejects_path_traversal_and_bad_v2_version_markers() {
-        let paths = scratch("wdbx-v2-activation-validation");
-        std::fs::create_dir_all(&paths.dir).unwrap();
-        let activation = format!(
-            "{ACTIVE_HEADER}{{\"version\":2,\"generation\":\"../escape\",\"backup\":null,\"digest\":\"x\"}}\n"
-        );
-        std::fs::write(paths_active(&paths), activation).unwrap();
-        assert!(migration_status(&paths).is_err());
-        std::fs::remove_file(paths_active(&paths)).unwrap();
-
-        let root = paths.dir.join("direct-v2");
-        std::fs::create_dir_all(&root).unwrap();
-        std::fs::write(root.join("VERSION"), b"ABI-WDBX 3\n").unwrap();
-        assert!(matches!(
-            V2Store::open(&root),
-            Err(V2Error::UnsupportedVersion { .. })
-        ));
-        std::fs::remove_dir_all(paths.dir).unwrap();
-    }
-
-    #[test]
-    fn failed_verification_never_publishes_or_changes_v1() {
-        let paths = scratch("wdbx-v2-migration-corrupt");
-        let mut store = DurableStore::open(paths.clone()).unwrap();
-        let query = store.put_vector(&[1.0]).unwrap();
-        let response = store.put_vector(&[2.0]).unwrap();
-        store
-            .add_block("abbey", query, response, "meta", 42)
-            .unwrap();
-        store.checkpoint().unwrap();
-        drop(store);
-        let segment = paths.segment(0);
-        let before = std::fs::read(&segment).unwrap();
-        let mut content = String::from_utf8(before.clone()).unwrap();
-        content = content.replacen("\"profile\":\"abbey\"", "\"profile\":\"aviva\"", 1);
-        std::fs::write(&segment, content).unwrap();
-        let corrupted = std::fs::read(&segment).unwrap();
-
-        assert!(open_versioned_writable(&paths).is_err());
-        assert!(!paths_active(&paths).exists());
-        assert_eq!(std::fs::read(&segment).unwrap(), corrupted);
-        std::fs::remove_dir_all(paths.dir).unwrap();
-    }
-
-    #[test]
-    fn new_store_uses_v2_and_read_only_empty_open_is_non_mutating() {
-        let paths = scratch("wdbx-v2-new");
-        assert!(matches!(
-            open_versioned_read_only(&paths).unwrap(),
-            VersionedSnapshot::Empty
-        ));
-        assert!(!paths.dir.exists());
-        let (_store, report) = open_versioned_writable(&paths).unwrap();
-        assert!(!report.migrated);
-        assert!(matches!(
-            migration_status(&paths).unwrap(),
-            MigrationStatus::V2 { .. }
-        ));
-        std::fs::remove_dir_all(paths.dir).unwrap();
-    }
-}
+#[path = "lifecycle_tests.rs"]
+mod tests;

@@ -8,20 +8,24 @@
 //! only after its hash-covered object is durable and its writer head is published.
 
 mod index;
+mod lease;
 mod lifecycle;
 mod security;
+mod segment;
 mod types;
 
 pub use index::{V2SearchResult, V2VectorIndex};
 pub use lifecycle::{
-    MigrationError, MigrationReport, MigrationStatus, VersionedSnapshot, migration_status,
-    open_versioned_read_only, open_versioned_writable,
+    MigrationError, MigrationReport, MigrationStatus, RekeyReport, VerificationReport,
+    VersionedSnapshot, migration_status, open_versioned_read_only, open_versioned_writable,
+    rekey_versioned, verify_versioned,
 };
 pub use security::{
     ABI_WDBX_ENCRYPTION_KEY_FILE, ABI_WDBX_SIGNING_KEY_FILE, ABI_WDBX_VERIFY_KEY_FILE, KeyMaterial,
     ObjectKind, ObjectSecurity, OpenedObject, SecurityError, generate_key_material, open_object,
     seal_object, write_key_material,
 };
+pub use segment::CompactionReport;
 pub use types::{
     CausalHeads, ConflictSet, MAX_V2_VECTOR_DIMENSIONS, RecordId, V2AuditBlock, V2Error,
     V2Mutation, V2Snapshot, V2SpatialRecord, V2TemporalKind, V2TemporalRecord, Version,
@@ -67,6 +71,7 @@ pub struct V2Store {
     next_sequence: u64,
     snapshot: Arc<V2Snapshot>,
     security: ObjectSecurity,
+    _lease: lease::WriterLease,
 }
 
 impl V2Store {
@@ -88,6 +93,8 @@ impl V2Store {
         ensure_dir(&root)?;
         ensure_dir(&root.join("journals"))?;
         ensure_dir(&root.join("heads"))?;
+        ensure_dir(&root.join("segments"))?;
+        ensure_dir(&root.join("leases"))?;
         let version_path = root.join("VERSION");
         if !version_path.exists()
             && let Err(error) = atomic_write(&version_path, b"ABI-WDBX 2\n")
@@ -104,6 +111,7 @@ impl V2Store {
             });
         }
         let writer_id = Uuid::new_v4();
+        let lease = lease::acquire_writer_lease(&root, writer_id)?;
         let snapshot = Arc::new(recover(&root, &security)?);
         Ok(Self {
             root,
@@ -111,6 +119,7 @@ impl V2Store {
             next_sequence: 1,
             snapshot,
             security,
+            _lease: lease,
         })
     }
 
@@ -204,6 +213,15 @@ impl V2Store {
             key: key.to_string(),
             value,
         }])
+    }
+
+    /// Publish an immutable snapshot covering the currently observed heads.
+    ///
+    /// Compaction never deletes journals or older segments. Recovery replays
+    /// every transaction not covered by the selected causal frontier.
+    pub fn compact(&mut self) -> Result<CompactionReport, V2Error> {
+        self.refresh()?;
+        segment::write_segment(&self.root, &self.snapshot, &self.security)
     }
 
     #[cfg(test)]
@@ -360,7 +378,16 @@ fn append_journal_object(
 }
 
 fn recover(root: &Path, security: &ObjectSecurity) -> Result<V2Snapshot, V2Error> {
-    let mut snapshot = V2Snapshot::default();
+    recover_with_policy(root, security, false)
+}
+
+fn recover_with_policy(
+    root: &Path,
+    security: &ObjectSecurity,
+    require_signature: bool,
+) -> Result<V2Snapshot, V2Error> {
+    let mut snapshot =
+        segment::load_segment(root, security, require_signature)?.unwrap_or_default();
     let published = published_heads(root)?;
     let journal_dir = root.join("journals");
     let mut journals: Vec<_> = std::fs::read_dir(&journal_dir)
@@ -378,8 +405,20 @@ fn recover(root: &Path, security: &ObjectSecurity) -> Result<V2Snapshot, V2Error
             .extension()
             .is_some_and(|extension| extension == "objects")
         {
-            replay_object_journal(&journal, &published, &mut snapshot, security)?;
+            replay_object_journal(
+                &journal,
+                &published,
+                &mut snapshot,
+                security,
+                require_signature,
+            )?;
         } else {
+            if require_signature {
+                return Err(V2Error::Security {
+                    path: journal,
+                    reason: SecurityError::SignatureRequired.to_string(),
+                });
+            }
             replay_journal(&journal, &published, &mut snapshot)?;
         }
     }
@@ -445,6 +484,7 @@ fn replay_object_journal(
     published: &CausalHeads,
     snapshot: &mut V2Snapshot,
     security: &ObjectSecurity,
+    require_signature: bool,
 ) -> Result<(), V2Error> {
     let bytes = std::fs::read(path).map_err(|error| io_error(path, &error))?;
     let mut offset = 0_usize;
@@ -482,9 +522,11 @@ fn replay_object_journal(
             break;
         };
         object_number += 1;
-        let opened = open_object(encoded, security, false).map_err(|error| V2Error::Security {
-            path: path.to_path_buf(),
-            reason: error.to_string(),
+        let opened = open_object(encoded, security, require_signature).map_err(|error| {
+            V2Error::Security {
+                path: path.to_path_buf(),
+                reason: error.to_string(),
+            }
         })?;
         if opened.kind != ObjectKind::Journal {
             return corrupt(path, object_number, "object kind is not journal");
@@ -567,13 +609,18 @@ fn process_frames(
                 if begin.transaction_id != transaction_id {
                     return corrupt(path, line_number, "commit transaction id mismatch");
                 }
-                if begin.sequence != snapshot.heads.get(&begin.writer_id).copied().unwrap_or(0) + 1
-                {
-                    return corrupt(path, line_number, "writer sequence is not contiguous");
-                }
                 let expected = transaction_hash(&begin, &mutations)?;
                 if expected != found {
                     return corrupt(path, line_number, "transaction hash mismatch");
+                }
+                let recovered_sequence = snapshot.heads.get(&begin.writer_id).copied().unwrap_or(0);
+                if begin.sequence <= recovered_sequence {
+                    // The selected immutable segment already authenticated and
+                    // retained this transaction's state.
+                    continue;
+                }
+                if begin.sequence != recovered_sequence + 1 {
+                    return corrupt(path, line_number, "writer sequence is not contiguous");
                 }
                 if published
                     .get(&begin.writer_id)

@@ -167,7 +167,7 @@ pub struct ConflictSet<T> {
 }
 
 /// Immutable recovered v2 state. Views retain an `Arc` to this snapshot.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct V2Snapshot {
     pub(super) heads: CausalHeads,
     pub(super) kv: BTreeMap<String, Vec<Version<String>>>,
@@ -299,6 +299,9 @@ pub enum V2Error {
         /// Redacted key, framing, or authentication failure.
         reason: String,
     },
+    /// Exclusive maintenance could not start or a writer raced it.
+    #[error("WDBX v2 maintenance refused: {0}")]
+    Maintenance(String),
     /// A mutation was rejected before any bytes were appended.
     #[error("invalid WDBX v2 mutation: {0}")]
     InvalidMutation(String),
