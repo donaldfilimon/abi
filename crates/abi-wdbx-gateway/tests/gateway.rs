@@ -249,12 +249,15 @@ async fn bearer_auth_and_all_eight_methods_use_a_scratch_store() {
     let membership = service
         .membership_change(authenticated(MembershipChangeRequest {
             action: MembershipAction::Add as i32,
-            node_id: "node-a".into(),
+            node_id: Uuid::new_v4().to_string(),
+            endpoint: "loopback://node-a".into(),
         }))
         .await
         .unwrap()
         .into_inner();
     assert!(membership.changed);
+    assert_eq!(membership.generation, 1);
+    assert_eq!(membership.head_digest.len(), 64);
 
     let stats = service
         .stats(authenticated(StatsRequest {}))

@@ -5,7 +5,7 @@
 //! providers expose explicit platform adapters for inventory and callers that
 //! deliberately select one; constructing a provider never changes defaults.
 
-use super::{Credentials, file, keychain};
+use super::{Credentials, file, keychain, linux_secret_service};
 use crate::errors::AbiError;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -18,7 +18,7 @@ pub enum ProviderKind {
     MacOsKeychain,
     /// Existing JSON file protected by an owner-only Windows DACL.
     WindowsProtectedFile,
-    /// Linux Secret Service adapter; currently an unavailable stub.
+    /// Linux Secret Service adapter over an encrypted in-process D-Bus session.
     LinuxSecretService,
 }
 
@@ -299,34 +299,51 @@ fn platform_file_save(_evidence: &AtomicBool, _credentials: &Credentials) -> Res
     Err(AbiError::UnsupportedOperation)
 }
 
-/// Linux Secret Service capability stub.
+/// Linux Secret Service adapter.
 ///
-/// No D-Bus client is linked and this provider never invokes `secret-tool` or
-/// any other process. It therefore remains unavailable on every target.
-#[derive(Debug, Default)]
-pub struct LinuxSecretServiceProvider;
+/// The implementation is target-gated and talks to the freedesktop Secret
+/// Service over an encrypted in-process D-Bus session. It never invokes
+/// `secret-tool` or places a secret on a process command line. Successful
+/// operations provide runtime evidence only for this provider instance.
+#[derive(Default)]
+pub struct LinuxSecretServiceProvider {
+    runtime_verified: AtomicBool,
+}
+
+impl std::fmt::Debug for LinuxSecretServiceProvider {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("LinuxSecretServiceProvider")
+            .field("capability", &self.capability())
+            .finish()
+    }
+}
 
 impl CredentialProvider for LinuxSecretServiceProvider {
     fn capability(&self) -> CredentialCapability {
+        let compiled = cfg!(target_os = "linux");
         capability(
             ProviderKind::LinuxSecretService,
-            ProviderImplementation::Stub,
-            cfg!(target_os = "linux"),
-            false,
-            false,
+            ProviderImplementation::Runtime,
+            compiled,
+            compiled,
+            self.runtime_verified.load(Ordering::Acquire),
         )
     }
 
     fn load(&self) -> Result<Credentials, AbiError> {
-        Err(AbiError::UnsupportedOperation)
+        verified(&self.runtime_verified, linux_secret_service::load())
     }
 
-    fn save(&self, _credentials: &Credentials) -> Result<(), AbiError> {
-        Err(AbiError::UnsupportedOperation)
+    fn save(&self, credentials: &Credentials) -> Result<(), AbiError> {
+        verified(
+            &self.runtime_verified,
+            linux_secret_service::save(credentials),
+        )
     }
 
     fn clear(&self) -> Result<(), AbiError> {
-        Err(AbiError::UnsupportedOperation)
+        verified(&self.runtime_verified, linux_secret_service::clear())
     }
 }
 
@@ -386,7 +403,7 @@ mod tests {
         assert_eq!(capabilities[1].compiled, cfg!(windows));
         assert_eq!(capabilities[1].available, cfg!(windows));
         assert_eq!(capabilities[2].compiled, cfg!(target_os = "linux"));
-        assert!(!capabilities[2].available);
+        assert_eq!(capabilities[2].available, cfg!(target_os = "linux"));
         assert!(
             capabilities
                 .iter()
@@ -408,7 +425,7 @@ mod tests {
                 .starts_with("provider=macos_keychain implementation=runtime compiled=")
         );
         assert!(report.contains("provider=windows_protected_file implementation=compile_checked"));
-        assert!(report.contains("provider=linux_secret_service implementation=stub"));
+        assert!(report.contains("provider=linux_secret_service implementation=runtime"));
         assert!(report.lines().all(|line| {
             line.contains("runtime_verified=false")
                 && line.contains("secret_transport=in_process_api")
@@ -456,11 +473,23 @@ mod tests {
     }
 
     #[test]
+    fn failed_operation_does_not_invent_runtime_verification() {
+        let evidence = AtomicBool::new(false);
+        assert_eq!(
+            verified::<()>(&evidence, Err(AbiError::InternalError)).unwrap_err(),
+            AbiError::InternalError
+        );
+        assert!(!evidence.load(Ordering::Acquire));
+    }
+
+    #[test]
     fn unavailable_adapters_fail_without_inventing_runtime_evidence() {
-        let linux = LinuxSecretServiceProvider;
-        assert_eq!(linux.load().unwrap_err(), AbiError::UnsupportedOperation);
-        assert_eq!(linux.clear().unwrap_err(), AbiError::UnsupportedOperation);
-        assert!(!linux.capability().runtime_verified);
+        if !cfg!(target_os = "linux") {
+            let linux = LinuxSecretServiceProvider::default();
+            assert_eq!(linux.load().unwrap_err(), AbiError::UnsupportedOperation);
+            assert_eq!(linux.clear().unwrap_err(), AbiError::UnsupportedOperation);
+            assert!(!linux.capability().runtime_verified);
+        }
 
         if !cfg!(windows) {
             let windows = WindowsCredentialProtectionProvider::default();
@@ -471,5 +500,41 @@ mod tests {
             );
             assert!(!windows.capability().runtime_verified);
         }
+    }
+
+    /// Opt-in real Linux Secret Service round trip.
+    ///
+    /// Set `ABI_LINUX_SECRET_SERVICE_TEST=1` on a Linux desktop session. The
+    /// test refuses to overwrite a non-empty ABI Secret Service namespace.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_secret_service_roundtrip_sets_runtime_evidence() {
+        if std::env::var_os("ABI_LINUX_SECRET_SERVICE_TEST").is_none() {
+            return;
+        }
+
+        let provider = LinuxSecretServiceProvider::default();
+        assert!(!provider.capability().runtime_verified);
+        let existing = provider.load().expect("connect and inspect Secret Service");
+        assert!(provider.capability().runtime_verified);
+        if !existing.is_empty() {
+            return;
+        }
+
+        let mut credentials = Credentials::default();
+        credentials.set(
+            CredentialField::OPENAI_API_KEY,
+            Some(Secret::new("sk-linux-secret-service-test")),
+        );
+        provider.save(&credentials).expect("save");
+        let loaded = provider.load().expect("load");
+        assert_eq!(
+            loaded
+                .get(CredentialField::OPENAI_API_KEY)
+                .map(Secret::expose),
+            Some("sk-linux-secret-service-test")
+        );
+        provider.clear().expect("clear");
+        assert!(provider.load().expect("load after clear").is_empty());
     }
 }

@@ -309,7 +309,7 @@ impl WdbxGateway for GatewayService {
                     spatial_records: stats.spatial_records as u64,
                     temporal_nodes: stats.temporal_nodes as u64,
                     temporal_edges: stats.temporal_edges as u64,
-                    members: state.members.len() as u64,
+                    members: state.membership.active_len() as u64,
                 })
             })
             .await
@@ -324,27 +324,21 @@ impl WdbxGateway for GatewayService {
         self.admit(&request)?;
         let input = request.into_inner();
         self.validate_key(&input.node_id)?;
+        let parsed_node = Uuid::parse_str(&input.node_id)
+            .map_err(|_| Status::invalid_argument("node id must be a UUID"))?;
         let action = MembershipAction::try_from(input.action)
             .map_err(|_| Status::invalid_argument("unknown membership action"))?;
-        let node_id = input.node_id;
         let maximum_members = self.limits.membership_entries;
-        let (changed, members) = self
+        let outcome = self
             .executor
             .run(move |state| {
-                let changed = match action {
+                let result = match action {
                     MembershipAction::Add => {
-                        if !state.members.contains(&node_id)
-                            && state.members.len() >= maximum_members
-                        {
-                            return Err(abi_wdbx::VersionedError::V2(
-                                abi_wdbx::V2Error::InvalidMutation(
-                                    "gateway-local membership limit reached".into(),
-                                ),
-                            ));
-                        }
-                        state.members.insert(node_id)
+                        state
+                            .membership
+                            .add(parsed_node, input.endpoint, maximum_members)
                     }
-                    MembershipAction::Remove => state.members.remove(&node_id),
+                    MembershipAction::Remove => state.membership.remove(parsed_node),
                     MembershipAction::Unspecified => {
                         return Err(abi_wdbx::VersionedError::V2(
                             abi_wdbx::V2Error::InvalidMutation(
@@ -353,16 +347,23 @@ impl WdbxGateway for GatewayService {
                         ));
                     }
                 };
-                Ok((changed, state.members.len()))
+                result.map_err(|error| {
+                    abi_wdbx::VersionedError::V2(abi_wdbx::V2Error::InvalidMutation(
+                        error.to_string(),
+                    ))
+                })
             })
             .await
             .map_err(Status::from)?;
-        if changed {
+        if outcome.changed {
             self.events.publish("membership_change", "", 1);
         }
         Ok(Response::new(MembershipChangeResponse {
-            changed,
-            members: members as u64,
+            changed: outcome.changed,
+            members: outcome.active_members as u64,
+            generation: outcome.generation,
+            head_digest: outcome.head_digest,
+            tombstoned: outcome.tombstoned,
         }))
     }
 

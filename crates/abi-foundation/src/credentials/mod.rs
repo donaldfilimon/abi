@@ -11,10 +11,14 @@
 
 mod file;
 mod keychain;
+mod linux_secret_service;
 mod provider;
 mod secret;
 #[cfg(windows)]
 mod windows_acl;
+
+#[cfg(windows)]
+pub use windows_acl::is_owner_only as windows_file_is_owner_only;
 
 pub use file::{CREDENTIALS_PATH_ENV, credentials_path, write_owner_only_file_new};
 pub use keychain::{BACKEND_ENV, backend_is_keychain};

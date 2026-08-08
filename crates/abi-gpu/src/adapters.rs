@@ -123,17 +123,19 @@ impl Accelerator for MetalAccelerator {
     }
 }
 
-/// `CoreML` configuration adapter for the Apple Neural Engine request surface.
+/// `CoreML` adapter with deterministic tiny-model inference evidence.
 ///
-/// The current helper creates a configuration requesting
-/// `.cpuAndNeuralEngine`; it does not load a model or execute inference.
+/// The helper requests `.cpuAndNeuralEngine`, loads an embedded model, runs a
+/// fixed prediction, and compares the output to an oracle. `CoreML` does not
+/// expose device placement here, so successful inference is not ANE-residency
+/// evidence and never sets `runtime_verified`.
 #[derive(Debug, Default)]
 pub struct CoreMlAneAccelerator {
     cpu: CpuBackend,
 }
 
 impl CoreMlAneAccelerator {
-    /// Construct the request-only adapter.
+    /// Construct the adapter. The native inference probe remains lazy.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -144,6 +146,16 @@ impl CoreMlAneAccelerator {
     pub fn requested_cpu_and_neural_engine(&self) -> bool {
         abi_compute::ane_hardware_present()
             && metal_kernels::coreml_cpu_and_neural_engine_requested()
+    }
+
+    /// Whether deterministic `CoreML` inference matched the expected output.
+    ///
+    /// This records verified model execution under the requested compute-unit
+    /// policy, not proof that `CoreML` placed the operation on the ANE.
+    #[must_use]
+    pub fn tiny_model_inference_verified(&self) -> bool {
+        self.requested_cpu_and_neural_engine()
+            && metal_kernels::coreml_tiny_model_inference_verified()
     }
 }
 
@@ -156,13 +168,18 @@ impl Accelerator for CoreMlAneAccelerator {
         let requested = self.requested_cpu_and_neural_engine();
         let compiled = metal_kernels::coreml_helper_compiled();
         let available = compiled && abi_compute::ane_hardware_present();
+        let inference_verified = available && requested && self.tiny_model_inference_verified();
         CapabilityState::new(
             Backend::NpuAne,
             CapabilityEvidence::new()
                 .with_compiled(compiled)
-                .with_available(available),
-            if requested {
-                "CoreML accepted cpuAndNeuralEngine request; no inference or ANE residency verified"
+                .with_available(available)
+                .with_initialized(inference_verified)
+                .with_executed(inference_verified),
+            if inference_verified {
+                "CoreML tiny-model inference matched its oracle under cpuAndNeuralEngine; ANE residency is not verified"
+            } else if requested {
+                "CoreML accepted cpuAndNeuralEngine but tiny-model inference did not verify; ANE residency is not verified"
             } else if abi_compute::ane_hardware_present() {
                 "ANE hardware detected but CoreML request helper unavailable; CPU fallback active"
             } else {
@@ -291,20 +308,25 @@ mod tests {
     }
 
     #[test]
-    fn coreml_request_is_not_inference_or_residency_evidence() {
+    fn coreml_inference_advances_execution_but_not_residency_evidence() {
         let adapter = CoreMlAneAccelerator::new();
         let state = adapter.capability();
-        assert!(!state.initialized());
-        assert!(!state.executed());
         assert!(!state.runtime_verified());
         if !metal_kernels::coreml_helper_compiled() {
             assert!(!state.available());
         }
         let _ = adapter.dot(&[1.0], &[2.0]).expect("CPU fallback");
-        assert!(!adapter.capability().executed());
-        if adapter.requested_cpu_and_neural_engine() {
-            assert!(state.message().contains("no inference"));
+        let after_fallback = adapter.capability();
+        assert_eq!(after_fallback.executed(), state.executed());
+        assert!(!after_fallback.runtime_verified());
+        if adapter.tiny_model_inference_verified() {
+            assert!(state.initialized());
+            assert!(state.executed());
             assert!(state.message().contains("residency"));
+            assert!(!state.runtime_verified());
+        } else {
+            assert!(!state.initialized());
+            assert!(!state.executed());
         }
     }
 

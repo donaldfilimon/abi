@@ -65,15 +65,18 @@ pub mod wal;
 
 pub use ans::{AnsEncoded, AnsError, AnsMode, ans_decode, ans_encode, ans_encode_order1};
 pub use cluster::{
-    AppendReply, Cluster, ClusterDataError, ClusterError, KvReadResult, LogEntry, Node,
+    AppendReply, Cluster, ClusterDataError, ClusterError, KvReadResult, LogEntry, MembershipChange,
+    MembershipError, MembershipLedger, MembershipRecord, Node, NodeDescriptor, NodeState,
     RebalancePlan, RebalanceProgress, RebalanceStep, RepairAction, RepairPlan, ReplicaSearchHit,
-    ReplicaTransport, ReplicationReceipt, Role, TransportApplyError, TransportError, VoteReply,
-    apply_append, apply_vote, build_rebalance_plan, read_kv_fanout, replicate_committed,
-    resume_rebalance, search_fanout,
+    ReplicaTransport, ReplicationReceipt, Role, SignedMembershipRecord, TransportApplyError,
+    TransportError, VoteReply, apply_append, apply_vote, build_rebalance_plan, read_kv_fanout,
+    replicate_committed, resume_rebalance, search_fanout, sign_membership_record,
 };
 pub use cluster_rpc::{
-    CLUSTER_RPC_TIMEOUT, ClusterAuth, ClusterPolicy, ClusterRpcServer, RpcError, dial_append,
-    dial_shutdown, dial_vote, read_append_reply, read_shutdown_reply, read_vote_reply,
+    CLUSTER_RPC_TIMEOUT, ClusterAuth, ClusterDataRequest, ClusterDataResponse, ClusterKvState,
+    ClusterPolicy, ClusterRpcServer, MAX_CLUSTER_DATA_FRAME_SIZE, RpcError, dial_append, dial_data,
+    dial_shutdown, dial_vote, read_append_reply, read_data_reply, read_shutdown_reply,
+    read_vote_reply,
 };
 pub use codecs::{
     AutoencoderArchitectureV1, AutoencoderArtifactV1, AutoencoderConfigV1, CodecError,

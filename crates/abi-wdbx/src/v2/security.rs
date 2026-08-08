@@ -421,7 +421,7 @@ fn read_key_file(path: &Path, kind: KeyKind) -> Result<KeyMaterial, SecurityErro
             path.display()
         )));
     }
-    if !matches!(kind, KeyKind::Verifying) && !private_permissions(&metadata) {
+    if !matches!(kind, KeyKind::Verifying) && !private_permissions(path, &metadata) {
         return Err(SecurityError::InsecurePermissions {
             path: path.to_path_buf(),
         });
@@ -439,16 +439,19 @@ fn read_key_file(path: &Path, kind: KeyKind) -> Result<KeyMaterial, SecurityErro
 }
 
 #[cfg(unix)]
-fn private_permissions(metadata: &std::fs::Metadata) -> bool {
+fn private_permissions(_path: &Path, metadata: &std::fs::Metadata) -> bool {
     use std::os::unix::fs::PermissionsExt as _;
     metadata.permissions().mode().trailing_zeros() >= 6
 }
 
-#[cfg(not(unix))]
-fn private_permissions(_metadata: &std::fs::Metadata) -> bool {
-    // Key generation applies the Windows owner-only credential DACL. Runtime
-    // verification of arbitrary pre-existing DACLs remains platform-unverified.
-    true
+#[cfg(windows)]
+fn private_permissions(path: &Path, _metadata: &std::fs::Metadata) -> bool {
+    abi_foundation::credentials::windows_file_is_owner_only(path).unwrap_or(false)
+}
+
+#[cfg(all(not(unix), not(windows)))]
+fn private_permissions(_path: &Path, _metadata: &std::fs::Metadata) -> bool {
+    false
 }
 
 fn encode_envelope(

@@ -161,7 +161,7 @@ mod tests {
     fn save_load_round_trip_preserves_sample() {
         let model =
             train_model(b"hello world hello world ", TrainConfig::default()).expect("train");
-        let dir = std::env::temp_dir().join(format!("abi_nn_ckpt_{}", std::process::id()));
+        let dir = abi_foundation::temp_path::temp_file_path("abi-nn-checkpoint", "scratch");
         let _ = std::fs::create_dir_all(&dir);
         let path = dir.join("model.json");
         save(&path, &model).expect("save");

@@ -13,8 +13,17 @@ use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::time::Duration;
 
+mod data;
+
+use data::{ClusterDataPlane, encode_response};
+pub use data::{
+    ClusterDataRequest, ClusterDataResponse, ClusterKvState, dial_data, read_data_reply,
+};
+
 /// Connect/read/write deadline for the bounded reference transport.
 pub const CLUSTER_RPC_TIMEOUT: Duration = Duration::from_secs(2);
+/// Largest authenticated exact-transaction frame accepted by the data plane.
+pub const MAX_CLUSTER_DATA_FRAME_SIZE: usize = 64 * 1024;
 
 /// Shared-secret configuration.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -186,6 +195,10 @@ enum Request<'line> {
     Shutdown {
         supplied: Option<&'line str>,
     },
+    Data {
+        body: &'line str,
+        supplied: Option<&'line str>,
+    },
     Unknown,
 }
 
@@ -222,6 +235,12 @@ fn parse_request(line: &str) -> Result<Request<'_>, RpcError> {
                 supplied: Some(token),
             });
         }
+        if let Some(body) = command.strip_prefix("DATA ") {
+            return Ok(Request::Data {
+                body,
+                supplied: Some(token),
+            });
+        }
         return Ok(Request::Unknown);
     }
     if let Some(vote) = line.strip_prefix("VOTE ") {
@@ -250,6 +269,7 @@ pub struct ClusterRpcServer {
     listener: TcpListener,
     node: Node,
     policy: ClusterPolicy,
+    data_plane: Option<ClusterDataPlane>,
     shutdown_requested: bool,
 }
 
@@ -269,8 +289,22 @@ impl ClusterRpcServer {
             listener,
             node,
             policy,
+            data_plane: None,
             shutdown_requested: false,
         })
+    }
+
+    /// Bind a listener with an isolated writable v2 data plane.
+    pub fn bind_with_store(
+        host: &str,
+        port: u16,
+        node: Node,
+        policy: ClusterPolicy,
+        store: crate::VersionedStore,
+    ) -> Result<Self, RpcError> {
+        let mut server = Self::bind(host, port, node, policy)?;
+        server.data_plane = Some(ClusterDataPlane::new(store));
+        Ok(server)
     }
 
     /// Bound port, including a kernel-selected ephemeral port.
@@ -300,10 +334,14 @@ impl ClusterRpcServer {
         let (mut stream, _) = self.listener.accept()?;
         stream.set_read_timeout(Some(CLUSTER_RPC_TIMEOUT))?;
         stream.set_write_timeout(Some(CLUSTER_RPC_TIMEOUT))?;
-        let mut buffer = [0; MAX_LINE_SIZE];
+        let mut buffer = vec![0; MAX_CLUSTER_DATA_FRAME_SIZE];
         let line = read_line(&mut stream, &mut buffer)?;
         let line = std::str::from_utf8(line).map_err(|_| RpcError::MalformedRequest)?;
-        let response = match parse_request(line)? {
+        let request = parse_request(line)?;
+        if line.len() >= MAX_LINE_SIZE && !matches!(&request, Request::Data { .. }) {
+            return Err(RpcError::LineTooLong);
+        }
+        let response = match request {
             Request::Vote {
                 term,
                 candidate,
@@ -346,6 +384,17 @@ impl ClusterRpcServer {
                     format!("BYE {}\n", self.node.term)
                 } else {
                     format!("DENIED {}\n", self.node.term)
+                }
+            }
+            Request::Data { body, supplied } => {
+                if !self.policy.auth.enabled() || !self.policy.auth.matches(supplied) {
+                    format!("DENIED {}\n", self.node.term)
+                } else if let Some(data_plane) = &mut self.data_plane {
+                    encode_response(&data_plane.handle(body))
+                } else {
+                    encode_response(&ClusterDataResponse::Error {
+                        message: "data plane is unavailable".into(),
+                    })
                 }
             }
             Request::Unknown => "ERR 0\n".to_string(),
@@ -474,6 +523,13 @@ fn is_loopback_host(host: &str) -> bool {
 mod tests {
     use super::*;
     use std::thread;
+
+    fn data_request(port: u16, token: &str, request: &ClusterDataRequest) -> ClusterDataResponse {
+        let stream = dial_data("127.0.0.1", port, token, request)
+            .expect("dial")
+            .expect("reachable");
+        read_data_reply(stream).expect("data reply")
+    }
 
     #[test]
     fn policy_validation_and_reload_are_explicit() {
@@ -689,6 +745,113 @@ mod tests {
                 .iter()
                 .all(|server| server.node().log[0].data == b"set loop=true")
         );
+    }
+
+    #[test]
+    fn authenticated_data_plane_preserves_exact_objects_and_conflict_state() {
+        let root = abi_foundation::temp_path::temp_file_path("cluster-rpc-data", "store");
+        let store = crate::VersionedStore::open(crate::StorePaths::new(&root)).expect("store");
+        let policy = ClusterPolicy::from_values(Some("secret"), Some("0,1")).expect("policy");
+        let mut server =
+            ClusterRpcServer::bind_with_store("127.0.0.1", 0, Node::new(1), policy, store)
+                .expect("bind");
+        let port = server.local_port().expect("port");
+        let handle = thread::spawn(move || {
+            for _ in 0..7 {
+                server.serve_one().expect("data request");
+            }
+            server
+        });
+
+        let mut denied = dial_data(
+            "127.0.0.1",
+            port,
+            "wrong",
+            &ClusterDataRequest::ReadKv { key: "k".into() },
+        )
+        .expect("dial")
+        .expect("reachable");
+        assert_eq!(read_reply(&mut denied).unwrap().0, "DENIED");
+
+        let shard_key = b"kv:k".to_vec();
+        let committed = match data_request(
+            port,
+            "secret",
+            &ClusterDataRequest::CommitKv {
+                shard_key: shard_key.clone(),
+                key: "k".into(),
+                value: "v".into(),
+            },
+        ) {
+            ClusterDataResponse::Transaction { transaction } => transaction,
+            response => panic!("unexpected commit response: {response:?}"),
+        };
+        let exported = match data_request(
+            port,
+            "secret",
+            &ClusterDataRequest::ExportTransaction {
+                writer_id: committed.writer_id(),
+                sequence: committed.sequence(),
+            },
+        ) {
+            ClusterDataResponse::Transaction { transaction } => transaction,
+            response => panic!("unexpected export response: {response:?}"),
+        };
+        assert_eq!(exported, committed);
+        assert_eq!(exported.encoded(), committed.encoded());
+
+        assert!(matches!(
+            data_request(
+                port,
+                "secret",
+                &ClusterDataRequest::ImportCommitted {
+                    shard_key: shard_key.clone(),
+                    transaction: committed.clone(),
+                }
+            ),
+            ClusterDataResponse::Imported { transaction_id }
+                if transaction_id == committed.transaction_id()
+        ));
+        assert!(matches!(
+            data_request(
+                port,
+                "secret",
+                &ClusterDataRequest::ReadKv { key: "k".into() }
+            ),
+            ClusterDataResponse::Kv { current: Some(current) }
+                if current.preferred.value == "v" && current.conflicts.is_empty()
+        ));
+        assert!(matches!(
+            data_request(
+                port,
+                "secret",
+                &ClusterDataRequest::ShardTransactions {
+                    shard_key: shard_key.clone()
+                }
+            ),
+            ClusterDataResponse::Transactions { transactions }
+                if transactions == [committed]
+        ));
+        assert!(matches!(
+            data_request(port, "secret", &ClusterDataRequest::ShardKeys),
+            ClusterDataResponse::ShardKeys { shard_keys } if shard_keys == [shard_key]
+        ));
+
+        drop(handle.join().expect("server"));
+        std::fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn data_plane_rejects_an_oversized_request_before_connecting() {
+        let request = ClusterDataRequest::CommitKv {
+            shard_key: vec![1],
+            key: "k".into(),
+            value: "x".repeat(MAX_CLUSTER_DATA_FRAME_SIZE),
+        };
+        assert!(matches!(
+            dial_data("127.0.0.1", 1, "secret", &request),
+            Err(RpcError::LineTooLong)
+        ));
     }
 
     #[test]

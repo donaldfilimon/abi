@@ -8,6 +8,7 @@ mod auth;
 mod config;
 mod events;
 mod executor;
+mod membership;
 mod server;
 mod service;
 mod tls;

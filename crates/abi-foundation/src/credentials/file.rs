@@ -197,6 +197,7 @@ fn set_mode(path: &Path, mode: u32) -> Result<(), AbiError> {
 }
 
 #[cfg(not(unix))]
+#[allow(clippy::unnecessary_wraps)]
 fn set_mode(_path: &Path, _mode: u32) -> Result<(), AbiError> {
     // No POSIX mode bits; Windows relies on the DACL below instead.
     Ok(())

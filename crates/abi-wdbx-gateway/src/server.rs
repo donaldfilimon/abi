@@ -117,12 +117,12 @@ impl PreparedGateway {
         let websocket_tls = self.websocket_tls;
         let event_task = tokio::spawn(async move {
             if let Some(tls) = websocket_tls {
-                axum_server::from_tcp_rustls(events_listener, tls)
+                axum_server::from_tcp_rustls(events_listener, tls)?
                     .handle(event_handle)
                     .serve(application.into_make_service())
                     .await
             } else {
-                axum_server::from_tcp(events_listener)
+                axum_server::from_tcp(events_listener)?
                     .handle(event_handle)
                     .serve(application.into_make_service())
                     .await

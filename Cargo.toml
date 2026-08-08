@@ -41,14 +41,14 @@ chacha20poly1305 = { version = "0.11", features = ["getrandom"] }
 ed25519-dalek = "3"
 tfhe = { version = "=1.7.0", default-features = false, features = ["boolean", "integer", "shortint"] }
 axum = { version = "0.8", features = ["ws"] }
-axum-server = { version = "0.7", default-features = false, features = ["tls-rustls-no-provider"] }
+axum-server = { version = "0.8", default-features = false, features = ["tls-rustls-no-provider"] }
 clap = { version = "4", features = ["derive"] }
 futures-util = "0.3"
 prost = "0.14"
 prost-build = "0.14"
 protoc-bin-vendored = "3"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
-rustls-pemfile = "2"
+rustls-pki-types = { version = "1", features = ["std"] }
 subtle = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-stream = { version = "0.1", features = ["net", "sync"] }

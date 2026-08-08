@@ -64,13 +64,17 @@ enum MembershipAction {
   MEMBERSHIP_ACTION_REMOVE = 2;
 }
 message MembershipChangeRequest {
-  // Gateway-local reference membership only; not a durable signed cluster ledger.
+  // Durable signed gateway-local lineage; not separate-host cluster consensus.
   MembershipAction action = 1;
   string node_id = 2;
+  string endpoint = 3;
 }
 message MembershipChangeResponse {
   bool changed = 1;
   uint64 members = 2;
+  uint64 generation = 3;
+  string head_digest = 4;
+  bool tombstoned = 5;
 }
 
 message WatchMutationsRequest {}

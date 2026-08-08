@@ -298,3 +298,50 @@ public func abi_coreml_cpu_and_neural_engine_requested() -> Bool {
     }
     return false
 }
+
+private func verifyTinyCoreMlInference() -> Bool {
+    guard #available(macOS 12.0, *) else { return false }
+
+    let configuration = MLModelConfiguration()
+    configuration.computeUnits = .cpuAndNeuralEngine
+    guard configuration.computeUnits == .cpuAndNeuralEngine else { return false }
+
+    let fileManager = FileManager.default
+    let modelURL = fileManager.temporaryDirectory.appendingPathComponent(
+        "abi-coreml-\(UUID().uuidString).mlmodel"
+    )
+    do {
+        try Data(abiTinyCoreMlModelBytes).write(
+            to: modelURL, options: [.atomic, .completeFileProtection]
+        )
+        defer { try? fileManager.removeItem(at: modelURL) }
+
+        let compiledURL = try MLModel.compileModel(at: modelURL)
+        defer { try? fileManager.removeItem(at: compiledURL) }
+        let model = try MLModel(contentsOf: compiledURL, configuration: configuration)
+
+        let input = try MLMultiArray(shape: [1], dataType: .float32)
+        input[0] = 3
+        let features = try MLDictionaryFeatureProvider(dictionary: ["input": input])
+        let prediction = try model.prediction(from: features)
+        guard let output = prediction.featureValue(for: "output")?.multiArrayValue,
+              output.count == 1
+        else { return false }
+
+        // The generated model is `output = 2 * input + 1`, so input 3 must
+        // produce 7. This proves model load and prediction correctness under
+        // the requested compute-unit policy, not ANE placement or residency.
+        return abs(output[0].floatValue - 7.0) <= 0.000_001
+    } catch {
+        return false
+    }
+}
+
+// Swift global initialization is lazy and thread-safe, so at most one model is
+// compiled and executed per process regardless of concurrent Rust callers.
+private let tinyCoreMlInferenceVerified = verifyTinyCoreMlInference()
+
+@_cdecl("abi_coreml_tiny_model_inference_verified")
+public func abi_coreml_tiny_model_inference_verified() -> Bool {
+    tinyCoreMlInferenceVerified
+}

@@ -1,15 +1,15 @@
 //! Bounded `spawn_blocking` adapter around the synchronous WDBX facade.
 
 use crate::GatewayError;
+use crate::membership::MembershipStore;
 use abi_wdbx::{StorePaths, VersionedError, VersionedStore};
-use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Semaphore;
 
 pub(crate) struct GatewayState {
     pub(crate) store: VersionedStore,
-    pub(crate) members: BTreeSet<String>,
+    pub(crate) membership: MembershipStore,
 }
 
 /// Cloneable handle for bounded synchronous store work.
@@ -32,11 +32,10 @@ impl StoreExecutor {
     pub fn open(path: &Path, maximum_jobs: usize) -> Result<Self, GatewayError> {
         let store = VersionedStore::open(StorePaths::new(path))
             .map_err(|error| GatewayError::Store(error.to_string()))?;
+        let membership =
+            MembershipStore::open(path).map_err(|error| GatewayError::Store(error.to_string()))?;
         Ok(Self {
-            state: Arc::new(Mutex::new(GatewayState {
-                store,
-                members: BTreeSet::new(),
-            })),
+            state: Arc::new(Mutex::new(GatewayState { store, membership })),
             permits: Arc::new(Semaphore::new(maximum_jobs)),
         })
     }

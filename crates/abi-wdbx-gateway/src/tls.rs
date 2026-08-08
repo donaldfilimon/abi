@@ -2,8 +2,9 @@
 
 use crate::config::{GatewayError, TlsFiles, open_validated_file};
 use rustls::RootCertStore;
-use rustls::pki_types::{CertificateDer, PrivateKeyDer};
-use std::io::{BufReader, Read as _};
+use rustls_pki_types::pem::PemObject as _;
+use rustls_pki_types::{CertificateDer, PrivateKeyDer};
+use std::io::Read as _;
 use std::path::Path;
 use std::sync::Arc;
 use tonic::transport::{Certificate, Identity, ServerTlsConfig};
@@ -101,7 +102,7 @@ fn parse_certificates(
     path: &Path,
     pem: &[u8],
 ) -> Result<Vec<CertificateDer<'static>>, GatewayError> {
-    let certificates = rustls_pemfile::certs(&mut BufReader::new(pem))
+    let certificates = CertificateDer::pem_slice_iter(pem)
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| GatewayError::File {
             label: "TLS certificate".into(),
@@ -119,15 +120,9 @@ fn parse_certificates(
 }
 
 fn parse_private_key(path: &Path, pem: &[u8]) -> Result<PrivateKeyDer<'static>, GatewayError> {
-    rustls_pemfile::private_key(&mut BufReader::new(pem))
-        .map_err(|error| GatewayError::File {
-            label: "TLS private key".into(),
-            path: path.to_path_buf(),
-            message: error.to_string(),
-        })?
-        .ok_or_else(|| GatewayError::File {
-            label: "TLS private key".into(),
-            path: path.to_path_buf(),
-            message: "no private key found".into(),
-        })
+    PrivateKeyDer::from_pem_slice(pem).map_err(|error| GatewayError::File {
+        label: "TLS private key".into(),
+        path: path.to_path_buf(),
+        message: error.to_string(),
+    })
 }

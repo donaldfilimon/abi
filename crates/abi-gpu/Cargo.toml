@@ -11,7 +11,8 @@ description = "GPU/backend detection for the ABI framework with optional Metal D
 default = ["metal-kernels", "coreml-ane"]
 # Link Metal compute DOT kernel (macOS). When init fails, accelerated stays false.
 metal-kernels = []
-# Compile the Apple helper that requests CoreML `.cpuAndNeuralEngine`.
+# Compile the Apple helper that verifies tiny-model CoreML inference under a
+# `.cpuAndNeuralEngine` request without claiming device residency.
 coreml-ane = []
 # Compile claim-honest adapters. Toolchain detection never implies runtime use.
 cuda-adapter = []

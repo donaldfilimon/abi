@@ -10,6 +10,7 @@ pub(crate) const COMPUTE_HELP: &str = "usage: abi wdbx compute info\n\nReport CP
 
 fn compute_info() -> Outcome {
     let metal = abi_gpu::MetalAccelerator::new();
+    let coreml = abi_gpu::CoreMlAneAccelerator::new();
     let query = [1.0_f32, 0.0];
     let matching = [1.0_f32, 0.0];
     let unrelated = [0.0_f32, 1.0];
@@ -31,7 +32,7 @@ fn compute_info() -> Outcome {
         metal.capability(),
         abi_gpu::CudaAccelerator::new().capability(),
         abi_gpu::VulkanAccelerator::new().capability(),
-        abi_gpu::CoreMlAneAccelerator::new().capability(),
+        coreml.capability(),
     ] {
         write_capability_state(&mut report, state);
     }
@@ -49,10 +50,13 @@ fn compute_info() -> Outcome {
         selection.message
     )
     .expect("writing to a String cannot fail");
+    let coreml_state = coreml.capability();
     writeln!(
         report,
-        "apple neural engine: hardware_present={} requested_compute_units=cpuAndNeuralEngine; inference_executed=false runtime_residency_verified=false",
-        abi_wdbx::ane_hardware_present()
+        "apple neural engine: hardware_present={} requested_compute_units=cpuAndNeuralEngine; inference_executed={} runtime_residency_verified={}",
+        abi_wdbx::ane_hardware_present(),
+        coreml_state.executed(),
+        coreml_state.runtime_verified()
     )
     .expect("writing to a String cannot fail");
     let endpoint = abi_wdbx::remote_compute_endpoint();

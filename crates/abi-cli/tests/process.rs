@@ -277,7 +277,7 @@ fn authenticated_cluster_local_demo_uses_real_children_and_redacts_runtime_state
     assert_eq!(proof["proof"], "authenticated_local_multi_process");
     assert_eq!(
         proof["storage_proof_scope"],
-        "isolated_in_process_exact_transaction_replicas"
+        "isolated_child_process_exact_transaction_replicas"
     );
     assert_eq!(proof["nodes"], 3);
     assert_eq!(proof["election"]["votes"], 3);

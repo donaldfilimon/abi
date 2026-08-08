@@ -1,15 +1,14 @@
 //! Authenticated local multi-process cluster proof.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::io::{BufRead as _, BufReader};
-use std::path::PathBuf;
 use std::process::{Child, ChildStderr, Command, Stdio};
 
 use abi_wdbx::cluster::{NodeDescriptor, rendezvous_replicas};
 use abi_wdbx::{
-    CommittedTransaction, ConflictSet, ReplicaSearchHit, ReplicaTransport, TransportError,
-    V2Mutation, V2Store, dial_append, dial_shutdown, dial_vote, read_append_reply, read_kv_fanout,
-    read_shutdown_reply, read_vote_reply, replicate_committed,
+    ClusterDataRequest, ClusterDataResponse, CommittedTransaction, ConflictSet, ReplicaSearchHit,
+    ReplicaTransport, TransportError, dial_data, dial_shutdown, dial_vote, read_data_reply,
+    read_kv_fanout, read_shutdown_reply, read_vote_reply, replicate_committed,
 };
 use uuid::Uuid;
 
@@ -66,69 +65,103 @@ struct NodeProcess {
     _stderr: ChildStderr,
 }
 
-struct DemoTransport {
-    stores: BTreeMap<Uuid, V2Store>,
-    roots: Vec<PathBuf>,
-    inventory: BTreeMap<(Uuid, Vec<u8>), Vec<CommittedTransaction>>,
-    failed: BTreeSet<Uuid>,
+struct ChildTransport {
+    ports: BTreeMap<Uuid, u16>,
+    token: String,
 }
 
-impl DemoTransport {
-    fn new(nodes: &[NodeDescriptor]) -> Result<Self, String> {
-        let mut stores = BTreeMap::new();
-        let mut roots = Vec::new();
-        for node in nodes {
-            let root = abi_foundation::temp_path::temp_file_path(
-                &format!("wdbx-local-proof-node-{}", node.id),
-                "store",
-            );
-            let store = V2Store::open(&root)
-                .map_err(|error| format!("cannot open scratch replica {}: {error}", node.id))?;
-            stores.insert(node.id, store);
-            roots.push(root);
+impl ChildTransport {
+    fn new(nodes: &[NodeProcess], descriptors: &[NodeDescriptor], token: &str) -> Self {
+        Self {
+            ports: descriptors
+                .iter()
+                .zip(nodes)
+                .map(|(descriptor, node)| (descriptor.id, node.port))
+                .collect(),
+            token: token.to_owned(),
         }
-        Ok(Self {
-            stores,
-            roots,
-            inventory: BTreeMap::new(),
-            failed: BTreeSet::new(),
-        })
+    }
+
+    fn exchange(
+        &self,
+        node_id: Uuid,
+        request: &ClusterDataRequest,
+    ) -> Result<ClusterDataResponse, TransportError> {
+        let port = self
+            .ports
+            .get(&node_id)
+            .copied()
+            .ok_or_else(|| TransportError::new("unknown replica"))?;
+        let stream = dial_data("127.0.0.1", port, &self.token, request)
+            .map_err(|error| TransportError::new(error.to_string()))?
+            .ok_or_else(|| TransportError::new("replica is unreachable"))?;
+        let response =
+            read_data_reply(stream).map_err(|error| TransportError::new(error.to_string()))?;
+        match response {
+            ClusterDataResponse::Error { message } => Err(TransportError::new(message)),
+            response => Ok(response),
+        }
+    }
+
+    fn commit_kv(
+        &self,
+        node_id: Uuid,
+        shard_key: &[u8],
+        key: &str,
+        value: &str,
+    ) -> Result<CommittedTransaction, TransportError> {
+        match self.exchange(
+            node_id,
+            &ClusterDataRequest::CommitKv {
+                shard_key: shard_key.to_vec(),
+                key: key.to_owned(),
+                value: value.to_owned(),
+            },
+        )? {
+            ClusterDataResponse::Transaction { transaction } => Ok(transaction),
+            _ => Err(TransportError::new("unexpected commit response")),
+        }
+    }
+
+    fn export_transaction(
+        &self,
+        node_id: Uuid,
+        transaction: &CommittedTransaction,
+    ) -> Result<CommittedTransaction, TransportError> {
+        match self.exchange(
+            node_id,
+            &ClusterDataRequest::ExportTransaction {
+                writer_id: transaction.writer_id(),
+                sequence: transaction.sequence(),
+            },
+        )? {
+            ClusterDataResponse::Transaction { transaction } => Ok(transaction),
+            _ => Err(TransportError::new("unexpected export response")),
+        }
     }
 }
 
-impl Drop for DemoTransport {
-    fn drop(&mut self) {
-        self.stores.clear();
-        for root in &self.roots {
-            let _ = std::fs::remove_dir_all(root);
-        }
-    }
-}
-
-impl ReplicaTransport for DemoTransport {
+impl ReplicaTransport for ChildTransport {
     fn import_committed(
         &mut self,
         node_id: Uuid,
         shard_key: &[u8],
         transaction: &CommittedTransaction,
     ) -> Result<(), TransportError> {
-        if self.failed.contains(&node_id) {
-            return Err(TransportError::new("injected replica failure"));
+        match self.exchange(
+            node_id,
+            &ClusterDataRequest::ImportCommitted {
+                shard_key: shard_key.to_vec(),
+                transaction: transaction.clone(),
+            },
+        )? {
+            ClusterDataResponse::Imported { transaction_id }
+                if transaction_id == transaction.transaction_id() =>
+            {
+                Ok(())
+            }
+            _ => Err(TransportError::new("unexpected import response")),
         }
-        self.stores
-            .get_mut(&node_id)
-            .ok_or_else(|| TransportError::new("unknown replica"))?
-            .import_committed(transaction)
-            .map_err(|error| TransportError::new(error.to_string()))?;
-        let inventory = self
-            .inventory
-            .entry((node_id, shard_key.to_vec()))
-            .or_default();
-        if !inventory.contains(transaction) {
-            inventory.push(transaction.clone());
-            inventory.sort_by_key(|item| (item.writer_id(), item.sequence()));
-        }
-        Ok(())
     }
 
     fn read_kv(
@@ -136,10 +169,15 @@ impl ReplicaTransport for DemoTransport {
         node_id: Uuid,
         key: &str,
     ) -> Result<Option<ConflictSet<String>>, TransportError> {
-        self.stores
-            .get(&node_id)
-            .map(|store| store.snapshot().get(key))
-            .ok_or_else(|| TransportError::new("unknown replica"))
+        match self.exchange(
+            node_id,
+            &ClusterDataRequest::ReadKv {
+                key: key.to_owned(),
+            },
+        )? {
+            ClusterDataResponse::Kv { current } => Ok(current.map(ConflictSet::from)),
+            _ => Err(TransportError::new("unexpected read response")),
+        }
     }
 
     fn shard_transactions(
@@ -147,20 +185,22 @@ impl ReplicaTransport for DemoTransport {
         node_id: Uuid,
         shard_key: &[u8],
     ) -> Result<Vec<CommittedTransaction>, TransportError> {
-        Ok(self
-            .inventory
-            .get(&(node_id, shard_key.to_vec()))
-            .cloned()
-            .unwrap_or_default())
+        match self.exchange(
+            node_id,
+            &ClusterDataRequest::ShardTransactions {
+                shard_key: shard_key.to_vec(),
+            },
+        )? {
+            ClusterDataResponse::Transactions { transactions } => Ok(transactions),
+            _ => Err(TransportError::new("unexpected shard response")),
+        }
     }
 
     fn shard_keys(&self, node_id: Uuid) -> Result<Vec<Vec<u8>>, TransportError> {
-        Ok(self
-            .inventory
-            .keys()
-            .filter(|(candidate, _)| *candidate == node_id)
-            .map(|(_, key)| key.clone())
-            .collect())
+        match self.exchange(node_id, &ClusterDataRequest::ShardKeys)? {
+            ClusterDataResponse::ShardKeys { shard_keys } => Ok(shard_keys),
+            _ => Err(TransportError::new("unexpected shard-key response")),
+        }
     }
 
     fn search(
@@ -169,7 +209,9 @@ impl ReplicaTransport for DemoTransport {
         _query: &[f32],
         _limit: usize,
     ) -> Result<Vec<ReplicaSearchHit>, TransportError> {
-        Ok(Vec::new())
+        Err(TransportError::new(
+            "vector search is outside the local data-plane proof",
+        ))
     }
 }
 
@@ -266,35 +308,33 @@ fn prove(node_count: usize) -> Result<LocalProof, String> {
         .collect::<Result<Vec<_>, _>>()?;
     let quorum = node_count / 2 + 1;
     let election = elect(&nodes, 0, 1, &token, quorum)?;
-    let acknowledgements = append(&nodes, 0, 1, "set local-proof=true", &token)?;
-    if acknowledgements < quorum {
-        return Err("replicated write did not reach quorum".into());
-    }
-
-    nodes[0].shutdown(&token)?;
-    let failover = elect(&nodes[1..], 1, 2, &token, quorum)?;
-    let repair_acks = append(&nodes[1..], 1, 2, "repair local-proof=true", &token)?;
-    if repair_acks < quorum {
-        return Err("read repair did not reach surviving quorum".into());
-    }
+    let descriptors = descriptors(node_count)?;
+    let mut transport = ChildTransport::new(&nodes, &descriptors, &token);
+    let data_proof = prove_exact_data_plane(
+        node_count,
+        &descriptors,
+        &mut transport,
+        &mut nodes,
+        &token,
+        quorum,
+    )?;
     for node in &mut nodes[1..] {
         node.shutdown(&token)?;
     }
-    let (shard_placement, conflicts, read_repair) = prove_exact_data_plane(node_count)?;
 
     Ok(LocalProof {
         proof: "authenticated_local_multi_process",
-        storage_proof_scope: "isolated_in_process_exact_transaction_replicas",
+        storage_proof_scope: "isolated_child_process_exact_transaction_replicas",
         nodes: node_count,
         election,
         replicated_write: ReplicatedWriteProof {
-            acknowledgements,
-            quorum,
+            acknowledgements: data_proof.acknowledgements,
+            quorum: data_proof.quorum,
         },
-        shard_placement,
-        failover,
-        conflicts,
-        read_repair,
+        shard_placement: data_proof.shard_placement,
+        failover: data_proof.failover,
+        conflicts: data_proof.conflicts,
+        read_repair: data_proof.read_repair,
         child_teardown: if nodes
             .iter_mut()
             .all(|node| node.child.try_wait().ok().flatten().is_some())
@@ -306,10 +346,17 @@ fn prove(node_count: usize) -> Result<LocalProof, String> {
     })
 }
 
-fn prove_exact_data_plane(
-    node_count: usize,
-) -> Result<(ProofState, ProofState, ProofState), String> {
-    let descriptors = (1..=node_count)
+struct ExactDataProof {
+    acknowledgements: usize,
+    quorum: usize,
+    shard_placement: ProofState,
+    failover: ElectionProof,
+    conflicts: ProofState,
+    read_repair: ProofState,
+}
+
+fn descriptors(node_count: usize) -> Result<Vec<NodeDescriptor>, String> {
+    (1..=node_count)
         .map(|value| {
             NodeDescriptor::active(
                 Uuid::from_u128(u128::try_from(value).expect("bounded node id")),
@@ -317,91 +364,113 @@ fn prove_exact_data_plane(
             )
             .map_err(|error| error.to_string())
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect()
+}
+
+fn prove_exact_data_plane(
+    node_count: usize,
+    descriptors: &[NodeDescriptor],
+    transport: &mut ChildTransport,
+    nodes: &mut [NodeProcess],
+    token: &str,
+    quorum: usize,
+) -> Result<ExactDataProof, String> {
     let shard_key = b"kv:local-proof-conflict";
-    let first_root =
-        abi_foundation::temp_path::temp_file_path("wdbx-local-proof-source-first", "store");
-    let second_root =
-        abi_foundation::temp_path::temp_file_path("wdbx-local-proof-source-second", "store");
-    let mut first = V2Store::open(&first_root).map_err(|error| error.to_string())?;
-    let mut second = V2Store::open(&second_root).map_err(|error| error.to_string())?;
-    let first_transaction = first
-        .commit_export(vec![V2Mutation::PutKv {
-            key: "local-proof-conflict".into(),
-            value: "first".into(),
-        }])
+    let first_transaction = transport
+        .commit_kv(
+            descriptors[0].id,
+            shard_key,
+            "local-proof-conflict",
+            "first",
+        )
         .map_err(|error| error.to_string())?;
-    let second_transaction = second
-        .commit_export(vec![V2Mutation::PutKv {
-            key: "local-proof-conflict".into(),
-            value: "second".into(),
-        }])
+    let exported = transport
+        .export_transaction(descriptors[0].id, &first_transaction)
         .map_err(|error| error.to_string())?;
-    drop(first);
-    drop(second);
-    let _ = std::fs::remove_dir_all(&first_root);
-    let _ = std::fs::remove_dir_all(&second_root);
-    let mut transport = DemoTransport::new(&descriptors)?;
+    if exported != first_transaction || exported.encoded() != first_transaction.encoded() {
+        return Err("leader did not export the exact committed envelope".into());
+    }
+
+    // The successor commits without having observed the leader's transaction.
+    // Importing the leader object afterwards must therefore retain a conflict.
+    let second_transaction = transport
+        .commit_kv(
+            descriptors[1].id,
+            shard_key,
+            "local-proof-conflict",
+            "second",
+        )
+        .map_err(|error| error.to_string())?;
     let first_receipt = replicate_committed(
-        &mut transport,
+        transport,
         shard_key,
-        &descriptors,
-        3,
+        descriptors,
+        node_count,
         &first_transaction,
     )
     .map_err(|error| error.to_string())?;
-    let placement = rendezvous_replicas(shard_key, &descriptors, 3);
-    if first_receipt.selected != placement || placement.len() != 3 {
-        return Err("rendezvous placement proof did not select three replicas".into());
+    let placement = rendezvous_replicas(shard_key, descriptors, node_count);
+    if first_receipt.selected != placement
+        || placement.len() != node_count
+        || first_receipt.acknowledged.len() != node_count
+    {
+        return Err("rendezvous placement did not import the exact object on every child".into());
     }
-    let lagging = *placement
-        .last()
-        .ok_or_else(|| "placement proof selected no replicas".to_string())?;
-    transport.failed.insert(lagging);
-    let second_receipt = replicate_committed(
-        &mut transport,
-        shard_key,
-        &descriptors,
-        3,
-        &second_transaction,
-    )
-    .map_err(|error| error.to_string())?;
-    transport.failed.clear();
-    if second_receipt.selected != placement || second_receipt.acknowledged.len() != 2 {
-        return Err("injected lagging replica did not preserve selected quorum".into());
+    for descriptor in descriptors {
+        let exact = transport
+            .shard_transactions(descriptor.id, shard_key)
+            .map_err(|error| error.to_string())?;
+        if !exact
+            .iter()
+            .any(|transaction| transaction == &first_transaction)
+        {
+            return Err("child shard export omitted the replicated exact envelope".into());
+        }
     }
 
+    nodes[0].shutdown(token)?;
+    let failover = elect(&nodes[1..], 1, 2, token, quorum)?;
     let before = read_kv_fanout(
-        &transport,
+        transport,
         shard_key,
         "local-proof-conflict",
-        &descriptors,
-        3,
+        descriptors,
+        node_count,
     )
     .map_err(|error| error.to_string())?;
-    if before.versions.len() != 2 || before.repair_plan.actions.len() != 1 {
-        return Err("concurrent versions or exact repair plan were not surfaced".into());
+    if before.versions.len() != 2
+        || before.repair_plan.actions.len() != node_count.saturating_sub(2)
+        || !before
+            .repair_plan
+            .actions
+            .iter()
+            .all(|action| action.transactions == [second_transaction.clone()])
+    {
+        return Err("post-failover conflicts or exact stale-node repair were not surfaced".into());
     }
     before
         .repair_plan
-        .apply(&mut transport)
+        .apply(transport)
         .map_err(|error| error.to_string())?;
     let after = read_kv_fanout(
-        &transport,
+        transport,
         shard_key,
         "local-proof-conflict",
-        &descriptors,
-        3,
+        descriptors,
+        node_count,
     )
     .map_err(|error| error.to_string())?;
     if after.versions.len() != 2 || !after.repair_plan.actions.is_empty() {
-        return Err("exact read repair did not converge every selected replica".into());
+        return Err("exact read repair did not converge every surviving child".into());
     }
-    Ok((
-        ProofState::Verified,
-        ProofState::Verified,
-        ProofState::Verified,
-    ))
+    Ok(ExactDataProof {
+        acknowledgements: first_receipt.acknowledged.len(),
+        quorum: first_receipt.quorum,
+        shard_placement: ProofState::Verified,
+        failover,
+        conflicts: ProofState::Verified,
+        read_repair: ProofState::Verified,
+    })
 }
 
 fn elect(
@@ -433,34 +502,6 @@ fn elect(
         votes,
         quorum,
     })
-}
-
-fn append(
-    nodes: &[NodeProcess],
-    leader: u32,
-    term: u64,
-    data: &str,
-    token: &str,
-) -> Result<usize, String> {
-    let mut acknowledgements = 0;
-    for node in nodes {
-        let stream = dial_append(
-            "127.0.0.1",
-            node.port,
-            term,
-            Some(leader),
-            data,
-            Some(token),
-        )
-        .map_err(|error| format!("append dial failed: {error}"))?
-        .ok_or_else(|| format!("node {} unreachable during replication", node.id))?;
-        acknowledgements += usize::from(
-            read_append_reply(stream)
-                .map_err(|error| format!("append reply failed: {error}"))?
-                .ack,
-        );
-    }
-    Ok(acknowledgements)
 }
 
 fn render(proof: &LocalProof, json: bool) -> Outcome {

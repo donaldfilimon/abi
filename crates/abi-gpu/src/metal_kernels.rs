@@ -18,8 +18,11 @@ pub const fn kernels_linked() -> bool {
 ))]
 mod ffi {
     unsafe extern "C" {
+        #[cfg(feature = "metal-kernels")]
         pub fn abi_metal_available() -> bool;
+        #[cfg(feature = "metal-kernels")]
         pub fn abi_metal_dot(a: *const f32, b: *const f32, n: usize) -> f32;
+        #[cfg(feature = "metal-kernels")]
         pub fn abi_metal_batch_dot(
             query: *const f32,
             candidates: *const f32,
@@ -27,8 +30,11 @@ mod ffi {
             dimensions: usize,
             output: *mut f32,
         ) -> bool;
+        #[cfg(feature = "metal-kernels")]
         pub fn abi_metal_cosine(a: *const f32, b: *const f32, n: usize) -> f32;
+        #[cfg(feature = "metal-kernels")]
         pub fn abi_metal_norm(values: *const f32, n: usize) -> f32;
+        #[cfg(feature = "metal-kernels")]
         pub fn abi_metal_top_k(
             query: *const f32,
             candidates: *const f32,
@@ -38,7 +44,10 @@ mod ffi {
             output_indices: *mut usize,
             output_scores: *mut f32,
         ) -> isize;
+        #[cfg(feature = "coreml-ane")]
         pub fn abi_coreml_cpu_and_neural_engine_requested() -> bool;
+        #[cfg(feature = "coreml-ane")]
+        pub fn abi_coreml_tiny_model_inference_verified() -> bool;
     }
 }
 
@@ -58,6 +67,24 @@ pub fn coreml_cpu_and_neural_engine_requested() -> bool {
     {
         // SAFETY: the symbol is built from the checked-in Swift shim.
         unsafe { ffi::abi_coreml_cpu_and_neural_engine_requested() }
+    }
+    #[cfg(not(all(feature = "coreml-ane", target_os = "macos")))]
+    {
+        false
+    }
+}
+
+/// Run the embedded deterministic model and compare its prediction to the oracle.
+///
+/// A true result proves that `CoreML` loaded and executed the model while configured
+/// with `.cpuAndNeuralEngine`. `CoreML` does not expose device residency through this
+/// API, so this is deliberately not proof that the ANE performed the prediction.
+#[must_use]
+pub fn coreml_tiny_model_inference_verified() -> bool {
+    #[cfg(all(feature = "coreml-ane", target_os = "macos"))]
+    {
+        // SAFETY: the checked-in Swift shim exports this no-argument symbol.
+        unsafe { ffi::abi_coreml_tiny_model_inference_verified() }
     }
     #[cfg(not(all(feature = "coreml-ane", target_os = "macos")))]
     {
@@ -275,11 +302,17 @@ mod tests {
     }
 
     #[test]
-    fn coreml_request_never_claims_inference_or_residency() {
+    fn coreml_inference_is_verified_without_claiming_residency() {
         #[cfg(all(feature = "coreml-ane", target_os = "macos", target_arch = "aarch64"))]
-        assert!(coreml_cpu_and_neural_engine_requested());
+        {
+            assert!(coreml_cpu_and_neural_engine_requested());
+            assert!(coreml_tiny_model_inference_verified());
+        }
         if coreml_cpu_and_neural_engine_requested() {
             assert!(coreml_helper_compiled());
+        }
+        if coreml_tiny_model_inference_verified() {
+            assert!(coreml_cpu_and_neural_engine_requested());
         }
     }
 
