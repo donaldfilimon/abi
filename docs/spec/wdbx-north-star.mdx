@@ -97,7 +97,7 @@ The contract-tested public surfaces are the CLI (`crates/abi-cli/src/usage.rs`) 
 POST /insert     POST /query     POST /verify
 GET  /health     GET  /stats
 ```
-Served by `abi wdbx api serve [port]` (default 8081). The routing core is a unit-tested `route(method, path, body)` function; `serve` wraps it on a 127.0.0.1 listener. If `ABI_WDBX_REST_TOKEN` is set, the HTTP transport requires `Authorization: Bearer <token>` before routing. Future: gRPC, WebSocket streaming, cluster RPC, and further hardening for non-loopback exposure (TLS, authz, rate limiting, and reviewed deployment topology).
+Served by `abi wdbx api serve [port]` (default 8081). The routing core is a unit-tested `route(method, path, body)` function; `serve` wraps it on a 127.0.0.1 listener. If `ABI_WDBX_REST_TOKEN` is set, the HTTP transport requires `Authorization: Bearer <token>` before routing. This legacy REST listener remains loopback-scoped. The separate bounded gRPC/WebSocket gateway and authenticated cluster RPC are Current as described in §3.6; production non-loopback deployment, unified listener topology, certificate lifecycle operations, and external security review remain future work.
 
 ---
 
