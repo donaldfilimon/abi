@@ -57,7 +57,7 @@ Helper (absolute path):
 
 | Path | Role | Present? |
 |------|------|----------|
-| `/Users/donaldfilimon/Downloads/Code/AbbeyCompanion` | Only surviving Swift/Abbey tree; its own git repo. Wrappers are `Scripts/check.sh`, `run.sh`, `smoke.sh`, `lib.sh` — there is **no** `run-smoke.sh` or `verify-all.sh` here. | yes |
+| `/Users/donaldfilimon/dev/archive/AbbeyCompanion` | Only surviving Swift/Abbey tree; its own git repo. Wrappers are `Scripts/check.sh`, `run.sh`, `smoke.sh`, `lib.sh` — there is **no** `run-smoke.sh` or `verify-all.sh` here. | yes |
 | `/Users/donaldfilimon/Desktop/AbbeyBot` | Former dual product (`AbbeyBot` desktop + `AbbeyServer`) | **gone** |
 | `/Users/donaldfilimon/Downloads/AbbeyCompanion 4` | Former superseded companion copy | **gone** |
 
@@ -90,11 +90,24 @@ See `.env.example`: `DISCORD_BOT_TOKEN`, `DISCORD_DEV_GUILD_ID`, `DATABASE_URL`,
 
 ### Verify gates
 
+These are two different gates covering two different projects. Do not treat one
+as evidence for the other.
+
+**AbbeyBot gate — UNREACHABLE today.** `/Users/donaldfilimon/Desktop/AbbeyBot` does
+not exist. Retained only to describe the gate's shape if the tree is restored;
+substitute the restored location for `$ABBEYBOT`:
+
 ```bash
-# Unreachable: /Users/donaldfilimon/Desktop/AbbeyBot no longer exists. Retained
-# only to describe the gate's shape if that tree is restored. The AbbeyCompanion
-# equivalent (verified present) is:
-cd /Users/donaldfilimon/Downloads/Code/AbbeyCompanion
+cd "$ABBEYBOT"           # e.g. the restored AbbeyBot tree — ask the user where it is
+unset TOOLCHAINS
+bash Scripts/verify-all.sh   # desktop + server; this is AbbeyBot's gate
+```
+
+**AbbeyCompanion gate — a DIFFERENT project, present and runnable.** A green result
+here says nothing about AbbeyBot:
+
+```bash
+cd /Users/donaldfilimon/dev/archive/AbbeyCompanion
 unset TOOLCHAINS
 bash Scripts/check.sh
 ```

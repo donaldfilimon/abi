@@ -8,7 +8,7 @@
 > tree went before acting on anything here — do not substitute another tree.
 >
 > The only surviving Swift/Abbey tree is
-> `/Users/donaldfilimon/Downloads/Code/AbbeyCompanion`, whose wrappers are
+> `/Users/donaldfilimon/dev/archive/AbbeyCompanion`, whose wrappers are
 > `Scripts/check.sh`, `run.sh`, `smoke.sh`, `lib.sh`.
 
 Canonical tree (historical): `/Users/donaldfilimon/Desktop/AbbeyBot`.
@@ -71,4 +71,11 @@ Slash commands: `ask`, `rep`, `remember`, `forget`, `context`, `persona`.
 
 ## Companion (Downloads)
 
-`/Users/donaldfilimon/Downloads/AbbeyCompanion 4` is superseded. Prefer AbbeyBot for new features. Companion smoke remains valid for the local-only app only.
+`/Users/donaldfilimon/Downloads/AbbeyCompanion 4` no longer exists either (verified
+2026-08-09). The surviving tree is `/Users/donaldfilimon/dev/archive/AbbeyCompanion`,
+whose wrappers are `Scripts/check.sh`, `run.sh`, `smoke.sh`, `lib.sh`.
+
+Do **not** read the old "prefer AbbeyBot for new features" guidance that used to sit
+here: AbbeyBot is absent, so it cannot receive new work. Companion smoke covers the
+local-only app and nothing else — it is not a substitute for AbbeyBot's
+desktop-and-server gate.
