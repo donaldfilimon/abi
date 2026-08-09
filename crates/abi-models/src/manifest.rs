@@ -7,7 +7,7 @@
 //!
 //! ## Two-layer parsing
 //!
-//! Deserialization goes through a private [`RawManifest`] whose fields are all
+//! Deserialization goes through a private `RawManifest` whose fields are all
 //! plain strings and options. That raw document is then converted into
 //! [`ModelManifest`], which is the validated type. The split exists so semantic
 //! failures surface as typed [`ModelError`] variants — `FloatingRevision`,

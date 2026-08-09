@@ -6,7 +6,7 @@
 //! That last point is the design decision worth noting. License acceptance is
 //! not a helper a caller may forget to call — [`ModelRegistry::resolve`] is the
 //! sole constructor of `UsableModel`, and it consults the
-//! [`AcceptanceLedger`](crate::license::AcceptanceLedger) first. "Usable" and
+//! [`AcceptanceLedger`] first. "Usable" and
 //! "license accepted for this exact revision" are therefore the same statement,
 //! enforced by the type system rather than by convention.
 
