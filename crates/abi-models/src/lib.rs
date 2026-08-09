@@ -47,6 +47,8 @@
 
 pub mod download;
 pub mod error;
+#[cfg(test)]
+mod fixtures;
 pub mod license;
 pub mod manifest;
 pub mod registry;

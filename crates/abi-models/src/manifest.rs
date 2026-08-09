@@ -486,3 +486,221 @@ fn require_kinds(model: &str, artifacts: &[Artifact]) -> Result<(), ModelError> 
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fixtures::{OTHER_REVISION, REVISION, manifest_value, parse};
+    use serde_json::json;
+
+    /// Parse a mutated fixture, expecting failure.
+    fn reject(mutate: impl FnOnce(&mut serde_json::Value)) -> ModelError {
+        let mut value = manifest_value();
+        mutate(&mut value);
+        ModelManifest::from_json("fixture", &value.to_string())
+            .expect_err("mutated fixture must be rejected")
+    }
+
+    #[test]
+    fn valid_manifest_parses_with_every_schema_field() {
+        let manifest = parse(&manifest_value());
+        assert_eq!(manifest.id, "example-2b");
+        assert_eq!(manifest.repository, "example-org/example-2b");
+        assert_eq!(manifest.revision.as_str(), REVISION);
+        assert_eq!(manifest.architecture, "example");
+        assert_eq!(manifest.license, "example-community-license-1.0");
+        assert_eq!(manifest.modalities, vec![Modality::Text]);
+        assert_eq!(manifest.tensor_format, TensorFormat::Safetensors);
+        assert_eq!(
+            manifest.quantizations,
+            vec![Quantization::Bf16, Quantization::Q4KM]
+        );
+        assert_eq!(manifest.context.max_context_tokens, 8192);
+        assert_eq!(manifest.context.max_output_tokens, 2048);
+        assert_eq!(manifest.artifacts.len(), 2);
+        assert_eq!(manifest.tokenizer().path, "tokenizer.json");
+        assert_eq!(manifest.weights().count(), 1);
+    }
+
+    #[test]
+    fn manifest_round_trips_through_json() {
+        let manifest = parse(&manifest_value());
+        let document = manifest.to_json().expect("serializable");
+        let reparsed = ModelManifest::from_json("round-trip", &document).expect("reparses");
+        assert_eq!(manifest, reparsed);
+    }
+
+    #[test]
+    fn a_floating_ref_is_a_hard_error() {
+        // Tags are as mutable as branches, so `v1.0.0` must be refused too.
+        for floating in [
+            "main",
+            "HEAD",
+            "latest",
+            "v1.0.0",
+            "refs/heads/main",
+            "",
+            "0f1e2d3c",                                 // truncated
+            "0F1E2D3C4B5A6978879665544332211000FFEEDD", // uppercase
+            "0f1e2d3c4b5a6978879665544332211000ffeedg", // non-hex
+            "0f1e2d3c4b5a6978879665544332211000ffeedd0f1e2d3c4b5a69788796655443", // 66 chars
+        ] {
+            let error = reject(|value| value["revision"] = json!(floating));
+            assert!(
+                matches!(error, ModelError::FloatingRevision { ref value, .. } if value == floating),
+                "revision {floating:?} produced {error:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_sha256_revision_is_accepted() {
+        let long = "a".repeat(64);
+        let mut value = manifest_value();
+        value["revision"] = json!(long);
+        assert_eq!(parse(&value).revision.as_str(), long);
+    }
+
+    #[test]
+    fn an_absent_revision_is_a_hard_error() {
+        let error = reject(|value| {
+            value
+                .as_object_mut()
+                .expect("object")
+                .remove("revision")
+                .expect("fixture has a revision");
+        });
+        assert!(
+            matches!(error, ModelError::MissingRevision { .. }),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn an_artifact_without_a_hash_is_a_hard_error() {
+        let error = reject(|value| {
+            value["artifacts"][0]
+                .as_object_mut()
+                .expect("object")
+                .remove("sha256")
+                .expect("fixture artifact has a hash");
+        });
+        assert!(
+            matches!(error, ModelError::MissingHash { ref artifact, .. }
+                if artifact == "model.safetensors"),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn a_malformed_hash_is_a_hard_error() {
+        for bad in [
+            "",
+            "deadbeef",
+            &"a".repeat(63),
+            &"a".repeat(65),
+            &"A".repeat(64),
+            &"z".repeat(64),
+        ] {
+            let error = reject(|value| value["artifacts"][0]["sha256"] = json!(bad));
+            assert!(
+                matches!(error, ModelError::MalformedHash { .. }),
+                "{bad:?} gave {error:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_unknown_field_is_rejected() {
+        let error = reject(|value| value["surprise"] = json!(true));
+        assert!(matches!(error, ModelError::Json { .. }), "{error:?}");
+    }
+
+    #[test]
+    fn a_manifest_needs_weights_and_exactly_one_tokenizer() {
+        let only_tokenizer = reject(|value| {
+            value["artifacts"] = json!([manifest_value()["artifacts"][1]]);
+        });
+        assert!(matches!(only_tokenizer, ModelError::InvalidManifest { .. }));
+
+        let no_tokenizer = reject(|value| {
+            value["artifacts"] = json!([manifest_value()["artifacts"][0]]);
+        });
+        assert!(matches!(no_tokenizer, ModelError::InvalidManifest { .. }));
+
+        let two_tokenizers = reject(|value| {
+            let mut extra = manifest_value()["artifacts"][1].clone();
+            extra["path"] = json!("tokenizer.model");
+            value["artifacts"] = json!([
+                manifest_value()["artifacts"][0],
+                manifest_value()["artifacts"][1],
+                extra
+            ]);
+        });
+        assert!(matches!(two_tokenizers, ModelError::InvalidManifest { .. }));
+    }
+
+    #[test]
+    fn duplicate_artifact_paths_are_rejected() {
+        let error = reject(|value| value["artifacts"][1]["path"] = json!("model.safetensors"));
+        assert!(
+            matches!(error, ModelError::InvalidManifest { .. }),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn an_escaping_artifact_path_is_rejected() {
+        for bad in ["../outside.bin", "/etc/passwd", "nested/../../escape.bin"] {
+            let error = reject(|value| value["artifacts"][0]["path"] = json!(bad));
+            assert!(
+                matches!(error, ModelError::UnsafeArtifactPath { .. }),
+                "{bad:?} gave {error:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn incoherent_context_limits_are_rejected() {
+        let zero_context = reject(|value| value["context"]["max_context_tokens"] = json!(0));
+        assert!(matches!(zero_context, ModelError::InvalidManifest { .. }));
+
+        let zero_output = reject(|value| value["context"]["max_output_tokens"] = json!(0));
+        assert!(matches!(zero_output, ModelError::InvalidManifest { .. }));
+
+        let too_long = reject(|value| value["context"]["max_output_tokens"] = json!(9000));
+        assert!(matches!(too_long, ModelError::InvalidManifest { .. }));
+    }
+
+    #[test]
+    fn blank_required_fields_are_rejected() {
+        for field in ["id", "repository", "architecture", "license"] {
+            let error = reject(|value| value[field] = json!("   "));
+            assert!(
+                matches!(error, ModelError::EmptyField { field: got, .. } if got == field),
+                "{field} gave {error:?}"
+            );
+        }
+        let no_modalities = reject(|value| value["modalities"] = json!([]));
+        assert!(matches!(no_modalities, ModelError::EmptyField { .. }));
+        let no_quantizations = reject(|value| value["quantizations"] = json!([]));
+        assert!(matches!(no_quantizations, ModelError::EmptyField { .. }));
+    }
+
+    #[test]
+    fn digests_round_trip_through_hex() {
+        let hex = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        let digest = Sha256Digest::parse("m", "a", hex).expect("valid digest");
+        assert_eq!(digest.to_hex(), hex);
+        assert_eq!(digest.as_bytes()[0], 0xba);
+        assert_eq!(Sha256Digest::from_bytes(*digest.as_bytes()), digest);
+    }
+
+    #[test]
+    fn revisions_are_distinguishable() {
+        let first = Revision::parse("m", REVISION).expect("valid");
+        let second = Revision::parse("m", OTHER_REVISION).expect("valid");
+        assert_ne!(first, second);
+        assert_eq!(first.to_string(), REVISION);
+    }
+}
