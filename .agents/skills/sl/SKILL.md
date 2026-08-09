@@ -1,6 +1,13 @@
 ---
 name: sl
-description: Manage and maintain AI coding skills via the skill-loop MCP server. Scan, inspect, review, fix, and monitor skill health.
+description: >-
+  Audit and repair the health of installed SKILL.md files through the skill-loop
+  MCP server. Use when the user runs /sl, or asks to scan and register skills,
+  check skill health or failure rate, review skills for staleness or broken file
+  references, propose or apply fixes for a broken skill, or see recent skill
+  runs, past amendments, or detection stats. Do NOT use to author a new skill
+  (use create-skill), to answer Grok configuration questions (use help), or to
+  propagate skills to other CLIs (use sync-clis).
 ---
 
 # sl (skill-loop)
@@ -39,7 +46,7 @@ If the MCP server is not connected, tell the user to add this to their `.mcp.jso
   "mcpServers": {
     "skill-loop": {
       "command": "npx",
-      "args": ["-y", "-p", "@stylusnexus/skill-loop-cli", "skill-loop-mcp"]
+      "args": ["-y", "-p", "@stylusnexus/skill-loop-cli@0.3.3", "skill-loop-mcp"]
     }
   }
 }
@@ -48,4 +55,6 @@ If the MCP server is not connected, tell the user to add this to their `.mcp.jso
 Note: npx-based MCPs may fail handshake in some envs (see startup diagnostics). Alternatives or local installs can be configured in `.mcp.json`. After editing MCP config, restart the Grok session/TUI. Use `skill-loop` to scan/review/fix skill health across all folders.
 
 ## Maintenance
-During 2026-07-06 "do all" / hygiene pass, used skill-loop MCP directly for review + amend + apply_fixes on registered skills (fixed broken file refs in sl and abbey-assistant). Full-check now passes (45/45). Added cross-refs in other skills. Re-scan after adding new SKILL.md. See ~/CLEANUP-2026-07-06.md.
+
+Re-run `/sl scan` after adding or moving any SKILL.md — the registry does not
+watch the filesystem.

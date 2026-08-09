@@ -3,7 +3,7 @@ name: swift
 description: >-
   This skill should be used when the user runs /swift, or asks about fixing Swift
   builds on this Mac, Xcode vs swiftly/TOOLCHAINS, SwiftData macro errors,
-  AbbeyBot/AbbeyServer/AbbeyCompanion, DiscordBM, verify-all / AbbeyBot smoke, or
+  AbbeyCompanion (or a restored AbbeyBot/AbbeyServer), DiscordBM, or
   Swift 6.4 / macOS 27 SPM for those packages. Do not use for Rust/abi or general
   Swift language tutorials.
 version: 0.1.0
@@ -29,9 +29,10 @@ General Swift language knowledge is assumed; this skill encodes **machine- and r
 ```
 
 3. Never trust PATH `swift` when it resolves to **swiftly** / `DEVELOPMENT-SNAPSHOT` — that mix breaks SwiftData macros (`@Query`, `\.modelContext`) against the macOS 27 SDK.
-4. Prefer project wrappers when present under the AbbeyBot tree
-   (`/Users/donaldfilimon/Desktop/AbbeyBot/Scripts/`): `run.sh`, `run-smoke.sh`,
-   `run-server.sh`, `run-server-smoke.sh`, `verify-all.sh` (AbbeyBot only).
+4. Prefer a tree's own `Scripts/` wrappers when they exist — but `ls` that
+   directory first rather than trusting this file; the script set differs per
+   tree, and the AbbeyBot wrappers this skill used to name are unreachable
+   (see "Orient: which tree?").
 5. Build **off** Desktop/Downloads when the tree lives under iCloud-synced folders:
 
 | Tree | Build path |
@@ -49,10 +50,16 @@ Helper (absolute path):
 
 ## Orient: which tree?
 
-| Path | Role |
-|------|------|
-| `/Users/donaldfilimon/Desktop/AbbeyBot` | **Active** — dual product (`AbbeyBot` desktop + `AbbeyServer`) |
-| `/Users/donaldfilimon/Downloads/AbbeyCompanion 4` | Superseded local-only companion; smoke via `run-smoke.sh` / `run.sh` only; point new work at AbbeyBot |
+> **The AbbeyBot tree is not on this Mac (verified 2026-08-09).** `~/Desktop` is
+> empty, and home `CLAUDE.md` records it is not in `Archive/`, `.Trash`, or on
+> the external SSD either. **Ask the user where it went before acting on any
+> AbbeyBot instruction below** — do not silently substitute another tree.
+
+| Path | Role | Present? |
+|------|------|----------|
+| `/Users/donaldfilimon/Downloads/Code/AbbeyCompanion` | Only surviving Swift/Abbey tree; its own git repo. Wrappers are `Scripts/check.sh`, `run.sh`, `smoke.sh`, `lib.sh` — there is **no** `run-smoke.sh` or `verify-all.sh` here. | yes |
+| `/Users/donaldfilimon/Desktop/AbbeyBot` | Former dual product (`AbbeyBot` desktop + `AbbeyServer`) | **gone** |
+| `/Users/donaldfilimon/Downloads/AbbeyCompanion 4` | Former superseded companion copy | **gone** |
 
 Read `AGENTS.md` in the active tree before changing architecture. Keep `CLAUDE.md` a thin redirect to `AGENTS.md`.
 
@@ -64,7 +71,7 @@ Read `AGENTS.md` in the active tree before changing architecture. Keep `CLAUDE.m
 | Desktop | `Sources/AbbeyBotApp/` | SwiftUI + SwiftData; `AbbeyEngine` |
 | Server | `Sources/AbbeyServer/` | Vapor + Fluent; `BotRuntime`; Leaf + `/api/*` |
 | Tests | `Tests/AbbeyCoreTests/` | AbbeyCore unit tests |
-| Verify | `/Users/donaldfilimon/Desktop/AbbeyBot/Scripts/verify-all.sh` | Desktop + server smoke |
+| Verify | `Scripts/verify-all.sh` (in the AbbeyBot tree — currently unreachable) | Desktop + server smoke |
 
 Platforms: `.macOS(.v27)`. Language mode: `.v6` / tools-version `6.4`.
 
@@ -84,9 +91,12 @@ See `.env.example`: `DISCORD_BOT_TOKEN`, `DISCORD_DEV_GUILD_ID`, `DATABASE_URL`,
 ### Verify gates
 
 ```bash
-cd /Users/donaldfilimon/Desktop/AbbeyBot
+# Unreachable: /Users/donaldfilimon/Desktop/AbbeyBot no longer exists. Retained
+# only to describe the gate's shape if that tree is restored. The AbbeyCompanion
+# equivalent (verified present) is:
+cd /Users/donaldfilimon/Downloads/Code/AbbeyCompanion
 unset TOOLCHAINS
-bash /Users/donaldfilimon/Desktop/AbbeyBot/Scripts/verify-all.sh
+bash Scripts/check.sh
 ```
 
 Claim-honest: green smoke ≠ live Discord (needs Message Content intent + token). Voice and React SPA remain deferred.
