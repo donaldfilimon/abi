@@ -615,7 +615,7 @@ mod tests {
     }
 
     #[test]
-    fn explicit_exact_recall_changes_scoring_for_general_and_project_recall() {
+    fn exact_recall_is_reserved_for_project_recall() {
         let signals = SeaSignals {
             semantic: 0.10,
             keyword: 1.0,
@@ -627,27 +627,27 @@ mod tests {
             task_fit: 0.50,
         };
 
-        let general_exact = crate::query_plan::infer("neutral request");
-        assert!(general_exact.exact_recall);
-        let mut general_fuzzy = general_exact.clone();
-        general_fuzzy.exact_recall = false;
-        let general_weights = adjust_weights_for_task(DEFAULT_SEA_WEIGHTS, general_exact.task);
-        let general_delta = score_for_plan(signals, general_weights, &general_exact)
-            - score_for_plan(signals, general_weights, &general_fuzzy);
-        assert!(general_delta.abs() > 1e-6);
-
-        let recall_fuzzy = crate::query_plan::infer("remember the prior decision");
+        let general = crate::query_plan::infer("neutral request");
+        assert!(!general.exact_recall);
+        let general_weights = adjust_weights_for_task(DEFAULT_SEA_WEIGHTS, general.task);
         assert_eq!(
-            recall_fuzzy.task,
+            score_for_plan(signals, general_weights, &general),
+            sea_score(signals, general_weights)
+        );
+
+        let recall_exact = crate::query_plan::infer("remember the prior decision");
+        assert_eq!(
+            recall_exact.task,
             crate::query_plan::TaskType::ProjectRecall
         );
-        assert!(!recall_fuzzy.exact_recall);
-        let mut recall_exact = recall_fuzzy.clone();
-        recall_exact.exact_recall = true;
-        let recall_weights = adjust_weights_for_task(DEFAULT_SEA_WEIGHTS, recall_fuzzy.task);
-        let recall_delta = score_for_plan(signals, recall_weights, &recall_fuzzy)
-            - score_for_plan(signals, recall_weights, &recall_exact);
-        assert!(recall_delta.abs() > 1e-6);
+        assert!(recall_exact.exact_recall);
+        let mut recall_fuzzy = recall_exact.clone();
+        recall_fuzzy.exact_recall = false;
+        let recall_weights = adjust_weights_for_task(DEFAULT_SEA_WEIGHTS, recall_exact.task);
+        assert!(
+            score_for_plan(signals, recall_weights, &recall_exact)
+                > score_for_plan(signals, recall_weights, &recall_fuzzy)
+        );
     }
 
     #[test]

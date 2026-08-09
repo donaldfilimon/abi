@@ -14,7 +14,7 @@ Maps AI completion, SEA learning, and training to the real CLI. There is no
 Run completion with optional streaming:
 ```bash
 ./target/debug/abi complete --model claude-fable-5 "explain the Rust workspace"
-./target/debug/abi complete --learn --stream "code review"
+./target/debug/abi complete --learn "code review"
 ```
 
 ### train
@@ -31,9 +31,11 @@ ABI_WDBX_PATH="$SEA_STORE" ./target/debug/abi complete --learn "task"
 ```
 
 ### stream
-Stream completion tokens:
+Stream completion tokens through the live Anthropic transport. Configure
+Anthropic credentials first:
 ```bash
-./target/debug/abi complete --stream --model claude-fable-5 "write a function"
+./target/debug/abi auth signin anthropic
+./target/debug/abi complete --live --stream --model claude-fable-5 "write a function"
 ```
 
 ### status

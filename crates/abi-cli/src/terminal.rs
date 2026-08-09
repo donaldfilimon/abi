@@ -10,6 +10,7 @@ use std::os::fd::AsRawFd;
 use std::time::{Duration, Instant};
 
 const MAX_PENDING_BYTES: usize = 256;
+const MAX_CSI_SEQUENCE_BYTES: usize = 48;
 const MAX_MOUSE_SEQUENCE_BYTES: usize = 48;
 
 /// `XTerm` SGR mouse event (`CSI < button ; column ; row M/m`). Coordinates are
@@ -144,10 +145,27 @@ impl KeyDecoder {
             b'3' if self.pending.get(3) == Some(&b'~') => (4, Key::Delete),
             b'4' | b'8' if self.pending.get(3) == Some(&b'~') => (4, Key::End),
             b'0'..=b'9' if self.pending.len() < 4 => return None,
-            _ => (3, Key::Other),
+            _ => return self.decode_unsupported_csi(),
         };
         self.pending.drain(..consumed);
         Some(key)
+    }
+
+    fn decode_unsupported_csi(&mut self) -> Option<Key> {
+        let search_end = self.pending.len().min(MAX_CSI_SEQUENCE_BYTES);
+        let terminator = self.pending[2..search_end]
+            .iter()
+            .position(|byte| (0x40..=0x7e).contains(byte))
+            .map(|offset| offset + 2);
+        let Some(end) = terminator else {
+            if self.pending.len() < MAX_CSI_SEQUENCE_BYTES {
+                return None;
+            }
+            self.pending.clear();
+            return Some(Key::Other);
+        };
+        self.pending.drain(..=end);
+        Some(Key::Other)
     }
 
     fn decode_mouse(&mut self) -> Option<Key> {
@@ -348,6 +366,22 @@ mod tests {
         assert_eq!(decoder.next_key(), Some(Key::Tab));
         assert_eq!(decoder.next_key(), Some(Key::BackTab));
         assert_eq!(decoder.next_key(), Some(Key::Delete));
+    }
+
+    #[test]
+    fn decoder_consumes_complete_unsupported_csi_sequences() {
+        let mut decoder = KeyDecoder::default();
+        decoder.push(b"\x1b[5~q");
+        assert_eq!(decoder.next_key(), Some(Key::Other));
+        assert_eq!(decoder.next_key(), Some(Key::Char('q')));
+        assert_eq!(decoder.next_key(), None);
+
+        decoder.push(b"\x1b[1;");
+        assert_eq!(decoder.next_key(), None);
+        decoder.push(b"5Dz");
+        assert_eq!(decoder.next_key(), Some(Key::Other));
+        assert_eq!(decoder.next_key(), Some(Key::Char('z')));
+        assert_eq!(decoder.next_key(), None);
     }
 
     #[test]
