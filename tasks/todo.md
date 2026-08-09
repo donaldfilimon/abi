@@ -1,13 +1,14 @@
 # TODO — ABI Framework (Rust nightly)
 
-Forward-looking tracker for **incomplete and in-flight** work after the Zig →
-Rust rewrite. Completed rewrite history: `RUST-REWRITE-PLAN.md`, `git log`,
-`CHANGELOG.md`. Claims gate: `docs/contracts/external-claims-audit.mdx`.
+Current status ledger for the Rust rewrite closeout, completed hardening slices,
+and explicitly disclosed residuals. Detailed history also lives in
+`RUST-REWRITE-PLAN.md`, `git log`, and `CHANGELOG.md`. Claims gate:
+`docs/contracts/external-claims-audit.mdx`.
 
 Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Blocked` · `◑ Partial / disclosed`
 
-> Discipline: no Session Summary narratives here. When an item closes, delete
-> its row. Source and tests override prose. Gate: `./tools/check.sh`.
+> Discipline: keep completion evidence compact and keep residual constraints
+> explicit. Source and tests override prose. Gate: `./tools/check.sh`.
 
 ---
 
@@ -18,7 +19,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 | Zig teardown | ✅ | 0 tracked `*.zig` / `build.zig*` |
 | Frozen CLI (13) + MCP (12) | ✅ | Golden + unit coverage |
 | FoundationModels shim | ✅ | `libabi_fm_shim.dylib` on arm64 macOS; honest offline |
-| Local OpenAI bridge + MCP HTTP/SSE | ✅ | Loopback; fallback when bridge unusable |
+| Local OpenAI bridge + MCP HTTP compatibility transport | ◑ | Loopback one-shot HTTP + endpoint-advertising SSE; not a persistent spec-conforming MCP 2024-11-05 SSE response channel |
 | Land `rust-rewrite` on `main` | ✅ | Squash-merged [#756](https://github.com/donaldfilimon/abi/pull/756) as `34c35d5` |
 
 ---
@@ -38,9 +39,20 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ---
 
+## Active finish-all wave
+
+| Item | Status | Acceptance boundary |
+| ---- | ------ | ------------------- |
+| Generate Bash/Zsh/Fish completions from live metadata | ✅ | Production generator uses `usage::COMMANDS`/`SHORTCUTS`; captured scripts remain independent byte-exact oracles and live byte comparisons pass. PowerShell and a new top-level flag remain frozen-surface changes, not implicit cleanup. |
+| Wire the SEA eight-signal scorer into evidence recall | ✅ | Stable-ID deduplication, all current signals, task weights, deterministic budgets, 100-candidate public/defense-in-depth cap, indexed timestamps, provenance, raw routing input, prompt-byte cap, and scratch-store persona regression are covered. |
+| Add TTY line editing and dashboard navigation | ✅ | Bounded Unicode-column-aware editor, history, Tab completion, single-stream output, Ctrl-C/D restoration, session-local SEA state, keyboard cycling, and bounded SGR mouse pane selection are covered. Capture enable/disable is guard-scoped; unit tests plus the dashboard and `tui` PTY drivers prove selection, exit, and cleanup. |
+| Harden MCP transports found in code review | ✅ | 64 KiB physical-frame discard/recovery, absent-ID notification semantics, explicit-null validation, port-zero shutdown, hostile-Origin rejection, and exact HTTP 202/no-body behavior are covered without changing the frozen 12-tool catalog. |
+
+---
+
 ## #647 Rust-rescoped (optional hardening)
 
-See `docs/superpowers/plans/2026-07-31-rust-647-followups.md`.
+See `docs/superpowers/archive/plans/2026-07-31-rust-647-followups.md`.
 
 | Item | Status | Notes |
 | ---- | ------ | ----- |
@@ -73,6 +85,7 @@ See `docs/superpowers/plans/2026-07-31-rust-647-followups.md`.
 | Item | Status | Notes |
 | ---- | ------ | ----- |
 | Archive completed Zig-era `docs/superpowers/plans/*` | ✅ | Moved under `docs/superpowers/archive/plans/` with Archived banners |
+| Executable dependency-security scan helper | ✅ | `tools/security/run-dep-scan.sh` runs installed `cargo-audit` or `cargo-deny`, otherwise emits an explicit SKIP; `ABI_DEP_SCAN_REQUIRE=1` makes missing tooling fail closed. The local RustSec scan has no vulnerability advisories after replacing the unmaintained PEM parser/server edge; two explicitly disclosed unmaintained transitive crates remain isolated behind optional TFHE-rs. |
 
 ---
 
@@ -80,11 +93,12 @@ See `docs/superpowers/plans/2026-07-31-rust-647-followups.md`.
 
 | Item | Status | Constraint |
 | ---- | ------ | ---------- |
-| Native GPU kernels (CUDA/Vulkan) | ◑ | Not linked; Metal DOT is optional |
+| Native accelerator execution | ◑ | Metal dot/cosine/norm/batch-cosine paths are locally scoped and only count after initialization plus CPU-oracle verification. CoreML loads and executes an output-checked tiny model under a `.cpuAndNeuralEngine` request; placement and ANE residency remain unverified. CUDA/Vulkan adapters compile/report capability but have no verified runtime execution. |
 | External shader / MLIR toolchains | ◑ | Validation / textual IR only |
 | Mobile `native_dispatch` | ◑ | Simulated desktop profile |
-| Production FHE / multi-host sharding | ◑ | Reference demos / ops guidance only |
+| Production FHE / multi-host sharding | ◑ | DGHV educational refresh and optional TFHE-rs demos are reference-scoped and have no independent cryptographic audit. Exact replication/read repair/rebalance and `cluster local-demo` are single-host multi-process proof, not production multi-host deployment. |
 | Full ggml/llama.cpp | ◑ | Demo GGUF container only (char-LM payload) |
+| WDBX v2 causal multi-writer program | ◑ | The local product path now includes causal per-writer journals, verified migration with retained backup, authenticated transaction/segment objects, retained-generation rekey, confirmation-gated GC, exact committed-transaction export/import, accelerator-backed batch search with deterministic CPU parity, and exact single-host replica/read-repair/rebalance proof. A 50-process crash/compaction stress test recovers every reported commit and surfaces all recovered conflicts. Deterministic versioned PQ and persisted-autoencoder artifacts are integrated into segment codecs with validation and quality metrics. `abi-compute` supplies cycle-free accelerator contracts and five-state evidence. Additive credential-provider evidence covers the existing macOS Keychain and Windows protected-file paths plus a target-gated, in-process Linux Secret Service implementation. Linux source and tests cross-compile, but no Linux daemon round trip is claimed and the default auth backend is unchanged. The integrated gateway supplies bounded authenticated gRPC plus metadata-only WebSocket events with local TLS/mTLS runtime tests. Remaining boundaries: production separate-host deployment, hosted/Windows/Linux runtime proof, DAST, and independent crypto/security review. |
 
 ---
 

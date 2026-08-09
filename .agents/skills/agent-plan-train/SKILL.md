@@ -31,7 +31,6 @@ description: Plan and execute ABI repo work from current TODOs, roadmap/spec doc
 #   abi_inventory --repo /Users/donaldfilimon/abi
 ./tools/cargo.sh --version
 ./tools/check.sh
-./tools/check.sh
 ```
 
 Use the optional sibling goals markdown named `current-goals` under this skill's `references/` dir (when present — see Workflow step 5) for the current source inventory and validation ladder.

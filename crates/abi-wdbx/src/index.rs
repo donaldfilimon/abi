@@ -327,7 +327,7 @@ mod tests {
     fn limit_zero_returns_no_matches_after_validation() {
         let mut index = ExactIndex::new();
         index.put_vector(&[1.0]).expect("insert");
-        assert!(index.search(&[1.0], 0).expect("search").is_empty());
+        assert_eq!(index.search(&[1.0], 0).expect("search").len(), 0);
         assert_eq!(index.search(&[], 0), Err(IndexError::InvalidVector));
     }
 

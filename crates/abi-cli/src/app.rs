@@ -18,9 +18,6 @@ use crate::usage::{
 const HELP_USAGE: &str =
     "usage: abi help [--json|--completion <bash|zsh|fish>] [command] [subcommand]";
 const HELP_JSON: &str = include_str!("../../../tests/golden/help.json");
-const BASH_COMPLETION: &str = include_str!("../../../tests/golden/completion.bash");
-const ZSH_COMPLETION: &str = include_str!("../../../tests/golden/completion.zsh");
-const FISH_COMPLETION: &str = include_str!("../../../tests/golden/completion.fish");
 
 fn captured_command_help(name: &str) -> Option<&'static str> {
     match name {
@@ -102,15 +99,6 @@ fn parse_help_request(args: &[String]) -> Result<HelpRequest<'_>, ()> {
         index += 1;
     }
     Ok(request)
-}
-
-fn completion(shell: &str) -> Option<&'static str> {
-    match shell {
-        "bash" => Some(BASH_COMPLETION),
-        "zsh" => Some(ZSH_COMPLETION),
-        "fish" => Some(FISH_COMPLETION),
-        _ => None,
-    }
 }
 
 fn captured_help() -> Value {
@@ -288,9 +276,7 @@ fn run_help(request: &HelpRequest<'_>) -> Outcome {
             return Outcome::stderr(usage_error(HELP_USAGE).0, 2);
         }
         return Outcome::stderr(
-            completion(shell)
-                .expect("the parser accepts only supported shells")
-                .to_owned(),
+            crate::completion::render(shell).expect("the parser accepts only supported shells"),
             0,
         );
     }
@@ -350,6 +336,10 @@ fn direct_help(args: &[String]) -> Option<Outcome> {
         } else {
             unknown_command(command_name)
         });
+    }
+
+    if resolved == "wdbx" && args.len() == 3 && is_help_token(&args[2]) {
+        return Some(crate::wdbx::run(&args[1..]));
     }
 
     if args.len() == 3
@@ -440,6 +430,29 @@ pub fn run(args: &[String]) -> Outcome {
 mod tests {
     use super::*;
 
+    struct IsolatedStore {
+        path: std::path::PathBuf,
+    }
+
+    impl Drop for IsolatedStore {
+        fn drop(&mut self) {
+            abi_foundation::env::clear_override(abi_foundation::env::WDBX_PATH);
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn with_isolated_store<T>(body: impl FnOnce(&std::path::Path) -> T) -> T {
+        let _guard = abi_foundation::env::lock_for_test();
+        let isolated = IsolatedStore {
+            path: abi_foundation::temp_path::temp_file_path("abi-cli-app-test", "store"),
+        };
+        abi_foundation::env::set_override(
+            abi_foundation::env::WDBX_PATH,
+            &isolated.path.display().to_string(),
+        );
+        body(&isolated.path)
+    }
+
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(ToString::to_string).collect()
     }
@@ -448,7 +461,7 @@ mod tests {
     fn help_is_emitted_on_stderr() {
         let outcome = run(&args(&["help"]));
         assert_eq!(outcome.exit_code, 0);
-        assert!(outcome.stdout.is_empty());
+        assert_eq!(outcome.stdout, "");
         assert_eq!(
             outcome.stderr,
             include_str!("../../../tests/golden/help.txt")
@@ -459,9 +472,15 @@ mod tests {
     fn global_json_and_completions_are_byte_exact() {
         assert_eq!(run(&args(&["help", "--json"])).stderr, HELP_JSON);
         for (shell, expected) in [
-            ("bash", BASH_COMPLETION),
-            ("zsh", ZSH_COMPLETION),
-            ("fish", FISH_COMPLETION),
+            (
+                "bash",
+                include_str!("../../../tests/golden/completion.bash"),
+            ),
+            ("zsh", include_str!("../../../tests/golden/completion.zsh")),
+            (
+                "fish",
+                include_str!("../../../tests/golden/completion.fish"),
+            ),
         ] {
             assert_eq!(
                 run(&args(&["help", "--completion", shell])).stderr,
@@ -576,8 +595,18 @@ mod tests {
         assert_eq!(train.exit_code, 0);
         assert!(train.stdout.contains("training accepted"));
 
-        let complete = run(&args(&["complete", "hello world"]));
+        // The helper holds the shared environment lock while `complete` reads
+        // ABI_WDBX_PATH, so parallel store tests cannot redirect this call.
+        let complete = with_isolated_store(|store_path| {
+            let outcome = run(&args(&["complete", "hello world"]));
+            assert!(
+                store_path.exists(),
+                "completion should write only to its isolated test store"
+            );
+            outcome
+        });
         assert_eq!(complete.exit_code, 0);
+        assert!(complete.stdout.contains("persisted=true"));
         assert!(complete.stdout.contains("profile="));
         assert!(
             complete.stdout.contains("Abbey:")

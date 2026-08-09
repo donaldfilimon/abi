@@ -572,7 +572,7 @@ mod tests {
     fn an_empty_store_loads_as_an_empty_snapshot() {
         let fixture = Fixture::new("abi_wdbx_empty");
         let snapshot = load(&fixture.paths()).expect("loads");
-        assert!(snapshot.kv.is_empty());
+        assert_eq!(snapshot.kv.len(), 0);
         assert_eq!(snapshot.stats, SnapshotStats::default());
     }
 
@@ -715,7 +715,7 @@ mod tests {
         // rather than failing.
         let snapshot = load(&fixture.paths()).expect("loads despite gaps");
         assert_eq!(snapshot.stats.epochs_loaded, 0);
-        assert!(snapshot.kv.is_empty());
+        assert_eq!(snapshot.kv.len(), 0);
 
         // Recovery can still salvage the checkpoint that does exist.
         let manifest = fixture.paths().read_manifest().expect("manifest");

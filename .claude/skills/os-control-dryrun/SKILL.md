@@ -19,14 +19,14 @@ with usage (exit 2). The allow-list accepts command argv, not narrative text;
 `ls` permits approved read-only options but no filesystem operands. Prints
 `RESULT: PASS` (exit 0) or a FAIL count.
 
-Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — dry-run emits
-the plan; execute-without-confirm returns exit 2.
+Current Rust driver: proves dry-run emits a plan and execute without
+`--confirm` exits 2; it never invokes the confirmed execution path.
 
 ## Gotchas
 - ⚠️ **This skill never runs `agent os execute --confirm`** — that actually runs
   the planned OS command and is deliberately out of scope. Only `dry-run` (plan)
   and the negative confirm-gate check are exercised.
-- `feat-os-control` is on by default; the policy lives in `crates/abi-plugins/plugins/os-control-plugin/`.
+- The compiled ceiling and narrow-only policy live under `crates/abi-cli/src/os/`.
   Use the `os-control-policy-reviewer` subagent to audit the validation/whitelist.
 
 ## Troubleshooting

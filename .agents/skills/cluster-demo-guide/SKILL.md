@@ -17,8 +17,8 @@ Builds the CLI, runs `abi wdbx cluster status` and `abi wdbx cluster demo <n>`,
 and asserts `leader_elected=true`, `replicate(`, and `re-election`. Prints
 `RESULT: PASS` (exit 0) or a FAIL count.
 
-Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — elect → replicate
-(acks=3 quorum=2) → down leader → re-elect (term=2) on a 3-node in-process cluster.
+Current Rust driver: asserts election, majority replication, leader loss, and
+term-increasing re-election on the bounded in-process demo.
 
 ## Gotchas
 - This is **in-process** consensus. `cluster serve <port> [node] [host]` is the

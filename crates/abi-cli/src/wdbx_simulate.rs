@@ -453,7 +453,7 @@ fn execute(config: &MultiwayConfig, options: &Options) -> Result<MultiwayResult,
                 "cannot load experiment from WDBX checkpoint '{path}': {detail}"
             ))
         })?;
-        let export = load_multiway_export(paths, None).map_err(|detail| {
+        let export = load_multiway_export(&paths, None).map_err(|detail| {
             diagnostic(format!(
                 "cannot load experiment from WDBX checkpoint '{path}': {detail}"
             ))

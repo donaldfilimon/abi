@@ -36,6 +36,7 @@ fn write_response<W: Write>(writer: &mut W, response: &RpcResponse) -> std::io::
 pub fn run_loop<R: Read, W: Write>(state: McpState, mut reader: R, mut writer: W) {
     let mut read_buf = [0_u8; 4096];
     let mut line: Vec<u8> = Vec::new();
+    let mut discarding_overlong_line = false;
 
     loop {
         let n = match reader.read(&mut read_buf) {
@@ -44,6 +45,12 @@ pub fn run_loop<R: Read, W: Write>(state: McpState, mut reader: R, mut writer: W
         };
 
         for &byte in &read_buf[..n] {
+            if discarding_overlong_line {
+                if byte == b'\n' {
+                    discarding_overlong_line = false;
+                }
+                continue;
+            }
             if byte == b'\n' {
                 process_line(state, &mut writer, &line);
                 line.clear();
@@ -52,13 +59,14 @@ pub fn run_loop<R: Read, W: Write>(state: McpState, mut reader: R, mut writer: W
             if line.len() >= MAX_REQUEST_SIZE {
                 let _ = write_response(&mut writer, &overlong_line_response());
                 line.clear();
+                discarding_overlong_line = true;
                 continue;
             }
             line.push(byte);
         }
     }
 
-    if !line.is_empty() {
+    if !discarding_overlong_line && !line.is_empty() {
         process_line(state, &mut writer, &line);
     }
 }
@@ -121,22 +129,41 @@ mod tests {
     }
 
     #[test]
-    fn drops_overlong_lines_with_a_parse_error() {
-        // The overflow response fires as soon as the buffer hits the bound,
-        // clearing it — the remaining 10 bytes before the `\n` then form
-        // their own (also invalid) line, so this is two parse-error
-        // responses, not one. Matches Zig's `runStdioLoop` byte-by-byte
-        // accumulate/clear behavior exactly.
-        let overlong = "x".repeat(MAX_REQUEST_SIZE + 10);
-        let lines = run(&format!("{overlong}\n"));
+    fn drops_the_entire_overlong_line_and_recovers_at_the_next_newline() {
+        let oversized_prefix = "x".repeat(MAX_REQUEST_SIZE + 1);
+        let executable_suffix = r#"{"jsonrpc":"2.0","id":99,"method":"ping"}"#;
+        let next_line = r#"{"jsonrpc":"2.0","id":100,"method":"ping"}"#;
+        let lines = run(&format!(
+            "{oversized_prefix}{executable_suffix}\n{next_line}\n"
+        ));
         assert_eq!(lines.len(), 2);
         assert!(lines[0].contains("\"code\":-32700"));
-        assert!(lines[1].contains("\"code\":-32700"));
+        assert!(!lines.iter().any(|line| line.contains("\"id\":99")));
+        assert!(lines[1].contains("\"id\":100"));
+    }
+
+    #[test]
+    fn overlong_unterminated_line_is_not_dispatched_at_eof() {
+        let oversized_prefix = "x".repeat(MAX_REQUEST_SIZE + 1);
+        let executable_suffix = r#"{"jsonrpc":"2.0","id":99,"method":"ping"}"#;
+        let lines = run(&format!("{oversized_prefix}{executable_suffix}"));
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].contains("\"code\":-32700"));
+        assert!(!lines[0].contains("\"id\":99"));
     }
 
     #[test]
     fn empty_lines_produce_no_response() {
         let lines = run("\n\n");
-        assert!(lines.is_empty());
+        assert_eq!(lines, [] as [std::string::String; 0]);
+    }
+
+    #[test]
+    fn notifications_produce_no_bytes_and_do_not_hide_the_next_response() {
+        let lines = run(
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"ping\"}\n",
+        );
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].contains("\"id\":7"));
     }
 }

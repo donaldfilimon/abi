@@ -5,7 +5,7 @@
 //! optionally checks a bearer token, and always closes the connection.
 
 use crate::rate_limit::{RateLimitStats, RateLimiter};
-use crate::{DurableStore, hybrid_search};
+use crate::{HybridScorer, RecordId, TemporalCausalGraph, VersionedStore};
 use abi_foundation::env::WDBX_REST_TOKEN;
 use abi_foundation::http::{
     MAX_REQUEST_SIZE, ReadResult, find_body, has_bearer_token, read_request, reason_phrase,
@@ -41,7 +41,7 @@ impl RestResponse {
 
 /// Route one already-framed REST request.
 pub fn route(
-    store: &mut DurableStore,
+    store: &mut VersionedStore,
     method: &str,
     path: &str,
     body: &[u8],
@@ -53,7 +53,7 @@ pub fn route(
         ("POST", "/verify") => RestResponse::json(
             200,
             &json!({
-                "chain_valid": store.snapshot().verify_chain_strict().is_ok(),
+                "chain_valid": store.snapshot().verify_audit_dag().is_ok(),
                 "blocks": store.stats().blocks,
             }),
         ),
@@ -63,7 +63,7 @@ pub fn route(
     }
 }
 
-fn route_insert(store: &mut DurableStore, body: &[u8], now_ms: i64) -> RestResponse {
+fn route_insert(store: &mut VersionedStore, body: &[u8], now_ms: i64) -> RestResponse {
     let object = match parsed_object(body) {
         Ok(object) => object,
         Err(response) => return response,
@@ -74,7 +74,13 @@ fn route_insert(store: &mut DurableStore, body: &[u8], now_ms: i64) -> RestRespo
             return RestResponse::error(400, "profile must be a string");
         };
         let metadata = object.get("metadata").and_then(Value::as_str).unwrap_or("");
-        return match store.add_block(profile, 0, 0, metadata, now_ms) {
+        return match store.add_block(
+            profile,
+            RecordId::new_v2(),
+            RecordId::new_v2(),
+            metadata,
+            now_ms,
+        ) {
             Ok(_) => RestResponse::json(
                 200,
                 &json!({"inserted": "block", "blocks": store.stats().blocks}),
@@ -100,12 +106,12 @@ fn route_insert(store: &mut DurableStore, body: &[u8], now_ms: i64) -> RestRespo
         return RestResponse::error(400, "need key+value or profile");
     };
     match store.put(key, value) {
-        Ok(()) => RestResponse::json(200, &json!({"inserted": "kv"})),
+        Ok(_) => RestResponse::json(200, &json!({"inserted": "kv"})),
         Err(error) => RestResponse::error(500, error.to_string()),
     }
 }
 
-fn route_query(store: &DurableStore, body: &[u8], now_ms: i64) -> RestResponse {
+fn route_query(store: &VersionedStore, body: &[u8], now_ms: i64) -> RestResponse {
     let object = match parsed_object(body) {
         Ok(object) => object,
         Err(response) => return response,
@@ -136,24 +142,43 @@ fn route_query(store: &DurableStore, body: &[u8], now_ms: i64) -> RestResponse {
         return RestResponse::json(200, &json!({"results": [], "vectors": 0}));
     }
 
-    let ranked = match hybrid_search(store, &vector, limit, now_ms) {
-        Ok(ranked) => ranked,
+    let snapshot = store.snapshot();
+    let graph = TemporalCausalGraph::from_v2_records(&snapshot.preferred_temporal_records());
+    let focus_id = snapshot
+        .causal_focus_vector_id()
+        .unwrap_or(RecordId::Legacy(1));
+    let scorer = HybridScorer::new(now_ms);
+    let mut ranked = match store.search(&vector, limit) {
+        Ok(ranked) => ranked
+            .into_iter()
+            .map(|result| {
+                let components = scorer.score(&graph, focus_id, result.id, result.score, 0.5);
+                (result, components)
+            })
+            .collect::<Vec<_>>(),
         Err(error) => return RestResponse::error(400, error.to_string()),
     };
+    ranked.sort_by(|left, right| {
+        right
+            .1
+            .combined()
+            .total_cmp(&left.1.combined())
+            .then_with(|| left.0.id.cmp(&right.0.id))
+    });
     let mut results = String::from("[");
-    for (index, node) in ranked.into_iter().enumerate() {
+    for (index, (node, components)) in ranked.into_iter().enumerate() {
         if index > 0 {
             results.push(',');
         }
         write!(
             results,
             "{{\"id\":{},\"score\":{:.6},\"semantic\":{:.6},\"temporal\":{:.6},\"causal\":{:.6},\"persona\":{:.6}}}",
-            node.id,
-            node.score,
-            node.components.semantic,
-            node.components.temporal,
-            node.components.causal,
-            node.components.persona,
+            serde_json::to_string(&node.id).expect("RecordId serializes"),
+            components.combined(),
+            components.semantic,
+            components.temporal,
+            components.causal,
+            components.persona,
         )
         .expect("writing JSON into String cannot fail");
     }
@@ -222,7 +247,7 @@ fn parse_limit(value: Option<&Value>) -> Result<usize, &'static str> {
     usize::try_from(limit).map_err(|_| "limit must be between 1 and 100")
 }
 
-fn store_stats(store: &DurableStore) -> Value {
+fn store_stats(store: &VersionedStore) -> Value {
     let stats = store.stats();
     json!({
         "kv_entries": stats.kv_entries,
@@ -232,7 +257,8 @@ fn store_stats(store: &DurableStore) -> Value {
         "temporal_nodes": stats.temporal_nodes,
         "temporal_edges": stats.temporal_edges,
         "vector_dimensions": store.snapshot().vector_dimensions(),
-        "next_vector_id": store.next_vector_id(),
+        "next_vector_id": Value::Null,
+        "format_version": 2,
         "backend": "cpu",
         "mode": "fallback",
     })
@@ -265,13 +291,13 @@ impl RestConfig {
 #[derive(Debug)]
 pub struct RestServer {
     listener: TcpListener,
-    store: DurableStore,
+    store: VersionedStore,
     config: RestConfig,
 }
 
 impl RestServer {
     /// Bind exactly `127.0.0.1:port`.
-    pub fn bind(port: u16, store: DurableStore, config: RestConfig) -> io::Result<Self> {
+    pub fn bind(port: u16, store: VersionedStore, config: RestConfig) -> io::Result<Self> {
         let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, port))?;
         Ok(Self {
             listener,
@@ -300,13 +326,13 @@ impl RestServer {
 
     /// Borrow the underlying durable store.
     #[must_use]
-    pub fn store(&self) -> &DurableStore {
+    pub fn store(&self) -> &VersionedStore {
         &self.store
     }
 }
 
 fn handle_connection(
-    store: &mut DurableStore,
+    store: &mut VersionedStore,
     config: &RestConfig,
     mut stream: TcpStream,
 ) -> io::Result<()> {
@@ -446,8 +472,8 @@ mod tests {
             }
         }
 
-        fn open(&self) -> DurableStore {
-            DurableStore::open(self.paths.clone()).expect("open store")
+        fn open(&self) -> VersionedStore {
+            VersionedStore::open(self.paths.clone()).expect("open store")
         }
     }
 
@@ -512,6 +538,7 @@ mod tests {
     fn vector_query_applies_temporal_causal_and_persona_components() {
         let fixture = Fixture::new("abi_rest_hybrid");
         let mut store = fixture.open();
+        let mut ids = Vec::new();
         for _ in 0..2 {
             let response = route(
                 &mut store,
@@ -521,12 +548,19 @@ mod tests {
                 1_000,
             );
             assert_eq!(response.status, 200);
+            let value: Value = serde_json::from_str(&response.body).expect("insert json");
+            ids.push(
+                serde_json::from_value::<RecordId>(value["id"].clone())
+                    .expect("versioned vector id"),
+            );
         }
         store
-            .add_temporal_node(1, 1_000 - 24 * 60 * 60 * 1_000)
+            .add_temporal_node(ids[0], 1_000 - 24 * 60 * 60 * 1_000)
             .expect("one-day-old node");
-        store.add_temporal_node(2, 1_000).expect("new node");
-        store.add_temporal_edge(1, 2).expect("causal edge");
+        store.add_temporal_node(ids[1], 1_000).expect("new node");
+        store
+            .add_temporal_edge(ids[0], ids[1])
+            .expect("causal edge");
 
         let response = route(
             &mut store,
@@ -539,7 +573,10 @@ mod tests {
         let value: Value = serde_json::from_str(&response.body).expect("hybrid json");
         assert_eq!(value["ranking"], "hybrid");
         assert_eq!(value["vectors"], 2);
-        assert_eq!(value["results"][0]["id"], 2);
+        assert_eq!(
+            value["results"][0]["id"],
+            serde_json::to_value(ids[1]).unwrap()
+        );
         assert_eq!(value["results"][0]["persona"], 0.5);
         assert_eq!(value["results"][0]["causal"], 1.0);
         assert_eq!(value["results"][1]["causal"], 0.6);
@@ -703,7 +740,10 @@ mod tests {
         assert_eq!(stats["rate_limit"]["allowed"], 2);
 
         let server = handle.join().expect("server thread");
-        assert_eq!(server.store().get("agent:abbey"), Some("trained"));
+        assert_eq!(
+            server.store().get("agent:abbey").as_deref(),
+            Some("trained")
+        );
     }
 
     #[test]
@@ -711,10 +751,10 @@ mod tests {
         const ITERATIONS: usize = 50;
 
         let fixture = Fixture::new("abi_rest_tcp_teardown");
-        {
+        let seed_id = {
             let mut store = fixture.open();
-            assert_eq!(store.put_vector(&[1.0, 0.0]).expect("seed vector"), 1);
-        }
+            store.put_vector(&[1.0, 0.0]).expect("seed vector")
+        };
 
         for iteration in 0..ITERATIONS {
             let config = RestConfig {
@@ -740,9 +780,13 @@ mod tests {
             );
             let response_body = find_body(response.as_bytes()).expect("query response body");
             let value: Value = serde_json::from_slice(response_body).expect("query response json");
-            assert_eq!(value["results"][0]["id"], 1, "iteration {iteration}");
+            assert_eq!(
+                value["results"][0]["id"],
+                serde_json::to_value(seed_id).unwrap(),
+                "iteration {iteration}"
+            );
 
-            // Joining transfers the server (and its DurableStore) back to this
+            // Joining transfers the server (and its VersionedStore) back to this
             // thread. Dropping it before reopening is the real Rust teardown
             // boundary: no borrow can outlive the owner, while WAL/file-handle
             // cleanup still has to make the next open and search succeed.
@@ -751,7 +795,7 @@ mod tests {
             let results = reopened
                 .search(&[1.0, 0.0], 1)
                 .expect("search after teardown");
-            assert_eq!(results[0].id, 1, "iteration {iteration}");
+            assert_eq!(results[0].id, seed_id, "iteration {iteration}");
         }
     }
 

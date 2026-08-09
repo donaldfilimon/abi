@@ -10,8 +10,8 @@ Supporting layers: **Aviva, ABI, and WDBX**
 
 This is the canonical product and behavior specification published on the Mintlify
 docs hub. It contains both normative direction (what Abbey should be) and a
-repository-evidence mapping (what the current Zig implementation actually proves).
-Executable mirror: `src/features/ai/identity.zig`. Source, tests, and
+repository-evidence mapping (what the current Rust implementation actually proves).
+Executable mirror: `crates/abi-ai/src/identity.rs`. Source, tests, and
 `docs/contracts/external-claims-audit.mdx` remain authoritative for capability
 claims. Aspirational wording in the Primary Declaration is preserved; it does
 not promote a Partial or Proposed capability to Current.
@@ -106,7 +106,7 @@ For each request, Abbey should:
 9. adapt tone, pacing, response depth, and technical detail; and
 10. improve the user's understanding and capability when possible.
 
-The current Zig router implements a bounded subset: deterministic keyword
+The current Rust router implements a bounded subset: deterministic keyword
 weights, optional WDBX-persisted EMA state, explicit profile override, local
 templates, and post-generation constitutional telemetry. It does not infer a
 complete emotional state or guarantee that every operating step occurred.
@@ -150,7 +150,7 @@ mathematical, and implementation depths; define necessary jargon; and support
 different languages, styles, devices, abilities, and experience levels when the
 active system permits.
 
-This is currently a **Proposed runtime capability** in the ABI Zig repository.
+This is currently a **Proposed runtime capability** in the ABI Rust repository.
 The identity contract and documentation require accessible communication, but
 the local deterministic templates do not yet implement a verified multi-depth
 response controller, assistive-technology integration, or multilingual quality
@@ -175,12 +175,12 @@ comparative, energy, QPS, latency, throughput, or accuracy result.
 
 | Specification area | Status | Evidence and boundary |
 | --- | --- | --- |
-| Identity and operating contract | **Current** | `src/features/ai/identity.zig`; this document; contract tests. |
-| Abbey primary / Aviva direct / ABI orchestration roles | **Current** | `router.zig`, `incremental.zig`, neutral/direct/governance routing tests. Responses are local deterministic templates. |
+| Identity and operating contract | **Current** | `crates/abi-ai/src/identity.rs`; this document; crate tests. |
+| Abbey primary / Aviva direct / ABI orchestration roles | **Current** | `router.rs`, `incremental.rs`, neutral/direct/governance routing tests. Responses are local deterministic templates. |
 | Constitutional governance | **Partial** | Six-principle substring audit, weighted E-score, and safety/privacy veto telemetry. Audit does not gate returned output and is not novel-harm detection. |
 | WDBX context and memory | **Partial** | Explicit `store_result`, minimal provenance metadata, vectors/blocks, bounded SEA recall and authority weighting. No perfect recall/truth or full consent-management UI. |
 | Accessibility adaptation | **Proposed** | Normative contract only; no verified multi-depth or assistive runtime. |
-| Visual generation | **Proposed** | No image-generation model embedded in the ABI Zig runtime. External tools may be used only when actually connected and disclosed. |
+| Visual generation | **Proposed** | No image-generation model is embedded in the ABI Rust runtime. External tools may be used only when actually connected and disclosed. |
 | Distributed AI | **Proposed** | Local scheduler-backed orchestration only. |
 | Distributed WDBX | **Partial** | Consensus/RPC tests exist; sharding and production multi-host operation are not proven. |
 | Security/access controls | **Partial** | Selected bearer/shared-secret/allowlist/credential controls exist; no blanket AES, RBAC, audited-FHE, or certification claim. |

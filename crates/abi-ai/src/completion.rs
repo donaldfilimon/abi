@@ -43,8 +43,8 @@ const VETO_REFUSAL: &str =
 /// A completed turn, before persistence.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CompletionResult {
-    /// The model identifier echoed back (not currently resolved against a
-    /// catalog — see the module docs on scope).
+    /// The caller-requested model identifier. Local completion does not invoke
+    /// that model; it selects and renders an in-process persona template.
     pub model: String,
     /// The persona that generated `output`.
     pub selected_profile: AgentProfile,
@@ -144,9 +144,9 @@ pub struct PersistedCompletion {
     /// The completion this record describes.
     pub result: CompletionResult,
     /// The stored query vector's id.
-    pub query_vector_id: u64,
+    pub query_vector_id: String,
     /// The stored response vector's id.
-    pub response_vector_id: u64,
+    pub response_vector_id: String,
     /// The metadata JSON, ready to store under [`metadata_key`].
     pub metadata_json: String,
 }
@@ -156,7 +156,7 @@ pub struct PersistedCompletion {
 /// Per the committed contract (`docs/contracts/public-api.mdx`): "stores JSON
 /// completion metadata under `completion:<query_vector_id>`".
 #[must_use]
-pub fn metadata_key(query_vector_id: u64) -> String {
+pub fn metadata_key(query_vector_id: impl std::fmt::Display) -> String {
     format!("{COMPLETION_KEY_PREFIX}{query_vector_id}")
 }
 
@@ -171,27 +171,31 @@ pub fn metadata_key(query_vector_id: u64) -> String {
 pub fn metadata_json(
     input: &str,
     result: &CompletionResult,
-    query_vector_id: u64,
-    response_vector_id: u64,
+    query_vector_id: impl serde::Serialize,
+    response_vector_id: impl serde::Serialize,
 ) -> String {
     let mut out = String::from(
         "{\"kind\":\"completion\",\"persistence\":\"explicit_store_result\",\"authority\":\"inferred\",\"epistemic_status\":\"generated_output\",\"model\":",
     );
     push_json_string(&mut out, &result.model);
-    out.push_str(",\"profile\":");
+    out.push_str(",\"requested_model\":");
+    push_json_string(&mut out, &result.model);
+    out.push_str(",\"provider\":\"local\",\"transport\":\"in-process\",\"generation_engine\":\"persona-template\",\"policy_scope\":\"lexical-signal\",\"profile\":");
     push_json_string(&mut out, result.selected_profile.label());
     // Manual append keeps field order fixed and avoids an intermediate String.
     let _ = write!(
         out,
-        ",\"audit_passed\":{},\"audit_vetoed\":{},\"escore\":{:.3},\"input_bytes\":{},\"output_bytes\":{},\"query_vector_id\":{},\"response_vector_id\":{}}}",
+        ",\"audit_passed\":{},\"audit_vetoed\":{},\"escore\":{:.3},\"input_bytes\":{},\"output_bytes\":{},\"query_vector_id\":",
         result.audit.passed,
         result.audit.vetoed,
         result.audit.escore,
         input.len(),
         result.output.len(),
-        query_vector_id,
-        response_vector_id,
     );
+    out.push_str(&serde_json::to_string(&query_vector_id).expect("vector identity serializes"));
+    out.push_str(",\"response_vector_id\":");
+    out.push_str(&serde_json::to_string(&response_vector_id).expect("vector identity serializes"));
+    out.push('}');
     out
 }
 
@@ -264,7 +268,7 @@ mod tests {
         let result = complete("hello world", "claude-fable-5").unwrap();
         let json = metadata_json("hello world", &result, 655, 656);
         let expected = format!(
-            "{{\"kind\":\"completion\",\"persistence\":\"explicit_store_result\",\"authority\":\"inferred\",\"epistemic_status\":\"generated_output\",\"model\":\"claude-fable-5\",\"profile\":\"abbey\",\"audit_passed\":true,\"audit_vetoed\":false,\"escore\":1.000,\"input_bytes\":11,\"output_bytes\":{},\"query_vector_id\":655,\"response_vector_id\":656}}",
+            "{{\"kind\":\"completion\",\"persistence\":\"explicit_store_result\",\"authority\":\"inferred\",\"epistemic_status\":\"generated_output\",\"model\":\"claude-fable-5\",\"requested_model\":\"claude-fable-5\",\"provider\":\"local\",\"transport\":\"in-process\",\"generation_engine\":\"persona-template\",\"policy_scope\":\"lexical-signal\",\"profile\":\"abbey\",\"audit_passed\":true,\"audit_vetoed\":false,\"escore\":1.000,\"input_bytes\":11,\"output_bytes\":{},\"query_vector_id\":655,\"response_vector_id\":656}}",
             result.output.len()
         );
         assert_eq!(json, expected);
@@ -273,6 +277,7 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
         assert_eq!(parsed["query_vector_id"], 655);
         assert_eq!(parsed["escore"], 1.0);
+        assert_eq!(parsed["model"], parsed["requested_model"]);
     }
 
     #[test]
@@ -286,7 +291,7 @@ mod tests {
         let json = metadata_json("in", &result, 1, 2);
         let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
         assert_eq!(
-            parsed["model"],
+            parsed["requested_model"],
             "quote\"back\\slash\nline\rreturn\ttab\x01ctrl"
         );
     }
@@ -304,7 +309,7 @@ mod tests {
         };
         let json = metadata_json("in", &result, 1, 2);
         let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
-        assert_eq!(parsed["model"], "café 日本語 emoji 🎉");
+        assert_eq!(parsed["requested_model"], "café 日本語 emoji 🎉");
     }
 
     #[test]

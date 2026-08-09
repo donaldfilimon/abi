@@ -270,7 +270,7 @@ mod tests {
 
     #[test]
     fn checkpoint_round_trip_via_cli() {
-        let dir = std::env::temp_dir().join(format!("abi_nn_cli_ckpt_{}", std::process::id()));
+        let dir = abi_foundation::temp_path::temp_file_path("abi-nn-cli-checkpoint", "scratch");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("m.json");
         let train = run(&[
@@ -303,7 +303,7 @@ mod tests {
 
     #[test]
     fn train_jsonl_round_trip() {
-        let dir = std::env::temp_dir().join(format!("abi_nn_cli_test_{}", std::process::id()));
+        let dir = abi_foundation::temp_path::temp_file_path("abi-nn-cli-jsonl", "scratch");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("data.jsonl");
         std::fs::write(

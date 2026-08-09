@@ -393,7 +393,7 @@ mod tests {
         let gw = Gateway::new(GatewayConfig::new("", false));
         let err = gw.run(&mut transport, None).unwrap_err();
         assert_eq!(err, GatewayError::Authentication);
-        assert!(transport.outgoing.is_empty());
+        assert_eq!(transport.outgoing, [] as [std::string::String; 0]);
     }
 
     #[test]

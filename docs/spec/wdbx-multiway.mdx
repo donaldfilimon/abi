@@ -3,10 +3,10 @@ title: "WDBX Multiway Rewriting Simulator"
 description: "Bounded, deterministic Wolfram-style string-rewriting over finite slices of computational rule space. Not a physics engine."
 ---
 
-**Status:** **Current** — implemented in `src/features/wdbx/multiway.zig`, exercised by unit, property, regression, persistence, resume, and CLI tests.
+**Status:** **Current** — implemented in `crates/abi-wdbx/src/multiway.rs`, exercised by unit, regression, persistence, resume, and CLI tests.
 **Scope:** A bounded multiway rewriting engine integrated into WDBX. It enumerates reachable computational states, preserves every valid rewriting branch, merges equivalent states deterministically, and persists experiments in WDBX.
 
-> **Scientific-scope discipline (read first).** This module simulates *finite, explicitly bounded slices* of computational rule space. It **does not** simulate "the complete ruliad" and makes **no** claim about fundamental physics. Structural resemblance between a rule's output and physical behavior is **not** proof — or evidence — that the rule describes the physical universe. Every exported number is either an *observed simulation output* (states, events, transitions) or a *derived structural metric* with an explicitly defined denominator; nothing here is statistical inference or speculative interpretation. When this document and the source disagree, the source wins (`src/features/wdbx/multiway.zig`, its tests, and `src/features/wdbx/multiway_regression.zig`).
+> **Scientific-scope discipline (read first).** This module simulates *finite, explicitly bounded slices* of computational rule space. It **does not** simulate "the complete ruliad" and makes **no** claim about fundamental physics. Structural resemblance between a rule's output and physical behavior is **not** proof — or evidence — that the rule describes the physical universe. Every exported number is either an *observed simulation output* (states, events, transitions) or a *derived structural metric* with an explicitly defined denominator; nothing here is statistical inference or speculative interpretation. When this document and the source disagree, the source wins (`crates/abi-wdbx/src/multiway.rs` and its tests).
 
 ## What a multiway rewriting system is
 
@@ -88,13 +88,24 @@ Configurable per experiment: `max_depth`, `max_states`, `max_events`, `max_paylo
 
 ## WDBX persistence layout
 
-Experiments persist into a WDBX segment checkpoint via `persistToWdbx`, reusing the existing `Store` / `persistence.saveToPath` / `recovery.open` abstractions (no second storage architecture):
+`persist_multiway` writes experiments through the v2 `VersionedStore` facade
+and publishes a covering immutable segment; it does not introduce a second
+storage architecture:
 
 - **Canonical states** — each payload stored content-addressed under `multiway:state:<sha256-hex>`. Identical payloads across experiments share one entry (no duplicate payloads).
-- **Experiment export** — the full canonical JSON (config, config hash, rules, initial states, states, events, transitions-by-events, metrics, termination, zig version, export hash, resume cursor) stored under `multiway:experiment:<config-hash-hex>` plus a `multiway:experiment:latest` alias.
-- **Provenance block** — one SHA-linked conversation block records config hash, export hash, state/event counts, termination reason, completeness, and compiler version.
+- **Experiment export** — the full canonical JSON (config, config hash, rules,
+  initial states, states, events, transitions-by-events, metrics, termination,
+  export hash, and resume cursor) stored under
+  `multiway:experiment:<config-hash-hex>` plus a
+  `multiway:experiment:latest` alias. The format retains a frozen legacy
+  `zig_version` field for compatibility; it is not the current Rust compiler
+  version.
+- **Provenance block** — one SHA-linked block records config/export hashes,
+  counts, termination, completeness, and the frozen compatibility field.
 
-Atomicity: `persistence.saveToPath` writes a new segment checkpoint and manifest, so an interrupted write leaves the prior checkpoint intact — an interruption cannot leave an experiment falsely marked complete.
+The key/value writes, block append, and checkpoint are separate durable
+mutations. Callers must treat an error as a potentially partial persistence
+attempt rather than an atomic transaction.
 
 **Resume:** a bounded run persists its frontier cursor inside the export. `resume_` (CLI `--resume <file>` or `--resume-wdbx <path>`) rebuilds states, events, and the frontier from the export and continues under new effective limits. A resumed deterministic run commits identifiers in exactly the order an uninterrupted run under the same effective limits would, so the final exports match byte-for-byte (verified by resume-equivalence tests, including a mid-depth event-cap interruption).
 
@@ -124,15 +135,16 @@ abi wdbx simulate --initial A --rule 'AB'          # exit 2: expected 'LHS->RHS'
 
 Invalid rules (missing `->`, empty LHS) and impossible bounds (zero cap, initial state over `--max-payload`) produce actionable diagnostics and a nonzero exit code.
 
-## How the regression case was independently validated
+## Regression evidence
 
-The reference experiment — initial `A`; rules `A->AB`, `A->BA`, `BB->A`; depth 5; overlapping matches; breadth-first; canonical dedup; distinct events — is validated **three ways** in `src/features/wdbx/multiway_regression.zig`:
+For the depth-5 reference case, the Rust CLI regression asserts 31 unique
+states and 62 unique transitions. Unit tests in
+`crates/abi-wdbx/src/multiway.rs` separately cover deterministic canonical
+exports, hard-cap behavior, resume equivalence, and WDBX persistence.
 
-1. The **production engine** must report states-per-depth `[1, 2, 3, 5, 8, 12]`, 31 unique states, 62 unique transitions, 66 events, mean out-degree 2.0, max out-degree 5, one weakly connected component, and acyclic.
-2. An **independent minimal reference** in the same file (string-keyed maps, per-position scanning — no code shared with the production engine) reproduces the same depth counts, state count, transition count, and event count.
-3. The two are cross-checked by **canonical content** — sorted payload sets, per-state discovery depths, and transition sets keyed by payload — never by implementation-specific discovery ids.
-
-These values were additionally verified with an external Python oracle before being encoded.
+An opt-in compatibility test can compare Rust output with an operator-supplied
+historical Zig binary via `ABI_ZIG_BIN`. The default fresh-clone test run does
+not provide that cross-language proof.
 
 ## Next steps: hypergraph backends
 

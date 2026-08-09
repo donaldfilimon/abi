@@ -7,12 +7,15 @@
 //   abi_metal_dot(a, b, n) -> Float     (GPU DOT; NaN on failure)
 
 import Foundation
+import CoreML
 import Metal
 
 private final class MetalDotState: @unchecked Sendable {
     let device: MTLDevice
     let queue: MTLCommandQueue
-    let pipeline: MTLComputePipelineState
+    let dotPipeline: MTLComputePipelineState
+    let batchDotPipeline: MTLComputePipelineState
+    let batchCosinePipeline: MTLComputePipelineState
 
     init?() {
         guard let device = MTLCreateSystemDefaultDevice() else { return nil }
@@ -48,17 +51,67 @@ private final class MetalDotState: @unchecked Sendable {
                 partial[tgId] = scratch[0];
             }
         }
+        kernel void abi_batch_dot(
+            device const float* query [[buffer(0)]],
+            device const float* candidates [[buffer(1)]],
+            device float* scores [[buffer(2)]],
+            constant uint& dimensions [[buffer(3)]],
+            constant uint& count [[buffer(4)]],
+            uint candidate [[thread_position_in_grid]]
+        ) {
+            if (candidate >= count) { return; }
+            float sum = 0.0f;
+            uint offset = candidate * dimensions;
+            for (uint index = 0; index < dimensions; index++) {
+                sum += query[index] * candidates[offset + index];
+            }
+            scores[candidate] = sum;
+        }
+        kernel void abi_batch_cosine(
+            device const float* query [[buffer(0)]],
+            device const float* candidates [[buffer(1)]],
+            device float* scores [[buffer(2)]],
+            constant uint& dimensions [[buffer(3)]],
+            constant uint& count [[buffer(4)]],
+            uint candidate [[thread_position_in_grid]]
+        ) {
+            if (candidate >= count) { return; }
+            float numerator = 0.0f;
+            float querySquared = 0.0f;
+            float candidateSquared = 0.0f;
+            uint offset = candidate * dimensions;
+            for (uint index = 0; index < dimensions; index++) {
+                float left = query[index];
+                float right = candidates[offset + index];
+                numerator += left * right;
+                querySquared += left * left;
+                candidateSquared += right * right;
+            }
+            float denominator = sqrt(querySquared) * sqrt(candidateSquared);
+            scores[candidate] = denominator == 0.0f ? 0.0f : numerator / denominator;
+        }
         """
         guard let library = try? device.makeLibrary(source: source, options: nil) else {
             return nil
         }
-        guard let function = library.makeFunction(name: "abi_dot") else { return nil }
-        guard let pipeline = try? device.makeComputePipelineState(function: function) else {
+        guard let dotFunction = library.makeFunction(name: "abi_dot"),
+              let batchDotFunction = library.makeFunction(name: "abi_batch_dot"),
+              let batchCosineFunction = library.makeFunction(name: "abi_batch_cosine"),
+              let dotPipeline = try? device.makeComputePipelineState(function: dotFunction),
+              let batchDotPipeline = try? device.makeComputePipelineState(
+                  function: batchDotFunction
+              ),
+              let batchCosinePipeline = try? device.makeComputePipelineState(
+                  function: batchCosineFunction
+              )
+        else {
             return nil
         }
         self.device = device
         self.queue = queue
-        self.pipeline = pipeline
+        self.dotPipeline = dotPipeline
+        self.batchDotPipeline = batchDotPipeline
+        self.batchCosinePipeline = batchCosinePipeline
     }
 
     func dot(a: UnsafePointer<Float>, b: UnsafePointer<Float>, n: Int) -> Float {
@@ -79,13 +132,13 @@ private final class MetalDotState: @unchecked Sendable {
         guard let cmd = queue.makeCommandBuffer(),
               let enc = cmd.makeComputeCommandEncoder()
         else { return .nan }
-        enc.setComputePipelineState(pipeline)
+        enc.setComputePipelineState(dotPipeline)
         enc.setBuffer(aBuf, offset: 0, index: 0)
         enc.setBuffer(bBuf, offset: 0, index: 1)
         enc.setBuffer(partialBuf, offset: 0, index: 2)
         enc.setBytes(&count, length: MemoryLayout<UInt32>.stride, index: 3)
         // Power-of-two threadgroup size for the tree reduce (≤ 256).
-        var tg = min(pipeline.maxTotalThreadsPerThreadgroup, 256)
+        var tg = min(dotPipeline.maxTotalThreadsPerThreadgroup, 256)
         // Round down to power of two.
         var pot = 1
         while pot * 2 <= tg { pot *= 2 }
@@ -102,6 +155,49 @@ private final class MetalDotState: @unchecked Sendable {
             return .nan
         }
         return partialBuf.contents().bindMemory(to: Float.self, capacity: 1).pointee
+    }
+
+    func batch(
+        query: UnsafePointer<Float>, candidates: UnsafePointer<Float>,
+        count: Int, dimensions: Int, cosine: Bool
+    ) -> [Float]? {
+        guard count > 0 else { return [] }
+        guard dimensions > 0 else { return Array(repeating: 0, count: count) }
+        let queryBytes = dimensions * MemoryLayout<Float>.stride
+        let candidateBytes = count * queryBytes
+        guard let queryBuffer = device.makeBuffer(
+            bytes: query, length: queryBytes, options: .storageModeShared
+        ), let candidateBuffer = device.makeBuffer(
+            bytes: candidates, length: candidateBytes, options: .storageModeShared
+        ), let scoreBuffer = device.makeBuffer(
+            length: count * MemoryLayout<Float>.stride, options: .storageModeShared
+        ) else { return nil }
+        var dimensionValue = UInt32(dimensions)
+        var countValue = UInt32(count)
+        guard let command = queue.makeCommandBuffer(),
+              let encoder = command.makeComputeCommandEncoder()
+        else { return nil }
+        let pipeline = cosine ? batchCosinePipeline : batchDotPipeline
+        encoder.setComputePipelineState(pipeline)
+        encoder.setBuffer(queryBuffer, offset: 0, index: 0)
+        encoder.setBuffer(candidateBuffer, offset: 0, index: 1)
+        encoder.setBuffer(scoreBuffer, offset: 0, index: 2)
+        encoder.setBytes(
+            &dimensionValue, length: MemoryLayout<UInt32>.stride, index: 3
+        )
+        encoder.setBytes(&countValue, length: MemoryLayout<UInt32>.stride, index: 4)
+        let width = min(pipeline.maxTotalThreadsPerThreadgroup, 256)
+        encoder.dispatchThreads(
+            MTLSize(width: count, height: 1, depth: 1),
+            threadsPerThreadgroup: MTLSize(width: width, height: 1, depth: 1)
+        )
+        encoder.endEncoding()
+        command.commit()
+        command.waitUntilCompleted()
+        guard command.status == .completed else { return nil }
+        let pointer = scoreBuffer.contents().bindMemory(to: Float.self, capacity: count)
+        let values = Array(UnsafeBufferPointer(start: pointer, count: count))
+        return values.allSatisfy(\.isFinite) ? values : nil
     }
 }
 
@@ -126,4 +222,126 @@ public func abi_metal_dot(
     guard let a, let b, n >= 0, let state else { return .nan }
     if n == 0 { return 0 }
     return state.dot(a: a, b: b, n: n)
+}
+
+@_cdecl("abi_metal_batch_dot")
+public func abi_metal_batch_dot(
+    _ query: UnsafePointer<Float>?, _ candidates: UnsafePointer<Float>?,
+    _ count: Int, _ dimensions: Int, _ output: UnsafeMutablePointer<Float>?
+) -> Bool {
+    guard count >= 0, dimensions >= 0, let state, let output else { return false }
+    if count == 0 { return true }
+    guard let query, let candidates,
+          let scores = state.batch(
+              query: query, candidates: candidates, count: count,
+              dimensions: dimensions, cosine: false
+          )
+    else { return false }
+    for index in scores.indices { output[index] = scores[index] }
+    return true
+}
+
+@_cdecl("abi_metal_cosine")
+public func abi_metal_cosine(
+    _ a: UnsafePointer<Float>?, _ b: UnsafePointer<Float>?, _ n: Int
+) -> Float {
+    guard let a, let b, n >= 0, let state else { return .nan }
+    if n == 0 { return 0 }
+    let numerator = state.dot(a: a, b: b, n: n)
+    let leftNorm = sqrt(state.dot(a: a, b: a, n: n))
+    let rightNorm = sqrt(state.dot(a: b, b: b, n: n))
+    let denominator = leftNorm * rightNorm
+    return denominator == 0 ? 0 : numerator / denominator
+}
+
+@_cdecl("abi_metal_norm")
+public func abi_metal_norm(_ values: UnsafePointer<Float>?, _ n: Int) -> Float {
+    guard let values, n >= 0, let state else { return .nan }
+    if n == 0 { return 0 }
+    return sqrt(state.dot(a: values, b: values, n: n))
+}
+
+@_cdecl("abi_metal_top_k")
+public func abi_metal_top_k(
+    _ query: UnsafePointer<Float>?, _ candidates: UnsafePointer<Float>?,
+    _ count: Int, _ dimensions: Int, _ limit: Int,
+    _ outputIndices: UnsafeMutablePointer<Int>?,
+    _ outputScores: UnsafeMutablePointer<Float>?
+) -> Int {
+    guard count >= 0, dimensions >= 0, limit >= 0, let state,
+          let outputIndices, let outputScores
+    else { return -1 }
+    if count == 0 || limit == 0 { return 0 }
+    guard let query, let candidates,
+          let scores = state.batch(
+              query: query, candidates: candidates, count: count,
+              dimensions: dimensions, cosine: true
+          )
+    else { return -1 }
+    let ranked = scores.indices.sorted { left, right in
+        scores[left] == scores[right] ? left < right : scores[left] > scores[right]
+    }
+    let returned = min(limit, count)
+    for output in 0..<returned {
+        outputIndices[output] = ranked[output]
+        outputScores[output] = scores[ranked[output]]
+    }
+    return returned
+}
+
+@_cdecl("abi_coreml_cpu_and_neural_engine_requested")
+public func abi_coreml_cpu_and_neural_engine_requested() -> Bool {
+    if #available(macOS 12.0, *) {
+        let configuration = MLModelConfiguration()
+        configuration.computeUnits = .cpuAndNeuralEngine
+        return configuration.computeUnits == .cpuAndNeuralEngine
+    }
+    return false
+}
+
+private func verifyTinyCoreMlInference() -> Bool {
+    guard #available(macOS 12.0, *) else { return false }
+
+    let configuration = MLModelConfiguration()
+    configuration.computeUnits = .cpuAndNeuralEngine
+    guard configuration.computeUnits == .cpuAndNeuralEngine else { return false }
+
+    let fileManager = FileManager.default
+    let modelURL = fileManager.temporaryDirectory.appendingPathComponent(
+        "abi-coreml-\(UUID().uuidString).mlmodel"
+    )
+    do {
+        try Data(abiTinyCoreMlModelBytes).write(
+            to: modelURL, options: [.atomic, .completeFileProtection]
+        )
+        defer { try? fileManager.removeItem(at: modelURL) }
+
+        let compiledURL = try MLModel.compileModel(at: modelURL)
+        defer { try? fileManager.removeItem(at: compiledURL) }
+        let model = try MLModel(contentsOf: compiledURL, configuration: configuration)
+
+        let input = try MLMultiArray(shape: [1], dataType: .float32)
+        input[0] = 3
+        let features = try MLDictionaryFeatureProvider(dictionary: ["input": input])
+        let prediction = try model.prediction(from: features)
+        guard let output = prediction.featureValue(for: "output")?.multiArrayValue,
+              output.count == 1
+        else { return false }
+
+        // The generated model is `output = 2 * input + 1`, so input 3 must
+        // produce 7. This proves model load and prediction correctness under
+        // the requested compute-unit policy, not ANE placement or residency.
+        return abs(output[0].floatValue - 7.0) <= 0.000_001
+    } catch {
+        return false
+    }
+}
+
+// Swift global initialization is lazy and thread-safe, so at most one model is
+// compiled and executed per process regardless of concurrent Rust callers.
+private let tinyCoreMlInferenceVerified = verifyTinyCoreMlInference()
+
+@_cdecl("abi_coreml_tiny_model_inference_verified")
+public func abi_coreml_tiny_model_inference_verified() -> Bool {
+    tinyCoreMlInferenceVerified
 }

@@ -18,10 +18,13 @@ abi-plugins = { workspace = true }
 abi-ai = { workspace = true }
 abi-sea = { workspace = true }
 abi-gpu = { workspace = true }
-abi-connectors = { path = "../abi-connectors" }
-abi-wdbx = { path = "../abi-wdbx" }
+abi-connectors = { workspace = true }
+abi-wdbx = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+
+[dev-dependencies]
+uuid = { workspace = true }
 
 [lints]
 workspace = true

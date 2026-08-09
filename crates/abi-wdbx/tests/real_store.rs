@@ -84,7 +84,7 @@ fn the_sample_chain_verifies() {
 fn parses_the_magic_only_sample_segment() {
     let content = read_golden("wdbx-sample.seg.3.jsonl");
     let segment = parse_segment(3, Path::new("sample.3"), &content).expect("parses");
-    assert!(segment.records.is_empty());
+    assert_eq!(segment.records, [] as [abi_wdbx::Record; 0]);
     assert!(!segment.truncated_tail);
 }
 
@@ -181,8 +181,8 @@ fn reads_the_real_store_when_opted_in() {
             .expect("the observed store has vectors");
         let approximate = hnsw.search(query, 10).expect("HNSW query");
         let reference = exact.search(query, 10).expect("exact query");
-        assert!(!approximate.is_empty());
-        assert!(!reference.is_empty());
+        assert_ne!(approximate, [] as [abi_wdbx::SearchResult<'_>; 0]);
+        assert_ne!(reference, [] as [abi_wdbx::SearchResult<'_>; 0]);
         println!(
             "HNSW candidate id={} score={:.6}; exact id={} score={:.6}",
             approximate[0].id, approximate[0].score, reference[0].id, reference[0].score

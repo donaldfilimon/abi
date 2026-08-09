@@ -16,13 +16,13 @@ Builds the CLI, then captures `abi backends`, `abi wdbx compute info`, and
 `abi wdbx gpu info`; asserts the markers `Compute Backends:` and
 `compute backends`. Prints `RESULT: PASS` (exit 0) or a FAIL count.
 
-Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — Metal linked,
-`accelerated=false` (vectorized CPU fallback active; native dispatch not linked).
+Current Rust driver: captures all three backend reports and requires the
+compute/GPU section markers. Capability rows remain distinct from execution.
 
 ## Gotchas
 - The backend is **runtime-selected** — there is no `-Dgpu-backend` option.
-- `accelerated=false` / `native=false` is the normal local state: frameworks are
-  linked but native kernels aren't dispatched until initialized. Not a failure.
+- A compiled or available backend is not automatically initialized or executed.
+  Read the reported state fields rather than inferring acceleration from the OS.
 - For deeper analysis use the `gpu-backend-analyzer` subagent.
 
 ## Troubleshooting

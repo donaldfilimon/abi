@@ -1,233 +1,126 @@
 ---
 title: "ABI Multi-Persona Technical Overview"
-description: "This document describes the current ABI multi-persona assistant implementation as supported by the repository source, contracts, and build gates. It…"
+description: "Current nightly-Rust implementation of Abbey, Aviva, and ABI routing, local generation, policy telemetry, and orchestration boundaries."
 ---
 
-This document describes the current ABI multi-persona assistant implementation as supported by the repository source, contracts, and build gates. It intentionally avoids production benchmark, deployment, certification, or comparative model-quality claims unless they are backed by executable tests or checked-in artifacts.
+ABI exposes three deterministic local assistant profiles:
 
-## 1. Executive Summary
+- **Abbey** is the primary empathetic-polymath profile.
+- **Aviva** is the direct expert profile.
+- **ABI** is the orchestration and governance profile.
 
-ABI is a Zig 0.17 local AI orchestration framework with three deterministic assistant profiles:
+The canonical product direction is
+[Abbey Core Identity](./abbey-core-identity). This page describes only what the
+current Rust source and tests prove.
 
-- **Abbey**: the primary empathetic-polymath profile, balancing warmth,
-  creativity, explanation, and technical discipline.
-- **Aviva**: the direct expert mode for concise, candid, action-oriented work.
-- **ABI**: the adaptive orchestration/governance profile for intent, risk,
-  context, policy, and response-mode evaluation.
+## Implementation map
 
-The canonical product contract and its Current/Partial/Proposed evidence map are
-in `docs/spec/abbey-core-identity.mdx`. Profile responses here remain local
-deterministic templates; this role alignment is not a model-quality claim.
-
-The current implementation provides:
-
-- keyword-weighted profile routing with normalized Abbey/Aviva/Abi weights;
-- optional exponential moving average smoothing for route weights persisted through a caller-provided WDBX store;
-- constitution-style response validation against repository-defined principles;
-- opt-in completion persistence into WDBX when `CompletionRequest.store_result=true`;
-- scheduler-backed completion helper wiring for CLI/MCP completion paths;
-- local multi-worker orchestration (`orchestration.zig`): `abi agent multi` (fixed trio), `spawn` (custom workers), and `browser` (dry-run plan; no embedded browser);
-- CLI and MCP surfaces guarded by contract tests;
-- feature-gated real/stub modules where disabled features preserve public symbols and return explicit degraded behavior.
-
-## 2. Architecture
-
-```mermaid
-graph TD
-    Client[CLI or MCP Client] --> Router[AI Router]
-    Router --> Weights[Keyword-Weighted Scores]
-    Weights --> Abbey[Abbey Profile]
-    Weights --> Aviva[Aviva Profile]
-    Weights --> Abi[Abi Profile]
-    Router --> Constitution[Constitution Validation]
-    Constitution --> Result[Completion Result]
-    Result --> StoreDecision{store_result?}
-    StoreDecision -->|false| Response[Return Response]
-    StoreDecision -->|true| WDBX[WDBX Store]
-    WDBX --> Vectors[Query and Response Vectors]
-    WDBX --> Metadata[Completion Metadata]
-    WDBX --> Blocks[Linked Conversation Blocks]
-```
-
-### Primary Source Modules
-
-| Area | Source | Current role |
+| Concern | Source | Current behavior |
 | --- | --- | --- |
-| Public root | `src/root.zig` | Exposes the `abi` module namespace. |
-| Identity contract | `src/features/ai/identity.zig` | Profiles, default routing prior, operating protocol, capability claim map, Primary Declaration (product direction). |
-| Persona templates | `src/features/ai/incremental.zig` | Iterative local template generation; prefix/suffix from `identity.profileContract`. |
-| AI module | `src/features/ai/mod.zig` | Completion, training metadata acceptance, WDBX persistence integration, fixed-trio multi-agent entrypoint. |
-| Orchestration | `src/features/ai/orchestration.zig` | Custom worker specs, background scheduler batch, browser local dry-run plan (`embedded_browser=false`). |
-| AI router | `src/features/ai/router.zig` | Keyword-weighted routing, profile selection, optional EMA smoothing. |
-| Constitution | `src/features/ai/constitution.zig` | Response validation against repository-defined principles. |
-| WDBX | `src/features/wdbx/mod.zig` | In-process key/value, vector, block, spatial, and stats surfaces. |
-| HNSW | `src/features/wdbx/hnsw.zig` | HNSW-style cosine search with SIMD path and GPU-vector-op fallback integration. |
-| Persistence | `src/features/wdbx/persistence.zig` | JSONL snapshot serialize/restore with SHA-256 integrity and tamper rejection. |
-| CLI | `src/cli/` | Frozen command surface and handlers. |
-| MCP | `src/mcp/` | JSON-RPC 2.0 stdio and optional loopback HTTP/SSE tool surface. |
+| Identity | `crates/abi-ai/src/identity.rs` | Profile labels, priors, instructions, and product contracts |
+| Routing | `crates/abi-ai/src/router.rs` | Explicit leading selectors plus deterministic keyword weights |
+| Adaptive routing | `crates/abi-ai/src/modulator.rs` | EMA smoothing with persisted state in the SEA learn path |
+| Local generation | `crates/abi-ai/src/incremental.rs` | Deterministic profile template formatting |
+| Completion | `crates/abi-ai/src/completion.rs` | Routing, local generation, policy telemetry, and metadata |
+| Constitution | `crates/abi-ai/src/constitution.rs` | Six-principle lexical signal with weighted score and safety/privacy veto fields |
+| Orchestration | `crates/abi-ai/src/orchestration.rs` | Local worker specs and deterministic report aggregation |
+| CLI | `crates/abi-cli/src/complete.rs`, `agent.rs` | Local/live dispatch, persistence, and user-facing provenance |
 
-Canonical product identity (roles, privacy, epistemic discipline, evidence map):
-[`abbey-core-identity.mdx`](./abbey-core-identity).
+## Routing
 
-## 3. Persona Routing
+Routing is local and deterministic. A leading explicit address can select a
+profile; otherwise the router starts from an Abbey-favoring prior and adds
+weights for recognized tokens. It normalizes the distribution and selects the
+largest component with a stable tie-break order.
 
-Routing is deterministic and local. `src/features/ai/router.zig` starts from
-`identity.DEFAULT_*_WEIGHT` (currently Abbey-primary
-`0.40 / 0.30 / 0.30`) and adjusts when keyword patterns are found in the input.
-A neutral input therefore selects Abbey.
+The ordinary `abi complete` path does not load persisted EMA state. Adaptive
+weights are used by the SEA learn loop, where WDBX stores the serialized
+modulator state for later learned completions.
 
-An exact leading persona address overrides the heuristic: for example,
-`Aviva, be direct.` selects Aviva and `ABI, orchestrate this.` selects ABI.
-Selection requires a complete leading name token, so `abi` embedded inside a
-larger word does not select the ABI profile. Explicit selection also takes
-precedence over adaptive EMA and optional soul-network blending for that turn.
+Routing is a response-style choice. It is not semantic model routing, a
+quality score, or evidence that one profile has greater reasoning ability.
 
-Current examples from the router keyword table include:
+## Generation provenance
 
-- Abbey-oriented terms include analytical, explanatory, creative, empathetic,
-  learning, safety, and design cues.
-- Aviva-oriented terms include `direct`, `concise`, `run`, `execute`, `deploy`,
-  `build`, `fix`, and `quick`.
-- ABI-oriented terms include `orchestrate`, `routing`, `governance`, `policy`,
-  and `profile`.
+Without `--live`, ABI does not call Anthropic or another remote provider. It
+formats a deterministic local persona template. Output and persisted metadata
+must distinguish:
 
-The highest normalized score selects the profile:
+- the requested model identifier;
+- the provider/transport actually used;
+- the generation engine, such as `persona-template`;
+- the selected profile.
 
-```zig
-pub fn selectBestProfile(weights_val: ProfileWeights) ai.AgentProfile {
-    if (weights_val.w_abbey >= weights_val.w_aviva and weights_val.w_abbey >= weights_val.w_abi) {
-        return .abbey;
-    } else if (weights_val.w_aviva >= weights_val.w_abi) {
-        return .aviva;
-    } else {
-        return .abi;
-    }
-}
-```
+Remote model IDs must not be presented as proof that the corresponding
+provider generated an offline response.
 
-Profile responses are currently deterministic local strings, not live network model calls.
+Live Anthropic, Apple FoundationModels, and local OpenAI-compatible bridge
+paths are separate transports. Availability or a configured model name does
+not prove a request succeeded.
 
-## 4. Completion and Persistence Flow
+## Constitution signal
 
-`abi.features.ai.complete()` validates non-empty input, selects a profile, routes the input, and returns a `CompletionResult` containing:
+The constitution module applies a small, case-insensitive lexical rule set to
+the generated text. It returns per-principle scores, a weighted E-score,
+`passed`, and `vetoed` telemetry.
 
-- requested model label;
-- selected profile;
-- generated local output;
-- constitution audit result;
-- optional WDBX IDs when persistence is requested and succeeds.
+This signal has strict limits:
 
-`completeWithStore()` only mutates WDBX when `store_result=true`. `completeWithScheduler()` wraps the same completion-and-store behavior in a high-priority scheduler task for callers that own a scheduler. In the storage path it records:
+- it is not a general-purpose safety classifier;
+- absence of a matched phrase is not proof that content is safe;
+- paraphrases and obfuscation may evade lexical checks;
+- callers must not use a clean lexical result as the sole authorization for
+  tool execution or other side effects.
+
+The local completion path may substitute a refusal for a safety/privacy veto.
+Other surfaces can expose the signal as telemetry. Those behaviors are not a
+universal hard-veto guarantee.
+
+## Local worker orchestration
+
+`abi agent multi` and custom worker specs produce local deterministic reports.
+The worker name, instructions, profile override, and tool hints are rendered
+as metadata. Instructions do not currently condition generation, and tool
+hints do not invoke tools.
+
+Workers are aggregated in specification order. The one-process scheduler can
+account for marker tasks, but the CLI drains them before returning. This is
+not durable background processing, remote delegation, or distributed
+multi-agent execution.
+
+Browser planning is a dry-run plan only. It reports
+`embedded_browser=false`; ABI does not embed or control a browser through
+this command.
+
+## Persistence
+
+When a durable WDBX path is configured, local completion attempts to store:
 
 1. a query vector;
 2. a response vector;
-3. JSON completion metadata under `completion:<query_vector_id>`;
-4. a linked conversation block with the selected profile label and vector IDs.
+3. metadata under `completion:<query_id>`;
+4. a linked audit block.
 
-The metadata labels generated completions as `authority=inferred` and
-`epistemic_status=generated_output`, records that persistence came from the
-explicit `store_result` switch, and omits raw prompt/response text. SEA recall
-parses exact top-level JSON fields. Generic WDBX key/value metadata is
-self-asserted, so its authority is always downgraded to `inferred`; nested
-fields, textual spoofs, malformed JSON, and unrecognized values cannot promote
-a record. Higher authority requires a separately trusted ingestion boundary.
-Every returned evidence set is sorted by its final score, with vector id as a
-deterministic tie-breaker.
+The status must disclose partial write failures. A set of independent WAL
+mutations is not an atomic transaction unless the storage API explicitly
+provides one.
 
-When WDBX is disabled, storage paths return explicit disabled-feature behavior rather than fabricating persistence success.
+SEA learning additionally persists adaptive-router state. Router adaptation
+and completion-record persistence are distinct operations and must not be
+described as one atomic commit.
 
-## 5. WDBX Substrate
+## Public and claim boundaries
 
-WDBX is currently an in-process store. Repo-backed capabilities include:
+The frozen CLI and MCP inventories live in
+[Public API Contract](../contracts/public-api). Local template generation,
+local scheduler accounting, WDBX persistence, and loopback transports do not
+prove:
 
-- key/value storage;
-- fixed-capacity padded vector storage;
-- HNSW-style vector search with ordered result contracts;
-- SHA-256-linked conversation blocks with snapshot iteration and integrity verification;
-- in-memory 3D spatial records and distance searches;
-- JSONL snapshot persistence (`persistence.zig`) with a SHA-256 integrity line, faithful id/timestamp/hash restore, and clean rejection of tampered or out-of-range records;
-- store stats and acceleration status reporting;
-- disabled-feature stubs that preserve public shape and return explicit disabled errors for write/search paths.
+- production distributed agents or multi-host sharding;
+- a general safety classifier or audited policy enforcement;
+- remote-provider generation without a successful transport call;
+- native CUDA/Vulkan/ANE execution;
+- production FHE, learned compression, or benchmark superiority.
 
-WDBX is not currently documented here as a distributed database, sharded service, Redis/FAISS deployment, or externally benchmarked production vector database.
-
-## 6. CLI and MCP Surfaces
-
-### CLI
-
-The frozen top-level CLI commands are:
-
-- `help`
-- `complete`
-- `train`
-- `agent`
-- `backends`
-- `plugin`
-- `auth`
-- `twilio`
-- `tui`
-- `dashboard`
-- `wdbx`
-- `scheduler`
-- `nn`
-
-The `abi --tui` shortcut is handled separately by `src/main.zig`. `abi scheduler status` is a one-shot scheduler probe, and `abi nn` is a miniature char-level demo trainer, not a production LLM or distributed training surface. `abi wdbx` is a WDBX runtime control surface (snapshot/WAL `db`/`block`/`query`, local `benchmark`, `gpu` info, and honest in-process `cluster`/`compute`/`secure` demonstrations); it does not introduce distributed, native-accelerator, or production-database claims (see `docs/spec/wdbx-north-star.mdx`).
-
-### MCP
-
-The MCP server exposes JSON-RPC 2.0 over stdio with optional loopback HTTP/SSE. Contract-tested tools are:
-
-- `ai_run`
-- `ai_complete`
-- `ai_learn`
-- `ai_train`
-- `wdbx_query`
-- `scheduler_stats`
-- `scheduler_info`
-- `connector_test`
-- `gpu_status`
-- `plugin_list`
-- `wdbx_stats`
-- `plugin_run`
-
-Feature-backed tools return explicit degraded responses when their feature is disabled.
-
-## 7. Feature Gates and Stubs
-
-Every feature under `src/features/` has a real `mod.zig` and disabled `stub.zig` selected at compile time through `build_options`. Public feature API changes must update both files.
-
-The primary gates are:
-
-```bash
-./build.sh check
-./build.sh full-check
-zig build check-parity
-```
-
-`./build.sh check` includes feature-off smoke builds, focused feature contract tests, public contract tests, formatting, CLI/MCP builds, and parity checks.
-
-## 8. Performance and Benchmark Policy
-
-ABI includes benchmark targets and integration tests, but this document does not publish production latency, throughput, availability, cache-hit, GPU-utilization, model-quality, or comparative model benchmark numbers. Publish those only when a reproducible benchmark artifact or contract is checked into the repository and cited.
-
-Safe current wording:
-
-> ABI provides local deterministic AI profile routing, an in-process WDBX vector/key-value/block store, contract-tested CLI/MCP surfaces, feature-off stubs, and GPU capability reporting with deterministic CPU fallback.
-
-## 9. Deployment Boundary
-
-The repository builds local CLI and MCP binaries. It does not currently prove a specific cloud, cluster, accelerator fleet, regulatory certification, or production service-level objective. Deployment documents should therefore describe such items as proposals or environment-specific requirements, not current repository-backed ABI capabilities.
-
-## 10. Validation Checklist for Documentation Changes
-
-Before publishing technical collateral based on ABI, verify that it does not assert unsupported claims about:
-
-- distributed sharding;
-- storage encryption or RBAC guarantees;
-- Python/TensorFlow/PyTorch implementation stacks;
-- Kubernetes, H100/A100, or multi-node deployments;
-- regulatory certifications;
-- production QPS, latency, availability, accuracy, cache-hit, utilization, or energy metrics;
-- comparative model benchmark scores.
-
-Use `docs/contracts/external-claims-audit.mdx` and `docs/contracts/public-api.mdx` as the public claim boundary.
+Run `./tools/check.sh` for the Rust gate and
+`.agents/skills/run-abi/smoke.sh` for representative real-binary behavior.

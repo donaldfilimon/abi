@@ -6,7 +6,7 @@ use abi_ai::{
     AdaptiveModulator, CompletionResult, EMBED_DIM, EmptyInputError, MODULATOR_STORE_KEY,
     analyze_sentiment, complete_adaptive, completion, text_embedding,
 };
-use abi_wdbx::DurableStore;
+use abi_wdbx::{RecordId, VersionedStore};
 
 use crate::evidence::{self, MAX_PROMPT_BYTES};
 use crate::query_plan::{self, TaskType};
@@ -54,9 +54,9 @@ pub struct LearnLoopResult {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PersistedIds {
     /// Stored query vector id.
-    pub query_vector_id: u64,
+    pub query_vector_id: RecordId,
     /// Stored response vector id.
-    pub response_vector_id: u64,
+    pub response_vector_id: RecordId,
     /// Audit-chain block hash as lowercase hex.
     pub block_hash_hex: String,
 }
@@ -67,7 +67,7 @@ pub struct PersistedIds {
 ///
 /// Returns [`EmptyInputError`] when the generation input is empty.
 pub fn run_learn_loop(
-    store: &mut DurableStore,
+    store: &mut VersionedStore,
     input: &str,
     model: &str,
     config: LearnLoopConfig,
@@ -76,12 +76,11 @@ pub fn run_learn_loop(
     let plan = query_plan::infer(input);
     let ctx = evidence::gather_evidence_with_plan(store, input, config.evidence_limit, &plan);
     let evidence_count = ctx.items.len();
-    let augmented = evidence::augment_prompt(input, &ctx);
-    let _ = config.max_prompt_bytes; // operative bound is evidence::MAX_PROMPT_BYTES
+    let augmented = evidence::augment_prompt_with_limit(input, &ctx, config.max_prompt_bytes);
 
     // Generation sees the evidence-augmented prompt; routing uses the raw user
     // text so an explicit "Aviva, ..." address is not masked by the preamble.
-    let persisted_weights = store.get(MODULATOR_STORE_KEY).map(str::to_string);
+    let persisted_weights = store.get(MODULATOR_STORE_KEY);
     let completion = complete_adaptive(&augmented, model, input, persisted_weights.as_deref())?;
 
     let mut adapted = false;
@@ -89,7 +88,7 @@ pub fn run_learn_loop(
         // Zig reloads weights from the store for the save path, independently
         // of the routing-time update inside complete_adaptive.
         let mut modulator = match store.get(MODULATOR_STORE_KEY) {
-            Some(data) => AdaptiveModulator::deserialize(data),
+            Some(data) => AdaptiveModulator::deserialize(&data),
             None => AdaptiveModulator::new(),
         };
         modulator.update(analyze_sentiment(input));
@@ -117,7 +116,7 @@ pub fn run_learn_loop(
 }
 
 fn persist_completion(
-    store: &mut DurableStore,
+    store: &mut VersionedStore,
     generation_input: &str,
     result: &CompletionResult,
     now_ms: i64,
@@ -145,7 +144,7 @@ fn persist_completion(
     Some(PersistedIds {
         query_vector_id: query_id,
         response_vector_id: response_id,
-        block_hash_hex: block.hash.to_hex(),
+        block_hash_hex: block.hash,
     })
 }
 
@@ -174,9 +173,9 @@ mod tests {
         }
     }
 
-    fn open() -> (Scratch, DurableStore) {
+    fn open() -> (Scratch, VersionedStore) {
         let dir = Scratch::new();
-        let store = DurableStore::open(StorePaths::new(&dir.0)).unwrap();
+        let store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
         (dir, store)
     }
 
@@ -243,6 +242,66 @@ mod tests {
             abi_ai::AgentProfile::Aviva
         );
         assert!(result.completion.output.contains("Aviva direct expert"));
+    }
+
+    #[test]
+    fn explicit_persona_survives_evidence_and_opposing_adaptive_weights() {
+        let (_dir, mut store) = open();
+        let seed_text = "architecture evidence for the release plan";
+        let seed_id = store.put_vector(&text_embedding(seed_text)).unwrap();
+        let metadata = r#"{"kind":"project_decision","profile":"abi","summary":"architecture evidence for the release plan"}"#;
+        store
+            .put(&format!("completion:{seed_id}"), metadata)
+            .unwrap();
+        store
+            .add_block(
+                "abi",
+                seed_id,
+                RecordId::Legacy(0),
+                metadata,
+                1_700_000_000_000,
+            )
+            .unwrap();
+        // Persisted EMA overwhelmingly favors ABI, while the explicit leading
+        // address must still select Aviva after SEA prepends ABI evidence.
+        store
+            .put(
+                MODULATOR_STORE_KEY,
+                "0.005000,0.005000,0.990000,42,0.300000",
+            )
+            .unwrap();
+
+        let result = run_learn_loop(
+            &mut store,
+            "Aviva, summarize the architecture release plan.",
+            "abi-local",
+            LearnLoopConfig {
+                persist: false,
+                adapt_router: false,
+                ..LearnLoopConfig::default()
+            },
+            1_700_000_000_001,
+        )
+        .unwrap();
+
+        assert!(result.evidence_count > 0);
+        assert_eq!(
+            result.completion.selected_profile,
+            abi_ai::AgentProfile::Aviva
+        );
+        assert!(
+            result
+                .completion
+                .output
+                .starts_with("Aviva direct expert: ")
+        );
+        assert!(result.completion.output.contains("[SEA evidence]\n- (vec"));
+        assert!(
+            result
+                .completion
+                .output
+                .contains("[query]\nAviva, summarize the architecture release plan.")
+        );
     }
 
     #[test]

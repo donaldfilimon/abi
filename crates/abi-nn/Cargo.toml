@@ -11,5 +11,8 @@ description = "Miniature character-level neural-net demo trainer for the ABI fra
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+[dev-dependencies]
+abi-foundation = { workspace = true }
+
 [lints]
 workspace = true

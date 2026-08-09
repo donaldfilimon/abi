@@ -1,8 +1,23 @@
 # Changelog
 
-All notable ABI Framework changes are recorded here. The executable gates remain the source of truth for readiness: `./build.sh check`, `zig build check-parity`, and `./build.sh full-check`.
+All notable ABI Framework changes are recorded here. The executable source of
+truth is the nightly-Rust workspace under `crates/`; readiness is gated by
+`./tools/check.sh` (`./build.sh check` is a compatibility entrypoint).
 
 ## Unreleased
+
+### Changed
+
+- test(cli): prove in-process and child-process completion tests persist only to
+  isolated WDBX stores, never the operator's `~/.abi/` store.
+- docs: move completed Zig refactor/cutover plans to the archive and refresh
+  current architecture, persona, SEA, cluster, and contribution pages for the
+  nightly-Rust workspace.
+
+## Pre-Rust rewrite archive
+
+The entries below describe the superseded Zig implementation. They remain for
+historical release provenance and are not current build or source guidance.
 
 ### Added
 

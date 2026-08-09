@@ -19,8 +19,8 @@ Builds the CLI and exercises only the safe auth surfaces. Evidence is the
 
 Prints `RESULT: PASS` (exit 0) or a FAIL count.
 
-Historical verification: **PASS** on Zig master `0.17.0-dev.1099` — status lists all
-five providers as `not configured`; bare `signin` prints its usage banner.
+Current Rust driver: builds `target/debug/abi`, checks the provider status
+table, and proves bare `signin` reaches the usage-only path without writing.
 
 ## Gotchas
 - ⚠️ **`auth logout` is destructive** — it deletes any stored credentials. The
@@ -38,4 +38,4 @@ five providers as `not configured`; bare `signin` prints its usage banner.
 | Symptom | Fix |
 |---|---|
 | `build` FAIL | Check nightly via `./tools/cargo.sh --version`, then `./tools/check.sh`. |
-| `Authentication Status:` missing | Handler grammar drift — check the `auth` path in `crates/abi-cli/src/` and `src/foundation` credentials. |
+| `Authentication Status:` missing | Handler grammar drift — check `crates/abi-cli/src/auth.rs` and `crates/abi-foundation/src/credentials/`. |

@@ -5,11 +5,11 @@
 //!
 //! ## Design: the store is a parameter, not read from env inside this module
 //!
-//! [`report`] takes `Option<&mut DurableStore>` rather than resolving
+//! [`report`] takes `Option<&mut VersionedStore>` rather than resolving
 //! `ABI_WDBX_PATH`/`ABI_WDBX_PERSIST` itself. That split — pure logic taking
 //! explicit inputs, with env resolution only at [`run`], the MCP-facing
 //! wrapper — is deliberate: it means every test in this module constructs a
-//! [`DurableStore`] on a tempdir and never touches process environment. Env
+//! [`VersionedStore`] on a tempdir and never touches process environment. Env
 //! vars are global mutable state shared by every test thread in the crate, so
 //! a test that set one and a test that didn't would race — the same shape of
 //! bug the scheduler-status telemetry lock in `abi-cli` exists to prevent, but
@@ -20,7 +20,7 @@
 //!
 //! Zig's `getWdbxStore()` always returns *some* store — an in-memory one when
 //! no persistence path resolves, backed by the same `Store` type as the
-//! on-disk case. No in-memory-backed [`DurableStore`] analog exists in
+//! on-disk case. No in-memory-backed [`VersionedStore`] analog exists in
 //! `abi-wdbx` yet, and building one is real additional scope. So when no store
 //! path resolves, this reports `persisted=false` with an explicit
 //! `wdbx_status` — reusing the branch Zig already has for its own
@@ -33,7 +33,7 @@ use abi_ai::{
     text_embedding, train_inspect, training_store_key, training_store_value, training_vectors,
 };
 use abi_sea::{LearnLoopConfig, run_learn_loop};
-use abi_wdbx::{DurableStore, HybridScorer, TemporalCausalGraph, hybrid_search_with_persona};
+use abi_wdbx::{HybridScorer, RecordId, TemporalCausalGraph, VersionedStore};
 
 use crate::state::{WdbxStatsError, open_wdbx_store};
 
@@ -71,7 +71,7 @@ pub fn run(input: &str, requested_model: &str) -> Result<String, WdbxStatsError>
 /// hash is a function of it, so an internally-read wall clock would make any
 /// hash-bearing test flaky.
 #[must_use]
-pub fn report(store: Option<&mut DurableStore>, input: &str, model: &str, now_ms: i64) -> String {
+pub fn report(store: Option<&mut VersionedStore>, input: &str, model: &str, now_ms: i64) -> String {
     // Zig's `complete` returns `error.InvalidCompletionInput` for empty input,
     // which `runLocalCompletion` never catches — it propagates out of the MCP
     // handler as an internal error. Middleware validation upstream
@@ -91,7 +91,7 @@ pub fn report(store: Option<&mut DurableStore>, input: &str, model: &str, now_ms
     let after = store.stats();
 
     let mut out = format!(
-        "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} kv_entries={} vectors={} blocks={} total_kv_entries={} total_vectors={} total_blocks={}",
+        "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} kv_entries={} vectors={} blocks={} total_kv_entries={} total_vectors={} total_blocks={}",
         result.model,
         result.selected_profile.label(),
         result.audit.passed,
@@ -114,7 +114,7 @@ pub fn report(store: Option<&mut DurableStore>, input: &str, model: &str, now_ms
                 persisted.query_vector_id,
                 persisted.query_vector_id,
                 persisted.response_vector_id,
-                persisted.block_hash.to_hex(),
+                persisted.block_hash,
             );
         }
         None => {
@@ -130,7 +130,7 @@ pub fn report(store: Option<&mut DurableStore>, input: &str, model: &str, now_ms
 /// the persisted-record ids.
 fn report_unpersisted(result: &abi_ai::CompletionResult, status: &str) -> String {
     format!(
-        "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted=false kv_entries=0 vectors=0 blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={status}: {}",
+        "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted=false kv_entries=0 vectors=0 blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={status}: {}",
         result.model,
         result.selected_profile.label(),
         result.audit.passed,
@@ -142,9 +142,9 @@ fn report_unpersisted(result: &abi_ai::CompletionResult, status: &str) -> String
 
 /// The ids and hash of a successfully persisted completion.
 struct Persisted {
-    query_vector_id: u64,
-    response_vector_id: u64,
-    block_hash: abi_wdbx::Hash,
+    query_vector_id: RecordId,
+    response_vector_id: RecordId,
+    block_hash: String,
 }
 
 /// Embed, store, and chain-append one completion. Returns `None` if nothing
@@ -152,7 +152,7 @@ struct Persisted {
 /// linked — kept as a `Result`-shaped seam for the day a build-time WDBX
 /// toggle exists, matching Zig's `isFeatureDisabled` catch).
 fn persist(
-    store: &mut DurableStore,
+    store: &mut VersionedStore,
     input: &str,
     result: &abi_ai::CompletionResult,
     now_ms: i64,
@@ -221,7 +221,7 @@ pub fn run_learn(
 /// Pure core of `ai_learn`: everything but env resolution.
 #[must_use]
 pub fn report_learn(
-    store: Option<&mut DurableStore>,
+    store: Option<&mut VersionedStore>,
     input: &str,
     model: &str,
     evidence_limit: usize,
@@ -234,7 +234,7 @@ pub fn report_learn(
             return "error: completion input must not be empty".to_string();
         };
         return format!(
-            "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted=false evidence_count=0 adapted=false kv_entries=0 vectors=0 blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={NO_STORE_STATUS}: {}",
+            "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted=false evidence_count=0 adapted=false kv_entries=0 vectors=0 blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={NO_STORE_STATUS}: {}",
             result.model,
             result.selected_profile.label(),
             result.audit.passed,
@@ -264,7 +264,7 @@ pub fn report_learn(
     let persisted = learned.persisted.is_some();
 
     let mut out = format!(
-        "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} evidence_count={} adapted={} kv_entries={} vectors={} blocks={} total_kv_entries={} total_vectors={} total_blocks={}",
+        "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} evidence_count={} adapted={} kv_entries={} vectors={} blocks={} total_kv_entries={} total_vectors={} total_blocks={}",
         result.model,
         result.selected_profile.label(),
         result.audit.passed,
@@ -318,7 +318,7 @@ pub fn run_train(config: &TrainingConfig) -> Result<String, WdbxStatsError> {
 /// Pure core of `ai_train`.
 #[must_use]
 pub fn report_train(
-    store: Option<&mut DurableStore>,
+    store: Option<&mut VersionedStore>,
     config: &TrainingConfig,
     now_ms: i64,
 ) -> String {
@@ -392,7 +392,7 @@ pub fn run_wdbx_query(query: &str) -> Result<String, WdbxStatsError> {
 
 /// Pure core of `wdbx_query`.
 #[must_use]
-pub fn report_wdbx_query(store: Option<&mut DurableStore>, query: &str) -> String {
+pub fn report_wdbx_query(store: Option<&mut VersionedStore>, query: &str) -> String {
     let Some(store) = store else {
         return format!("wdbx local match unavailable: {NO_STORE_STATUS}");
     };
@@ -404,44 +404,61 @@ pub fn report_wdbx_query(store: Option<&mut DurableStore>, query: &str) -> Strin
     let query_vec = text_embedding(query);
     let weights = analyze_sentiment(query);
     let selected = select_best_profile(weights);
-    let focus_id = profile_vector_id(store, selected.label()).unwrap_or(1);
+    let focus_id = profile_vector_id(store, selected.label()).unwrap_or(RecordId::Legacy(1));
 
-    let graph = TemporalCausalGraph::from_records(&store.snapshot().temporal);
+    let snapshot = store.snapshot();
+    let graph = TemporalCausalGraph::from_v2_records(&snapshot.preferred_temporal_records());
     // Zig hard-codes now_ms=1000 for the MCP tool; half-life matches the default.
     let scorer = HybridScorer {
         now_ms: 1000,
         ..HybridScorer::new(1000)
     };
 
-    let ranked =
-        match hybrid_search_with_persona(store, &query_vec, 3, &graph, scorer, focus_id, |id| {
-            query_persona_weight(store, &weights, id)
-        }) {
-            Ok(ranked) => ranked,
-            Err(err) => return format!("wdbx local match unavailable: {err}"),
-        };
+    let mut ranked = match store.search(&query_vec, 3) {
+        Ok(results) => results
+            .into_iter()
+            .map(|result| {
+                let components = scorer.score(
+                    &graph,
+                    focus_id,
+                    result.id,
+                    result.score,
+                    query_persona_weight(store, &weights, result.id),
+                );
+                (result, components)
+            })
+            .collect::<Vec<_>>(),
+        Err(err) => return format!("wdbx local match unavailable: {err}"),
+    };
+    ranked.sort_by(|left, right| {
+        right
+            .1
+            .combined()
+            .total_cmp(&left.1.combined())
+            .then_with(|| left.0.id.cmp(&right.0.id))
+    });
 
     if ranked.is_empty() {
         return "wdbx query returned no local matches".to_string();
     }
 
-    let top = &ranked[0];
+    let (top, components) = &ranked[0];
     let stats = store.stats();
     format!(
         "wdbx local match profile={} vector_id={} score={:.3} semantic={:.3} temporal={:.3} causal={:.3} persona={:.3} total_vectors={} total_blocks={} ranking=hybrid",
         profile_for_vector(store, top.id),
         top.id,
-        top.score,
-        top.components.semantic,
-        top.components.temporal,
-        top.components.causal,
-        top.components.persona,
+        components.combined(),
+        components.semantic,
+        components.temporal,
+        components.causal,
+        components.persona,
         stats.vectors,
         stats.blocks,
     )
 }
 
-fn seed_mcp_profile_vectors(store: &mut DurableStore) -> Result<(), String> {
+fn seed_mcp_profile_vectors(store: &mut VersionedStore) -> Result<(), String> {
     let already = store.get("wdbx:profiles_seeded").is_some() && store.stats().temporal_nodes > 0;
     if already {
         return Ok(());
@@ -462,27 +479,20 @@ fn seed_mcp_profile_vectors(store: &mut DurableStore) -> Result<(), String> {
     Ok(())
 }
 
-fn profile_vector_id(store: &DurableStore, label: &str) -> Option<u64> {
+fn profile_vector_id(store: &VersionedStore, label: &str) -> Option<RecordId> {
     // Scan profile keys written by seed_mcp_profile_vectors / prior trains.
-    // DurableStore has no key iteration API exposed for prefix scan of the
-    // snapshot; walk known small id range is not ideal. Instead re-check the
-    // three labels by re-deriving is not stored. Zig walks profile keys —
-    // we look up via get on candidate keys only if we track them. Simplest
-    // faithful approach: search for vectors whose wdbx:profile:{id} matches.
-    // Without key enumeration, seed always runs first and we remember via
-    // the sequential ids just written when empty. For an already-seeded
-    // store, probe a modest id window.
-    let max = store.stats().vectors.saturating_add(16);
-    for id in 1..=max as u64 {
-        if store.get(&format!("wdbx:profile:{id}")) == Some(label) {
+    // Profile keys and vector identities share the stable public RecordId, so
+    // scanning the immutable snapshot does not depend on numeric allocation.
+    for id in store.snapshot().vector_ids() {
+        if store.get(&format!("wdbx:profile:{id}")).as_deref() == Some(label) {
             return Some(id);
         }
     }
     None
 }
 
-fn profile_for_vector(store: &DurableStore, id: u64) -> &'static str {
-    match store.get(&format!("wdbx:profile:{id}")) {
+fn profile_for_vector(store: &VersionedStore, id: RecordId) -> &'static str {
+    match store.get(&format!("wdbx:profile:{id}")).as_deref() {
         Some("abbey") => "abbey",
         Some("aviva") => "aviva",
         Some("abi") => "abi",
@@ -490,7 +500,11 @@ fn profile_for_vector(store: &DurableStore, id: u64) -> &'static str {
     }
 }
 
-fn query_persona_weight(store: &DurableStore, weights: &abi_ai::ProfileWeights, id: u64) -> f32 {
+fn query_persona_weight(
+    store: &VersionedStore,
+    weights: &abi_ai::ProfileWeights,
+    id: RecordId,
+) -> f32 {
     match profile_for_vector(store, id) {
         "abbey" => weights.w_abbey,
         "aviva" => weights.w_aviva,
@@ -540,17 +554,24 @@ mod tests {
         }
     }
 
-    fn scratch_store() -> (ScratchDir, DurableStore) {
+    fn scratch_store() -> (ScratchDir, VersionedStore) {
         let dir = ScratchDir::new();
-        let store = DurableStore::open(StorePaths::new(&dir.0)).expect("open a fresh store");
+        let store = VersionedStore::open(StorePaths::new(&dir.0)).expect("open a fresh store");
         (dir, store)
+    }
+
+    fn report_field<'a>(output: &'a str, name: &str) -> &'a str {
+        output
+            .split_once(&format!("{name}="))
+            .and_then(|(_, rest)| rest.split_whitespace().next())
+            .expect("report field")
     }
 
     #[test]
     fn no_store_reports_the_disclosed_unpersisted_status() {
         let output = report(None, "hello world", "claude-fable-5", FIXED_NOW_MS);
         assert!(output.starts_with(
-            "model=claude-fable-5 profile=abbey audit_passed=true audit_escore=1.000 audit_vetoed=false persisted=false"
+            "requested_model=claude-fable-5 provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile=abbey audit_passed=true audit_escore=1.000 audit_vetoed=false persisted=false"
         ));
         assert!(output.contains("kv_entries=0 vectors=0 blocks=0"));
         assert!(output.contains(&format!("wdbx_status={NO_STORE_STATUS}")));
@@ -568,11 +589,12 @@ mod tests {
         );
 
         assert!(output.contains("persisted=true"));
-        // First completion in an empty store: `next_vector_id` starts at 1, so
-        // the query gets id 1 and the response gets id 2.
-        assert!(
-            output.contains("query_vector_id=1 metadata_key=completion:1 response_vector_id=2")
-        );
+        let query_id = report_field(&output, "query_vector_id");
+        let response_id = report_field(&output, "response_vector_id");
+        assert!(uuid::Uuid::parse_str(query_id).is_ok());
+        assert!(uuid::Uuid::parse_str(response_id).is_ok());
+        assert_ne!(query_id, response_id);
+        assert!(output.contains(&format!("metadata_key=completion:{query_id}")));
         assert!(output.contains("kv_entries=1 vectors=2 blocks=1"));
         assert!(output.contains("total_kv_entries=1 total_vectors=2 total_blocks=1"));
         assert!(output.contains("block_id="));
@@ -600,8 +622,7 @@ mod tests {
         assert!(output.contains("kv_entries=1 vectors=2 blocks=1"));
         // ...but the totals reflect both calls.
         assert!(output.contains("total_kv_entries=2 total_vectors=4 total_blocks=2"));
-        // The second completion's query is id 3 (1, 2 already taken by the first).
-        assert!(output.contains("query_vector_id=3"));
+        assert!(uuid::Uuid::parse_str(report_field(&output, "query_vector_id")).is_ok());
     }
 
     #[test]
@@ -646,7 +667,7 @@ mod tests {
         assert!(output.contains("persisted=true"));
         assert!(output.contains("adapted=true"));
         assert!(output.contains("evidence_count=0"));
-        assert!(output.contains("query_vector_id=1"));
+        assert!(uuid::Uuid::parse_str(report_field(&output, "query_vector_id")).is_ok());
         assert!(output.contains("profile=abbey"));
     }
 

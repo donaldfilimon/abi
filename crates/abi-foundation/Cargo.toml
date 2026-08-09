@@ -14,12 +14,16 @@ thiserror = { workspace = true }
 zeroize = { workspace = true }
 
 # macOS login-keychain backend (opt-in via ABI_CREDENTIALS_BACKEND=keychain).
-# Deliberately macOS-only: the Zig implementation documented Windows Credential
-# Manager and Linux Secret Service as Proposed/unimplemented, and a
-# cross-platform crate here would silently widen that claim. See
-# src/credentials/keychain.rs.
+# This stays macOS-only so adding the explicit Linux provider below does not
+# silently change the auth backend selected by existing users.
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "3"
+
+# Explicit Linux Secret Service provider. The pure-Rust crypto feature protects
+# secret payloads on the in-process D-Bus session without an OpenSSL/libdbus
+# build dependency. This provider is additive and is not the default auth store.
+[target.'cfg(target_os = "linux")'.dependencies]
+secret-service = { version = "5.1", default-features = false, features = ["rt-async-io-crypto-rust"] }
 
 # Owner-only DACL on the credential file, replacing the hand-written advapi32
 # externs in credentials_file.zig. See src/credentials/windows_acl.rs.

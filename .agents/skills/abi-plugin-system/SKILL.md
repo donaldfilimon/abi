@@ -1,191 +1,63 @@
 ---
 name: abi-plugin-system
-description: ABI plugin system superpower. Manifest validation, generated registry, CLI/MCP symmetric loading, 16 bundled fixtures.
-superpower:
-  command: "execute"
-  parameters:
-    - name: "action"
-      type: "string"
-      enum: ["list", "run", "validate", "generate", "info"]
-      description: "Plugin action"
-    - name: "name"
-      type: "string"
-      description: "Plugin name to run/inspect"
-    - name: "input"
-      type: "string"
-      description: "Input for plugin run"
+description: Review ABI's 16 compiled-in plugin fixtures, manifest validation, manual bundled registry, and real CLI/MCP run dispatch without claiming dynamic loading.
 ---
 
-# ABI Superpower: Plugin System
+# ABI plugin system
 
-Exposes the plugin manager and registry as a superpower. Generated registry, manifest validation, CLI/MCP symmetric plugin loading.
+Use this skill for the compiled Rust plugin fixtures under
+`crates/abi-plugins/plugins/`. ABI does not provide an `/abi-plugin-system`
+command, dynamic marketplace installation, sandboxing, or hot reload.
 
-## Actions
+## Real public paths
 
-### list
-List all registered plugins with metadata:
-```
-/abi-plugin-system list
-```
-
-### run
-Execute a plugin by name:
-```
-/abi-plugin-system run --name example-plugin --input "test input"
+```bash
+./tools/cargo.sh build -p abi-cli
+./target/debug/abi plugin list
+./target/debug/abi plugin run example-plugin "test input"
 ```
 
-### validate
-Validate a plugin manifest:
-```
-/abi-plugin-system validate --manifest ./crates/abi-plugins/plugins/example-plugin/abi-plugin.json
-```
+MCP exposes the frozen `plugin_list` and `plugin_run` tools. The CLI listing is
+alphabetical while MCP preserves bundled declaration order; their renderings
+and metadata shapes intentionally differ even though both dispatch through the
+same compiled plugin substrate.
 
-### generate
-Regenerate plugin registry from manifests:
-```
-/abi-plugin-system generate
-```
+There are no public `validate`, `generate`, or `info` plugin subcommands.
+Manifest/parity validation runs through tests and the repository driver:
 
-### info
-Show plugin metadata:
-```
-/abi-plugin-system info --name example-plugin
+```bash
+.agents/skills/plugin-runtime-tester/plugins.sh
+./tools/cargo.sh test -p abi-plugins
 ```
 
-## Plugin Manifest (`abi-plugin.json`)
+## Compiled registry
 
-```json
-{
-  "name": "example-plugin",
-  "version": "1.0.0",
-  "description": "Example plugin",
-  "target_feature": "feat-example",
-  "entry_point": "mod.rs",
-  "commands": [
-    { "name": "greet", "summary": "Say hello", "aliases": ["hi"] }
-  ],
-  "context_providers": [
-    { "name": "time", "summary": "Current timestamp" }
-  ]
-}
-```
+- `crates/abi-plugins/src/lib.rs` contains the manually maintained `BUNDLED`
+  declarations and registry descriptors.
+- Each plugin directory contains `abi-plugin.json`, `mod.rs`, and `stub.rs`.
+- Tests check the declarations against manifests and module/stub parity.
+- A manifest `target_feature` is descriptive metadata, not a dynamic Cargo
+  gate enforced by `plugin run`.
+- `entry_point` validation rejects unsafe paths and requires a relative `.rs`
+  entry beneath the plugin directory.
 
-Required fields: `name`, `version`, `description`, `target_feature`, `entry_point`
-Aliases accepted: `targetFeature` / `entryPoint`
-`entry_point` must be a safe relative `.rs` path under the plugin directory.
+The current fixtures are `accelerator-plugin`, `ai-plugin`, `example-plugin`,
+`example-wdbx-plugin`, `foundationmodels-plugin`, `gpu-plugin`, `hash-plugin`,
+`metrics-plugin`, `mlir-plugin`, `mobile-plugin`, `nn-plugin`,
+`os-control-plugin`, `sea-plugin`, `shader-plugin`, `telemetry-exporter`, and
+`tui-plugin`.
 
-## Bundled Fixtures (16)
+## Manifest commands and context providers
 
-| Plugin | Target Feature | Purpose |
-|--------|---------------|---------|
-| example-plugin | baseline | Baseline fixture |
-| example-wdbx-plugin | feat-wdbx | WDBX-targeted |
-| accelerator-plugin | feat-accelerator | Backend selection |
-| ai-plugin | feat-ai | AI pipeline |
-| foundationmodels-plugin | feat-foundationmodels | Apple FM connector |
-| gpu-plugin | feat-gpu | GPU vector ops |
-| hash-plugin | feat-hash | Stable hashing |
-| metrics-plugin | feat-metrics | Observability counters |
-| mlir-plugin | feat-mlir | Textual MLIR lowering |
-| mobile-plugin | feat-mobile | Mobile profile |
-| nn-plugin | feat-nn | Char-LM trainer |
-| os-control-plugin | feat-os-control | OS command policy |
-| sea-plugin | feat-sea | SEA self-learning |
-| shader-plugin | feat-shader | Shader validation |
-| telemetry-exporter | feat-telemetry | Telemetry export |
-| tui-plugin | feat-tui | Agent TUI / slash-command surface |
+Manifest `commands[]` and `context_providers[]` are descriptors reachable
+through internal `__cmd__:<name>` and `__context__:<name>` plugin-manager
+dispatch. They are not automatically registered as slash commands or injected
+contexts in `abi agent tui`.
 
-## Architecture
+## Validation boundary
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│              crates/abi-plugins/src/lib.rs                  │
-│  `BUNDLED` + `registry_descriptors()` / `register_all()`    │
-│  (edit when adding/removing bundled plugins)                │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│         crates/abi-plugins/plugins/<name>/                  │
-│  abi-plugin.json + mod.rs + stub.rs                         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┴───────────────┐
-              ▼                               ▼
-┌─────────────────────────┐         ┌─────────────────────────┐
-│  CLI: abi plugin        │         │  MCP: plugin_list/      │
-│  - plugin list          │         │  plugin_run             │
-└─────────────────────────┘         └─────────────────────────┘
-              │                               │
-              └───────────────┬───────────────┘
-                              ▼
-                   ┌──────────────────────────────────────┐
-                   │  crates/abi-plugins/src/manager.rs   │
-                   │  - Load/unload/list                  │
-                   │  - Manifest validation               │
-                   │  - Safe .rs entry_point              │
-                   └──────────────────────────────────────┘
-```
-
-## Registry
-
-- Bundled metadata lives in `crates/abi-plugins/src/lib.rs` (`BUNDLED`,
-  `registry_descriptors`, `register_all`) — update it when plugins change.
-- Contract tests under `crates/abi-plugins/tests/` pin the plugin count.
-
-## Plugin Manager (`crates/abi-plugins/src/manager.rs`)
-
-| Method | Description |
-|--------|-------------|
-| `load` | Load plugin from manifest + entry_point |
-| `unload` | Unload plugin, free resources |
-| `list` | Return all loaded plugin metadata |
-| `run` | Execute plugin's `run()` function |
-
-Validates:
-- Manifest required fields present
-- `target_feature` matches enabled feature
-- `entry_point` exists as `.rs` under plugin dir
-- No path traversal in `entry_point`
-
-## CLI Surface
-
-| Command | Description |
-|---------|-------------|
-| `abi plugin list` | List bundled plugins |
-| `abi plugin run <name> [input]` | Execute plugin |
-
-## MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `plugin_list` | List plugin metadata (matches CLI) |
-| `plugin_run` | Execute plugin with input |
-
-Both return same metadata shape — contract test asserts symmetry.
-
-## Slash Commands (Agent TUI)
-
-Plugins can declare `commands[]` in manifest:
-- Registers as `/command` in `agent tui` REPL
-- Aliases supported (`aliases: ["hi"]`)
-
-Plugins can declare `context_providers[]`:
-- Injects snippets into REPL prompt via `__context__:<name>` dispatch
-
-## Feature Gates
-
-- Requires `feat-tui=true` (default) for CLI/MCP plugin tools
-- Plugin's `target_feature` must be enabled
-- When disabled: `plugin_list` returns empty, `plugin_run` returns `FeatureDisabled`
-
-## Claim Boundary
-
-- ✅ 16 bundled fixtures with manifest validation
-- ✅ Generated registry (build-time, not hand-edited)
-- ✅ CLI/MCP symmetric loading and metadata
-- ✅ Slash commands + context providers from manifests
-- ✅ Safe entry_point path validation
-- ❌ NOT a dynamic plugin marketplace
-- ❌ NOT sandboxed execution (loads as a Rust module)
-- ❌ NOT hot-reload capable (build-time generation)
+- Registry presence does not prove execution; run all 16 fixtures plus an
+  unknown-plugin negative through the runtime driver.
+- Compiled-in Rust modules are not sandboxed third-party extensions.
+- Do not claim generated registry state, symmetric CLI/MCP rendering, dynamic
+  feature enforcement, or hot loading.

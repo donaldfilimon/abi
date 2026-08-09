@@ -469,7 +469,7 @@ mod tests {
                 "/tmp/abi-nonexistent".into(),
             ]);
             assert_eq!(planned.exit_code, 0, "{}", planned.stderr);
-            assert!(planned.stderr.is_empty());
+            assert_eq!(planned.stderr, "");
             assert!(
                 planned
                     .stdout
@@ -489,7 +489,7 @@ mod tests {
             let denied = os_cmd(&["execute".into(), "--confirm".into(), "rm".into()]);
             assert_eq!(denied.exit_code, 1);
             assert!(denied.stderr.contains("denied by os-control policy"));
-            assert!(denied.stdout.is_empty());
+            assert_eq!(denied.stdout, "");
         });
     }
 
@@ -559,13 +559,19 @@ mod tests {
         let status = persist_audit(&["sh", "-c", "sleep 30"], "/tmp", 124, 1_000, true);
         assert!(status.starts_with("block="), "{status}");
 
-        let store = abi_wdbx::DurableStore::open(abi_wdbx::StorePaths::new(&store_path))
+        let store = abi_wdbx::VersionedStore::open(abi_wdbx::StorePaths::new(&store_path))
             .expect("reopen scratch audit store");
         assert_eq!(store.stats().vectors, 2);
         assert_eq!(store.stats().kv_entries, 2);
         assert_eq!(store.stats().blocks, 2);
-        let timed_out = store.get("os-cmd:2").expect("timeout metadata");
-        let metadata: serde_json::Value = serde_json::from_str(timed_out).expect("metadata json");
+        let vector_id = status
+            .split_once(" vector=")
+            .map(|(_, id)| id)
+            .expect("audit status includes vector identity");
+        let timed_out = store
+            .get(&format!("os-cmd:{vector_id}"))
+            .expect("timeout metadata");
+        let metadata: serde_json::Value = serde_json::from_str(&timed_out).expect("metadata json");
         assert_eq!(metadata["timed_out"], true);
         assert_eq!(metadata["exit_code"], 124);
     }

@@ -10,11 +10,10 @@
 //!
 //! - **It never shells out to `/usr/bin/security`.** A secret passed on argv is
 //!   visible to other users through `ps` on a multi-user machine.
-//! - **Non-macOS targets return an error, not a silent success.** Windows
-//!   Credential Manager and Linux Secret Service were documented as Proposed and
-//!   unimplemented. A cross-platform crate such as `keyring` would make them work
-//!   — which would be a *widening* of what the project claims to support, so it
-//!   is left as a deliberate follow-up rather than folded into the port.
+//! - **Non-macOS targets return an error, not a silent success.** The additive
+//!   Linux Secret Service adapter lives behind the separate object-safe provider
+//!   surface; it does not widen `ABI_CREDENTIALS_BACKEND=keychain` or alter the
+//!   existing fallback behavior. Windows Credential Manager remains unimplemented.
 //!
 //! Scope, restated from the Zig docs so it does not inflate: this is the macOS
 //! login keychain with the OS's default at-rest protection. It is **not**
@@ -31,6 +30,7 @@ pub const BACKEND_ENV: &str = "ABI_CREDENTIALS_BACKEND";
 /// Service name under which every credential field is stored.
 ///
 /// Each field's keychain *account* is its JSON key, e.g. `openai_api_key`.
+#[cfg(target_os = "macos")]
 pub const SERVICE: &str = "abi-credentials";
 
 /// Whether `ABI_CREDENTIALS_BACKEND` selects the keychain backend.
@@ -143,6 +143,7 @@ use backend::{delete_field, load_field, store_field};
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "macos")]
     use crate::credentials::CredentialField;
 
     #[test]
@@ -249,6 +250,6 @@ mod tests {
         );
 
         clear().expect("clear");
-        assert!(load().expect("load after clear").is_empty());
+        assert_eq!(load().expect("load after clear").len(), 0);
     }
 }

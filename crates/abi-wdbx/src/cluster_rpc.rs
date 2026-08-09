@@ -11,6 +11,19 @@ use abi_foundation::http::fixed_work_eq;
 use std::collections::BTreeSet;
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream};
+use std::time::Duration;
+
+mod data;
+
+use data::{ClusterDataPlane, encode_response};
+pub use data::{
+    ClusterDataRequest, ClusterDataResponse, ClusterKvState, dial_data, read_data_reply,
+};
+
+/// Connect/read/write deadline for the bounded reference transport.
+pub const CLUSTER_RPC_TIMEOUT: Duration = Duration::from_secs(2);
+/// Largest authenticated exact-transaction frame accepted by the data plane.
+pub const MAX_CLUSTER_DATA_FRAME_SIZE: usize = 64 * 1024;
 
 /// Shared-secret configuration.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -179,6 +192,13 @@ enum Request<'line> {
         data: &'line str,
         supplied: Option<&'line str>,
     },
+    Shutdown {
+        supplied: Option<&'line str>,
+    },
+    Data {
+        body: &'line str,
+        supplied: Option<&'line str>,
+    },
     Unknown,
 }
 
@@ -210,6 +230,17 @@ fn parse_request(line: &str) -> Result<Request<'_>, RpcError> {
                 supplied: Some(token),
             });
         }
+        if command == "SHUTDOWN" {
+            return Ok(Request::Shutdown {
+                supplied: Some(token),
+            });
+        }
+        if let Some(body) = command.strip_prefix("DATA ") {
+            return Ok(Request::Data {
+                body,
+                supplied: Some(token),
+            });
+        }
         return Ok(Request::Unknown);
     }
     if let Some(vote) = line.strip_prefix("VOTE ") {
@@ -238,6 +269,8 @@ pub struct ClusterRpcServer {
     listener: TcpListener,
     node: Node,
     policy: ClusterPolicy,
+    data_plane: Option<ClusterDataPlane>,
+    shutdown_requested: bool,
 }
 
 impl ClusterRpcServer {
@@ -256,7 +289,22 @@ impl ClusterRpcServer {
             listener,
             node,
             policy,
+            data_plane: None,
+            shutdown_requested: false,
         })
+    }
+
+    /// Bind a listener with an isolated writable v2 data plane.
+    pub fn bind_with_store(
+        host: &str,
+        port: u16,
+        node: Node,
+        policy: ClusterPolicy,
+        store: crate::VersionedStore,
+    ) -> Result<Self, RpcError> {
+        let mut server = Self::bind(host, port, node, policy)?;
+        server.data_plane = Some(ClusterDataPlane::new(store));
+        Ok(server)
     }
 
     /// Bound port, including a kernel-selected ephemeral port.
@@ -270,6 +318,12 @@ impl ClusterRpcServer {
         &self.node
     }
 
+    /// Whether an authenticated shutdown request was accepted.
+    #[must_use]
+    pub const fn shutdown_requested(&self) -> bool {
+        self.shutdown_requested
+    }
+
     /// Replace peer membership for subsequent requests.
     pub fn set_peers(&mut self, peers: Option<BTreeSet<u32>>) {
         self.policy = self.policy.clone().with_peers(peers);
@@ -278,10 +332,16 @@ impl ClusterRpcServer {
     /// Accept, authorize, apply and answer one RPC.
     pub fn serve_one(&mut self) -> Result<(), RpcError> {
         let (mut stream, _) = self.listener.accept()?;
-        let mut buffer = [0; MAX_LINE_SIZE];
+        stream.set_read_timeout(Some(CLUSTER_RPC_TIMEOUT))?;
+        stream.set_write_timeout(Some(CLUSTER_RPC_TIMEOUT))?;
+        let mut buffer = vec![0; MAX_CLUSTER_DATA_FRAME_SIZE];
         let line = read_line(&mut stream, &mut buffer)?;
         let line = std::str::from_utf8(line).map_err(|_| RpcError::MalformedRequest)?;
-        let response = match parse_request(line)? {
+        let request = parse_request(line)?;
+        if line.len() >= MAX_LINE_SIZE && !matches!(&request, Request::Data { .. }) {
+            return Err(RpcError::LineTooLong);
+        }
+        let response = match request {
             Request::Vote {
                 term,
                 candidate,
@@ -318,6 +378,25 @@ impl ClusterRpcServer {
                     format!("NACK {}\n", self.node.term)
                 }
             }
+            Request::Shutdown { supplied } => {
+                if self.policy.auth.enabled() && self.policy.auth.matches(supplied) {
+                    self.shutdown_requested = true;
+                    format!("BYE {}\n", self.node.term)
+                } else {
+                    format!("DENIED {}\n", self.node.term)
+                }
+            }
+            Request::Data { body, supplied } => {
+                if !self.policy.auth.enabled() || !self.policy.auth.matches(supplied) {
+                    format!("DENIED {}\n", self.node.term)
+                } else if let Some(data_plane) = &mut self.data_plane {
+                    encode_response(&data_plane.handle(body))
+                } else {
+                    encode_response(&ClusterDataResponse::Error {
+                        message: "data plane is unavailable".into(),
+                    })
+                }
+            }
             Request::Unknown => "ERR 0\n".to_string(),
         };
         write_line(&mut stream, response.as_bytes())?;
@@ -326,11 +405,12 @@ impl ClusterRpcServer {
 
     /// Serve until interrupted.
     pub fn run(&mut self) -> Result<(), RpcError> {
-        loop {
+        while !self.shutdown_requested {
             if let Err(error) = self.serve_one() {
                 eprintln!("cluster RPC serve error: {error}");
             }
         }
+        Ok(())
     }
 }
 
@@ -368,14 +448,24 @@ pub fn dial_append(
     dial(host, port, &message)
 }
 
+/// Send an authenticated graceful-shutdown request.
+pub fn dial_shutdown(host: &str, port: u16, token: &str) -> Result<Option<TcpStream>, RpcError> {
+    if token.is_empty() {
+        return Err(RpcError::InvalidToken);
+    }
+    dial(host, port, &format!("AUTH {token} SHUTDOWN\n"))
+}
+
 fn dial(host: &str, port: u16, message: &str) -> Result<Option<TcpStream>, RpcError> {
     let address = match parse_host(host) {
         Ok(address) => SocketAddr::new(address, port),
         Err(_) => return Ok(None),
     };
-    let Ok(mut stream) = TcpStream::connect(address) else {
+    let Ok(mut stream) = TcpStream::connect_timeout(&address, CLUSTER_RPC_TIMEOUT) else {
         return Ok(None);
     };
+    stream.set_read_timeout(Some(CLUSTER_RPC_TIMEOUT))?;
+    stream.set_write_timeout(Some(CLUSTER_RPC_TIMEOUT))?;
     write_line(&mut stream, message.as_bytes())?;
     Ok(Some(stream))
 }
@@ -396,6 +486,12 @@ pub fn read_append_reply(mut stream: TcpStream) -> Result<AppendReply, RpcError>
         ack: verb == "ACK",
         term,
     })
+}
+
+/// Read an authenticated graceful-shutdown acknowledgement.
+pub fn read_shutdown_reply(mut stream: TcpStream) -> Result<bool, RpcError> {
+    let (verb, _) = read_reply(&mut stream)?;
+    Ok(verb == "BYE")
 }
 
 fn read_reply(stream: &mut TcpStream) -> Result<(String, u64), RpcError> {
@@ -427,6 +523,13 @@ fn is_loopback_host(host: &str) -> bool {
 mod tests {
     use super::*;
     use std::thread;
+
+    fn data_request(port: u16, token: &str, request: &ClusterDataRequest) -> ClusterDataResponse {
+        let stream = dial_data("127.0.0.1", port, token, request)
+            .expect("dial")
+            .expect("reachable");
+        read_data_reply(stream).expect("data reply")
+    }
 
     #[test]
     fn policy_validation_and_reload_are_explicit() {
@@ -504,7 +607,7 @@ mod tests {
         let server = handle.join().expect("server");
         assert_eq!(server.node().term, 5);
         assert_eq!(server.node().voted_for, None);
-        assert!(server.node().log.is_empty());
+        assert_eq!(server.node().log.len(), 0);
     }
 
     #[test]
@@ -535,7 +638,7 @@ mod tests {
 
         let server = handle.join().expect("server");
         assert_eq!(server.node().term, 9);
-        assert!(server.node().log.is_empty());
+        assert_eq!(server.node().log.len(), 0);
     }
 
     #[test]
@@ -573,7 +676,7 @@ mod tests {
             .expect("reachable");
         server.serve_one().expect("append");
         assert!(read_append_reply(append).expect("reply").ack);
-        assert!(server.node().log[0].data.is_empty());
+        assert_eq!(server.node().log[0].data.len(), 0);
     }
 
     #[test]
@@ -642,5 +745,136 @@ mod tests {
                 .iter()
                 .all(|server| server.node().log[0].data == b"set loop=true")
         );
+    }
+
+    #[test]
+    fn authenticated_data_plane_preserves_exact_objects_and_conflict_state() {
+        let root = abi_foundation::temp_path::temp_file_path("cluster-rpc-data", "store");
+        let store = crate::VersionedStore::open(crate::StorePaths::new(&root)).expect("store");
+        let policy = ClusterPolicy::from_values(Some("secret"), Some("0,1")).expect("policy");
+        let mut server =
+            ClusterRpcServer::bind_with_store("127.0.0.1", 0, Node::new(1), policy, store)
+                .expect("bind");
+        let port = server.local_port().expect("port");
+        let handle = thread::spawn(move || {
+            for _ in 0..7 {
+                server.serve_one().expect("data request");
+            }
+            server
+        });
+
+        let mut denied = dial_data(
+            "127.0.0.1",
+            port,
+            "wrong",
+            &ClusterDataRequest::ReadKv { key: "k".into() },
+        )
+        .expect("dial")
+        .expect("reachable");
+        assert_eq!(read_reply(&mut denied).unwrap().0, "DENIED");
+
+        let shard_key = b"kv:k".to_vec();
+        let committed = match data_request(
+            port,
+            "secret",
+            &ClusterDataRequest::CommitKv {
+                shard_key: shard_key.clone(),
+                key: "k".into(),
+                value: "v".into(),
+            },
+        ) {
+            ClusterDataResponse::Transaction { transaction } => transaction,
+            response => panic!("unexpected commit response: {response:?}"),
+        };
+        let exported = match data_request(
+            port,
+            "secret",
+            &ClusterDataRequest::ExportTransaction {
+                writer_id: committed.writer_id(),
+                sequence: committed.sequence(),
+            },
+        ) {
+            ClusterDataResponse::Transaction { transaction } => transaction,
+            response => panic!("unexpected export response: {response:?}"),
+        };
+        assert_eq!(exported, committed);
+        assert_eq!(exported.encoded(), committed.encoded());
+
+        assert!(matches!(
+            data_request(
+                port,
+                "secret",
+                &ClusterDataRequest::ImportCommitted {
+                    shard_key: shard_key.clone(),
+                    transaction: committed.clone(),
+                }
+            ),
+            ClusterDataResponse::Imported { transaction_id }
+                if transaction_id == committed.transaction_id()
+        ));
+        assert!(matches!(
+            data_request(
+                port,
+                "secret",
+                &ClusterDataRequest::ReadKv { key: "k".into() }
+            ),
+            ClusterDataResponse::Kv { current: Some(current) }
+                if current.preferred.value == "v" && current.conflicts.is_empty()
+        ));
+        assert!(matches!(
+            data_request(
+                port,
+                "secret",
+                &ClusterDataRequest::ShardTransactions {
+                    shard_key: shard_key.clone()
+                }
+            ),
+            ClusterDataResponse::Transactions { transactions }
+                if transactions == [committed]
+        ));
+        assert!(matches!(
+            data_request(port, "secret", &ClusterDataRequest::ShardKeys),
+            ClusterDataResponse::ShardKeys { shard_keys } if shard_keys == [shard_key]
+        ));
+
+        drop(handle.join().expect("server"));
+        std::fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn data_plane_rejects_an_oversized_request_before_connecting() {
+        let request = ClusterDataRequest::CommitKv {
+            shard_key: vec![1],
+            key: "k".into(),
+            value: "x".repeat(MAX_CLUSTER_DATA_FRAME_SIZE),
+        };
+        assert!(matches!(
+            dial_data("127.0.0.1", 1, "secret", &request),
+            Err(RpcError::LineTooLong)
+        ));
+    }
+
+    #[test]
+    fn graceful_shutdown_requires_authentication_and_stops_the_server() {
+        let policy = ClusterPolicy::from_values(Some("secret"), Some("0,1")).expect("policy");
+        let mut server =
+            ClusterRpcServer::bind("127.0.0.1", 0, Node::new(1), policy).expect("bind");
+        let port = server.local_port().expect("port");
+        let handle = thread::spawn(move || {
+            server.serve_one().expect("wrong shutdown token");
+            assert!(!server.shutdown_requested());
+            server.serve_one().expect("authenticated shutdown");
+            server
+        });
+
+        let denied = dial_shutdown("127.0.0.1", port, "wrong")
+            .expect("dial")
+            .expect("reachable");
+        assert!(!read_shutdown_reply(denied).expect("denied reply"));
+        let accepted = dial_shutdown("127.0.0.1", port, "secret")
+            .expect("dial")
+            .expect("reachable");
+        assert!(read_shutdown_reply(accepted).expect("accepted reply"));
+        assert!(handle.join().expect("server").shutdown_requested());
     }
 }

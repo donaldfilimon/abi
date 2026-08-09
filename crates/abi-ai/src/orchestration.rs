@@ -61,13 +61,15 @@ impl AgentToolHint {
 pub struct AgentWorkerSpec {
     /// Worker name, used in the task name and the result banner.
     pub name: String,
-    /// Free-text instructions echoed into the worker's output.
+    /// Free-text metadata echoed into the worker's output. The local template
+    /// engine does not execute or condition generation on this field.
     pub instructions: String,
     /// Whether the worker only plans. Zig defaulted this to `true`.
     pub dry_run: bool,
     /// Force a persona instead of routing by sentiment.
     pub profile_override: Option<AgentProfile>,
-    /// Declared capabilities.
+    /// Declared capability hints. The local template engine does not execute
+    /// tools from these hints.
     pub tool_hints: Vec<AgentToolHint>,
 }
 
@@ -255,9 +257,9 @@ pub struct AgentResult {
 
 /// Run one worker: route a persona, audit, and format the report.
 ///
-/// Ported from Zig's `runAgent`. `requires_review` is true when the worker is
-/// not a dry run **or** the constitutional audit failed — so a governance
-/// failure escalates even a dry run, which is the conservative direction.
+/// Ported from Zig's `runAgent`. The result always requires review: the current
+/// constitution is a bounded lexical signal and worker instructions/tool hints
+/// are metadata, so neither can authorize action or clear human review.
 ///
 /// Returns `None` for an empty name, empty instructions, or empty input, matching
 /// Zig's `error.InvalidAgentConfig` guard.
@@ -277,18 +279,23 @@ pub fn run_agent(spec: &AgentWorkerSpec, input: &str) -> Option<AgentResult> {
         .unwrap_or_else(|| select_best_profile(analyze_sentiment(input)));
     let response = crate::route_to_profile(selected, input);
     let audit = validate(&response);
-    let requires_review = !spec.dry_run || !audit.passed;
+    let requires_review = true;
 
     let mut output = String::new();
     let _ = writeln!(output, "agent={}", spec.name);
     let _ = writeln!(output, "mode={mode}");
     let _ = writeln!(output, "selected_profile={}", selected.label());
+    let _ = writeln!(output, "generation_engine=persona-template");
+    let _ = writeln!(output, "policy_scope=lexical-signal");
+    let _ = writeln!(output, "lexical_audit_passed={}", audit.passed);
     let _ = writeln!(
         output,
         "review_required={}",
         if requires_review { "true" } else { "false" }
     );
     let _ = writeln!(output, "tool_hints={}", format_tool_hints(&spec.tool_hints));
+    let _ = writeln!(output, "tool_hints_enforced=false");
+    let _ = writeln!(output, "instructions_enforced=false");
     let _ = writeln!(output, "instructions={}", spec.instructions);
     // No trailing newline: Zig's format string ended at `response={s}`, and the
     // aggregator adds the separator.
@@ -472,7 +479,7 @@ mod tests {
         // Verbatim from Zig's "parse worker specs without hints frees safely".
         let specs = parse_worker_specs("scout|Explore pages").expect("valid spec");
         assert_eq!(specs.len(), 1);
-        assert!(specs[0].tool_hints.is_empty());
+        assert_eq!(specs[0].tool_hints.len(), 0);
         assert_eq!(format_tool_hints(&specs[0].tool_hints), "none");
     }
 
@@ -549,7 +556,7 @@ mod tests {
     }
 
     #[test]
-    fn run_agent_renders_the_zig_field_order() {
+    fn run_agent_discloses_local_template_and_review_boundary() {
         let spec =
             AgentWorkerSpec::new("scout", "Explore safely").with_hints([AgentToolHint::Explore]);
         let result = run_agent(&spec, "inspect docs").expect("valid worker");
@@ -557,11 +564,16 @@ mod tests {
         assert_eq!(lines[0], "agent=scout");
         assert_eq!(lines[1], "mode=dry-run");
         assert!(lines[2].starts_with("selected_profile="));
-        assert_eq!(lines[3], "review_required=false");
-        assert_eq!(lines[4], "tool_hints=explore");
-        assert_eq!(lines[5], "instructions=Explore safely");
-        assert!(lines[6].starts_with("response="));
-        assert!(!result.requires_review);
+        assert_eq!(lines[3], "generation_engine=persona-template");
+        assert_eq!(lines[4], "policy_scope=lexical-signal");
+        assert!(lines[5].starts_with("lexical_audit_passed="));
+        assert_eq!(lines[6], "review_required=true");
+        assert_eq!(lines[7], "tool_hints=explore");
+        assert_eq!(lines[8], "tool_hints_enforced=false");
+        assert_eq!(lines[9], "instructions_enforced=false");
+        assert_eq!(lines[10], "instructions=Explore safely");
+        assert!(lines[11].starts_with("response="));
+        assert!(result.requires_review);
     }
 
     #[test]

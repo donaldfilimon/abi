@@ -11,12 +11,11 @@ opencode loads abi via mechanisms wired in repo-root `opencode.json` and the
 - **Skills**: `.opencode/skills` is a symlink to `../.agents/skills`, so every
   canonical skill dir is visible to opencode automatically. No separate allowlist
   file is required today — editing a skill under `.agents/skills/<name>/` is enough.
-- **Agent TUI slash commands**: live in the abi agent TUI (not an opencode JSON
-  map). Skills such as `file-context-loader`, `git-diff-integration`,
-  `git-commit-integration`, `context-state-reporter`, `feature-flag-display`,
-  `sea-learning-controller`, `session-persister`, `session-restorer`,
-  `agent-status-reporter`, and `context-resetter` back `/open /diff /commit
-  /context /features /learn /save /load /status /reset` inside `abi agent` TUI.
+- **Agent TUI slash commands**: live in the Rust REPL, not an OpenCode JSON
+  map. The current surface is `/help`, `/model`, `/profile`, `/sea`, `/status`,
+  `/context`, `/history`, `/reset`, `/features`, `/clear`, and `/quit` plus
+  documented aliases. Workflow skills for Git or session planning do not add
+  `/diff`, `/commit`, `/save`, or `/load` to the binary.
 - **MCP servers**: `opencode.json` `mcp` wires `abi-mcp` (via
   `./mcp/launcher.sh stdio`) and `skill-loop` (the telemetry/registry engine).
   `.mcp.json` mirrors the same for other clients.

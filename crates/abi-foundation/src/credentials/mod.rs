@@ -11,12 +11,23 @@
 
 mod file;
 mod keychain;
+mod linux_secret_service;
+mod provider;
 mod secret;
 #[cfg(windows)]
 mod windows_acl;
 
-pub use file::{CREDENTIALS_PATH_ENV, credentials_path};
+#[cfg(windows)]
+pub use windows_acl::is_owner_only as windows_file_is_owner_only;
+
+pub use file::{CREDENTIALS_PATH_ENV, credentials_path, write_owner_only_file_new};
 pub use keychain::{BACKEND_ENV, backend_is_keychain};
+pub use provider::{
+    CredentialCapability, CredentialProvider, CredentialScope, FileCredentialProvider,
+    LinuxSecretServiceProvider, MacOsKeychainProvider, ProviderImplementation, ProviderKind,
+    SecretTransport, WindowsCredentialProtectionProvider, platform_credential_capabilities,
+    platform_credential_providers, platform_credential_report,
+};
 pub use secret::Secret;
 
 pub use file::mode_of;
@@ -202,7 +213,7 @@ mod tests {
     #[test]
     fn get_and_set_roundtrip() {
         let mut creds = Credentials::new();
-        assert!(creds.is_empty());
+        assert_eq!(creds.len(), 0);
 
         creds.set(CredentialField::OPENAI_API_KEY, Some(Secret::new("sk-1")));
         assert_eq!(creds.len(), 1);
@@ -221,7 +232,7 @@ mod tests {
         creds.set(CredentialField::DISCORD_TOKEN, Some(Secret::new("tok")));
         creds.set(CredentialField::DISCORD_TOKEN, None);
         assert!(creds.get(CredentialField::DISCORD_TOKEN).is_none());
-        assert!(creds.is_empty());
+        assert_eq!(creds.len(), 0);
     }
 
     #[test]

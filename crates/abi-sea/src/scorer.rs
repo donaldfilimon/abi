@@ -1,10 +1,10 @@
 //! Eight-signal SEA scoring and budgeted selection.
 //!
-//! Ported from `src/features/sea/scorer.zig`. Phase-1 retrieval primarily uses
-//! semantic + keyword + authority via `evidence`; this module carries the full
-//! reference combiner for later selection paths and tests.
+//! Ported from `src/features/sea/scorer.zig`. The evidence-recall path builds
+//! these candidates from durable WDBX records before applying this combiner.
 
 use crate::query_plan::TaskType;
+use abi_wdbx::RecordId;
 
 /// Eight orthogonal scoring signals.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -69,8 +69,8 @@ impl Default for SeaWeights {
 /// One candidate for budgeted selection.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SeaCandidate {
-    /// Stable record id.
-    pub record_id: u32,
+    /// Stable WDBX vector id.
+    pub record_id: RecordId,
     /// Diversity cluster id.
     pub cluster_id: u8,
     /// Estimated token cost of admitting this candidate.
@@ -109,9 +109,9 @@ impl Default for SeaOptions {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SeaSelection {
     /// Admitted record ids.
-    pub selected_ids: Vec<u32>,
+    pub selected_ids: Vec<RecordId>,
     /// Rejected record ids.
-    pub rejected_ids: Vec<u32>,
+    pub rejected_ids: Vec<RecordId>,
     /// Total estimated tokens of the admitted set.
     pub total_estimated_tokens: usize,
     /// Human-readable reason.
@@ -175,21 +175,27 @@ pub fn select_sea_candidates(
 
     candidates.sort_by(|a, b| {
         b.final_score
-            .partial_cmp(&a.final_score)
-            .unwrap_or(std::cmp::Ordering::Equal)
+            .total_cmp(&a.final_score)
+            .then_with(|| a.record_id.cmp(&b.record_id))
     });
 
     let mut selected = Vec::new();
     let mut rejected = Vec::new();
     let mut used_tokens = 0_usize;
     let mut cluster_counts = [0_usize; 9];
+    let mut seen = std::collections::BTreeSet::new();
 
     for c in &candidates {
+        // A vector id is the durable record identity. Duplicate search hits or
+        // callers repeating a candidate must not consume budget twice.
+        if !seen.insert(c.record_id) {
+            continue;
+        }
         let cluster = usize::from(c.cluster_id.min(8));
         let count = cluster_counts[cluster];
         let too_many_cluster = count >= options.per_cluster_limit && c.final_score < 0.92;
         let too_many_records = selected.len() >= options.max_records;
-        let too_many_tokens = used_tokens + c.estimated_tokens > options.max_tokens;
+        let too_many_tokens = used_tokens.saturating_add(c.estimated_tokens) > options.max_tokens;
 
         if too_many_cluster || too_many_records || too_many_tokens {
             rejected.push(c.record_id);
@@ -252,7 +258,7 @@ mod tests {
     fn selection_respects_record_budget() {
         let candidates: Vec<_> = (0..10)
             .map(|i| SeaCandidate {
-                record_id: i,
+                record_id: RecordId::Legacy(i),
                 cluster_id: u8::try_from(i).unwrap_or(8),
                 estimated_tokens: 10,
                 signals: SeaSignals::default(),
@@ -269,5 +275,81 @@ mod tests {
         assert_eq!(selection.selected_ids.len(), 3);
         assert_eq!(selection.rejected_ids.len(), 7);
         assert_eq!(selection.reason, "budget-limited");
+    }
+
+    #[test]
+    fn selection_is_deterministic_and_deduplicates_vector_ids() {
+        let candidates = vec![
+            SeaCandidate {
+                record_id: RecordId::Legacy(9),
+                cluster_id: 0,
+                estimated_tokens: 3,
+                signals: SeaSignals::default(),
+                final_score: 0.8,
+            },
+            SeaCandidate {
+                record_id: RecordId::Legacy(4),
+                cluster_id: 1,
+                estimated_tokens: 3,
+                signals: SeaSignals::default(),
+                final_score: 0.8,
+            },
+            SeaCandidate {
+                record_id: RecordId::Legacy(4),
+                cluster_id: 2,
+                estimated_tokens: 100,
+                signals: SeaSignals::default(),
+                final_score: 0.1,
+            },
+        ];
+        let selection = select_sea_candidates(candidates, SeaOptions::default());
+        assert_eq!(
+            selection.selected_ids,
+            vec![RecordId::Legacy(4), RecordId::Legacy(9)]
+        );
+        assert_eq!(selection.rejected_ids, Vec::<RecordId>::new());
+        assert_eq!(selection.total_estimated_tokens, 6);
+    }
+
+    #[test]
+    fn selection_respects_token_and_cluster_budgets() {
+        let candidates = vec![
+            SeaCandidate {
+                record_id: RecordId::Legacy(1),
+                cluster_id: 0,
+                estimated_tokens: 6,
+                signals: SeaSignals::default(),
+                final_score: 0.90,
+            },
+            SeaCandidate {
+                record_id: RecordId::Legacy(2),
+                cluster_id: 0,
+                estimated_tokens: 2,
+                signals: SeaSignals::default(),
+                final_score: 0.80,
+            },
+            SeaCandidate {
+                record_id: RecordId::Legacy(3),
+                cluster_id: 1,
+                estimated_tokens: usize::MAX,
+                signals: SeaSignals::default(),
+                final_score: 0.70,
+            },
+        ];
+        let selection = select_sea_candidates(
+            candidates,
+            SeaOptions {
+                max_tokens: 8,
+                max_records: 3,
+                per_cluster_limit: 1,
+                ..SeaOptions::default()
+            },
+        );
+        assert_eq!(selection.selected_ids, vec![RecordId::Legacy(1)]);
+        assert_eq!(
+            selection.rejected_ids,
+            vec![RecordId::Legacy(2), RecordId::Legacy(3)]
+        );
+        assert_eq!(selection.total_estimated_tokens, 6);
     }
 }

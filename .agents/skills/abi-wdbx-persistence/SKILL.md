@@ -144,7 +144,7 @@ CLI commands (`wdbx db *`) recover WAL-ahead state before read/write:
 |---------|-------------|
 | `db init <path>` | Create new segment-backed store |
 | `db verify <path>` | Full integrity check (checkpoint + WAL + block chain) |
-| `db compact <path> [keep]` | Retain newest N segment checkpoints |
+| `db compact <path> [--codec none|pq|autoencoder]` | Publish and verify an immutable v2 generation; `none` is exact, learned codecs are explicitly lossy and report quality evidence |
 | `block insert <path> <profile> <metadata>` | Write segment checkpoint + WAL |
 | `block get <path>` | Read latest block |
 | `query <path> [text] [persona]` | Stats, hybrid search, or persona-isolated retrieval |
@@ -172,11 +172,12 @@ abi wdbx block get ./data
 abi wdbx query ./data "search text" abbey
 ```
 
-## Feature Gates
+## Build and runtime boundary
 
-Requires `feat-wdbx=true` (default). When disabled:
-- All write/search paths return `FeatureDisabled`
-- No persistence surface exposed
+`abi-wdbx` is a normal Rust workspace crate; there is no `feat-wdbx` switch or
+`FeatureDisabled` stub. Persistence is selected at runtime by the requested
+store path and environment. Tests use scratch paths, `ABI_WDBX_PATH=:memory:`,
+or `ABI_WDBX_PERSIST=0` and never open the user's live store.
 
 ## Claim Boundary
 

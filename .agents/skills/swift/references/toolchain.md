@@ -24,7 +24,7 @@ which -a swift
 | Nonsense errors on `@Query` / `\.modelContext` | swiftly / DEVELOPMENT-SNAPSHOT on PATH or `TOOLCHAINS` set | `unset TOOLCHAINS`; use `/usr/bin/xcrun --toolchain default` |
 | Codesign / ad-hoc sign failures under `~/Desktop` or Downloads | Finder/iCloud xattrs on `.build` | `--build-path "${TMPDIR}/…"` |
 | `swift run Product --build-path …` ignores build path | Flag order | `--build-path` **before** product name |
-| Zig/network confusion in home CLAUDE.md | Wrong project | AbbeyBot is Swift; ABI Zig lives in `~/abi` |
+| Rust/network confusion in home CLAUDE.md | Wrong project | AbbeyBot is Swift; ABI Rust lives in `~/abi` |
 
 ## SPM hygiene
 

@@ -5,7 +5,7 @@
 use crate::app::Outcome;
 use std::fmt::Write;
 
-pub(crate) const SECURE_HELP: &str = "usage: abi wdbx secure demo\n\nDemonstrate local compression plus reference homomorphic aggregation; not security-audited FHE.\n";
+pub(crate) const SECURE_HELP: &str = "usage: abi wdbx secure <demo|dghv-bootstrap|tfhe>\n\n  demo            Existing local compression and bounded-depth HE reference demo\n  dghv-bootstrap  Secret-key-assisted educational refresh; not cryptographic bootstrapping\n  tfhe            Ephemeral TFHE-rs boolean/integer/PBS demo (feature full-fhe)\n\nNo ABI cryptographic path is independently audited or approved for protective use.\n";
 
 const fn entropy_mode_name(mode: abi_wdbx::entropy::EntropyMode) -> &'static str {
     match mode {
@@ -157,12 +157,91 @@ fn secure_demo_result() -> Result<String, String> {
     Ok(report)
 }
 
+#[cfg(feature = "experimental-dghv-bootstrap")]
+fn dghv_bootstrap_result() -> String {
+    let mut random = abi_wdbx::DghvRng::new(0xD6_48_43_4C_49_44_45_4D);
+    let keypair = abi_wdbx::dghv_keygen(&mut random);
+    let mut xor_table = Vec::with_capacity(4);
+    let mut and_table = Vec::with_capacity(4);
+    let mut nand_table = Vec::with_capacity(4);
+    for left in [false, true] {
+        for right in [false, true] {
+            let encrypted_left = abi_wdbx::dghv_encrypt(&keypair, &mut random, left);
+            let encrypted_right = abi_wdbx::dghv_encrypt(&keypair, &mut random, right);
+            let sum_cipher = abi_wdbx::dghv_add(&keypair, &encrypted_left, &encrypted_right);
+            let product_cipher = abi_wdbx::dghv_mul(&keypair, &encrypted_left, &encrypted_right);
+            let refreshed_negation = abi_wdbx::fhe::dghv_secret_key_assisted_nand(
+                &keypair,
+                &mut random,
+                &encrypted_left,
+                &encrypted_right,
+            );
+            xor_table.push(u8::from(abi_wdbx::dghv_decrypt(&keypair, &sum_cipher)));
+            and_table.push(u8::from(abi_wdbx::dghv_decrypt(&keypair, &product_cipher)));
+            nand_table.push(u8::from(abi_wdbx::dghv_decrypt(
+                &keypair,
+                &refreshed_negation,
+            )));
+        }
+    }
+
+    let encrypted = abi_wdbx::dghv_encrypt(&keypair, &mut random, true);
+    let first = abi_wdbx::fhe::dghv_secret_key_assisted_refresh(&keypair, &mut random, &encrypted);
+    let second = abi_wdbx::fhe::dghv_secret_key_assisted_refresh(&keypair, &mut random, &encrypted);
+    format!(
+        "DGHV educational experiment: classification=secret-key-assisted educational refresh\ncryptographic_bootstrapping=false security_audited=false protective_use=false\ntruth_table_order=00,01,10,11 xor={xor_table:?} and={and_table:?} nand={nand_table:?}\nfresh_ciphertexts={} plaintext_preserved={}\nwarning: requires the DGHV secret key; this is not cryptographic bootstrapping, is not security-audited, and is not suitable for protecting data\n",
+        encrypted != first && first != second,
+        abi_wdbx::dghv_decrypt(&keypair, &first) && abi_wdbx::dghv_decrypt(&keypair, &second)
+    )
+}
+
+#[cfg(not(feature = "experimental-dghv-bootstrap"))]
+fn dghv_bootstrap_result() -> String {
+    "dghv-bootstrap: disabled; rebuild abi-cli with --features experimental-dghv-bootstrap\nclassification=secret-key-assisted educational refresh cryptographic_bootstrapping=false security_audited=false protective_use=false\n"
+        .to_owned()
+}
+
+#[cfg(feature = "full-fhe")]
+fn tfhe_result() -> Result<String, String> {
+    let report = abi_wdbx::fhe::tfhe_demo::run_tfhe_demo();
+    if !report.all_match() {
+        return Err("one or more TFHE-rs plaintext-oracle checks failed".to_owned());
+    }
+    Ok(format!(
+        "TFHE-rs demo: version=1.7.0 ephemeral_keys=true key_bytes_displayed=false ciphertext_bytes_displayed=false\napis=boolean,integer,shortint,programmable-bootstrap boolean_nand_match={} integer_add_match={} programmable_bootstrap_match={}\nimplementation=tfhe-rs ABI_independent_audit=false protective_use_approval=false\n",
+        report.boolean_nand_matches,
+        report.integer_add_matches,
+        report.programmable_bootstrap_matches
+    ))
+}
+
+#[cfg(feature = "full-fhe")]
+fn run_tfhe() -> Outcome {
+    match tfhe_result() {
+        Ok(report) => Outcome::stderr(report, 0),
+        Err(detail) => super::error("TFHE-rs demo failed", detail),
+    }
+}
+
+#[cfg(not(feature = "full-fhe"))]
+fn run_tfhe() -> Outcome {
+    Outcome::stderr(
+        "tfhe: disabled; rebuild abi-cli in release mode with --features full-fhe\nimplementation=tfhe-rs ABI_independent_audit=false execution=false\n".to_owned(),
+        1,
+    )
+}
+
 pub(crate) fn run_secure(args: &[String]) -> Outcome {
     match args {
         [operation] if operation == "demo" => match secure_demo_result() {
             Ok(report) => Outcome::stderr(report, 0),
             Err(detail) => super::error("secure demo failed", detail),
         },
+        [operation] if operation == "dghv-bootstrap" => {
+            let enabled = cfg!(feature = "experimental-dghv-bootstrap");
+            Outcome::stderr(dghv_bootstrap_result(), u8::from(!enabled))
+        }
+        [operation] if operation == "tfhe" => run_tfhe(),
         _ => super::usage(),
     }
 }

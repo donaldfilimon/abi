@@ -12,10 +12,10 @@ ABI is a **nightly Rust** framework for local AI service orchestration, semantic
 vector storage (WDBX), claim-honest GPU capability reporting, and an MCP server.
 The Zig implementation that used to live under `src/` has been fully replaced;
 see `RUST-REWRITE-PLAN.md` for the port history if you find stale Zig references
-in older docs. All live code is under `crates/` — the surviving root `src/`
-holds only a `plugins/.central-synced` marker, not source. Note that
-`.github/copilot-instructions.md` has **not** been ported and still describes the
-Zig build (`zig build`, `-Dfeat-*`, `src/features/`); ignore it.
+in older docs. All live code is under `crates/`; the retired root `src/` tree is
+fully absent.
+`.github/copilot-instructions.md` was rewritten for the Rust workspace in
+PR #777 and now defers to `AGENTS.md`.
 
 ## Toolchain — read this before running anything
 
@@ -30,7 +30,7 @@ Zig build (`zig build`, `-Dfeat-*`, `src/features/`); ignore it.
 
 | Command | What it does |
 |---|---|
-| `./tools/check.sh` | **Primary gate.** fmt check, clippy `-D warnings`, workspace build + tests, doc build. Run this before considering any change done. |
+| `./tools/check.sh` | **Primary gate.** fmt check, clippy `-D warnings`, workspace build + tests, `tools/bench_regress.sh` (same-system benchmark-regression guard), doc build. Run this before considering any change done. |
 | `./build.sh check` | Thin compat wrapper → `./tools/check.sh` |
 | `./tools/cargo.sh build -p abi-cli` | Build `target/debug/abi` |
 | `./tools/cargo.sh build -p abi-mcp` | Build `target/debug/abi-mcp` |
@@ -89,7 +89,7 @@ order — every crate depends only on crates above it. (Confirm with
 | `abi-gpu` | Claim-honest GPU/accelerator backend detection — note it depends on `abi-wdbx`, not the reverse. Metal preferred on macOS; the `metal-kernels` feature is **on by default**, but `accelerated=true` additionally requires the Metal DOT pipeline to actually link and initialize at runtime — otherwise deterministic CPU SIMD fallback with `accelerated=false`. Also hosts claim-honest shaders/MLIR/mobile report surfaces. |
 | `abi-sea` | SEA (Sparse Evidence Attention) self-learning loop: recalls prior WDBX records relevant to an input, prepends them as context, runs adaptive completion, updates persona-router weights. |
 | `abi-cli` (bin `abi`) | Command metadata, help rendering, process dispatch. Depends on every crate above. The help surface is a stable, golden-tested contract boundary. |
-| `abi-mcp` (bin `abi-mcp`) | JSON-RPC MCP server: the frozen 12-tool surface over stdio (primary, 64 KB frame cap) plus optional loopback-only HTTP/SSE. |
+| `abi-mcp` (bin `abi-mcp`) | JSON-RPC MCP server: the frozen 12-tool stdio surface (primary, 64 KB frame cap); startup also attempts a custom loopback HTTP listener, and bind failure leaves stdio running. It is not persistent MCP HTTP+SSE. |
 
 ### The local/live split (connectors)
 
@@ -157,7 +157,7 @@ mutating the real process environment. Add new vars there; don't scatter raw
 | `ABI_WDBX_RATE_LIMIT_CAPACITY` / `ABI_WDBX_RATE_LIMIT_REFILL` | REST token-bucket tuning |
 | `ABI_WDBX_TLS_CERT` / `ABI_WDBX_TLS_KEY` | REST TLS material |
 | `ABI_WDBX_CLUSTER_PEERS` / `ABI_WDBX_CLUSTER_TOKEN` | Reference cluster peer list / shared token |
-| `ABI_MCP_HTTP_PORT` / `ABI_MCP_HTTP_TOKEN` | Loopback MCP HTTP/SSE port / bearer token (stdio stays tokenless) |
+| `ABI_MCP_HTTP_PORT` / `ABI_MCP_HTTP_TOKEN` | Custom loopback MCP compatibility port / optional bearer token (stdio stays tokenless) |
 | `ABI_LLAMA_CPP_ENDPOINT` / `ABI_MLX_ENDPOINT` | Local inference endpoints |
 | `ABI_OS_POLICY` | Override the `abi agent os` policy file (default `~/.abi/os-policy.toml`); tests set it so they never read the user's real policy |
 | `ABI_MCP_AUTO_BUILD` | `mcp/launcher.sh` only — build the server on demand |
@@ -189,20 +189,18 @@ existing golden fixtures still cover the new path.
 Re-measure before trusting this table — it goes stale as work lands
 (`find crates -name '*.rs' -exec wc -l {} + | sort -rn | head`).
 
-Over 1000 lines; decompose before adding to them:
-
-| File | Lines | Notes |
-|---|---|---|
-| `crates/abi-wdbx/src/multiway.rs` | ~1743 | Manual JSON serialization throughout; the `evolve()` frontier loop has been extracted to a helper |
-| `crates/abi-wdbx/src/wal.rs` | ~1057 | Seven `append_*` functions each redefine an identical `#[derive(Serialize)] struct Mutation` |
-
-Watch list (850–1000 lines — not yet over the line, but the next candidates):
-`crates/abi-wdbx/src/hnsw.rs` (~941), `crates/abi-wdbx/src/store.rs` (~933),
-`crates/abi-cli/src/complete.rs` (~896), `crates/abi-core/src/scheduler.rs`
-(~883).
+`tools/check_rust_sizes.sh` rejects Rust modules over 1,000 lines and rejects
+`crates/abi-cli/src/main.rs` over 200. Current watch list (900–1000 lines):
+`crates/abi-wdbx/src/hnsw.rs` (958), `crates/abi-wdbx/src/store.rs` (933),
+`crates/abi-cli/src/dashboard.rs` (932), `crates/abi-wdbx/src/multiway.rs`
+(930), `crates/abi-wdbx/src/v2/lifecycle.rs` (921), and
+`crates/abi-cli/src/complete.rs` (904). Re-measure before trusting these numbers.
 
 Already split — don't recreate the flat versions: `crates/abi-cli/src/wdbx.rs` is
 now the `wdbx/` module directory, `crates/abi-wdbx/src/format.rs` is down to
 ~444 lines, and `crates/abi-cli/src/agent.rs` is down to ~520 (the line-mode
-REPL moved to `repl.rs`; `os.rs` owns command execution with `os/policy.rs` +
-`os/audit.rs` beside it).
+REPL moved to `repl.rs`; its raw editor/TTY transport is isolated in
+`repl_editor.rs`; `os.rs` owns command execution with `os/policy.rs` +
+`os/audit.rs` beside it). Scheduler tests live under `scheduler/tests.rs`;
+multiway export/resume logic and tests live under `multiway/`; WAL tests live
+under `wal/tests.rs`.

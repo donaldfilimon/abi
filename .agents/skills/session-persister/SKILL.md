@@ -1,19 +1,19 @@
 ---
 name: session-persister
-description: Save current agent session to named slot. Maps to `/save <name>` slash command in abi agent tui.
+description: Document the unavailable ABI session-save concept without claiming a live CLI or REPL command. Use when reviewing or planning session persistence.
 ---
 
 # Session Persister
 
-Saves the current REPL session state to a named slot for later restoration.
+ABI does not currently persist named REPL sessions. This skill is planning
+guidance only and must not claim that a session was saved.
 
 ## Usage
 
-```
-/save <name>
-```
+There is no `/save` command in `abi agent tui` and no equivalent top-level CLI
+command.
 
-## Saved State
+## Proposed State
 
 - Turn history (last 10 entries)
 - Current model/profile selection
@@ -21,13 +21,10 @@ Saves the current REPL session state to a named slot for later restoration.
 - File mentions in context
 - Session metadata (timestamp, name)
 
-## Implementation
-
-Serializes `ReplState` to JSON at `~/.abi/sessions/<name>.json`:
-- Clamped on load (max 10 turns, 8KB context budget)
-- Overwrites existing slot with same name
+No `ReplState` serializer or `~/.abi/sessions` contract is linked. Any future
+implementation needs an explicit schema, path safety, bounded history, tests,
+and an opt-in migration plan before this skill can advertise execution.
 
 ## Skill Integration
 
-Maps to `abi agent tui` REPL `/save` command.
-Pairs with `session-restorer` for `/load`.
+Pairs with `session-restorer` as a planning surface only.

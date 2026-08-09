@@ -158,7 +158,7 @@ perf.data*
 !.claude/settings.json
 !.claude/skills/
 !.claude/skills/**
-!# Codex
+# Codex
 .codex/
 !.codex/
 !.codex/agents/
@@ -263,6 +263,9 @@ test_imports3
 !/CODE_OF_CONDUCT.md
 !/walkthrough.md
 !/RUST-REWRITE-PLAN.md
+!/tasks/goals.md
+!/tasks/lessons.md
+!/tasks/todo.md
 
 # Golden fixtures captured from the Zig implementation before its removal
 !/tests/golden/README.md

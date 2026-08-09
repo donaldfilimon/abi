@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # PreToolUse(Bash) guard: block `git push --force` / `-f` targeting `main`.
 #
-# Rationale (tasks/todo.md): origin/main shares no common ancestor with local
-# main (different roots) — "Never force-push to reconcile." A force-push to main
-# is near-irreversible and can fuse/clobber unrelated history. This hook blocks
-# only that case; ordinary pushes and force-pushes of feature branches pass.
+# Rationale: force-pushing the protected integration baseline is destructive and
+# can silently discard reviewed history. This hook blocks only that case;
+# ordinary pushes and force-pushes of feature branches pass.
 #
 # Reads the tool-call JSON on stdin. exit 2 = block (message on stderr); exit 0 = allow.
 #
@@ -15,7 +14,7 @@
 # (fail-safe). Run those yourself if needed.
 set -uo pipefail
 
-c="$(jq -r '.tool_input.command // empty' 2>/dev/null)"
+c="$(jq -r '.tool_input.command // .tool_input.cmd // empty' 2>/dev/null)"
 
 # Must be an ACTUAL `git push` invocation — at the start of the command or right
 # after a shell separator (; && || | ( newline). This avoids false positives on
@@ -37,7 +36,7 @@ case "$c" in
 esac
 
 if [ "$blocked" = "1" ]; then
-  echo "BLOCKED: force-push to main is disallowed. See tasks/todo.md — origin/main shares no common ancestor with local main; never force-push to reconcile. If this is genuinely intended, run the push yourself outside Claude." >&2
+  echo "BLOCKED: force-push to main is disallowed because it can discard reviewed history. If this is genuinely intended, run the push yourself outside the coding-agent hook." >&2
   exit 2
 fi
 exit 0

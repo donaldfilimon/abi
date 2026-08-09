@@ -46,9 +46,10 @@ out=$("$ABI" complete --learn "$INPUT" 2>&1); rc=$?
 printf '%s\n' "$out"
 [ "$rc" -eq 0 ] || { echo "[FAIL] complete --learn exit $rc"; fail=$((fail+1)); }
 
-# The loop must report it ran (learn=true), name a model, and emit an
+# The loop must report it ran (learn=true), disclose local provenance, and emit an
 # evidence counter (0 is acceptable when the scratch store has no hits).
-for marker in "learn=true" "model=" "evidence_count="; do
+for marker in "learn=true" "requested_model=" "provider=local" \
+    "generation_engine=persona-template" "evidence_count="; do
     grep -qF -- "$marker" <<<"$out" && echo "[ok] marker: $marker" \
         || { echo "[FAIL] missing marker: $marker"; fail=$((fail+1)); }
 done

@@ -99,7 +99,7 @@ mod tests {
         let secret = Secret::new("sk-test-key");
         assert_eq!(secret.expose(), "sk-test-key");
         assert_eq!(secret.len(), 11);
-        assert!(!secret.is_empty());
+        assert_ne!(secret.len(), 0);
     }
 
     #[test]

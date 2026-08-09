@@ -1,0 +1,51 @@
+[package]
+name = "abi-wdbx-gateway"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Authenticated bounded gRPC and WebSocket gateway for WDBX v2."
+build = "build.rs"
+readme = "README.md"
+
+[dependencies]
+abi-wdbx = { workspace = true }
+axum = { workspace = true }
+axum-server = { workspace = true }
+clap = { workspace = true }
+futures-util = { workspace = true }
+prost = { workspace = true }
+rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+subtle = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+uuid = { workspace = true }
+zeroize = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+nix = { workspace = true }
+
+[build-dependencies]
+prost-build = { workspace = true }
+protoc-bin-vendored = { workspace = true }
+tonic-prost-build = { workspace = true }
+
+[dev-dependencies]
+futures-util = { workspace = true }
+rcgen = "0.13"
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
+tonic = { workspace = true }
+
+[lints]
+workspace = true

@@ -21,6 +21,7 @@ use abi_connectors::{
 };
 use abi_foundation::credentials::{self, CredentialField};
 use abi_sea::{LearnLoopConfig, run_learn_loop};
+use abi_wdbx::RecordId;
 
 use crate::app::Outcome;
 use crate::util;
@@ -29,7 +30,7 @@ const USAGE: &str = "usage: abi complete [--live] [--stream] [--learn] [--neural
 
 /// Fields for the one-line-per-field completion metadata block.
 struct MetaReport<'a> {
-    model: &'a str,
+    requested_model: &'a str,
     profile: &'a str,
     audit_passed: bool,
     escore: f32,
@@ -39,8 +40,8 @@ struct MetaReport<'a> {
     kv: usize,
     vectors: usize,
     blocks: usize,
-    query_id: Option<u64>,
-    response_id: Option<u64>,
+    query_id: Option<RecordId>,
+    response_id: Option<RecordId>,
     block_hex: Option<&'a str>,
     wdbx_status: Option<&'a str>,
     output: &'a str,
@@ -51,8 +52,8 @@ fn render_local(report: &MetaReport<'_>) -> String {
     if let Some((evidence_count, adapted)) = report.learn {
         let _ = writeln!(
             out,
-            "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} learn=true evidence_count={evidence_count} adapted={adapted}",
-            report.model,
+            "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} learn=true evidence_count={evidence_count} adapted={adapted}",
+            report.requested_model,
             report.profile,
             report.audit_passed,
             report.escore,
@@ -62,8 +63,8 @@ fn render_local(report: &MetaReport<'_>) -> String {
     } else {
         let _ = writeln!(
             out,
-            "model={} profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={}",
-            report.model,
+            "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={}",
+            report.requested_model,
             report.profile,
             report.audit_passed,
             report.escore,
@@ -106,26 +107,30 @@ fn run_local(input: &str, model: &str) -> Outcome {
             let response = abi_ai::text_embedding(&result.output);
             let query_id = store.put_vector(&query).ok();
             let response_id = store.put_vector(&response).ok();
-            let (qid, rid, hex) = match (query_id, response_id) {
+            let persisted_record = match (query_id, response_id) {
                 (Some(q), Some(r)) => {
                     let metadata = abi_ai::completion::metadata_json(input, &result, q, r);
                     let key = abi_ai::completion::metadata_key(q);
-                    let _ = store.put(&key, &metadata);
-                    let block = store
-                        .add_block(
-                            result.selected_profile.label(),
-                            q,
-                            r,
-                            &metadata,
-                            abi_foundation::time::unix_ms(),
-                        )
-                        .ok();
-                    (Some(q), Some(r), block.map(|b| b.hash.to_hex()))
+                    store.put(&key, &metadata).ok().and_then(|_| {
+                        store
+                            .add_block(
+                                result.selected_profile.label(),
+                                q,
+                                r,
+                                &metadata,
+                                abi_foundation::time::unix_ms(),
+                            )
+                            .ok()
+                            .map(|block| (q, r, block.hash))
+                    })
                 }
-                _ => (None, None, None),
+                _ => None,
             };
             let after = store.stats();
-            let persisted = qid.is_some() && rid.is_some() && hex.is_some();
+            let persisted = persisted_record.is_some();
+            let (qid, rid, hex) = persisted_record.map_or((None, None, None), |(q, r, hash)| {
+                (Some(q), Some(r), Some(hash))
+            });
             (
                 persisted,
                 qid,
@@ -154,7 +159,7 @@ fn run_local(input: &str, model: &str) -> Outcome {
         };
 
     let text = render_local(&MetaReport {
-        model: &result.model,
+        requested_model: &result.model,
         profile: result.selected_profile.label(),
         audit_passed: result.audit.passed,
         escore: result.audit.escore,
@@ -195,7 +200,7 @@ fn run_learn(input: &str, model: &str) -> Outcome {
     let result = &learned.completion;
     let persisted = learned.persisted.is_some();
     let text = render_local(&MetaReport {
-        model: &result.model,
+        requested_model: &result.model,
         profile: result.selected_profile.label(),
         audit_passed: result.audit.passed,
         escore: result.audit.escore,
@@ -714,7 +719,7 @@ mod tests {
     fn local_complete_prints_persona_output_without_a_store() {
         let result = complete("hello world", "claude-fable-5").unwrap();
         let text = render_local(&MetaReport {
-            model: &result.model,
+            requested_model: &result.model,
             profile: result.selected_profile.label(),
             audit_passed: result.audit.passed,
             escore: result.audit.escore,
@@ -730,7 +735,10 @@ mod tests {
             wdbx_status: Some("no persistent WDBX path configured"),
             output: &result.output,
         });
-        assert!(text.contains("model=claude-fable-5"));
+        assert!(text.contains("requested_model=claude-fable-5"));
+        assert!(text.contains("provider=local transport=in-process"));
+        assert!(text.contains("generation_engine=persona-template"));
+        assert!(text.contains("policy_scope=lexical-signal"));
         assert!(text.contains("profile=abbey"));
         assert!(text.contains("persisted=false"));
         assert!(text.contains("Abbey: hello world"));

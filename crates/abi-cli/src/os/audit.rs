@@ -10,13 +10,13 @@
 //! of an audit trail.
 //!
 //! The store is injected rather than resolved here so tests use a scratch
-//! `DurableStore` and never open the user's real `~/.abi/`.
+//! `VersionedStore` and never open the user's real `~/.abi/`.
 //!
 //! The three WAL writes are ordered but not transactional. A failure after the
 //! vector or metadata write is disclosed to the caller and may leave that
 //! earlier record without a block; this module does not claim atomic append.
 
-use abi_wdbx::DurableStore;
+use abi_wdbx::{RecordId, VersionedStore};
 
 /// Profile label for os-control blocks, distinguishing them from the persona
 /// blocks (`Abbey` / `Aviva` / `ABI`) that share the chain.
@@ -24,7 +24,7 @@ const AUDIT_PROFILE: &str = "os-control";
 
 /// What a successful audit write produced.
 pub(crate) struct Recorded {
-    pub(crate) vector_id: u64,
+    pub(crate) vector_id: RecordId,
     pub(crate) block_hash: String,
 }
 
@@ -63,7 +63,7 @@ pub(crate) fn metadata_json(
 ///
 /// Any store write failure, returned as a string for direct disclosure.
 pub(crate) fn record(
-    store: &mut DurableStore,
+    store: &mut VersionedStore,
     argv: &[&str],
     cwd: &str,
     exit_code: u8,
@@ -86,7 +86,7 @@ pub(crate) fn record(
 
     Ok(Recorded {
         vector_id,
-        block_hash: block.hash.to_hex(),
+        block_hash: block.hash,
     })
 }
 
@@ -94,7 +94,7 @@ pub(crate) fn record(
 mod tests {
     use super::*;
 
-    fn scratch_store(tag: &str) -> (DurableStore, std::path::PathBuf) {
+    fn scratch_store(tag: &str) -> (VersionedStore, std::path::PathBuf) {
         // Never `~/.abi/`: a scratch path under the temp dir, unique per test.
         // PID+ThreadId alone can collide with a leftover dir from a *panicked*
         // prior run (the libtest thread pool reuses ThreadIds, and a panic
@@ -104,7 +104,7 @@ mod tests {
             abi_foundation::temp_path::temp_file_path(&format!("abi-os-audit-{tag}"), "store");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("scratch dir");
-        let store = DurableStore::open(abi_wdbx::StorePaths::new(dir.display().to_string()))
+        let store = VersionedStore::open(abi_wdbx::StorePaths::new(dir.display().to_string()))
             .expect("scratch store opens");
         (store, dir)
     }
@@ -149,12 +149,12 @@ mod tests {
             before.kv_entries + 1,
             "one metadata entry"
         );
-        assert!(!rec.block_hash.is_empty());
+        assert_ne!(rec.block_hash, "");
 
         let stored = store
             .get(&format!("os-cmd:{}", rec.vector_id))
             .expect("metadata is retrievable by key");
-        let parsed: serde_json::Value = serde_json::from_str(stored).expect("valid JSON");
+        let parsed: serde_json::Value = serde_json::from_str(&stored).expect("valid JSON");
         assert_eq!(parsed["argv"][1], "-la");
 
         drop(store);
@@ -170,7 +170,7 @@ mod tests {
             .expect("audit write succeeds");
         drop(store);
 
-        let reopened = DurableStore::open(abi_wdbx::StorePaths::new(dir.display().to_string()))
+        let reopened = VersionedStore::open(abi_wdbx::StorePaths::new(dir.display().to_string()))
             .expect("store reopens");
         let stored = reopened
             .get(&format!("os-cmd:{}", rec.vector_id))

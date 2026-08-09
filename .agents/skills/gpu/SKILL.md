@@ -1,6 +1,6 @@
 ---
 name: gpu
-description: Plan abi GPU/backend work — Metal on macOS, CPU SIMD fallback, and the disclosed honest-stub backends (accelerator, shaders, mlir, mobile). Use when asked about GPU/backends, why accelerated=false, or when planning backend work. Routes to backend-diagnostics and abi-superpower-gpu. Never claims native CUDA/ANE/Metal-kernel execution — those are disclosed non-goals.
+description: Plan abi GPU/backend work — Metal on macOS, deterministic CPU fallback, and disclosed capability-only CUDA/Vulkan/ANE rows. Use when asked about GPU/backends, why accelerated=false, or when planning backend work. Routes to backend-diagnostics and abi-superpower-gpu and never promotes a compiled adapter to executed acceleration.
 ---
 
 # gpu
@@ -14,17 +14,14 @@ honest-stub feature modules). Routes to specialists:
 | Deep-dive the GPU/Metal superpower | `abi-superpower-gpu` |
 
 ## Honest status (trust the source flags over any prose)
-- **Metal on macOS is real**: linked at build time; `accelerated=false` is the
-  normal state until `g_metal_context.init()` succeeds at runtime; mid-run
-  failure degrades to CPU. No `-Dgpu-backend` option exists.
-- **Honest stubs** (`available=false` / `native_dispatch=false` in each
-  `src/features/*/mod.rs`): `accelerator` (selection report + CPU SIMD
-  fallback only), `shaders` (validate + checksum, no compiler), `mlir`
-  (textual lower only, no LLVM toolchain), `mobile` (profile report only, no
-  runtime).
-- **ANE execution is a disclosed non-goal** (in-tree constraint; requires
-  CoreML/ObjC). Native CUDA/Vulkan/Metal-kernel execution is not linked.
+- **Metal DOT is real when initialized** through `crates/abi-gpu`; failed or
+  unavailable initialization degrades deterministically to CPU.
+- **Capability-only rows** must report `initialized=false`, `executed=false`,
+  and `runtime_verified=false` until runtime evidence exists. CUDA/Vulkan remain
+  feature/target compile work, not local runtime proof on this Mac.
+- **ANE/CoreML evidence is request plus successful inference**, not proof of ANE
+  residency. Keep that distinction in capability output and documentation.
 
 ## Hard rule
-Do not claim real shader compilation, MLIR/LLVM lowering, or native
-accelerator dispatch — per `docs/contracts/external-claims-audit.mdx`.
+Do not claim native dispatch from compilation or availability alone. Require an
+initialized, executed, runtime-verified state and preserve CPU oracle parity.

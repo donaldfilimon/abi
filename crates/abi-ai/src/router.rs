@@ -114,7 +114,7 @@ pub fn explicit_profile_selector(input: &str) -> Option<AgentProfile> {
     }
     if name_end < bytes.len() {
         let separator = bytes[name_end];
-        if !is_zig_ascii_whitespace(separator) && !matches!(separator, b',' | b':' | b'-') {
+        if !is_zig_ascii_whitespace(separator) && !matches!(separator, b',' | b':') {
             return None;
         }
     }
@@ -150,10 +150,9 @@ pub fn analyze_sentiment(input: &str) -> ProfileWeights {
 
     let mut weights = ProfileWeights::prior();
 
-    // Split on ' ' only — not `split_whitespace` — because Zig used
-    // `splitScalar(u8, input, ' ')`. A tab-separated token therefore stays glued
-    // to its neighbor in both ports.
-    for word in input.split(' ') {
+    // Equivalent ASCII whitespace must not change routing. This also keeps the
+    // parser bounded to the same byte-oriented domain as the keyword table.
+    for word in input.split_ascii_whitespace() {
         let trimmed = word.trim_end_matches(['.', ',', '!', '?', ':', ';', '"', '\'']);
         for keyword in &SENTIMENT_KEYWORDS {
             if starts_with_ignore_case(trimmed, keyword.word) {
@@ -297,8 +296,24 @@ mod tests {
             "avivacious idea",
             "Please ask Aviva to review this",
             "ABI2, orchestrate this",
+            "ABI-compatible design",
+            "Abbey-road directions",
+            "Aviva-like response",
         ] {
             assert_eq!(explicit_profile_selector(input), None, "{input}");
+        }
+    }
+
+    #[test]
+    fn equivalent_ascii_whitespace_routes_identically() {
+        let words = "execute deploy run the build quickly";
+        let expected = analyze_sentiment(words);
+        for input in [
+            "execute\tdeploy\trun\tthe\tbuild\tquickly",
+            "execute\ndeploy\nrun\nthe\nbuild\nquickly",
+            "execute\r\ndeploy\r\nrun\r\nthe\r\nbuild\r\nquickly",
+        ] {
+            assert_eq!(analyze_sentiment(input), expected, "{input:?}");
         }
     }
 
@@ -362,12 +377,10 @@ mod tests {
     }
 
     #[test]
-    fn tokens_split_on_spaces_only_like_zig() {
-        // Zig used splitScalar(' '), so a tab does not separate tokens: "x\tanalyze"
-        // is one token that does not start with "analyze".
+    fn tokens_split_on_ascii_whitespace() {
         let tabbed = analyze_sentiment("x\tanalyze");
         let neutral = analyze_sentiment("zzzqqq");
-        assert!((tabbed.w_abbey - neutral.w_abbey).abs() < 0.0001);
+        assert!(tabbed.w_abbey > neutral.w_abbey);
     }
 
     #[test]

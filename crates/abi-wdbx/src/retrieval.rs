@@ -164,7 +164,7 @@ pub fn hybrid_spatial_search<'store>(
 #[must_use]
 pub const fn without_vector(result: RankedVector<'_>) -> RankedNode {
     RankedNode {
-        id: result.id,
+        id: crate::RecordId::Legacy(result.id),
         score: result.score,
         components: result.components,
     }

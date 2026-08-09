@@ -21,30 +21,20 @@ superpower:
 
 Exposes the 6-principle constitutional audit as a superpower. **Observability-only, not a gate** — sets `audit_passed`/`audit_vetoed`/`escore` in metadata and logs warnings, but `complete`/`run` still return the response.
 
-## Actions
+## Real access path
 
-### audit
-Run full constitutional audit on a response:
-```
-/abi-superpower-constitution audit --response "Your response text here" --profile abbey
-```
-Returns:
+ABI does not expose `/abi-superpower-constitution` or a standalone constitution
+CLI command. The audit runs inside completion flows; exercise it with
+`abi complete <input>` or the MCP `ai_complete` / `ai_run` / `ai_learn` tools
+and inspect the returned/stored metadata:
+
 - `audit_passed` (bool)
 - `audit_vetoed` (bool) — hard veto if safety OR privacy < 0.5
 - `escore` (f32) — weighted constitutional score
 - Per-principle scores (0.0-1.0)
 
-### evaluate
-Evaluate a response against a specific principle:
-```
-/abi-superpower-constitution evaluate --response "response" --principle safety
-```
-
-### principles
-List the 6 constitutional principles:
-```
-/abi-superpower-constitution principles
-```
+Direct per-principle evaluation is a Rust library/test surface, not a public
+slash command.
 
 ## The 6 Principles
 
@@ -81,17 +71,14 @@ MCP tools `ai_complete`/`ai_run`/`ai_learn` include audit fields in response.
 | Completion Integration | `crates/abi-ai/src/completion.rs` — audit called post-generation, metadata stored |
 | MCP Tools | `crates/abi-mcp/src/ai_tools.rs` — audit fields in tool responses |
 
-## Feature Gates
-
-Requires `feat-ai=true` (default). When disabled, audit returns default-passed result.
-
 ## Claim Boundary
 
-Per `docs/contracts/external-claims-audit.mdx` and `docs/spec/abi-refactor-design.mdx` §5.3:
+Per `docs/contracts/external-claims-audit.mdx` and `docs/spec/multi-persona-technical.mdx`:
 - ✅ 6-principle governance validation with per-principle scores
-- ✅ Weighted E-score and hard safety/privacy veto
+- ✅ Weighted E-score and safety/privacy lexical veto telemetry
 - ✅ Surfaced in completion metadata and MCP responses
 - ❌ NOT a gate — responses still returned even on veto
-- ❌ NOT novel harm detection — only 7 hardcoded substrings per principle
+- ❌ NOT novel-harm detection or a general safety classifier; the current
+  implementation is a small lexical rule set
 - ❌ NOT case-sensitive — infix substring match ("harm" matches "harmless")
 - ❌ NOT regulatory certification — repo has no compliance evidence
