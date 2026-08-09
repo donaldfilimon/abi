@@ -47,9 +47,13 @@
 
 pub mod error;
 pub mod manifest;
+pub mod storage;
+pub mod verify;
 
 pub use error::ModelError;
 pub use manifest::{
     Artifact, ArtifactKind, ContextLimits, Modality, ModelManifest, Quantization, Revision,
     Sha256Digest, TensorFormat,
 };
+pub use storage::StorageRoot;
+pub use verify::{hash_file, verify_artifact};

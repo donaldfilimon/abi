@@ -33,7 +33,9 @@ pub enum ModelError {
     },
 
     /// An artifact entry omitted its `sha256` field.
-    #[error("model '{model}': artifact '{artifact}' has no sha256 hash; every artifact must be hashed")]
+    #[error(
+        "model '{model}': artifact '{artifact}' has no sha256 hash; every artifact must be hashed"
+    )]
     MissingHash {
         /// Model identifier the manifest declared.
         model: String,
@@ -137,7 +139,9 @@ pub enum ModelError {
 
     /// A partial file on disk was longer than the artifact it is resuming, so
     /// its contents cannot be a prefix of the expected bytes.
-    #[error("partial file {path} holds {have} bytes but the artifact is only {total}; refusing to resume")]
+    #[error(
+        "partial file {path} holds {have} bytes but the artifact is only {total}; refusing to resume"
+    )]
     ResumeBeyondEnd {
         /// The `.part` file.
         path: PathBuf,
@@ -205,7 +209,9 @@ pub enum ModelError {
     },
 
     /// The configured weight-storage root lies inside a source repository.
-    #[error("model storage root {path} is inside repository {repository}; weights must live outside both repositories")]
+    #[error(
+        "model storage root {path} is inside repository {repository}; weights must live outside both repositories"
+    )]
     StorageInsideRepository {
         /// The rejected storage root.
         path: PathBuf,

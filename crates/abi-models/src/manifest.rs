@@ -343,10 +343,10 @@ impl TryFrom<RawManifest> for ModelManifest {
     type Error = ModelError;
 
     fn try_from(raw: RawManifest) -> Result<Self, Self::Error> {
-        let id = required(&raw.id, "<unnamed>", "id")?;
-        let repository = required(&raw.repository, &id, "repository")?;
-        let architecture = required(&raw.architecture, &id, "architecture")?;
-        let license = required(&raw.license, &id, "license")?;
+        let id = required(raw.id.as_deref(), "<unnamed>", "id")?;
+        let repository = required(raw.repository.as_deref(), &id, "repository")?;
+        let architecture = required(raw.architecture.as_deref(), &id, "architecture")?;
+        let license = required(raw.license.as_deref(), &id, "license")?;
 
         let Some(revision) = raw.revision.as_deref() else {
             return Err(ModelError::MissingRevision { model: id });
@@ -368,7 +368,7 @@ impl TryFrom<RawManifest> for ModelManifest {
         validate_context(&id, raw.context)?;
 
         let mut artifacts = Vec::with_capacity(raw.artifacts.len());
-        for entry in raw.artifacts {
+        for entry in &raw.artifacts {
             artifacts.push(convert_artifact(&id, entry)?);
         }
         require_kinds(&id, &artifacts)?;
@@ -389,9 +389,9 @@ impl TryFrom<RawManifest> for ModelManifest {
 }
 
 /// Require a present, non-blank string field.
-fn required(value: &Option<String>, model: &str, field: &'static str) -> Result<String, ModelError> {
+fn required(value: Option<&str>, model: &str, field: &'static str) -> Result<String, ModelError> {
     match value {
-        Some(text) if !text.trim().is_empty() => Ok(text.clone()),
+        Some(text) if !text.trim().is_empty() => Ok(text.to_owned()),
         _ => Err(ModelError::EmptyField {
             model: model.to_owned(),
             field,
@@ -420,8 +420,8 @@ fn validate_context(model: &str, context: ContextLimits) -> Result<(), ModelErro
 }
 
 /// Validate one raw artifact entry.
-fn convert_artifact(model: &str, raw: RawArtifact) -> Result<Artifact, ModelError> {
-    let path = required(&raw.path, model, "artifacts[].path")?;
+fn convert_artifact(model: &str, raw: &RawArtifact) -> Result<Artifact, ModelError> {
+    let path = required(raw.path.as_deref(), model, "artifacts[].path")?;
     if path.starts_with('/')
         || path.starts_with('\\')
         || path.split(['/', '\\']).any(|segment| segment == "..")
@@ -431,7 +431,7 @@ fn convert_artifact(model: &str, raw: RawArtifact) -> Result<Artifact, ModelErro
             path,
         });
     }
-    let url = required(&raw.url, model, "artifacts[].url")?;
+    let url = required(raw.url.as_deref(), model, "artifacts[].url")?;
 
     let Some(hash) = raw.sha256.as_deref() else {
         return Err(ModelError::MissingHash {
@@ -469,7 +469,9 @@ fn require_kinds(model: &str, artifacts: &[Artifact]) -> Result<(), ModelError> 
     if tokenizers != 1 {
         return Err(ModelError::InvalidManifest {
             model: model.to_owned(),
-            reason: format!("manifest declares {tokenizers} tokenizer artifacts, expected exactly 1"),
+            reason: format!(
+                "manifest declares {tokenizers} tokenizer artifacts, expected exactly 1"
+            ),
         });
     }
     let mut seen: Vec<&str> = Vec::with_capacity(artifacts.len());
