@@ -106,7 +106,7 @@ pub fn infer(query: &str) -> QueryPlan {
         task: TaskType::General,
         query: query.to_string(),
         require_grounding: true,
-        exact_recall: true,
+        exact_recall: false,
         recency_bias: 0.40,
         risk: 0.50,
     };
@@ -122,7 +122,7 @@ pub fn infer(query: &str) -> QueryPlan {
 
     match plan.task {
         TaskType::ProjectRecall => {
-            plan.exact_recall = false;
+            plan.exact_recall = true;
             plan.recency_bias = 0.20;
         }
         TaskType::CodeRepair => {
@@ -165,7 +165,7 @@ mod tests {
     fn defaults_to_general() {
         let plan = infer("what is the weather like today");
         assert_eq!(plan.task, TaskType::General);
-        assert!(plan.exact_recall);
+        assert!(!plan.exact_recall);
     }
 
     #[test]
@@ -193,7 +193,7 @@ mod tests {
         );
         let recall = infer("remember the prior decision we made");
         assert_eq!(recall.task, TaskType::ProjectRecall);
-        assert!(!recall.exact_recall);
+        assert!(recall.exact_recall);
         assert!(recall.recency_bias < 0.40);
     }
 
