@@ -170,3 +170,154 @@ impl AcceptanceLedger {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fixtures::{OTHER_REVISION, Scratch, manifest, manifest_value, parse};
+    use serde_json::json;
+
+    /// The fixture manifest republished at a different revision.
+    fn at_other_revision() -> ModelManifest {
+        let mut value = manifest_value();
+        value["revision"] = json!(OTHER_REVISION);
+        parse(&value)
+    }
+
+    #[test]
+    fn an_unaccepted_model_is_refused() {
+        let ledger = AcceptanceLedger::in_memory();
+        let manifest = manifest();
+        assert!(!ledger.is_accepted(&manifest));
+
+        let error = ledger
+            .ensure_accepted(&manifest)
+            .expect_err("an unaccepted model must not be usable");
+        assert!(
+            matches!(error, ModelError::LicenseNotAccepted { ref license, .. }
+                if license == "example-community-license-1.0"),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn acceptance_records_who_what_and_when() {
+        let mut ledger = AcceptanceLedger::in_memory();
+        let manifest = manifest();
+        let before = abi_foundation::time::unix_ms();
+
+        let record = ledger
+            .accept(&manifest, "operator@example.invalid")
+            .expect("accepts");
+        assert_eq!(record.model_id, manifest.id);
+        assert_eq!(record.revision, manifest.revision.as_str());
+        assert_eq!(record.license, manifest.license);
+        assert_eq!(record.accepted_by, "operator@example.invalid");
+        assert!(record.accepted_at_unix_ms >= before);
+
+        ledger.ensure_accepted(&manifest).expect("now accepted");
+        assert_eq!(ledger.records().len(), 1);
+    }
+
+    #[test]
+    fn acceptance_does_not_carry_to_another_revision() {
+        let mut ledger = AcceptanceLedger::in_memory();
+        ledger.accept(&manifest(), "operator").expect("accepts");
+
+        let republished = at_other_revision();
+        assert!(!ledger.is_accepted(&republished));
+        let error = ledger
+            .ensure_accepted(&republished)
+            .expect_err("a different revision must require its own acceptance");
+        assert!(
+            matches!(error, ModelError::LicenseNotAccepted { ref revision, .. }
+                if revision == OTHER_REVISION),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn acceptance_does_not_carry_across_a_changed_license() {
+        let mut ledger = AcceptanceLedger::in_memory();
+        ledger.accept(&manifest(), "operator").expect("accepts");
+
+        // Same model, same revision, relicensed by the publisher.
+        let mut value = manifest_value();
+        value["license"] = json!("example-restrictive-license-2.0");
+        let relicensed = parse(&value);
+
+        let error = ledger
+            .ensure_accepted(&relicensed)
+            .expect_err("consent for the old terms must not transfer");
+        assert!(
+            matches!(error, ModelError::LicenseMismatch { ref recorded, ref declared, .. }
+                if recorded == "example-community-license-1.0"
+                    && declared == "example-restrictive-license-2.0"),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn a_missing_ledger_file_loads_as_empty() {
+        let scratch = Scratch::new("ledger_absent");
+        let path = scratch.join("nested/accepted.jsonl");
+        let ledger = AcceptanceLedger::load(&path).expect("an absent ledger is simply empty");
+        assert!(ledger.records().is_empty());
+        assert_eq!(ledger.path(), Some(path.as_path()));
+        assert!(!path.exists(), "loading must not create the file");
+    }
+
+    #[test]
+    fn acceptance_persists_across_a_reload() {
+        let scratch = Scratch::new("ledger_persist");
+        let path = scratch.join("accepted.jsonl");
+        let manifest = manifest();
+
+        let mut ledger = AcceptanceLedger::load(&path).expect("loads");
+        ledger.accept(&manifest, "operator").expect("accepts");
+
+        let reloaded = AcceptanceLedger::load(&path).expect("reloads");
+        assert_eq!(reloaded.records().len(), 1);
+        reloaded
+            .ensure_accepted(&manifest)
+            .expect("acceptance survived the reload");
+    }
+
+    #[test]
+    fn the_ledger_is_append_only() {
+        let scratch = Scratch::new("ledger_append");
+        let path = scratch.join("accepted.jsonl");
+
+        let mut ledger = AcceptanceLedger::load(&path).expect("loads");
+        ledger
+            .accept(&manifest(), "first-operator")
+            .expect("accepts");
+        let after_first = std::fs::read_to_string(&path).expect("readable");
+
+        ledger
+            .accept(&at_other_revision(), "second-operator")
+            .expect("accepts");
+        let after_second = std::fs::read_to_string(&path).expect("readable");
+
+        assert!(
+            after_second.starts_with(&after_first),
+            "an earlier record must never be rewritten"
+        );
+        assert_eq!(after_second.lines().count(), 2);
+        assert_eq!(
+            AcceptanceLedger::load(&path)
+                .expect("reloads")
+                .records()
+                .len(),
+            2
+        );
+    }
+
+    #[test]
+    fn a_corrupt_ledger_line_is_reported_rather_than_skipped() {
+        let scratch = Scratch::new("ledger_corrupt");
+        let path = scratch.write("accepted.jsonl", b"{\"model_id\": \"x\"}\n");
+        let error = AcceptanceLedger::load(&path).expect_err("must not silently drop the record");
+        assert!(matches!(error, ModelError::Json { .. }), "{error:?}");
+    }
+}
