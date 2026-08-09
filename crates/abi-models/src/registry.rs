@@ -145,3 +145,137 @@ impl<'a> UsableModel<'a> {
         self.manifest
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fixtures::{OTHER_REVISION, Scratch, manifest, manifest_value, parse};
+    use serde_json::json;
+
+    /// A second manifest with a distinct id.
+    fn second_manifest() -> ModelManifest {
+        let mut value = manifest_value();
+        value["id"] = json!("another-7b");
+        value["revision"] = json!(OTHER_REVISION);
+        parse(&value)
+    }
+
+    #[test]
+    fn a_json_array_loads_into_a_sorted_registry() {
+        let document = json!([second_manifest(), manifest()]).to_string();
+        let registry = ModelRegistry::from_json_array("array", &document).expect("loads");
+        assert_eq!(registry.len(), 2);
+        assert!(!registry.is_empty());
+        assert_eq!(
+            registry.ids().collect::<Vec<_>>(),
+            ["another-7b", "example-2b"]
+        );
+        assert_eq!(
+            registry.get("example-2b").expect("present").id,
+            "example-2b"
+        );
+    }
+
+    #[test]
+    fn duplicate_ids_are_rejected() {
+        let document = json!([manifest(), manifest()]).to_string();
+        let error = ModelRegistry::from_json_array("array", &document)
+            .expect_err("two manifests may not claim one id");
+        assert!(
+            matches!(error, ModelError::DuplicateModel { ref id } if id == "example-2b"),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn an_invalid_element_names_its_position() {
+        let mut bad = manifest_value();
+        bad["revision"] = json!("main");
+        let document = json!([manifest(), bad]).to_string();
+        let error = ModelRegistry::from_json_array("catalog", &document)
+            .expect_err("a floating ref anywhere fails the whole load");
+        assert!(
+            matches!(error, ModelError::FloatingRevision { .. }),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn a_directory_of_manifests_loads_in_sorted_order() {
+        let scratch = Scratch::new("registry_dir");
+        // Written in reverse order, and with a non-JSON file that must be ignored.
+        scratch.write(
+            "z-second.json",
+            second_manifest().to_json().expect("json").as_bytes(),
+        );
+        scratch.write(
+            "a-first.json",
+            manifest().to_json().expect("json").as_bytes(),
+        );
+        scratch.write("notes.txt", b"not a manifest");
+
+        let registry = ModelRegistry::from_dir(scratch.path()).expect("loads");
+        assert_eq!(registry.len(), 2);
+        assert_eq!(
+            registry.ids().collect::<Vec<_>>(),
+            ["another-7b", "example-2b"]
+        );
+    }
+
+    #[test]
+    fn a_missing_directory_is_an_io_error() {
+        let scratch = Scratch::new("registry_absent");
+        let error = ModelRegistry::from_dir(&scratch.join("nope")).expect_err("no such directory");
+        assert!(matches!(error, ModelError::Io { .. }), "{error:?}");
+    }
+
+    #[test]
+    fn an_unknown_id_is_an_error_not_a_none() {
+        let registry = ModelRegistry::new();
+        assert!(registry.get("absent").is_none());
+        let error = registry.manifest("absent").expect_err("unknown");
+        assert!(matches!(error, ModelError::UnknownModel { ref id } if id == "absent"));
+    }
+
+    #[test]
+    fn resolving_an_unaccepted_model_is_refused() {
+        let mut registry = ModelRegistry::new();
+        registry.insert(manifest()).expect("inserts");
+        let ledger = AcceptanceLedger::in_memory();
+
+        let error = registry
+            .resolve("example-2b", &ledger)
+            .expect_err("a model with no recorded acceptance must not be usable");
+        assert!(
+            matches!(error, ModelError::LicenseNotAccepted { .. }),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn resolving_succeeds_only_after_acceptance() {
+        let mut registry = ModelRegistry::new();
+        registry.insert(manifest()).expect("inserts");
+        let mut ledger = AcceptanceLedger::in_memory();
+        assert!(registry.resolve("example-2b", &ledger).is_err());
+
+        ledger.accept(&manifest(), "operator").expect("accepts");
+        let usable = registry.resolve("example-2b", &ledger).expect("now usable");
+        assert_eq!(usable.manifest().id, "example-2b");
+        assert_eq!(
+            usable.manifest().revision.as_str(),
+            manifest().revision.as_str()
+        );
+    }
+
+    #[test]
+    fn resolving_an_unknown_model_reports_the_id_not_the_license() {
+        let registry = ModelRegistry::new();
+        let ledger = AcceptanceLedger::in_memory();
+        let error = registry.resolve("ghost", &ledger).expect_err("unknown");
+        assert!(
+            matches!(error, ModelError::UnknownModel { .. }),
+            "{error:?}"
+        );
+    }
+}
