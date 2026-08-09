@@ -33,6 +33,18 @@
 //!   make every later resume start from poisoned bytes and fail identically
 //!   forever; deleting it means the next attempt is a clean retry.
 //!
+//! ## Limitations
+//!
+//! Named rather than left implicit:
+//!
+//! - **Concurrent downloads of the same destination are not supported.** There
+//!   is no cross-process lock on the `.part` file, so two runs would interleave
+//!   appends. The final hash check turns that into a loud failure rather than
+//!   silent corruption, but it is not a supported mode.
+//! - **A transport is trusted to honour `offset`.** Bytes returned from the
+//!   wrong offset are caught only at publish time, by the SHA-256 of the whole
+//!   file — `fetch` results are not otherwise validated.
+//!
 //! No real transport ships here — see [`HttpTransport`].
 
 use crate::error::ModelError;
@@ -497,6 +509,49 @@ mod tests {
             "{error:?}"
         );
         assert!(!destination.exists());
+    }
+
+    #[test]
+    fn a_truncated_body_stalls_but_keeps_a_usable_prefix() {
+        // The transport reports the honest total and then simply stops sending.
+        // Unlike the case above, nothing in the metadata is wrong — only the
+        // body is short — so the stall guard is the thing that has to catch it.
+        let (_scratch, manifest, destination) = setup("dl_truncated_body");
+        let artifact = manifest.weights().next().expect("weights");
+        let download = ResumableDownload::new(artifact, &destination);
+        let total = len_of(WEIGHTS_BYTES);
+        let truncating = FakeTransport::new(&WEIGHTS_BYTES[..12]).declaring_total(total);
+
+        let error = download
+            .run(&truncating)
+            .expect_err("a short body must not be published as complete");
+        assert!(
+            matches!(error, ModelError::TransportStalled { offset: 12, .. }),
+            "{error:?}"
+        );
+        assert!(!destination.exists());
+
+        // The bytes that did arrive are a correct prefix, so they are kept and
+        // a later attempt resumes rather than starting over.
+        let part = download.part_path();
+        assert_eq!(
+            std::fs::read(&part).expect("readable"),
+            &WEIGHTS_BYTES[..12]
+        );
+
+        let good = FakeTransport::new(WEIGHTS_BYTES);
+        let outcome = download.run(&good).expect("resumes past the truncation");
+        assert_eq!(
+            outcome,
+            DownloadOutcome::Downloaded {
+                resumed_from: 12,
+                bytes_written: total - 12
+            }
+        );
+        assert_eq!(
+            std::fs::read(&destination).expect("readable"),
+            WEIGHTS_BYTES
+        );
     }
 
     #[test]
