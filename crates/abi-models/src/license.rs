@@ -262,7 +262,7 @@ mod tests {
         let scratch = Scratch::new("ledger_absent");
         let path = scratch.join("nested/accepted.jsonl");
         let ledger = AcceptanceLedger::load(&path).expect("an absent ledger is simply empty");
-        assert!(ledger.records().is_empty());
+        assert_eq!(ledger.records(), []);
         assert_eq!(ledger.path(), Some(path.as_path()));
         assert!(!path.exists(), "loading must not create the file");
     }
