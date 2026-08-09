@@ -45,15 +45,21 @@
 //! to keep this crate's diff self-contained; it is still read through
 //! `abi_foundation::env::get`, so the test overlay applies as usual.
 
+pub mod download;
 pub mod error;
+pub mod license;
 pub mod manifest;
+pub mod registry;
 pub mod storage;
 pub mod verify;
 
+pub use download::{Chunk, ChunkTransport, DownloadOutcome, HttpTransport, ResumableDownload};
 pub use error::ModelError;
+pub use license::{AcceptanceLedger, AcceptanceRecord};
 pub use manifest::{
     Artifact, ArtifactKind, ContextLimits, Modality, ModelManifest, Quantization, Revision,
     Sha256Digest, TensorFormat,
 };
+pub use registry::{ModelRegistry, UsableModel};
 pub use storage::StorageRoot;
 pub use verify::{hash_file, verify_artifact};
