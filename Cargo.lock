@@ -107,6 +107,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "abi-models"
+version = "0.1.0"
+dependencies = [
+ "abi-foundation",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror",
+]
+
+[[package]]
 name = "abi-nn"
 version = "0.1.0"
 dependencies = [
