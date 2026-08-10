@@ -8,11 +8,12 @@ use std::sync::{
 /// Cooperative cancellation flag shared between a caller and a running provider.
 ///
 /// Cancellation is *cooperative*: setting the flag never interrupts a provider
-/// mid-event. The token is consulted by [`RunContext::emit`] before each event
-/// is delivered, so a cancelled run stops at the next event boundary and the
-/// event that would have crossed it is never delivered to the sink.
+/// mid-event. The token is consulted by [`RunContext::checkpoint`], including
+/// before each event is delivered, so a cancelled run stops at the next
+/// provider checkpoint and the event that would have crossed it is never
+/// delivered to the sink.
 ///
-/// [`RunContext::emit`]: crate::RunContext::emit
+/// [`RunContext::checkpoint`]: crate::RunContext::checkpoint
 #[derive(Clone, Debug, Default)]
 pub struct CancellationToken {
     flag: Arc<AtomicBool>,

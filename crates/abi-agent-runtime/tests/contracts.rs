@@ -17,6 +17,23 @@ struct CountingProvider {
     count: usize,
 }
 
+/// A blocking-adapter shape that checks for cancellation without fabricating
+/// an event merely to reach the host boundary.
+struct CheckpointProvider;
+
+impl ModelProvider for CheckpointProvider {
+    fn id(&self) -> &'static str {
+        "checkpoint"
+    }
+
+    fn run(&self, _request: &ModelRequest, run: &mut RunContext<'_>) -> Result<(), RuntimeError> {
+        while run.checkpoint() == Flow::Continue {
+            std::hint::spin_loop();
+        }
+        Ok(())
+    }
+}
+
 impl ModelProvider for CountingProvider {
     fn id(&self) -> &'static str {
         "counting"
@@ -118,6 +135,26 @@ fn a_run_cancelled_before_it_starts_delivers_only_the_terminal_event() {
         RunBudget::unlimited(),
     )
     .expect("provider honours the stop signal");
+
+    assert_eq!(report.events, 0);
+    assert_eq!(report.stop, StopReason::Cancelled);
+    assert_eq!(sink.kinds(), vec!["finished"]);
+}
+
+#[test]
+fn external_blocking_adapter_can_observe_pre_cancel_without_an_event() {
+    let token = CancellationToken::new();
+    token.cancel();
+    let mut sink = CollectingSink::new();
+
+    let report = run_provider(
+        &CheckpointProvider,
+        &ModelRequest::new("m"),
+        &mut sink,
+        &token,
+        RunBudget::unlimited(),
+    )
+    .expect("checkpoint provider observes cancellation");
 
     assert_eq!(report.events, 0);
     assert_eq!(report.stop, StopReason::Cancelled);
