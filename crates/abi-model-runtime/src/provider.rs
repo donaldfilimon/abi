@@ -33,6 +33,12 @@ pub const FIXTURE_BIGRAM_ARCHITECTURE: &str = "abi-bigram-v1";
 /// Default maximum verified artifact bytes loaded for one model: 16 GiB.
 pub const DEFAULT_MAX_MODEL_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 
+/// Default maximum tokenizer artifact size: 64 MiB.
+pub const DEFAULT_MAX_TOKENIZER_BYTES: u64 = 64 * 1024 * 1024;
+
+/// Default maximum rendered prompt size before tokenization: 1 MiB.
+pub const DEFAULT_MAX_PROMPT_BYTES: usize = 1024 * 1024;
+
 /// Default hard generation ceiling independent of the request hint.
 pub const DEFAULT_MAX_GENERATED_TOKENS: u32 = 256;
 
@@ -43,6 +49,10 @@ pub struct LoadConfig {
     pub device: DevicePreference,
     /// Maximum sum of manifest-declared artifact bytes.
     pub max_model_bytes: u64,
+    /// Maximum manifest-declared tokenizer bytes.
+    pub max_tokenizer_bytes: u64,
+    /// Maximum rendered prompt bytes accepted before tokenization.
+    pub max_prompt_bytes: usize,
     /// Hard provider generation ceiling.
     pub max_generated_tokens: u32,
 }
@@ -54,6 +64,8 @@ impl LoadConfig {
         Self {
             device,
             max_model_bytes: DEFAULT_MAX_MODEL_BYTES,
+            max_tokenizer_bytes: DEFAULT_MAX_TOKENIZER_BYTES,
+            max_prompt_bytes: DEFAULT_MAX_PROMPT_BYTES,
             max_generated_tokens: DEFAULT_MAX_GENERATED_TOKENS,
         }
     }
@@ -62,6 +74,20 @@ impl LoadConfig {
     #[must_use]
     pub const fn with_max_model_bytes(mut self, maximum: u64) -> Self {
         self.max_model_bytes = maximum;
+        self
+    }
+
+    /// Override the tokenizer-artifact byte ceiling.
+    #[must_use]
+    pub const fn with_max_tokenizer_bytes(mut self, maximum: u64) -> Self {
+        self.max_tokenizer_bytes = maximum;
+        self
+    }
+
+    /// Override the rendered-prompt byte ceiling.
+    #[must_use]
+    pub const fn with_max_prompt_bytes(mut self, maximum: usize) -> Self {
+        self.max_prompt_bytes = maximum;
         self
     }
 
@@ -84,6 +110,7 @@ pub struct LocalModelProvider {
     context_tokens: u32,
     manifest_output_tokens: u32,
     max_generated_tokens: u32,
+    max_prompt_bytes: usize,
     load_report: LoadReport,
     last_inference: Mutex<Option<InferenceReport>>,
 }
@@ -112,7 +139,7 @@ impl LocalModelProvider {
     ) -> Result<Self, ModelRuntimeError> {
         let usable = registry.resolve_for(model_id, ledger, principal)?;
         let manifest = usable.manifest();
-        let artifacts = verify_model_artifacts(manifest, storage, config.max_model_bytes)?;
+        let artifacts = verify_model_artifacts(manifest, storage, config)?;
         let initialized = initialize(config.device)?;
         let loaded = load_fixture(manifest, &artifacts, &initialized.device)?;
         let load_report = LoadReport {
@@ -135,6 +162,7 @@ impl LocalModelProvider {
             context_tokens: manifest.context.max_context_tokens,
             manifest_output_tokens: manifest.context.max_output_tokens,
             max_generated_tokens: config.max_generated_tokens,
+            max_prompt_bytes: config.max_prompt_bytes,
             load_report,
             last_inference: Mutex::new(None),
         })
@@ -218,7 +246,7 @@ impl LocalModelProvider {
     ) -> Result<(Vec<u32>, u64), ModelRuntimeError> {
         let encoding = self
             .tokenizer
-            .encode(render_prompt(request), false)
+            .encode(self.render_prompt(request)?, false)
             .map_err(|error| self.tokenizer_error(error))?;
         let prompt_ids = encoding.get_ids().to_vec();
         if prompt_ids.is_empty() {
@@ -301,6 +329,31 @@ impl LocalModelProvider {
             detail: error.to_string(),
         }
     }
+
+    fn render_prompt(&self, request: &ModelRequest) -> Result<String, ModelRuntimeError> {
+        let bytes = request
+            .system()
+            .into_iter()
+            .chain(
+                request
+                    .messages()
+                    .iter()
+                    .map(|message| message.content.as_str()),
+            )
+            .try_fold(0usize, |sum, part| {
+                sum.checked_add(part.len())?.checked_add(1)
+            })
+            .unwrap_or(usize::MAX)
+            .saturating_sub(1);
+        if bytes > self.max_prompt_bytes {
+            return Err(ModelRuntimeError::PromptTooLarge {
+                model: self.model_id.clone(),
+                actual: bytes,
+                maximum: self.max_prompt_bytes,
+            });
+        }
+        Ok(render_prompt(request))
+    }
 }
 
 impl ModelProvider for LocalModelProvider {
@@ -320,7 +373,7 @@ impl ModelProvider for LocalModelProvider {
 fn verify_model_artifacts(
     manifest: &ModelManifest,
     storage: &StorageRoot,
-    maximum: u64,
+    config: LoadConfig,
 ) -> Result<ArtifactSummary, ModelRuntimeError> {
     if manifest.architecture != FIXTURE_BIGRAM_ARCHITECTURE {
         return Err(ModelRuntimeError::UnsupportedArchitecture {
@@ -339,11 +392,19 @@ fn verify_model_artifacts(
         .iter()
         .try_fold(0u64, |sum, artifact| sum.checked_add(artifact.size_bytes))
         .unwrap_or(u64::MAX);
-    if artifact_bytes > maximum {
+    if artifact_bytes > config.max_model_bytes {
         return Err(ModelRuntimeError::ModelTooLarge {
             model: manifest.id.clone(),
             actual: artifact_bytes,
-            maximum,
+            maximum: config.max_model_bytes,
+        });
+    }
+    let tokenizer = manifest.tokenizer();
+    if tokenizer.size_bytes > config.max_tokenizer_bytes {
+        return Err(ModelRuntimeError::TokenizerTooLarge {
+            model: manifest.id.clone(),
+            actual: tokenizer.size_bytes,
+            maximum: config.max_tokenizer_bytes,
         });
     }
     let weights: Vec<_> = manifest.weights().collect();
@@ -358,7 +419,7 @@ fn verify_model_artifacts(
     }
     Ok(ArtifactSummary {
         weights_path: storage.artifact_path(manifest, weights[0]),
-        tokenizer_path: storage.artifact_path(manifest, manifest.tokenizer()),
+        tokenizer_path: storage.artifact_path(manifest, tokenizer),
         artifact_bytes,
     })
 }

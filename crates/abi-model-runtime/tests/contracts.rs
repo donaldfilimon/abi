@@ -239,6 +239,44 @@ fn load_policy_bounds_declared_model_bytes() {
 }
 
 #[test]
+fn tokenizer_and_raw_prompt_allocations_have_independent_bounds() {
+    let fixture = fixture();
+    let tokenizer_error = LocalModelProvider::load(
+        &fixture.registry,
+        &fixture.ledger,
+        &fixture.storage,
+        MODEL_ID,
+        PRINCIPAL,
+        LoadConfig::new(DevicePreference::Cpu).with_max_tokenizer_bytes(1),
+    )
+    .expect_err("tokenizer exceeds its parser boundary");
+    assert!(matches!(
+        tokenizer_error,
+        ModelRuntimeError::TokenizerTooLarge { .. }
+    ));
+
+    let provider = LocalModelProvider::load(
+        &fixture.registry,
+        &fixture.ledger,
+        &fixture.storage,
+        MODEL_ID,
+        PRINCIPAL,
+        LoadConfig::new(DevicePreference::Cpu).with_max_prompt_bytes(4),
+    )
+    .expect("prompt bound does not affect model loading");
+    let mut sink = CollectingSink::new();
+    let prompt_error = run_provider(
+        &provider,
+        &ModelRequest::new(MODEL_ID).with_user("hello"),
+        &mut sink,
+        &CancellationToken::new(),
+        RunBudget::unlimited(),
+    )
+    .expect_err("raw prompt is rejected before tokenization");
+    assert!(prompt_error.to_string().contains("prompt has 5 bytes"));
+}
+
+#[test]
 fn unsupported_architecture_is_not_silently_interpreted() {
     let fixture = fixture_with_architecture("gemma4");
     let error = LocalModelProvider::load(

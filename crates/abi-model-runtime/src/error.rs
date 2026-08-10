@@ -53,6 +53,16 @@ pub enum ModelRuntimeError {
         /// Configured ceiling.
         maximum: u64,
     },
+    /// Tokenizer artifact exceeds its parser-allocation boundary.
+    #[error("model '{model}' declares a {actual}-byte tokenizer, above maximum {maximum}")]
+    TokenizerTooLarge {
+        /// Exact requested model identifier.
+        model: String,
+        /// Manifest-declared tokenizer bytes.
+        actual: u64,
+        /// Configured tokenizer ceiling.
+        maximum: u64,
+    },
     /// Requested device feature or runtime is unavailable.
     #[error("requested device {requested} is unavailable: {detail}")]
     DeviceUnavailable {
@@ -106,6 +116,16 @@ pub enum ModelRuntimeError {
     UnsupportedTools {
         /// Loaded model identifier.
         model: String,
+    },
+    /// Rendered request bytes exceed the pre-tokenization boundary.
+    #[error("model '{model}' prompt has {actual} bytes, above maximum {maximum}")]
+    PromptTooLarge {
+        /// Loaded model identifier.
+        model: String,
+        /// Exact rendered prompt byte count.
+        actual: usize,
+        /// Configured pre-tokenization ceiling.
+        maximum: usize,
     },
     /// Prompt cannot fit the manifest's declared context.
     #[error(
