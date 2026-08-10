@@ -13,6 +13,7 @@ repository = "https://github.com/donaldfilimon/abi"
 abi-agent-host = { path = "crates/abi-agent-host" }
 abi-agent-runtime = { path = "crates/abi-agent-runtime" }
 abi-compute = { path = "crates/abi-compute" }
+abi-models = { path = "crates/abi-models" }
 abi-foundation = { path = "crates/abi-foundation" }
 abi-core = { path = "crates/abi-core" }
 abi-telemetry = { path = "crates/abi-telemetry" }

@@ -6,6 +6,15 @@ truth is the nightly-Rust workspace under `crates/`; readiness is gated by
 
 ## Unreleased
 
+### Added
+
+- feat(models): add `abi-model-runtime` with exact principal-authorized model
+  selection, verified external Tokenizers/Safetensors loading, explicit
+  CPU/Metal/CUDA device requests, bounded Candle inference, and separate load
+  versus execution evidence. Generated scratch fixtures prove CPU and local
+  Metal operations; Gemma, CUDA runtime execution, placement, quality, and
+  performance remain unclaimed.
+
 ### Changed
 
 - test(cli): prove in-process and child-process completion tests persist only to

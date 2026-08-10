@@ -65,6 +65,7 @@ Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_lea
 - Core crates and MCP transport have contract/golden coverage; MCP stdio is primary, with optional loopback HTTP/SSE (`GET /sse`, `POST /message`).
 - Documentation: `CLAUDE.md`, `GEMINI.md`, and `AGENTS.md` describe the Rust lifecycle.
 - Build gate: `./tools/check.sh` runs fmt, clippy (`-D warnings`), workspace build/tests, and docs.
+- Local models: `abi-model-runtime` requires an exact registry model, accepting principal, external storage root, and device choice. Generated scratch fixtures prove its tiny `abi-bigram-v1` Candle path on CPU and locally exercised Metal; this is runtime-foundation evidence, not a Gemma, quality, placement, speedup, or CUDA-runtime claim.
 - GPU: capability table + preferred backend reporting with **honest `accelerated=false`** when native kernels are not linked; vector ops use deterministic CPU SIMD fallback. CUDA/Vulkan/ANE kernels remain non-claims.
 - Plugins: sixteen bundled plugins ship as compiled-in `mod.rs`/`stub.rs` pairs under `crates/abi-plugins/plugins/` with `assert_plugin_parity!`.
 - AI/WDBX: API callers opt into persistence with `CompletionRequest.store_result=true`; CLI/MCP completion uses WDBX stores for query/response vectors, metadata, and block-chain entries when WDBX is enabled. Scheduler-backed completion, training, and agent helpers expose live task/memory observability.

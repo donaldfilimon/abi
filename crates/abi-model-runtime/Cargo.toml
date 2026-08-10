@@ -1,0 +1,29 @@
+[package]
+name = "abi-model-runtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Explicit local model loading and evidenced Candle execution for ABI."
+
+[features]
+default = []
+metal = ["candle-core/metal"]
+cuda = ["candle-core/cuda"]
+
+[dependencies]
+abi-agent-runtime = { workspace = true }
+abi-compute = { workspace = true }
+abi-models = { workspace = true }
+candle-core = { version = "0.11", default-features = false }
+safetensors = "0.8"
+thiserror = { workspace = true }
+tokenizers = { version = "0.22.2", default-features = false, features = ["fancy-regex"] }
+
+[dev-dependencies]
+abi-foundation = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true
