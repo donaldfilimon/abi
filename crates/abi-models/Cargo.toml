@@ -9,10 +9,12 @@ description = "Hash-verified model manifest registry, license-acceptance ledger,
 
 [dependencies]
 abi-foundation = { workspace = true }
+ed25519-dalek = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
+ureq = { version = "3", default-features = false, features = ["rustls"] }
 
 [lints]
 workspace = true

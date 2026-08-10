@@ -7,16 +7,20 @@
 
 use abi_models::{
     AcceptanceLedger, Chunk, ChunkTransport, DownloadOutcome, ModelError, ModelRegistry,
-    ResumableDownload, StorageRoot, verify::hash_reader, verify_artifact,
+    PublisherTrustStore, ResumableDownload, SIGNED_MANIFEST_VERSION, SignedManifestEnvelope,
+    StorageRoot, verify::hash_reader, verify_artifact,
 };
+use ed25519_dalek::{Signer as _, SigningKey};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 const REVISION: &str = "1122334455667788990011223344556677889900";
 const WEIGHTS: &[u8] = b"external-client-weight-bytes";
 const TOKENIZER: &[u8] = b"external-client-tokenizer-bytes";
-const WEIGHTS_URL: &str = "https://example.invalid/model.safetensors";
-const TOKENIZER_URL: &str = "https://example.invalid/tokenizer.json";
+const WEIGHTS_URL: &str =
+    "https://example.invalid/1122334455667788990011223344556677889900/model.safetensors";
+const TOKENIZER_URL: &str =
+    "https://example.invalid/1122334455667788990011223344556677889900/tokenizer.json";
 
 /// A self-deleting scratch directory.
 struct Scratch(PathBuf);
@@ -44,6 +48,17 @@ fn digest(bytes: &[u8]) -> String {
     hash_reader(&mut &bytes[..]).expect("hashes").to_hex()
 }
 
+/// Lowercase hexadecimal encoding for signature fixtures.
+fn hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        output.push(char::from(DIGITS[usize::from(byte >> 4)]));
+        output.push(char::from(DIGITS[usize::from(byte & 0x0f)]));
+    }
+    output
+}
+
 /// A one-element registry document.
 fn catalog() -> String {
     format!(
@@ -53,6 +68,7 @@ fn catalog() -> String {
             "revision": "{REVISION}",
             "architecture": "example",
             "license": "example-community-license-1.0",
+            "license_sha256": "{license_hash}",
             "modalities": ["text"],
             "tensor_format": "safetensors",
             "quantizations": ["bf16"],
@@ -75,6 +91,7 @@ fn catalog() -> String {
             ]
         }}]"#,
         weights_hash = digest(WEIGHTS),
+        license_hash = digest(b"example license text v1"),
         weights_len = WEIGHTS.len(),
         tokenizer_hash = digest(TOKENIZER),
         tokenizer_len = TOKENIZER.len(),
@@ -167,6 +184,41 @@ fn a_storage_root_inside_this_repository_is_refused_through_the_public_api() {
         matches!(error, ModelError::StorageInsideRepository { .. }),
         "{error:?}"
     );
+}
+
+#[test]
+fn the_public_registry_accepts_only_configured_signed_publishers() {
+    let unsigned = catalog();
+    let manifest_json = serde_json::from_str::<Vec<serde_json::Value>>(&unsigned)
+        .expect("catalog JSON")
+        .remove(0)
+        .to_string();
+    let signing = SigningKey::from_bytes(&[42; 32]);
+    let envelope = serde_json::json!({
+        "version": SIGNED_MANIFEST_VERSION,
+        "key_id": "release-key-2026",
+        "manifest_json": &manifest_json,
+        "signature": hex(&signing.sign(manifest_json.as_bytes()).to_bytes()),
+    });
+    let envelope = SignedManifestEnvelope::from_json("envelope", &envelope.to_string())
+        .expect("envelope parses");
+
+    let error = envelope
+        .verify("manifest", &PublisherTrustStore::new())
+        .expect_err("unknown publisher must fail");
+    assert!(matches!(error, ModelError::UntrustedPublisherKey { .. }));
+
+    let mut trust = PublisherTrustStore::new();
+    trust
+        .insert("release-key-2026", signing.verifying_key().to_bytes())
+        .expect("publisher key is valid");
+    let registry = ModelRegistry::from_signed_json_array(
+        "signed-catalog",
+        &serde_json::json!([envelope]).to_string(),
+        &trust,
+    )
+    .expect("configured signature authorizes the manifest");
+    assert_eq!(registry.ids().collect::<Vec<_>>(), ["external-2b"]);
 }
 
 /// The abi repository root, from this test's own source location.

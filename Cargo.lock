@@ -120,10 +120,12 @@ name = "abi-models"
 version = "0.1.0"
 dependencies = [
  "abi-foundation",
+ "ed25519-dalek",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "thiserror",
+ "ureq",
 ]
 
 [[package]]

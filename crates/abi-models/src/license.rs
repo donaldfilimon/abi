@@ -2,7 +2,8 @@
 //!
 //! Many model licenses require an affirmative act by a named person before the
 //! weights may be used. That act is recorded here as durable evidence — who
-//! accepted, which license, for which model at which *revision*, and when.
+//! accepted, which license document, for which model, immutable revision and
+//! exact artifact hash set, and when.
 //!
 //! Two properties matter and are both tested:
 //!
@@ -22,6 +23,16 @@ use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
+/// One artifact identity captured by a license acceptance.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedArtifact {
+    /// Manifest-relative artifact path.
+    pub path: String,
+    /// Lowercase SHA-256 digest at acceptance time.
+    pub sha256: String,
+}
+
 /// One recorded acceptance.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -32,20 +43,48 @@ pub struct AcceptanceRecord {
     pub revision: String,
     /// License identifier that was accepted.
     pub license: String,
-    /// Who accepted, as supplied by the caller.
+    /// Digest of the exact license document that was accepted.
+    #[serde(default)]
+    pub license_sha256: String,
+    /// Exact artifact paths and hashes covered by the acceptance.
+    #[serde(default)]
+    pub artifacts: Vec<AcceptedArtifact>,
+    /// Accepting principal, as supplied by the caller.
     pub accepted_by: String,
     /// Wall-clock acceptance time, Unix milliseconds.
     pub accepted_at_unix_ms: i64,
 }
 
 impl AcceptanceRecord {
-    /// True when this record authorizes exactly this model, revision and license.
+    /// True when this record authorizes the manifest's complete immutable
+    /// identity for the recorded principal.
     #[must_use]
     pub fn covers(&self, manifest: &ModelManifest) -> bool {
         self.model_id == manifest.id
             && self.revision == manifest.revision.as_str()
             && self.license == manifest.license
+            && self.license_sha256 == manifest.license_sha256.to_hex()
+            && self.artifacts == accepted_artifacts(manifest)
+            && !self.accepted_by.trim().is_empty()
     }
+
+    /// True when this record covers the manifest and exact accepting principal.
+    #[must_use]
+    pub fn covers_for(&self, manifest: &ModelManifest, principal: &str) -> bool {
+        self.covers(manifest) && self.accepted_by == principal
+    }
+}
+
+/// Capture an ordered, exact artifact identity from a validated manifest.
+fn accepted_artifacts(manifest: &ModelManifest) -> Vec<AcceptedArtifact> {
+    manifest
+        .artifacts
+        .iter()
+        .map(|artifact| AcceptedArtifact {
+            path: artifact.path.clone(),
+            sha256: artifact.sha256.to_hex(),
+        })
+        .collect()
 }
 
 /// An append-only log of license acceptances.
@@ -112,10 +151,15 @@ impl AcceptanceLedger {
         manifest: &ModelManifest,
         accepted_by: &str,
     ) -> Result<AcceptanceRecord, ModelError> {
+        if accepted_by.trim().is_empty() {
+            return Err(ModelError::InvalidAcceptancePrincipal);
+        }
         let record = AcceptanceRecord {
             model_id: manifest.id.clone(),
             revision: manifest.revision.as_str().to_owned(),
             license: manifest.license.clone(),
+            license_sha256: manifest.license_sha256.to_hex(),
+            artifacts: accepted_artifacts(manifest),
             accepted_by: accepted_by.to_owned(),
             accepted_at_unix_ms: abi_foundation::time::unix_ms(),
         };
@@ -133,6 +177,10 @@ impl AcceptanceLedger {
                 .open(path)
                 .map_err(|source| ModelError::io(path, source))?;
             writeln!(file, "{line}").map_err(|source| ModelError::io(path, source))?;
+            file.flush()
+                .map_err(|source| ModelError::io(path, source))?;
+            file.sync_all()
+                .map_err(|source| ModelError::io(path, source))?;
         }
         self.records.push(record.clone());
         Ok(record)
@@ -142,6 +190,14 @@ impl AcceptanceLedger {
     #[must_use]
     pub fn is_accepted(&self, manifest: &ModelManifest) -> bool {
         self.records.iter().any(|record| record.covers(manifest))
+    }
+
+    /// Whether a particular principal accepted the complete model identity.
+    #[must_use]
+    pub fn is_accepted_for(&self, manifest: &ModelManifest, principal: &str) -> bool {
+        self.records
+            .iter()
+            .any(|record| record.covers_for(manifest, principal))
     }
 
     /// Require acceptance, distinguishing "never accepted" from "accepted under
@@ -157,10 +213,15 @@ impl AcceptanceLedger {
             record.model_id == manifest.id && record.revision == manifest.revision.as_str()
         });
         if let Some(record) = conflicting {
-            return Err(ModelError::LicenseMismatch {
+            if record.license != manifest.license {
+                return Err(ModelError::LicenseMismatch {
+                    model: manifest.id.clone(),
+                    recorded: record.license.clone(),
+                    declared: manifest.license.clone(),
+                });
+            }
+            return Err(ModelError::AcceptanceBindingMismatch {
                 model: manifest.id.clone(),
-                recorded: record.license.clone(),
-                declared: manifest.license.clone(),
             });
         }
         Err(ModelError::LicenseNotAccepted {
@@ -169,18 +230,40 @@ impl AcceptanceLedger {
             license: manifest.license.clone(),
         })
     }
+
+    /// Require acceptance by one exact principal.
+    pub fn ensure_accepted_for(
+        &self,
+        manifest: &ModelManifest,
+        principal: &str,
+    ) -> Result<(), ModelError> {
+        if principal.trim().is_empty() {
+            return Err(ModelError::InvalidAcceptancePrincipal);
+        }
+        if self.is_accepted_for(manifest, principal) {
+            return Ok(());
+        }
+        if self.is_accepted(manifest) {
+            return Err(ModelError::PrincipalNotAccepted {
+                model: manifest.id.clone(),
+                revision: manifest.revision.as_str().to_owned(),
+                principal: principal.to_owned(),
+            });
+        }
+        self.ensure_accepted(manifest)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fixtures::{OTHER_REVISION, Scratch, manifest, manifest_value, parse};
+    use crate::fixtures::{OTHER_REVISION, Scratch, manifest, manifest_value, parse, set_revision};
     use serde_json::json;
 
     /// The fixture manifest republished at a different revision.
     fn at_other_revision() -> ModelManifest {
         let mut value = manifest_value();
-        value["revision"] = json!(OTHER_REVISION);
+        set_revision(&mut value, OTHER_REVISION);
         parse(&value)
     }
 
@@ -255,6 +338,47 @@ mod tests {
                     && declared == "example-restrictive-license-2.0"),
             "{error:?}"
         );
+    }
+
+    #[test]
+    fn acceptance_is_bound_to_license_digest_and_artifact_hashes() {
+        let original = manifest();
+        let mut ledger = AcceptanceLedger::in_memory();
+        ledger.accept(&original, "operator").expect("accepts");
+
+        let mut changed_license = manifest_value();
+        changed_license["license_sha256"] = json!("ab".repeat(32));
+        let error = ledger
+            .ensure_accepted(&parse(&changed_license))
+            .expect_err("changed license bytes require new acceptance");
+        assert!(matches!(
+            error,
+            ModelError::AcceptanceBindingMismatch { .. }
+        ));
+
+        let mut changed_artifact = manifest_value();
+        changed_artifact["artifacts"][0]["sha256"] = json!("cd".repeat(32));
+        let error = ledger
+            .ensure_accepted(&parse(&changed_artifact))
+            .expect_err("changed artifact hash requires new acceptance");
+        assert!(matches!(
+            error,
+            ModelError::AcceptanceBindingMismatch { .. }
+        ));
+    }
+
+    #[test]
+    fn principal_specific_acceptance_cannot_be_reused_by_another_principal() {
+        let manifest = manifest();
+        let mut ledger = AcceptanceLedger::in_memory();
+        ledger.accept(&manifest, "alice").expect("accepts");
+        ledger
+            .ensure_accepted_for(&manifest, "alice")
+            .expect("matching principal is authorized");
+        let error = ledger
+            .ensure_accepted_for(&manifest, "bob")
+            .expect_err("another principal must accept independently");
+        assert!(matches!(error, ModelError::PrincipalNotAccepted { .. }));
     }
 
     #[test]

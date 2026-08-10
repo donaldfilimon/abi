@@ -10,33 +10,31 @@
 //! - [`manifest`] — the manifest schema. A [`ModelManifest`] cannot be
 //!   constructed with a floating revision or an unhashed artifact; those are
 //!   parse-time errors, not warnings.
-//! - [`registry`] — a validated set of manifests, keyed by model id.
+//! - [`registry`] — validated unsigned and publisher-authenticated manifest
+//!   collections, keyed by model id.
+//! - [`signed`] — Ed25519 signed manifest envelopes and an explicit publisher
+//!   trust store. Signature verification never replaces artifact hashes.
 //! - [`verify`] — streaming SHA-256 of a file, compared against the manifest.
-//! - [`download`] — the byte-range/partial-file resume state machine, written
-//!   against the [`ChunkTransport`] trait so it is exercised end to end without
-//!   a network.
+//! - [`download`] — a bounded HTTPS byte-range transport plus the
+//!   partial-file resume and atomic no-clobber publication state machine.
 //! - [`license`] — a persisted acceptance ledger. Resolution of a usable model
 //!   goes through it, so "usable" and "license accepted for this exact
 //!   revision" are the same statement.
 //! - [`storage`] — resolution of the weight-storage root, which is always
 //!   outside any source repository.
 //!
-//! # Explicitly not implemented (Proposed)
+//! # Explicit boundary
 //!
 //! These are named here so no caller mistakes an absence for a capability:
 //!
-//! - **Signature verification.** Only content hashes are checked. Publisher
-//!   signatures over manifests are Proposed; nothing in this crate verifies an
-//!   identity, so a manifest is only as trustworthy as its own provenance.
-//! - **A real network transport.** [`HttpTransport`] returns
-//!   [`ModelError::TransportNotImplemented`] rather than panicking. No HTTP
-//!   client is a dependency of this crate.
 //! - **Loading, decoding or running weights.** No `safetensors`, `GGUF`, or
 //!   tensor-library integration exists here, and no architecture is
 //!   implemented. Manifest fields such as `tensor_format` and `architecture`
 //!   are recorded metadata, not evidence that a loader exists.
 //! - **Any throughput, memory or accuracy characterisation.** This crate makes
 //!   no performance claim.
+//! - **Repository-owned model data.** Weights, datasets, and generated adapters
+//!   belong under an external [`StorageRoot`], never in this source tree.
 //!
 //! # Note on the environment variable
 //!
@@ -52,16 +50,18 @@ mod fixtures;
 pub mod license;
 pub mod manifest;
 pub mod registry;
+pub mod signed;
 pub mod storage;
 pub mod verify;
 
 pub use download::{Chunk, ChunkTransport, DownloadOutcome, HttpTransport, ResumableDownload};
 pub use error::ModelError;
-pub use license::{AcceptanceLedger, AcceptanceRecord};
+pub use license::{AcceptanceLedger, AcceptanceRecord, AcceptedArtifact};
 pub use manifest::{
     Artifact, ArtifactKind, ContextLimits, Modality, ModelManifest, Quantization, Revision,
     Sha256Digest, TensorFormat,
 };
 pub use registry::{ModelRegistry, UsableModel};
+pub use signed::{PublisherTrustStore, SIGNED_MANIFEST_VERSION, SignedManifestEnvelope};
 pub use storage::StorageRoot;
 pub use verify::{hash_file, verify_artifact};
