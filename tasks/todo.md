@@ -50,6 +50,23 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ---
 
+## Abbey runtime foundation train
+
+| Item | Status | Acceptance boundary |
+| ---- | ------ | ------------------- |
+| Provider-neutral agent runtime contracts | ✅ | `abi-agent-runtime` owns model requests/events, tool descriptions, policy, audit, usage, budgets, cancellation, bounded capture, and deterministic providers. It deliberately performs **no tool execution** and **no model inference**. |
+| Hash-verified model registry contracts | ✅ | `abi-models` owns validated immutable manifests, artifact hashing, external storage policy, resumable-download state, license acceptance, and registry resolution. It deliberately has **no real HTTP downloader** and **no manifest signature verification**. |
+| Agent host orchestration | ⚪ | Add `abi-agent-host` with an object-safe tool executor, schema validation before authorization/execution, ordered audited continuation, cancellation/deadline/output/event/tool-call/run budgets, and deterministic offline fixtures. |
+| Registry delivery security | ⚪ | Add restricted HTTPS delivery, pinned revisions, validated resume/redirect/size behavior, atomic publication, signed manifest envelopes, publisher trust, and license acceptance bound to principal plus immutable artifact identity. |
+| Local model execution | ⚪ | Add explicit CPU-first and evidenced-device `abi-model-runtime` integration without a global default, silent model substitution, or unevidenced placement/performance claims. |
+| Authenticated worker plane | ⚪ | Add typed signed job, identity, capability, lease, cancellation, result-digest, quota, replay, and health contracts in `abi-worker`. **No worker protocol exists in the current source.** |
+
+> This train is additive. It must not change ABI's frozen 13-command CLI or
+> 12-tool MCP catalogs. Model weights, datasets, and generated adapters stay
+> outside this repository.
+
+---
+
 ## #647 Rust-rescoped (optional hardening)
 
 See `docs/superpowers/archive/plans/2026-07-31-rust-647-followups.md`.

@@ -207,3 +207,11 @@ status: done
 - The v2 expansion now proves byte-exact committed-transaction replication, conflict-preserving read repair, deterministic placement and resumable rebalance, and a 3–9 node single-host multi-process demo. These close the local proof slices only; real separate-host operation, production deployment, and hosted validation remain open.
 - Versioned PQ and persisted-autoencoder artifacts, optional TFHE-rs execution, DGHV educational refresh, the cycle-free `abi-compute` crate, and the Rust size gate are current locally tested surfaces. They do not establish SOTA compression, production cryptography, accelerator speedups, or external audit. HawkScan and Semgrep evidence is unavailable in this checkout.
 - The authenticated bounded gRPC/WebSocket gateway is integrated locally with all eight RPCs, metadata-only events, two explicit listeners, and plaintext/TLS/mTLS runtime tests. This establishes a Current local gateway only; hosted production deployment, separate-host operations, DAST, certificate lifecycle proof, and external review remain open evidence boundaries.
+
+## Complete ABI-owned agent, model, and worker foundations for Abbey
+status: in_progress
+- Adopt and extend the already-merged `abi-agent-runtime` and `abi-models` crates rather than recreating their contracts. The staged acceptance ledger is in `tasks/todo.md` under "Abbey runtime foundation train."
+- Current foundation boundary: `abi-agent-runtime` defines provider-neutral model, event, tool-description, policy, audit, usage, budget, cancellation, and deterministic-fixture contracts. It does **not** execute tools or perform model inference.
+- Current model-delivery boundary: `abi-models` validates immutable manifests, hashes artifacts, enforces external storage, models resumable downloads, records license acceptance, and resolves registries. It does **not** provide a real HTTP downloader or verify manifest signatures.
+- No authenticated worker protocol exists yet. The additive `abi-agent-host`, registry-delivery security, `abi-model-runtime`, and `abi-worker` slices remain open and must preserve the frozen 13-command CLI and 12-tool MCP catalogs.
+- Every ABI slice starts from clean `origin/main`, runs `./tools/check.sh` through the pinned nightly wrapper, and records source/test/rustdoc evidence separately from hosted or hardware runtime proof.
