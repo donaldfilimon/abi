@@ -25,6 +25,7 @@
 //!   "revision": "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c",
 //!   "architecture": "example",
 //!   "license": "apache-2.0",
+//!   "license_sha256": "<64 lowercase hex characters>",
 //!   "modalities": ["text"],
 //!   "tensor_format": "safetensors",
 //!   "quantizations": ["bf16", "q4_k_m"],
@@ -35,7 +36,7 @@
 //!       "kind": "weights",
 //!       "sha256": "<64 lowercase hex characters>",
 //!       "size_bytes": 12,
-//!       "url": "https://example.invalid/model.safetensors"
+//!       "url": "https://example.invalid/<revision>/model.safetensors"
 //!     }
 //!   ]
 //! }
@@ -270,6 +271,8 @@ pub struct ModelManifest {
     pub architecture: String,
     /// License identifier that must be accepted before use.
     pub license: String,
+    /// SHA-256 of the exact license document accepted by the operator.
+    pub license_sha256: Sha256Digest,
     /// Modalities the model handles.
     pub modalities: Vec<Modality>,
     /// Container format of the weight files.
@@ -321,6 +324,7 @@ struct RawManifest {
     revision: Option<String>,
     architecture: Option<String>,
     license: Option<String>,
+    license_sha256: Option<String>,
     modalities: Vec<Modality>,
     tensor_format: TensorFormat,
     quantizations: Vec<Quantization>,
@@ -352,6 +356,13 @@ impl TryFrom<RawManifest> for ModelManifest {
             return Err(ModelError::MissingRevision { model: id });
         };
         let revision = Revision::parse(&id, revision)?;
+        let Some(license_hash) = raw.license_sha256.as_deref() else {
+            return Err(ModelError::MissingHash {
+                model: id,
+                artifact: "<license>".to_owned(),
+            });
+        };
+        let license_sha256 = Sha256Digest::parse(&id, "<license>", license_hash)?;
 
         if raw.modalities.is_empty() {
             return Err(ModelError::EmptyField {
@@ -369,7 +380,7 @@ impl TryFrom<RawManifest> for ModelManifest {
 
         let mut artifacts = Vec::with_capacity(raw.artifacts.len());
         for entry in &raw.artifacts {
-            artifacts.push(convert_artifact(&id, entry)?);
+            artifacts.push(convert_artifact(&id, revision.as_str(), entry)?);
         }
         require_kinds(&id, &artifacts)?;
 
@@ -379,6 +390,7 @@ impl TryFrom<RawManifest> for ModelManifest {
             revision,
             architecture,
             license,
+            license_sha256,
             modalities: raw.modalities,
             tensor_format: raw.tensor_format,
             quantizations: raw.quantizations,
@@ -420,7 +432,11 @@ fn validate_context(model: &str, context: ContextLimits) -> Result<(), ModelErro
 }
 
 /// Validate one raw artifact entry.
-fn convert_artifact(model: &str, raw: &RawArtifact) -> Result<Artifact, ModelError> {
+fn convert_artifact(
+    model: &str,
+    revision: &str,
+    raw: &RawArtifact,
+) -> Result<Artifact, ModelError> {
     let path = required(raw.path.as_deref(), model, "artifacts[].path")?;
     if path.starts_with('/')
         || path.starts_with('\\')
@@ -432,6 +448,13 @@ fn convert_artifact(model: &str, raw: &RawArtifact) -> Result<Artifact, ModelErr
         });
     }
     let url = required(raw.url.as_deref(), model, "artifacts[].url")?;
+    validate_pinned_https_url(model, revision, &url)?;
+    if raw.size_bytes == 0 {
+        return Err(ModelError::InvalidManifest {
+            model: model.to_owned(),
+            reason: format!("artifact '{path}' must declare a non-zero size"),
+        });
+    }
 
     let Some(hash) = raw.sha256.as_deref() else {
         return Err(ModelError::MissingHash {
@@ -448,6 +471,31 @@ fn convert_artifact(model: &str, raw: &RawArtifact) -> Result<Artifact, ModelErr
         size_bytes: raw.size_bytes,
         url,
     })
+}
+
+/// Require HTTPS and the immutable revision as one complete URL component.
+fn validate_pinned_https_url(model: &str, revision: &str, url: &str) -> Result<(), ModelError> {
+    let parsed: ureq::http::Uri = url.parse().map_err(|_| ModelError::UnpinnedArtifactUrl {
+        model: model.to_owned(),
+        url: url.to_owned(),
+        revision: revision.to_owned(),
+    })?;
+    let pinned = parsed.scheme_str() == Some("https")
+        && parsed
+            .authority()
+            .is_some_and(|authority| !authority.as_str().contains('@'))
+        && !url.contains('#')
+        && url
+            .split(['/', '?', '&', '='])
+            .any(|component| component == revision);
+    if !pinned {
+        return Err(ModelError::UnpinnedArtifactUrl {
+            model: model.to_owned(),
+            url: url.to_owned(),
+            revision: revision.to_owned(),
+        });
+    }
+    Ok(())
 }
 
 /// A model needs at least one weight file and exactly one tokenizer.
@@ -490,7 +538,7 @@ fn require_kinds(model: &str, artifacts: &[Artifact]) -> Result<(), ModelError> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fixtures::{OTHER_REVISION, REVISION, manifest_value, parse};
+    use crate::fixtures::{OTHER_REVISION, REVISION, manifest_value, parse, set_revision};
     use serde_json::json;
 
     /// Parse a mutated fixture, expecting failure.
@@ -509,6 +557,10 @@ mod tests {
         assert_eq!(manifest.revision.as_str(), REVISION);
         assert_eq!(manifest.architecture, "example");
         assert_eq!(manifest.license, "example-community-license-1.0");
+        assert_eq!(
+            manifest.license_sha256.to_hex(),
+            crate::fixtures::digest_hex(b"example license text v1")
+        );
         assert_eq!(manifest.modalities, vec![Modality::Text]);
         assert_eq!(manifest.tensor_format, TensorFormat::Safetensors);
         assert_eq!(
@@ -520,6 +572,24 @@ mod tests {
         assert_eq!(manifest.artifacts.len(), 2);
         assert_eq!(manifest.tokenizer().path, "tokenizer.json");
         assert_eq!(manifest.weights().count(), 1);
+    }
+
+    #[test]
+    fn artifact_urls_require_https_and_the_exact_revision_component() {
+        for url in [
+            format!("http://example.invalid/{REVISION}/model.safetensors"),
+            "https://example.invalid/model.safetensors".to_owned(),
+            format!("https://example.invalid/{REVISION}extra/model.safetensors"),
+        ] {
+            let error = reject(|value| value["artifacts"][0]["url"] = json!(url));
+            assert!(matches!(error, ModelError::UnpinnedArtifactUrl { .. }));
+        }
+    }
+
+    #[test]
+    fn artifact_sizes_must_be_nonzero() {
+        let error = reject(|value| value["artifacts"][0]["size_bytes"] = json!(0));
+        assert!(matches!(error, ModelError::InvalidManifest { .. }));
     }
 
     #[test]
@@ -557,7 +627,7 @@ mod tests {
     fn a_sha256_revision_is_accepted() {
         let long = "a".repeat(64);
         let mut value = manifest_value();
-        value["revision"] = json!(long);
+        set_revision(&mut value, &long);
         assert_eq!(parse(&value).revision.as_str(), long);
     }
 

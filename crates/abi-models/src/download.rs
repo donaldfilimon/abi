@@ -18,10 +18,10 @@
 //!         └─ offset < declared size ──► fetch(url, offset, remaining), append, repeat
 //!                                        │
 //!                                        ▼
-//!                            verify partial: size, then SHA-256
+//!                            verify partial: size, then SHA-256, then fsync
 //!                                        │
 //!                     mismatch ──► delete partial, error
-//!                        ok     ──► rename partial to destination
+//!                        ok     ──► atomically link partial to destination
 //! ```
 //!
 //! Two properties are load-bearing:
@@ -41,20 +41,23 @@
 //!   is no cross-process lock on the `.part` file, so two runs would interleave
 //!   appends. The final hash check turns that into a loud failure rather than
 //!   silent corruption, but it is not a supported mode.
-//! - **A transport is trusted to honour `offset`.** Bytes returned from the
-//!   wrong offset are caught only at publish time, by the SHA-256 of the whole
-//!   file — `fetch` results are not otherwise validated.
 //!
-//! No real transport ships here — see [`HttpTransport`].
+//! Custom transports are responsible for their own range semantics. The shipped
+//! [`HttpTransport`] requires an exact `206 Content-Range`, refuses redirects,
+//! and bounds each response before returning bytes to this state machine.
 
 use crate::error::ModelError;
 use crate::manifest::Artifact;
 use crate::verify::hash_file;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 /// Bytes requested per transport call.
 const REQUEST_SIZE: u64 = 1 << 20;
+
+/// Default maximum size of one artifact: 128 GiB.
+pub const DEFAULT_MAX_ARTIFACT_BYTES: u64 = 128 * 1024 * 1024 * 1024;
 
 /// A range of bytes returned by a transport.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,18 +78,152 @@ pub trait ChunkTransport {
     fn fetch(&self, url: &str, offset: u64, max_len: u64) -> Result<Chunk, ModelError>;
 }
 
-/// Placeholder for a real network transport.
+/// Blocking HTTPS byte-range transport.
 ///
-/// **Proposed, not implemented.** Every call returns
-/// [`ModelError::TransportNotImplemented`]. It returns an error rather than
-/// panicking so a caller that reaches for it gets an honest refusal instead of
-/// an abort, and so its absence cannot be mistaken for working code.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct HttpTransport;
+/// Redirects are disabled, plaintext URLs are rejected before dispatch, every
+/// response must be `206 Partial Content`, and `Content-Range` must begin at
+/// the exact requested offset. Bodies are read through a hard byte limit.
+#[derive(Debug, Clone)]
+pub struct HttpTransport {
+    /// Reused client and connection pool; redirects remain disabled globally.
+    agent: ureq::Agent,
+}
+
+impl HttpTransport {
+    /// Construct a bounded HTTPS transport with a reusable connection pool.
+    #[must_use]
+    pub fn new() -> Self {
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .timeout_global(Some(Duration::from_secs(30)))
+            .max_redirects(0)
+            .build()
+            .into();
+        Self { agent }
+    }
+}
+
+impl Default for HttpTransport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ChunkTransport for HttpTransport {
-    fn fetch(&self, _url: &str, _offset: u64, _max_len: u64) -> Result<Chunk, ModelError> {
-        Err(ModelError::TransportNotImplemented)
+    fn fetch(&self, url: &str, offset: u64, max_len: u64) -> Result<Chunk, ModelError> {
+        validate_https_url(url)?;
+        if max_len == 0 {
+            return Err(transport_error(url, "requested range must not be empty"));
+        }
+        let end = offset
+            .checked_add(max_len - 1)
+            .ok_or_else(|| transport_error(url, "requested range overflows u64"))?;
+        let mut response = self
+            .agent
+            .get(url)
+            .header("Range", format!("bytes={offset}-{end}"))
+            .call()
+            .map_err(|error| transport_error(url, error.to_string()))?;
+        if response.status().as_u16() != 206 {
+            return Err(transport_error(
+                url,
+                format!(
+                    "expected HTTP 206 Partial Content, received {}",
+                    response.status()
+                ),
+            ));
+        }
+        let content_range = response
+            .headers()
+            .get("content-range")
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| transport_error(url, "missing valid Content-Range header"))?;
+        let (start, range_end, total_len) = parse_content_range(url, content_range)?;
+        if start != offset || range_end > end {
+            return Err(transport_error(
+                url,
+                format!(
+                    "Content-Range {content_range} does not match requested bytes {offset}-{end}"
+                ),
+            ));
+        }
+        if total_len > DEFAULT_MAX_ARTIFACT_BYTES {
+            return Err(ModelError::ArtifactTooLarge {
+                url: url.to_owned(),
+                actual: total_len,
+                maximum: DEFAULT_MAX_ARTIFACT_BYTES,
+            });
+        }
+        let bytes = response
+            .body_mut()
+            .with_config()
+            .limit(max_len.saturating_add(1))
+            .read_to_vec()
+            .map_err(|error| transport_error(url, error.to_string()))?;
+        let expected_len = range_end - start + 1;
+        let actual_len = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
+        if actual_len != expected_len || actual_len > max_len {
+            return Err(transport_error(
+                url,
+                format!(
+                    "Content-Range declares {expected_len} bytes but body contains {actual_len}"
+                ),
+            ));
+        }
+        Ok(Chunk { bytes, total_len })
+    }
+}
+
+/// Reject plaintext, relative, fragment-bearing, or authority-less URLs.
+fn validate_https_url(url: &str) -> Result<(), ModelError> {
+    let parsed: ureq::http::Uri = url
+        .parse()
+        .map_err(|_| transport_error(url, "URL is not a valid absolute URI"))?;
+    let safe_authority = parsed
+        .authority()
+        .is_some_and(|authority| !authority.as_str().contains('@'));
+    if parsed.scheme_str() != Some("https") || !safe_authority || url.contains('#') {
+        return Err(transport_error(
+            url,
+            "only absolute HTTPS URLs without fragments are allowed",
+        ));
+    }
+    Ok(())
+}
+
+/// Parse `bytes start-end/total`, rejecting wildcard and incoherent values.
+fn parse_content_range(url: &str, value: &str) -> Result<(u64, u64, u64), ModelError> {
+    let range = value
+        .strip_prefix("bytes ")
+        .ok_or_else(|| transport_error(url, format!("invalid Content-Range '{value}'")))?;
+    let (span, total) = range
+        .split_once('/')
+        .ok_or_else(|| transport_error(url, format!("invalid Content-Range '{value}'")))?;
+    let (start, end) = span
+        .split_once('-')
+        .ok_or_else(|| transport_error(url, format!("invalid Content-Range '{value}'")))?;
+    let start = start
+        .parse::<u64>()
+        .map_err(|_| transport_error(url, format!("invalid Content-Range '{value}'")))?;
+    let end = end
+        .parse::<u64>()
+        .map_err(|_| transport_error(url, format!("invalid Content-Range '{value}'")))?;
+    let total = total
+        .parse::<u64>()
+        .map_err(|_| transport_error(url, format!("invalid Content-Range '{value}'")))?;
+    if end < start || end >= total {
+        return Err(transport_error(
+            url,
+            format!("incoherent Content-Range '{value}'"),
+        ));
+    }
+    Ok((start, end, total))
+}
+
+/// Construct a transport error without repeating URL cloning at call sites.
+fn transport_error(url: &str, detail: impl Into<String>) -> ModelError {
+    ModelError::Transport {
+        url: url.to_owned(),
+        detail: detail.into(),
     }
 }
 
@@ -111,6 +248,8 @@ pub struct ResumableDownload<'a> {
     artifact: &'a Artifact,
     /// Final path, written only after verification.
     destination: PathBuf,
+    /// Largest artifact this operation will accept.
+    max_artifact_bytes: u64,
 }
 
 impl<'a> ResumableDownload<'a> {
@@ -120,7 +259,15 @@ impl<'a> ResumableDownload<'a> {
         Self {
             artifact,
             destination: destination.into(),
+            max_artifact_bytes: DEFAULT_MAX_ARTIFACT_BYTES,
         }
+    }
+
+    /// Override the maximum accepted artifact size for this operation.
+    #[must_use]
+    pub const fn with_max_size(mut self, max_artifact_bytes: u64) -> Self {
+        self.max_artifact_bytes = max_artifact_bytes;
+        self
     }
 
     /// The final path.
@@ -152,6 +299,13 @@ impl<'a> ResumableDownload<'a> {
         &self,
         transport: &T,
     ) -> Result<DownloadOutcome, ModelError> {
+        if self.artifact.size_bytes > self.max_artifact_bytes {
+            return Err(ModelError::ArtifactTooLarge {
+                url: self.artifact.url.clone(),
+                actual: self.artifact.size_bytes,
+                maximum: self.max_artifact_bytes,
+            });
+        }
         if self.destination.exists() {
             crate::verify::verify_artifact(&self.destination, self.artifact)?;
             return Ok(DownloadOutcome::AlreadyPresent);
@@ -230,6 +384,8 @@ impl<'a> ResumableDownload<'a> {
         }
         file.flush()
             .map_err(|source| ModelError::io(part, source))?;
+        file.sync_all()
+            .map_err(|source| ModelError::io(part, source))?;
         Ok(have - resumed_from)
     }
 
@@ -257,14 +413,35 @@ impl<'a> ResumableDownload<'a> {
                 actual: digest.to_hex(),
             });
         }
-        std::fs::rename(part, &self.destination)
-            .map_err(|source| ModelError::io(&self.destination, source))
+        let file = std::fs::File::open(part).map_err(|source| ModelError::io(part, source))?;
+        file.sync_all()
+            .map_err(|source| ModelError::io(part, source))?;
+        std::fs::hard_link(part, &self.destination)
+            .map_err(|source| ModelError::io(&self.destination, source))?;
+        // The hard link is the atomic publication point. Cleanup cannot make
+        // the verified destination less valid, so a stale `.part` link is
+        // harmless and must not turn a successful publication into an error.
+        let _ = std::fs::remove_file(part);
+        sync_parent_best_effort(&self.destination);
+        Ok(())
     }
 }
 
 /// Remove a poisoned partial file, ignoring an already-absent path.
 fn discard(part: &Path) {
     let _ = std::fs::remove_file(part);
+}
+
+/// Persist the containing directory where the platform exposes directory
+/// handles. Publication is already atomic; this is an additional durability
+/// step and therefore best-effort.
+fn sync_parent_best_effort(destination: &Path) {
+    #[cfg(unix)]
+    if let Some(parent) = destination.parent()
+        && let Ok(directory) = std::fs::File::open(parent)
+    {
+        let _ = directory.sync_all();
+    }
 }
 
 #[cfg(test)]
@@ -600,7 +777,9 @@ mod tests {
         let download = ResumableDownload::new(artifact, &destination);
 
         // HttpTransport errors on any call, so reaching it would fail the test.
-        let outcome = download.run(&HttpTransport).expect("already present");
+        let outcome = download
+            .run(&HttpTransport::new())
+            .expect("already present");
         assert_eq!(outcome, DownloadOutcome::AlreadyPresent);
     }
 
@@ -614,7 +793,7 @@ mod tests {
         let download = ResumableDownload::new(artifact, &destination);
 
         let error = download
-            .run(&HttpTransport)
+            .run(&HttpTransport::new())
             .expect_err("must not accept corrupt bytes");
         assert!(
             matches!(error, ModelError::HashMismatch { .. }),
@@ -629,7 +808,9 @@ mod tests {
         scratch.write("model.safetensors.part", WEIGHTS_BYTES);
         let download = ResumableDownload::new(artifact, &destination);
 
-        let outcome = download.run(&HttpTransport).expect("nothing left to fetch");
+        let outcome = download
+            .run(&HttpTransport::new())
+            .expect("nothing left to fetch");
         assert_eq!(
             outcome,
             DownloadOutcome::Downloaded {
@@ -644,23 +825,79 @@ mod tests {
     }
 
     #[test]
-    fn the_placeholder_transport_refuses_instead_of_panicking() {
-        let error = HttpTransport
-            .fetch("https://example.invalid/x", 0, 16)
-            .expect_err("no network transport ships here");
-        assert!(
-            matches!(error, ModelError::TransportNotImplemented),
-            "{error:?}"
-        );
+    fn the_http_transport_rejects_plaintext_before_network_io() {
+        let error = HttpTransport::new()
+            .fetch("http://example.invalid/x", 0, 16)
+            .expect_err("plaintext must be refused before dispatch");
+        assert!(matches!(error, ModelError::Transport { .. }), "{error:?}");
+    }
 
-        let (_scratch, manifest, destination) = setup("dl_no_transport");
+    #[test]
+    fn configured_maximum_is_checked_before_file_or_network_io() {
+        let (_scratch, manifest, destination) = setup("dl_size_bound");
         let artifact = manifest.weights().next().expect("weights");
         let error = ResumableDownload::new(artifact, &destination)
-            .run(&HttpTransport)
-            .expect_err("a real download cannot proceed");
+            .with_max_size(artifact.size_bytes - 1)
+            .run(&HttpTransport::new())
+            .expect_err("oversize declaration must fail before dispatch");
         assert!(
-            matches!(error, ModelError::TransportNotImplemented),
+            matches!(error, ModelError::ArtifactTooLarge { .. }),
             "{error:?}"
         );
+        assert!(!destination.exists());
+        assert!(
+            !ResumableDownload::new(artifact, &destination)
+                .part_path()
+                .exists()
+        );
+    }
+
+    #[test]
+    fn a_destination_created_during_download_is_never_overwritten() {
+        struct RacingTransport {
+            destination: PathBuf,
+        }
+
+        impl ChunkTransport for RacingTransport {
+            fn fetch(&self, _url: &str, _offset: u64, _max_len: u64) -> Result<Chunk, ModelError> {
+                std::fs::write(&self.destination, b"winner")
+                    .map_err(|source| ModelError::io(&self.destination, source))?;
+                Ok(Chunk {
+                    bytes: WEIGHTS_BYTES.to_vec(),
+                    total_len: len_of(WEIGHTS_BYTES),
+                })
+            }
+        }
+
+        let (_scratch, manifest, destination) = setup("dl_publish_race");
+        let artifact = manifest.weights().next().expect("weights");
+        let download = ResumableDownload::new(artifact, &destination);
+        let error = download
+            .run(&RacingTransport {
+                destination: destination.clone(),
+            })
+            .expect_err("atomic no-clobber publication must lose the race");
+        assert!(matches!(error, ModelError::Io { .. }), "{error:?}");
+        assert_eq!(
+            std::fs::read(&destination).expect("winner remains"),
+            b"winner"
+        );
+        assert!(
+            download.part_path().exists(),
+            "verified partial is retained"
+        );
+    }
+
+    #[test]
+    fn content_range_parser_rejects_wildcards_and_incoherent_ranges() {
+        assert_eq!(
+            parse_content_range("https://example.invalid/x", "bytes 10-19/20").expect("valid"),
+            (10, 19, 20)
+        );
+        for invalid in ["bytes 10-19/*", "bytes 20-19/21", "bytes 10-21/21"] {
+            let error = parse_content_range("https://example.invalid/x", invalid)
+                .expect_err("invalid range must fail");
+            assert!(matches!(error, ModelError::Transport { .. }), "{error:?}");
+        }
     }
 }

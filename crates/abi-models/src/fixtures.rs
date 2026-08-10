@@ -36,6 +36,7 @@ pub fn manifest_value() -> Value {
         "revision": REVISION,
         "architecture": "example",
         "license": "example-community-license-1.0",
+        "license_sha256": digest_hex(b"example license text v1"),
         "modalities": ["text"],
         "tensor_format": "safetensors",
         "quantizations": ["bf16", "q4_k_m"],
@@ -46,17 +47,29 @@ pub fn manifest_value() -> Value {
                 "kind": "weights",
                 "sha256": digest_hex(WEIGHTS_BYTES),
                 "size_bytes": WEIGHTS_BYTES.len(),
-                "url": "https://example.invalid/model.safetensors"
+                "url": format!("https://example.invalid/{REVISION}/model.safetensors")
             },
             {
                 "path": "tokenizer.json",
                 "kind": "tokenizer",
                 "sha256": digest_hex(TOKENIZER_BYTES),
                 "size_bytes": TOKENIZER_BYTES.len(),
-                "url": "https://example.invalid/tokenizer.json"
+                "url": format!("https://example.invalid/{REVISION}/tokenizer.json")
             }
         ]
     })
+}
+
+/// Change a fixture to another immutable revision, including pinned URLs.
+pub fn set_revision(value: &mut Value, revision: &str) {
+    value["revision"] = json!(revision);
+    for artifact in value["artifacts"]
+        .as_array_mut()
+        .expect("fixture artifacts are an array")
+    {
+        let url = artifact["url"].as_str().expect("fixture URL");
+        artifact["url"] = json!(url.replace(REVISION, revision));
+    }
 }
 
 /// Parse a manifest document, expecting success.

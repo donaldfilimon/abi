@@ -171,16 +171,59 @@ pub enum ModelError {
         detail: String,
     },
 
-    /// No network transport ships in this crate.
-    ///
-    /// Returned by the placeholder real transport instead of panicking, so a
-    /// caller that reaches for it gets an honest refusal rather than an abort.
-    /// See the crate-level "Proposed" list.
+    /// An artifact URL is not an immutable HTTPS source for its revision.
     #[error(
-        "no network transport is implemented in abi-models; \
-         supply a ChunkTransport implementation (real HTTP transport is Proposed, not shipped)"
+        "model '{model}': artifact URL '{url}' is not a pinned HTTPS URL for revision {revision}"
     )]
-    TransportNotImplemented,
+    UnpinnedArtifactUrl {
+        /// Model identifier.
+        model: String,
+        /// Rejected URL.
+        url: String,
+        /// Immutable revision that must appear as a complete URL component.
+        revision: String,
+    },
+
+    /// A declared or reported artifact is larger than the configured bound.
+    #[error("artifact size {actual} bytes exceeds configured maximum {maximum} bytes for {url}")]
+    ArtifactTooLarge {
+        /// Artifact URL or destination identifying the rejected object.
+        url: String,
+        /// Size declared or reported.
+        actual: u64,
+        /// Maximum accepted size.
+        maximum: u64,
+    },
+
+    /// A signed manifest named a publisher key absent from the trust store.
+    #[error("manifest signature names untrusted publisher key '{key_id}'")]
+    UntrustedPublisherKey {
+        /// Publisher key identifier from the envelope.
+        key_id: String,
+    },
+
+    /// A publisher key identifier was configured more than once.
+    #[error("publisher key '{key_id}' is configured more than once")]
+    DuplicatePublisherKey {
+        /// Repeated publisher key identifier.
+        key_id: String,
+    },
+
+    /// Publisher key or signature bytes were malformed.
+    #[error("invalid {kind} hex for publisher key '{key_id}'")]
+    MalformedSignatureMaterial {
+        /// Whether the key or signature was malformed.
+        kind: &'static str,
+        /// Publisher key identifier.
+        key_id: String,
+    },
+
+    /// Signature verification failed for a manifest envelope.
+    #[error("manifest signature verification failed for publisher key '{key_id}'")]
+    InvalidManifestSignature {
+        /// Publisher key identifier.
+        key_id: String,
+    },
 
     /// The model's license has not been accepted for this exact revision.
     #[error(
@@ -207,6 +250,31 @@ pub enum ModelError {
         /// License in the manifest.
         declared: String,
     },
+
+    /// A prior acceptance does not cover the current license digest or
+    /// artifact hash set.
+    #[error(
+        "acceptance for model '{model}' does not cover the current license document and artifact hashes"
+    )]
+    AcceptanceBindingMismatch {
+        /// Model identifier.
+        model: String,
+    },
+
+    /// The requested principal has not accepted this exact model identity.
+    #[error("principal '{principal}' has not accepted model '{model}' at revision {revision}")]
+    PrincipalNotAccepted {
+        /// Model identifier.
+        model: String,
+        /// Immutable model revision.
+        revision: String,
+        /// Principal required by the caller.
+        principal: String,
+    },
+
+    /// A license acceptance principal was blank.
+    #[error("license acceptance principal must not be blank")]
+    InvalidAcceptancePrincipal,
 
     /// The configured weight-storage root lies inside a source repository.
     #[error(

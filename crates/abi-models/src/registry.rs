@@ -4,15 +4,16 @@
 //! duplicates, and is the only place a [`UsableModel`] can be produced.
 //!
 //! That last point is the design decision worth noting. License acceptance is
-//! not a helper a caller may forget to call — [`ModelRegistry::resolve`] is the
-//! sole constructor of `UsableModel`, and it consults the
-//! [`AcceptanceLedger`] first. "Usable" and
+//! not a helper a caller may forget to call — [`ModelRegistry::resolve`] and
+//! [`ModelRegistry::resolve_for`] are the only constructors of `UsableModel`,
+//! and both consult the [`AcceptanceLedger`] first. "Usable" and
 //! "license accepted for this exact revision" are therefore the same statement,
 //! enforced by the type system rather than by convention.
 
 use crate::error::ModelError;
 use crate::license::AcceptanceLedger;
 use crate::manifest::ModelManifest;
+use crate::signed::{PublisherTrustStore, SignedManifestEnvelope};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -52,6 +53,24 @@ impl ModelRegistry {
         for (index, value) in values.iter().enumerate() {
             let element = format!("{context}[{index}]");
             let manifest = ModelManifest::from_json(&element, &value.to_string())?;
+            registry.insert(manifest)?;
+        }
+        Ok(registry)
+    }
+
+    /// Load a JSON array of publisher-signed manifest envelopes.
+    pub fn from_signed_json_array(
+        context: &str,
+        document: &str,
+        trust_store: &PublisherTrustStore,
+    ) -> Result<Self, ModelError> {
+        let values: Vec<serde_json::Value> =
+            serde_json::from_str(document).map_err(|source| ModelError::json(context, source))?;
+        let mut registry = Self::new();
+        for (index, value) in values.iter().enumerate() {
+            let element = format!("{context}[{index}]");
+            let envelope = SignedManifestEnvelope::from_json(&element, &value.to_string())?;
+            let manifest = envelope.verify(&format!("{element}.manifest_json"), trust_store)?;
             registry.insert(manifest)?;
         }
         Ok(registry)
@@ -116,7 +135,8 @@ impl ModelRegistry {
 
     /// Resolve a model for use, requiring recorded license acceptance.
     ///
-    /// This is the only constructor of [`UsableModel`].
+    /// Use [`Self::resolve_for`] when the caller must prove which principal
+    /// supplied the acceptance.
     pub fn resolve<'a>(
         &'a self,
         id: &str,
@@ -124,6 +144,18 @@ impl ModelRegistry {
     ) -> Result<UsableModel<'a>, ModelError> {
         let manifest = self.manifest(id)?;
         ledger.ensure_accepted(manifest)?;
+        Ok(UsableModel { manifest })
+    }
+
+    /// Resolve a model for one exact accepting principal.
+    pub fn resolve_for<'a>(
+        &'a self,
+        id: &str,
+        ledger: &AcceptanceLedger,
+        principal: &str,
+    ) -> Result<UsableModel<'a>, ModelError> {
+        let manifest = self.manifest(id)?;
+        ledger.ensure_accepted_for(manifest, principal)?;
         Ok(UsableModel { manifest })
     }
 }
@@ -149,14 +181,14 @@ impl<'a> UsableModel<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fixtures::{OTHER_REVISION, Scratch, manifest, manifest_value, parse};
+    use crate::fixtures::{OTHER_REVISION, Scratch, manifest, manifest_value, parse, set_revision};
     use serde_json::json;
 
     /// A second manifest with a distinct id.
     fn second_manifest() -> ModelManifest {
         let mut value = manifest_value();
         value["id"] = json!("another-7b");
-        value["revision"] = json!(OTHER_REVISION);
+        set_revision(&mut value, OTHER_REVISION);
         parse(&value)
     }
 
