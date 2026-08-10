@@ -10,6 +10,7 @@ license = "MIT"
 repository = "https://github.com/donaldfilimon/abi"
 
 [workspace.dependencies]
+abi-agent-host = { path = "crates/abi-agent-host" }
 abi-agent-runtime = { path = "crates/abi-agent-runtime" }
 abi-compute = { path = "crates/abi-compute" }
 abi-foundation = { path = "crates/abi-foundation" }
@@ -26,6 +27,7 @@ abi-wdbx-gateway = { path = "crates/abi-wdbx-gateway" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
+jsonschema = { version = "0.49.9", default-features = false }
 sha2 = "0.10"
 crc32fast = "1"
 ctrlc = "3"

@@ -1,0 +1,16 @@
+[package]
+name = "abi-agent-host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Bounded, policy-authorized tool orchestration for ABI model providers."
+
+[dependencies]
+abi-agent-runtime = { workspace = true }
+jsonschema = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true
