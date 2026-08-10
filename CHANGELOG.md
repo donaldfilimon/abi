@@ -8,6 +8,10 @@ truth is the nightly-Rust workspace under `crates/`; readiness is gated by
 
 ### Added
 
+- feat(worker): add `abi-worker` with audience-bound signed job and cancellation
+  envelopes, manager-derived idempotency, finite leases, cooperative cancellation,
+  bounded result streams, verifiable digests, replay protection, independent
+  job-control storage, and gateway-derived mandatory-mTLS configuration.
 - feat(models): add `abi-model-runtime` with exact principal-authorized model
   selection, verified external Tokenizers/Safetensors loading, explicit
   CPU/Metal/CUDA device requests, bounded Candle inference, and separate load
