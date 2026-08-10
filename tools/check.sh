@@ -34,6 +34,19 @@ step "build"
 step "tests"
 "${CARGO}" test --workspace
 
+step "local model device features"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  "${CARGO}" test -p abi-model-runtime --features metal
+  RUSTDOCFLAGS="-D warnings" "${CARGO}" doc -p abi-model-runtime --features metal --no-deps --document-private-items --quiet
+else
+  printf 'Metal runtime evidence unavailable: this gate is not running on macOS\n'
+fi
+if command -v nvcc >/dev/null 2>&1; then
+  "${CARGO}" check -p abi-model-runtime --features cuda
+else
+  printf 'CUDA feature compilation unavailable: nvcc is not installed\n'
+fi
+
 step "benchmark regression (same-system local guard)"
 ./tools/bench_regress.sh
 

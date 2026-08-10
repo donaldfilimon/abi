@@ -15,12 +15,17 @@ Public library and binary surfaces live under `crates/`:
 - `abi-wdbx` — vector/key-value/block store, WAL, cluster/compute/secure demos, REST
 - `abi-gpu` — GPU capability/status reporting, optional Metal DOT, shaders/mlir/mobile report surfaces
 - `abi-connectors` — local/live connector boundaries
+- `abi-agent-runtime` / `abi-agent-host` — provider-neutral run contracts and bounded audited tool orchestration
+- `abi-models` — signed immutable registry, consent, verified download, and external-storage contracts
+- `abi-model-runtime` — explicit Candle local-model loading with separate load/execution evidence
 - `abi-plugins` — bundled plugins + `PluginManager` (compile-time `Plugin` trait + mod/stub parity)
 - `abi-sea` / `abi-nn` / `abi-telemetry` — feature crates behind the same workspace
 - `abi-cli` — binary `abi` (frozen 13-command CLI)
 - `abi-mcp` — binary `abi-mcp` (frozen 12 MCP tools)
 
 There is no monolithic root crate re-exporting every namespace; consumers depend on the workspace crates above.
+
+`abi-model-runtime` publishes `LocalModelProvider`, `DevicePreference`, `LoadReport`, and `InferenceReport`. Loading requires the exact model ID, accepting principal, external storage root, and device choice; there is no global model/device default and no silent substitution or fallback. Its first implemented architecture is the generated-test-only `abi-bigram-v1` transition fixture, which proves real Tokenizers, Safetensors, Candle CPU, and locally exercised Metal execution without placing model artifacts in the repository. The `cuda` feature wires Candle's CUDA backend for toolkit-equipped builds, but compilation and runtime execution are not claimed on hosts without `nvcc`. Gemma and structured tool-call generation are not part of this surface yet.
 
 ## Feature gates and plugin parity
 
