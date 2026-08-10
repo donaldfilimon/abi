@@ -27,16 +27,18 @@
 //!
 //! # The three enforced guarantees
 //!
-//! [`RunContext::emit`] is the single checkpoint for all three, so they cannot
-//! drift apart:
+//! [`RunContext::checkpoint`] is the single cancellation/budget checkpoint;
+//! [`RunContext::emit`] calls it before delivery, and bounded blocking adapters
+//! may call it directly from a polling loop. Capture stays on the event path:
 //!
 //! - **Streaming** — output arrives as ordered [`ModelEvent`] values, with tool
 //!   use carried as structured [`ToolCall`] items rather than text the caller
 //!   must parse. Exactly one [`ModelEvent::Finished`] is delivered, last, even
 //!   when the provider fails.
-//! - **Cancellation** — a [`CancellationToken`] stops the run at the next event
-//!   boundary. It is cooperative and cannot interrupt a provider mid-event.
-//!   A [`RunBudget`] is enforced at the same boundary.
+//! - **Cancellation** — a [`CancellationToken`] stops the run at the next
+//!   provider checkpoint. It is cooperative and cannot interrupt a provider
+//!   step unless that adapter polls. A [`RunBudget`] is enforced at the same
+//!   checkpoints.
 //! - **Bounded capture** — the run's retained transcript stops at
 //!   [`MAX_CAPTURED_BYTES`], truncating on a `UTF-8` character boundary and
 //!   disclosing the loss through [`CapturedText::truncated`]. The event itself

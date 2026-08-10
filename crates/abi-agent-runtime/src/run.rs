@@ -61,13 +61,15 @@ impl RunReport {
 
 /// The handle a provider writes through for the duration of one run.
 ///
-/// Every event passes through [`RunContext::emit`], which is the single
-/// checkpoint for all three guarantees:
+/// Every event passes through [`RunContext::checkpoint`], which is the single
+/// checkpoint for cancellation and budgets. Providers that perform a bounded
+/// blocking step may call it directly from their polling loop without emitting
+/// a synthetic event:
 ///
-/// 1. **Cancellation** — the token is read before each event is delivered, so
-///    a cancelled run stops at the next event boundary. Work already inside a
-///    provider step is not interrupted.
-/// 2. **Budget** — [`RunBudget`] ceilings are evaluated at the same boundary.
+/// 1. **Cancellation** — the token is read at each checkpoint, including before
+///    each event. Work already inside a provider step is not interrupted unless
+///    that provider adds bounded polling checkpoints.
+/// 2. **Budget** — [`RunBudget`] ceilings are evaluated at the same checkpoints.
 /// 3. **Bounded capture** — text is copied into a [`CapturedText`] buffer that
 ///    stops at [`MAX_CAPTURED_BYTES`], while the event itself is still
 ///    delivered to the sink in full.
@@ -124,6 +126,25 @@ impl<'a> RunContext<'a> {
     /// Returns [`Flow::Stop`] when the run has been cancelled or has reached a
     /// budget ceiling; in that case `event` is **not** delivered.
     pub fn emit(&mut self, event: &ModelEvent) -> Flow {
+        if self.checkpoint().is_stop() {
+            return Flow::Stop;
+        }
+        if let Some(text) = event.as_text() {
+            self.capture.push_str(text);
+        }
+        self.sink.emit(event);
+        self.events = self.events.saturating_add(1);
+        Flow::Continue
+    }
+
+    /// Check cancellation and run budgets without delivering an event.
+    ///
+    /// Process-backed and network-backed providers should call this from their
+    /// bounded polling loops. Once it returns [`Flow::Stop`], the context stays
+    /// stopped and the provider must return promptly. This is an observation
+    /// boundary only: it does not expose the cancellation token or let a
+    /// provider manufacture a cancellation request.
+    pub fn checkpoint(&mut self) -> Flow {
         if self.stop.is_some() {
             return Flow::Stop;
         }
@@ -138,11 +159,6 @@ impl<'a> RunContext<'a> {
             self.stop = Some(StopReason::BudgetExhausted(limit));
             return Flow::Stop;
         }
-        if let Some(text) = event.as_text() {
-            self.capture.push_str(text);
-        }
-        self.sink.emit(event);
-        self.events = self.events.saturating_add(1);
         Flow::Continue
     }
 
@@ -284,6 +300,42 @@ mod tests {
         assert_eq!(report.stop, StopReason::Cancelled);
         assert_eq!(report.events, 0);
         assert_eq!(sink.kinds(), vec!["finished"]);
+    }
+
+    #[test]
+    fn checkpoint_observes_cancellation_without_emitting_an_event() {
+        let mut sink = CollectingSink::new();
+        let cancel = CancellationToken::new();
+        let mut run = RunContext::new(&mut sink, &cancel, RunBudget::unlimited());
+        assert_eq!(run.checkpoint(), Flow::Continue);
+        cancel.cancel();
+        assert_eq!(run.checkpoint(), Flow::Stop);
+        assert_eq!(run.checkpoint(), Flow::Stop);
+        let report = run.finish();
+        assert_eq!(report.stop, StopReason::Cancelled);
+        assert_eq!(report.events, 0);
+        assert_eq!(sink.kinds(), vec!["finished"]);
+    }
+
+    #[test]
+    fn checkpoint_observes_an_event_budget_without_counting_itself() {
+        let mut sink = CollectingSink::new();
+        let cancel = CancellationToken::new();
+        let mut run = RunContext::new(
+            &mut sink,
+            &cancel,
+            RunBudget::unlimited().with_max_events(1),
+        );
+        assert_eq!(run.checkpoint(), Flow::Continue);
+        assert_eq!(run.emit(&ModelEvent::text("one")), Flow::Continue);
+        assert_eq!(run.checkpoint(), Flow::Stop);
+        let report = run.finish();
+        assert_eq!(
+            report.stop,
+            StopReason::BudgetExhausted(BudgetLimit::Events)
+        );
+        assert_eq!(report.events, 1);
+        assert_eq!(sink.text(), "one");
     }
 
     #[test]
