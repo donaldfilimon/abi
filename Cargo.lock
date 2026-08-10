@@ -231,6 +231,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "abi-worker"
+version = "0.1.0"
+dependencies = [
+ "abi-agent-runtime",
+ "abi-foundation",
+ "abi-wdbx-gateway",
+ "ed25519-dalek",
+ "rcgen",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.20",
+ "tonic",
+ "uuid",
+]
+
+[[package]]
 name = "aead"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
