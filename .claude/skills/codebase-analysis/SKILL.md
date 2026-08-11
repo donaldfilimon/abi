@@ -34,5 +34,5 @@ Systematic techniques to discover technical debt, outdated patterns, and high-va
 
 Output should be actionable for the planner agent and strategy skill.
 
-Base directory for this skill: /Users/donaldfilimon/abi/.claude/skills/codebase-analysis
+Base directory for this skill: /Users/donaldfilimon/dev/active/abi/.claude/skills/codebase-analysis
 Relative paths in this skill (e.g., references/) are relative to this base directory.

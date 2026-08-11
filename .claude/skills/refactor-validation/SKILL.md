@@ -20,5 +20,5 @@ Validation layers for modernization: behavioral parity, modern quality, structur
 Run the validation skill plus a Rust-aware `abi` or `refactor-planner` agent
 review as the final step.
 
-Base directory for this skill: /Users/donaldfilimon/abi/.claude/skills/refactor-validation
+Base directory for this skill: /Users/donaldfilimon/dev/active/abi/.claude/skills/refactor-validation
 Relative paths in this skill (e.g., references/) are relative to this base directory.
