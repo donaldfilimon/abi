@@ -21,5 +21,5 @@ Safe transformation techniques for applying modern designs while preserving beha
 
 Pair with the Rust-aware `abi` or `refactor-planner` agent for larger modules.
 
-Base directory for this skill: /Users/donaldfilimon/abi/.claude/skills/refactor-implementation
+Base directory for this skill: /Users/donaldfilimon/dev/active/abi/.claude/skills/refactor-implementation
 Relative paths in this skill (e.g., references/) are relative to this base directory.

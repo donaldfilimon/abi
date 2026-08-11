@@ -53,5 +53,5 @@ as an optional Claude-side local override file (host-side only; not
 required for this skill). The template is not auto-loaded from
 inside the plugin package — it is an optional host-side override only.
 
-Base directory for this skill: /Users/donaldfilimon/abi/.claude/skills/refactor-strategy
+Base directory for this skill: /Users/donaldfilimon/dev/active/abi/.claude/skills/refactor-strategy
 Relative paths in this skill (e.g., references/) are relative to this base directory.
