@@ -271,6 +271,9 @@ test_imports3
 !/tests/golden/README.md
 !/tests/golden/wdbx-format.md
 
+# Historical-analysis index (the dated analyses themselves stay untracked)
+!/analysis/README.md
+
 # GitHub Actions runner ops (self-hosted security + day-2)
 !/.github/self-hosted-runner.md
 

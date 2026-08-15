@@ -37,12 +37,49 @@ production multi-host sharding, native ANE/CUDA/TPU execution, audited FHE,
 production-scale learned compression, or unpublished performance figures.
 Design extracts must remain labeled as references rather than shipped runtime.
 
-## Validation
+## Rustdoc style
+
+- Start with a one-sentence summary.
+- Add details only when the contract or invariants are not obvious from the
+  signature.
+- Use `# Errors`, `# Panics`, and `# Safety` sections when they apply.
+- Keep examples executable where practical; use `no_run` only when the example
+  requires an external service or operator-owned path.
+
+Example:
+
+```rust
+/// Computes a deterministic embedding for local retrieval.
+///
+/// # Errors
+///
+/// Returns [`EmbeddingError::EmptyInput`] when `input` is empty.
+pub fn embed(input: &str) -> Result<Vec<f32>, EmbeddingError> {
+    // implementation
+}
+```
+
+## Validation and preview
+
+- Format Rust: `./tools/cargo.sh fmt --all`.
+- Primary repository gate:
 
 ```bash
 ./tools/check.sh
 ```
 
+- After changing `docs/`, validate the Mintlify site with
+  `.agents/skills/docs-validate/validate.sh` (requires an LTS Node runtime;
+  Mintlify rejects Node 25+).
+- Local preview: `cd docs && npx mint@latest dev`.
+
 Docs that describe the old Zig build (`build.zig`, `.zigversion`,
 `zig-out/bin/abi`) are historical and should be rewritten to the Rust lifecycle
 above when touched.
+
+## Submitting docs
+
+- Create a branch and open a PR referencing the relevant issue.
+- Include examples and steps to validate any code snippets.
+- Follow claim boundaries in
+  [`contracts/external-claims-audit.mdx`](contracts/external-claims-audit).
