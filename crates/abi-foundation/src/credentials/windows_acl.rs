@@ -12,10 +12,12 @@
 //!
 //! ## Verification status
 //!
-//! This is compile-checked only. The Zig original was in the same position — its
-//! cross-target check was compile-only and no test exercised the path — and this
-//! host is macOS, so nothing here has been run. It is *not* verified working; it
-//! is a faithful port of code that was itself unverified. Unlike the POSIX path,
+//! Exercised by `tests::apply_owner_only_acl_on_temp_credentials_file`, which
+//! runs on a Windows runner in CI — the only place this path can be verified,
+//! since development hosts here are macOS. That test caught a real defect: the
+//! original port passed only `DACL_SECURITY_INFORMATION` to
+//! `SetNamedSecurityInfoW`, so the `P` (protected) flag in the SDDL was silently
+//! dropped and the credential file kept inheriting ACEs from its parent. Unlike the POSIX path,
 //! a failure is surfaced as an error rather than ignored, so a broken ACL fails
 //! the write instead of leaving a secret behind permissive inherited ACLs.
 
@@ -32,7 +34,8 @@ use windows_sys::Win32::Security::Authorization::{
     SE_FILE_OBJECT, SetNamedSecurityInfoW,
 };
 use windows_sys::Win32::Security::{
-    DACL_SECURITY_INFORMATION, GetSecurityDescriptorDacl, PSECURITY_DESCRIPTOR,
+    DACL_SECURITY_INFORMATION, GetSecurityDescriptorDacl, PROTECTED_DACL_SECURITY_INFORMATION,
+    PSECURITY_DESCRIPTOR,
 };
 
 /// Grant full access to the file owner only.
@@ -162,11 +165,16 @@ fn apply_descriptor(path_w: &mut [u16], descriptor: PSECURITY_DESCRIPTOR) -> Res
 
     // SAFETY: `path_w` is NUL-terminated UTF-16 and `dacl` borrows from
     // `descriptor`, which outlives this call in `apply`.
+    // `SetNamedSecurityInfoW` takes DACL protection from this bitmask, NOT from
+    // the `P` flag in the SDDL the descriptor was built from. Without
+    // PROTECTED_DACL_SECURITY_INFORMATION the object keeps inheriting ACEs from
+    // its parent directory, which is precisely the exposure this module exists
+    // to close, so the flag is load-bearing rather than belt-and-braces.
     let status = unsafe {
         SetNamedSecurityInfoW(
             path_w.as_mut_ptr(),
             SE_FILE_OBJECT,
-            DACL_SECURITY_INFORMATION,
+            DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
             std::ptr::null_mut(),
             std::ptr::null_mut(),
             dacl,
