@@ -78,6 +78,13 @@ pub fn apply(path: &Path) -> Result<(), AbiError> {
 /// Verify that an existing file has the exact protected owner-only DACL ABI
 /// applies to newly created credential and private-key files.
 pub fn is_owner_only(path: &Path) -> Result<bool, AbiError> {
+    dacl_sddl(path).map(|sddl| sddl_is_owner_only(&sddl))
+}
+
+/// Read back the file's DACL as an SDDL string. Exposed at crate level so
+/// the Windows CI test can report *what* the DACL actually is when the
+/// owner-only check fails, instead of a bare boolean.
+pub(crate) fn dacl_sddl(path: &Path) -> Result<String, AbiError> {
     let mut path_w: Vec<u16> = path.as_os_str().encode_wide().collect();
     path_w.push(0);
     let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
@@ -105,7 +112,7 @@ pub fn is_owner_only(path: &Path) -> Result<bool, AbiError> {
     unsafe {
         LocalFree(descriptor.cast());
     }
-    result.map(|sddl| sddl_is_owner_only(&sddl))
+    result
 }
 
 fn descriptor_dacl_sddl(descriptor: PSECURITY_DESCRIPTOR) -> Result<String, AbiError> {
@@ -204,6 +211,14 @@ mod tests {
         let path = std::env::temp_dir().join(format!("abi-acl-test-{ns}.json"));
         fs::write(&path, br#"{"openai_api_key":"x"}"#).expect("write");
         apply(&path).expect("apply owner-only DACL must succeed on Windows");
+        // Assert on the SDDL text, not a boolean, so a failure prints the DACL
+        // Windows actually applied — the only evidence available from a
+        // macOS-hosted development loop.
+        let sddl = dacl_sddl(&path).expect("inspect owner-only DACL");
+        assert_eq!(
+            sddl, "D:P(A;;FA;;;OW)",
+            "credential file DACL is not the exact protected owner-only DACL"
+        );
         assert!(is_owner_only(&path).expect("inspect owner-only DACL"));
         // Re-apply is idempotent.
         apply(&path).expect("second apply");
