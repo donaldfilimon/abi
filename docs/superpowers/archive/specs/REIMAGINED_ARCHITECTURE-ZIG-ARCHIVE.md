@@ -56,7 +56,7 @@ flowchart BT
 
 | Binary | Composition root owns | Passes into handlers |
 |--------|----------------------|----------------------|
-| `abi` | `AppContext` { allocator, io?, Session?, Scheduler?, metrics? } | CLI handlers receive `*AppContext` |
+| `abi` | `AppContext { allocator, io?, Session?, Scheduler?, metrics? }` | CLI handlers receive `*AppContext` |
 | `abi-mcp` | Same shape; Session ambient for tools | MCP tools receive `*AppContext` |
 
 **Rules:**

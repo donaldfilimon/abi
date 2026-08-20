@@ -52,6 +52,23 @@ Specialized hardware can potentially reduce latency, increase throughput, and im
 - Short term: prototype an HLS kernel on a cloud FPGA instance or affordable dev board
 - Medium term: identify a partner or vendor for deeper exploration if PoC shows clear perf/cost benefits
 
+## PoC task checklist
+
+Concrete steps for the PoC plan above (formerly `poctasks.md`):
+
+- [ ] Select FPGA target (vendor/model)
+- [ ] Set up toolchain (Vivado/Vitis or Quartus)
+- [ ] Implement simple kernel (matrix multiply / GEMM)
+- [ ] Cross-compile and run on dev board or cloud FPGA instance
+- [ ] Collect latency and throughput metrics, produce JSON output
+- [ ] Compare results against GPU baseline
+- [ ] Document findings in this file
+
+Notes:
+
+- Keep PoC focused on a single representative kernel to reduce scope and time.
+- Where possible, leverage vendor examples and existing open-source toolchains.
+
 ---
 
 *Research scaffold — not a production roadmap commitment.*
