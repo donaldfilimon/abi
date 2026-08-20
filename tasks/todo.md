@@ -125,7 +125,7 @@ See `docs/superpowers/archive/plans/2026-07-31-rust-647-followups.md`.
 | ---- | ------ | ----- |
 | Live Discord/Twilio TLS clients | ✅ | rustls `wss://` via `abi-connectors::tls_ws`; offline process-local TLS peer tests |
 | Metal DOT kernels | ✅ | `metal-kernels` feature; `accelerated=true` when init succeeds; CPU oracle test |
-| Windows credential ACL CI | ◑ | `cfg(windows)` tests are written and the `windows-acl` job is configured on `windows-latest`, but it has **never executed**: every GitHub-hosted job is refused at dispatch with *"The job was not started because your account is locked due to a billing issue."* (~3s, zero steps). The ACL behavior is therefore unproven at runtime on any host. Re-verify and restore ✅ only after a hosted run actually reports steps. |
+| Windows credential ACL CI | ✅ | PR #794 ran on Windows Server 2025 on 2026-08-19: 2 ACL tests and 7 credential-file tests passed. The test found and pinned the missing protected-DACL flag plus Windows' `AI` bookkeeping form. |
 | True incremental NN sampler | ✅ | `SampleState::step` + demo GGUF load/sample |
 
 ---
