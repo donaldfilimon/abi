@@ -12,10 +12,12 @@
 //!
 //! ## Verification status
 //!
-//! This is compile-checked only. The Zig original was in the same position — its
-//! cross-target check was compile-only and no test exercised the path — and this
-//! host is macOS, so nothing here has been run. It is *not* verified working; it
-//! is a faithful port of code that was itself unverified. Unlike the POSIX path,
+//! Exercised by `tests::apply_owner_only_acl_on_temp_credentials_file`, which
+//! runs on a Windows runner in CI — the only place this path can be verified,
+//! since development hosts here are macOS. That test caught a real defect: the
+//! original port passed only `DACL_SECURITY_INFORMATION` to
+//! `SetNamedSecurityInfoW`, so the `P` (protected) flag in the SDDL was silently
+//! dropped and the credential file kept inheriting ACEs from its parent. Unlike the POSIX path,
 //! a failure is surfaced as an error rather than ignored, so a broken ACL fails
 //! the write instead of leaving a secret behind permissive inherited ACLs.
 
@@ -32,7 +34,8 @@ use windows_sys::Win32::Security::Authorization::{
     SE_FILE_OBJECT, SetNamedSecurityInfoW,
 };
 use windows_sys::Win32::Security::{
-    DACL_SECURITY_INFORMATION, GetSecurityDescriptorDacl, PSECURITY_DESCRIPTOR,
+    DACL_SECURITY_INFORMATION, GetSecurityDescriptorDacl, PROTECTED_DACL_SECURITY_INFORMATION,
+    PSECURITY_DESCRIPTOR,
 };
 
 /// Grant full access to the file owner only.
@@ -75,6 +78,13 @@ pub fn apply(path: &Path) -> Result<(), AbiError> {
 /// Verify that an existing file has the exact protected owner-only DACL ABI
 /// applies to newly created credential and private-key files.
 pub fn is_owner_only(path: &Path) -> Result<bool, AbiError> {
+    dacl_sddl(path).map(|sddl| sddl_is_owner_only(&sddl))
+}
+
+/// Read back the file's DACL as an SDDL string. Exposed at crate level so
+/// the Windows CI test can report *what* the DACL actually is when the
+/// owner-only check fails, instead of a bare boolean.
+pub(crate) fn dacl_sddl(path: &Path) -> Result<String, AbiError> {
     let mut path_w: Vec<u16> = path.as_os_str().encode_wide().collect();
     path_w.push(0);
     let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
@@ -102,7 +112,7 @@ pub fn is_owner_only(path: &Path) -> Result<bool, AbiError> {
     unsafe {
         LocalFree(descriptor.cast());
     }
-    result.map(|sddl| sddl_is_owner_only(&sddl))
+    result
 }
 
 fn descriptor_dacl_sddl(descriptor: PSECURITY_DESCRIPTOR) -> Result<String, AbiError> {
@@ -137,8 +147,39 @@ fn descriptor_dacl_sddl(descriptor: PSECURITY_DESCRIPTOR) -> Result<String, AbiE
     Ok(value)
 }
 
+/// Accept exactly one DACL shape: protected (`P`), a single ACE granting
+/// full access to the object owner, and nothing else.
+///
+/// The `AI` (`SE_DACL_AUTO_INHERITED`) flag is tolerated because Windows
+/// stamps it on any DACL that has been through the auto-inheritance
+/// machinery — `SetNamedSecurityInfoW` sets it even when the DACL is
+/// protected. It is bookkeeping, not permission: with `P` present no ACE
+/// is inherited, and the ACE list here is still required to be exactly the
+/// owner-only ACE. Observed on the Windows CI runner: `D:PAI(A;;FA;;;OW)`.
 fn sddl_is_owner_only(sddl: &str) -> bool {
-    sddl == "D:P(A;;FA;;;OW)"
+    let Some(rest) = sddl.strip_prefix("D:") else {
+        return false;
+    };
+    // Control flags run up to the first ACE. Require P; allow AI; reject any
+    // other flag (e.g. AR, or an absent P) since those change semantics.
+    let Some(ace_start) = rest.find('(') else {
+        return false;
+    };
+    let (flags, aces) = rest.split_at(ace_start);
+    let mut has_p = false;
+    let mut i = 0;
+    let fb = flags.as_bytes();
+    while i < fb.len() {
+        match &flags[i..] {
+            f if f.starts_with("AI") => i += 2,
+            f if f.starts_with('P') => {
+                has_p = true;
+                i += 1;
+            }
+            _ => return false,
+        }
+    }
+    has_p && aces == "(A;;FA;;;OW)"
 }
 
 fn apply_descriptor(path_w: &mut [u16], descriptor: PSECURITY_DESCRIPTOR) -> Result<(), AbiError> {
@@ -162,11 +203,16 @@ fn apply_descriptor(path_w: &mut [u16], descriptor: PSECURITY_DESCRIPTOR) -> Res
 
     // SAFETY: `path_w` is NUL-terminated UTF-16 and `dacl` borrows from
     // `descriptor`, which outlives this call in `apply`.
+    // `SetNamedSecurityInfoW` takes DACL protection from this bitmask, NOT from
+    // the `P` flag in the SDDL the descriptor was built from. Without
+    // PROTECTED_DACL_SECURITY_INFORMATION the object keeps inheriting ACEs from
+    // its parent directory, which is precisely the exposure this module exists
+    // to close, so the flag is load-bearing rather than belt-and-braces.
     let status = unsafe {
         SetNamedSecurityInfoW(
             path_w.as_mut_ptr(),
             SE_FILE_OBJECT,
-            DACL_SECURITY_INFORMATION,
+            DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
             std::ptr::null_mut(),
             std::ptr::null_mut(),
             dacl,
@@ -196,6 +242,14 @@ mod tests {
         let path = std::env::temp_dir().join(format!("abi-acl-test-{ns}.json"));
         fs::write(&path, br#"{"openai_api_key":"x"}"#).expect("write");
         apply(&path).expect("apply owner-only DACL must succeed on Windows");
+        // Assert on the SDDL text, not a boolean, so a failure prints the DACL
+        // Windows actually applied — the only evidence available from a
+        // macOS-hosted development loop.
+        let sddl = dacl_sddl(&path).expect("inspect owner-only DACL");
+        assert!(
+            sddl_is_owner_only(&sddl),
+            "credential file DACL is not protected owner-only; got {sddl:?}"
+        );
         assert!(is_owner_only(&path).expect("inspect owner-only DACL"));
         // Re-apply is idempotent.
         apply(&path).expect("second apply");
@@ -222,7 +276,15 @@ mod policy_tests {
     #[test]
     fn exact_owner_only_policy_rejects_extra_or_inherited_access() {
         assert!(sddl_is_owner_only("D:P(A;;FA;;;OW)"));
+        // What Windows actually returns after SetNamedSecurityInfoW with the
+        // protected flag: AI is bookkeeping, P still governs.
+        assert!(sddl_is_owner_only("D:PAI(A;;FA;;;OW)"));
+        assert!(sddl_is_owner_only("D:AIP(A;;FA;;;OW)"));
+        // AI without P is NOT owner-only: inheritance is live.
+        assert!(!sddl_is_owner_only("D:AI(A;;FA;;;OW)"));
         assert!(!sddl_is_owner_only("D:(A;;FA;;;OW)"));
+        // Any other control flag is rejected rather than guessed at.
+        assert!(!sddl_is_owner_only("D:PAR(A;;FA;;;OW)"));
         assert!(!sddl_is_owner_only("D:P(A;;FA;;;OW)(A;;FR;;;WD)"));
         assert!(!sddl_is_owner_only("D:P(A;;FA;;;SY)"));
     }
