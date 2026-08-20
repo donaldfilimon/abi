@@ -125,7 +125,7 @@ See `docs/superpowers/archive/plans/2026-07-31-rust-647-followups.md`.
 | ---- | ------ | ----- |
 | Live Discord/Twilio TLS clients | ✅ | rustls `wss://` via `abi-connectors::tls_ws`; offline process-local TLS peer tests |
 | Metal DOT kernels | ✅ | `metal-kernels` feature; `accelerated=true` when init succeeds; CPU oracle test |
-| Windows credential ACL CI | ✅ | PR #794 ran on Windows Server 2025 on 2026-08-19: 2 ACL tests and 7 credential-file tests passed. The test found and pinned the missing protected-DACL flag plus Windows' `AI` bookkeeping form. |
+| Windows credential ACL CI | ✅ | PR #794 ran on Windows Server 2025 on 2026-08-19: 2 ACL tests and 7 credential-file tests passed. The test found and pinned the missing protected-DACL flag plus Windows' `AI` bookkeeping form; caller docs now point to that runtime proof. |
 | True incremental NN sampler | ✅ | `SampleState::step` + demo GGUF load/sample |
 
 ---
