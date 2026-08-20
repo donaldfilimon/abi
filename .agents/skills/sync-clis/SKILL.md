@@ -70,6 +70,30 @@ The central driver never touches the in-repo mirrors, so running A alone leaves
 6. The interactive shell here has `noclobber` set; plain `cat > file` is refused.
    Use `cat >| file` when scripting edits by hand.
 
+7. **`abi-mega` is a live dependency — never archive or delete it.** It lives at
+   `~/dev/active/plugins/abi-mega` (moved twice: `~/plugins/` → `~/Projects/plugins/`
+   2026-08-04 → `~/dev/active/plugins/` 2026-08-09; the manifest
+   `~/.grok/sync-targets.json` was repointed both times and all 14 sync paths
+   verified). Central sources: `~/.grok/skills` (13 skills) + abi-mega's `skills/`,
+   plus `~/.grok/bundled/personas` and `~/.grok/bundled/roles`. The sync recreates
+   `~/tmp/grok-goal-scratch/implementer/` for logs — that dir reappearing is
+   expected, not clutter.
+8. **Two sync mechanisms; the central one does not cover the other's targets.**
+   (A) the central driver above; (B) `~/dev/active/abi/.agents/skills/sync-clis/launch.sh`,
+   which mirrors abi's in-repo skills into `~/dev/active/abi/.claude/skills` and
+   `~/dev/active/abi/.grok`. **Run A, then B** — A alone leaves the in-repo mirrors
+   stale. B is idempotent (run 2026-08-19: 0 git changes).
+9. **opencode gets flat `command/<name>.md` wrappers, and `sync-clis.py` writes
+   them only `if not wrapper.exists()` — it can never repair or update one — and
+   caps at `CORE_SKILLS[:6]`.** Found 2026-08-19: all 11 wrappers had accumulated
+   duplicate YAML frontmatter, so the visible description was the stub `synced from
+   central`. Rebuilt all 13 by hand (backup:
+   `~/Archive/2026-08-18-home-cleanup/opencode-command-before-2026-08-19/`). New
+   core skills will not reach opencode until that script is changed.
+10. Parsing a `SKILL.md` frontmatter description with a regex is wrong — many use
+    folded scalars (`description: >`), and a naive pattern captures the literal
+    `>`. Parse the block scalar properly.
+
 ## ABI context
 
 `~/abi` is a **nightly Rust** workspace (`crates/*`, `./tools/cargo.sh`,

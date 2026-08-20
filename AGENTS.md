@@ -67,12 +67,12 @@ use scratch `DurableStore` paths, `ABI_WDBX_PATH=:memory:`, or
 
 - Conventional Commits. **Never force-push `main`**.
 - CI runs `./tools/check.sh` on nightly Rust on the **self-hosted macOS ARM64
-  runner** for trusted same-repo pushes/PRs. That job is the only one that
-  actually executes: every **GitHub-hosted** job (`windows credential ACL`, and
-  the fork-PR `check-hosted` fallback) is refused at dispatch with *"The job was
-  not started because your account is locked due to a billing issue."* Treat a
-  red self-hosted `check.sh` as blocking; do not read a red hosted job as a
-  code failure, and do not claim hosted coverage the account cannot run.
+  runner** for trusted same-repo pushes/PRs. The GitHub-hosted Windows credential
+  ACL job also executes: PR #794 ran the Windows Server 2025 tests successfully
+  on 2026-08-19. The hosted macOS fallback is restricted to fork PRs and is
+  therefore skipped on trusted same-repo work. Treat either an executed
+  self-hosted gate or Windows ACL failure as blocking; a conditionally skipped
+  fallback is not a code failure.
 
 ## Learned User Preferences
 

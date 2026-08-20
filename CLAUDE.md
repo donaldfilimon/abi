@@ -44,13 +44,12 @@ PR #777 and now defers to `AGENTS.md`.
 There is no separate lint-only or build-only CI — `.github/workflows/ci.yml`
 runs `./tools/check.sh` on a **self-hosted macOS ARM64 runner** for trusted
 same-repo pushes/PRs, and that job does execute (see
-`.github/self-hosted-runner.md`). The **GitHub-hosted** jobs in the same
-workflow do not: `windows credential ACL` (`windows-latest`) and the fork-PR
-`check-hosted` fallback (`macos-latest`) are refused at dispatch with *"The job
-was not started because your account is locked due to a billing issue."* — they
-complete in ~3s having run zero steps. So a red hosted job is a billing signal,
-not a code signal, and nothing verified only by a hosted job may be described as
-covered. Treat a red self-hosted `check.sh` — locally or in CI — as blocking.
+`.github/self-hosted-runner.md`). The GitHub-hosted `windows credential ACL`
+job executes too: PR #794 ran the Windows Server 2025 ACL and credential-file
+tests successfully on 2026-08-19. The hosted macOS `check-hosted` fallback is
+restricted to fork PRs and is skipped on same-repo branches by design. Treat a
+red executed self-hosted or Windows job as blocking; do not treat a
+conditionally skipped fallback as a code failure.
 
 ### Local smoke walkthrough
 
