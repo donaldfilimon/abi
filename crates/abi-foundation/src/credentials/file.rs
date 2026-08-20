@@ -222,9 +222,9 @@ pub fn mode_of(_path: impl AsRef<Path>) -> Result<u32, AbiError> {
 
 /// Grant full access only to the owner via a Windows DACL.
 ///
-/// Delegates to [`super::windows_acl`], which is a faithful port of the Zig
-/// `advapi32` block but — like the original — compile-checked only. See that
-/// module for the verification caveat.
+/// Delegates to [`super::windows_acl`], whose real-file apply and read-back
+/// path runs on Windows in CI. See that module for the exact DACL contract and
+/// runtime evidence.
 #[cfg(windows)]
 fn apply_windows_owner_only_acl(path: &Path) -> Result<(), AbiError> {
     super::windows_acl::apply(path)
