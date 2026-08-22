@@ -105,6 +105,7 @@ git commit -m "docs(wdbx): record public source boundary"
 
 - [ ] **Step 1: Write the failing tests**
 
+{% raw %}
 ```python
 class PublicWdbxWorkflowTests(unittest.TestCase):
     def test_wdbx_checkout_is_public_and_credential_free(self):
@@ -121,6 +122,7 @@ class PublicWdbxWorkflowTests(unittest.TestCase):
         self.assertIn("github.event.pull_request.head.repo.full_name != github.repository", text)
         self.assertIn("runs-on: macos-latest", text)
 ```
+{% endraw %}
 
 - [ ] **Step 2: Verify RED**
 

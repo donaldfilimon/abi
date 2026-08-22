@@ -10,6 +10,20 @@
 
 **Prerequisite:** `2026-08-22-program-1-abbey-contract-corpus.md` is complete and its exact ABI commit/digest are known.
 
+## Implementation status — 2026-08-22
+
+- Tasks 1 through 6 are implemented and freshly green at the exact revisions
+  recorded in `../evidence/2026-08-22-program-1-c1-matrix.md`.
+- All four consumer trees pass ABI's read-only exact-byte vendoring check.
+- Task 7's identity, digest comparison, full-local-gate, and evidence-boundary
+  steps are complete in the closeout branch.
+- ABI and WDBX were pushed and merged by a concurrent provider-side workflow;
+  their exact-head hosted gates passed. WDBX default-branch rerun evidence and
+  ABI Pages evidence remain reported separately in the matrix.
+- Nightly Abbey, stable Rust Abbey bot, and Swift AbbeyBot remain local branches
+  pending an explicit finishing-branch choice. No production deployment or
+  participant-consented live Discord session was authorized or performed.
+
 ## Global Constraints
 
 - Create clean `cursor/abbey-contracts-v1-20260822` worktrees from each repository's current `origin/main`. Never edit dirty shared primary checkouts.
