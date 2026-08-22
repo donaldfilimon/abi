@@ -1,8 +1,9 @@
 # WDBX conformance gap analysis
 
 Status: **observation.** Measured against `dev/active/abi` at `origin/main`
-(`0278a2f` lineage) on 2026-08-22. Input to Program 3, the Canonical WDBX
-Episodic Contract.
+(`0278a2f` lineage) on 2026-08-22. Input to the canonical WDBX episodes spec
+(`2026-08-22-spec-canonical-wdbx-episodes.md`), which the ratified
+constitution section 13 calls Program 4.
 
 Reference: `CSAPS_WDBX_Revised_2026.pdf` revision 2.0, sections 6.1 through 6.9
 and normative requirements R1 through R12. The paper is a **proposed

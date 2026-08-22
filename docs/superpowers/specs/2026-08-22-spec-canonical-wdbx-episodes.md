@@ -1,10 +1,30 @@
-# Program 3: Canonical WDBX Episodic Contract
+# Canonical WDBX Episodic Contract
 
-Status: **proposed.** Program 3 of seven. Written 2026-08-22.
+> **Constitutional mapping.** This file was written against the seven-program
+> list Donald gave in conversation. The ratified constitution's section 13
+> "Delivery programs" uses a different numbering, and the constitution wins.
+> In section 13's terms this document specifies **Program 4, Canonical WDBX episodes and claims.**
+>
+> The filename is therefore name-based rather than numbered, so no numbering is
+> asserted. Nothing in section 13 was renumbered: section 15 reserves amendment
+> to Donald, and the collision is raised as one request covering the whole set
+> rather than five independent ones.
+
+
+Status: **proposed.** Written 2026-08-22. See the constitutional mapping below for its section 13 program number.
 
 Depends on the ratified `2026-08-22-abbey-system-constitution.md` and the
 measured `2026-08-22-wdbx-conformance-gap-analysis.md`. Where those disagree
 with this document, they win.
+
+**Reference correction, 2026-08-22.** This spec was drafted against the earlier
+199-line constitution, whose lettered invariants (A2, A3, I3, I5) and L0-L8
+ladder were superseded when Donald expanded the document to 907 lines at
+`c113aec`. The ratified equivalents are the numbered decision register in
+section 14 and the **C0 through C7** ladder in section 11. Mappings used below:
+I1 -> decision 26 (integrity never implies truth), I2 -> decision 27 (similarity
+never implies applicability), retention and deletion -> decisions 28 through 30,
+projections -> decision 25. There is no C8.
 
 ## The one-sentence problem
 
@@ -123,7 +143,7 @@ commitment was ever valid.
 ### 3. Trust is eight dimensions, never one score
 
 `ScoreComponents::combined()` multiplies four factors into one number. That is
-the opaque collapse constitutional invariant I3 forbids, and it has a sharp
+the opaque collapse the constitution forbids (section 5, and decisions 26 and 27 read together), and it has a sharp
 behavioral consequence: any single zero factor silently vetoes a result with no
 way for the caller to see which one did it.
 
@@ -172,8 +192,9 @@ its own failures is worse than one that records nothing.
 
 `Verify` matters because verification currently happens internally on open and
 materialization and is not callable by a consumer that wants to check a block
-before acting on it. Under the evidence ladder, acting on an unverified
-retrieval is claiming L6 on L3 evidence.
+before acting on it. Under section 11's ladder, acting on an unverified
+retrieval claims C6 evidence (an operator witnessed the exact outcome) on the
+strength of C1 (source conforms under test).
 
 ### 5. Deletion without an undeletable record
 
@@ -205,7 +226,7 @@ into the substrate rather than reinvented.
 | --- | --- |
 | `abi-wdbx` v2 (canonical) | Becomes v3. The one authority. |
 | `abbey` memory backend | Consumer of the substrate. Its `obsolete` semantics get lifted into section 5. |
-| `abbey-bot` `# ABI-WDBX v1` projection | **Stays a projection**, and stays independent. It pins stable Rust 1.97.1 while `abi-compute` needs nightly `portable_simd`, so no toolchain compiles both. Conformance stays fixture-based and gated on both sides. It must declare which episode fields it drops. |
+| `abbey-bot` `# ABI-WDBX v1` projection | **Stays a projection** (decision 25), and stays independent. It pins stable Rust 1.97.1 while `abi-compute` needs nightly `portable_simd`, so no toolchain compiles both. Conformance stays fixture-based and gated on both sides. It must declare which episode fields it drops. |
 | Swift `AbbeyBot` store at `~/.abbey/wdbx/` | **Currently unreconciled.** 862 records, 18-dimension vectors, camelCase JSON with UUID ids and a `manifest.json` plus `segments/seg-0000.jsonl` layout. `abi wdbx` cannot read it. Program 3 must either define a projection contract it satisfies or migrate it. |
 | `abbey` WDBX bridge naming | Cosmetic. `abbey_store_base` already documents that Abbey opens a directory while `abi wdbx` splits parent plus base name. |
 
