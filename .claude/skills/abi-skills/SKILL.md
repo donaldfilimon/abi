@@ -14,18 +14,53 @@ Codex plugin.
 - Repository instructions: `AGENTS.md`, then `tasks/lessons.md` and `tasks/todo.md`.
 - Nightly pin: `rust-toolchain.toml` and `.github/workflows/ci.yml` must agree.
 - Canonical repository skills: `.agents/skills/`.
-- Repository mirrors: `.claude/skills/` and `.grok/`, synchronized by
-  `.agents/skills/sync-clis/launch.sh`.
+- Repository mirrors: `.claude/skills/`, synchronized by
+  `.agents/skills/sync-clis/launch.sh`. The launcher also targets `.grok/` when
+  that directory is present; it is absent from this repository (verified
+  2026-08-22), so `.claude/skills/` is the only live in-repo mirror.
 - OpenCode: `.opencode/skills` is a symlink to `.agents/skills`.
 - Codex home skills: `~/.codex/skills/<name>/SKILL.md` are installed explicitly.
 - ABI bundled plugins: 16 build-time fixtures under
   `crates/abi-plugins/plugins/` (including `tui-plugin`); verify manifest,
   registry, and runtime-dispatch agreement with
   `.agents/skills/plugin-runtime-tester/plugins.sh`.
-- ABI Mega source: `~/plugins/abi-mega/`; marketplace registration alone does not
+- ABI Mega source: `~/dev/active/plugins/abi-mega/`; marketplace registration alone does not
   prove that the current version is installed.
 - Live Rust pin: read repo-root `rust-toolchain.toml`. Always use `./tools/cargo.sh`
   (Homebrew stable `cargo` may shadow rustup nightly).
+
+## Two traps that have already cost a session
+
+**The home copy of this skill is not synchronized, and it drifts.** `/sync-clis`
+copies only the names in `CORE_SKILLS` in `~/.grok/scripts/sync-clis.py`, and
+`abi-skills` is not among them (verified 2026-08-22). Nothing keeps
+`~/.claude/skills/abi-skills/SKILL.md` in step with the canonical file here, and
+on 2026-08-22 that home copy was still the pre-rewrite Zig text — prescribing
+`.zigversion`, `~/.zvm` PATH prefixes, `./build.sh check-parity`, and fixtures
+under `src/plugins/`, none of which exist. A session invoked through the home
+skill therefore starts from instructions the repository contradicts. **Diff the
+copy you were handed against `.agents/skills/abi-skills/SKILL.md` before
+following it**, and when you correct this file, push the same text to
+`~/.claude/skills/abi-skills/SKILL.md` and `~/.codex/skills/abi-skills/SKILL.md`
+by hand, because the launcher will not.
+
+**Do not run `sync-clis/launch.sh` from a worktree.** The launcher stamps an
+absolute `Base directory for this skill: <checkout>/.claude/skills/<name>` line
+into each mirrored `SKILL.md`, so the mirror content depends on which checkout
+produced it. Run from `~/dev/active/abi-wt-.../` it rewrites those lines to the
+worktree path (measured 2026-08-22: 5 files — `codebase-analysis`,
+`modern-patterns`, and the three `refactor-*` skills), and committing that
+points every mirror at a directory that disappears when the worktree is removed.
+Sync from the main checkout, or revert any file whose only diff is that line.
+
+**An `abi` worktree must be created as a `~/dev/active/` sibling.** `Cargo.toml`
+reaches the substrate through relative paths (`../wdbx/crates/…`), so a worktree
+placed anywhere else resolves them to nothing and cargo fails with `no matching
+package named abi-compute` — an error that names the consumer and reads as a
+broken repository. `~/dev/active/abi-wt-<topic>-<date>/` satisfies it. For the
+same reason, `git fetch && git status` in `abi`, `abbey`, and `wdbx` before
+believing any cargo error in any of them: a stale sibling breaks the other two,
+and the default build hides it because both deps are optional.
 
 The retired root `src/` implementation tree is fully absent. Do not recreate
 the Zig-era tree as a health check. The live Rust fixtures are
@@ -65,12 +100,12 @@ live telemetry, not durable capability claims.
    process moves the checkout, stop and use an isolated worktree.
 2. **Select the toolchain locally** — use `./tools/cargo.sh` for all ABI gates
    (Homebrew stable `cargo` may shadow rustup nightly).
-3. **Establish a baseline** — run `./tools/check.sh` without a PTY. Build
+3. **Establish a baseline** — run `./tools/check.sh` non-interactively. Build
    `abi-cli` explicitly before user-facing smoke so the executable being tested
    is current and the evidence names the binary-producing command.
 4. **Refresh ABI Mega evidence**:
-   - `~/plugins/abi-mega/skills/abi-goal-orchestrator/scripts/refresh-inventory.sh`
-   - `~/plugins/abi-mega/skills/abi-markdown-auditor/scripts/scan-markdown.sh`
+   - `~/dev/active/plugins/abi-mega/skills/abi-goal-orchestrator/scripts/refresh-inventory.sh`
+   - `~/dev/active/plugins/abi-mega/skills/abi-markdown-auditor/scripts/scan-markdown.sh`
 5. **Inspect skills** — run Skill Loop `init`, `status`, and `inspect` when the
    npm tool is available; otherwise perform a targeted manual reference audit.
 6. **Fix a bounded slice** — repair actionable stale paths or false claims.
@@ -83,9 +118,11 @@ live telemetry, not durable capability claims.
 9. **Install Codex skill text** — copy the corrected `SKILL.md` to the matching
    `~/.codex/skills/<name>/SKILL.md`. Companion-resource parity is a separate
    policy decision.
-10. **Validate** — run `./tools/check.sh`, `./tools/cargo.sh clippy --workspace --all-targets -- -D warnings`,
-    `.agents/skills/docs-validate/validate.sh`, and `./tools/check.sh` with
-    nightly Rust. Restore the full CLI with `./tools/cargo.sh build -p abi-cli`.
+10. **Validate** — run `./tools/check.sh` once (it already contains fmt,
+    clippy, build, tests, and docs; the older form listed it twice and named
+    clippy separately) plus `.agents/skills/docs-validate/validate.sh`. Rebuild
+    with `./tools/cargo.sh build -p abi-cli` only if a smoke step replaced the
+    binary.
 11. **Log** — `skill-loop log abi-skills success` (or `partial`/`failure`) when
     telemetry is initialized.
 12. **Integrate** — use a `cursor/` feature branch and PR; never force-push
@@ -94,10 +131,10 @@ live telemetry, not durable capability claims.
 ## ABI Mega refresh
 
 ```bash
-~/plugins/abi-mega/skills/abi-goal-orchestrator/scripts/refresh-inventory.sh \
-  "$PWD" ~/plugins/abi-mega/assets/abi-current-inventory.md
-~/plugins/abi-mega/skills/abi-markdown-auditor/scripts/scan-markdown.sh \
-  "$PWD" ~/plugins/abi-mega/assets/abi-markdown-audit.md
+~/dev/active/plugins/abi-mega/skills/abi-goal-orchestrator/scripts/refresh-inventory.sh \
+  "$PWD" ~/dev/active/plugins/abi-mega/assets/abi-current-inventory.md
+~/dev/active/plugins/abi-mega/skills/abi-markdown-auditor/scripts/scan-markdown.sh \
+  "$PWD" ~/dev/active/plugins/abi-mega/assets/abi-markdown-audit.md
 ```
 
 These commands refresh local plugin assets. They do not install or upgrade the
@@ -107,16 +144,31 @@ separately through Plugin Management.
 ## Validation commands
 
 ```bash
-./tools/check.sh
-./tools/cargo.sh clippy --workspace --all-targets -- -D warnings
-.agents/skills/plugin-runtime-tester/plugins.sh
+./tools/check.sh                                # full gate: fmt, clippy, build, tests, docs
+.agents/skills/plugin-runtime-tester/plugins.sh # registry + run dispatch, all 16 fixtures
 .agents/skills/docs-validate/validate.sh
-./tools/check.sh
-./tools/cargo.sh build -p abi-cli
+./tools/cargo.sh build -p abi-cli               # only if a smoke step replaced the binary
 ```
 
-Run `./tools/check.sh` through pipes/non-interactive execution. Allocating a PTY
-causes CLI dashboard smoke to enter interactive mode and invalidates the gate.
+**Commands that no longer exist.** `./build.sh check-parity` and `./build.sh
+lint` both exit 2 with `unknown target` (measured 2026-08-22). `build.sh` is a
+compatibility shim that forwards only `check`, `cli`, `mcp`, `test`, and `fmt`;
+`./build.sh -l` lists what it actually accepts. Any `.zigversion` or
+`~/.zvm/$(cat .zigversion)` PATH prefix is dead — the file does not exist after
+the Rust rewrite.
+
+Run `./tools/check.sh` non-interactively as a matter of habit, but do not
+justify it with the old dashboard-smoke reason. Verified 2026-08-22: `check.sh`
+invokes no TUI step at all — it covers toolchain versions, repository policy
+tests, the Abbey contract corpus, Rust source-size limits, fmt, clippy, build,
+tests, Metal/CUDA device features, benchmark regression, and docs. A PTY does
+not invalidate it. The interactive-mode hazard is real, but it belongs to the
+TUI surfaces `check.sh` never calls — `.agents/skills/dashboard-smoke/dashboard.sh`
+and `tools/run_tui_smoke.sh`. Run *those* non-interactively.
+
+Capture gate results by redirecting to a file and echoing `$?` from the command
+itself. Piping to `tail` reports `tail`'s exit status and has manufactured a
+false green on this machine before.
 
 ## Claim boundaries
 
