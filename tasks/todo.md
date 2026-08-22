@@ -67,6 +67,14 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ---
 
+## Abbey System federation
+
+| Item | Status | Acceptance boundary |
+| ---- | ------ | ------------------- |
+| Federation reconciliation and P1 Abbey Contracts design | 🟡 | Written C0 design at `docs/superpowers/specs/2026-08-22-federation-reconciliation-and-abbey-contracts.md`; clean local strict gate. Awaiting Donald's explicit review before implementation planning. No repository-visibility, runtime, deployment, Discord, or home-directory mutation is authorized by the document alone. |
+
+---
+
 ## #647 Rust-rescoped (optional hardening)
 
 See `docs/superpowers/archive/plans/2026-07-31-rust-647-followups.md`.
