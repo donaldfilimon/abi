@@ -466,6 +466,55 @@ def _semantic_code(schema_id: str, document: Any) -> str | None:
             required_stages = {"decoded_receive", "stt", "reasoning", "synthesis", "provider", "playback"}
             if set(document.get("cancelled_stages", [])) != required_stages:
                 return "consent_cancellation_incomplete"
+    if schema_id.endswith("/episode/claim.schema.json") and isinstance(document, dict):
+        levels = {f"C{level}": level for level in range(8)}
+        if levels.get(document.get("display_evidence_level"), 8) > levels.get(
+            document.get("evidence_level"), -1
+        ):
+            return "evidence_overclaim"
+    if schema_id.endswith("/episode/proposal.schema.json") and isinstance(document, dict):
+        if document.get("payload_mode") == "reference" and not document.get("payload_reference"):
+            return "payload_reference_required"
+        if document.get("payload_mode") == "redacted_empty" and not document.get(
+            "redacted_summary_code"
+        ):
+            return "redacted_summary_required"
+    if schema_id.endswith("/learning/guild-learning-policy.schema.json") and isinstance(document, dict):
+        if document.get("state") in {"Unset", "ExplicitDisabled"} and document.get(
+            "adaptive_update_allowed"
+        ):
+            return "learning_disabled"
+        if document.get("quiet_override") and document.get("unsolicited_action_allowed"):
+            return "quiet_override"
+    return None
+
+
+def _pre_schema_code(schema_id: str, document: Any) -> str | None:
+    if not isinstance(document, dict):
+        return None
+    if schema_id.endswith("/learning/promotion-candidate.schema.json"):
+        forbidden = {
+            "grant",
+            "approval",
+            "safety_policy_mutation",
+            "command_registration",
+            "platform_write",
+            "direct_platform_write",
+        }
+        if forbidden.intersection(document):
+            return "learning_authority_forbidden"
+    if schema_id.endswith("/episode/proposal.schema.json") and document.get(
+        "priority_class"
+    ) == "MandatoryIncident":
+        if (
+            document.get("minimized") is not True
+            or document.get("redacted") is not True
+            or document.get("deletion_required") is not True
+            or not document.get("deletion_key")
+            or document.get("retention_class") != "mandatory_incident"
+            or document.get("hold_state") not in {"active", "released"}
+        ):
+            return "mandatory_controls_missing"
     return None
 
 
@@ -490,6 +539,9 @@ def validate_fixture(root: Path, fixture_path: Path) -> FixtureOutcome:
     schema = registry.get(schema_id)
     if schema is None:
         return FixtureOutcome("schema_unknown", relative.as_posix())
+    pre_schema = _pre_schema_code(schema_id, document)
+    if pre_schema is not None:
+        return FixtureOutcome(pre_schema, relative.as_posix())
     encoded = _fixed_json_bytes(document)
     if len(encoded) > schema["x-abbey-max-bytes"]:
         return FixtureOutcome("document_too_large", relative.as_posix())

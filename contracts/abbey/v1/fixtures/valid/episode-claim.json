@@ -1,0 +1,12 @@
+{
+  "case_id": "episode_claim_lifecycle_evidence_separate",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/episode/claim.schema.json",
+  "expect": "valid",
+  "document": {
+    "claim_id": "claim_alpha", "claim_class": "Observation", "capability_state": "Current",
+    "evidence_level": "C2", "display_evidence_level": "C2", "subject_version": "1.0.0",
+    "environment_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "permitted_conclusion": "deterministic_replay", "evidence_references": ["evidence_alpha"], "contradiction_references": [],
+    "expires_at": "2026-08-23T17:00:00Z", "rollback_condition_code": "digest_mismatch"
+  }
+}

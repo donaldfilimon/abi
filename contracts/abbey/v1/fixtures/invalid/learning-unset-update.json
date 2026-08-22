@@ -1,0 +1,10 @@
+{
+  "case_id": "learning_unset_denies_update",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/learning/guild-learning-policy.schema.json",
+  "expect": "learning_disabled",
+  "document": {
+    "tenant_id": "tenant_alpha", "scope_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "state": "Unset", "quiet_override": false, "adaptive_update_allowed": true,
+    "unsolicited_action_allowed": false, "budget_units": 100, "policy_version": "policy_alpha"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/learning/promotion-candidate.schema.json",
+  "title": "Non-authorizing learning promotion candidate",
+  "x-abbey-data-class": "evaluation-metadata",
+  "x-abbey-max-bytes": 16384,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["candidate_id", "candidate_kind", "source_scope", "evidence_references", "evaluation_state", "production_authority", "measured_outcome_source"],
+  "properties": {
+    "candidate_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "candidate_kind": {"enum": ["speech_style", "preference", "routing_policy", "administrative_policy"]},
+    "source_scope": {"enum": ["guild_local", "privacy_qualified_aggregate"]},
+    "evidence_references": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"}},
+    "evaluation_state": {"enum": ["candidate", "shadow", "evaluated", "approved", "rejected", "demoted"]},
+    "production_authority": {"const": false},
+    "measured_outcome_source": {"enum": ["declared_metric", "human_evaluation", "external_evaluator", "api_success", "user_reaction", "model_self_judgment"]}
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/learning/guild-learning-policy.schema.json",
+  "title": "Tri-state guild learning policy",
+  "x-abbey-data-class": "policy-metadata",
+  "x-abbey-max-bytes": 8192,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tenant_id", "scope_digest", "state", "quiet_override", "adaptive_update_allowed", "unsolicited_action_allowed", "budget_units", "policy_version"],
+  "properties": {
+    "tenant_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "scope_digest": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "state": {"enum": ["Unset", "ExplicitEnabled", "ExplicitDisabled"]},
+    "quiet_override": {"type": "boolean"},
+    "adaptive_update_allowed": {"type": "boolean"},
+    "unsolicited_action_allowed": {"type": "boolean"},
+    "budget_units": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "policy_version": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"}
+  }
+}

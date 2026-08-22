@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/episode/proposal.schema.json",
+  "title": "Adapter episode proposal",
+  "x-abbey-data-class": "pseudonymous-evidence-metadata",
+  "x-abbey-max-bytes": 32768,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["proposal_id", "source_adapter_id", "observation_method", "scope_digest", "data_class", "retention_class", "claim_class", "evidence_references", "links", "payload_mode", "expires_at", "deletion_required", "priority_class", "minimized", "redacted", "hold_state", "deletion_key"],
+  "properties": {
+    "proposal_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "source_adapter_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "observation_method": {"enum": ["direct_observation", "derived_inference", "human_attestation", "synthetic_test"]},
+    "scope_digest": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "data_class": {"enum": ["metadata", "pseudonymous", "private", "restricted"]},
+    "retention_class": {"enum": ["ephemeral", "short", "policy_bound", "mandatory_incident"]},
+    "claim_class": {"enum": ["Observation", "Inference", "ProposedCriterion"]},
+    "evidence_references": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"}},
+    "links": {"type": "array", "maxItems": 32, "items": {"type": "object", "additionalProperties": false, "required": ["kind", "target_id"], "properties": {"kind": {"enum": ["correction", "contradiction", "supersession", "revocation", "quarantine"]}, "target_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"}}}},
+    "payload_mode": {"enum": ["reference", "redacted_empty"]},
+    "payload_reference": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "redacted_summary_code": {"enum": ["empty", "withheld", "deleted", "unavailable"]},
+    "expires_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "deletion_required": {"type": "boolean"},
+    "priority_class": {"enum": ["Discretionary", "MandatoryIncident"]},
+    "minimized": {"type": "boolean"},
+    "redacted": {"type": "boolean"},
+    "hold_state": {"enum": ["none", "active", "released"]},
+    "deletion_key": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"}
+  }
+}

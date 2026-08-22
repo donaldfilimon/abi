@@ -1,0 +1,11 @@
+{
+  "case_id": "episode_evidence_dimensions_separate",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/episode/evidence.schema.json",
+  "expect": "valid",
+  "document": {
+    "evidence_id": "evidence_alpha", "source_id": "source_alpha", "source_version": "1.0.0",
+    "integrity_state": "verified", "provenance_state": "attested", "semantic_state": "valid", "truth_state": "observed",
+    "observed_at": "2026-08-22T17:00:00Z",
+    "payload_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

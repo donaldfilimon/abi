@@ -1,0 +1,11 @@
+{
+  "case_id": "episode_tombstone_retention_bound",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/episode/tombstone.schema.json",
+  "expect": "valid",
+  "document": {
+    "tombstone_id": "tombstone_alpha", "target_episode_id": "episode_alpha",
+    "target_episode_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "reason_code": "policy_deletion", "retention_class": "policy_bound", "deletion_key": "delete_alpha",
+    "effective_at": "2026-08-22T17:00:00Z", "evidence_references": ["evidence_alpha"]
+  }
+}

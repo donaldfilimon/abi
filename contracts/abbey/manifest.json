@@ -71,6 +71,12 @@
       "sha256": "a3057cb033684e64ae970d0daffb56989e5a93b13c113fd52787a52d17ab1dfa"
     },
     {
+      "path": "v1/fixtures/degraded/learning-quiet-override.json",
+      "bytes": 517,
+      "media_type": "application/json",
+      "sha256": "04c43644c189d09cd260c7c3278fb054f03989e897754921edcbfc0363e8d757"
+    },
+    {
       "path": "v1/fixtures/invalid/authorization-prohibited-grant.json",
       "bytes": 906,
       "media_type": "application/json",
@@ -101,6 +107,24 @@
       "sha256": "8017314f953cc14e581d0ffd4c65eb2dfb533a77fa547943670d593a7f91edbc"
     },
     {
+      "path": "v1/fixtures/invalid/episode-adapter-digest.json",
+      "bytes": 925,
+      "media_type": "application/json",
+      "sha256": "4f7e4e492fde4913a097f3e1aad8d27a9f8a4c9a037eeab3e504170ece45ebd2"
+    },
+    {
+      "path": "v1/fixtures/invalid/episode-mandatory-unbounded.json",
+      "bytes": 838,
+      "media_type": "application/json",
+      "sha256": "b9acbf2d64f24f987db8420c180a20e0166e84cbfe8602a9a39879d8e6095c84"
+    },
+    {
+      "path": "v1/fixtures/invalid/episode-overstated-claim.json",
+      "bytes": 700,
+      "media_type": "application/json",
+      "sha256": "c02b44aad06d091c3ba16638e0494e7d733489869b55a834d6e56e207c2a4e7f"
+    },
+    {
       "path": "v1/fixtures/invalid/execution-missing-idempotency.json",
       "bytes": 928,
       "media_type": "application/json",
@@ -125,6 +149,18 @@
       "sha256": "5a1f9cad83ebb3e689f705a1dd03cb1493da17813dafa74651316141dfe8b8ad"
     },
     {
+      "path": "v1/fixtures/invalid/learning-disabled-update.json",
+      "bytes": 529,
+      "media_type": "application/json",
+      "sha256": "4eb0c11078b1e56781915166526a1537351246ae776af41bf7803801f74e2ec4"
+    },
+    {
+      "path": "v1/fixtures/invalid/learning-unset-update.json",
+      "bytes": 506,
+      "media_type": "application/json",
+      "sha256": "ee2cdf2f828656b17557de266a2c7e272b78cff2f71fc0da41ddde251d07d3fc"
+    },
+    {
       "path": "v1/fixtures/privacy/authorization-error-cause.json",
       "bytes": 414,
       "media_type": "application/json",
@@ -147,6 +183,12 @@
       "bytes": 401,
       "media_type": "application/json",
       "sha256": "52f3ed5c68aebcf8260a6db0185bf20344810efb23309c1c87ac62ee004d8a31"
+    },
+    {
+      "path": "v1/fixtures/privacy/learning-authority-payload.json",
+      "bytes": 517,
+      "media_type": "application/json",
+      "sha256": "8a8ded90e13fade5842a88bcdaae860357ec778a76ba94dcf80a66d081686d5c"
     },
     {
       "path": "v1/fixtures/unknown-field/execution-metadata-extension.json",
@@ -189,6 +231,36 @@
       "bytes": 769,
       "media_type": "application/json",
       "sha256": "30aa37a3ea0fe2d63c0130b8eb1c5602e62921011eb665538f905b464be715d7"
+    },
+    {
+      "path": "v1/fixtures/valid/episode-claim.json",
+      "bytes": 686,
+      "media_type": "application/json",
+      "sha256": "421b5192396632bf4558600293bdc12d6b745ec481a75281c4051c7308f2d9bc"
+    },
+    {
+      "path": "v1/fixtures/valid/episode-evidence.json",
+      "bytes": 542,
+      "media_type": "application/json",
+      "sha256": "d2ac24cf7768d33034ac59475e87439f209438b86dc9e2e95fe0c1e188bc1d75"
+    },
+    {
+      "path": "v1/fixtures/valid/episode-mandatory-incident.json",
+      "bytes": 850,
+      "media_type": "application/json",
+      "sha256": "ce54d741b48d63382ca24251019bb64616fc5b2d6be000ce47f4ef12a348e155"
+    },
+    {
+      "path": "v1/fixtures/valid/episode-proposal.json",
+      "bytes": 805,
+      "media_type": "application/json",
+      "sha256": "71cf79a0602583a0d913eaba69e559c17cb2e328ad54f37480169bb88fde75e1"
+    },
+    {
+      "path": "v1/fixtures/valid/episode-tombstone.json",
+      "bytes": 559,
+      "media_type": "application/json",
+      "sha256": "31447c58fb6c0e5210ffecf9226b26ae489c41959c0b3066e6f64588aa8cc3f9"
     },
     {
       "path": "v1/fixtures/valid/execution-action-proposal.json",
@@ -338,6 +410,34 @@
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/consent/transition.schema.json"
     },
     {
+      "path": "v1/schemas/episode/claim.schema.json",
+      "bytes": 2135,
+      "media_type": "application/schema+json",
+      "sha256": "30dae8dd338393c29677f8eb32c1030ee6503bd0a7aa327a544ffd2e50caf75f",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/episode/claim.schema.json"
+    },
+    {
+      "path": "v1/schemas/episode/evidence.schema.json",
+      "bytes": 1466,
+      "media_type": "application/schema+json",
+      "sha256": "ee81e175b4413f9e98e00da5e441f5b55fad2e629da658280d76be23964370fb",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/episode/evidence.schema.json"
+    },
+    {
+      "path": "v1/schemas/episode/proposal.schema.json",
+      "bytes": 2820,
+      "media_type": "application/schema+json",
+      "sha256": "d965e8740f3728c0bb1a455a64de9b0c084dd292d3e03db81003c91893a79a35",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/episode/proposal.schema.json"
+    },
+    {
+      "path": "v1/schemas/episode/tombstone.schema.json",
+      "bytes": 1613,
+      "media_type": "application/schema+json",
+      "sha256": "dcc0b5eed552286ce370821afb26c61674182761e67c9682e304e08515f1fbd4",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/episode/tombstone.schema.json"
+    },
+    {
       "path": "v1/schemas/error/error.schema.json",
       "bytes": 1152,
       "media_type": "application/schema+json",
@@ -373,6 +473,20 @@
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/identity/principal.schema.json"
     },
     {
+      "path": "v1/schemas/learning/guild-learning-policy.schema.json",
+      "bytes": 1241,
+      "media_type": "application/schema+json",
+      "sha256": "575f9913d95d66b1146b28f48f4fbdae7bf7a987e7aec3409f00770710e2bd5e",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/learning/guild-learning-policy.schema.json"
+    },
+    {
+      "path": "v1/schemas/learning/promotion-candidate.schema.json",
+      "bytes": 1398,
+      "media_type": "application/schema+json",
+      "sha256": "4c3d86e6ec90395e5605404df52a654a8d3abb319d1141ad7f826b35d34edac6",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/learning/promotion-candidate.schema.json"
+    },
+    {
       "path": "v1/schemas/receipt/outcome-receipt.schema.json",
       "bytes": 3212,
       "media_type": "application/schema+json",
@@ -380,5 +494,5 @@
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/receipt/outcome-receipt.schema.json"
     }
   ],
-  "aggregate_digest": "df3cff54a60e1358d8c7af73fceece55d496aa61c9497b689ee3119b16d9c235"
+  "aggregate_digest": "1d2ac983d385908495577633aa5740108aca4a99de608072b9575f70e4cad83f"
 }

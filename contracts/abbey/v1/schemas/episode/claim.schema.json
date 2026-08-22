@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/episode/claim.schema.json",
+  "title": "Versioned evidence-bound claim",
+  "x-abbey-data-class": "claim-metadata",
+  "x-abbey-max-bytes": 16384,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["claim_id", "claim_class", "capability_state", "evidence_level", "display_evidence_level", "subject_version", "environment_digest", "permitted_conclusion", "evidence_references", "contradiction_references", "expires_at", "rollback_condition_code"],
+  "properties": {
+    "claim_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "claim_class": {"enum": ["Observation", "Inference", "ProposedCriterion"]},
+    "capability_state": {"enum": ["Proposed", "Partial", "Current", "Failed", "Revoked", "Superseded", "Expired"]},
+    "evidence_level": {"enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7"]},
+    "display_evidence_level": {"enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7"]},
+    "subject_version": {"type": "string", "maxLength": 64, "pattern": "[a-z0-9][a-z0-9_.-]{0,63}"},
+    "environment_digest": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "permitted_conclusion": {"enum": ["specified", "source_validated", "deterministic_replay", "evaluated", "canary", "witnessed", "sustained"]},
+    "evidence_references": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"}},
+    "contradiction_references": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"}},
+    "expires_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "rollback_condition_code": {"type": "string", "pattern": "[a-z][a-z0-9_-]{0,63}"}
+  }
+}

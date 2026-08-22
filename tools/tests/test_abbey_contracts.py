@@ -164,5 +164,35 @@ class ConsentContractTests(SchemaContractTests):
         self.assert_fixture("degraded", "consent-connection-loss.json", "valid")
 
 
+class EpisodeLearningTests(SchemaContractTests):
+    def test_adapter_proposes_but_does_not_compute_canonical_episode_digest(self) -> None:
+        self.assert_fixture("valid", "episode-proposal.json", "valid")
+        self.assert_fixture("invalid", "episode-adapter-digest.json", "schema_invalid")
+
+    def test_evidence_separates_integrity_provenance_semantics_and_truth(self) -> None:
+        self.assert_fixture("valid", "episode-evidence.json", "valid")
+
+    def test_claim_keeps_lifecycle_and_evidence_level_separate(self) -> None:
+        self.assert_fixture("valid", "episode-claim.json", "valid")
+        self.assert_fixture("invalid", "episode-overstated-claim.json", "evidence_overclaim")
+
+    def test_tombstone_carries_retention_and_deletion_key(self) -> None:
+        self.assert_fixture("valid", "episode-tombstone.json", "valid")
+
+    def test_unset_and_explicit_disabled_both_deny_adaptive_updates(self) -> None:
+        self.assert_fixture("invalid", "learning-unset-update.json", "learning_disabled")
+        self.assert_fixture("invalid", "learning-disabled-update.json", "learning_disabled")
+
+    def test_quiet_override_denies_unsolicited_action(self) -> None:
+        self.assert_fixture("degraded", "learning-quiet-override.json", "valid")
+
+    def test_learning_message_cannot_carry_authority_or_platform_writes(self) -> None:
+        self.assert_fixture("privacy", "learning-authority-payload.json", "learning_authority_forbidden")
+
+    def test_mandatory_incident_still_requires_minimization_and_deletion(self) -> None:
+        self.assert_fixture("valid", "episode-mandatory-incident.json", "valid")
+        self.assert_fixture("invalid", "episode-mandatory-unbounded.json", "mandatory_controls_missing")
+
+
 if __name__ == "__main__":
     unittest.main()

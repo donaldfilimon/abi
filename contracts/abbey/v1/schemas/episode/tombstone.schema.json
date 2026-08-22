@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/episode/tombstone.schema.json",
+  "title": "Episode tombstone",
+  "x-abbey-data-class": "retention-metadata",
+  "x-abbey-max-bytes": 8192,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tombstone_id", "target_episode_id", "target_episode_digest", "reason_code", "retention_class", "deletion_key", "effective_at", "evidence_references"],
+  "properties": {
+    "tombstone_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "target_episode_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "target_episode_digest": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "reason_code": {"enum": ["expired", "subject_request", "policy_deletion", "correction", "revocation", "quarantine"]},
+    "retention_class": {"enum": ["ephemeral", "short", "policy_bound", "mandatory_incident"]},
+    "deletion_key": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "effective_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "evidence_references": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"}}
+  }
+}
