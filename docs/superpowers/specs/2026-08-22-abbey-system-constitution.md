@@ -718,6 +718,30 @@ Every program defines tests at its own boundaries.
 
 This platform is too large for one implementation plan.
 
+### Program-to-spec mapping
+
+Specs are referenced **by name, never by number**. Six were drafted against an
+earlier seven-program list given in conversation, whose numbering does not match
+this section's; rather than renumber either side, every spec carries a
+name-based filename and a header mapping it here. This section stays the single
+numbering authority.
+
+| Program | Spec |
+| --- | --- |
+| 0 Reconcile the live-voice verifier | none; landed directly in `abbey-bot` (PR #35) |
+| 1 Abbey contracts | none yet, and it is the next program to spec |
+| 2 ABI authorization and capability kernel | `2026-08-22-spec-capability-authorization-kernel.md` |
+| 3 Read-only Discord guild intelligence | `2026-08-22-spec-discord-guild-intelligence-and-execution.md` (covers 3 and 5) |
+| 4 Canonical WDBX episodes and claims | `2026-08-22-spec-canonical-wdbx-episodes.md`, informed by `2026-08-22-wdbx-conformance-gap-analysis.md` |
+| 5 Approved reversible guild execution | `2026-08-22-spec-discord-guild-intelligence-and-execution.md` (covers 3 and 5) |
+| 6 Model registry and adaptive arbiter | `2026-08-22-spec-guild-world-model-and-arbiter.md` (arbiter half) and `2026-08-22-spec-learning-evaluation-promotion.md` (learning half). The model-registry half is unspecced. |
+| 7 Application federation and production profiles | `2026-08-22-spec-application-federation.md` |
+
+Two programs are covered by one spec each way round, which is why numbers make
+poor cross-references here: the Discord spec spans 3 and 5 because a plan that
+cannot be applied and verified is not a slice, and Program 6 is split across two
+specs because routing and evaluation are separable concerns.
+
 ### Program 0: Reconcile the current live-voice verifier
 
 Preserve and land the existing privacy-safe owner/admin verifier in
@@ -750,6 +774,16 @@ Implement the selective write gate, retention classes, correction and deletion,
 evidence-aware retrieval, claim ledger, derived-index rebuild, and JSON-to-WDBX
 shadow parity. Cut over only after replay, recovery, privacy, deletion, and
 rollback evidence.
+
+**Named deliverable, so it cannot be quietly dropped:** reconcile the Swift
+`AbbeyBot` store at `~/.abbey/wdbx/`. It holds **862 records** in an
+18-dimension, camelCase, UUID-keyed JSON layout (`manifest.json` plus
+`segments/seg-0000.jsonl`) written by `Sources/AbbeyCore/WDBX/WDBXStore.swift`,
+carrying DQN experience data. `abi wdbx` cannot read it. It is the fifth
+competing meaning of memory and the only one still unreconciled; the other four
+are the canonical store, `abbey`'s backend, `abbey-bot`'s proven-compatible
+projection, and this. Either define a projection contract it satisfies or
+migrate it. The data is untouched until this program runs.
 
 ### Program 5: Approved reversible guild execution
 
