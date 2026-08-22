@@ -1,4 +1,7 @@
 import json
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,6 +13,7 @@ from tools.abbey_contracts import (
     validate_fixture,
     verify_manifest,
 )
+from tools.vendor_abbey_contracts import VendorError, vendor
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -192,6 +196,194 @@ class EpisodeLearningTests(SchemaContractTests):
     def test_mandatory_incident_still_requires_minimization_and_deletion(self) -> None:
         self.assert_fixture("valid", "episode-mandatory-incident.json", "valid")
         self.assert_fixture("invalid", "episode-mandatory-unbounded.json", "mandatory_controls_missing")
+
+
+class VendoringTests(unittest.TestCase):
+    SOURCE_REVISION = "a67d6b47b7ff1c658e40164cb2cf81cff583cb4f"
+    AGGREGATE_DIGEST = "72e241e34967df318376bf68f4a0e2db13f5ebf17d1a219709731f1f470dbe8e"
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory(prefix="abbey-vendor-test-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.source = self.root / "source"
+        self.destination = self.root / "vendored"
+        shutil.copytree(CORPUS_ROOT, self.source)
+
+    def write_destination(self, revision: str | None = None):
+        return vendor(
+            self.source,
+            self.destination,
+            revision or self.SOURCE_REVISION,
+            check=False,
+        )
+
+    def test_write_vendors_only_exact_manifest_committed_bytes(self) -> None:
+        report = self.write_destination()
+        manifest = json.loads((self.source / "manifest.json").read_text(encoding="utf-8"))
+        expected_files = {"manifest.json", *(row["path"] for row in manifest["artifacts"])}
+        actual_files = {
+            path.relative_to(self.destination / "corpus").as_posix()
+            for path in (self.destination / "corpus").rglob("*")
+            if path.is_file()
+        }
+
+        self.assertTrue(report.wrote)
+        self.assertEqual(report.aggregate_digest, self.AGGREGATE_DIGEST)
+        self.assertEqual(report.artifact_count, 81)
+        self.assertEqual(actual_files, expected_files)
+        for relative in expected_files:
+            self.assertEqual(
+                (self.destination / "corpus" / relative).read_bytes(),
+                (self.source / relative).read_bytes(),
+                relative,
+            )
+
+        lock = json.loads(
+            (self.destination / "abbey-contracts.lock.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            lock,
+            {
+                "source_repository": "https://github.com/donaldfilimon/abi",
+                "source_revision": self.SOURCE_REVISION,
+                "contract_major": 1,
+                "contract_revision": 1,
+                "aggregate_digest": self.AGGREGATE_DIGEST,
+            },
+        )
+
+    def test_documented_cli_executes_from_the_repository_root(self) -> None:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(REPO_ROOT / "tools" / "vendor_abbey_contracts.py"),
+                "--source",
+                str(self.source),
+                "--destination",
+                str(self.destination),
+                "--source-revision",
+                self.SOURCE_REVISION,
+                "--write",
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertTrue((self.destination / "abbey-contracts.lock.json").is_file())
+
+    def test_check_is_read_only_for_bytes_and_mtimes(self) -> None:
+        self.write_destination()
+        before = {
+            path.relative_to(self.destination).as_posix(): (
+                path.read_bytes(),
+                path.stat().st_mtime_ns,
+            )
+            for path in self.destination.rglob("*")
+            if path.is_file()
+        }
+
+        report = vendor(self.source, self.destination, self.SOURCE_REVISION, check=True)
+
+        after = {
+            path.relative_to(self.destination).as_posix(): (
+                path.read_bytes(),
+                path.stat().st_mtime_ns,
+            )
+            for path in self.destination.rglob("*")
+            if path.is_file()
+        }
+        self.assertFalse(report.wrote)
+        self.assertEqual(after, before)
+
+    def test_source_with_unmanifested_bytes_is_refused(self) -> None:
+        (self.source / "unmanaged.json").write_text("{}\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(VendorError, "source_inventory_mismatch"):
+            self.write_destination()
+
+        self.assertFalse(self.destination.exists())
+
+    def test_source_manifest_traversal_is_refused(self) -> None:
+        manifest_path = self.source / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["artifacts"][0]["path"] = "../escape.json"
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(VendorError, "source_corpus_invalid"):
+            self.write_destination()
+
+        self.assertFalse((self.root / "escape.json").exists())
+
+    def test_destination_symlink_is_refused(self) -> None:
+        target = self.root / "symlink-target"
+        target.mkdir()
+        self.destination.symlink_to(target, target_is_directory=True)
+
+        with self.assertRaisesRegex(VendorError, "destination_symlink"):
+            self.write_destination()
+
+    def test_nonempty_unmanaged_destination_is_refused(self) -> None:
+        self.destination.mkdir()
+        sentinel = self.destination / "consumer-owned.txt"
+        sentinel.write_text("keep\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(VendorError, "unmanaged_destination"):
+            self.write_destination()
+
+        self.assertEqual(sentinel.read_text(encoding="utf-8"), "keep\n")
+
+    def test_mutable_or_noncanonical_revision_is_refused(self) -> None:
+        for revision in ("main", "a" * 39, "A" * 40, "g" * 40, "a" * 41):
+            with self.subTest(revision=revision):
+                with self.assertRaisesRegex(VendorError, "source_revision_invalid"):
+                    vendor(self.source, self.destination, revision, check=False)
+
+    def test_check_rejects_an_extra_destination_file(self) -> None:
+        self.write_destination()
+        extra = self.destination / "corpus" / "consumer-extra.json"
+        extra.write_text("{}\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(VendorError, "destination_inventory_mismatch"):
+            vendor(self.source, self.destination, self.SOURCE_REVISION, check=True)
+
+    def test_check_rejects_a_destination_byte_mismatch(self) -> None:
+        self.write_destination()
+        readme = self.destination / "corpus" / "README.md"
+        raw = bytearray(readme.read_bytes())
+        raw[0] ^= 1
+        readme.write_bytes(raw)
+
+        with self.assertRaisesRegex(VendorError, "destination_corpus_invalid"):
+            vendor(self.source, self.destination, self.SOURCE_REVISION, check=True)
+
+    def test_write_replaces_only_a_valid_managed_destination(self) -> None:
+        self.write_destination()
+        replacement_revision = "b" * 40
+
+        report = self.write_destination(replacement_revision)
+
+        lock = json.loads(
+            (self.destination / "abbey-contracts.lock.json").read_text(encoding="utf-8")
+        )
+        self.assertTrue(report.wrote)
+        self.assertEqual(lock["source_revision"], replacement_revision)
+
+    def test_write_preserves_a_destination_with_a_mutated_lock(self) -> None:
+        self.write_destination()
+        lock_path = self.destination / "abbey-contracts.lock.json"
+        lock = json.loads(lock_path.read_text(encoding="utf-8"))
+        lock["unexpected"] = True
+        lock_path.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(VendorError, "destination_lock_invalid"):
+            self.write_destination("b" * 40)
+
+        self.assertTrue(lock_path.exists())
+        self.assertIn("unexpected", json.loads(lock_path.read_text(encoding="utf-8")))
 
 
 if __name__ == "__main__":

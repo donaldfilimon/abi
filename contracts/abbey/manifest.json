@@ -12,9 +12,9 @@
     },
     {
       "path": "compatibility.md",
-      "bytes": 1719,
+      "bytes": 3102,
       "media_type": "text/markdown; charset=utf-8",
-      "sha256": "5553ae0aefad403537e18ab2bbaf9e15b1d417ba12c23a9a9503c412d606bf8e"
+      "sha256": "356ef03001d7ab16858c5e47c26472acff6a0f5e237837a992f38356ca8adec0"
     },
     {
       "path": "v1/fixtures/boundary/identity-delegation-nine-hops.json",
@@ -518,5 +518,5 @@
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/receipt/outcome-receipt.schema.json"
     }
   ],
-  "aggregate_digest": "43d606a06d4bd9de08a651a984a61c611f9ffe0c8150b105b0cbf50c801f0fa7"
+  "aggregate_digest": "72e241e34967df318376bf68f4a0e2db13f5ebf17d1a219709731f1f470dbe8e"
 }
