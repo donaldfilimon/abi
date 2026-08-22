@@ -1,0 +1,12 @@
+{
+  "case_id": "consent_connection_loss_closes",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/consent/transition.schema.json",
+  "expect": "valid",
+  "document": {
+    "epoch_id": "epoch_alpha", "from_state": "Open", "to_state": "Closing",
+    "participant_set_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "participant_count": 3, "manager_authorized": false, "all_current_participants_consented": false,
+    "reason_code": "connection_lost", "occurred_at": "2026-08-22T17:02:00Z",
+    "cancelled_stages": ["decoded_receive", "stt", "reasoning", "synthesis", "provider", "playback"]
+  }
+}

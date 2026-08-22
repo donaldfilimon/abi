@@ -1,0 +1,9 @@
+{
+  "case_id": "consent_barge_in_preserves_epoch",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/consent/barge-in.schema.json",
+  "expect": "valid",
+  "document": {
+    "epoch_id": "epoch_alpha", "occurred_at": "2026-08-22T17:00:30Z",
+    "cancel_playback": true, "cancel_stale_downstream": true, "close_epoch": false
+  }
+}

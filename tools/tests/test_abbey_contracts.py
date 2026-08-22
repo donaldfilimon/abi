@@ -142,5 +142,27 @@ class ExecutionLifecycleTests(SchemaContractTests):
         self.assert_fixture("cancellation", "execution-before-start.json", "valid")
 
 
+class ConsentContractTests(SchemaContractTests):
+    def test_epoch_opens_only_with_current_manager_and_unanimous_consent(self) -> None:
+        self.assert_fixture("valid", "consent-open-transition.json", "valid")
+        self.assert_fixture("invalid", "consent-open-without-manager.json", "consent_open_denied")
+
+    def test_participant_change_closes_and_cancels_epoch_bound_stages(self) -> None:
+        self.assert_fixture("cancellation", "consent-participant-change-close.json", "valid")
+        self.assert_fixture("invalid", "consent-participant-change-stays-open.json", "consent_close_required")
+
+    def test_barge_in_cancels_playback_without_closing_consent(self) -> None:
+        self.assert_fixture("cancellation", "consent-barge-in.json", "valid")
+
+    def test_operator_report_is_fixed_redacted_local_evidence(self) -> None:
+        self.assert_fixture("valid", "consent-operator-flow.json", "valid")
+
+    def test_operator_report_rejects_identity_and_media_content(self) -> None:
+        self.assert_fixture("privacy", "consent-report-content.json", "forbidden_content")
+
+    def test_connection_loss_closes_the_epoch(self) -> None:
+        self.assert_fixture("degraded", "consent-connection-loss.json", "valid")
+
+
 if __name__ == "__main__":
     unittest.main()

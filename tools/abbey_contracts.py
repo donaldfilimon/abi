@@ -437,6 +437,35 @@ def _semantic_code(schema_id: str, document: Any) -> str | None:
     if schema_id.endswith("/event/cancellation.schema.json") and isinstance(document, dict):
         if document.get("cancellation_reference") != document.get("target_cancellation_reference"):
             return "cancellation_mismatch"
+    if schema_id.endswith("/consent/transition.schema.json") and isinstance(document, dict):
+        transition = (document.get("from_state"), document.get("to_state"))
+        allowed = {
+            ("Closed", "PendingAttestation"),
+            ("PendingAttestation", "Open"),
+            ("Open", "Closing"),
+            ("Closing", "Closed"),
+        }
+        if transition not in allowed:
+            if document.get("reason_code") in {
+                "participant_change",
+                "unidentified_participant",
+                "attestation_lost",
+                "manager_deauthorized",
+                "connection_lost",
+                "explicit_stop",
+            }:
+                return "consent_close_required"
+            return "consent_transition_invalid"
+        if document.get("to_state") == "Open" and (
+            not document.get("manager_authorized")
+            or not document.get("all_current_participants_consented")
+            or document.get("participant_count", 0) <= 0
+        ):
+            return "consent_open_denied"
+        if document.get("to_state") == "Closing":
+            required_stages = {"decoded_receive", "stt", "reasoning", "synthesis", "provider", "playback"}
+            if set(document.get("cancelled_stages", [])) != required_stages:
+                return "consent_cancellation_incomplete"
     return None
 
 

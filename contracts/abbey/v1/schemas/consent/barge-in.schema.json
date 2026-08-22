@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/consent/barge-in.schema.json",
+  "title": "Consent-preserving barge in",
+  "x-abbey-data-class": "aggregate-consent-metadata",
+  "x-abbey-max-bytes": 4096,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["epoch_id", "occurred_at", "cancel_playback", "cancel_stale_downstream", "close_epoch"],
+  "properties": {
+    "epoch_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "occurred_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "cancel_playback": {"const": true},
+    "cancel_stale_downstream": {"const": true},
+    "close_epoch": {"const": false}
+  }
+}
