@@ -11,10 +11,10 @@ Use this skill to turn ABI's active board and long-horizon specs into a concrete
 
 ## Workflow
 
-1. Start in `/Users/donaldfilimon/abi` unless the user gives another ABI checkout.
+1. Start in `/Users/donaldfilimon/dev/active/abi` unless the user gives another ABI checkout.
 2. Inspect `git status --short --branch` before edits; preserve unrelated dirty work.
 3. Read `AGENTS.md`, `tasks/todo.md`, and `tasks/lessons.md`. Optionally skim `tasks/goals.md` for in-progress user intentions (do not treat it as the working list).
-4. Optional: refresh the inventory with `abi_inventory.py --repo /Users/donaldfilimon/abi` if available (ships with the codex `abi-mega` plugin, not this repo); skip when absent.
+4. Optional: refresh the inventory with `abi_inventory.py --repo /Users/donaldfilimon/dev/active/abi` if available (ships with the codex `abi-mega` plugin, not this repo); skip when absent.
 5. Optional: load `references/current-goals.md` if present alongside this skill (codex plugin copies carry it; the canonical repo copy does not) — otherwise derive the source map from `tasks/todo.md` + `docs/spec/wdbx-north-star.mdx`.
 6. Derive a small executable slice. Prefer changes that make one TODO, roadmap gap, doc mismatch, or validation gap measurably more true.
 7. Keep claims honest: source/build/tests override prose. Do not fake-complete stubs.
@@ -31,7 +31,7 @@ Use this skill to turn ABI's active board and long-horizon specs into a concrete
 ## Useful Commands
 
 ```bash
-abi_inventory.py --repo /Users/donaldfilimon/abi   # optional; codex abi-mega plugin only
+abi_inventory.py --repo /Users/donaldfilimon/dev/active/abi   # optional; codex abi-mega plugin only
 ./tools/cargo.sh --version
 ./tools/check.sh
 ./tools/check.sh

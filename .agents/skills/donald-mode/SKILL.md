@@ -115,7 +115,7 @@ toolchain and frozen surfaces. This skill is style and process only.
 ## Orientation (Abbey, Cell, Functions, CoreAI, Parallel)
 
 - Abbey on Discord / `Package.swift` means
-  `/Users/donaldfilimon/Desktop/AbbeyBot` (DiscordBM), not CoreAIAssistant.
+  `/Users/donaldfilimon/dev/active/AbbeyBot` (DiscordBM), not CoreAIAssistant.
   Orient with a path table when ambiguous, then ask which lane if still unclear.
 - Cell / cell-lang / `build cel` / `build cell lang` means
   `/Volumes/ExtremeSSD/public/cell-lang` (SSD Zig 0.17 tree; not under `~/abi`).
@@ -123,7 +123,7 @@ toolchain and frozen surfaces. This skill is style and process only.
   `zig build run -- check examples/hello.cell`, `zig build test`. Bare
   `zig build run` exits 1 by design (CLI needs a subcommand).
 - `/functions` means Browserbase Functions at
-  `/Users/donaldfilimon/Desktop/AbbeyBot/functions` (bun `dev` / `deploy`;
+  `/Users/donaldfilimon/dev/active/AbbeyBot/functions` (bun `dev` / `deploy`;
   credentials in that project's `.env`). Do not re-scaffold unless asked.
 - `/model-compression-exploration` or `/model-authoring`: follow the attached
   CoreAI skill. Need `torch` + `coreai-opt`, plus model/data/forward/quality

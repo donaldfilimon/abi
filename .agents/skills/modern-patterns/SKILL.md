@@ -34,5 +34,5 @@ See references for catalog of before/after in Rust context.
 - `.agents/skills/modern-patterns/references/patterns-catalog.md`
 - `.agents/skills/modern-patterns/examples/ (prefer Rust nightly patterns)`
 
-Base directory for this skill: /Users/donaldfilimon/abi/.agents/skills/modern-patterns
+Base directory for this skill: /Users/donaldfilimon/dev/active/abi/.agents/skills/modern-patterns
 Relative paths in this skill (e.g., references/) are relative to this base directory.
