@@ -55,10 +55,15 @@ jobs:
       # cannot read secrets, so the check-hosted job cannot pass while wdbx
       # stays private; that is a consequence of the visibility choice, not a
       # workflow defect.
+      #
       # Fail with a sentence someone can act on, rather than a bare 403 from
-       # actions/checkout. A gate that cannot run must say so loudly; skipping
-       # the build would be a green result that proves nothing.
+      # actions/checkout. A gate that cannot run must say so loudly; skipping
+      # the build would be a green result that proves nothing.
       - name: Require the substrate credential
+        # shell: bash is REQUIRED, not stylistic. windows-latest defaults to
+        # pwsh, which parses `if [ -z "..." ]; then` as a malformed PowerShell
+        # `if` and dies with ParserError before the check ever runs.
+        shell: bash
         run: |
           if [ -z "${{ secrets.WDBX_CHECKOUT_TOKEN }}" ]; then
             echo "::error::WDBX_CHECKOUT_TOKEN is not set. abi consumes"\
@@ -110,10 +115,15 @@ jobs:
       # cannot read secrets, so the check-hosted job cannot pass while wdbx
       # stays private; that is a consequence of the visibility choice, not a
       # workflow defect.
+      #
       # Fail with a sentence someone can act on, rather than a bare 403 from
-       # actions/checkout. A gate that cannot run must say so loudly; skipping
-       # the build would be a green result that proves nothing.
+      # actions/checkout. A gate that cannot run must say so loudly; skipping
+      # the build would be a green result that proves nothing.
       - name: Require the substrate credential
+        # shell: bash is REQUIRED, not stylistic. windows-latest defaults to
+        # pwsh, which parses `if [ -z "..." ]; then` as a malformed PowerShell
+        # `if` and dies with ParserError before the check ever runs.
+        shell: bash
         run: |
           if [ -z "${{ secrets.WDBX_CHECKOUT_TOKEN }}" ]; then
             echo "::error::WDBX_CHECKOUT_TOKEN is not set. abi consumes"\
@@ -168,10 +178,15 @@ jobs:
       # cannot read secrets, so the check-hosted job cannot pass while wdbx
       # stays private; that is a consequence of the visibility choice, not a
       # workflow defect.
+      #
       # Fail with a sentence someone can act on, rather than a bare 403 from
-       # actions/checkout. A gate that cannot run must say so loudly; skipping
-       # the build would be a green result that proves nothing.
+      # actions/checkout. A gate that cannot run must say so loudly; skipping
+      # the build would be a green result that proves nothing.
       - name: Require the substrate credential
+        # shell: bash is REQUIRED, not stylistic. windows-latest defaults to
+        # pwsh, which parses `if [ -z "..." ]; then` as a malformed PowerShell
+        # `if` and dies with ParserError before the check ever runs.
+        shell: bash
         run: |
           if [ -z "${{ secrets.WDBX_CHECKOUT_TOKEN }}" ]; then
             echo "::error::WDBX_CHECKOUT_TOKEN is not set. abi consumes"\
