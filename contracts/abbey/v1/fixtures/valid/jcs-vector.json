@@ -1,0 +1,9 @@
+{
+  "case_id": "jcs_unicode_order_escape_negative_zero",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json",
+  "expect": "valid",
+  "document": {
+    "input": {"𝄞": "music", "zero": -0.0, "escaped": "line\n", "a": "é"},
+    "expected_hex": "61626265792d6a63732d76313a617070726f76616c3a31007b2261223a22c3a9222c2265736361706564223a226c696e655c6e222c227a65726f223a302c22f09d849e223a226d75736963227d"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "case_id": "jcs_number_outside_safe_domain",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json",
+  "expect": "numeric_domain",
+  "document": {"unsafe": 9007199254740992}
+}

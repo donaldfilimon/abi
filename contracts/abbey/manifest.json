@@ -23,6 +23,12 @@
       "sha256": "5744686229d6f1c7b482d9e39de564c20dfc72fcfe0bd1a6f1aa4669470554b9"
     },
     {
+      "path": "v1/fixtures/boundary/jcs-number-domain.json",
+      "bytes": 217,
+      "media_type": "application/json",
+      "sha256": "b834089faab1b0a553c1cd7ce054c19f95b5ea8e2f5da4c561653737c6dea103"
+    },
+    {
       "path": "v1/fixtures/cancellation/consent-barge-in.json",
       "bytes": 338,
       "media_type": "application/json",
@@ -149,6 +155,12 @@
       "sha256": "5a1f9cad83ebb3e689f705a1dd03cb1493da17813dafa74651316141dfe8b8ad"
     },
     {
+      "path": "v1/fixtures/invalid/jcs-duplicate-member.json",
+      "bytes": 219,
+      "media_type": "application/json",
+      "sha256": "5984858a54d8bf7c33a4301c1981ce787157c0f3930810b74dcf4762847b4fa9"
+    },
+    {
       "path": "v1/fixtures/invalid/learning-disabled-update.json",
       "bytes": 529,
       "media_type": "application/json",
@@ -233,6 +245,12 @@
       "sha256": "30aa37a3ea0fe2d63c0130b8eb1c5602e62921011eb665538f905b464be715d7"
     },
     {
+      "path": "v1/fixtures/valid/corpus-digest-vector.json",
+      "bytes": 536,
+      "media_type": "application/json",
+      "sha256": "0ddaf50e01940076aa92124e3a2566b31a3fdfe4742b85472a8f4779c296ad03"
+    },
+    {
       "path": "v1/fixtures/valid/episode-claim.json",
       "bytes": 686,
       "media_type": "application/json",
@@ -303,6 +321,12 @@
       "bytes": 374,
       "media_type": "application/json",
       "sha256": "cecf1c439699509c97f6d480cba8db380b9c83ca9b64a363b42f266f645d9d46"
+    },
+    {
+      "path": "v1/fixtures/valid/jcs-vector.json",
+      "bytes": 448,
+      "media_type": "application/json",
+      "sha256": "32e4949d15f1009687db0943980782ca201dd9e159c034dc4e38638ee5cf1b4f"
     },
     {
       "path": "v1/schemas/authorization/approval.schema.json",
@@ -494,5 +518,5 @@
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/receipt/outcome-receipt.schema.json"
     }
   ],
-  "aggregate_digest": "1d2ac983d385908495577633aa5740108aca4a99de608072b9575f70e4cad83f"
+  "aggregate_digest": "a53cb277be96c277e072d08787a5cfa648b5f52db54e6a991a4c31790fbf52a2"
 }
