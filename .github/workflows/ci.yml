@@ -25,7 +25,7 @@ env:
   # requirement R12 (a result must be tied to immutable code). Bump this when
   # abi needs a newer substrate; an unpinned main would let a wdbx-substrate
   # commit break abi's gate with no change to abi.
-  WDBX_REVISION: f6c480652f73c1a16942ce8bc176adf32d73e1d1
+  WDBX_REVISION: f42b9789eabcf89f952df0a160a7b6837c5acb57
 
 jobs:
   check:
@@ -49,7 +49,7 @@ jobs:
       # it by relative path. Cargo resolves `../wdbx/crates/...`, so the two
       # checkouts must be siblings or every job fails at manifest load.
       #
-      # donaldfilimon/wdbx-substrate is PRIVATE, and the built-in GITHUB_TOKEN is scoped
+      # donaldfilimon/wdbx is PRIVATE, and the built-in GITHUB_TOKEN is scoped
       # to this repository only, so a separate credential is required. Set the
       # WDBX_CHECKOUT_TOKEN secret to a token with read access to it. Fork PRs
       # cannot read secrets, so the check-hosted job cannot pass while wdbx
@@ -68,7 +68,7 @@ jobs:
           if [ -z "${{ secrets.WDBX_CHECKOUT_TOKEN }}" ]; then
             echo "::error::WDBX_CHECKOUT_TOKEN is not set. abi consumes"\
                  "abi-foundation, abi-core, abi-telemetry, abi-compute and"\
-                 "abi-wdbx from the private donaldfilimon/wdbx-substrate"\
+                 "abi-wdbx from the private donaldfilimon/wdbx"\
                  "repository by relative path, so this gate cannot run without"\
                  "read access to it. Add the secret, or make the substrate"\
                  "public and drop the token: line below."
@@ -79,7 +79,7 @@ jobs:
       - name: Check out the WDBX substrate as a sibling
         uses: actions/checkout@v4
         with:
-          repository: donaldfilimon/wdbx-substrate
+          repository: donaldfilimon/wdbx
           ref: ${{ env.WDBX_REVISION }}
           token: ${{ secrets.WDBX_CHECKOUT_TOKEN }}
           path: wdbx
@@ -109,7 +109,7 @@ jobs:
       # it by relative path. Cargo resolves `../wdbx/crates/...`, so the two
       # checkouts must be siblings or every job fails at manifest load.
       #
-      # donaldfilimon/wdbx-substrate is PRIVATE, and the built-in GITHUB_TOKEN is scoped
+      # donaldfilimon/wdbx is PRIVATE, and the built-in GITHUB_TOKEN is scoped
       # to this repository only, so a separate credential is required. Set the
       # WDBX_CHECKOUT_TOKEN secret to a token with read access to it. Fork PRs
       # cannot read secrets, so the check-hosted job cannot pass while wdbx
@@ -128,7 +128,7 @@ jobs:
           if [ -z "${{ secrets.WDBX_CHECKOUT_TOKEN }}" ]; then
             echo "::error::WDBX_CHECKOUT_TOKEN is not set. abi consumes"\
                  "abi-foundation, abi-core, abi-telemetry, abi-compute and"\
-                 "abi-wdbx from the private donaldfilimon/wdbx-substrate"\
+                 "abi-wdbx from the private donaldfilimon/wdbx"\
                  "repository by relative path, so this gate cannot run without"\
                  "read access to it. Add the secret, or make the substrate"\
                  "public and drop the token: line below."
@@ -139,7 +139,7 @@ jobs:
       - name: Check out the WDBX substrate as a sibling
         uses: actions/checkout@v4
         with:
-          repository: donaldfilimon/wdbx-substrate
+          repository: donaldfilimon/wdbx
           ref: ${{ env.WDBX_REVISION }}
           token: ${{ secrets.WDBX_CHECKOUT_TOKEN }}
           path: wdbx
@@ -172,7 +172,7 @@ jobs:
       # it by relative path. Cargo resolves `../wdbx/crates/...`, so the two
       # checkouts must be siblings or every job fails at manifest load.
       #
-      # donaldfilimon/wdbx-substrate is PRIVATE, and the built-in GITHUB_TOKEN is scoped
+      # donaldfilimon/wdbx is PRIVATE, and the built-in GITHUB_TOKEN is scoped
       # to this repository only, so a separate credential is required. Set the
       # WDBX_CHECKOUT_TOKEN secret to a token with read access to it. Fork PRs
       # cannot read secrets, so the check-hosted job cannot pass while wdbx
@@ -191,7 +191,7 @@ jobs:
           if [ -z "${{ secrets.WDBX_CHECKOUT_TOKEN }}" ]; then
             echo "::error::WDBX_CHECKOUT_TOKEN is not set. abi consumes"\
                  "abi-foundation, abi-core, abi-telemetry, abi-compute and"\
-                 "abi-wdbx from the private donaldfilimon/wdbx-substrate"\
+                 "abi-wdbx from the private donaldfilimon/wdbx"\
                  "repository by relative path, so this gate cannot run without"\
                  "read access to it. Add the secret, or make the substrate"\
                  "public and drop the token: line below."
@@ -202,7 +202,7 @@ jobs:
       - name: Check out the WDBX substrate as a sibling
         uses: actions/checkout@v4
         with:
-          repository: donaldfilimon/wdbx-substrate
+          repository: donaldfilimon/wdbx
           ref: ${{ env.WDBX_REVISION }}
           token: ${{ secrets.WDBX_CHECKOUT_TOKEN }}
           path: wdbx
