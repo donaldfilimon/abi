@@ -8,6 +8,12 @@ truth is the nightly-Rust workspace under `crates/`; readiness is gated by
 
 ### Added
 
+- feat(browser): `abi agent browser --studio` serves a loopback multimodal
+  capture page (camera stills, short video frames, mic PCM, client-side Web
+  Speech STT/TTS) and JSON `/analyze` `/fuse` routes through deterministic
+  `abi_ai::multimodal` processors. Not a neural vision, STT, or TTS model. The
+  existing `abi agent browser <task>` plan path now emits the claim-honest
+  `orchestration=browser-local` / `embedded_browser=false` contract.
 - feat(worker): add `abi-worker` with audience-bound signed job and cancellation
   envelopes, manager-derived idempotency, finite leases, cooperative cancellation,
   bounded result streams, verifiable digests, replay protection, independent

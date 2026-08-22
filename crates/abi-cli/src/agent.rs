@@ -11,8 +11,8 @@ use std::sync::Arc;
 
 use abi_ai::{
     DatasetFormat, DatasetSpec, TrainingConfig, analyze_sentiment, parse_agent_profile,
-    route_to_profile, select_best_profile, train_inspect, training_store_key, training_store_value,
-    training_vectors,
+    plan_browser_orchestration, route_to_profile, select_best_profile, train_inspect,
+    training_store_key, training_store_value, training_vectors,
 };
 use abi_core::{MemoryTracker, Scheduler, TaskPriority};
 
@@ -182,7 +182,10 @@ fn train_profile(profile_arg: &str) -> Outcome {
 }
 
 fn browser(args: &[String]) -> Outcome {
-    let mut url = "https://example.com".to_string();
+    if args.iter().any(|arg| arg == "--studio") {
+        return crate::browser_studio::run_from_args(args);
+    }
+    let mut url = None;
     let mut execute = false;
     let mut confirm = false;
     let mut task_parts: Vec<&str> = Vec::new();
@@ -191,13 +194,13 @@ fn browser(args: &[String]) -> Outcome {
         match args[i].as_str() {
             "--url" => {
                 i += 1;
-                let Some(v) = args.get(i) else {
+                let Some(value) = args.get(i) else {
                     return Outcome::stderr(
                         "error: usage: abi agent browser [--url <url>] [--execute --confirm] <task>\n".into(),
                         2,
                     );
                 };
-                url.clone_from(v);
+                url = Some(value.as_str());
             }
             "--execute" => execute = true,
             "--confirm" => confirm = true,
@@ -218,14 +221,18 @@ fn browser(args: &[String]) -> Outcome {
             2,
         );
     }
-    let mode = if execute && confirm {
-        "execute-confirmed (local plan only; no embedded browser)"
-    } else {
-        "dry-run"
+    let Some(plan) = plan_browser_orchestration(&task, url, execute && confirm) else {
+        return Outcome::stderr(
+            "error: usage: abi agent browser [--url <url>] [--execute --confirm] <task>\n".into(),
+            2,
+        );
     };
-    let out = format!(
-        "browser-orchestration mode={mode}\nurl={url}\ntask={task}\nsteps:\n  1. open {url}\n  2. locate content for: {task}\n  3. summarize findings\nnote: real navigation requires an external browser MCP; this is a local plan only.\n"
-    );
+    let tracker = Arc::new(MemoryTracker::new());
+    let scheduler = Scheduler::new().with_memory_tracker(Arc::clone(&tracker));
+    scheduler.submit("agent:browser", TaskPriority::Normal, Box::new(|| Ok(())));
+    let _ = scheduler.run_all();
+    let mut out = plan.output;
+    print_scheduler_stats(&mut out, scheduler.stats());
     Outcome {
         stdout: out,
         stderr: String::new(),
@@ -403,8 +410,22 @@ mod tests {
     fn browser_dry_run_plans_steps() {
         let outcome = browser(&["open docs".into()]);
         assert_eq!(outcome.exit_code, 0);
-        assert!(outcome.stdout.contains("browser-orchestration"));
+        assert!(outcome.stdout.contains("orchestration=browser-local"));
+        assert!(outcome.stdout.contains("embedded_browser=false"));
+        assert!(
+            outcome
+                .stdout
+                .contains("delegation_hint=external-mcp-playwright")
+        );
         assert!(outcome.stdout.contains("dry-run"));
+        assert!(outcome.stdout.contains("scheduler:"));
+    }
+
+    #[test]
+    fn browser_studio_flag_is_not_a_plan_task() {
+        let outcome = browser(&["--studio".into(), "--port".into(), "not-a-port".into()]);
+        assert_eq!(outcome.exit_code, 2);
+        assert!(outcome.stderr.contains("usage: abi agent browser --studio"));
     }
 
     #[test]
