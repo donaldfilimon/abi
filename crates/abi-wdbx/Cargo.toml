@@ -15,7 +15,6 @@ full-fhe = ["dep:tfhe"]
 [dependencies]
 abi-compute = { workspace = true }
 abi-foundation = { workspace = true }
-abi-core = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
