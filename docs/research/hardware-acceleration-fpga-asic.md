@@ -40,7 +40,7 @@ Specialized hardware can potentially reduce latency, increase throughput, and im
 
 - Metrics: latency p50/p90/p99, throughput (tokens/sec), memory usage, power consumption
 - Dataset: representative inference requests (short/medium/long prompts)
-- Reporting: JSON output compatible with `tools/benchmark-dashboard` sample schema
+- Reporting: JSON output compatible with the `site/data/sample_benchmarks.json` sample schema (documented in `site/data/README.md`)
 
 ## Risk & Cost
 

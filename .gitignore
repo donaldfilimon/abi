@@ -9,7 +9,6 @@ zig-cache/
 zig-out/
 exe/
 docs_html/
-/site/
 # Root-level build artifacts (stray from manual builds)
 /test.db
 /target_contract.o
@@ -266,6 +265,10 @@ test_imports3
 !/tasks/goals.md
 !/tasks/lessons.md
 !/tasks/todo.md
+
+# GitHub Pages site source (site/README.md documents the publish flow)
+!/site/README.md
+!/site/data/README.md
 
 # Golden fixtures captured from the Zig implementation before its removal
 !/tests/golden/README.md
