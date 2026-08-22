@@ -10,7 +10,10 @@ use abi_core::{Scheduler, TaskPriority};
 use std::path::PathBuf;
 
 fn golden(name: &str) -> String {
-    // CARGO_MANIFEST_DIR is crates/abi-core; fixtures live at the repo root.
+    // CARGO_MANIFEST_DIR is crates/abi-cli; fixtures live at the repo root. This
+    // test moved here from crates/abi-core when WDBX was extracted: it asserts
+    // abi-core behaviour against fixtures captured from abi CLI/MCP output, so it
+    // is an integration test between substrate and runtime and belongs runtime-side.
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/golden")
         .join(name);

@@ -12,19 +12,19 @@ repository = "https://github.com/donaldfilimon/abi"
 [workspace.dependencies]
 abi-agent-host = { path = "crates/abi-agent-host" }
 abi-agent-runtime = { path = "crates/abi-agent-runtime" }
-abi-compute = { path = "crates/abi-compute" }
+abi-compute = { path = "../wdbx/crates/abi-compute" }
 abi-models = { path = "crates/abi-models" }
 abi-worker = { path = "crates/abi-worker" }
-abi-foundation = { path = "crates/abi-foundation" }
-abi-core = { path = "crates/abi-core" }
-abi-telemetry = { path = "crates/abi-telemetry" }
+abi-foundation = { path = "../wdbx/crates/abi-foundation" }
+abi-core = { path = "../wdbx/crates/abi-core" }
+abi-telemetry = { path = "../wdbx/crates/abi-telemetry" }
 abi-plugins = { path = "crates/abi-plugins" }
 abi-ai = { path = "crates/abi-ai" }
 abi-sea = { path = "crates/abi-sea" }
 abi-gpu = { path = "crates/abi-gpu" }
 abi-nn = { path = "crates/abi-nn" }
 abi-connectors = { path = "crates/abi-connectors" }
-abi-wdbx = { path = "crates/abi-wdbx" }
+abi-wdbx = { path = "../wdbx/crates/abi-wdbx" }
 abi-wdbx-gateway = { path = "crates/abi-wdbx-gateway" }
 
 serde = { version = "1", features = ["derive"] }
