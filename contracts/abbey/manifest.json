@@ -1,0 +1,21 @@
+{
+  "contract_major": 1,
+  "contract_revision": 1,
+  "algorithm": "abbey-contract-corpus-sha256-v1",
+  "redaction_profile": "abbey-contract-redaction-v1",
+  "artifacts": [
+    {
+      "path": "README.md",
+      "bytes": 1099,
+      "media_type": "text/markdown; charset=utf-8",
+      "sha256": "8a68e71e4cbe1a665e9c8ca65ea2163c2a39d183a1d0fe3ddfedbcc3ec1396a9"
+    },
+    {
+      "path": "compatibility.md",
+      "bytes": 1018,
+      "media_type": "text/markdown; charset=utf-8",
+      "sha256": "b6a587e65fa330c69dd9fad1fb0da3e09244229cd021083a678964b30015d167"
+    }
+  ],
+  "aggregate_digest": "d0fb5a0e0b02b8d2a8e136fbe78b609c11a4cea8c6d13440009d8a699fa4e9b1"
+}
