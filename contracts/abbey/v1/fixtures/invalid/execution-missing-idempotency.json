@@ -1,0 +1,21 @@
+{
+  "case_id": "execution_effect_requires_idempotency",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/cognition/request.schema.json",
+  "expect": "idempotency_required",
+  "document": {
+    "contract_major": 1,
+    "contract_revision": 1,
+    "correlation_id": "correlation_alpha",
+    "channel_principal_id": "channel_alpha",
+    "subject_principal_id": "subject_alpha",
+    "scope": {"organization_id": "organization_alpha", "deployment_id": "deployment_alpha", "tenant_id": "tenant_alpha", "platform_scope": {"kind": "deployment_local"}},
+    "capability_id": "effect_alpha",
+    "capability_version": "1.0.0",
+    "policy_versions_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "deadline": "2026-08-22T17:00:00Z",
+    "cancellation_reference": "cancel_alpha",
+    "effect_class": "durable_write",
+    "data_class": "metadata",
+    "residency": "deployment_local"
+  }
+}

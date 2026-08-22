@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/authorization/policy-decision.schema.json",
+  "title": "Closed policy decision",
+  "x-abbey-data-class": "authorization",
+  "x-abbey-max-bytes": 8192,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "reason_code", "request_digest", "policy_version", "scope_digest"],
+  "properties": {
+    "decision": {"enum": ["allow", "deny"]},
+    "reason_code": {"enum": ["authorized", "authentication_required", "authorization_denied", "approval_required", "prohibited", "dependency_unavailable", "schema_mismatch", "version_mismatch", "corpus_mismatch", "expired", "revoked", "rate_exceeded", "budget_exceeded"]},
+    "request_digest": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "policy_version": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "scope_digest": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"}
+  }
+}

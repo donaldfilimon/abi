@@ -1,0 +1,12 @@
+{
+  "case_id": "execution_metadata_extension_preserved",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/event/metadata-event.schema.json",
+  "expect": "valid",
+  "document": {
+    "correlation_id": "correlation_alpha",
+    "sequence": "4",
+    "event_kind": "provider_stopped",
+    "occurred_at": "2026-08-22T17:00:00Z",
+    "extensions": {"future_counter": 7, "future_flag": true}
+  }
+}

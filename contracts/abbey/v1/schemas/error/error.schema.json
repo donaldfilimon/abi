@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/error/error.schema.json",
+  "title": "Closed redacted contract error",
+  "x-abbey-data-class": "redacted-metadata",
+  "x-abbey-max-bytes": 4096,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reason_code", "correlation_id", "contract_major", "contract_revision"],
+  "properties": {
+    "reason_code": {"enum": ["authentication", "authorization", "approval", "consent", "schema", "version", "corpus_mismatch", "deadline", "cancellation", "rate", "budget", "dependency", "verification", "compensation", "outcome_unresolved"]},
+    "correlation_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "contract_major": {"const": 1},
+    "contract_revision": {"type": "integer", "minimum": 1, "maximum": 999999},
+    "receipt_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "redacted": {"const": true},
+    "truncated": {"type": "boolean"}
+  }
+}

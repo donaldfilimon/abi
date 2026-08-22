@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/authorization/grant.schema.json",
+  "title": "Expiring capability grant",
+  "x-abbey-data-class": "authorization",
+  "x-abbey-max-bytes": 32768,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "grant_id", "issuer_principal_id", "subject_principal_id", "subject_kind",
+    "capability_id", "capability_version", "capability_digest", "risk_class",
+    "scope", "issued_at", "expires_at", "revocation_epoch"
+  ],
+  "properties": {
+    "grant_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "issuer_principal_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "subject_principal_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "subject_kind": {"enum": ["human_subject", "organization_owner", "guild_owner", "guild_administrator", "guild_manager", "service"]},
+    "capability_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "capability_version": {"type": "string", "pattern": "[0-9]+\\.[0-9]+\\.[0-9]+", "maxLength": 32},
+    "capability_digest": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "risk_class": {"enum": ["Informational", "Low", "Medium", "High"]},
+    "scope": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/authorization/scope.schema.json"},
+    "issued_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "expires_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "revocation_epoch": {"type": "string", "pattern": "(?:0|[1-9][0-9]{0,18})"}
+  }
+}

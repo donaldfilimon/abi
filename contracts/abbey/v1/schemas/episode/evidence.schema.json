@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/episode/evidence.schema.json",
+  "title": "Separated evidence dimensions",
+  "x-abbey-data-class": "evidence-metadata",
+  "x-abbey-max-bytes": 16384,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evidence_id", "source_id", "source_version", "integrity_state", "provenance_state", "semantic_state", "truth_state", "observed_at", "payload_digest"],
+  "properties": {
+    "evidence_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "source_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "source_version": {"type": "string", "maxLength": 64, "pattern": "[a-z0-9][a-z0-9_.-]{0,63}"},
+    "integrity_state": {"enum": ["verified", "failed", "unknown"]},
+    "provenance_state": {"enum": ["attested", "derived", "unverified"]},
+    "semantic_state": {"enum": ["valid", "contradicted", "quarantined", "unknown"]},
+    "truth_state": {"enum": ["observed", "inferred", "contested", "unknown"]},
+    "observed_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "payload_digest": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"}
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "case_id": "consent_report_media_content_forbidden",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/consent/operator-verification-report.schema.json",
+  "expect": "forbidden_content",
+  "document": {
+    "verifier_build_id": "verifier_alpha", "contract_revision": 1, "authorization_result": "authorized",
+    "epoch_open_count": 1, "epoch_close_count": 1, "participant_change_count": 0,
+    "decoded_receive_count": 1, "stt_completion_count": 1, "synthesis_completion_count": 1,
+    "playback_completion_count": 1, "barge_in_cancellation_count": 0,
+    "pause_count": 0, "resume_count": 0, "final_leave_count": 1,
+    "duration_ms": "60000", "terminal_status": "complete", "evidence_classification": "local_test",
+    "redacted": true, "truncated": false, "transcript": "synthetic content still forbidden"
+  }
+}

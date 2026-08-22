@@ -1,0 +1,18 @@
+{
+  "case_id": "execution_actuator_cancellation_race",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/receipt/outcome-receipt.schema.json",
+  "expect": "valid",
+  "document": {
+    "receipt_id": "receipt_alpha", "correlation_id": "correlation_alpha",
+    "decision": "outcome_unresolved", "reason_code": "outcome_unresolved",
+    "capability_version": "1.0.0",
+    "contract_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "build_id": "build_alpha",
+    "policy_versions_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "authorization_result": "allowed", "approval_result": "valid",
+    "step_counts": {"not_started": 0, "completed": 1, "reverted": 0, "unresolved": 1},
+    "postcondition_result": "unknown", "compensation_result": "unknown", "rollback_state": "unknown",
+    "cancellation_state": "raced", "deadline_state": "within", "rate_state": "within", "budget_state": "within",
+    "evidence_references": ["evidence_alpha"], "redacted": true, "truncated": false
+  }
+}

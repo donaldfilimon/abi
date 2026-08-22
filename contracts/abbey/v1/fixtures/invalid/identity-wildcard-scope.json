@@ -1,0 +1,14 @@
+{
+  "case_id": "identity_scope_wildcard_denied",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/authorization/scope.schema.json",
+  "expect": "schema_invalid",
+  "document": {
+    "organization_id": "organization_alpha",
+    "deployment_id": "deployment_alpha",
+    "tenant_id": "tenant_alpha",
+    "platform_scope": {
+      "kind": "discord_guild",
+      "scoped_id": "*"
+    }
+  }
+}

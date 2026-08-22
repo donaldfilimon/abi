@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/consent/epoch.schema.json",
+  "title": "Consent epoch snapshot",
+  "x-abbey-data-class": "aggregate-consent-metadata",
+  "x-abbey-max-bytes": 8192,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["epoch_id", "state", "participant_set_digest", "participant_count", "manager_authorized", "all_current_participants_consented", "opened_at", "updated_at"],
+  "properties": {
+    "epoch_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "state": {"enum": ["Closed", "PendingAttestation", "Open", "Closing"]},
+    "participant_set_digest": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "participant_count": {"type": "integer", "minimum": 0, "maximum": 1000},
+    "manager_authorized": {"type": "boolean"},
+    "all_current_participants_consented": {"type": "boolean"},
+    "opened_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "updated_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"}
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "episode_mandatory_incident_controlled",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/episode/proposal.schema.json",
+  "expect": "valid",
+  "document": {
+    "proposal_id": "incident_alpha", "source_adapter_id": "adapter_alpha", "observation_method": "human_attestation",
+    "scope_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "data_class": "restricted", "retention_class": "mandatory_incident", "claim_class": "Observation",
+    "evidence_references": ["evidence_alpha"], "links": [], "payload_mode": "redacted_empty", "redacted_summary_code": "withheld",
+    "expires_at": "2026-08-23T17:00:00Z", "deletion_required": true,
+    "priority_class": "MandatoryIncident", "minimized": true, "redacted": true, "hold_state": "active", "deletion_key": "delete_incident_alpha"
+  }
+}

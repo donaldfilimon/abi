@@ -1,4 +1,4 @@
-# Program 4: Guild world model and adaptive arbiter
+# Program 6: Guild world model and adaptive arbiter
 
 > **Constitutional mapping.** This file was written against the seven-program
 > list Donald gave in conversation. The ratified constitution's section 13
@@ -9,6 +9,11 @@
 > asserted. Nothing in section 13 was renumbered: section 15 reserves amendment
 > to Donald, and the collision is raised as one request covering the whole set
 > rather than five independent ones.
+
+**Reconciled ownership.** This is the arbiter portion of constitutional Program
+6, `model-registry-adaptive-arbiter`. It consumes Program 3 guild facts and
+Program 4 evidence. Program 1, `abbey-contracts`, owns the shared wire schemas
+and fixtures; this document owns proposed inference and routing behavior only.
 
 
 Status: **proposed design.** No implementation is authorized by this document.
@@ -36,7 +41,7 @@ is a defect report against earlier scope.
 
 ---
 
-## 0. Constitutional reconciliation, and a numbering conflict
+## 0. Constitutional reconciliation
 
 This spec was assigned the name "Program 4, Guild World Model and Adaptive
 Arbiter" and the filename above. That name does not match the constitution's
@@ -53,15 +58,10 @@ Program 6**, plus the arbiter-facing half of **constitution section 8**. It
 depends on constitution-Program-3 (the read-only guild twin) and
 constitution-Program-4 (canonical WDBX episodes and claims); see section 9.
 
-Per constitution section 15, silence is not amendment, so this document does
-not renumber anything. It requests one of two corrections from Donald:
-
-1. amend section 13 so the register and the working program names agree; or
-2. adopt name-based program references (`program-guild-world-model-arbiter`)
-   and let the numbers become historical.
-
-Until then, cite programs by name in new work, because the numbers currently
-disagree across two ratified documents.
+The approved federation reconciliation keeps section 13 unchanged and maps
+this document to Program 6, `model-registry-adaptive-arbiter`. The earlier
+Program 4 label is historical assignment context, not a second program number.
+New work cites the constitutional slug and number above.
 
 ### What this program does not own
 

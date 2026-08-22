@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/consent/transition.schema.json",
+  "title": "Consent epoch transition",
+  "x-abbey-data-class": "aggregate-consent-metadata",
+  "x-abbey-max-bytes": 8192,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["epoch_id", "from_state", "to_state", "participant_set_digest", "participant_count", "manager_authorized", "all_current_participants_consented", "reason_code", "occurred_at", "cancelled_stages"],
+  "properties": {
+    "epoch_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "from_state": {"enum": ["Closed", "PendingAttestation", "Open", "Closing"]},
+    "to_state": {"enum": ["Closed", "PendingAttestation", "Open", "Closing"]},
+    "participant_set_digest": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "participant_count": {"type": "integer", "minimum": 0, "maximum": 1000},
+    "manager_authorized": {"type": "boolean"},
+    "all_current_participants_consented": {"type": "boolean"},
+    "reason_code": {"enum": ["begin_attestation", "attested", "participant_change", "unidentified_participant", "attestation_lost", "manager_deauthorized", "connection_lost", "explicit_stop", "closed"]},
+    "occurred_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "cancelled_stages": {"type": "array", "maxItems": 8, "uniqueItems": true, "items": {"enum": ["decoded_receive", "stt", "reasoning", "synthesis", "provider", "playback"]}}
+  }
+}

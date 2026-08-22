@@ -1,0 +1,10 @@
+{
+  "case_id": "execution_recommendation_non_authorizing",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/capability/recommendation.schema.json",
+  "expect": "valid",
+  "document": {
+    "recommendation_id": "recommendation_alpha",
+    "summary_code": "propose_action",
+    "authorization_implication": "none"
+  }
+}

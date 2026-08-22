@@ -1,0 +1,19 @@
+{
+  "case_id": "execution_receipt_content_forbidden",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/receipt/outcome-receipt.schema.json",
+  "expect": "forbidden_content",
+  "document": {
+    "receipt_id": "receipt_alpha", "correlation_id": "correlation_alpha",
+    "decision": "allowed", "reason_code": "success",
+    "capability_version": "1.0.0",
+    "contract_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "build_id": "build_alpha",
+    "policy_versions_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "authorization_result": "allowed", "approval_result": "valid",
+    "step_counts": {"not_started": 0, "completed": 1, "reverted": 0, "unresolved": 0},
+    "postcondition_result": "satisfied", "compensation_result": "not_needed", "rollback_state": "not_needed",
+    "cancellation_state": "not_requested", "deadline_state": "within", "rate_state": "within", "budget_state": "within",
+    "evidence_references": [], "redacted": true, "truncated": false,
+    "message": "synthetic content that still must not cross the receipt boundary"
+  }
+}

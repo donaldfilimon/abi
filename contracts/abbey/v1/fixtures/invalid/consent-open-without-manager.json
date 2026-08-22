@@ -1,0 +1,11 @@
+{
+  "case_id": "consent_open_without_manager_denied",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/consent/transition.schema.json",
+  "expect": "consent_open_denied",
+  "document": {
+    "epoch_id": "epoch_alpha", "from_state": "PendingAttestation", "to_state": "Open",
+    "participant_set_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "participant_count": 3, "manager_authorized": false, "all_current_participants_consented": true,
+    "reason_code": "attested", "occurred_at": "2026-08-22T17:00:00Z", "cancelled_stages": []
+  }
+}

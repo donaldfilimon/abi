@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/cognition/request.schema.json",
+  "title": "Bounded cognition request",
+  "x-abbey-data-class": "request-metadata",
+  "x-abbey-max-bytes": 32768,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_major", "contract_revision", "correlation_id", "channel_principal_id", "subject_principal_id", "scope", "capability_id", "capability_version", "policy_versions_digest", "deadline", "cancellation_reference", "effect_class", "data_class", "residency"],
+  "properties": {
+    "contract_major": {"const": 1},
+    "contract_revision": {"type": "integer", "minimum": 1, "maximum": 999999},
+    "correlation_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "channel_principal_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "subject_principal_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "scope": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/authorization/scope.schema.json"},
+    "capability_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "capability_version": {"type": "string", "pattern": "[0-9]+\\.[0-9]+\\.[0-9]+", "maxLength": 32},
+    "policy_versions_digest": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "deadline": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "cancellation_reference": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "effect_class": {"enum": ["none", "ephemeral", "durable_write", "platform_effect"]},
+    "idempotency_key": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "consent_epoch_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "data_class": {"enum": ["public", "metadata", "pseudonymous", "private", "restricted"]},
+    "residency": {"enum": ["deployment_local", "tenant_region", "declared_external"]}
+  }
+}

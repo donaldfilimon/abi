@@ -1,0 +1,10 @@
+{
+  "case_id": "learning_authority_payload_forbidden",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/learning/promotion-candidate.schema.json",
+  "expect": "learning_authority_forbidden",
+  "document": {
+    "candidate_id": "candidate_alpha", "candidate_kind": "routing_policy", "source_scope": "guild_local",
+    "evidence_references": ["evidence_alpha"], "evaluation_state": "candidate", "production_authority": false,
+    "measured_outcome_source": "external_evaluator", "grant": "grant_alpha"
+  }
+}

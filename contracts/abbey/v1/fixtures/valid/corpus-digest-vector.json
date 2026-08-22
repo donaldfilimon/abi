@@ -1,0 +1,12 @@
+{
+  "case_id": "corpus_independent_digest_vector",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json",
+  "expect": "valid",
+  "document": {
+    "entries": [
+      {"path": "a.json", "bytes": "3", "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"},
+      {"path": "b.json", "bytes": "3", "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"}
+    ],
+    "expected_digest": "68f12c1e9aa7a0351750030e55a77a6662bb62d84c3a116e9f80084244313e31"
+  }
+}

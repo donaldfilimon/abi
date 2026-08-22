@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/consent/operator-verification-report.schema.json",
+  "title": "Redacted operator verification report",
+  "x-abbey-data-class": "redacted-aggregate-metadata",
+  "x-abbey-max-bytes": 16384,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verifier_build_id", "contract_revision", "authorization_result", "epoch_open_count", "epoch_close_count", "participant_change_count", "decoded_receive_count", "stt_completion_count", "synthesis_completion_count", "playback_completion_count", "barge_in_cancellation_count", "pause_count", "resume_count", "final_leave_count", "duration_ms", "terminal_status", "evidence_classification", "redacted", "truncated"],
+  "properties": {
+    "verifier_build_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "contract_revision": {"type": "integer", "minimum": 1, "maximum": 999999},
+    "authorization_result": {"enum": ["authorized", "denied", "lost"]},
+    "epoch_open_count": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "epoch_close_count": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "participant_change_count": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "decoded_receive_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "stt_completion_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "synthesis_completion_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "playback_completion_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "barge_in_cancellation_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "pause_count": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "resume_count": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "final_leave_count": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "duration_ms": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/duration_ms"},
+    "terminal_status": {"enum": ["complete", "cancelled", "failed", "outcome_unresolved"]},
+    "evidence_classification": {"enum": ["local_test", "installed_artifact", "live_discord"]},
+    "redacted": {"const": true},
+    "truncated": {"type": "boolean"}
+  }
+}

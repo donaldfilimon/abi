@@ -1,0 +1,21 @@
+{
+  "case_id": "execution_action_proposal_bounded",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/capability/action-proposal.schema.json",
+  "expect": "valid",
+  "document": {
+    "proposal_id": "proposal_alpha",
+    "proposal_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "capability_id": "effect_alpha",
+    "capability_version": "1.0.0",
+    "scope_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "risk_class": "Medium",
+    "uncertainty": "bounded",
+    "precondition_codes": ["current_facts"],
+    "expected_effect_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "approval_required": true,
+    "expires_at": "2026-08-22T17:00:00Z",
+    "verification_codes": ["read_after_write"],
+    "rollback_code": "restore_snapshot",
+    "steps": [{"step_id": "step_alpha", "operation_code": "synthetic_reversible_effect"}]
+  }
+}

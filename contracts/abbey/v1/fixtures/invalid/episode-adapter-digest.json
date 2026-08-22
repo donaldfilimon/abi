@@ -1,0 +1,14 @@
+{
+  "case_id": "episode_adapter_canonical_digest_forbidden",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/episode/proposal.schema.json",
+  "expect": "schema_invalid",
+  "document": {
+    "proposal_id": "proposal_alpha", "source_adapter_id": "adapter_alpha", "observation_method": "synthetic_test",
+    "scope_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "data_class": "metadata", "retention_class": "short", "claim_class": "Observation",
+    "evidence_references": ["evidence_alpha"], "links": [], "payload_mode": "redacted_empty", "redacted_summary_code": "empty",
+    "expires_at": "2026-08-23T17:00:00Z", "deletion_required": true,
+    "priority_class": "Discretionary", "minimized": true, "redacted": true, "hold_state": "none", "deletion_key": "delete_alpha",
+    "episode_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "case_id": "authorization_prohibited_candidate_decodable",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/capability/package.schema.json",
+  "expect": "valid",
+  "document": {
+    "capability_id": "candidate_alpha",
+    "capability_version": "1.0.0",
+    "package_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "input_schema_id": "https://abbey.local/contracts/abbey/v1/schemas/cognition/request.schema.json",
+    "output_schema_id": "https://abbey.local/contracts/abbey/v1/schemas/cognition/response.schema.json",
+    "error_schema_id": "https://abbey.local/contracts/abbey/v1/schemas/error/error.schema.json",
+    "risk_class": "Prohibited",
+    "side_effect": "platform",
+    "reversibility": "irreversible",
+    "data_classes": ["restricted"],
+    "residency": "declared_external",
+    "retention": "policy_bound",
+    "cancellation": "required",
+    "deadline_required": true,
+    "idempotency_required": true,
+    "receipt_required": true
+  }
+}

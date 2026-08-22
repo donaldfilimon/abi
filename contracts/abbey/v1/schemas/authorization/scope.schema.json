@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/authorization/scope.schema.json",
+  "title": "Tenant and resource scope",
+  "x-abbey-data-class": "authorization-metadata",
+  "x-abbey-max-bytes": 8192,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["organization_id", "deployment_id", "tenant_id", "platform_scope"],
+  "properties": {
+    "organization_id": {
+      "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+    },
+    "deployment_id": {
+      "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+    },
+    "tenant_id": {
+      "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+    },
+    "platform_scope": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "scoped_id"],
+          "properties": {
+            "kind": {"const": "discord_guild"},
+            "scoped_id": {
+              "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "scoped_id"],
+          "properties": {
+            "kind": {"const": "discord_dm"},
+            "scoped_id": {
+              "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "scoped_id"],
+          "properties": {
+            "kind": {"const": "local_user"},
+            "scoped_id": {
+              "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "platform", "scoped_id"],
+          "properties": {
+            "kind": {"const": "platform_workspace"},
+            "platform": {"type": "string", "pattern": "[a-z][a-z0-9_-]{0,31}"},
+            "scoped_id": {
+              "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": {"const": "deployment_local"}
+          }
+        }
+      ]
+    },
+    "resource_ids": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+      }
+    },
+    "subject_ids": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+      }
+    }
+  }
+}

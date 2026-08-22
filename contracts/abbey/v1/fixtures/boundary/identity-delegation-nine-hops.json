@@ -1,0 +1,21 @@
+{
+  "case_id": "identity_delegation_ninth_hop_denied",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/identity/delegation-chain.schema.json",
+  "expect": "schema_invalid",
+  "document": {
+    "audience_adapter_id": "adapter_alpha",
+    "expires_at": "2026-08-22T18:00:00Z",
+    "clock_skew_ms": "5000",
+    "hops": [
+      {"grant_id": "grant_a", "delegator_principal_id": "principal_a", "delegatee_principal_id": "principal_b", "scope_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      {"grant_id": "grant_b", "delegator_principal_id": "principal_b", "delegatee_principal_id": "principal_c", "scope_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+      {"grant_id": "grant_c", "delegator_principal_id": "principal_c", "delegatee_principal_id": "principal_d", "scope_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+      {"grant_id": "grant_d", "delegator_principal_id": "principal_d", "delegatee_principal_id": "principal_e", "scope_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
+      {"grant_id": "grant_e", "delegator_principal_id": "principal_e", "delegatee_principal_id": "principal_f", "scope_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
+      {"grant_id": "grant_f", "delegator_principal_id": "principal_f", "delegatee_principal_id": "principal_g", "scope_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+      {"grant_id": "grant_g", "delegator_principal_id": "principal_g", "delegatee_principal_id": "principal_h", "scope_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"},
+      {"grant_id": "grant_h", "delegator_principal_id": "principal_h", "delegatee_principal_id": "principal_i", "scope_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"},
+      {"grant_id": "grant_i", "delegator_principal_id": "principal_i", "delegatee_principal_id": "principal_j", "scope_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"}
+    ]
+  }
+}

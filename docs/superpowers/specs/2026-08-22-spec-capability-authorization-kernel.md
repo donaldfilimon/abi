@@ -1,4 +1,4 @@
-# Program 2: Capability and Authorization Runtime
+# Program 2: Capability and authorization kernel
 
 > **Constitutional mapping.** This file was written against the seven-program
 > list Donald gave in conversation. The ratified constitution's section 13
@@ -9,6 +9,11 @@
 > The filename is name-based so no numbering is asserted. Section 13 caps this
 > program at recording adapters with no production Discord mutation authority,
 > and that bound is honored: live guild writes belong to section 13's Program 5.
+
+**Reconciled ownership.** This is constitutional Program 2,
+`authorization-capability-kernel`. Program 1, `abbey-contracts`, owns the
+language-neutral wire schemas and fixtures this design consumes. This document
+owns the proposed authorization behavior only; it does not fork those schemas.
 
 
 Status: **design proposal, C0 (Specified) only.** Nothing in the Proposed

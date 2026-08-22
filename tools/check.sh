@@ -19,6 +19,12 @@ step "rustc / cargo versions"
 "${CARGO}" --version
 "${CARGO}" rustc --version -- --version 2>/dev/null | head -1 || true
 
+step "repository policy tests"
+python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
+
+step "Abbey contract corpus"
+python3 tools/abbey_contracts.py verify contracts/abbey
+
 step "Rust source size limits"
 bash ./tools/check_rust_sizes.sh
 

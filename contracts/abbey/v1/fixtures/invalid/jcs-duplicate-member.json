@@ -1,0 +1,6 @@
+{
+  "case_id": "jcs_duplicate_member_denied",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json",
+  "expect": "duplicate_member",
+  "document": {"key": "alpha", "key": "beta"}
+}
