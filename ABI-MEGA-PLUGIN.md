@@ -6,9 +6,9 @@ It is **not** stranded branch work and does **not** ship inside `abi` releases.
 
 ## Location
 
-- Plugin: `/Users/donaldfilimon/plugins/abi-mega` (live dependency for `/sync-clis`; do not archive)
-- Marketplace: `/Users/donaldfilimon/.agents/plugins/marketplace.json`
-- Generated inventory: `/Users/donaldfilimon/plugins/abi-mega/assets/abi-current-inventory.md`
+- Plugin: `/Users/donaldfilimon/dev/active/plugins/abi-mega` (live dependency for `/sync-clis`; do not archive)
+- Sync registry: `/Users/donaldfilimon/.grok/sync-targets.json` (`central.abiMega`)
+- Generated inventory: `/Users/donaldfilimon/dev/active/plugins/abi-mega/assets/abi-current-inventory.md`
 
 The plugin is an operator-local Codex artifact. It does not replace repository
 source, tests, or docs. When the plugin and repo disagree, trust `Cargo.toml`,
@@ -49,24 +49,24 @@ Refresh the inventory after changing TODOs, specs, skills, CLI/MCP contracts, or
 validation guidance:
 
 ```bash
-/Users/donaldfilimon/plugins/abi-mega/skills/abi-goal-orchestrator/scripts/refresh-inventory.sh \
-  /Users/donaldfilimon/abi \
-  /Users/donaldfilimon/plugins/abi-mega/assets/abi-current-inventory.md
+/Users/donaldfilimon/dev/active/plugins/abi-mega/skills/abi-goal-orchestrator/scripts/refresh-inventory.sh \
+  /Users/donaldfilimon/dev/active/abi \
+  /Users/donaldfilimon/dev/active/plugins/abi-mega/assets/abi-current-inventory.md
 ```
 
 Run the plugin's focused ABI gates:
 
 ```bash
-/Users/donaldfilimon/plugins/abi-mega/skills/abi-surface-validator/scripts/run-fast-gates.sh \
-  /Users/donaldfilimon/abi
+/Users/donaldfilimon/dev/active/plugins/abi-mega/skills/abi-surface-validator/scripts/run-fast-gates.sh \
+  /Users/donaldfilimon/dev/active/abi
 ```
 
 Audit Markdown and old plan files:
 
 ```bash
-/Users/donaldfilimon/plugins/abi-mega/skills/abi-markdown-auditor/scripts/scan-markdown.sh \
-  /Users/donaldfilimon/abi \
-  /Users/donaldfilimon/plugins/abi-mega/assets/abi-markdown-audit.md
+/Users/donaldfilimon/dev/active/plugins/abi-mega/skills/abi-markdown-auditor/scripts/scan-markdown.sh \
+  /Users/donaldfilimon/dev/active/abi \
+  /Users/donaldfilimon/dev/active/plugins/abi-mega/assets/abi-markdown-audit.md
 ```
 
 Validate the four plugin skills (Codex `skill-creator` cache path; install
@@ -77,13 +77,14 @@ python3 -m pip install --target /tmp/codex-pyyaml pyyaml
 VALIDATE="$HOME/.codex/plugins/cache/claude-plugins-official/skill-creator/local/skills/skill-creator/scripts/quick_validate.py"
 for s in abi-goal-orchestrator abi-doc-claims-sync abi-surface-validator abi-markdown-auditor; do
   PYTHONPATH=/tmp/codex-pyyaml python3 "$VALIDATE" \
-    "$HOME/plugins/abi-mega/skills/$s"
+    "$HOME/dev/active/plugins/abi-mega/skills/$s"
 done
 ```
 
 There is no separate `validate_plugin.py` on this host; skill-level
-`quick_validate.py` is the supported check. Marketplace entry:
-`~/.agents/plugins/marketplace.json` → local `~/plugins/abi-mega`.
+`quick_validate.py` is the supported check. The live fan-out registration is
+`~/.grok/sync-targets.json` → `central.abiMega`; legacy marketplace metadata is
+not the location authority.
 
 ## Maintenance Rules
 

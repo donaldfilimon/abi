@@ -2,10 +2,10 @@
 
 Authoritative policy files:
 
-- `/Users/donaldfilimon/abi/docs/contracts/external-claims-audit.mdx`
-- `/Users/donaldfilimon/abi/docs/contracts/public-api.mdx`
-- `/Users/donaldfilimon/abi/docs/spec/wdbx-north-star.mdx`
-- `/Users/donaldfilimon/abi/abi-threat-model.md`
+- `/Users/donaldfilimon/dev/active/abi/docs/contracts/external-claims-audit.mdx`
+- `/Users/donaldfilimon/dev/active/abi/docs/contracts/public-api.mdx`
+- `/Users/donaldfilimon/dev/active/abi/docs/spec/wdbx-north-star.mdx`
+- `/Users/donaldfilimon/dev/active/abi/abi-threat-model.md`
 
 Safe repo-backed wording:
 
