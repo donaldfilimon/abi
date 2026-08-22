@@ -17,11 +17,13 @@
 - All four consumer trees pass ABI's read-only exact-byte vendoring check.
 - Task 7's identity, digest comparison, full-local-gate, and evidence-boundary
   steps are complete in the closeout branch.
-- ABI and WDBX were pushed and merged by a concurrent provider-side workflow;
-  their exact-head hosted gates passed. WDBX default-branch rerun evidence and
-  ABI Pages evidence remain reported separately in the matrix.
-- Nightly Abbey, stable Rust Abbey bot, and Swift AbbeyBot remain local branches
-  pending an explicit finishing-branch choice. No production deployment or
+- ABI, WDBX, nightly Abbey, and stable Rust Abbey bot were pushed and merged by
+  concurrent provider-side workflows. Their exact hosted outcomes, including
+  the two Abbey-family failures found after merge, remain separate matrix rows.
+- The Abbey test-environment repair, stable bot Windows-byte repair, Swift
+  AbbeyBot stack, and ABI evidence/Pages repair remain local branches pending an
+  explicit finishing-branch choice. Each repair passed its exact-head full local
+  gate but has no post-fix hosted run. No production deployment or
   participant-consented live Discord session was authorized or performed.
 
 ## Global Constraints
