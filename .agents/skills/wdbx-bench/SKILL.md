@@ -3,6 +3,28 @@ name: wdbx-bench
 description: Build the abi CLI and benchmark the WDBX vector store (in-process insert/search timing), optionally running the abi-wdbx unit-test suite. Use when asked to benchmark WDBX, measure insert/search latency, profile the vector store, or check benchmark output after a storage change.
 ---
 
+> **WDBX moved out of this repository on 2026-08-22.** It now lives in the
+> sibling repo `~/dev/active/wdbx` together with `abi-compute`,
+> `abi-foundation`, `abi-core`, and `abi-telemetry`; `abi` consumes them by
+> relative path. Source paths below therefore read `../wdbx/crates/...`. Run
+> WDBX-only tests from that repo (`cargo test --workspace`), and `abi`'s gate
+> (`./tools/check.sh`) from here.
+>
+> Under the Abbey System Constitution
+> (`docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`) WDBX is the
+> **provenance-aware episodic substrate**, not a vector store. Most of the
+> evidence half of its specification is unimplemented; the measured gap list is
+> in `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`. Do not
+> describe an episodic capability as Current on the strength of the vector-store
+> features that do exist.
+>
+> Note for this skill specifically: `bench.sh --suite` runs
+> `./tools/cargo.sh test -p abi-wdbx --lib` **from the abi repo**, and that still
+> works after the move — abi-wdbx remains in abi's resolve graph as a path
+> dependency, so `-p` selection succeeds (verified 2026-08-22: 284 tests, exit 0).
+> It is not a workspace member any more, so `--workspace` from abi will not
+> include it.
+
 # wdbx-bench — benchmark the WDBX vector store
 
 Driver: **`.agents/skills/wdbx-bench/bench.sh`** (paths relative to repo root).

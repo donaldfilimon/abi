@@ -22,6 +22,21 @@ superpower:
       description: "Node ID for serve"
 ---
 
+> **WDBX moved out of this repository on 2026-08-22.** It now lives in the
+> sibling repo `~/dev/active/wdbx` together with `abi-compute`,
+> `abi-foundation`, `abi-core`, and `abi-telemetry`; `abi` consumes them by
+> relative path. Source paths below therefore read `../wdbx/crates/...`. Run
+> WDBX-only tests from that repo (`cargo test --workspace`), and `abi`'s gate
+> (`./tools/check.sh`) from here.
+>
+> Under the Abbey System Constitution
+> (`docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`) WDBX is the
+> **provenance-aware episodic substrate**, not a vector store. Most of the
+> evidence half of its specification is unimplemented; the measured gap list is
+> in `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`. Do not
+> describe an episodic capability as Current on the strength of the vector-store
+> features that do exist.
+
 # ABI Superpower: WDBX Cluster
 
 Exposes WDBX cluster capabilities. **Honest scope**: exact committed-transaction
@@ -69,17 +84,17 @@ suite. There is no public `rpc-test` CLI subcommand.
 
 | Layer | Source | Status |
 |-------|--------|--------|
-| Raft Core | `crates/abi-wdbx/src/cluster.rs` | Current — leader election, majority-quorum replication, failover, quorum-loss detection |
-| RPC Transport | `crates/abi-wdbx/src/cluster_rpc.rs` | Partial — real TCP RequestVote/AppendEntries, shared-secret frames, optional peer allowlist, loopback-tested |
-| Exact data plane | `crates/abi-wdbx/src/{v2/replication,cluster/{replication,repair,rebalance,placement}}.rs` | Current — exact identity, conflict retention, stable fan-out, resumable plans |
-| Signed membership | `crates/abi-wdbx/src/cluster/membership.rs` | Current — signed membership records and verification |
+| Raft Core | `../wdbx/crates/abi-wdbx/src/cluster.rs` | Current — leader election, majority-quorum replication, failover, quorum-loss detection |
+| RPC Transport | `../wdbx/crates/abi-wdbx/src/cluster_rpc.rs` | Partial — real TCP RequestVote/AppendEntries, shared-secret frames, optional peer allowlist, loopback-tested |
+| Exact data plane | `../wdbx/crates/abi-wdbx/src/{v2/replication,cluster/{replication,repair,rebalance,placement}}.rs` | Current — exact identity, conflict retention, stable fan-out, resumable plans |
+| Signed membership | `../wdbx/crates/abi-wdbx/src/cluster/membership.rs` | Current — signed membership records and verification |
 | CLI Surface | `crates/abi-cli/src/wdbx/cluster.rs` | Current — `status/demo/local-demo/serve` |
 
 ## Auth & Network
 
 - **Shared-secret**: `ABI_WDBX_CLUSTER_TOKEN` — required for non-loopback binds, included in RequestVote/AppendEntries frames
 - **Peer allowlist**: `ABI_WDBX_CLUSTER_PEERS` — optional comma-separated node IDs to restrict accepted peers
-- **Transport**: Raw TCP with line-delimited JSON frames (`crates/abi-wdbx/src/net_line.rs`)
+- **Transport**: Raw TCP with line-delimited JSON frames (`../wdbx/crates/abi-wdbx/src/net_line.rs`)
 - **TLS/mTLS**: NOT implemented — deploy behind network policy/proxy for non-loopback
 
 ## Gap to Production (§3.5 wdbx-north-star.mdx)

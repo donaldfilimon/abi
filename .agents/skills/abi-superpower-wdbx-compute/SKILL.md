@@ -17,6 +17,21 @@ superpower:
       description: "Remote compute endpoint (TPU)"
 ---
 
+> **WDBX moved out of this repository on 2026-08-22.** It now lives in the
+> sibling repo `~/dev/active/wdbx` together with `abi-compute`,
+> `abi-foundation`, `abi-core`, and `abi-telemetry`; `abi` consumes them by
+> relative path. Source paths below therefore read `../wdbx/crates/...`. Run
+> WDBX-only tests from that repo (`cargo test --workspace`), and `abi`'s gate
+> (`./tools/check.sh`) from here.
+>
+> Under the Abbey System Constitution
+> (`docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`) WDBX is the
+> **provenance-aware episodic substrate**, not a vector store. Most of the
+> evidence half of its specification is unimplemented; the measured gap list is
+> in `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`. Do not
+> describe an episodic capability as Current on the strength of the vector-store
+> features that do exist.
+
 # ABI Superpower: WDBX Compute
 
 Exposes the cycle-free `abi-compute` accelerator contract and WDBX selector.
@@ -72,12 +87,12 @@ service or a general WDBX offload path.
 
 | Component | Source | Role |
 |-----------|--------|------|
-| Contracts / CPU SIMD | `crates/abi-compute/src/` | Object-safe accelerator, five-state evidence, deterministic SIMD/top-k |
-| WDBX batch search | `crates/abi-wdbx/src/v2/index.rs` | Accelerator injection with result validation and CPU parity/fallback |
+| Contracts / CPU SIMD | `../wdbx/crates/abi-compute/src/` | Object-safe accelerator, five-state evidence, deterministic SIMD/top-k |
+| WDBX batch search | `../wdbx/crates/abi-wdbx/src/v2/index.rs` | Accelerator injection with result validation and CPU parity/fallback |
 | GPU adapters | `crates/abi-gpu/src/{adapters,metal_kernels}.rs` | Metal execution/oracle; CUDA/Vulkan unverified; CoreML output-checked without residency claim |
-| NPU Detection | `crates/abi-compute/src/backend.rs` | `ane_hardware_present()` — hardware metadata only |
-| Remote accelerator | `crates/abi-wdbx/src/remote_compute.rs` | Authenticated bounded reference DOT transport; `compute info` probes an explicitly configured endpoint and otherwise does no network I/O |
-| Selection parity tests | `crates/abi-compute/src/cpu.rs`, `crates/abi-wdbx/src/v2/index.rs` | Accelerator requests preserve CPU-reference results |
+| NPU Detection | `../wdbx/crates/abi-compute/src/backend.rs` | `ane_hardware_present()` — hardware metadata only |
+| Remote accelerator | `../wdbx/crates/abi-wdbx/src/remote_compute.rs` | Authenticated bounded reference DOT transport; `compute info` probes an explicitly configured endpoint and otherwise does no network I/O |
+| Selection parity tests | `../wdbx/crates/abi-compute/src/cpu.rs`, `../wdbx/crates/abi-wdbx/src/v2/index.rs` | Accelerator requests preserve CPU-reference results |
 
 ## CLI Access
 
