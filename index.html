@@ -1,22 +1,398 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ABI Benchmark Dashboard (sample)</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="styles.css">
-  <script>
-    window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-  </script>
-  <script defer src="/_vercel/speed-insights/script.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ABI Framework — local AI orchestration in nightly Rust</title>
+<meta name="description" content="ABI is a nightly-Rust framework for local AI service orchestration, semantic vector storage, claim-honest capability reporting, and runtime primitives.">
+<meta name="color-scheme" content="dark light">
+<meta property="og:title" content="ABI Framework">
+<meta property="og:description" content="A nightly-Rust framework for local AI service orchestration, semantic vector storage, and claim-honest capability reporting.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://donaldfilimon.github.io/abi/">
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23009688'/><text x='16' y='22' font-family='monospace' font-size='16' font-weight='bold' text-anchor='middle' fill='%23042b26'>A</text></svg>">
+<script>
+  // Applied before first paint so a stored theme choice never flashes.
+  try {
+    var stored = localStorage.getItem("abi-theme");
+    if (stored === "light" || stored === "dark") document.documentElement.dataset.theme = stored;
+  } catch (e) {}
+</script>
+<script type="module" src="assets/app.js" defer></script>
 </head>
 <body>
-  <main>
-    <h1>ABI Benchmark Dashboard (Sample)</h1>
-    <p class="subtitle">Sample latency chart from <code>data/sample_benchmarks.json</code></p>
-    <canvas id="latencyChart" width="800" height="400"></canvas>
-  </main>
-  <script src="js/main.js"></script>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="./">
+      <span class="mark" aria-hidden="true">AB</span>
+      <span>ABI Framework</span>
+      <span class="tag">nightly Rust</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="#capabilities">Capabilities</a>
+      <a href="#quickstart">Quick start</a>
+      <a href="#surfaces">Surfaces</a>
+      <a href="benchmarks.html">Benchmarks</a>
+      <a href="https://github.com/donaldfilimon/abi">GitHub</a>
+    </nav>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle colour theme">
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+
+  <div class="hero">
+    <div class="wrap">
+      <span class="eyebrow">Nightly Rust · local-first</span>
+      <h1>Local AI orchestration with receipts, not adjectives.</h1>
+      <p class="lede">
+        ABI is a framework for local AI service orchestration, semantic vector storage,
+        claim-honest capability reporting, and runtime primitives. Every surface on this
+        page is backed by code in the repository — capabilities that are partial say so,
+        and capabilities that do not exist are not listed.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#quickstart">Get started</a>
+        <a class="btn btn-ghost" href="https://github.com/donaldfilimon/abi/blob/main/docs/index.mdx">Documentation</a>
+        <a class="btn btn-ghost" href="benchmarks.html">Benchmark dashboard</a>
+      </div>
+    </div>
+  </div>
+
+  <section id="capabilities">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>What ships today</h2>
+        <p>
+          Status labels follow the repository's own Current / Partial / Proposed mapping.
+          A <strong>Partial</strong> label means the surface runs but its scope is narrower
+          than the name suggests — the linked docs spell out the boundary.
+        </p>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card">
+          <h3>CLI <span class="pill pill-current">Current</span></h3>
+          <p>
+            Thirteen contract-tested commands behind the <code>abi</code> binary, with golden
+            fixtures pinning the frozen surface. <code>abi help --json</code> emits typed
+            command metadata and shell completions for automation.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>WDBX vector store <span class="pill pill-current">Current</span></h3>
+          <p>
+            Ordered vector search, block metadata round-tripping, segment/WAL recovery and
+            compaction, and temporal graph snapshot restore — all contract-covered. Builds
+            with the feature disabled return explicit <code>error.FeatureDisabled</code>
+            rather than pretending to write.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>MCP server <span class="pill pill-current">Current</span></h3>
+          <p>
+            Twelve contract-covered tools over stdio JSON-RPC with a 64&nbsp;KB frame cap.
+            An optional loopback HTTP listener with a one-event <code>/sse</code> discovery
+            response is attempted at startup; a bind failure leaves stdio serving.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>GPU reporting <span class="pill pill-current">Honest by design</span></h3>
+          <p>
+            A capability table and preferred-backend report that returns
+            <code>accelerated=false</code> when native kernels are not linked. Vector ops fall
+            back to deterministic CPU SIMD. CUDA, Vulkan, and ANE residency remain non-claims.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Plugins <span class="pill pill-current">Current</span></h3>
+          <p>
+            Sixteen bundled plugins ship as compiled-in <code>mod.rs</code>/<code>stub.rs</code>
+            pairs guarded by <code>assert_plugin_parity!</code>, so a stub can never silently
+            drift from the implementation it stands in for.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Connectors <span class="pill pill-partial">Partial</span></h3>
+          <p>
+            Discord and Twilio validate credential shape, IDs, payload size, and escaping
+            before dispatch. <code>connector_test</code> exercises deterministic local paths
+            and does not perform live network dispatch.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Agents &amp; scheduler <span class="pill pill-partial">Partial</span></h3>
+          <p>
+            <code>agent plan</code>, <code>train</code>, <code>multi</code>, and
+            <code>spawn</code> run on the local scheduler-backed helper surface with live
+            task and memory observability. <code>agent browser</code> emits a reviewed local
+            plan only — ABI neither embeds nor launches a browser.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Model runtime <span class="pill pill-partial">Partial</span></h3>
+          <p>
+            <code>abi-model-runtime</code> requires an exact registry model and explicit
+            device choice. Scratch fixtures prove a tiny <code>abi-bigram-v1</code> Candle
+            path on CPU plus locally exercised Metal — runtime-foundation evidence, not a
+            quality, placement, or speedup claim.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Workers <span class="pill pill-partial">Partial</span></h3>
+          <p>
+            <code>abi-worker</code> defines authenticated, audience-bound admission and
+            control contracts with finite leases, cooperative cancellation, replay
+            resistance, and verifiable results — contracts only, with no listener,
+            production cluster, or separate-host deployment claimed.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="quickstart">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Quick start</h2>
+        <p>
+          ABI targets nightly Rust pinned by <code>rust-toolchain.toml</code>. Always go
+          through <code>./tools/cargo.sh</code> — a stable <code>cargo</code> on
+          <code>PATH</code> will shadow the pinned toolchain.
+        </p>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="code">
+          <div class="code-head">
+            build &amp; validate
+            <button class="copy-btn" type="button" data-copy>Copy</button>
+          </div>
+<pre><code><span class="cmt"># clone and enter the workspace</span>
+git clone https://github.com/donaldfilimon/abi
+cd abi
+
+<span class="cmt"># nightly toolchain via the wrapper, never bare cargo</span>
+./tools/cargo.sh --version
+
+<span class="cmt"># the primary gate: fmt, clippy -D warnings, build, tests, docs</span>
+./tools/check.sh
+
+<span class="cmt"># binaries</span>
+./tools/cargo.sh build -p abi-cli   <span class="cmt"># target/debug/abi</span>
+./tools/cargo.sh build -p abi-mcp   <span class="cmt"># target/debug/abi-mcp</span></code></pre>
+        </div>
+
+        <div class="code">
+          <div class="code-head">
+            local walkthrough
+            <button class="copy-btn" type="button" data-copy>Copy</button>
+          </div>
+<pre><code>ABI=./target/debug/abi
+
+<span class="cmt"># capability + scheduler reporting</span>
+$ABI backends
+$ABI scheduler status
+$ABI dashboard --once --plain
+
+<span class="cmt"># local completion surfaces (no network credentials)</span>
+$ABI complete "summarize ABI scheduler status"
+$ABI complete --neural "hello"
+
+<span class="cmt"># agents and the vector store</span>
+$ABI agent plan "stage a safe WDBX refactor"
+$ABI wdbx stats
+$ABI wdbx compute info</code></pre>
+        </div>
+      </div>
+
+      <div class="grid grid-2" style="margin-top:1rem">
+        <div class="card">
+          <h3>MCP smoke test</h3>
+          <p>
+            Build the server and drive the same contract tools from any MCP client. Prefer
+            the launcher (or run from the repository root) so <code>@loader_path</code>
+            resolves the Apple FoundationModels shim next to the binary on arm64 macOS.
+          </p>
+          <div class="code" style="margin-top:0.9rem">
+            <div class="code-head">
+              stdio server
+              <button class="copy-btn" type="button" data-copy>Copy</button>
+            </div>
+<pre><code>./tools/cargo.sh build -p abi-mcp
+./mcp/launcher.sh
+
+<span class="cmt"># optional loopback HTTP/SSE:</span>
+<span class="cmt">#   ABI_MCP_HTTP_PORT   (default 8080)</span>
+<span class="cmt">#   ABI_MCP_HTTP_TOKEN  (bearer auth)</span></code></pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Live providers are opt-in</h3>
+          <p>
+            <code>complete --live</code> serves Anthropic-provider models over the explicit
+            live transport and therefore needs stored credentials. Model ids are recorded in
+            their catalog-canonical form; an unrecognised id prints a stderr warning and
+            passes through.
+          </p>
+          <div class="code" style="margin-top:0.9rem">
+            <div class="code-head">
+              credentials
+              <button class="copy-btn" type="button" data-copy>Copy</button>
+            </div>
+<pre><code>ABI_AUTH_TOKEN=… $ABI auth signin anthropic
+$ABI complete --live --model … "hello"
+
+<span class="cmt"># arm64 macOS with Apple Intelligence ready:</span>
+$ABI complete --live --model apple-fm --confirm "hello"</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="surfaces">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Frozen surfaces</h2>
+        <p>
+          These names are contract-tested against golden fixtures under
+          <code>tests/golden/</code>. Changing one is a deliberate, reviewed act — not a
+          refactor side effect.
+        </p>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>CLI commands <span class="pill pill-current">13</span></h3>
+          <div class="chips">
+            <span class="chip">help</span><span class="chip">complete</span><span class="chip">train</span>
+            <span class="chip">agent</span><span class="chip">backends</span><span class="chip">plugin</span>
+            <span class="chip">auth</span><span class="chip">twilio</span><span class="chip">tui</span>
+            <span class="chip">dashboard</span><span class="chip">wdbx</span><span class="chip">scheduler</span>
+            <span class="chip">nn</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>MCP tools <span class="pill pill-current">12</span></h3>
+          <div class="chips">
+            <span class="chip">ai_run</span><span class="chip">ai_complete</span><span class="chip">ai_learn</span>
+            <span class="chip">ai_train</span><span class="chip">wdbx_query</span><span class="chip">scheduler_stats</span>
+            <span class="chip">scheduler_info</span><span class="chip">connector_test</span><span class="chip">gpu_status</span>
+            <span class="chip">plugin_list</span><span class="chip">wdbx_stats</span><span class="chip">plugin_run</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:1.25rem">
+        <h3>Claims discipline</h3>
+        <p>
+          ABI does not claim production FHE, AES/RBAC, multi-host production deployment,
+          QPS/latency/accuracy numbers, Kubernetes or H100 deployments, CUDA/Vulkan runtime
+          execution, ANE residency, or regulatory certification. Cluster RPC, compute
+          selection, and the security demos are documented honestly as single-host and
+          reference-scoped surfaces.
+        </p>
+        <p>
+          External collateral — this page included — should cite a repository test, a
+          benchmark artifact, or a documented source file before making a performance or
+          capability claim. The audit that governs this is
+          <a href="https://github.com/donaldfilimon/abi/blob/main/docs/contracts/external-claims-audit.mdx">docs/contracts/external-claims-audit.mdx</a>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Read next</h2>
+        <p>Documentation lives in the repository; these links open the source on GitHub.</p>
+      </div>
+      <div class="grid grid-3">
+        <a class="card" href="https://github.com/donaldfilimon/abi/blob/main/docs/index.mdx">
+          <h3>Architecture &amp; onboarding</h3>
+          <p>Entry point for the workspace layout, public API contracts, and development guides.</p>
+        </a>
+        <a class="card" href="https://github.com/donaldfilimon/abi/blob/main/docs/spec/wdbx-north-star.mdx">
+          <h3>WDBX north star</h3>
+          <p>The Current / Partial / Proposed mapping for the vector store and its cluster surfaces.</p>
+        </a>
+        <a class="card" href="https://github.com/donaldfilimon/abi/blob/main/docs/spec/abbey-core-identity.mdx">
+          <h3>Abbey core identity</h3>
+          <p>The preserved Primary Declaration and how Abbey, Aviva, and ABI relate as profiles and layers.</p>
+        </a>
+        <a class="card" href="https://github.com/donaldfilimon/abi/blob/main/docs/contracts/public-api.mdx">
+          <h3>Public API contract</h3>
+          <p>The frozen surface: what callers may depend on, and what is explicitly internal.</p>
+        </a>
+        <a class="card" href="https://github.com/donaldfilimon/abi/blob/main/AGENTS.md">
+          <h3>AGENTS.md</h3>
+          <p>Canonical instructions for working in the tree: toolchain, gate, claims discipline, store safety.</p>
+        </a>
+        <a class="card" href="https://github.com/donaldfilimon/abi/blob/main/CHANGELOG.md">
+          <h3>Changelog</h3>
+          <p>Release-note style modernization highlights across the Rust rewrite.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/donaldfilimon/abi">Repository</a></li>
+          <li><a href="https://github.com/donaldfilimon/abi/blob/main/README.md">README</a></li>
+          <li><a href="https://github.com/donaldfilimon/abi/blob/main/CHANGELOG.md">Changelog</a></li>
+          <li><a href="https://github.com/donaldfilimon/abi/blob/main/LICENSE">License</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <ul>
+          <li><a href="https://github.com/donaldfilimon/abi/blob/main/docs/index.mdx">Overview</a></li>
+          <li><a href="https://github.com/donaldfilimon/abi/blob/main/docs/contracts/public-api.mdx">Public API</a></li>
+          <li><a href="https://github.com/donaldfilimon/abi/blob/main/docs/contracts/external-claims-audit.mdx">Claims audit</a></li>
+          <li><a href="https://github.com/donaldfilimon/abi/blob/main/docs/contributing.mdx">Contributing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>This site</h4>
+        <ul>
+          <li><a href="benchmarks.html">Benchmark dashboard</a></li>
+          <li><a href="https://github.com/donaldfilimon/abi/tree/main/site">Page source</a></li>
+          <li><a href="https://github.com/donaldfilimon/abi/blob/main/SECURITY.md">Security policy</a></li>
+          <li><a href="https://github.com/donaldfilimon/abi/blob/main/CODE_OF_CONDUCT.md">Code of conduct</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year>2026</span> ABI Framework contributors.</span>
+      <span>Built from <code>site/</code> on <code>main</code> and published to GitHub Pages.</span>
+    </div>
+  </div>
+</footer>
+
 </body>
 </html>
