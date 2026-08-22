@@ -1,0 +1,13 @@
+{
+  "case_id": "execution_stale_cancellation_denied",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/event/cancellation.schema.json",
+  "expect": "cancellation_mismatch",
+  "document": {
+    "cancellation_reference": "cancel_stale",
+    "target_cancellation_reference": "cancel_current",
+    "correlation_id": "correlation_alpha",
+    "phase": "provider",
+    "requested_at": "2026-08-22T17:00:00Z",
+    "reason_code": "caller"
+  }
+}

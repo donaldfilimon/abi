@@ -23,10 +23,34 @@
       "sha256": "5744686229d6f1c7b482d9e39de564c20dfc72fcfe0bd1a6f1aa4669470554b9"
     },
     {
+      "path": "v1/fixtures/cancellation/execution-actuator-race.json",
+      "bytes": 1067,
+      "media_type": "application/json",
+      "sha256": "8300286728c75bbe7b5f187914e4c78bb43733e32ee20b9119e20c6b7129b9bc"
+    },
+    {
+      "path": "v1/fixtures/cancellation/execution-before-start.json",
+      "bytes": 427,
+      "media_type": "application/json",
+      "sha256": "1ebf19c8908f1f7973a4fa05dbc2a5d356fd630ff94f681d97c79f9ef2b2a31e"
+    },
+    {
+      "path": "v1/fixtures/cancellation/execution-stale-cancellation.json",
+      "bytes": 447,
+      "media_type": "application/json",
+      "sha256": "fb465195430b6f2f9e03807468f2bc14ce10c50fb24cebdb193a8b371ac96657"
+    },
+    {
       "path": "v1/fixtures/degraded/authorization-dependency-allow.json",
       "bytes": 515,
       "media_type": "application/json",
       "sha256": "33075becbbea091b76863afb37da5eec0d83fd0c97a4f83bdcd3502b01010615"
+    },
+    {
+      "path": "v1/fixtures/degraded/execution-partial-rollback.json",
+      "bytes": 1050,
+      "media_type": "application/json",
+      "sha256": "a3057cb033684e64ae970d0daffb56989e5a93b13c113fd52787a52d17ab1dfa"
     },
     {
       "path": "v1/fixtures/invalid/authorization-prohibited-grant.json",
@@ -47,6 +71,18 @@
       "sha256": "ff703dbbe6257205c93a4bf1f79ec4b5563585645ad5d368b466490197a08144"
     },
     {
+      "path": "v1/fixtures/invalid/execution-missing-idempotency.json",
+      "bytes": 928,
+      "media_type": "application/json",
+      "sha256": "70739d7dcd812f1f26a5919a04870091c343c95d3b508843dbc6a6dd13e6d59f"
+    },
+    {
+      "path": "v1/fixtures/invalid/execution-nonterminal-response.json",
+      "bytes": 361,
+      "media_type": "application/json",
+      "sha256": "f6997d96b23e1c94cf33cf168221e67f004dd11d5c16e77e24d5ae4b48714cdf"
+    },
+    {
       "path": "v1/fixtures/invalid/identity-delegation-cycle.json",
       "bytes": 848,
       "media_type": "application/json",
@@ -65,10 +101,22 @@
       "sha256": "e6ab3b4c3d67abb42021432159ca5823a463ec1488ee5140e085253e49df58d5"
     },
     {
+      "path": "v1/fixtures/privacy/execution-receipt-content.json",
+      "bytes": 1139,
+      "media_type": "application/json",
+      "sha256": "4cedeb1d5d43e2d9092a763dfaaa2eafd98562e891b3ca35cfa10c94602fdf02"
+    },
+    {
       "path": "v1/fixtures/privacy/identity-raw-snowflake.json",
       "bytes": 401,
       "media_type": "application/json",
       "sha256": "52f3ed5c68aebcf8260a6db0185bf20344810efb23309c1c87ac62ee004d8a31"
+    },
+    {
+      "path": "v1/fixtures/unknown-field/execution-metadata-extension.json",
+      "bytes": 401,
+      "media_type": "application/json",
+      "sha256": "d3aac6e7a9e678d75f8f26aa7334f56f3bc8fba2cb8dd4a46676211902b1b21d"
     },
     {
       "path": "v1/fixtures/valid/authorization-approval.json",
@@ -93,6 +141,36 @@
       "bytes": 1009,
       "media_type": "application/json",
       "sha256": "2c92bb4f02167d0fa47a03d075e655ddb14286bc788192d2ca1d6ea456d178c9"
+    },
+    {
+      "path": "v1/fixtures/valid/execution-action-proposal.json",
+      "bytes": 958,
+      "media_type": "application/json",
+      "sha256": "f1b0fb4ddcfd3dd7ee77cc0abe5566f4a86637d1fa146c00df7edf147c41221e"
+    },
+    {
+      "path": "v1/fixtures/valid/execution-approved-proposal.json",
+      "bytes": 638,
+      "media_type": "application/json",
+      "sha256": "95bfd5493c947cee282900777616a3eb472e6d72874b638d25487c0fea99482f"
+    },
+    {
+      "path": "v1/fixtures/valid/execution-complete-response.json",
+      "bytes": 418,
+      "media_type": "application/json",
+      "sha256": "c995f29cdaf4ce41958ba409f65dda36b6619cfeef79ed2c6a04ebd925008053"
+    },
+    {
+      "path": "v1/fixtures/valid/execution-recommendation.json",
+      "bytes": 329,
+      "media_type": "application/json",
+      "sha256": "f485c5cc413fab3ba7ad907207e1f7b99b358ea05b76f6aeba03d926dabab57c"
+    },
+    {
+      "path": "v1/fixtures/valid/execution-request-envelope.json",
+      "bytes": 985,
+      "media_type": "application/json",
+      "sha256": "d81fa305bb51dc94707ecffd9716c15804ef7017f72a30fbe2c1bfa02237e69f"
     },
     {
       "path": "v1/fixtures/valid/identity-delegation-chain.json",
@@ -135,11 +213,46 @@
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/authorization/scope.schema.json"
     },
     {
+      "path": "v1/schemas/capability/action-proposal.schema.json",
+      "bytes": 2499,
+      "media_type": "application/schema+json",
+      "sha256": "36d4c3777735acc78da917d1de934facee79bd226f707ec52d6b17ad403c0fd2",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/capability/action-proposal.schema.json"
+    },
+    {
+      "path": "v1/schemas/capability/execution-request.schema.json",
+      "bytes": 1586,
+      "media_type": "application/schema+json",
+      "sha256": "bd2a40db1fab79433af514366ef73a04eb62c7df2219cf7f663b326fbcd7e20b",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/capability/execution-request.schema.json"
+    },
+    {
       "path": "v1/schemas/capability/package.schema.json",
       "bytes": 2607,
       "media_type": "application/schema+json",
       "sha256": "c008d7a35a976daf75efc202fe6312c0bdbee2fbf6730712509a3ce930935f3f",
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/capability/package.schema.json"
+    },
+    {
+      "path": "v1/schemas/capability/recommendation.schema.json",
+      "bytes": 755,
+      "media_type": "application/schema+json",
+      "sha256": "ffc29cec273f373c5de6e91fcee8c6d2248975487f0f93187d4c23e4015ad6e7",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/capability/recommendation.schema.json"
+    },
+    {
+      "path": "v1/schemas/cognition/request.schema.json",
+      "bytes": 2443,
+      "media_type": "application/schema+json",
+      "sha256": "fef911303e7bc31f12f4db5c2c996201d694da135aee2883f5acb3fe8395940c",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/cognition/request.schema.json"
+    },
+    {
+      "path": "v1/schemas/cognition/response.schema.json",
+      "bytes": 1151,
+      "media_type": "application/schema+json",
+      "sha256": "0969ea73d5f487bcf108c03ea1e0cafbb203a31ea3767c440fdd4f4a633291c8",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/cognition/response.schema.json"
     },
     {
       "path": "v1/schemas/common/definitions.schema.json",
@@ -156,6 +269,20 @@
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/error/error.schema.json"
     },
     {
+      "path": "v1/schemas/event/cancellation.schema.json",
+      "bytes": 1231,
+      "media_type": "application/schema+json",
+      "sha256": "341d904a2724c9b68d62d4cf644cc539738aa0c4a83bf4d89d16eb73b5cd6cc2",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/event/cancellation.schema.json"
+    },
+    {
+      "path": "v1/schemas/event/metadata-event.schema.json",
+      "bytes": 1314,
+      "media_type": "application/schema+json",
+      "sha256": "122713f276fb3b309c53549e104d264929250132b995c227bec95c4631d4224d",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/event/metadata-event.schema.json"
+    },
+    {
       "path": "v1/schemas/identity/delegation-chain.schema.json",
       "bytes": 1925,
       "media_type": "application/schema+json",
@@ -168,7 +295,14 @@
       "media_type": "application/schema+json",
       "sha256": "40394446dd495754ff871ec359b0705ff123a5401ee4722449312ea63acb95b4",
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/identity/principal.schema.json"
+    },
+    {
+      "path": "v1/schemas/receipt/outcome-receipt.schema.json",
+      "bytes": 3212,
+      "media_type": "application/schema+json",
+      "sha256": "b3da5a74e8f47ad762e0b474808b9d9c88cc62d41fe14aeff6889c774d0973fc",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/receipt/outcome-receipt.schema.json"
     }
   ],
-  "aggregate_digest": "44cd4877a5ed88f3808bcc27d3f19be01b710d3d00194f043fe872570a865027"
+  "aggregate_digest": "2e23982829fda5b188a962f14f9283716654458fb0cba849505279562ba900a7"
 }

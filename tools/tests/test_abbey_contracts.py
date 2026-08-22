@@ -105,5 +105,42 @@ class AuthorizationInvariantTests(SchemaContractTests):
         self.assert_fixture("valid", "authorization-error.json", "valid")
 
 
+class ExecutionLifecycleTests(SchemaContractTests):
+    def test_effect_request_requires_idempotency_and_cancellation_references(self) -> None:
+        self.assert_fixture("valid", "execution-request-envelope.json", "valid")
+        self.assert_fixture("invalid", "execution-missing-idempotency.json", "idempotency_required")
+
+    def test_response_has_one_closed_terminal_state(self) -> None:
+        self.assert_fixture("invalid", "execution-nonterminal-response.json", "schema_invalid")
+
+    def test_metadata_extensions_are_preserved_without_widening_authority(self) -> None:
+        self.assert_fixture("unknown-field", "execution-metadata-extension.json", "valid")
+
+    def test_actuator_cancellation_race_is_outcome_unresolved(self) -> None:
+        self.assert_fixture("cancellation", "execution-actuator-race.json", "valid")
+
+    def test_partial_rollback_counts_completed_reverted_and_unresolved(self) -> None:
+        self.assert_fixture("degraded", "execution-partial-rollback.json", "valid")
+
+    def test_stale_cancellation_reference_fails_closed(self) -> None:
+        self.assert_fixture("cancellation", "execution-stale-cancellation.json", "cancellation_mismatch")
+
+    def test_receipt_cannot_embed_content(self) -> None:
+        self.assert_fixture("privacy", "execution-receipt-content.json", "forbidden_content")
+
+    def test_execution_binds_the_approved_proposal_digest(self) -> None:
+        self.assert_fixture("valid", "execution-approved-proposal.json", "valid")
+
+    def test_recommendation_is_explicitly_non_authorizing(self) -> None:
+        self.assert_fixture("valid", "execution-recommendation.json", "valid")
+
+    def test_action_proposal_is_typed_expiring_and_verifiable(self) -> None:
+        self.assert_fixture("valid", "execution-action-proposal.json", "valid")
+
+    def test_completion_and_cancellation_are_closed_valid_terminals(self) -> None:
+        self.assert_fixture("valid", "execution-complete-response.json", "valid")
+        self.assert_fixture("cancellation", "execution-before-start.json", "valid")
+
+
 if __name__ == "__main__":
     unittest.main()

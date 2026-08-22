@@ -1,0 +1,15 @@
+{
+  "case_id": "execution_approved_proposal_digest_bound",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/capability/execution-request.schema.json",
+  "expect": "valid",
+  "document": {
+    "correlation_id": "correlation_alpha",
+    "proposal_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "approval_id": "approval_alpha",
+    "grant_id": "grant_alpha",
+    "facts_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "idempotency_key": "effect_once_alpha",
+    "deadline": "2026-08-22T17:00:00Z",
+    "cancellation_reference": "cancel_alpha"
+  }
+}

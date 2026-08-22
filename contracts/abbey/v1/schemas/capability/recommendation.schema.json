@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/capability/recommendation.schema.json",
+  "title": "Non-authorizing recommendation",
+  "x-abbey-data-class": "redacted-metadata",
+  "x-abbey-max-bytes": 8192,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["recommendation_id", "summary_code", "authorization_implication"],
+  "properties": {
+    "recommendation_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "summary_code": {"enum": ["no_action", "inspect", "propose_action", "seek_human_review"]},
+    "authorization_implication": {"const": "none"}
+  }
+}

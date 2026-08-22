@@ -1,0 +1,12 @@
+{
+  "case_id": "execution_response_terminal_only",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/cognition/response.schema.json",
+  "expect": "schema_invalid",
+  "document": {
+    "correlation_id": "correlation_alpha",
+    "terminal_state": "running",
+    "completed_at": "2026-08-22T17:00:00Z",
+    "redacted": true,
+    "truncated": false
+  }
+}

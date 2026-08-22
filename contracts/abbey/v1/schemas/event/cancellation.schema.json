@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/event/cancellation.schema.json",
+  "title": "First-class cancellation",
+  "x-abbey-data-class": "control-metadata",
+  "x-abbey-max-bytes": 4096,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["cancellation_reference", "target_cancellation_reference", "correlation_id", "phase", "requested_at", "reason_code"],
+  "properties": {
+    "cancellation_reference": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "target_cancellation_reference": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "correlation_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "phase": {"enum": ["before_start", "provider", "actuator", "verification"]},
+    "requested_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "reason_code": {"enum": ["caller", "deadline", "consent_closed", "barge_in", "shutdown"]}
+  }
+}

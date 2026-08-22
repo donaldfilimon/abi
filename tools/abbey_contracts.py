@@ -429,6 +429,14 @@ def _semantic_code(schema_id: str, document: Any) -> str | None:
     if schema_id.endswith("/authorization/policy-decision.schema.json") and isinstance(document, dict):
         if document.get("reason_code") == "dependency_unavailable" and document.get("decision") != "deny":
             return "degraded_authority"
+    if schema_id.endswith("/cognition/request.schema.json") and isinstance(document, dict):
+        if document.get("effect_class") in {"durable_write", "platform_effect"} and not document.get(
+            "idempotency_key"
+        ):
+            return "idempotency_required"
+    if schema_id.endswith("/event/cancellation.schema.json") and isinstance(document, dict):
+        if document.get("cancellation_reference") != document.get("target_cancellation_reference"):
+            return "cancellation_mismatch"
     return None
 
 

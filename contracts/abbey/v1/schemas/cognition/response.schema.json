@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/cognition/response.schema.json",
+  "title": "Exactly-once terminal response",
+  "x-abbey-data-class": "redacted-metadata",
+  "x-abbey-max-bytes": 8192,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["correlation_id", "terminal_state", "completed_at", "redacted", "truncated"],
+  "properties": {
+    "correlation_id": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "terminal_state": {"enum": ["complete", "cancelled", "error", "outcome_unresolved"]},
+    "completed_at": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "result_reference": {"$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "reason_code": {"enum": ["success", "cancelled", "deadline", "dependency", "verification", "outcome_unresolved"]},
+    "redacted": {"const": true},
+    "truncated": {"type": "boolean"}
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "case_id": "execution_partial_rollback_visible",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/receipt/outcome-receipt.schema.json",
+  "expect": "valid",
+  "document": {
+    "receipt_id": "receipt_beta", "correlation_id": "correlation_beta",
+    "decision": "error", "reason_code": "compensation",
+    "capability_version": "1.0.0",
+    "contract_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "build_id": "build_alpha",
+    "policy_versions_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "authorization_result": "allowed", "approval_result": "valid",
+    "step_counts": {"not_started": 1, "completed": 2, "reverted": 1, "unresolved": 1},
+    "postcondition_result": "failed", "compensation_result": "partial", "rollback_state": "partial",
+    "cancellation_state": "not_requested", "deadline_state": "within", "rate_state": "within", "budget_state": "within",
+    "evidence_references": ["evidence_beta"], "redacted": true, "truncated": false
+  }
+}

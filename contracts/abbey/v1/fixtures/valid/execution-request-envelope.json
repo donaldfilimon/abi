@@ -1,0 +1,22 @@
+{
+  "case_id": "execution_effect_request_bounded",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/cognition/request.schema.json",
+  "expect": "valid",
+  "document": {
+    "contract_major": 1,
+    "contract_revision": 1,
+    "correlation_id": "correlation_alpha",
+    "channel_principal_id": "channel_alpha",
+    "subject_principal_id": "subject_alpha",
+    "scope": {"organization_id": "organization_alpha", "deployment_id": "deployment_alpha", "tenant_id": "tenant_alpha", "platform_scope": {"kind": "discord_guild", "scoped_id": "guild_scope_alpha"}},
+    "capability_id": "effect_alpha",
+    "capability_version": "1.0.0",
+    "policy_versions_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "deadline": "2026-08-22T17:00:00Z",
+    "cancellation_reference": "cancel_alpha",
+    "effect_class": "platform_effect",
+    "idempotency_key": "effect_once_alpha",
+    "data_class": "metadata",
+    "residency": "deployment_local"
+  }
+}
