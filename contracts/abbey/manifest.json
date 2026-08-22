@@ -6,15 +6,15 @@
   "artifacts": [
     {
       "path": "README.md",
-      "bytes": 1099,
+      "bytes": 1827,
       "media_type": "text/markdown; charset=utf-8",
-      "sha256": "8a68e71e4cbe1a665e9c8ca65ea2163c2a39d183a1d0fe3ddfedbcc3ec1396a9"
+      "sha256": "494656a3be29b8642798f93cc9e008a904fd995000101de9c8ed60b5c57b2af2"
     },
     {
       "path": "compatibility.md",
-      "bytes": 1018,
+      "bytes": 1719,
       "media_type": "text/markdown; charset=utf-8",
-      "sha256": "b6a587e65fa330c69dd9fad1fb0da3e09244229cd021083a678964b30015d167"
+      "sha256": "5553ae0aefad403537e18ab2bbaf9e15b1d417ba12c23a9a9503c412d606bf8e"
     },
     {
       "path": "v1/fixtures/boundary/identity-delegation-nine-hops.json",
@@ -518,5 +518,5 @@
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/receipt/outcome-receipt.schema.json"
     }
   ],
-  "aggregate_digest": "a53cb277be96c277e072d08787a5cfa648b5f52db54e6a991a4c31790fbf52a2"
+  "aggregate_digest": "43d606a06d4bd9de08a651a984a61c611f9ffe0c8150b105b0cbf50c801f0fa7"
 }

@@ -10,6 +10,28 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-22-federation-reconciliation-and-abbey-contracts.md`.
 
+## Execution record
+
+This table is the authoritative execution status. The unchecked procedural
+steps below preserve the planned RED/GREEN sequence; they are not an unfinished
+work ledger.
+
+| Task | Status | Evidence |
+| --- | --- | --- |
+| 1. Corpus and tooling scaffold | Complete | `ae5fa0b`; observed import and incomplete-manifest REDs before GREEN |
+| 2. Identity, tenancy, and scope | Complete | `de44718`; schema and delegation behavior REDs before GREEN |
+| 3. Authorization and approval | Complete | `17002bb`; prohibited-grant, self-approval, and degradation REDs before GREEN |
+| 4. Execution and receipts | Complete | `7654483`; lifecycle, cancellation, idempotency, and privacy REDs before GREEN |
+| 5. Voice consent evidence | Complete | `9832462`; consent-transition and operator-report REDs before GREEN |
+| 6. WDBX and learning boundaries | Complete | `2d7085f`; evidence, retention, default-off, and QUIET REDs before GREEN |
+| 7. Independent Rust verifier | Complete | `ba520ef`; missing-crate RED before independent digest/schema/fixture GREEN |
+| 8. Compatibility and closeout | Complete | This closeout commit; companion ownership headers reconciled manually, mutation checks and full strict gate passed |
+
+The planned prose header-consistency test was intentionally not added because
+the execution instruction prohibited prose-grep and change-detector tests.
+Header ownership was reviewed directly; corpus acceptance remains enforced by
+behavioral schema, fixture, digest, privacy, and mutation tests.
+
 ## Global Constraints
 
 - Every authority-bearing object has `additionalProperties: false`; tolerant content/event metadata uses one explicit `extensions` map and never consults it for authority.

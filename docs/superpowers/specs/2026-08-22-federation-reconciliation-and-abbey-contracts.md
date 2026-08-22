@@ -1,8 +1,9 @@
 # Abbey federation reconciliation and Program 1 contracts
 
-Status: **approved by Donald as written on 2026-08-22; implementation in
-progress. Production deployment and participant-consented live Discord remain
-separately authorized and separately evidenced.**
+Status: **approved by Donald as written on 2026-08-22; the Program 1 source
+corpus is implemented and locally qualified in ABI at C1. Cross-repository
+consumption, hosted CI, production deployment, and participant-consented live
+Discord remain separately authorized and separately evidenced.**
 
 Author date: 2026-08-22.
 
@@ -779,10 +780,17 @@ explicitly participant-consented session.
 
 ## 15. Evidence statement
 
-This document is approved C0 design evidence. Public provider visibility and
-anonymous source readability are observed separately above. The clean ABI
-baseline run used while drafting establishes that the then-unmodified
-`origin/main` worktree passed its local strict gate; it does not establish that
-the new schemas exist, that the modified GitHub workflow is green, that any
-other repository is compatible, that a deployment is qualified, or that a live
-Discord session occurred.
+This document remains approved C0 design evidence. The checked-in Program 1
+source corpus separately establishes ABI-local C1 source and contract evidence:
+81 manifest-bound artifacts (86,945 bytes) at aggregate digest
+`43d606a06d4bd9de08a651a984a61c611f9ffe0c8150b105b0cbf50c801f0fa7`, 73
+Python repository/corpus behavior tests, independent Rust digest/schema/fixture
+verification, four temporary fail-closed mutations, and the complete local ABI
+strict gate on 2026-08-22.
+
+That evidence does not establish stable-Rust or Swift consumer conformance, an
+installed artifact, hosted workflow success, another repository's
+compatibility, production federation, authorization behavior, durable WDBX
+behavior, deployment qualification, or a participant-consented live Discord
+session. Public provider visibility and anonymous source readability remain
+separate observations above.

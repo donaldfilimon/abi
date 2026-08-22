@@ -71,7 +71,8 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 | Item | Status | Acceptance boundary |
 | ---- | ------ | ------------------- |
-| Federation reconciliation and P1 Abbey Contracts design | 🟡 | Written C0 design at `docs/superpowers/specs/2026-08-22-federation-reconciliation-and-abbey-contracts.md`; clean local strict gate. Awaiting Donald's explicit review before implementation planning. No repository-visibility, runtime, deployment, Discord, or home-directory mutation is authorized by the document alone. |
+| Federation reconciliation and P1 Abbey Contracts design | ✅ | Donald approved the C0 design on 2026-08-22. The constitutional P0-P7 slug map is fixed without Program 8; no production, deployment, Discord, or home-directory mutation is authorized by the document alone. |
+| Program 1 Abbey contract source corpus | ✅ | ABI-local C1 source/contract evidence: 81 manifest-bound artifacts (86,945 bytes), aggregate digest `43d606a06d4bd9de08a651a984a61c611f9ffe0c8150b105b0cbf50c801f0fa7`, 73 Python repository/corpus behavior tests, independent Rust verification, four fail-closed temporary mutations, and the complete strict gate. Stable-Rust/Swift consumers, installed artifacts, hosted CI, runtime federation, durable WDBX behavior, authorization, production, and live Discord remain unperformed. |
 
 ---
 

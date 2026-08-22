@@ -1,4 +1,4 @@
-# Program 5: Discord organization vertical slice
+# Programs 3 and 5: Discord guild intelligence and reversible execution
 
 > **Constitutional mapping.** This file was written against the seven-program
 > list Donald gave in conversation. The ratified constitution's section 13
@@ -9,6 +9,12 @@
 > asserted. Nothing in section 13 was renumbered: section 15 reserves amendment
 > to Donald, and the collision is raised as one request covering the whole set
 > rather than five independent ones.
+
+**Reconciled ownership.** Program 3, `discord-guild-intelligence`, owns the
+read-only guild twin and observation path. Program 5,
+`reversible-guild-execution`, owns preview, approval, execution, verification,
+and compensation. Program 1, `abbey-contracts`, owns their shared wire schemas
+and synthetic fixtures; neither program may redefine them here.
 
 
 Status: **proposed design. No implementation authority.** Nothing in this

@@ -1,18 +1,28 @@
 # Abbey contract compatibility
 
 Contract major, additive revision, and capability version are independent.
-Breaking semantics require a new schema identifier or contract major; an
-existing wire shape is never silently reinterpreted. Authority-bearing
-envelopes reject unknown fields. Tolerant metadata may preserve only a bounded
-`extensions` object and never use it to widen authority or establish evidence.
+Removing or renaming a field, narrowing an accepted value, changing a required
+field, or changing existing semantics requires a new schema identifier and
+contract major. An additive revision may add a new optional field only where
+the schema already defines an explicit compatible extension point. Capability
+versions change the meaning or availability of one capability without silently
+reinterpreting an existing wire shape.
+
+Authority-bearing envelopes reject unknown fields. Tolerant content or event
+metadata may preserve only a bounded `extensions` object and never consult it
+to widen authority, open consent, authorize execution, or establish evidence.
+Unknown top-level members are never treated as extensions.
 
 Every consumer vendors exact corpus bytes and verifies the aggregate and
-per-file SHA-256 commitments. A mismatch disables authorization, consent
-opening, execution, and durable writes. A developer profile may expose
-read-only diagnostics with a loud mismatch status. It may not weaken that
-fail-closed boundary.
+per-file SHA-256 commitments before generating bindings, compiling a release,
+starting a production profile, or accepting a negotiated peer. A mismatch
+disables authorization, consent opening, execution, and durable writes. A
+developer profile may expose read-only diagnostics with a loud mismatch status.
+It may not weaken that fail-closed boundary.
 
 Rollback returns the consumer to the last qualified corpus digest. Failed
 versions remain in compatibility history rather than being silently rewritten.
-The corpus may later be extracted without path or byte changes when one of the
-approved extraction triggers requires an independent release.
+The corpus may later be extracted without path or byte changes when independent
+release cadence, multiple non-ABI consumers, separate governance, or package
+distribution makes an independent repository necessary. Extraction is a move
+of the same committed artifact set, not an opportunity to change the contract.

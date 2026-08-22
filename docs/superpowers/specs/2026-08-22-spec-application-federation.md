@@ -1,4 +1,4 @@
-# Program 6: Abbey API and Application Federation
+# Program 7: Abbey API and application federation
 
 > **Constitutional mapping.** This file was written against the seven-program
 > list Donald gave in conversation. The ratified constitution's section 13
@@ -9,6 +9,12 @@
 > asserted. Nothing in section 13 was renumbered: section 15 reserves amendment
 > to Donald, and the collision is raised as one request covering the whole set
 > rather than five independent ones.
+
+**Reconciled ownership.** This is constitutional Program 7,
+`application-federation-production-profiles`. Program 1, `abbey-contracts`,
+owns the language-neutral wire schemas and fixtures. Program 7 owns framing,
+authentication, negotiation, distribution, and deployment profiles; it does
+not redefine the Program 1 contracts.
 
 
 Status: **proposed design. No implementation is authorized by this document.**
@@ -24,7 +30,7 @@ Scope in Donald's words:
 > applications one stable authenticated protocol rather than merging every
 > codebase or duplicating cognitive behavior.
 
-## 0. Two conflicts recorded before anything else
+## 0. Reconciled ownership boundaries
 
 ### 0.1 Program numbering conflict with the ratified constitution
 
@@ -33,21 +39,10 @@ The constitution section 13 assigns:
 - **Program 6: Model registry and adaptive arbiter.**
 - **Program 7: Application federation and production profiles.**
 
-The content of this document maps onto constitutional **Program 7**, not
-Program 6. This document is filed under the number Donald used when
-commissioning it. Constitution section 15 states that a program which needs to
-contradict the constitution must amend it first, and that silence is not
-amendment.
-
-Recommended resolution, requiring Donald's explicit approval:
-
-1. Amend section 13 so that the federation program carries the number used in
-   practice, or
-2. Retitle this document to Program 7 and leave the constitution unchanged.
-
-Until one of those happens, treat "Program 6" in this filename as a working
-label and "application federation and production profiles" as the
-constitutional identity of the work. Do not silently renumber the constitution.
+The approved federation reconciliation maps this document to constitutional
+**Program 7**, `application-federation-production-profiles`, and leaves section
+13 unchanged. The earlier Program 6 label is historical assignment context,
+not a second program number.
 
 ### 0.2 Program 1 owns the schemas; this program owns the wire
 
@@ -60,7 +55,7 @@ That line binds this document. The seam is:
 | Owner | Deliverable |
 | --- | --- |
 | **Program 1** | Principal, scope, grant, approval, consent, capability, episode, receipt, error, and claim **schemas**, plus the cross-language fixture corpus. |
-| **Program 6 (this document)** | **Transport, encoding, identity, authentication, versioning operation, error transport, degraded-operation obligations, fixture distribution mechanism, and deployment topology.** |
+| **Program 7 (this document)** | **Transport, encoding, identity, authentication, versioning operation, error transport, degraded-operation obligations, fixture distribution mechanism, and deployment topology.** |
 
 This document therefore names message *families* and their required fields
 where transport correctness depends on them. It does not attempt to be the

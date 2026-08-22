@@ -1,4 +1,4 @@
-# Program 7: Learning, Evaluation, and Promotion
+# Program 6 and cross-cutting: Learning, evaluation, and promotion
 
 > **Constitutional mapping.** This file was written against the seven-program
 > list Donald gave in conversation. The ratified constitution's section 13
@@ -9,6 +9,12 @@
 > asserted. Nothing in section 13 was renumbered: section 15 reserves amendment
 > to Donald, and the collision is raised as one request covering the whole set
 > rather than five independent ones.
+
+**Reconciled ownership.** Learning and specialist promotion are part of
+constitutional Program 6, `model-registry-adaptive-arbiter`; evaluation and
+evidence promotion are a cross-cutting discipline for Programs 0 through 7.
+This is not Program 8. Program 1, `abbey-contracts`, owns the learning-policy
+and promotion-decision wire schemas and synthetic fixtures.
 
 
 Status: **proposed design specification.** No implementation is authorized by
@@ -29,27 +35,22 @@ measurement). Nothing here is an Observation about a system that runs.
 
 ---
 
-## 0. Constitutional reconciliation required before this program starts
+## 0. Constitutional reconciliation
 
-Three discrepancies exist between this program as assigned and the ratified
-text. Section 15 of the constitution says a program that needs to contradict it
-must amend it first, and that silence is not amendment. These are therefore
-raised as amendment requests, not as decisions this spec takes on its own
-authority.
+Three discrepancies existed between this document's assigned working number
+and the ratified text. The approved federation reconciliation resolves them by
+keeping Programs 0 through 7 unchanged, placing adaptive learning in Program 6,
+and making evaluation and evidence promotion cross-cutting.
 
 ### 0.1 The program number is already occupied
 
 Constitution section 13 assigns **Program 7 to "Application federation and
 production profiles"** and **Program 6 to "Model registry and adaptive
-arbiter"**. The filename and title here follow Donald's explicit instruction,
-so the document keeps the name he gave it. That does not resolve the collision.
+arbiter"**. The reconciled title records that mapping while preserving this
+filename as stable historical context.
 
-Proposed amendment to section 13, for Donald's approval:
-
-- This program becomes the delivery program named "Learning, Evaluation, and
-  Promotion" and takes the number 7.
-- "Application federation and production profiles" renumbers to Program 8, with
-  no change to its content.
+No Program 8 is created. Program 7 remains application federation and
+production profiles.
 
 ### 0.2 The content overlaps Program 6
 
@@ -58,15 +59,16 @@ Section 13's Program 6 already claims "structured outcome learning" and
 speech." Per-guild learning therefore sits inside Program 6's declared scope
 today.
 
-Proposed division, for Donald's approval:
+The reconciled division is:
 
 - **Program 6 retains** the qualified model manifest, privacy-aware routing,
   regime inference, and the adaptive arbiter. It remains the owner of *what
   learns and what routes*.
-- **Program 7 owns** the machinery that decides whether any of it is allowed to
-  advance: replay, shadow, baselines, ablations, accounting, canary, rollback,
-  the promotion rule, and the falsification register. It owns *how a claim
-  moves*, for every program, not only for Program 6.
+- **The cross-cutting evaluation discipline owns** the machinery that decides
+  whether any of it is allowed to advance: replay, shadow, baselines,
+  ablations, accounting, canary, rollback, the promotion rule, and the
+  falsification register. It owns *how a claim moves*, for every program, not
+  only for Program 6.
 
 Under that division, Program 6 cannot promote its own arbiter, which is what
 register #67 requires ("a capability cannot be its sole evaluator").

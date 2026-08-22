@@ -10,6 +10,12 @@
 > to Donald, and the collision is raised as one request covering the whole set
 > rather than five independent ones.
 
+**Reconciled ownership.** This is constitutional Program 4,
+`canonical-wdbx-episodes-claims`. Program 1, `abbey-contracts`, owns the
+language-neutral episode, evidence, claim, and tombstone wire schemas and
+fixtures. Program 4 owns their durable WDBX behavior; transport JSON is never a
+canonical WDBX commitment input.
+
 
 Status: **proposed.** Written 2026-08-22. See the constitutional mapping below for its section 13 program number.
 
@@ -35,9 +41,10 @@ should be trusted, and those are different questions.
 
 This spec covers the **durable contract**: what an episode is, how it is
 committed, how trust is represented, what may be written, and what deletion
-means. It does **not** cover who decides to write (Program 4's arbiter), who is
+means. It does **not** cover who decides to write (Program 6's arbiter), who is
 allowed to act on a retrieval (Program 2), or how a capability earns promotion
-(Program 7).
+(the cross-cutting evaluation discipline, with adaptive behavior owned by
+Program 6).
 
 ## Current, verified
 
