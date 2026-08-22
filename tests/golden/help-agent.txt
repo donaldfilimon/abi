@@ -16,7 +16,8 @@ Subcommands:
   spawn        abi agent spawn [--background] [--workers <spec>] <input>
                Render local worker reports. --background is a synchronous compatibility mode, not durable jobs.
   browser      abi agent browser [--url <url>] [--execute --confirm] <task>
-               Plan browser automation locally (dry-run default; external MCP for real navigation).
+               abi agent browser --studio [--port <port>] [--once]
+               Plan browser automation locally (dry-run default; external MCP for real navigation), or serve the loopback multimodal studio.
   os           abi agent os <dry-run|execute --confirm> <cmd> [args...]
                Audit an OS-control command request. execute requires --confirm and the policy allow-list.
 
@@ -26,4 +27,5 @@ Examples:
   abi agent multi "coordinate release"
   abi agent spawn --workers "scout|Explore pages|explore,browser" "task"
   abi agent browser --url https://example.com "open docs"
+  abi agent browser --studio --port 8095
   abi agent os dry-run ls

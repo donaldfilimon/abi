@@ -68,7 +68,7 @@ run "cli scheduler"     "source=cli-scheduler-status" -- "$ABI" scheduler status
 run "cli complete"      "model=claude-fable-5"   -- "$ABI" complete "smoke: summarize scheduler status"
 run "cli plugin list"   "Installed Plugins (" -- "$ABI" plugin list
 run "cli agent multi"   "MULTI-AGENT RESULTS" -- "$ABI" agent multi "smoke multi"
-run "cli agent browser" "browser-orchestration" -- "$ABI" agent browser "smoke browser"
+run "cli agent browser" "orchestration=browser-local" -- "$ABI" agent browser "smoke browser"
 
 # --- WDBX store round-trip ----------------------------------------------
 rm -f "$STORE"

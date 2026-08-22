@@ -132,6 +132,7 @@ See `docs/superpowers/archive/plans/2026-07-31-rust-647-followups.md`.
 
 ## Recently landed
 
+- Loopback browser studio: `abi agent browser --studio` plus `abi_ai::multimodal` image/video/audio/voice/fuse processors. Claim-honest local analysis only; Web Speech STT/TTS stay in the page. Browser plan output now matches `embedded_browser=false`.
 - Product residuals: Discord/Twilio TLS WS, Metal DOT kernels, Windows ACL CI, incremental NN + demo GGUF
 - Aggressive residual teardown: deleted `modernized/`, `modern-refactor/`, `zig-pin`, `zig-newest-skills`, `zig-build-doctor`, Zig-only cross-compile skill; rewrote `abi` agents + lessons + docs hub for nightly Rust; freed local `zig-out`/`.zig-cache`
 - Agent skill drivers ported off `zig-out`/`./build.sh cli` → `./tools/cargo.sh` + `target/debug/abi` (dashboard, backends, plugins, SEA scratch store, WDBX roundtrip, etc.)

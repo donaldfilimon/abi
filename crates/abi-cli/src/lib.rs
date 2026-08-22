@@ -10,6 +10,7 @@ pub mod usage;
 mod agent;
 mod auth;
 mod backends;
+mod browser_studio;
 mod complete;
 mod completion;
 mod dashboard;

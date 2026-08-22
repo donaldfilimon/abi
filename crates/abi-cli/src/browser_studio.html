@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABI browser studio</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10140f;
+      --panel: #1a2118;
+      --ink: #e7f0dc;
+      --muted: #9aa88a;
+      --accent: #c6e37a;
+      --warn: #e6c07b;
+      --line: #2c3626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.45 ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    header, main { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+    header h1 { margin: 0 0 .35rem; font-size: 1.4rem; }
+    .disclosure {
+      border: 1px solid var(--line);
+      background: #161c14;
+      color: var(--warn);
+      padding: .75rem 1rem;
+      border-radius: 8px;
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
+    video, canvas { width: 100%; background: #000; border-radius: 8px; }
+    canvas { image-rendering: pixelated; max-height: 160px; }
+    button, select, textarea, input[type="file"] {
+      font: inherit;
+      color: inherit;
+    }
+    button {
+      background: var(--accent);
+      color: #15200c;
+      border: 0;
+      border-radius: 6px;
+      padding: .4rem .7rem;
+      margin: .2rem .2rem 0 0;
+      cursor: pointer;
+    }
+    button.secondary { background: #2d3826; color: var(--ink); }
+    textarea {
+      width: 100%;
+      min-height: 4.5rem;
+      background: #10150e;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: .5rem;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #10150e;
+      border-radius: 8px;
+      padding: .75rem;
+      max-height: 28rem;
+      overflow: auto;
+    }
+    .muted { color: var(--muted); font-size: .92rem; }
+    .row { margin-top: .65rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ABI browser studio</h1>
+    <p class="disclosure">
+      Loopback local analysis only. Camera/mic stay in this page. The server is a
+      deterministic bucket-hash + classical stats engine — not a neural vision,
+      STT, or TTS model. Speech recognition and speech synthesis use the browser
+      Web Speech APIs when the browser provides them.
+    </p>
+  </header>
+  <main>
+    <div class="grid">
+      <section>
+        <h2>Vision / image</h2>
+        <video id="cam" autoplay muted playsinline></video>
+        <canvas id="frame" width="32" height="32"></canvas>
+        <div class="row">
+          <button id="startCam" type="button">Start camera</button>
+          <button id="captureStill" class="secondary" type="button">Capture still</button>
+          <input id="imageFile" type="file" accept="image/*">
+        </div>
+      </section>
+      <section>
+        <h2>Video frames</h2>
+        <p class="muted">Captures up to 8 grayscale 32×32 frames from the live camera or a file.</p>
+        <input id="videoFile" type="file" accept="video/*">
+        <div class="row">
+          <button id="captureVideo" type="button">Capture 8 frames</button>
+        </div>
+      </section>
+      <section>
+        <h2>Voice / audio</h2>
+        <p class="muted" id="micStatus">Microphone idle.</p>
+        <textarea id="transcript" placeholder="Transcript from Web Speech, or type one"></textarea>
+        <div class="row">
+          <button id="startMic" type="button">Record PCM</button>
+          <button id="stopMic" class="secondary" type="button">Stop PCM</button>
+          <button id="listen" type="button">Listen (Web Speech)</button>
+          <button id="analyzeVoice" class="secondary" type="button">Analyze voice</button>
+        </div>
+      </section>
+      <section>
+        <h2>Speak (browser TTS)</h2>
+        <textarea id="ttsText" placeholder="Text spoken by speechSynthesis in this browser"></textarea>
+        <div class="row">
+          <button id="speak" type="button">Speak locally</button>
+          <button id="stopSpeak" class="secondary" type="button">Stop</button>
+        </div>
+      </section>
+    </div>
+    <section class="row">
+      <h2>Result</h2>
+      <div class="row">
+        <button id="fuse" type="button">Fuse last embeddings</button>
+        <button id="capabilities" class="secondary" type="button">Capabilities</button>
+      </div>
+      <pre id="out">Waiting for a capture.</pre>
+    </section>
+  </main>
+  <script>
+    const SIDE = 32;
+    const MAX_FRAMES = 8;
+    const MAX_SAMPLES = 2048;
+    const cam = document.getElementById("cam");
+    const canvas = document.getElementById("frame");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const out = document.getElementById("out");
+    const transcript = document.getElementById("transcript");
+    const ttsText = document.getElementById("ttsText");
+    const micStatus = document.getElementById("micStatus");
+    const last = {};
+    let pcm = [];
+    let audioCtx = null;
+    let processor = null;
+    let source = null;
+
+    function show(value) {
+      out.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    }
+
+    function grayscale(image) {
+      const pixels = [];
+      for (let i = 0; i < image.data.length; i += 4) {
+        pixels.push(Math.round(0.299 * image.data[i] + 0.587 * image.data[i + 1] + 0.114 * image.data[i + 2]));
+      }
+      return pixels;
+    }
+
+    function drawToCanvas(sourceEl) {
+      ctx.drawImage(sourceEl, 0, 0, SIDE, SIDE);
+      return grayscale(ctx.getImageData(0, 0, SIDE, SIDE));
+    }
+
+    async function post(path, body) {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const text = await response.text();
+      try { return JSON.parse(text); } catch { return { error: text, status: response.status }; }
+    }
+
+    function remember(report) {
+      if (report && report.kind && report.embedding) last[report.kind] = report.embedding;
+      show(report);
+    }
+
+    document.getElementById("startCam").onclick = async () => {
+      cam.srcObject = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    };
+
+    document.getElementById("captureStill").onclick = async () => {
+      remember(await post("/analyze", { kind: "image", width: SIDE, height: SIDE, pixels: drawToCanvas(cam) }));
+    };
+
+    document.getElementById("imageFile").onchange = async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = async () => {
+        remember(await post("/analyze", { kind: "image", width: SIDE, height: SIDE, pixels: drawToCanvas(image) }));
+        URL.revokeObjectURL(url);
+      };
+      image.src = url;
+    };
+
+    async function collectFrames(el) {
+      const frames = [];
+      for (let i = 0; i < MAX_FRAMES; i += 1) {
+        frames.push(drawToCanvas(el));
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+      return frames;
+    }
+
+    document.getElementById("captureVideo").onclick = async () => {
+      remember(await post("/analyze", {
+        kind: "video",
+        width: SIDE,
+        height: SIDE,
+        frames: await collectFrames(cam)
+      }));
+    };
+
+    document.getElementById("videoFile").onchange = async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.src = url;
+      video.muted = true;
+      await video.play();
+      remember(await post("/analyze", {
+        kind: "video",
+        width: SIDE,
+        height: SIDE,
+        frames: await collectFrames(video)
+      }));
+      video.pause();
+      URL.revokeObjectURL(url);
+    };
+
+    document.getElementById("startMic").onclick = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      audioCtx = new AudioContext();
+      source = audioCtx.createMediaStreamSource(stream);
+      processor = audioCtx.createScriptProcessor(1024, 1, 1);
+      pcm = [];
+      processor.onaudioprocess = (event) => {
+        const input = event.inputBuffer.getChannelData(0);
+        for (let i = 0; i < input.length && pcm.length < MAX_SAMPLES; i += 4) pcm.push(input[i]);
+        micStatus.textContent = "Recording PCM samples: " + pcm.length;
+      };
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
+    };
+
+    document.getElementById("stopMic").onclick = async () => {
+      if (processor) processor.disconnect();
+      if (source) source.disconnect();
+      if (audioCtx) await audioCtx.close();
+      processor = source = audioCtx = null;
+      remember(await post("/analyze", { kind: "audio", sample_rate: 16000, samples: pcm }));
+    };
+
+    document.getElementById("listen").onclick = () => {
+      const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Speech) {
+        show({ error: "Web Speech recognition is not available in this browser", engine: "none" });
+        return;
+      }
+      const recognition = new Speech();
+      recognition.lang = "en-US";
+      recognition.onresult = (event) => {
+        transcript.value = Array.from(event.results).map((result) => result[0].transcript).join(" ");
+      };
+      recognition.onerror = (event) => show({ error: event.error, engine: "WebSpeechRecognition" });
+      recognition.start();
+    };
+
+    document.getElementById("analyzeVoice").onclick = async () => {
+      remember(await post("/analyze", {
+        kind: "voice",
+        transcript: transcript.value,
+        sample_rate: pcm.length ? 16000 : null,
+        samples: pcm.length ? pcm : null
+      }));
+    };
+
+    document.getElementById("speak").onclick = () => {
+      const text = ttsText.value.trim();
+      if (!text) return;
+      if (!window.speechSynthesis) {
+        show({ error: "speechSynthesis is not available", engine: "none" });
+        return;
+      }
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+      show({
+        kind: "tts",
+        engine: "browser-speechSynthesis",
+        disclosure: "Spoken only in this browser. ABI did not synthesize audio.",
+        chars: text.length
+      });
+    };
+    document.getElementById("stopSpeak").onclick = () => window.speechSynthesis && window.speechSynthesis.cancel();
+
+    document.getElementById("fuse").onclick = async () => {
+      remember(await post("/fuse", {
+        vision: last.image || null,
+        audio: last.audio || last.voice || null,
+        video: last.video || null
+      }));
+    };
+
+    document.getElementById("capabilities").onclick = async () => {
+      show(await (await fetch("/capabilities")).json());
+    };
+  </script>
+</body>
+</html>
