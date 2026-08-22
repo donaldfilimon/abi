@@ -251,9 +251,10 @@ published. It hand-extracts with an `arg_str` closure, clamps `recent_messages`
 or an unknown tool (`"Unknown tool \`{other}\`."`). An unknown tool is a model
 message, not a refusal record.
 
-`src/perms.rs` is an explanation surface, not an authorization surface. `Scope
-{ Everyone, Role { id, name }, Member { id, name }, Unrecognized }`, `Overwrite`,
-and `Subject { name, user_id, role_ids, is_admin, is_owner }` feed `applicable()`
+`src/perms.rs` is an explanation surface, not an authorization surface.
+`Scope { Everyone, Role { id, name }, Member { id, name }, Unrecognized }`,
+`Overwrite`, and `Subject { name, user_id, role_ids, is_admin, is_owner }` feed
+`applicable()`
 (which imposes Discord's evaluation order rather than storage order) and
 `explain()` (which returns prose). Owner and Administrator short-circuit before
 any overwrite is enumerated. `Scope::Unrecognized` exists so an unmodelled
