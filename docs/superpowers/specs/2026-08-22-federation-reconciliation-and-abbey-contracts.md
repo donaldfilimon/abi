@@ -1,8 +1,8 @@
 # Abbey federation reconciliation and Program 1 contracts
 
-Status: **proposed written design awaiting Donald's review. No runtime,
-repository-visibility, deployment, Discord, or home-directory mutation is
-authorized by this document alone.**
+Status: **approved by Donald as written on 2026-08-22; implementation in
+progress. Production deployment and participant-consented live Discord remain
+separately authorized and separately evidenced.**
 
 Author date: 2026-08-22.
 
@@ -65,7 +65,7 @@ The following decisions are proposed as one coherent set:
 10. Local HTTP surfaces fail closed when authentication is not configured.
     An unset token must disable the surface or limit it to an explicitly
     qualified owner-only IPC profile; it must never mean unauthenticated.
-11. The extracted `wdbx-substrate` repository should become public before it is
+11. The extracted WDBX repository should become public before it is
     treated as a required build dependency of public ABI and `abbey`. This
     removes an unsatisfiable fork-CI secret boundary. The visibility change is
     an implementation action and remains behind review of this document.
@@ -575,9 +575,9 @@ reversible receipt. The model never calls command registration directly.
 
 ## 8. Repository visibility and CI reconciliation
 
-Current provider evidence on 2026-08-22 shows:
+Pre-implementation provider evidence on 2026-08-22 showed:
 
-- ABI is public and requires the private `wdbx-substrate` checkout, but has no
+- ABI is public and required the private WDBX checkout, but had no
   `WDBX_CHECKOUT_TOKEN`; its `main` workflow fails before the strict gate runs.
 - ABI's Windows credential preflight contains Bash syntax without a Bash shell,
   producing an independent PowerShell parse failure.
@@ -587,9 +587,9 @@ Current provider evidence on 2026-08-22 shows:
   jobs because neither runner-enable repository variable is configured.
 - ABI and `abbey` pin WDBX at an earlier revision than current WDBX `main`.
 
-The approved implementation plan should therefore:
+Donald approved the implementation plan. The implementation therefore must:
 
-1. make `donaldfilimon/wdbx-substrate` public;
+1. make `donaldfilimon/wdbx` public;
 2. remove secret-only checkout preflights that are no longer needed;
 3. correct the Windows shell contract;
 4. give `abbey` at least one actually executing trusted gate and a safe
@@ -598,10 +598,10 @@ The approved implementation plan should therefore:
 6. avoid mixing path and Git sources for the same Cargo crates, which would
    create distinct crate identities and break type unification.
 
-If the visibility decision is rejected during review, the alternative must
-explicitly accept that public fork CI cannot build the real graph until a
-separately secured public artifact/distribution mechanism exists. A shared
-long-lived secret is not an acceptable fork solution.
+Observed implementation evidence now shows provider visibility `PUBLIC` and an
+anonymous HTTPS read of exact `main` commit
+`f42b9789eabcf89f952df0a160a7b6837c5acb57`. Local WDBX gates and hosted ABI or
+Abbey CI remain separate evidence rows; visibility alone does not qualify them.
 
 ## 9. Failure, degradation, and rollback
 
@@ -762,31 +762,27 @@ After this design is reviewed, separate implementation plans are required for:
 Each plan names exact files, gates, canary, rollback, and evidence boundaries.
 No plan may bundle a live Discord mutation with a schema-only change.
 
-## 14. Review questions
+## 14. Approved review decisions
 
-The conversation-level architecture has been accepted strongly enough to draft
-this document. The remaining gate is review of the exact written mechanism:
+Donald approved the written mechanism as a whole on 2026-08-22, including:
 
-1. Does the stable P0-P7 slug mapping match the intended program identity?
-2. Is `contracts/abbey/` inside ABI the correct initial canonical home, with
-   extraction governed by the listed triggers?
-3. Is organization/deployment tenancy plus guild resource-policy scoping the
-   intended boundary?
-4. Should strict corpus equality and fail-closed authentication be mandatory in
-   every CI, release, and production profile as specified?
-5. Is the tri-state, default-off guild-learning migration acceptable?
-6. Is making `wdbx-substrate` public the accepted resolution for the public
-   ABI/`abbey` build graph and fork-CI boundary?
+1. the stable P0-P7 slug mapping;
+2. `contracts/abbey/` inside ABI as the initial canonical home;
+3. organization/deployment tenancy with guild resource-policy scoping;
+4. strict corpus equality and fail-closed authentication;
+5. tri-state, default-off guild learning; and
+6. public WDBX source as the public ABI/`abbey` fork-CI resolution.
 
-Approval of this document authorizes implementation planning, not automatic
-production or Discord mutation. Live Discord validation always requires a
-separate explicitly consented session.
+Approval authorizes implementation. It does not authorize production deployment
+or a Discord session. Live Discord validation always requires a separate,
+explicitly participant-consented session.
 
 ## 15. Evidence statement
 
-This document is C0 proposed design evidence only. The clean ABI baseline run
-used while drafting it establishes that the unmodified `origin/main` worktree
-passed its local strict gate on this machine; it does not establish that the
-new schemas exist, that GitHub CI is green, that any other repository is
-compatible, that a deployment is qualified, or that a live Discord session
-occurred.
+This document is approved C0 design evidence. Public provider visibility and
+anonymous source readability are observed separately above. The clean ABI
+baseline run used while drafting establishes that the then-unmodified
+`origin/main` worktree passed its local strict gate; it does not establish that
+the new schemas exist, that the modified GitHub workflow is green, that any
+other repository is compatible, that a deployment is qualified, or that a live
+Discord session occurred.

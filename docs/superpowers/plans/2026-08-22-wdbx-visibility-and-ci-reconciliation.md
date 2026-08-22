@@ -34,7 +34,7 @@
 - Produces a before/after provider record containing repository identity, visibility, default branch, and current immutable head only.
 - Produces anonymous HTTPS read evidence for the exact target revision.
 
-- [ ] **Step 1: Verify the exact local and provider target**
+- [x] **Step 1: Verify the exact local and provider target**
 
 Run:
 
@@ -47,7 +47,7 @@ gh repo view donaldfilimon/wdbx-workers-legacy --json nameWithOwner,visibility,u
 
 Expected: the substrate is clean at `f42b9789eabcf89f952df0a160a7b6837c5acb57`, provider visibility is `PRIVATE`, and the renamed legacy Workers repository is still distinct and public.
 
-- [ ] **Step 2: Change visibility at the provider boundary**
+- [x] **Step 2: Change visibility at the provider boundary**
 
 Run:
 
@@ -57,7 +57,7 @@ gh repo edit donaldfilimon/wdbx --visibility public --accept-visibility-change-c
 
 Expected: command succeeds for the exact target.
 
-- [ ] **Step 3: Verify public readability independently**
+- [x] **Step 3: Verify public readability independently**
 
 Run:
 
@@ -68,22 +68,17 @@ env -u GH_TOKEN -u GITHUB_TOKEN git ls-remote https://github.com/donaldfilimon/w
 
 Expected: `visibility` is `PUBLIC`; anonymous `ls-remote` returns the exact commit.
 
-- [ ] **Step 4: Write failing documentation consistency check**
-
-Add `tools/check_repository_metadata.py` with a test mode that rejects the stale phrase ``repository **private**`` and requires `public source substrate` plus the explicit no-runtime-data boundary in `AGENTS.md` and `README.md`.
-
-Run: `python3 tools/check_repository_metadata.py`
-
-Expected: failure on the stale private documentation.
-
-- [ ] **Step 5: Update WDBX documentation and make the check green**
+- [x] **Step 4: Update WDBX documentation**
 
 State that the GitHub source repository is public as of 2026-08-22, stores and runtime data remain private/operator-owned, and the unrelated `donaldfilimon/wdbx-workers-legacy` repository remains untouched.
+
+The test-quality review rejected a prose-grep test here: human documentation is
+not executable behavior. Provider visibility, anonymous Git readability, and
+the real WDBX gate are the observable evidence.
 
 Run:
 
 ```bash
-python3 tools/check_repository_metadata.py
 cargo fmt --all --check
 cargo clippy --workspace --all-targets
 cargo test --workspace
@@ -92,10 +87,10 @@ git diff --check
 
 Expected: metadata check and WDBX strict gate pass.
 
-- [ ] **Step 6: Commit on a WDBX feature branch**
+- [x] **Step 5: Commit on a WDBX feature branch**
 
 ```bash
-git add AGENTS.md README.md tools/check_repository_metadata.py
+git add AGENTS.md README.md
 git commit -m "docs(wdbx): record public source boundary"
 ```
 
