@@ -15,7 +15,71 @@
       "bytes": 1018,
       "media_type": "text/markdown; charset=utf-8",
       "sha256": "b6a587e65fa330c69dd9fad1fb0da3e09244229cd021083a678964b30015d167"
+    },
+    {
+      "path": "v1/fixtures/boundary/identity-delegation-nine-hops.json",
+      "bytes": 2177,
+      "media_type": "application/json",
+      "sha256": "5744686229d6f1c7b482d9e39de564c20dfc72fcfe0bd1a6f1aa4669470554b9"
+    },
+    {
+      "path": "v1/fixtures/invalid/identity-delegation-cycle.json",
+      "bytes": 848,
+      "media_type": "application/json",
+      "sha256": "1aa16d3f9a520ae4b8aac9c980af6c9cd2697de18bb11fdf97deeb18f07593ba"
+    },
+    {
+      "path": "v1/fixtures/invalid/identity-wildcard-scope.json",
+      "bytes": 398,
+      "media_type": "application/json",
+      "sha256": "5a1f9cad83ebb3e689f705a1dd03cb1493da17813dafa74651316141dfe8b8ad"
+    },
+    {
+      "path": "v1/fixtures/privacy/identity-raw-snowflake.json",
+      "bytes": 401,
+      "media_type": "application/json",
+      "sha256": "52f3ed5c68aebcf8260a6db0185bf20344810efb23309c1c87ac62ee004d8a31"
+    },
+    {
+      "path": "v1/fixtures/valid/identity-delegation-chain.json",
+      "bytes": 834,
+      "media_type": "application/json",
+      "sha256": "68b5e13de3d7426afa527cc1364d42c2f141db258a06b5c971f7eb6c45a7e76c"
+    },
+    {
+      "path": "v1/fixtures/valid/identity-principal.json",
+      "bytes": 374,
+      "media_type": "application/json",
+      "sha256": "cecf1c439699509c97f6d480cba8db380b9c83ca9b64a363b42f266f645d9d46"
+    },
+    {
+      "path": "v1/schemas/authorization/scope.schema.json",
+      "bytes": 3248,
+      "media_type": "application/schema+json",
+      "sha256": "b6b77c1cc26f45a7fbcf3b740e46bd24a8f2032e0215f0eaa0b67a457d29d456",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/authorization/scope.schema.json"
+    },
+    {
+      "path": "v1/schemas/common/definitions.schema.json",
+      "bytes": 720,
+      "media_type": "application/schema+json",
+      "sha256": "e3ccda4ce5c999842c0a5f2535c2a9c843213f824d0cf25fe809dd3e3503f530",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json"
+    },
+    {
+      "path": "v1/schemas/identity/delegation-chain.schema.json",
+      "bytes": 1925,
+      "media_type": "application/schema+json",
+      "sha256": "861312c146f975a5db4117e82a0fa460ea44cd18b98c74bdfc648fb6e707560c",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/identity/delegation-chain.schema.json"
+    },
+    {
+      "path": "v1/schemas/identity/principal.schema.json",
+      "bytes": 1249,
+      "media_type": "application/schema+json",
+      "sha256": "40394446dd495754ff871ec359b0705ff123a5401ee4722449312ea63acb95b4",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/identity/principal.schema.json"
     }
   ],
-  "aggregate_digest": "d0fb5a0e0b02b8d2a8e136fbe78b609c11a4cea8c6d13440009d8a699fa4e9b1"
+  "aggregate_digest": "5d6143a84a72cbb5294c84f9158ab6519077b09b6663537a48a1383b068d75d5"
 }

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/identity/delegation-chain.schema.json",
+  "title": "Finite scope-narrowing delegation chain",
+  "x-abbey-data-class": "authorization-metadata",
+  "x-abbey-max-bytes": 32768,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["audience_adapter_id", "expires_at", "clock_skew_ms", "hops"],
+  "properties": {
+    "audience_adapter_id": {
+      "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+    },
+    "expires_at": {
+      "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/utc_instant"
+    },
+    "clock_skew_ms": {
+      "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/duration_ms"
+    },
+    "hops": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "grant_id",
+          "delegator_principal_id",
+          "delegatee_principal_id",
+          "scope_digest"
+        ],
+        "properties": {
+          "grant_id": {
+            "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+          },
+          "delegator_principal_id": {
+            "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+          },
+          "delegatee_principal_id": {
+            "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+          },
+          "scope_digest": {
+            "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/digest_id"
+          }
+        }
+      }
+    }
+  }
+}

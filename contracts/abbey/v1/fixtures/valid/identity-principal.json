@@ -1,0 +1,12 @@
+{
+  "case_id": "identity_principal_separated",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/identity/principal.schema.json",
+  "expect": "valid",
+  "document": {
+    "channel_principal_id": "channel_alpha",
+    "channel_kind": "workload",
+    "subject_principal_id": "subject_alpha",
+    "subject_kind": "guild_manager",
+    "tenant_id": "tenant_alpha"
+  }
+}

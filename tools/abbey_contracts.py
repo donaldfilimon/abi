@@ -48,6 +48,14 @@ class VerificationReport:
     duplicates: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class FixtureOutcome:
+    """Closed validation result for one synthetic fixture document."""
+
+    code: str
+    path: str
+
+
 def _normalize_display_path(path: str | Path | None) -> str | None:
     if path is None:
         return None
@@ -196,6 +204,256 @@ def _artifact_row(root: Path, relative: Path) -> dict[str, Any]:
             raise ContractError("schema_id_missing", relative)
         row["schema_id"] = schema_id
     return row
+
+
+def _schema_registry(root: Path) -> dict[str, dict[str, Any]]:
+    registry: dict[str, dict[str, Any]] = {}
+    schema_root = root / "v1" / "schemas"
+    if not schema_root.is_dir():
+        raise ContractError("schema_directory_missing", "v1/schemas")
+    for path in sorted(schema_root.rglob("*.schema.json")):
+        if path.is_symlink():
+            raise ContractError("symlink_forbidden", path.relative_to(root))
+        schema = load_json_strict(path)
+        relative = path.relative_to(root)
+        if not isinstance(schema, dict):
+            raise ContractError("schema_shape", relative)
+        required_metadata = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "x-abbey-data-class": None,
+            "x-abbey-max-bytes": None,
+            "x-abbey-unknown-fields": None,
+        }
+        for key, expected in required_metadata.items():
+            if key not in schema or (expected is not None and schema[key] != expected):
+                raise ContractError("schema_metadata_missing", relative)
+        schema_id = schema.get("$id")
+        if not isinstance(schema_id, str) or not schema_id.startswith(
+            "https://abbey.local/contracts/abbey/v1/schemas/"
+        ):
+            raise ContractError("schema_id_invalid", relative)
+        if schema_id in registry:
+            raise ContractError("schema_id_duplicate", relative)
+        max_bytes = schema["x-abbey-max-bytes"]
+        if not isinstance(max_bytes, int) or isinstance(max_bytes, bool) or not 1 <= max_bytes <= MAX_ARTIFACT_BYTES:
+            raise ContractError("schema_max_bytes_invalid", relative)
+        if schema["x-abbey-unknown-fields"] not in {"reject", "extensions-only"}:
+            raise ContractError("schema_unknown_policy_invalid", relative)
+        registry[schema_id] = schema
+    for schema_id, schema in registry.items():
+        _check_schema_references(schema, schema_id, registry)
+    return registry
+
+
+def _check_schema_references(value: Any, owner: str, registry: dict[str, dict[str, Any]]) -> None:
+    if isinstance(value, dict):
+        reference = value.get("$ref")
+        if reference is not None:
+            if not isinstance(reference, str):
+                raise ContractError("schema_ref_invalid", owner)
+            base = reference.split("#", 1)[0]
+            target = owner if not base else base
+            if target not in registry:
+                raise ContractError("schema_ref_external", owner)
+        for nested in value.values():
+            _check_schema_references(nested, owner, registry)
+    elif isinstance(value, list):
+        for nested in value:
+            _check_schema_references(nested, owner, registry)
+
+
+def _resolve_reference(
+    reference: str,
+    owner_id: str,
+    registry: dict[str, dict[str, Any]],
+) -> tuple[dict[str, Any], str]:
+    base, separator, fragment = reference.partition("#")
+    target_id = base or owner_id
+    target: Any = registry.get(target_id)
+    if target is None:
+        raise ContractError("schema_ref_external", owner_id)
+    if separator and fragment:
+        if not fragment.startswith("/"):
+            raise ContractError("schema_ref_invalid", owner_id)
+        for token in fragment[1:].split("/"):
+            token = token.replace("~1", "/").replace("~0", "~")
+            if not isinstance(target, dict) or token not in target:
+                raise ContractError("schema_ref_invalid", owner_id)
+            target = target[token]
+    if not isinstance(target, dict):
+        raise ContractError("schema_ref_invalid", owner_id)
+    return target, target_id
+
+
+def _is_json_type(value: Any, expected: str) -> bool:
+    return {
+        "object": isinstance(value, dict),
+        "array": isinstance(value, list),
+        "string": isinstance(value, str),
+        "integer": isinstance(value, int) and not isinstance(value, bool),
+        "number": isinstance(value, (int, float)) and not isinstance(value, bool),
+        "boolean": isinstance(value, bool),
+        "null": value is None,
+    }.get(expected, False)
+
+
+def _validate_schema(
+    value: Any,
+    schema: dict[str, Any],
+    owner_id: str,
+    registry: dict[str, dict[str, Any]],
+) -> bool:
+    reference = schema.get("$ref")
+    if isinstance(reference, str):
+        target, target_id = _resolve_reference(reference, owner_id, registry)
+        return _validate_schema(value, target, target_id, registry)
+    if "const" in schema and value != schema["const"]:
+        return False
+    if "enum" in schema and value not in schema["enum"]:
+        return False
+    for subschema in schema.get("allOf", []):
+        if not _validate_schema(value, subschema, owner_id, registry):
+            return False
+    one_of = schema.get("oneOf")
+    if isinstance(one_of, list):
+        if sum(_validate_schema(value, option, owner_id, registry) for option in one_of) != 1:
+            return False
+    any_of = schema.get("anyOf")
+    if isinstance(any_of, list) and not any(
+        _validate_schema(value, option, owner_id, registry) for option in any_of
+    ):
+        return False
+    expected_type = schema.get("type")
+    if isinstance(expected_type, str) and not _is_json_type(value, expected_type):
+        return False
+    if isinstance(expected_type, list) and not any(_is_json_type(value, item) for item in expected_type):
+        return False
+    if isinstance(value, str):
+        import re
+
+        if len(value) < schema.get("minLength", 0) or len(value) > schema.get("maxLength", sys.maxsize):
+            return False
+        pattern = schema.get("pattern")
+        if isinstance(pattern, str) and re.fullmatch(pattern, value) is None:
+            return False
+    if isinstance(value, list):
+        if len(value) < schema.get("minItems", 0) or len(value) > schema.get("maxItems", sys.maxsize):
+            return False
+        if schema.get("uniqueItems"):
+            encoded = [_fixed_json_bytes(item) for item in value]
+            if len(set(encoded)) != len(encoded):
+                return False
+        item_schema = schema.get("items")
+        if isinstance(item_schema, dict) and any(
+            not _validate_schema(item, item_schema, owner_id, registry) for item in value
+        ):
+            return False
+    if isinstance(value, dict):
+        required = schema.get("required", [])
+        if any(key not in value for key in required):
+            return False
+        if len(value) < schema.get("minProperties", 0) or len(value) > schema.get(
+            "maxProperties", sys.maxsize
+        ):
+            return False
+        properties = schema.get("properties", {})
+        for key, item in value.items():
+            if key in properties:
+                if not _validate_schema(item, properties[key], owner_id, registry):
+                    return False
+            else:
+                additional = schema.get("additionalProperties", True)
+                if additional is False:
+                    return False
+                if isinstance(additional, dict) and not _validate_schema(item, additional, owner_id, registry):
+                    return False
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if value < schema.get("minimum", value) or value > schema.get("maximum", value):
+            return False
+    return True
+
+
+def _walk_values(value: Any) -> Iterable[tuple[str | None, Any]]:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            yield key, item
+            yield from _walk_values(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield None, item
+            yield from _walk_values(item)
+
+
+def _privacy_safe(value: Any) -> bool:
+    forbidden_keys = {
+        "audio",
+        "transcript",
+        "message",
+        "prompt",
+        "response_text",
+        "credential",
+        "token",
+        "password",
+        "username",
+        "display_name",
+        "filesystem_path",
+        "participant_identity",
+    }
+    for key, item in _walk_values(value):
+        if key is not None and key.lower() in forbidden_keys:
+            return False
+        if isinstance(item, str):
+            if item.isdecimal() and 17 <= len(item) <= 20:
+                return False
+            if item.startswith(("/Users/", "/home/", "C:\\", "sk-", "ghp_")):
+                return False
+    return True
+
+
+def _semantic_code(schema_id: str, document: Any) -> str | None:
+    if schema_id.endswith("/identity/delegation-chain.schema.json") and isinstance(document, dict):
+        hops = document.get("hops", [])
+        for left, right in zip(hops, hops[1:]):
+            if left.get("delegatee_principal_id") != right.get("delegator_principal_id"):
+                return "delegation_chain_broken"
+        if hops:
+            seen = {hops[0].get("delegator_principal_id")}
+            for hop in hops:
+                delegatee = hop.get("delegatee_principal_id")
+                if delegatee in seen:
+                    return "delegation_cycle"
+                seen.add(delegatee)
+    return None
+
+
+def validate_fixture(root: Path, fixture_path: Path) -> FixtureOutcome:
+    """Decode and validate one fixture without trusting its expected outcome."""
+
+    root = root.resolve(strict=True)
+    try:
+        relative = fixture_path.resolve(strict=True).relative_to(root)
+    except (OSError, ValueError) as exc:
+        raise ContractError("fixture_path_invalid") from exc
+    fixture = load_json_strict(fixture_path)
+    if not isinstance(fixture, dict) or set(fixture) != {"case_id", "schema", "expect", "document"}:
+        return FixtureOutcome("fixture_shape", relative.as_posix())
+    schema_id = fixture.get("schema")
+    if not isinstance(schema_id, str):
+        return FixtureOutcome("fixture_shape", relative.as_posix())
+    document = fixture.get("document")
+    if not _privacy_safe(document):
+        return FixtureOutcome("forbidden_content", relative.as_posix())
+    registry = _schema_registry(root)
+    schema = registry.get(schema_id)
+    if schema is None:
+        return FixtureOutcome("schema_unknown", relative.as_posix())
+    encoded = _fixed_json_bytes(document)
+    if len(encoded) > schema["x-abbey-max-bytes"]:
+        return FixtureOutcome("document_too_large", relative.as_posix())
+    if not _validate_schema(document, schema, schema_id, registry):
+        return FixtureOutcome("schema_invalid", relative.as_posix())
+    semantic = _semantic_code(schema_id, document)
+    return FixtureOutcome(semantic or "valid", relative.as_posix())
 
 
 def build_manifest(root: Path) -> dict[str, Any]:

@@ -1,0 +1,24 @@
+{
+  "case_id": "identity_delegation_cycle_denied",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/identity/delegation-chain.schema.json",
+  "expect": "delegation_cycle",
+  "document": {
+    "audience_adapter_id": "adapter_alpha",
+    "expires_at": "2026-08-22T18:00:00Z",
+    "clock_skew_ms": "5000",
+    "hops": [
+      {
+        "grant_id": "grant_alpha",
+        "delegator_principal_id": "principal_alpha",
+        "delegatee_principal_id": "principal_beta",
+        "scope_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      {
+        "grant_id": "grant_beta",
+        "delegator_principal_id": "principal_beta",
+        "delegatee_principal_id": "principal_alpha",
+        "scope_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ]
+  }
+}

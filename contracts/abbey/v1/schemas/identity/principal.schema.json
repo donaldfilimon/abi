@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v1/schemas/identity/principal.schema.json",
+  "title": "Effective principal",
+  "x-abbey-data-class": "pseudonymous-identity",
+  "x-abbey-max-bytes": 2048,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "channel_principal_id",
+    "channel_kind",
+    "subject_principal_id",
+    "subject_kind",
+    "tenant_id"
+  ],
+  "properties": {
+    "channel_principal_id": {
+      "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+    },
+    "channel_kind": {
+      "enum": ["channel", "workload", "service"]
+    },
+    "subject_principal_id": {
+      "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+    },
+    "subject_kind": {
+      "enum": [
+        "human_subject",
+        "organization_owner",
+        "guild_owner",
+        "guild_administrator",
+        "guild_manager",
+        "service",
+        "anonymous"
+      ]
+    },
+    "tenant_id": {
+      "$ref": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json#/$defs/opaque_id"
+    }
+  }
+}

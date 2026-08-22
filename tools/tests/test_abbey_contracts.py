@@ -7,6 +7,7 @@ from tools.abbey_contracts import (
     ContractError,
     discover_artifacts,
     load_json_strict,
+    validate_fixture,
     verify_manifest,
 )
 
@@ -46,6 +47,33 @@ class CorpusBoundaryTests(unittest.TestCase):
 
         self.assertIsInstance(manifest["aggregate_digest"], str)
         self.assertEqual(len(manifest["aggregate_digest"]), 64)
+
+
+class SchemaContractTests(unittest.TestCase):
+    def assert_fixture(self, taxonomy: str, name: str, expected: str) -> None:
+        outcome = validate_fixture(
+            CORPUS_ROOT,
+            CORPUS_ROOT / "v1" / "fixtures" / taxonomy / name,
+        )
+        self.assertEqual(outcome.code, expected)
+
+    def test_principal_keeps_channel_and_subject_identity_separate(self) -> None:
+        self.assert_fixture("valid", "identity-principal.json", "valid")
+
+    def test_platform_scope_rejects_cross_guild_wildcards(self) -> None:
+        self.assert_fixture("invalid", "identity-wildcard-scope.json", "schema_invalid")
+
+    def test_raw_discord_snowflakes_are_not_opaque_contract_ids(self) -> None:
+        self.assert_fixture("privacy", "identity-raw-snowflake.json", "forbidden_content")
+
+    def test_delegation_rejects_a_ninth_hop_before_retention(self) -> None:
+        self.assert_fixture("boundary", "identity-delegation-nine-hops.json", "schema_invalid")
+
+    def test_delegation_rejects_repeated_principals(self) -> None:
+        self.assert_fixture("invalid", "identity-delegation-cycle.json", "delegation_cycle")
+
+    def test_delegation_allows_a_finite_connected_chain(self) -> None:
+        self.assert_fixture("valid", "identity-delegation-chain.json", "valid")
 
 
 if __name__ == "__main__":
