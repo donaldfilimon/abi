@@ -32,4 +32,4 @@ Current Rust driver: requires each compression/additive-HE/DGHV section and
 | Symptom | Fix |
 |---|---|
 | `build` FAIL | `./tools/check.sh`. |
-| missing `match=true` | a HE/compression invariant broke — check `crates/abi-wdbx/src/{compression,crypto_he,fhe}.rs`. |
+| missing `match=true` | a HE/compression invariant broke — check `../wdbx/crates/abi-wdbx/src/{compression,crypto_he,fhe}.rs`. |

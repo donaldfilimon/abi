@@ -3,6 +3,21 @@ name: wdbx-api-serve
 description: Build the abi CLI and drive the WDBX REST server end-to-end — start `abi wdbx api serve` on a loopback port, hit GET /health and GET /stats, and verify ABI_WDBX_REST_TOKEN bearer auth (401 without/with wrong token, 200 with the right one). Use to run/start/smoke-test the WDBX REST API. Loopback only; kills the server on exit.
 ---
 
+> **WDBX moved out of this repository on 2026-08-22.** It now lives in the
+> sibling repo `~/dev/active/wdbx` together with `abi-compute`,
+> `abi-foundation`, `abi-core`, and `abi-telemetry`; `abi` consumes them by
+> relative path. Source paths below therefore read `../wdbx/crates/...`. Run
+> WDBX-only tests from that repo (`cargo test --workspace`), and `abi`'s gate
+> (`./tools/check.sh`) from here.
+>
+> Under the Abbey System Constitution
+> (`docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`) WDBX is the
+> **provenance-aware episodic substrate**, not a vector store. Most of the
+> evidence half of its specification is unimplemented; the measured gap list is
+> in `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`. Do not
+> describe an episodic capability as Current on the strength of the vector-store
+> features that do exist.
+
 # wdbx-api-serve — drive the WDBX REST server
 
 Driver: **`.agents/skills/wdbx-api-serve/serve.sh`** (paths relative to repo root).
