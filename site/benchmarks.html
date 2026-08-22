@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmark dashboard — ABI Framework</title>
+<meta name="description" content="Sample benchmark dashboard for the ABI Framework. Renders placeholder latency and throughput data; not a published performance claim.">
+<meta name="color-scheme" content="dark light">
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23009688'/><text x='16' y='22' font-family='monospace' font-size='16' font-weight='bold' text-anchor='middle' fill='%23042b26'>A</text></svg>">
+<script>
+  try {
+    var stored = localStorage.getItem("abi-theme");
+    if (stored === "light" || stored === "dark") document.documentElement.dataset.theme = stored;
+  } catch (e) {}
+</script>
+<script type="module" src="assets/app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="./">
+      <span class="mark" aria-hidden="true">AB</span>
+      <span>ABI Framework</span>
+      <span class="tag">nightly Rust</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="./#capabilities">Capabilities</a>
+      <a href="./#quickstart">Quick start</a>
+      <a href="./#surfaces">Surfaces</a>
+      <a href="benchmarks.html" aria-current="page">Benchmarks</a>
+      <a href="https://github.com/donaldfilimon/abi">GitHub</a>
+    </nav>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle colour theme">
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="hero">
+    <div class="wrap" style="padding-top:2.75rem;padding-bottom:2.25rem">
+      <span class="eyebrow">Sample data · not a performance claim</span>
+      <h1 style="font-size:clamp(1.8rem,4vw,2.6rem)">Benchmark dashboard</h1>
+      <p class="lede">
+        This page renders <code>data/sample_benchmarks.json</code> — synthetic placeholder
+        records that exist to exercise the dashboard and to give a benchmark exporter a
+        schema to target. No number here was measured from a running ABI build.
+      </p>
+    </div>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <div id="status" class="status-msg" hidden></div>
+
+      <div class="stat-row" id="stats" aria-live="polite"></div>
+
+      <div class="chart-card" style="margin-top:1.25rem">
+        <header>
+          <h3>Latency percentiles</h3>
+          <span class="hint">milliseconds, lower is better</span>
+        </header>
+        <figure class="chart-figure" id="latency-chart"></figure>
+      </div>
+
+      <div class="chart-card" style="margin-top:1.25rem">
+        <header>
+          <h3>Throughput</h3>
+          <span class="hint">operations per second, higher is better</span>
+        </header>
+        <figure class="chart-figure" id="throughput-chart"></figure>
+      </div>
+
+      <details class="raw">
+        <summary>Underlying records</summary>
+        <div class="table-scroll" id="data-table"></div>
+      </details>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Where real numbers would come from</h2>
+        <p>
+          ABI has two local timing surfaces. Both are same-host development guards, and
+          neither is published as a throughput or latency claim.
+        </p>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <h3><code>abi wdbx benchmark</code> <span class="pill pill-current">In-process</span></h3>
+          <p>
+            Times insert and search against the in-process vector index and prints p50/p95/p99
+            per operation. Its own output header says it plainly: local, in-memory, and not a
+            published throughput claim.
+          </p>
+          <div class="code" style="margin-top:0.9rem">
+            <div class="code-head">
+              run it
+              <button class="copy-btn" type="button" data-copy>Copy</button>
+            </div>
+<pre><code>./tools/cargo.sh build -p abi-cli
+./target/debug/abi wdbx benchmark 500</code></pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><code>tools/bench_regress.sh</code> <span class="pill pill-partial">Regression gate</span></h3>
+          <p>
+            Compares the frozen WDBX workload against <code>tools/bench_baseline.json</code>
+            and fails on a slowdown beyond the threshold. It aggregates the best p50 across
+            several runs so host noise can only make the gate more conservative, and it
+            refuses cross-host comparison by default.
+          </p>
+          <div class="code" style="margin-top:0.9rem">
+            <div class="code-head">
+              run it
+              <button class="copy-btn" type="button" data-copy>Copy</button>
+            </div>
+<pre><code>./tools/bench_regress.sh
+<span class="cmt"># ABI_BENCH_COUNT / ABI_BENCH_RUNS / ABI_BENCH_THRESHOLD_PCT</span>
+<span class="cmt"># tune the workload; --update-baseline refreezes it</span></code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:1.25rem">
+        <h3>Publishing measurements here</h3>
+        <p>
+          The dashboard fetches its records at page load, so real data only needs to be
+          written to <code>site/data/sample_benchmarks.json</code> in the documented shape —
+          see <a href="https://github.com/donaldfilimon/abi/blob/main/site/data/README.md">site/data/README.md</a>.
+          If that ever happens, the provenance note above has to change with it: which
+          machine, which toolchain, which workload. Undated numbers with no host attached are
+          exactly the kind of claim
+          <a href="https://github.com/donaldfilimon/abi/blob/main/docs/contracts/external-claims-audit.mdx">the claims audit</a>
+          exists to prevent.
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-bottom" style="margin-top:0;padding-top:0;border-top:none">
+      <span>© <span data-year>2026</span> ABI Framework contributors.</span>
+      <span><a href="./">Home</a> · <a href="https://github.com/donaldfilimon/abi/tree/main/site">Page source</a></span>
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+  import { renderLineChart, renderBarChart, renderTable } from "./assets/charts.js";
+
+  const statusNode = document.getElementById("status");
+
+  function fail(message) {
+    statusNode.hidden = false;
+    statusNode.textContent = message;
+  }
+
+  function statCard({ label, value, unit, delta }) {
+    const card = document.createElement("div");
+    card.className = "stat";
+    card.innerHTML =
+      `<div class="label"></div><div class="value"></div><div class="delta"></div>`;
+    card.querySelector(".label").textContent = label;
+    const valueNode = card.querySelector(".value");
+    valueNode.textContent = value;
+    if (unit) {
+      const unitNode = document.createElement("span");
+      unitNode.className = "unit";
+      unitNode.textContent = unit;
+      valueNode.appendChild(unitNode);
+    }
+    card.querySelector(".delta").textContent = delta || "";
+    return card;
+  }
+
+  function changeText(values, lowerIsBetter) {
+    if (values.length < 2) return "single record — no trend to report";
+    const first = values[0];
+    const last = values[values.length - 1];
+    if (!Number.isFinite(first) || !Number.isFinite(last) || first === 0) return "";
+    const pct = ((last - first) / first) * 100;
+    const direction = pct === 0 ? "flat" : pct > 0 ? "up" : "down";
+    const better = pct === 0 ? "" : (pct < 0) === lowerIsBetter ? " (better)" : " (worse)";
+    return `${direction} ${Math.abs(pct).toFixed(1)}% across the sample${better}`;
+  }
+
+  async function main() {
+    let records;
+    try {
+      const response = await fetch("data/sample_benchmarks.json", { cache: "no-cache" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      records = await response.json();
+    } catch (error) {
+      fail(`Could not load data/sample_benchmarks.json (${error.message}). The charts below stay empty until it is readable.`);
+      return;
+    }
+
+    if (!Array.isArray(records) || records.length === 0) {
+      fail("data/sample_benchmarks.json parsed but held no records, so there is nothing to chart.");
+      return;
+    }
+
+    const labels = records.map((record) => String(record.date ?? ""));
+    const p50 = records.map((record) => Number(record.p50));
+    const p90 = records.map((record) => Number(record.p90));
+    const p99 = records.map((record) => Number(record.p99));
+    const throughput = records.map((record) => Number(record.throughput));
+    const latest = records[records.length - 1];
+
+    document.getElementById("stats").replaceChildren(
+      statCard({
+        label: "p50 latency",
+        value: Number(latest.p50).toFixed(1),
+        unit: " ms",
+        delta: changeText(p50, true),
+      }),
+      statCard({
+        label: "p90 latency",
+        value: Number(latest.p90).toFixed(1),
+        unit: " ms",
+        delta: changeText(p90, true),
+      }),
+      statCard({
+        label: "p99 latency",
+        value: Number(latest.p99).toFixed(1),
+        unit: " ms",
+        delta: changeText(p99, true),
+      }),
+      statCard({
+        label: "throughput",
+        value: Number(latest.throughput).toFixed(0),
+        unit: " ops/s",
+        delta: changeText(throughput, false),
+      }),
+      statCard({
+        label: "records",
+        value: String(records.length),
+        unit: "",
+        delta: `${labels[0]} → ${labels[labels.length - 1]}`,
+      }),
+    );
+
+    renderLineChart(document.getElementById("latency-chart"), {
+      labels,
+      unit: " ms",
+      ariaLabel: "Line chart of sample p50, p90, and p99 latency in milliseconds over time",
+      series: [
+        { name: "p50", values: p50 },
+        { name: "p90", values: p90 },
+        { name: "p99", values: p99 },
+      ],
+    });
+
+    renderBarChart(document.getElementById("throughput-chart"), {
+      labels,
+      values: throughput,
+      name: "throughput",
+      unit: " ops/s",
+      ariaLabel: "Bar chart of sample throughput in operations per second over time",
+    });
+
+    renderTable(document.getElementById("data-table"), {
+      caption: "Every record rendered above, in file order.",
+      columns: ["Date", "p50 (ms)", "p90 (ms)", "p99 (ms)", "Throughput (ops/s)"],
+      rows: records.map((record) => [
+        record.date,
+        Number(record.p50).toFixed(1),
+        Number(record.p90).toFixed(1),
+        Number(record.p99).toFixed(1),
+        Number(record.throughput).toFixed(1),
+      ]),
+    });
+  }
+
+  main();
+</script>
+
+</body>
+</html>

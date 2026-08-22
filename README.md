@@ -3,6 +3,10 @@
 ABI is a **nightly Rust** framework for local AI service orchestration, semantic
 vector storage, claim-honest GPU capability reporting, and runtime primitives.
 
+Project site: <https://donaldfilimon.github.io/abi/> — published from `site/` on
+every push to `main` (see `site/README.md`); its benchmark dashboard renders
+synthetic sample data, not measurements.
+
 ## Quick Start
 ```bash
 ./tools/cargo.sh --version   # rustup nightly via tools/cargo.sh (never bare cargo)
