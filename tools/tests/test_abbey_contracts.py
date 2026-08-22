@@ -76,5 +76,34 @@ class SchemaContractTests(unittest.TestCase):
         self.assert_fixture("valid", "identity-delegation-chain.json", "valid")
 
 
+class AuthorizationInvariantTests(SchemaContractTests):
+    def test_low_risk_grant_binds_capability_scope_and_expiry(self) -> None:
+        self.assert_fixture("valid", "authorization-grant.json", "valid")
+
+    def test_prohibited_capability_is_decodable_but_ungrantable(self) -> None:
+        self.assert_fixture("invalid", "authorization-prohibited-grant.json", "schema_invalid")
+
+    def test_approval_cannot_be_issued_by_its_request_subject(self) -> None:
+        self.assert_fixture("invalid", "authorization-self-approval.json", "self_approval")
+
+    def test_authority_envelopes_reject_unknown_fields(self) -> None:
+        self.assert_fixture("invalid", "authorization-unknown-field.json", "schema_invalid")
+
+    def test_closed_error_rejects_embedded_free_form_cause(self) -> None:
+        self.assert_fixture("privacy", "authorization-error-cause.json", "schema_invalid")
+
+    def test_dependency_degradation_cannot_increase_authority(self) -> None:
+        self.assert_fixture("degraded", "authorization-dependency-allow.json", "degraded_authority")
+
+    def test_prohibited_candidate_package_remains_decodable_for_denial(self) -> None:
+        self.assert_fixture("valid", "authorization-prohibited-package.json", "valid")
+
+    def test_exact_single_use_approval_is_valid(self) -> None:
+        self.assert_fixture("valid", "authorization-approval.json", "valid")
+
+    def test_redacted_closed_error_is_valid(self) -> None:
+        self.assert_fixture("valid", "authorization-error.json", "valid")
+
+
 if __name__ == "__main__":
     unittest.main()

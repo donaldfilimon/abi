@@ -23,6 +23,30 @@
       "sha256": "5744686229d6f1c7b482d9e39de564c20dfc72fcfe0bd1a6f1aa4669470554b9"
     },
     {
+      "path": "v1/fixtures/degraded/authorization-dependency-allow.json",
+      "bytes": 515,
+      "media_type": "application/json",
+      "sha256": "33075becbbea091b76863afb37da5eec0d83fd0c97a4f83bdcd3502b01010615"
+    },
+    {
+      "path": "v1/fixtures/invalid/authorization-prohibited-grant.json",
+      "bytes": 906,
+      "media_type": "application/json",
+      "sha256": "babcbab7f0afc97db63dea1b1ed560f00391458a2ab863a95ec03b952ae9127e"
+    },
+    {
+      "path": "v1/fixtures/invalid/authorization-self-approval.json",
+      "bytes": 1050,
+      "media_type": "application/json",
+      "sha256": "41665733bd69bb24311b823dea9866e6672da4ad471aa67d016ddf29ba4b6605"
+    },
+    {
+      "path": "v1/fixtures/invalid/authorization-unknown-field.json",
+      "bytes": 903,
+      "media_type": "application/json",
+      "sha256": "ff703dbbe6257205c93a4bf1f79ec4b5563585645ad5d368b466490197a08144"
+    },
+    {
       "path": "v1/fixtures/invalid/identity-delegation-cycle.json",
       "bytes": 848,
       "media_type": "application/json",
@@ -35,10 +59,40 @@
       "sha256": "5a1f9cad83ebb3e689f705a1dd03cb1493da17813dafa74651316141dfe8b8ad"
     },
     {
+      "path": "v1/fixtures/privacy/authorization-error-cause.json",
+      "bytes": 414,
+      "media_type": "application/json",
+      "sha256": "e6ab3b4c3d67abb42021432159ca5823a463ec1488ee5140e085253e49df58d5"
+    },
+    {
       "path": "v1/fixtures/privacy/identity-raw-snowflake.json",
       "bytes": 401,
       "media_type": "application/json",
       "sha256": "52f3ed5c68aebcf8260a6db0185bf20344810efb23309c1c87ac62ee004d8a31"
+    },
+    {
+      "path": "v1/fixtures/valid/authorization-approval.json",
+      "bytes": 1045,
+      "media_type": "application/json",
+      "sha256": "ff62d1b20c5c83b01a36a5c30f5eae354d06f541a3e1cd473739acd485b72334"
+    },
+    {
+      "path": "v1/fixtures/valid/authorization-error.json",
+      "bytes": 353,
+      "media_type": "application/json",
+      "sha256": "2f8989332a3bb6b757f40adb6f320d827948ec9bbc38727ba4f1f4676d4a438f"
+    },
+    {
+      "path": "v1/fixtures/valid/authorization-grant.json",
+      "bytes": 921,
+      "media_type": "application/json",
+      "sha256": "097b06b7be2ee08eb80378745eaf4c46eaaf18fe3efe567573c6a7d8f2ce4c93"
+    },
+    {
+      "path": "v1/fixtures/valid/authorization-prohibited-package.json",
+      "bytes": 1009,
+      "media_type": "application/json",
+      "sha256": "2c92bb4f02167d0fa47a03d075e655ddb14286bc788192d2ca1d6ea456d178c9"
     },
     {
       "path": "v1/fixtures/valid/identity-delegation-chain.json",
@@ -53,6 +107,27 @@
       "sha256": "cecf1c439699509c97f6d480cba8db380b9c83ca9b64a363b42f266f645d9d46"
     },
     {
+      "path": "v1/schemas/authorization/approval.schema.json",
+      "bytes": 2413,
+      "media_type": "application/schema+json",
+      "sha256": "aa713c25035d6664cac8b725d70723daa08179b575c236e233ec25beda3ae16c",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/authorization/approval.schema.json"
+    },
+    {
+      "path": "v1/schemas/authorization/grant.schema.json",
+      "bytes": 2025,
+      "media_type": "application/schema+json",
+      "sha256": "a5a6a7c7708e8f8013f4e4b735fc98795fb894b71de881977c725b73f75d3af1",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/authorization/grant.schema.json"
+    },
+    {
+      "path": "v1/schemas/authorization/policy-decision.schema.json",
+      "bytes": 1186,
+      "media_type": "application/schema+json",
+      "sha256": "ff46eb1308c70a2cce0c34e3f1692d79da75c8494598c9e8cd743c81b56c463d",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/authorization/policy-decision.schema.json"
+    },
+    {
       "path": "v1/schemas/authorization/scope.schema.json",
       "bytes": 3248,
       "media_type": "application/schema+json",
@@ -60,11 +135,25 @@
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/authorization/scope.schema.json"
     },
     {
+      "path": "v1/schemas/capability/package.schema.json",
+      "bytes": 2607,
+      "media_type": "application/schema+json",
+      "sha256": "c008d7a35a976daf75efc202fe6312c0bdbee2fbf6730712509a3ce930935f3f",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/capability/package.schema.json"
+    },
+    {
       "path": "v1/schemas/common/definitions.schema.json",
       "bytes": 720,
       "media_type": "application/schema+json",
       "sha256": "e3ccda4ce5c999842c0a5f2535c2a9c843213f824d0cf25fe809dd3e3503f530",
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/common/definitions.schema.json"
+    },
+    {
+      "path": "v1/schemas/error/error.schema.json",
+      "bytes": 1152,
+      "media_type": "application/schema+json",
+      "sha256": "a125d566a83c8a2a01a0ce02e5f352803a1535f6e36b9d9b3a15dbe4dbf5bc1d",
+      "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/error/error.schema.json"
     },
     {
       "path": "v1/schemas/identity/delegation-chain.schema.json",
@@ -81,5 +170,5 @@
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/identity/principal.schema.json"
     }
   ],
-  "aggregate_digest": "5d6143a84a72cbb5294c84f9158ab6519077b09b6663537a48a1383b068d75d5"
+  "aggregate_digest": "44cd4877a5ed88f3808bcc27d3f19be01b710d3d00194f043fe872570a865027"
 }

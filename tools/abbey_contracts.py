@@ -423,6 +423,12 @@ def _semantic_code(schema_id: str, document: Any) -> str | None:
                 if delegatee in seen:
                     return "delegation_cycle"
                 seen.add(delegatee)
+    if schema_id.endswith("/authorization/approval.schema.json") and isinstance(document, dict):
+        if document.get("approver_principal_id") == document.get("request_subject_principal_id"):
+            return "self_approval"
+    if schema_id.endswith("/authorization/policy-decision.schema.json") and isinstance(document, dict):
+        if document.get("reason_code") == "dependency_unavailable" and document.get("decision") != "deny":
+            return "degraded_authority"
     return None
 
 

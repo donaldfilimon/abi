@@ -1,0 +1,13 @@
+{
+  "case_id": "authorization_redacted_error",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/error/error.schema.json",
+  "expect": "valid",
+  "document": {
+    "reason_code": "authorization",
+    "correlation_id": "correlation_alpha",
+    "contract_major": 1,
+    "contract_revision": 1,
+    "redacted": true,
+    "truncated": false
+  }
+}

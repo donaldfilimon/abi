@@ -1,0 +1,25 @@
+{
+  "case_id": "authorization_low_risk_grant",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/authorization/grant.schema.json",
+  "expect": "valid",
+  "document": {
+    "grant_id": "grant_alpha",
+    "issuer_principal_id": "owner_alpha",
+    "subject_principal_id": "manager_alpha",
+    "subject_kind": "guild_manager",
+    "capability_id": "read_metadata",
+    "capability_version": "1.0.0",
+    "capability_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "risk_class": "Low",
+    "scope": {
+      "organization_id": "organization_alpha",
+      "deployment_id": "deployment_alpha",
+      "tenant_id": "tenant_alpha",
+      "platform_scope": {"kind": "discord_guild", "scoped_id": "guild_scope_alpha"},
+      "resource_ids": ["resource_alpha"]
+    },
+    "issued_at": "2026-08-22T16:00:00Z",
+    "expires_at": "2026-08-22T17:00:00Z",
+    "revocation_epoch": "4"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "case_id": "authorization_dependency_cannot_allow",
+  "schema": "https://abbey.local/contracts/abbey/v1/schemas/authorization/policy-decision.schema.json",
+  "expect": "degraded_authority",
+  "document": {
+    "decision": "allow",
+    "reason_code": "dependency_unavailable",
+    "request_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "policy_version": "policy_alpha",
+    "scope_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+  }
+}
