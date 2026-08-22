@@ -27,10 +27,22 @@ Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
 
 ## Architecture
 
-- Workspace crates under `crates/*`: `abi-foundation`, `abi-core`, `abi-ai`,
-  `abi-sea`, `abi-nn`, `abi-compute` (cycle-free compute contracts/CPU SIMD),
-  `abi-gpu`, `abi-wdbx`, `abi-connectors`, `abi-plugins`, `abi-telemetry`,
+- Workspace crates under `crates/*` — **19**, verified 2026-08-22 (this list
+  previously named 13 and omitted six): `abi-foundation`, `abi-telemetry`,
+  `abi-nn`, `abi-compute` (cycle-free compute contracts/CPU SIMD),
+  `abi-agent-runtime` (provider-neutral agent contracts), `abi-core`,
+  `abi-models` (hash-verified model manifests + license ledger),
+  `abi-connectors`, `abi-ai`, `abi-plugins`,
+  `abi-agent-host` (policy-authorized tool orchestration), `abi-wdbx`,
+  `abi-wdbx-gateway` (authenticated gRPC/WebSocket gateway),
+  `abi-model-runtime` (local model loading + evidenced Candle execution),
+  `abi-gpu`, `abi-sea`, `abi-worker` (worker-control contracts + admission),
   `abi-cli` (binary `abi`), `abi-mcp` (binary `abi-mcp`).
+- `abi-wdbx` is the **provenance-aware episodic substrate** under the Abbey
+  System Constitution, not merely a vector store. Conformance against its
+  specification is measured in
+  `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`; the
+  evidence half of that specification is largely unimplemented today.
 - **MCP launcher** (`mcp/launcher.sh`): prefers `target/release/abi-mcp` then
   `target/debug/abi-mcp`; optional `ABI_MCP_AUTO_BUILD=1`.
 - Golden fixtures under `tests/golden/` pin frozen CLI/MCP surfaces.

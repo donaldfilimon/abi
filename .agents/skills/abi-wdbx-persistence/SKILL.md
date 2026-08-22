@@ -16,6 +16,21 @@ superpower:
       description: "Segments to keep during compaction"
 ---
 
+> **WDBX moved out of this repository on 2026-08-22.** It now lives in the
+> sibling repo `~/dev/active/wdbx` together with `abi-compute`,
+> `abi-foundation`, `abi-core`, and `abi-telemetry`; `abi` consumes them by
+> relative path. Source paths below therefore read `../wdbx/crates/...`. Run
+> WDBX-only tests from that repo (`cargo test --workspace`), and `abi`'s gate
+> (`./tools/check.sh`) from here.
+>
+> Under the Abbey System Constitution
+> (`docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`) WDBX is the
+> **provenance-aware episodic substrate**, not a vector store. Most of the
+> evidence half of its specification is unimplemented; the measured gap list is
+> in `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`. Do not
+> describe an episodic capability as Current on the strength of the vector-store
+> features that do exist.
+
 # ABI Superpower: WDBX Persistence
 
 Exposes the WDBX durability layer as a superpower. Layered snapshot + WAL + segment design with runtime recovery and compaction.
@@ -102,13 +117,13 @@ Create JSONL snapshot (compatibility mirror):
 
 ## File Formats
 
-### WAL (`crates/abi-wdbx/src/wal.rs`)
+### WAL (`../wdbx/crates/abi-wdbx/src/wal.rs`)
 - CRC32-framed append-only records
 - Supports: `putVector`, `putBlock`, `putSpatial`, `putTemporalNode`, `putTemporalEdge`, `deleteVector`
 - Replay reconstructs state deterministically (reuses `persistence.deserialize`)
 - Corruption detection: flipped-byte CRC rejection, bad-header rejection
 
-### Segments (`crates/abi-wdbx/src/segments.rs`)
+### Segments (`../wdbx/crates/abi-wdbx/src/segments.rs`)
 - Manifest: `<base>.manifest` — lists epoch checkpoints in order
 - Checkpoints: `<base>.seg.<epoch>.jsonl` — immutable epoch snapshots
 - `loadLatest()` — loads newest epoch
@@ -116,7 +131,7 @@ Create JSONL snapshot (compatibility mirror):
 - `reclaimEpochs()` — removes old epochs
 - `compactRetainingLatest(keep)` — retains newest N checkpoints
 
-### Snapshot (`crates/abi-wdbx/src/persistence.rs` + `crates/abi-wdbx/src/persistence_parse.rs`)
+### Snapshot (`../wdbx/crates/abi-wdbx/src/persistence.rs` + `../wdbx/crates/abi-wdbx/src/persistence.rs`)
 - Header: `# ABI-WDBX v1`
 - Records: minified JSON per record (`kv`, `vector`, `block`, `spatial`, `temporal_node`, `temporal_edge`)
 - Trailer: `# checksum:<sha256-hex>` covering record body
@@ -126,7 +141,7 @@ Create JSONL snapshot (compatibility mirror):
 - Vector ID monotonic restore → `CorruptVectorId` on mismatch
 - Block timestamp restore → SHA-256 chain reproduces exactly
 
-## Recovery Flow (`crates/abi-wdbx/src/recovery.rs` + `crates/abi-wdbx/src/durable_store.rs`)
+## Recovery Flow (`../wdbx/crates/abi-wdbx/src/wal.rs` + `../wdbx/crates/abi-wdbx/src/durable.rs`)
 
 1. **Load latest segment checkpoint** (default runtime baseline)
 2. **Replay sidecar WAL** delta forward
@@ -153,13 +168,13 @@ CLI commands (`wdbx db *`) recover WAL-ahead state before read/write:
 
 | Invariant | Enforced By |
 |-----------|-------------|
-| Append-only WAL | `crates/abi-wdbx/src/wal.rs` single-writer, CRC frames |
-| Checkpoint immutability | `crates/abi-wdbx/src/segments.rs` epoch files never modified |
+| Append-only WAL | `../wdbx/crates/abi-wdbx/src/wal.rs` single-writer, CRC frames |
+| Checkpoint immutability | `../wdbx/crates/abi-wdbx/src/segments.rs` epoch files never modified |
 | Snapshot integrity | SHA-256 trailer, `ChecksumMismatch` on load |
 | Block chain integrity | SHA-256 link, `verifyBlocks()` |
 | Epoch ordering | Manifest lists epochs sequentially |
 | Vector ID monotonicity | `CorruptVectorId` on restore mismatch |
-| WAL-ahead recovery | `crates/abi-wdbx/src/recovery.rs` prefers segment + WAL delta |
+| WAL-ahead recovery | `../wdbx/crates/abi-wdbx/src/wal.rs` prefers segment + WAL delta |
 
 ## CLI Access
 

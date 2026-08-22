@@ -52,9 +52,9 @@ when the audit changes reality, do not invent a parallel truth source.
 
 | Pattern | Likely Status | Check Against |
 |---------|---------------|---------------|
-| `\d+\s*(QPS|req/s|throughput)` | ❌ Unsupported | `crates/abi-wdbx/tests/` artifact |
-| `\d+\s*ms\s*latency` | ❌ Unsupported | `crates/abi-wdbx/tests/` artifact |
-| `distributed|sharding|multi-host|cluster` | ⚠️ Partial | `crates/abi-wdbx/src/cluster_rpc.rs` tests |
+| `\d+\s*(QPS|req/s|throughput)` | ❌ Unsupported | `../wdbx/crates/abi-wdbx/tests/` artifact |
+| `\d+\s*ms\s*latency` | ❌ Unsupported | `../wdbx/crates/abi-wdbx/tests/` artifact |
+| `distributed|sharding|multi-host|cluster` | ⚠️ Partial | `../wdbx/crates/abi-wdbx/src/cluster_rpc.rs` tests |
 | `AES|RBAC|encryption|certified` | ❌ Unsupported | `docs/contracts/external-claims-audit.mdx` §2 |
 | `Swift|Python|TensorFlow|PyTorch|Kubernetes` | ❌ Unsupported | `Cargo.toml` deps |
 | `H100|A100|InfiniBand|NVLink` | ❌ Unsupported | CI config |

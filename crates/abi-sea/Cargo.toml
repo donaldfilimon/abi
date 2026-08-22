@@ -10,7 +10,7 @@ description = "SEA (Sparse Evidence Attention): evidence-augmented completion an
 [dependencies]
 abi-ai = { workspace = true }
 abi-foundation = { workspace = true }
-abi-wdbx = { path = "../abi-wdbx" }
+abi-wdbx = { workspace = true }
 serde_json = { workspace = true }
 
 [lints]

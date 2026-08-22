@@ -58,10 +58,10 @@ As per WDBX superpower.
 ## Implementation
 
 Maps to:
-- `crates/abi-wdbx/src/store.rs`
-- `crates/abi-wdbx/src/segments.rs`
-- `crates/abi-wdbx/src/rest.rs`
-- `crates/abi-wdbx/src/cluster_rpc.rs`
+- `../wdbx/crates/abi-wdbx/src/store.rs`
+- `../wdbx/crates/abi-wdbx/src/segments.rs`
+- `../wdbx/crates/abi-wdbx/src/rest.rs`
+- `../wdbx/crates/abi-wdbx/src/cluster_rpc.rs`
 
 ## Build and runtime boundary
 

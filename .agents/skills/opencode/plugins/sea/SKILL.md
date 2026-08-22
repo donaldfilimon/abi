@@ -47,7 +47,7 @@ Maps to:
 - `crates/abi-sea/src/learn_loop.rs`
 - `crates/abi-sea/src/evidence.rs`
 - `crates/abi-ai/src/constitution.rs`
-- `crates/abi-wdbx/src/store.rs`
+- `../wdbx/crates/abi-wdbx/src/store.rs`
 
 ## Runtime Boundary
 

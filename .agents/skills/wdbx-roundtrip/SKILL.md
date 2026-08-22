@@ -3,6 +3,21 @@ name: wdbx-roundtrip
 description: Build the abi CLI and drive a full WDBX persistence round-trip on a scratch segment — db init → block insert → query → db verify — proving the on-disk checkpoint + WAL chain stays valid. Use to smoke-test WDBX persistence/durability after touching the store, checkpoint, or WAL code, or to demo the block lifecycle.
 ---
 
+> **WDBX moved out of this repository on 2026-08-22.** It now lives in the
+> sibling repo `~/dev/active/wdbx` together with `abi-compute`,
+> `abi-foundation`, `abi-core`, and `abi-telemetry`; `abi` consumes them by
+> relative path. Source paths below therefore read `../wdbx/crates/...`. Run
+> WDBX-only tests from that repo (`cargo test --workspace`), and `abi`'s gate
+> (`./tools/check.sh`) from here.
+>
+> Under the Abbey System Constitution
+> (`docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`) WDBX is the
+> **provenance-aware episodic substrate**, not a vector store. Most of the
+> evidence half of its specification is unimplemented; the measured gap list is
+> in `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`. Do not
+> describe an episodic capability as Current on the strength of the vector-store
+> features that do exist.
+
 # wdbx-roundtrip — drive abi's WDBX persistence lifecycle
 
 Driver: **`.agents/skills/wdbx-roundtrip/roundtrip.sh`** (paths relative to repo root).
@@ -42,4 +57,4 @@ reopen-visible stats, and successful merged audit-DAG verification.
 | Symptom | Fix |
 |---|---|
 | `build` FAIL | Check nightly via `./tools/cargo.sh --version`, then `./tools/check.sh`. |
-| `merged_chain_valid=true` missing | V2 audit-DAG or recovery regression — inspect `crates/abi-wdbx/src/v2/` and `versioned.rs`. |
+| `merged_chain_valid=true` missing | V2 audit-DAG or recovery regression — inspect `../wdbx/crates/abi-wdbx/src/v2/` and `versioned.rs`. |

@@ -31,4 +31,4 @@ term-increasing re-election on the bounded in-process demo.
 | Symptom | Fix |
 |---|---|
 | `build` FAIL | `./tools/check.sh`. |
-| missing `leader_elected=true` | check `crates/abi-wdbx/src/cluster.rs`; use the `wdbx-explorer` subagent. |
+| missing `leader_elected=true` | check `../wdbx/crates/abi-wdbx/src/cluster.rs`; use the `wdbx-explorer` subagent. |

@@ -20,7 +20,7 @@ vulkan-adapter = []
 
 [dependencies]
 abi-compute = { workspace = true }
-abi-foundation = { path = "../abi-foundation" }
+abi-foundation = { workspace = true }
 
 [lints]
 workspace = true

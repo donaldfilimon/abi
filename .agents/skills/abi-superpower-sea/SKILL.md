@@ -42,7 +42,7 @@ Maps to:
 - `crates/abi-sea/src/scorer.rs` - Task-aware signal weights and ranking
 - `crates/abi-sea/src/query_plan.rs` - Query classification and retrieval plan
 - `crates/abi-ai/src/constitution.rs` - 6-principle constitutional audit
-- `crates/abi-wdbx/src/store.rs` - Persistent modulator weights
+- `../wdbx/crates/abi-wdbx/src/store.rs` - Persistent modulator weights
 
 ## Runtime Boundary
 

@@ -19,6 +19,21 @@ superpower:
       description: "Segments to keep during compaction"
 ---
 
+> **WDBX moved out of this repository on 2026-08-22.** It now lives in the
+> sibling repo `~/dev/active/wdbx` together with `abi-compute`,
+> `abi-foundation`, `abi-core`, and `abi-telemetry`; `abi` consumes them by
+> relative path. Source paths below therefore read `../wdbx/crates/...`. Run
+> WDBX-only tests from that repo (`cargo test --workspace`), and `abi`'s gate
+> (`./tools/check.sh`) from here.
+>
+> Under the Abbey System Constitution
+> (`docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`) WDBX is the
+> **provenance-aware episodic substrate**, not a vector store. Most of the
+> evidence half of its specification is unimplemented; the measured gap list is
+> in `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`. Do not
+> describe an episodic capability as Current on the strength of the vector-store
+> features that do exist.
+
 # ABI Superpower: WDBX
 
 Exposes WDBX vector store as a superpower for opencode.
@@ -78,10 +93,10 @@ abi wdbx api serve 8081
 ## Implementation
 
 Maps to:
-- `crates/abi-wdbx/src/store.rs` - `Store`, `search()`, `putVector()`
-- `crates/abi-wdbx/src/segments.rs` - compaction, checkpoints
-- `crates/abi-wdbx/src/rest.rs` - REST server
-- `crates/abi-wdbx/src/cluster_rpc.rs` - Raft consensus
+- `../wdbx/crates/abi-wdbx/src/store.rs` - `Store`, `search()`, `putVector()`
+- `../wdbx/crates/abi-wdbx/src/segments.rs` - compaction, checkpoints
+- `../wdbx/crates/abi-wdbx/src/rest.rs` - REST server
+- `../wdbx/crates/abi-wdbx/src/cluster_rpc.rs` - Raft consensus
 
 ## Build and runtime boundary
 

@@ -3,6 +3,21 @@ name: wdbx-cluster-serve
 description: Build the abi CLI and run a networked WDBX consensus node (`abi wdbx cluster serve <port>`) — background-launch the loopback RequestVote/AppendEntries RPC listener, poll until it is serving, assert readiness, then tear it down. Use when asked to run/start/serve/smoke-test the WDBX cluster node, the consensus RPC listener, or `cluster serve`.
 ---
 
+> **WDBX moved out of this repository on 2026-08-22.** It now lives in the
+> sibling repo `~/dev/active/wdbx` together with `abi-compute`,
+> `abi-foundation`, `abi-core`, and `abi-telemetry`; `abi` consumes them by
+> relative path. Source paths below therefore read `../wdbx/crates/...`. Run
+> WDBX-only tests from that repo (`cargo test --workspace`), and `abi`'s gate
+> (`./tools/check.sh`) from here.
+>
+> Under the Abbey System Constitution
+> (`docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`) WDBX is the
+> **provenance-aware episodic substrate**, not a vector store. Most of the
+> evidence half of its specification is unimplemented; the measured gap list is
+> in `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`. Do not
+> describe an episodic capability as Current on the strength of the vector-store
+> features that do exist.
+
 # wdbx-cluster-serve — run the networked WDBX consensus node
 
 Driver: **`.agents/skills/wdbx-cluster-serve/cluster-serve.sh`** (paths relative to repo root).

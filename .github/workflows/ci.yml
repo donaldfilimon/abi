@@ -20,6 +20,13 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Pinned for reproducibility, mirroring abbey's ABI_REVISION convention and
+  # requirement R12 (a result must be tied to immutable code). Bump this when
+  # abi needs a newer substrate; an unpinned main would let a wdbx-substrate
+  # commit break abi's gate with no change to abi.
+  WDBX_REVISION: f6c480652f73c1a16942ce8bc176adf32d73e1d1
+
 jobs:
   check:
     name: check (self-hosted)
@@ -30,8 +37,47 @@ jobs:
        (github.event_name == 'pull_request' &&
         github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: [self-hosted, macOS, ARM64, abi]
+    defaults:
+      run:
+        working-directory: abi
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: abi
+      # WDBX was extracted to its own repository on 2026-08-22 and abi consumes
+      # abi-foundation, abi-core, abi-telemetry, abi-compute, and abi-wdbx from
+      # it by relative path. Cargo resolves `../wdbx/crates/...`, so the two
+      # checkouts must be siblings or every job fails at manifest load.
+      #
+      # donaldfilimon/wdbx-substrate is PRIVATE, and the built-in GITHUB_TOKEN is scoped
+      # to this repository only, so a separate credential is required. Set the
+      # WDBX_CHECKOUT_TOKEN secret to a token with read access to it. Fork PRs
+      # cannot read secrets, so the check-hosted job cannot pass while wdbx
+      # stays private; that is a consequence of the visibility choice, not a
+      # workflow defect.
+      # Fail with a sentence someone can act on, rather than a bare 403 from
+       # actions/checkout. A gate that cannot run must say so loudly; skipping
+       # the build would be a green result that proves nothing.
+      - name: Require the substrate credential
+        run: |
+          if [ -z "${{ secrets.WDBX_CHECKOUT_TOKEN }}" ]; then
+            echo "::error::WDBX_CHECKOUT_TOKEN is not set. abi consumes"\
+                 "abi-foundation, abi-core, abi-telemetry, abi-compute and"\
+                 "abi-wdbx from the private donaldfilimon/wdbx-substrate"\
+                 "repository by relative path, so this gate cannot run without"\
+                 "read access to it. Add the secret, or make the substrate"\
+                 "public and drop the token: line below."
+            exit 1
+          fi
+        working-directory: .
+
+      - name: Check out the WDBX substrate as a sibling
+        uses: actions/checkout@v4
+        with:
+          repository: donaldfilimon/wdbx-substrate
+          ref: ${{ env.WDBX_REVISION }}
+          token: ${{ secrets.WDBX_CHECKOUT_TOKEN }}
+          path: wdbx
       - name: Ensure rustup nightly
         run: |
           rustup show
@@ -46,8 +92,47 @@ jobs:
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name != github.repository
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: abi
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: abi
+      # WDBX was extracted to its own repository on 2026-08-22 and abi consumes
+      # abi-foundation, abi-core, abi-telemetry, abi-compute, and abi-wdbx from
+      # it by relative path. Cargo resolves `../wdbx/crates/...`, so the two
+      # checkouts must be siblings or every job fails at manifest load.
+      #
+      # donaldfilimon/wdbx-substrate is PRIVATE, and the built-in GITHUB_TOKEN is scoped
+      # to this repository only, so a separate credential is required. Set the
+      # WDBX_CHECKOUT_TOKEN secret to a token with read access to it. Fork PRs
+      # cannot read secrets, so the check-hosted job cannot pass while wdbx
+      # stays private; that is a consequence of the visibility choice, not a
+      # workflow defect.
+      # Fail with a sentence someone can act on, rather than a bare 403 from
+       # actions/checkout. A gate that cannot run must say so loudly; skipping
+       # the build would be a green result that proves nothing.
+      - name: Require the substrate credential
+        run: |
+          if [ -z "${{ secrets.WDBX_CHECKOUT_TOKEN }}" ]; then
+            echo "::error::WDBX_CHECKOUT_TOKEN is not set. abi consumes"\
+                 "abi-foundation, abi-core, abi-telemetry, abi-compute and"\
+                 "abi-wdbx from the private donaldfilimon/wdbx-substrate"\
+                 "repository by relative path, so this gate cannot run without"\
+                 "read access to it. Add the secret, or make the substrate"\
+                 "public and drop the token: line below."
+            exit 1
+          fi
+        working-directory: .
+
+      - name: Check out the WDBX substrate as a sibling
+        uses: actions/checkout@v4
+        with:
+          repository: donaldfilimon/wdbx-substrate
+          ref: ${{ env.WDBX_REVISION }}
+          token: ${{ secrets.WDBX_CHECKOUT_TOKEN }}
+          path: wdbx
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt, clippy
@@ -65,8 +150,47 @@ jobs:
        (github.event_name == 'pull_request' &&
         github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: abi
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: abi
+      # WDBX was extracted to its own repository on 2026-08-22 and abi consumes
+      # abi-foundation, abi-core, abi-telemetry, abi-compute, and abi-wdbx from
+      # it by relative path. Cargo resolves `../wdbx/crates/...`, so the two
+      # checkouts must be siblings or every job fails at manifest load.
+      #
+      # donaldfilimon/wdbx-substrate is PRIVATE, and the built-in GITHUB_TOKEN is scoped
+      # to this repository only, so a separate credential is required. Set the
+      # WDBX_CHECKOUT_TOKEN secret to a token with read access to it. Fork PRs
+      # cannot read secrets, so the check-hosted job cannot pass while wdbx
+      # stays private; that is a consequence of the visibility choice, not a
+      # workflow defect.
+      # Fail with a sentence someone can act on, rather than a bare 403 from
+       # actions/checkout. A gate that cannot run must say so loudly; skipping
+       # the build would be a green result that proves nothing.
+      - name: Require the substrate credential
+        run: |
+          if [ -z "${{ secrets.WDBX_CHECKOUT_TOKEN }}" ]; then
+            echo "::error::WDBX_CHECKOUT_TOKEN is not set. abi consumes"\
+                 "abi-foundation, abi-core, abi-telemetry, abi-compute and"\
+                 "abi-wdbx from the private donaldfilimon/wdbx-substrate"\
+                 "repository by relative path, so this gate cannot run without"\
+                 "read access to it. Add the secret, or make the substrate"\
+                 "public and drop the token: line below."
+            exit 1
+          fi
+        working-directory: .
+
+      - name: Check out the WDBX substrate as a sibling
+        uses: actions/checkout@v4
+        with:
+          repository: donaldfilimon/wdbx-substrate
+          ref: ${{ env.WDBX_REVISION }}
+          token: ${{ secrets.WDBX_CHECKOUT_TOKEN }}
+          path: wdbx
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt, clippy

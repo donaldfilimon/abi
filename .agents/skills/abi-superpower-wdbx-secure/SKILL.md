@@ -16,6 +16,21 @@ superpower:
       description: "Vectors for compression (JSON array)"
 ---
 
+> **WDBX moved out of this repository on 2026-08-22.** It now lives in the
+> sibling repo `~/dev/active/wdbx` together with `abi-compute`,
+> `abi-foundation`, `abi-core`, and `abi-telemetry`; `abi` consumes them by
+> relative path. Source paths below therefore read `../wdbx/crates/...`. Run
+> WDBX-only tests from that repo (`cargo test --workspace`), and `abi`'s gate
+> (`./tools/check.sh`) from here.
+>
+> Under the Abbey System Constitution
+> (`docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`) WDBX is the
+> **provenance-aware episodic substrate**, not a vector store. Most of the
+> evidence half of its specification is unimplemented; the measured gap list is
+> in `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`. Do not
+> describe an episodic capability as Current on the strength of the vector-store
+> features that do exist.
+
 # ABI Superpower: WDBX Secure Demos
 
 Exposes WDBX security/compression demos as a superpower. All are **reference-grade, not production** — explicitly disclosed in `docs/spec/wdbx-north-star.mdx` §2 and `docs/contracts/external-claims-audit.mdx`.
@@ -39,14 +54,14 @@ that demo and their crate tests. They are not separate production CLI tools.
 
 | Module | Purpose | Status |
 |--------|---------|--------|
-| `crates/abi-wdbx/src/compression.rs` | Int8 quantization | Current |
-| `crates/abi-wdbx/src/entropy.rs` | Order-0 Huffman | Current |
-| `crates/abi-wdbx/src/neural_compress.rs` | Autoencoder (hand backprop) | Current |
-| `crates/abi-wdbx/src/codecs/{pq,autoencoder}.rs` | Deterministic versioned persisted artifacts + validation/metrics | Current local/reference scope |
-| `crates/abi-wdbx/src/v2/segment/codec.rs` | Segment codec integration and persisted metrics | Current local/reference scope |
-| `crates/abi-wdbx/src/crypto_he.rs` | Additive HE | Current |
-| `crates/abi-wdbx/src/fhe.rs` | DGHV SHE + feature-gated secret-key-assisted educational refresh | Current reference/demo |
-| `crates/abi-wdbx/src/tfhe_demo.rs` | Pinned TFHE-rs boolean/integer/programmable-bootstrap execution | Optional `full-fhe` demo |
+| `../wdbx/crates/abi-wdbx/src/compression.rs` | Int8 quantization | Current |
+| `../wdbx/crates/abi-wdbx/src/entropy.rs` | Order-0 Huffman | Current |
+| `../wdbx/crates/abi-wdbx/src/neural_compress.rs` | Autoencoder (hand backprop) | Current |
+| `../wdbx/crates/abi-wdbx/src/codecs/{pq,autoencoder}.rs` | Deterministic versioned persisted artifacts + validation/metrics | Current local/reference scope |
+| `../wdbx/crates/abi-wdbx/src/v2/segment/codec.rs` | Segment codec integration and persisted metrics | Current local/reference scope |
+| `../wdbx/crates/abi-wdbx/src/crypto_he.rs` | Additive HE | Current |
+| `../wdbx/crates/abi-wdbx/src/fhe.rs` | DGHV SHE + feature-gated secret-key-assisted educational refresh | Current reference/demo |
+| `../wdbx/crates/abi-wdbx/src/tfhe_demo.rs` | Pinned TFHE-rs boolean/integer/programmable-bootstrap execution | Optional `full-fhe` demo |
 
 ## Claim Boundary
 

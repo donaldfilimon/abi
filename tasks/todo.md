@@ -143,3 +143,52 @@ See `docs/superpowers/archive/plans/2026-07-31-rust-647-followups.md`.
 - local_bridge + MCP HTTP/SSE; wdbx_stats open-failure disclosure for CI
 - Discord gateway/routing/WS framing (offline); Twilio ConversationRelay local path
 - Zig one-shot teardown
+
+---
+
+## Residual reclassification against CSAPS (2026-08-22)
+
+The seven `◑ Partial / disclosed` rows above were the only available definition
+of "abi is not complete". Read against `CSAPS_WDBX_Revised_2026.pdf` — a
+**proposed architecture**, not an obligation — several stop being gaps and
+become the paper's own recommended posture. Section 9.1 states the design
+principle plainly: *prove the architecture digitally first*, and treat
+Loihi-class processors, physical reservoirs, and memristor arrays as **optional
+research backends that must outperform matched digital emulation on an
+end-to-end Pareto metric before adoption**. Section 2.5 says the same for
+memristive substrates; section 2.3 says a physical reservoir "is an optimization
+experiment, not an architectural dependency"; section 2.4 says "the baseline
+architecture therefore requires no neuromorphic processor".
+
+| Residual | Reclassified | Why |
+| --- | --- | --- |
+| Native accelerator execution (Metal verified against CPU oracle; CUDA/Vulkan compile-only; ANE residency unverified) | **Correct by design** | Section 9.1's stance exactly. Deterministic CPU parity is the acceptance test; unverified exotic placement is the honest state, and claiming it would violate R11's complete-system accounting. |
+| External shader / MLIR toolchains, validation only | **Correct by design** | Same principle. No CSAPS requirement depends on textual IR being executed. |
+| Mobile `native_dispatch` simulated on a desktop profile | **Correct by design, disclosed** | CSAPS-1 is explicitly a nonhazardous digital testbed on conventional programmable hardware. Mobile is not on its critical path. |
+| Production FHE / multi-host sharding (DGHV educational, TFHE-rs demo, single-host multi-process cluster proof) | **Correct by design, with one real gap** | Reference-scoped crypto matches the paper's posture. The genuine gap is **independent cryptographic and security review**, which section 6.6's threat model needs and which no amount of local work supplies. |
+| Full ggml/llama.cpp (demo GGUF container, char-LM payload) | **Out of scope, not a gap** | CSAPS never requires a production LLM. The deliberative path may call one; hosting it is not the substrate's job. |
+| Local OpenAI bridge + MCP HTTP compatibility transport (not a persistent spec-conforming MCP 2024-11-05 SSE channel) | **Genuine gap, small** | Bounded, well understood, and belongs to Program 6 (Abbey API and Application Federation) rather than to the substrate. |
+| WDBX v2 causal multi-writer program | **Genuine gap, large — and now measured** | See `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`. The row's own listed boundaries (separate-host deployment, hosted/Windows/Linux runtime proof, DAST, independent crypto review) remain accurate, and the analysis adds the substrate-contract gaps: canonical CBOR/COSE, sorted parent hashes, episode-level signing, regime and version fields, contradiction and quarantine edges, evidence-weighted retrieval, the selective write gate, and section 6.9 retention semantics. |
+
+**Net effect.** Of seven disclosed residuals, four are the paper's recommended
+engineering posture rather than shortfalls, one is out of scope, one is a small
+gap owned by Program 6, and one is the large gap that Program 3 exists to close.
+"Complete abi" is therefore a much smaller target than the row count suggested —
+but it is not zero, and the two survivors are correctly disclosed rather than
+quietly overstated.
+
+**Not reclassified as done, and deliberately so:** independent cryptographic
+review, independent security review, and DAST. Those cannot be self-certified.
+They are `🔴 Blocked` on an external party, not `◑`.
+
+### Aviva persona surface
+
+Reviewed as part of the same pass. Aviva is one of the three routed personas in
+`crates/abi-ai` (`soul.rs`, `identity.rs`, `router.rs`, `modulator.rs`,
+`keywords.rs`), and `abi-ai` is **pure**: no WDBX dependency, no I/O, fully
+deterministic, which is what makes `ai_run` byte-reproducible and
+golden-testable. The extraction did not touch it, and it must stay that way —
+under constitutional invariant A1 abi-ai owns persona routing and modulation
+while Abbey owns persona definition, so introducing I/O or a substrate
+dependency here would both break determinism and blur an authority boundary.
+No change was required and none was made.
