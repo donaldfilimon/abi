@@ -27,20 +27,19 @@ Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
 
 ## Architecture
 
-- Workspace crates under `crates/*` — **19**, verified 2026-08-22 (this list
-  previously named 13 and omitted six): `abi-foundation`, `abi-telemetry`,
-  `abi-nn`, `abi-compute` (cycle-free compute contracts/CPU SIMD),
-  `abi-agent-runtime` (provider-neutral agent contracts), `abi-core`,
-  `abi-models` (hash-verified model manifests + license ledger),
-  `abi-connectors`, `abi-ai`, `abi-plugins`,
-  `abi-agent-host` (policy-authorized tool orchestration), `abi-wdbx`,
-  `abi-wdbx-gateway` (authenticated gRPC/WebSocket gateway),
-  `abi-model-runtime` (local model loading + evidenced Candle execution),
-  `abi-gpu`, `abi-sea`, `abi-worker` (worker-control contracts + admission),
-  `abi-cli` (binary `abi`), `abi-mcp` (binary `abi-mcp`).
-- `abi-wdbx` is the **provenance-aware episodic substrate** under the Abbey
-  System Constitution, not merely a vector store. Conformance against its
-  specification is measured in
+- Local workspace crates under `crates/*` — **16**, verified 2026-08-23 from
+  `cargo metadata`: `abi-agent-host`, `abi-agent-runtime`, `abi-ai`,
+  `abi-capability`, `abi-cli`, `abi-connectors`, `abi-contracts`, `abi-gpu`,
+  `abi-mcp`, `abi-model-runtime`, `abi-models`, `abi-nn`, `abi-plugins`,
+  `abi-sea`, `abi-wdbx-gateway`, and `abi-worker`.
+- Five additional workspace dependencies are sibling packages in
+  `../wdbx/crates/`, not ABI-local crates: `abi-compute`, `abi-core`,
+  `abi-foundation`, `abi-telemetry`, and `abi-wdbx`. The sibling directories
+  must stay adjacent because `Cargo.toml` resolves them through relative path
+  dependencies; never recreate stale `crates/abi-*` copies here.
+- The sibling `abi-wdbx` package is the **provenance-aware episodic substrate**
+  under the Abbey System Constitution, not merely a vector store. Conformance
+  against its specification is measured in
   `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`; the
   evidence half of that specification is largely unimplemented today.
 - **MCP launcher** (`mcp/launcher.sh`): prefers `target/release/abi-mcp` then
