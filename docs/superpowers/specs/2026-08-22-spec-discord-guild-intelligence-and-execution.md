@@ -17,8 +17,12 @@ and compensation. Program 1, `abbey-contracts`, owns their shared wire schemas
 and synthetic fixtures; neither program may redefine them here.
 
 
-Status: **proposed design. No implementation authority.** Nothing in this
-document is evidence that any mechanism below exists.
+Status: **approved design, reconciled into separate Program 3 and Program 5
+delivery tracks.** Approval authorizes implementation, but is not evidence
+that any mechanism below exists. Program 3's focused read-only design is
+`2026-08-22-spec-discord-guild-intelligence-read-only.md`; every Discord write
+in this combined document remains Program 5 work and requires its own plan and
+evidence.
 
 Date: 2026-08-22. Author: design pass for Donald J. Filimon.
 
