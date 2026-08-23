@@ -16,10 +16,11 @@ different files between different directories. Know which one you are running.
 - **Source of truth:** `~/.grok/skills` (`central.skills` in `~/.grok/sync-targets.json`).
 - **Targets:** the 12 entries in `~/.grok/sync-targets.json` — grok, claude,
   codex, opencode, abi, agents, cursor, hermes, openclaw, factory, coreai, gemini.
-- **Scope is narrow:** only the ~13 names in the script's `CORE_SKILLS` list
+- **Scope is narrow:** only the ~14 names in the script's `CORE_SKILLS` list
   (`sl`, `check-work`, `code-review`, `abi-doc-claims-sync`, `help`,
   `create-skill`, `imagine`, `docx`, `pptx`, `xlsx`, `sync-clis`, `swift`,
-  `goal-ledger`) plus `CORE_PERSONAS`. It does **not** sync the full skill set.
+  `goal-ledger`, `aggressive-macos-cleanup`) plus `CORE_PERSONAS`. It does
+  **not** sync the full skill set.
 - `opencode` gets a flat `command/<name>.md` wrapper instead of a `SKILL.md` subdir.
 - `references/`, `scripts/`, `examples/`, `assets/` are **rmtree'd then copytree'd** —
   a destructive replace, not a merge.
@@ -89,12 +90,14 @@ then B.
    `~/dev/active/abi/.grok`. **Run A, then B** — A alone leaves the in-repo mirrors
    stale. B is idempotent (run 2026-08-19: 0 git changes).
 9. **opencode gets flat `command/<name>.md` wrappers, and `sync-clis.py` writes
-   them only `if not wrapper.exists()` — it can never repair or update one — and
-   caps at `CORE_SKILLS[:6]`.** Found 2026-08-19: all 11 wrappers had accumulated
+   them only `if not wrapper.exists()` — it can never repair or update one.**
+   New wrappers copy the complete central `SKILL.md` plus a source marker;
+   existing wrappers remain untouched. Found 2026-08-19: all 11 wrappers had accumulated
    duplicate YAML frontmatter, so the visible description was the stub `synced from
    central`. Rebuilt all 13 by hand (backup:
-   `~/Archive/2026-08-18-home-cleanup/opencode-command-before-2026-08-19/`). New
-   core skills will not reach opencode until that script is changed.
+   `~/Archive/2026-08-18-home-cleanup/opencode-command-before-2026-08-19/`). The
+   first-six cap was removed 2026-08-23 so new core skills can reach OpenCode;
+   the missing-only behavior still means divergent wrappers need manual repair.
 10. Parsing a `SKILL.md` frontmatter description with a regex is wrong — many use
     folded scalars (`description: >`), and a naive pattern captures the literal
     `>`. Parse the block scalar properly.
