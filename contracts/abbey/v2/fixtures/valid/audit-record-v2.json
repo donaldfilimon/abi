@@ -1,0 +1,6 @@
+{
+  "case_id": "audit_record_v2_redacted",
+  "schema": "https://abbey.local/contracts/abbey/v2/schemas/authorization/audit-record.schema.json",
+  "expect": "valid",
+  "document": {"attempt_id": "attempt_v2", "request_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "principal_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666", "scope_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555", "capability_id": "discord.channel.organize", "capability_version": "2.0.0", "package_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "grant_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777", "policy_version": "tenant_v2", "stage": 10, "decision": "allow", "reason_code": "authorized", "parameter_digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888", "approval_level_required": "A2Manager", "cancellation_state": "active", "outcome_state": "not_started", "record_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999", "redacted": true}
+}

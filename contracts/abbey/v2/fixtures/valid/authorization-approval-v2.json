@@ -1,0 +1,14 @@
+{
+  "case_id": "authorization_approval_v2_manager",
+  "schema": "https://abbey.local/contracts/abbey/v2/schemas/authorization/approval.schema.json",
+  "expect": "valid",
+  "document": {
+    "decision_id": "decision_v2", "call_id": "call_v2",
+    "call_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "capability_id": "discord.channel.organize", "capability_version": "2.0.0",
+    "package_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "grant_id": "grant_v2", "request_subject_principal_id": "member_ref",
+    "approver_principal_id": "manager_ref", "approval_level": "A2Manager",
+    "issued_at": "2026-08-22T12:01:00Z", "expires_at": "2026-08-22T12:06:00Z", "state": "Approved"
+  }
+}

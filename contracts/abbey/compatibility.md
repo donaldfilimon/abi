@@ -8,6 +8,12 @@ the schema already defines an explicit compatible extension point. Capability
 versions change the meaning or availability of one capability without silently
 reinterpreting an existing wire shape.
 
+Contract major 2 is additive at the corpus inventory level and breaking only at
+the explicitly new `/v2/` schema identifiers. Every `/v1/` artifact remains
+byte-identical and valid for consumers pinned to its historical aggregate. Wire
+digest fields use `sha256:<64 lowercase hex>`; native implementations may hold
+the corresponding 32 bytes internally but must not emit bare hex on the wire.
+
 Authority-bearing envelopes reject unknown fields. Tolerant content or event
 metadata may preserve only a bounded `extensions` object and never consult it
 to widen authority, open consent, authorize execution, or establish evidence.

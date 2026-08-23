@@ -21,6 +21,26 @@ CORPUS_ROOT = REPO_ROOT / "contracts" / "abbey"
 
 
 class CorpusBoundaryTests(unittest.TestCase):
+    def test_current_corpus_is_major_two_and_retains_v1_authority_bytes(self) -> None:
+        manifest = json.loads((CORPUS_ROOT / "manifest.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(manifest["contract_major"], 2)
+        paths = {row["path"] for row in manifest["artifacts"]}
+        self.assertIn("v1/schemas/authorization/grant.schema.json", paths)
+        self.assertIn("v2/schemas/authorization/grant.schema.json", paths)
+
+    def test_unsupported_contract_major_fails_before_inventory_is_trusted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "corpus"
+            shutil.copytree(CORPUS_ROOT, root)
+            manifest_path = root / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["contract_major"] = 3
+            manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ContractError, "contract_major_unsupported"):
+                verify_manifest(root)
+
     def test_duplicate_members_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "duplicate.json"
@@ -107,6 +127,28 @@ class AuthorizationInvariantTests(SchemaContractTests):
 
     def test_redacted_closed_error_is_valid(self) -> None:
         self.assert_fixture("valid", "authorization-error.json", "valid")
+
+
+class AuthorizationV2InvariantTests(unittest.TestCase):
+    def assert_v2_fixture(self, taxonomy: str, name: str, expected: str) -> None:
+        outcome = validate_fixture(CORPUS_ROOT, CORPUS_ROOT / "v2" / "fixtures" / taxonomy / name)
+        self.assertEqual(outcome.code, expected)
+
+    def test_exact_grant_approval_decision_and_redacted_evidence_envelopes(self) -> None:
+        for name in (
+            "authorization-grant-v2.json", "authorization-approval-v2.json",
+            "policy-decision-v2.json", "audit-record-v2.json", "outcome-receipt-v2.json",
+            "credential-ref-v2.json",
+        ):
+            with self.subTest(name=name):
+                self.assert_v2_fixture("valid", name, "valid")
+
+    def test_v2_prohibited_grant_and_manager_self_approval_fail_closed(self) -> None:
+        self.assert_v2_fixture("invalid", "authorization-prohibited-grant-v2.json", "schema_invalid")
+        self.assert_v2_fixture("invalid", "authorization-self-approval-v2.json", "self_approval")
+
+    def test_v2_raw_audit_content_is_rejected_before_retention(self) -> None:
+        self.assert_v2_fixture("privacy", "audit-content-v2.json", "forbidden_content")
 
 
 class ExecutionLifecycleTests(SchemaContractTests):
@@ -200,7 +242,7 @@ class EpisodeLearningTests(SchemaContractTests):
 
 class VendoringTests(unittest.TestCase):
     SOURCE_REVISION = "a67d6b47b7ff1c658e40164cb2cf81cff583cb4f"
-    AGGREGATE_DIGEST = "72e241e34967df318376bf68f4a0e2db13f5ebf17d1a219709731f1f470dbe8e"
+    AGGREGATE_DIGEST = "c0e752a2ee4520b8c795efcc55d032a91e10c50be6f07853f457ff696365820e"
 
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory(prefix="abbey-vendor-test-")
@@ -230,7 +272,7 @@ class VendoringTests(unittest.TestCase):
 
         self.assertTrue(report.wrote)
         self.assertEqual(report.aggregate_digest, self.AGGREGATE_DIGEST)
-        self.assertEqual(report.artifact_count, 81)
+        self.assertEqual(report.artifact_count, 98)
         self.assertEqual(actual_files, expected_files)
         for relative in expected_files:
             self.assertEqual(
@@ -247,7 +289,7 @@ class VendoringTests(unittest.TestCase):
             {
                 "source_repository": "https://github.com/donaldfilimon/abi",
                 "source_revision": self.SOURCE_REVISION,
-                "contract_major": 1,
+                "contract_major": 2,
                 "contract_revision": 1,
                 "aggregate_digest": self.AGGREGATE_DIGEST,
             },

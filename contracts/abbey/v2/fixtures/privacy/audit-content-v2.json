@@ -1,0 +1,6 @@
+{
+  "case_id": "audit_record_v2_raw_content",
+  "schema": "https://abbey.local/contracts/abbey/v2/schemas/authorization/audit-record.schema.json",
+  "expect": "forbidden_content",
+  "document": {"attempt_id": "attempt_v2", "message": "synthetic raw content canary"}
+}

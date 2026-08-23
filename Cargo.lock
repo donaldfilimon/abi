@@ -26,6 +26,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "abi-capability"
+version = "0.1.0"
+dependencies = [
+ "abi-agent-runtime",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.20",
+]
+
+[[package]]
 name = "abi-cli"
 version = "0.1.0"
 dependencies = [
