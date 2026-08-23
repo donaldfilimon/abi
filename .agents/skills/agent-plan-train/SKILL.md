@@ -1,6 +1,6 @@
 ---
 name: agent-plan-train
-description: Plan and execute ABI repo work from current TODOs, roadmap/spec docs, nightly Rust constraints, and validation gates. Use when user asks to find all ABI todos/roadmaps, compile ABI goals/specs, organize a large ABI implementation goal, or decide the next safe work slice in ~/abi.
+description: Plan and execute ABI repo work from current TODOs, roadmap/spec docs, nightly Rust constraints, and validation gates. Use when user asks to find all ABI todos/roadmaps, compile ABI goals/specs, organize a large ABI implementation goal, or decide the next safe work slice in ~/dev/active/abi.
 ---
 
 # agent-plan-train
