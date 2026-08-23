@@ -49,7 +49,7 @@ pub enum ContractError {
         /// Normalized corpus-relative path.
         path: String,
     },
-    /// The manifest wire shape is not the closed v1 shape.
+    /// The manifest wire shape is not a supported closed shape.
     #[error("manifest_invalid:{path}")]
     ManifestInvalid {
         /// The fixed manifest path.
@@ -197,7 +197,7 @@ impl Corpus {
             serde_json::from_value(manifest_value).map_err(|_| ContractError::ManifestInvalid {
                 path: "manifest.json".to_owned(),
             })?;
-        if manifest.contract_major != 1
+        if !matches!(manifest.contract_major, 1 | 2)
             || manifest.algorithm != "abbey-contract-corpus-sha256-v1"
             || manifest.aggregate_digest.len() != 64
         {

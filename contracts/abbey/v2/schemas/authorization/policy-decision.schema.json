@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v2/schemas/authorization/policy-decision.schema.json",
+  "title": "Closed policy decision v2",
+  "x-abbey-data-class": "authorization",
+  "x-abbey-max-bytes": 8192,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "reason_code", "request_digest", "scope_digest", "policy_version", "required_approval_level"],
+  "properties": {
+    "decision": {"enum": ["allow", "approval_required", "deny", "pause"]},
+    "reason_code": {"enum": ["authorized", "approval_missing", "approval_expired", "approval_insufficient", "approval_replayed", "self_approval", "request_digest_mismatch", "no_matching_grant", "grant_not_yet_valid", "grant_expired", "grant_suspended", "grant_revoked", "revocation_epoch_mismatch", "scope_mismatch", "principal_mismatch", "capability_unknown", "capability_version_mismatch", "package_digest_mismatch", "policy_version_mismatch", "platform_permission_missing", "prohibited", "cancelled", "audit_unavailable", "postcondition_failed"]},
+    "request_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "scope_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "policy_version": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/policy_version"},
+    "required_approval_level": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/approval_level"}
+  }
+}

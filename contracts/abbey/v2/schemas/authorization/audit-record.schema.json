@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v2/schemas/authorization/audit-record.schema.json",
+  "title": "Bounded redacted capability audit record v2",
+  "x-abbey-data-class": "authorization",
+  "x-abbey-max-bytes": 4096,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["attempt_id", "request_digest", "principal_digest", "scope_digest", "capability_id", "capability_version", "package_digest", "grant_digest", "policy_version", "stage", "decision", "reason_code", "parameter_digest", "approval_level_required", "cancellation_state", "outcome_state", "record_digest", "redacted"],
+  "properties": {
+    "attempt_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "request_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "principal_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "scope_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "capability_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/capability_id"},
+    "capability_version": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/semver"},
+    "package_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "grant_digest": {"oneOf": [{"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"}, {"type": "null"}]},
+    "policy_version": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/policy_version"},
+    "stage": {"type": "integer", "minimum": 0, "maximum": 16},
+    "decision": {"enum": ["allow", "approval_required", "deny", "pause"]},
+    "reason_code": {"type": "string", "pattern": "[a-z][a-z0-9_]{0,63}"},
+    "parameter_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "approval_level_required": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/approval_level"},
+    "cancellation_state": {"enum": ["active", "cancelled"]},
+    "outcome_state": {"enum": ["not_started", "recorded", "succeeded", "failed", "cancelled", "succeeded_unverified"]},
+    "record_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "redacted": {"const": true}
+  }
+}

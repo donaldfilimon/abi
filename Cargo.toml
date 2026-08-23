@@ -10,6 +10,7 @@ license = "MIT"
 repository = "https://github.com/donaldfilimon/abi"
 
 [workspace.dependencies]
+abi-capability = { path = "crates/abi-capability" }
 abi-agent-host = { path = "crates/abi-agent-host" }
 abi-agent-runtime = { path = "crates/abi-agent-runtime" }
 abi-compute = { path = "../wdbx/crates/abi-compute" }

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v2/schemas/authorization/grant.schema.json",
+  "title": "Exact scoped capability grant v2",
+  "x-abbey-data-class": "authorization",
+  "x-abbey-max-bytes": 32768,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["grant_id", "issuer", "recipient", "scope", "capability_id", "capability_version", "package_digest", "issued_at", "not_before", "expires_at", "risk_ceiling", "confirmation_level", "revocation_state", "revocation_epoch", "policy_version", "guild_constitution_version", "safety_policy_version"],
+  "properties": {
+    "grant_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "issuer": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/principal_ref"},
+    "recipient": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/principal_ref"},
+    "scope": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/scope"},
+    "capability_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/capability_id"},
+    "capability_version": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/semver"},
+    "package_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "issued_at": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "not_before": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "expires_at": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "risk_ceiling": {"enum": ["Informational", "Low", "Medium", "High"]},
+    "confirmation_level": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/approval_level"},
+    "revocation_state": {"enum": ["Active", "Suspended", "Revoked"]},
+    "revocation_epoch": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/counter"},
+    "policy_version": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/policy_version"},
+    "guild_constitution_version": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/policy_version"},
+    "safety_policy_version": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/policy_version"}
+  }
+}

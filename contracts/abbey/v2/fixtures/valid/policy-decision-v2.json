@@ -1,0 +1,6 @@
+{
+  "case_id": "policy_decision_v2_approval_required",
+  "schema": "https://abbey.local/contracts/abbey/v2/schemas/authorization/policy-decision.schema.json",
+  "expect": "valid",
+  "document": {"decision": "approval_required", "reason_code": "approval_missing", "request_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "scope_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555", "policy_version": "tenant_v2", "required_approval_level": "A2Manager"}
+}
