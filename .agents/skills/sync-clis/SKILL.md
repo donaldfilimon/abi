@@ -19,11 +19,16 @@ different files between different directories. Know which one you are running.
 - **Scope is narrow:** only the ~14 names in the script's `CORE_SKILLS` list
   (`sl`, `check-work`, `code-review`, `abi-doc-claims-sync`, `help`,
   `create-skill`, `imagine`, `docx`, `pptx`, `xlsx`, `sync-clis`, `swift`,
-  `goal-ledger`, `aggressive-macos-cleanup`) plus `CORE_PERSONAS`. It does
-  **not** sync the full skill set.
+  `goal-ledger`, `aggressive-macos-cleanup`) plus all seven task-role files in
+  `CORE_PERSONAS` (`design-doc-reviewer`, `design-doc-writer`, `implementer`,
+  `researcher`, `reviewer`, `security-auditor`, and `test-writer`). Codex is the
+  only non-source persona destination. The driver does **not** sync the full
+  skill set or the global Abbey charter.
 - `opencode` gets a flat `command/<name>.md` wrapper instead of a `SKILL.md` subdir.
-- `references/`, `scripts/`, `examples/`, `assets/` are **rmtree'd then copytree'd** —
-  a destructive replace, not a merge.
+- `references/`, `scripts/`, `examples/`, and `assets/` are compared by entry
+  type and bytes. A divergent destination is **rmtree'd then copytree'd**; an
+  identical tree is left untouched. Replacement is still destructive, not a
+  merge, when a difference exists.
 
 ## B. Repo launcher — in-repo mirrors
 
@@ -62,11 +67,12 @@ then B.
    Check the *direction* of any divergence before deciding — the repo copy is
    sometimes the stale one, in which case the write is a fix, not a clobber.
    Either way it dirties a tracked file: surface the diff, do not auto-commit.
-3. **The marker rewrites on every run** — `.plugins-synced-from-central` in
-   each target `skillsDir`. It is gitignored, so it does not dirty the ABI
-   checkout. The retired ABI root `src/` tree is not a sync target and must not
-   be recreated. ABI Mega is discovered from `central.abiMega` in
-   `~/.grok/sync-targets.json`.
+3. **The marker is deterministic.** `.plugins-synced-from-central` in each
+   target `skillsDir` records only the target identity and is rewritten only
+   when missing or divergent. The retired ABI root `src/` tree is not a sync
+   target and must not be recreated. ABI Mega is discovered from
+   `central.abiMega` in `~/.grok/sync-targets.json`. A complete unchanged second
+   run must report `0 actions/changes`.
 4. **`~/.claude/skills/sync-clis/` is a sync target, not a source.** Editing it
    is pointless — the next run overwrites it from `~/.grok/skills/sync-clis/`.
    Edit the canonical copy.
@@ -80,7 +86,7 @@ then B.
    `~/dev/active/plugins/abi-mega` (moved twice: `~/plugins/` → `~/Projects/plugins/`
    2026-08-04 → `~/dev/active/plugins/` 2026-08-09; the manifest
    `~/.grok/sync-targets.json` was repointed both times and all 14 sync paths
-   verified). Central sources: `~/.grok/skills` (13 skills) + abi-mega's `skills/`,
+   verified). Central sources: `~/.grok/skills` (14 core synced skills) + abi-mega's `skills/`,
    plus `~/.grok/bundled/personas` and `~/.grok/bundled/roles`. The sync recreates
    `~/tmp/grok-goal-scratch/implementer/` for logs — that dir reappearing is
    expected, not clutter.
