@@ -14,10 +14,13 @@ Codex plugin.
 - Repository instructions: `AGENTS.md`, then `tasks/lessons.md` and `tasks/todo.md`.
 - Nightly pin: `rust-toolchain.toml` and `.github/workflows/ci.yml` must agree.
 - Canonical repository skills: `.agents/skills/`.
-- Repository mirrors: `.claude/skills/`, synchronized by
-  `.agents/skills/sync-clis/launch.sh`. The launcher also targets `.grok/` when
-  that directory is present; it is absent from this repository (verified
-  2026-08-22), so `.claude/skills/` is the only live in-repo mirror.
+- Repository mirrors: tracked `.claude/skills/` plus an optional ignored
+  `.grok/`, synchronized by `.agents/skills/sync-clis/launch.sh`. A fresh Git
+  worktree has no `.grok/` because Git does not materialize ignored files. The
+  long-lived main checkout does have it (69 skill directories observed
+  2026-08-22), so the launcher targets two mirrors there and only
+  `.claude/skills/` in a fresh worktree. This checkout-local difference is one
+  reason mirror sync must run from the stable main checkout.
 - OpenCode: `.opencode/skills` is a symlink to `.agents/skills`.
 - Codex home skills: `~/.codex/skills/<name>/SKILL.md` are installed explicitly.
 - ABI bundled plugins: 16 build-time fixtures under
@@ -177,4 +180,6 @@ false green on this machine before.
 - Registry presence does not prove `plugin run` dispatch; use the runtime tester.
 - Marketplace registration does not prove ABI Mega is installed or current.
 - Skill Loop reports scanner findings that require review; a count alone does not
-  prove every reference is actionable or broken.
+  prove every reference is actionable or broken. In the 2026-08-22 inspection,
+  the two `abi-skills` "broken references" were the contextual prose basenames
+  `sync-clis/launch.sh` and `SKILL.md`, not missing workflow files.
