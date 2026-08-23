@@ -88,7 +88,8 @@ toolchain and frozen surfaces. This skill is style and process only.
   `.cursor/` is gitignored here. Mirror personal copies to
   `~/.cursor/skills/<name>/` (and `~/.codex/skills/<name>/` when installing
   for Codex) after content changes.
-- Fix skills at the central source (`~/.grok/skills`, `~/plugins/abi-mega`),
+- Fix skills at the central source (`~/.grok/skills`,
+  `~/dev/active/plugins/abi-mega`),
   not at sync targets. Sync with `.agents/skills/sync-clis/launch.sh` or the
   home `/sync-clis` skill (`python3 ~/.grok/scripts/sync-clis.py`).
 - After `/sync-clis`, check that repo-adapted abi skills were not clobbered by
@@ -118,7 +119,8 @@ toolchain and frozen surfaces. This skill is style and process only.
   `/Users/donaldfilimon/dev/active/AbbeyBot` (DiscordBM), not CoreAIAssistant.
   Orient with a path table when ambiguous, then ask which lane if still unclear.
 - Cell / cell-lang / `build cel` / `build cell lang` means
-  `/Volumes/ExtremeSSD/public/cell-lang` (SSD Zig 0.17 tree; not under `~/abi`).
+  `/Volumes/ExtremeSSD/public/cell-lang` (SSD Zig 0.17 tree; not under
+  `~/dev/active/abi`).
   Default bar: `zig build`, `zig build run -- version`,
   `zig build run -- check examples/hello.cell`, `zig build test`. Bare
   `zig build run` exits 1 by design (CLI needs a subcommand).
