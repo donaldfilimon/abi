@@ -1,0 +1,11 @@
+{
+  "case_id": "authorization_prohibited_grant_v2",
+  "schema": "https://abbey.local/contracts/abbey/v2/schemas/authorization/grant.schema.json",
+  "expect": "schema_invalid",
+  "document": {
+    "grant_id": "grant_v2", "issuer": {"principal_id": "owner_ref", "kind": "guild_owner"}, "recipient": {"principal_id": "member_ref", "kind": "human_subject"},
+    "scope": {"organization_id": "org_ref", "deployment_id": "deploy_ref", "tenant_id": "tenant_ref", "platform": "local", "guild_ref": null, "resource_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "subject_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"},
+    "capability_id": "local.system.destroy", "capability_version": "2.0.0", "package_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "issued_at": "2026-08-22T12:00:00Z", "not_before": "2026-08-22T12:00:00Z", "expires_at": "2026-08-22T13:00:00Z", "risk_ceiling": "Prohibited", "confirmation_level": "A5DualControl", "revocation_state": "Active", "revocation_epoch": "1", "policy_version": "tenant_v2", "guild_constitution_version": "guild_v2", "safety_policy_version": "safety_v2"
+  }
+}

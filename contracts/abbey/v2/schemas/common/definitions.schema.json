@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json",
+  "title": "Abbey v2 bounded authority definitions",
+  "x-abbey-data-class": "metadata",
+  "x-abbey-max-bytes": 8192,
+  "x-abbey-unknown-fields": "reject",
+  "$defs": {
+    "opaque_id": {"type": "string", "pattern": "[a-z][a-z0-9_-]{0,63}"},
+    "capability_id": {"type": "string", "pattern": "[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9]*){1,7}", "maxLength": 128},
+    "semver": {"type": "string", "pattern": "(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)", "maxLength": 32},
+    "digest_id": {"type": "string", "pattern": "sha256:[0-9a-f]{64}"},
+    "utc_instant": {"type": "string", "pattern": "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"},
+    "counter": {"type": "string", "pattern": "(?:0|[1-9][0-9]{0,18})"},
+    "approval_level": {"enum": ["A0None", "A1Actor", "A2Manager", "A3Admin", "A4Owner", "A5DualControl"]},
+    "risk_class": {"enum": ["Informational", "Low", "Medium", "High", "Prohibited"]},
+    "policy_version": {"type": "string", "pattern": "[a-z][a-z0-9_-]{0,63}"},
+    "principal_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principal_id", "kind"],
+      "properties": {
+        "principal_id": {"$ref": "#/$defs/opaque_id"},
+        "kind": {"enum": ["human_subject", "organization_owner", "guild_owner", "guild_administrator", "guild_manager", "service"]}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["organization_id", "deployment_id", "tenant_id", "platform", "guild_ref", "resource_digest", "subject_digest"],
+      "properties": {
+        "organization_id": {"$ref": "#/$defs/opaque_id"},
+        "deployment_id": {"$ref": "#/$defs/opaque_id"},
+        "tenant_id": {"$ref": "#/$defs/opaque_id"},
+        "platform": {"enum": ["local", "discord_recording"]},
+        "guild_ref": {"oneOf": [{"$ref": "#/$defs/opaque_id"}, {"type": "null"}]},
+        "resource_digest": {"$ref": "#/$defs/digest_id"},
+        "subject_digest": {"$ref": "#/$defs/digest_id"}
+      }
+    }
+  }
+}

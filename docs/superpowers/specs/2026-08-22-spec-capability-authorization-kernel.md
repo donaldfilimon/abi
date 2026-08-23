@@ -16,10 +16,11 @@ language-neutral wire schemas and fixtures this design consumes. This document
 owns the proposed authorization behavior only; it does not fork those schemas.
 
 
-Status: **design proposal, C0 (Specified) only.** Nothing in the Proposed
-sections of this document is implemented, tested, replayed, shadowed, canaried,
-or witnessed. Every mechanism proposed here starts at C0 on the constitution's
-§11 ladder and earns nothing further from having been written down.
+Status: **the complete demanding design remains C0 (Specified).** The bounded
+first slice described in the implementation note in §15 has local-only contract,
+unit, privacy, failure-path, and deterministic-replay evidence. That evidence
+does not qualify the deferred ledger, guild-constitution, host-integration,
+production-adapter, shadow, canary, or witnessed-live rows.
 
 Governing document: `2026-08-22-abbey-system-constitution.md`. Where this spec
 and the constitution appear to disagree, the constitution wins and this spec is
@@ -293,16 +294,18 @@ per-guild settings, not grants: they gate speech, not authority.
 
 ### 2.1 Home
 
-A new crate `abi-capability` in the `abi` workspace, depending on
-`abi-foundation` and `abi-agent-runtime` and nothing else. `abi-agent-host`
-gains a dependency on it. The dependency order stays acyclic and matches the
-existing convention in `CLAUDE.md`: `abi-foundation` -> `abi-agent-runtime` ->
-`abi-capability` -> `abi-agent-host`.
+A new crate `abi-capability` in the `abi` workspace depends on
+`abi-agent-runtime` for cancellation and on data-only serialization/digest
+libraries. A future credential-store binding may depend on `abi-foundation`, and
+a future host integration may make `abi-agent-host` depend on this crate; neither
+binding is part of the recording-only first slice.
 
-The wire schema is owned by the Program 1 Abbey contracts package (§10). Until
-that package exists and is qualified, `abi-capability` carries the Rust types and
-a versioned canonical JSON encoding, and §2 of the constitution forbids
-documenting the contracts package as existing.
+The wire schema is owned by the qualified Program 1 Abbey contracts package
+(§10). Its v1 bytes remain immutable compatibility evidence. Program 2 adds new
+closed v2 schema identifiers for the authority envelopes consumed by this
+kernel; it does not amend required fields or semantics into the v1 identifiers.
+Wire digests use `sha256:<64 lowercase hex>` while the Rust kernel uses fixed
+`[u8; 32]` values internally.
 
 ### 2.2 Declaration
 
@@ -746,7 +749,7 @@ effects, uncertainty, risk, expiration, and rollback path."
 
 ## 7. Proposed: the actuator validation pipeline
 
-Sixteen ordered stages. Every stage fails closed. Every stage that terminates or
+Seventeen ordered stages, numbered 0 through 16. Every stage fails closed. Every stage that terminates or
 advances a decision writes an audit record (section 9). No stage after stage 0
 reads model output as an authorization input.
 
@@ -997,9 +1000,10 @@ authority:
 
 1. `abi-capability`: capability types, registry compilation, grant types, the
    authorization kernel, the approval-level function, the typed error taxonomy.
-2. A `RecordingActuator` that runs stages 0 through 11, records the exact
-   platform call it *would* have made, evaluates postconditions against a
-   recorded fixture platform state, and performs no platform write.
+2. A `RecordingActuator` that simulates the authority, effect, postcondition,
+   and receipt path through stages 0 through 16, records only digest commitments
+   for the platform call it *would* have made, evaluates postconditions against
+   a recorded fixture platform state, and performs no platform write.
 3. Extension of `abbey`'s existing tables with capability, grant, principal,
    approval-level, and postcondition columns, additively.
 4. Extension of the audit record to section 9.2, additively.
@@ -1044,7 +1048,7 @@ a second mutating descriptor, and does not change the edition gate.
 The kernel is additive at every seam. `abi-agent-host` keeps its existing
 `ExecutionPolicy` and `ToolExecutor` traits unchanged; the kernel is installed as
 an implementation of both. Reverting the program means reinstalling
-`EffectScopedPolicy` and the previous executor, and the only schema change to
+`DenyAllPolicy` and the previous executor, and the only schema change to
 leave behind is additive columns and additive tables, which the previous code
 does not read. There is no dual canonical writer at any point (§5, decision 77).
 
@@ -1205,30 +1209,42 @@ above C1 is made for the kernel.
 
 ---
 
-## 14. Open questions for Donald
+## 14. Resolved decisions and one deferred integration question
 
-1. **C1 above:** is "L0-L8" a distinct ladder you intend, or shorthand for the
-   §6 promotion stages? This spec assumed the latter and used C0 to C7.
-2. **C10 above:** does Program 2 stay bound to recording adapters, or do you want
-   an §15 amendment permitting a narrow live guild-write canary inside it?
-3. **Tenant definition.** Is a tenant a machine user, a Donald-owned deployment,
-   or a paying customer? Section 4 assumes the deployment, which makes today's
-   single-credential store the single-tenant case. A customer-level tenant
-   changes the credential store design materially.
-4. **Approval surface ownership.** §2 assigns "approvals and UI" to the Swift
+Donald's approval of the demanding design resolves the former open questions as
+follows: C0 through C7 is the only normative evidence ladder; Program 2 remains
+recording-adapter-only; tenant is the organization/deployment isolation boundary;
+and `RiskClass::Prohibited` is representable for an auditable refusal but cannot
+be granted. No §15 amendment or production authority is implied.
+
+One integration question remains deferred because it does not affect the local
+kernel contract: §2 assigns "approvals and UI" to the Swift
    `AbbeyBot` and "guild policy and command shell" to `abbey-bot`. Which surface
    renders the A2-through-A5 preview for a guild action, and does the answer
    differ for an action proposed in Discord but approved on the Mac?
-5. **`RiskClass::Prohibited`.** Do you want a representable prohibited class that
-   the issuer refuses, or should a prohibited action simply have no package? The
-   representable version makes the refusal auditable; the absent version makes it
-   unreachable. Section 2.2 chose representable.
 
 ---
 
 ## 15. Evidence statement
 
-This document is C0 (Specified) for the mechanisms it proposes. It contains:
+The demanding design as a whole remains C0. The first implementation slice adds:
+
+- closed v2 package, grant, approval, decision, credential-reference, audit, and
+  receipt envelopes while retaining every v1 byte;
+- a deny-by-default request-scoped kernel with exact package, principal, scope,
+  time, revocation, policy, platform-permission, and approval binding;
+- fallible bounded redacted audit, injected time/cancellation/facts, a
+  tenant-exact opaque credential resolver, and a digest-only recording actuator;
+- local privacy/failure tests and byte-identical replay over frozen fixtures.
+
+These are local C1 conformance evidence, and the frozen recording replay is C2
+evidence for that narrow adapter path only. The following remain deferred and
+unqualified: durable approval consumption/recovery, full 17-stage per-stage
+audit, additive Abbey ledger migration, guild-constitution compilation, host
+projection, compensation execution, production adapters, Discord, WDBX writes,
+provider calls, shadow/canary use, and witnessed live validation.
+
+The document also contains:
 
 - **Observations:** every statement in section 1 and every source reference
   elsewhere, each verified by reading the named file on 2026-08-22.
@@ -1236,5 +1252,4 @@ This document is C0 (Specified) for the mechanisms it proposes. It contains:
 - **Inferences:** the conflict analysis in section 12, which depends on reading
   the constitution's requirements against the observed source.
 
-No mechanism proposed here has been implemented, tested, replayed, evaluated,
-shadowed, canaried, or witnessed. Writing this document promotes nothing.
+No local test promotes a production or participant-consented-live claim.

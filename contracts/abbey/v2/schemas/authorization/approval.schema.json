@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v2/schemas/authorization/approval.schema.json",
+  "title": "Digest-bound single-use approval v2",
+  "x-abbey-data-class": "authorization",
+  "x-abbey-max-bytes": 16384,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision_id", "call_id", "call_digest", "capability_id", "capability_version", "package_digest", "grant_id", "request_subject_principal_id", "approver_principal_id", "approval_level", "issued_at", "expires_at", "state"],
+  "properties": {
+    "decision_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "call_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "call_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "capability_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/capability_id"},
+    "capability_version": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/semver"},
+    "package_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "grant_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "request_subject_principal_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "approver_principal_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "coapprover_principal_id": {"oneOf": [{"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"}, {"type": "null"}]},
+    "approval_level": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/approval_level"},
+    "issued_at": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "expires_at": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/utc_instant"},
+    "state": {"enum": ["Approved", "Denied", "Cancelled", "Expired", "Consumed"]}
+  }
+}

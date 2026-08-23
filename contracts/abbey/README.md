@@ -6,7 +6,9 @@ and synthetic golden fixtures. The corpus is data-only: it has no Cargo feature,
 generated binding, runtime listener, authorization actuator, Discord behavior,
 model call, storage write, or production-deployment effect.
 
-The source corpus is qualified as one exact byte set. `manifest.json` lists
+The source corpus is qualified as one exact byte set. Contract major 2 retains
+every v1 artifact byte and adds closed v2 authority-envelope identifiers rather
+than changing v1 required fields or semantics. `manifest.json` lists
 every normative schema, fixture, and policy document once; its aggregate digest
 also commits to a normalized copy of the manifest itself. Consumers vendor the
 listed bytes unchanged, pin that aggregate digest, and validate real inputs with
@@ -33,7 +35,8 @@ python3 tools/abbey_contracts.py build-manifest contracts/abbey --write
 Verification never rewrites the corpus. CI, release, and production consumers
 must require exact digest equality before consequential work.
 
-This implementation establishes source-corpus evidence at C1 only. It is not
+The exact corpus establishes source-corpus evidence at C1 only. The separate
+recording-kernel replay may establish C2 for that narrow local path. Neither is
 evidence of an installed consumer artifact, runtime integration, authorization,
 production federation, durable WDBX behavior, or participant-consented Discord
 operation. Those claims require their own program gates and evidence.

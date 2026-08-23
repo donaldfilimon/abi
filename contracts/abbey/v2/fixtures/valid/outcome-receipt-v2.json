@@ -1,0 +1,6 @@
+{
+  "case_id": "outcome_receipt_v2_redacted",
+  "schema": "https://abbey.local/contracts/abbey/v2/schemas/receipt/outcome-receipt.schema.json",
+  "expect": "valid",
+  "document": {"attempt_id": "attempt_v2", "request_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "capability_id": "discord.channel.organize", "capability_version": "2.0.0", "package_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "decision": "allow", "reason_code": "authorized", "outcome_state": "recorded", "postcondition_state": "satisfied", "compensation_state": "not_required", "result_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "audit_record_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999", "redacted": true}
+}

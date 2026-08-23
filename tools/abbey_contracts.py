@@ -208,10 +208,22 @@ def _artifact_row(root: Path, relative: Path) -> dict[str, Any]:
 
 def _schema_registry(root: Path) -> dict[str, dict[str, Any]]:
     registry: dict[str, dict[str, Any]] = {}
-    schema_root = root / "v1" / "schemas"
-    if not schema_root.is_dir():
-        raise ContractError("schema_directory_missing", "v1/schemas")
-    for path in sorted(schema_root.rglob("*.schema.json")):
+    schema_roots = tuple(
+        path / "schemas"
+        for path in sorted(root.iterdir())
+        if path.is_dir()
+        and path.name.startswith("v")
+        and path.name[1:].isdigit()
+        and not path.name[1:].startswith("0")
+        and (path / "schemas").is_dir()
+    )
+    if not schema_roots:
+        raise ContractError("schema_directory_missing", "vN/schemas")
+    schema_paths = sorted(
+        (path for schema_root in schema_roots for path in schema_root.rglob("*.schema.json")),
+        key=lambda path: path.relative_to(root).as_posix(),
+    )
+    for path in schema_paths:
         if path.is_symlink():
             raise ContractError("symlink_forbidden", path.relative_to(root))
         schema = load_json_strict(path)
@@ -228,9 +240,9 @@ def _schema_registry(root: Path) -> dict[str, dict[str, Any]]:
             if key not in schema or (expected is not None and schema[key] != expected):
                 raise ContractError("schema_metadata_missing", relative)
         schema_id = schema.get("$id")
-        if not isinstance(schema_id, str) or not schema_id.startswith(
-            "https://abbey.local/contracts/abbey/v1/schemas/"
-        ):
+        version = relative.parts[0]
+        expected_prefix = f"https://abbey.local/contracts/abbey/{version}/schemas/"
+        if not isinstance(schema_id, str) or not schema_id.startswith(expected_prefix):
             raise ContractError("schema_id_invalid", relative)
         if schema_id in registry:
             raise ContractError("schema_id_duplicate", relative)
@@ -582,6 +594,11 @@ def verify_manifest(root: Path) -> VerificationReport:
     manifest = load_json_strict(root / MANIFEST_NAME)
     if not isinstance(manifest, dict) or set(manifest) != MANIFEST_KEYS:
         raise ContractError("manifest_shape", MANIFEST_NAME)
+    if manifest.get("contract_major") not in {1, 2}:
+        raise ContractError("contract_major_unsupported", MANIFEST_NAME)
+    revision = manifest.get("contract_revision")
+    if not isinstance(revision, int) or isinstance(revision, bool) or revision < 1:
+        raise ContractError("contract_revision_invalid", MANIFEST_NAME)
     if manifest.get("algorithm") != "abbey-contract-corpus-sha256-v1":
         raise ContractError("algorithm_mismatch", MANIFEST_NAME)
     digest_text = manifest.get("aggregate_digest")

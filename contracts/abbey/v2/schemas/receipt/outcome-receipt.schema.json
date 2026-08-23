@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v2/schemas/receipt/outcome-receipt.schema.json",
+  "title": "Redacted recording outcome receipt v2",
+  "x-abbey-data-class": "receipt",
+  "x-abbey-max-bytes": 8192,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["attempt_id", "request_digest", "capability_id", "capability_version", "package_digest", "decision", "reason_code", "outcome_state", "postcondition_state", "compensation_state", "result_digest", "audit_record_digest", "redacted"],
+  "properties": {
+    "attempt_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "request_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "capability_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/capability_id"},
+    "capability_version": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/semver"},
+    "package_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "decision": {"enum": ["allow", "approval_required", "deny", "pause"]},
+    "reason_code": {"type": "string", "pattern": "[a-z][a-z0-9_]{0,63}"},
+    "outcome_state": {"enum": ["not_started", "recorded", "succeeded", "failed", "cancelled", "succeeded_unverified"]},
+    "postcondition_state": {"enum": ["not_evaluated", "satisfied", "failed", "unverifiable"]},
+    "compensation_state": {"enum": ["not_required", "complete", "partial", "failed"]},
+    "result_digest": {"oneOf": [{"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"}, {"type": "null"}]},
+    "audit_record_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "redacted": {"const": true}
+  }
+}
