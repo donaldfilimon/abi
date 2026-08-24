@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v2/schemas/federation/request.schema.json",
+  "title": "Abbey v1 federation request envelope",
+  "x-abbey-data-class": "authorization",
+  "x-abbey-max-bytes": 1048576,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["service", "contract_major", "contract_revision", "corpus_digest", "capability_manifest_digest", "request_id", "method", "parameters_digest", "parameters"],
+  "properties": {
+    "service": {"const": "abbey.v1"},
+    "contract_major": {"const": 2},
+    "contract_revision": {"const": 2},
+    "corpus_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "capability_manifest_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "request_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "method": {"enum": ["Hello", "GetStatus", "Authorize", "Cognize", "ProposeChange", "ApproveChange", "ExecuteChange", "CompensateChange", "RetrieveEpisodes", "ProposeEpisodeWrite", "ListCapabilities", "DescribeCapability", "PreviewManifest", "ApplyManifest", "OpenConsentEpoch", "AttestConsent", "CloseConsentEpoch", "ResumeConsentEpoch", "WatchEvents"]},
+    "parameters_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "parameters": {"type": "object", "maxProperties": 32}
+  }
+}

@@ -1,5 +1,7 @@
 //! Independent, bounded verification for the language-neutral Abbey corpus.
 
+mod semantic_change;
+
 use jsonschema::{Draft, Retrieve, Uri};
 use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Serialize};
@@ -686,6 +688,9 @@ fn semantic_code(schema: &str, document: &Value) -> Option<&'static str> {
         && map.get("approver_principal_id") == map.get("request_subject_principal_id")
     {
         return Some("self_approval");
+    }
+    if let Some(code) = semantic_change::code(schema, map) {
+        return Some(code);
     }
     if schema.ends_with("/authorization/policy-decision.schema.json")
         && map.get("reason_code").and_then(Value::as_str) == Some("dependency_unavailable")

@@ -1,0 +1,19 @@
+{
+  "case_id": "federation_receipt_v1",
+  "schema": "https://abbey.local/contracts/abbey/v2/schemas/receipt/federation-receipt.schema.json",
+  "expect": "valid",
+  "document": {
+    "request_id": "request_ref",
+    "operation_id": "operation_ref",
+    "contract_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "capability_manifest_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "change_set_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "snapshot_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "result_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "policy_decision": "allow",
+    "compensation_class": "ExactRestore",
+    "evidence_level": "C2",
+    "terminal_status": "compensated",
+    "redacted": true
+  }
+}

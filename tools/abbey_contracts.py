@@ -438,6 +438,80 @@ def _semantic_code(schema_id: str, document: Any) -> str | None:
     if schema_id.endswith("/authorization/approval.schema.json") and isinstance(document, dict):
         if document.get("approver_principal_id") == document.get("request_subject_principal_id"):
             return "self_approval"
+    if schema_id.endswith("/authorization/change-approval.schema.json") and isinstance(
+        document, dict
+    ):
+        requested = document.get("requested_by", {})
+        proposed = document.get("proposed_by", {})
+        approved = document.get("approved_by", {})
+        coapproved = document.get("coapproved_by")
+        identities = {
+            requested.get("principal_id"),
+            proposed.get("principal_id"),
+            approved.get("principal_id"),
+        }
+        if (
+            len(identities) != 3
+            or proposed.get("kind") != "service"
+            or approved.get("kind") == "service"
+        ):
+            return "self_approval"
+        if isinstance(coapproved, dict) and (
+            coapproved.get("kind") == "service"
+            or coapproved.get("principal_id") in identities
+        ):
+            return "self_approval"
+        dual = document.get("approval_level") == "A5DualControl"
+        if dual != isinstance(coapproved, dict):
+            return "approval_insufficient"
+        allowed_kinds = {
+            "A0None": {
+                "human_subject",
+                "organization_owner",
+                "guild_owner",
+                "guild_administrator",
+                "guild_manager",
+            },
+            "A1Actor": {
+                "human_subject",
+                "organization_owner",
+                "guild_owner",
+                "guild_administrator",
+                "guild_manager",
+            },
+            "A2Manager": {
+                "organization_owner",
+                "guild_owner",
+                "guild_administrator",
+                "guild_manager",
+            },
+            "A3Admin": {"organization_owner", "guild_owner", "guild_administrator"},
+            "A4Owner": {"organization_owner", "guild_owner"},
+            "A5DualControl": {"organization_owner", "guild_owner", "guild_administrator"},
+        }.get(document.get("approval_level"), set())
+        if approved.get("kind") not in allowed_kinds or (
+            isinstance(coapproved, dict) and coapproved.get("kind") not in allowed_kinds
+        ):
+            return "approval_insufficient"
+    if schema_id.endswith("/capability/change-set.schema.json") and isinstance(document, dict):
+        requested = document.get("requested_by", {})
+        proposed = document.get("proposed_by", {})
+        if (
+            proposed.get("kind") != "service"
+            or proposed.get("principal_id") == requested.get("principal_id")
+        ):
+            return "proposal_authority_invalid"
+        created = document.get("created_at_ms", 0)
+        expires = document.get("expires_at_ms", 0)
+        if not isinstance(created, int) or not isinstance(expires, int) or not (
+            created < expires <= created + 300_000
+        ):
+            return "proposal_expiry_invalid"
+        if (
+            document.get("compensation_class") == "ExactRestore"
+            and document.get("rollback_digest") == "sha256:" + "0" * 64
+        ):
+            return "rollback_required"
     if schema_id.endswith("/authorization/policy-decision.schema.json") and isinstance(document, dict):
         if document.get("reason_code") == "dependency_unavailable" and document.get("decision") != "deny":
             return "degraded_authority"

@@ -5,6 +5,7 @@
 //! and all observable records contain digests rather than user material.
 
 mod audit;
+mod change;
 mod credential;
 mod kernel;
 mod recording;
@@ -12,6 +13,7 @@ mod registry;
 mod types;
 
 pub use audit::{AuditError, AuditRecord, AuditSink, BoundedMemoryAuditSink};
+pub use change::{ChangeApproval, ChangeSet, CompensationClass};
 pub use credential::TenantCredentialResolver;
 pub use kernel::{AuthorizationContext, Kernel, KernelError, KernelOutcome};
 pub use recording::{RecordedEffect, RecordingActuator};

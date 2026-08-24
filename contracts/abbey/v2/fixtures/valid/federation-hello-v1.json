@@ -1,0 +1,13 @@
+{
+  "case_id": "federation_hello_v1",
+  "schema": "https://abbey.local/contracts/abbey/v2/schemas/federation/hello.schema.json",
+  "expect": "valid",
+  "document": {
+    "service": "abbey.v1",
+    "supported_contract_majors": [2],
+    "contract_revision": 2,
+    "corpus_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "capability_manifest_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "deployment_profile": "federated_c6"
+  }
+}

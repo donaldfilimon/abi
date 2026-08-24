@@ -26,6 +26,17 @@ disables authorization, consent opening, execution, and durable writes. A
 developer profile may expose read-only diagnostics with a loud mismatch status.
 It may not weaken that fail-closed boundary.
 
+Revision 2 defines the `abbey.v1` local federation interface without changing
+any pre-existing v1 or v2 schema identifier. Its request envelope closes the
+method vocabulary to `Hello`, `GetStatus`, `Authorize`, `Cognize`,
+`ProposeChange`, `ApproveChange`, `ExecuteChange`, `CompensateChange`,
+`RetrieveEpisodes`, `ProposeEpisodeWrite`, `ListCapabilities`,
+`DescribeCapability`, `PreviewManifest`, `ApplyManifest`, `OpenConsentEpoch`,
+`AttestConsent`, `CloseConsentEpoch`, `ResumeConsentEpoch`, and `WatchEvents`.
+Method-specific native decoders remain obligated to reject unknown parameter
+fields; the envelope's bounded `parameters` object is not an extension point
+for authority.
+
 Rollback returns the consumer to the last qualified corpus digest. Failed
 versions remain in compatibility history rather than being silently rewritten.
 The corpus may later be extracted without path or byte changes when independent
