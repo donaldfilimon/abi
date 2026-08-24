@@ -105,14 +105,14 @@ git commit -m "docs(wdbx): record public source boundary"
 
 - [ ] **Step 1: Write the failing tests**
 
-{% raw %}
 ```python
 class PublicWdbxWorkflowTests(unittest.TestCase):
     def test_wdbx_checkout_is_public_and_credential_free(self):
         text = load_ci_text()
         self.assertNotIn("WDBX_CHECKOUT_TOKEN", text)
         self.assertNotIn("Require the substrate credential", text)
-        self.assertNotIn("token: ${{ secrets.", text)
+        github_expression = "token: $" + chr(123) * 2 + " secrets."
+        self.assertNotIn(github_expression, text)
         self.assertEqual(text.count("repository: donaldfilimon/wdbx"), 3)
         self.assertIn("WDBX_REVISION: f42b9789eabcf89f952df0a160a7b6837c5acb57", text)
 
@@ -122,7 +122,6 @@ class PublicWdbxWorkflowTests(unittest.TestCase):
         self.assertIn("github.event.pull_request.head.repo.full_name != github.repository", text)
         self.assertIn("runs-on: macos-latest", text)
 ```
-{% endraw %}
 
 - [ ] **Step 2: Verify RED**
 
