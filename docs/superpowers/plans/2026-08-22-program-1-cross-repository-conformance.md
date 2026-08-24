@@ -20,11 +20,12 @@
 - ABI, WDBX, nightly Abbey, and stable Rust Abbey bot were pushed and merged by
   concurrent provider-side workflows. Their exact hosted outcomes, including
   the two Abbey-family failures found after merge, remain separate matrix rows.
-- The Abbey test-environment repair, stable bot Windows-byte repair, Swift
-  AbbeyBot stack, and ABI evidence/Pages repair remain local branches pending an
-  explicit finishing-branch choice. Each repair passed its exact-head full local
-  gate but has no post-fix hosted run. No production deployment or
-  participant-consented live Discord session was authorized or performed.
+- The Abbey test-environment repair passed its exact-head hosted macOS adjunct,
+  merged through PR #91, and passed its post-merge main run. Stable bot
+  Windows-byte repair, Swift AbbeyBot stack, and ABI evidence/Pages repair are
+  being qualified separately and remain represented by their exact matrix
+  states. No production deployment or participant-consented live Discord
+  session was authorized or performed.
 
 ## Global Constraints
 
