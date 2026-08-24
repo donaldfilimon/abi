@@ -205,7 +205,8 @@ Extend `tools/tests/test_workflow_guards.py` to assert:
 
 ```python
 self.assertNotIn("WDBX_CHECKOUT_TOKEN", workflow)
-self.assertNotIn("token: ${{ secrets.", workflow)
+github_expression = "token: $" + chr(123) * 2 + " secrets."
+self.assertNotIn(github_expression, workflow)
 self.assertIn("WDBX_REVISION: f42b9789eabcf89f952df0a160a7b6837c5acb57", workflow)
 self.assertIn("github.event.pull_request.head.repo.full_name != github.repository", workflow)
 self.assertRegex(workflow, r"runs-on: (macos|ubuntu)-latest")
