@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v2/schemas/receipt/federation-receipt.schema.json",
+  "title": "Sanitized Abbey v1 federation receipt",
+  "x-abbey-data-class": "metadata",
+  "x-abbey-max-bytes": 16384,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["request_id", "operation_id", "contract_digest", "capability_manifest_digest", "policy_decision", "compensation_class", "evidence_level", "terminal_status", "redacted"],
+  "properties": {
+    "request_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "operation_id": {"oneOf": [{"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"}, {"type": "null"}]},
+    "contract_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "capability_manifest_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "change_set_digest": {"oneOf": [{"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"}, {"type": "null"}]},
+    "snapshot_digest": {"oneOf": [{"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"}, {"type": "null"}]},
+    "result_digest": {"oneOf": [{"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"}, {"type": "null"}]},
+    "policy_decision": {"enum": ["allow", "approval_required", "deny", "pause"]},
+    "compensation_class": {"enum": ["ExactRestore", "BestEffort", "None"]},
+    "evidence_level": {"enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6"]},
+    "terminal_status": {"enum": ["proposed", "approval_required", "denied", "expired", "prepared", "succeeded", "failed", "interrupted", "compensated", "compensation_failed"]},
+    "redacted": {"const": true}
+  }
+}

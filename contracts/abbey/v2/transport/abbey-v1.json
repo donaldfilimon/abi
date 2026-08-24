@@ -1,0 +1,18 @@
+{
+  "service": "abbey.v1",
+  "transport": "unix_domain_socket",
+  "frame_length_encoding": "uint32_big_endian",
+  "frame_payload": "utf8_json",
+  "maximum_frame_bytes": 1048576,
+  "maximum_json_container_depth": 32,
+  "maximum_identifier_bytes": 64,
+  "maximum_collection_items": 2048,
+  "request_id_required": true,
+  "typed_errors_required": true,
+  "contract_mismatch_stage": "before_authorization",
+  "capability_manifest_mismatch_stage": "before_authorization",
+  "authority_legacy_downgrade": "forbidden",
+  "authority_legacy_retry": "forbidden",
+  "authority_backend_fallback": "forbidden",
+  "c6_non_loopback_transport": "unshipped"
+}

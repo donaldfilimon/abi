@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abbey.local/contracts/abbey/v2/schemas/authorization/change-approval.schema.json",
+  "title": "Single-use immutable ChangeSet approval",
+  "x-abbey-data-class": "authorization",
+  "x-abbey-max-bytes": 16384,
+  "x-abbey-unknown-fields": "reject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision_id", "change_set_digest", "requested_by", "proposed_by", "approved_by", "approval_level", "expires_at_ms", "state"],
+  "properties": {
+    "decision_id": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/opaque_id"},
+    "change_set_digest": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/digest_id"},
+    "requested_by": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/principal_ref"},
+    "proposed_by": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/principal_ref"},
+    "approved_by": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/principal_ref"},
+    "coapproved_by": {"oneOf": [{"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/principal_ref"}, {"type": "null"}]},
+    "approval_level": {"$ref": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json#/$defs/approval_level"},
+    "expires_at_ms": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+    "state": {"enum": ["Approved", "Denied", "Cancelled", "Expired", "Consumed"]}
+  }
+}

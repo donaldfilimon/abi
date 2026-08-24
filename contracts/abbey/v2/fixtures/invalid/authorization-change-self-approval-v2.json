@@ -1,0 +1,15 @@
+{
+  "case_id": "authorization_change_self_approval_v2",
+  "schema": "https://abbey.local/contracts/abbey/v2/schemas/authorization/change-approval.schema.json",
+  "expect": "self_approval",
+  "document": {
+    "decision_id": "decision_ref",
+    "change_set_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "requested_by": {"principal_id": "admin_ref", "kind": "guild_administrator"},
+    "proposed_by": {"principal_id": "abbey_service", "kind": "service"},
+    "approved_by": {"principal_id": "admin_ref", "kind": "guild_administrator"},
+    "approval_level": "A3Admin",
+    "expires_at_ms": 120000,
+    "state": "Approved"
+  }
+}

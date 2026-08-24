@@ -25,6 +25,7 @@ class CorpusBoundaryTests(unittest.TestCase):
         manifest = json.loads((CORPUS_ROOT / "manifest.json").read_text(encoding="utf-8"))
 
         self.assertEqual(manifest["contract_major"], 2)
+        self.assertEqual(manifest["contract_revision"], 2)
         paths = {row["path"] for row in manifest["artifacts"]}
         self.assertIn("v1/schemas/authorization/grant.schema.json", paths)
         self.assertIn("v2/schemas/authorization/grant.schema.json", paths)
@@ -150,6 +151,49 @@ class AuthorizationV2InvariantTests(unittest.TestCase):
     def test_v2_raw_audit_content_is_rejected_before_retention(self) -> None:
         self.assert_v2_fixture("privacy", "audit-content-v2.json", "forbidden_content")
 
+    def test_immutable_change_set_and_distinct_human_approval_are_closed(self) -> None:
+        self.assert_v2_fixture("valid", "execution-change-set-v2.json", "valid")
+        self.assert_v2_fixture("valid", "authorization-change-approval-v2.json", "valid")
+        self.assert_v2_fixture(
+            "invalid", "execution-human-authored-change-set-v2.json", "proposal_authority_invalid"
+        )
+        self.assert_v2_fixture(
+            "invalid", "authorization-change-self-approval-v2.json", "self_approval"
+        )
+        self.assert_v2_fixture(
+            "invalid", "authorization-change-under-authorized-v2.json", "approval_insufficient"
+        )
+
+
+class FederationV1InvariantTests(unittest.TestCase):
+    def assert_v2_fixture(self, taxonomy: str, name: str, expected: str) -> None:
+        outcome = validate_fixture(CORPUS_ROOT, CORPUS_ROOT / "v2" / "fixtures" / taxonomy / name)
+        self.assertEqual(outcome.code, expected)
+
+    def test_hello_request_and_sanitized_receipt_are_closed(self) -> None:
+        self.assert_v2_fixture("valid", "federation-hello-v1.json", "valid")
+        self.assert_v2_fixture("valid", "federation-request-v1.json", "valid")
+        self.assert_v2_fixture("valid", "federation-receipt-v1.json", "valid")
+
+    def test_revision_mismatch_fails_before_any_method_body_is_trusted(self) -> None:
+        self.assert_v2_fixture(
+            "invalid", "federation-revision-mismatch-v1.json", "schema_invalid"
+        )
+
+    def test_transport_policy_is_local_bounded_and_never_downgrades_authority(self) -> None:
+        policy = json.loads(
+            (CORPUS_ROOT / "v2" / "transport" / "abbey-v1.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(policy["service"], "abbey.v1")
+        self.assertEqual(policy["transport"], "unix_domain_socket")
+        self.assertEqual(policy["frame_length_encoding"], "uint32_big_endian")
+        self.assertEqual(policy["maximum_frame_bytes"], 1024 * 1024)
+        self.assertEqual(policy["maximum_json_container_depth"], 32)
+        self.assertEqual(policy["authority_legacy_downgrade"], "forbidden")
+        self.assertEqual(policy["authority_legacy_retry"], "forbidden")
+        self.assertEqual(policy["authority_backend_fallback"], "forbidden")
+        self.assertEqual(policy["c6_non_loopback_transport"], "unshipped")
+
 
 class ExecutionLifecycleTests(SchemaContractTests):
     def test_effect_request_requires_idempotency_and_cancellation_references(self) -> None:
@@ -242,7 +286,7 @@ class EpisodeLearningTests(SchemaContractTests):
 
 class VendoringTests(unittest.TestCase):
     SOURCE_REVISION = "a67d6b47b7ff1c658e40164cb2cf81cff583cb4f"
-    AGGREGATE_DIGEST = "c0e752a2ee4520b8c795efcc55d032a91e10c50be6f07853f457ff696365820e"
+    AGGREGATE_DIGEST = "3ffd487bdc497b7ce54b8c29978a3686dcbffdb66a85957a0ee4f99ba576cdfd"
 
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory(prefix="abbey-vendor-test-")
@@ -272,7 +316,7 @@ class VendoringTests(unittest.TestCase):
 
         self.assertTrue(report.wrote)
         self.assertEqual(report.aggregate_digest, self.AGGREGATE_DIGEST)
-        self.assertEqual(report.artifact_count, 98)
+        self.assertEqual(report.artifact_count, 113)
         self.assertEqual(actual_files, expected_files)
         for relative in expected_files:
             self.assertEqual(
@@ -290,7 +334,7 @@ class VendoringTests(unittest.TestCase):
                 "source_repository": "https://github.com/donaldfilimon/abi",
                 "source_revision": self.SOURCE_REVISION,
                 "contract_major": 2,
-                "contract_revision": 1,
+                "contract_revision": 2,
                 "aggregate_digest": self.AGGREGATE_DIGEST,
             },
         )

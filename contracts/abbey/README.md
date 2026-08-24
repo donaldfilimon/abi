@@ -15,6 +15,15 @@ listed bytes unchanged, pin that aggregate digest, and validate real inputs with
 their native schema implementation. Generated types are projections, not a
 replacement source of truth.
 
+Contract revision 2 adds the local `abbey.v1` federation envelope, its complete
+19-method registry, sanitized federation receipts, an immutable digest-bound
+ChangeSet plus distinct human approval, and a normative Unix-socket transport
+policy. The C6 transport is four-byte big-endian length framing followed by
+UTF-8 JSON, capped at 1 MiB and 32 JSON containers deep. Contract, revision,
+corpus-digest, or capability-manifest mismatch is refused before authorization;
+authority-bearing traffic never downgrades, retries through a legacy protocol,
+or falls back to another backend. Non-loopback federation remains unshipped.
+
 The corpus can establish C1 source and contract evidence only. Its fixtures are
 synthetic and intentionally exclude message content, prompts, responses,
 transcripts, audio, participant identities, credentials, private paths, vectors,

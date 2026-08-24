@@ -1,0 +1,16 @@
+{
+  "case_id": "federation_get_status_v1",
+  "schema": "https://abbey.local/contracts/abbey/v2/schemas/federation/request.schema.json",
+  "expect": "valid",
+  "document": {
+    "service": "abbey.v1",
+    "contract_major": 2,
+    "contract_revision": 2,
+    "corpus_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "capability_manifest_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "request_id": "request_ref",
+    "method": "GetStatus",
+    "parameters_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "parameters": {}
+  }
+}

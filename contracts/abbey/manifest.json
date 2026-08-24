@@ -1,20 +1,20 @@
 {
   "contract_major": 2,
-  "contract_revision": 1,
+  "contract_revision": 2,
   "algorithm": "abbey-contract-corpus-sha256-v1",
   "redaction_profile": "abbey-contract-redaction-v1",
   "artifacts": [
     {
       "path": "README.md",
-      "bytes": 2059,
+      "bytes": 2684,
       "media_type": "text/markdown; charset=utf-8",
-      "sha256": "b52c0d3a296deda2997d7b6b46db15c6f1f494fb30c04ad0997275313942453e"
+      "sha256": "08ce32e19ebae4d0ea7c7ee0c5898f30f9c081d29509dba51e147b06e9052513"
     },
     {
       "path": "compatibility.md",
-      "bytes": 3496,
+      "bytes": 4179,
       "media_type": "text/markdown; charset=utf-8",
-      "sha256": "c54ec393afc6ea69aea915eca7f30cc788d4f70babcef24f257fdaee0fedd348"
+      "sha256": "f9cd9d1d20d80c6c6a52c0c8c927710c4f5db4bcb93bb090236e19712b77021d"
     },
     {
       "path": "v1/fixtures/boundary/identity-delegation-nine-hops.json",
@@ -518,6 +518,18 @@
       "schema_id": "https://abbey.local/contracts/abbey/v1/schemas/receipt/outcome-receipt.schema.json"
     },
     {
+      "path": "v2/fixtures/invalid/authorization-change-self-approval-v2.json",
+      "bytes": 668,
+      "media_type": "application/json",
+      "sha256": "92e53aaa140997047dc470a46375cc644d8ecbbaae3367979f772f22c6ac3c97"
+    },
+    {
+      "path": "v2/fixtures/invalid/authorization-change-under-authorized-v2.json",
+      "bytes": 672,
+      "media_type": "application/json",
+      "sha256": "085845922595ff3fb58fa054130ca32f6ef30f4b5160316e0dcd761ed6d49291"
+    },
+    {
       "path": "v2/fixtures/invalid/authorization-prohibited-grant-v2.json",
       "bytes": 1210,
       "media_type": "application/json",
@@ -528,6 +540,18 @@
       "bytes": 771,
       "media_type": "application/json",
       "sha256": "0a83329f3a5a108cc919a5dced9f2cd2bb16c1d6a52613c97c225e40004a183b"
+    },
+    {
+      "path": "v2/fixtures/invalid/execution-human-authored-change-set-v2.json",
+      "bytes": 1422,
+      "media_type": "application/json",
+      "sha256": "68da56103d938bc59c523cfd6570559282ba23a4edd66b998859e4e6b7d0d831"
+    },
+    {
+      "path": "v2/fixtures/invalid/federation-revision-mismatch-v1.json",
+      "bytes": 665,
+      "media_type": "application/json",
+      "sha256": "e37f0ec20f3254b668c38007422de151578b48e0f430492c25b6ba2e87525460"
     },
     {
       "path": "v2/fixtures/privacy/audit-content-v2.json",
@@ -548,6 +572,12 @@
       "sha256": "dbf10e52272cdd261b654cae2e5feace85473d08127cec7834183c24d6140936"
     },
     {
+      "path": "v2/fixtures/valid/authorization-change-approval-v2.json",
+      "bytes": 653,
+      "media_type": "application/json",
+      "sha256": "d7c899ba34e741a0d163e3f9034419200abf3fe49cb8d956edd42ba291843310"
+    },
+    {
       "path": "v2/fixtures/valid/authorization-grant-v2.json",
       "bytes": 1269,
       "media_type": "application/json",
@@ -558,6 +588,30 @@
       "bytes": 291,
       "media_type": "application/json",
       "sha256": "4535f971925c7e4b0eecda1234af81060294ccc7dc9bd35f782c3f22bf9363d4"
+    },
+    {
+      "path": "v2/fixtures/valid/execution-change-set-v2.json",
+      "bytes": 1397,
+      "media_type": "application/json",
+      "sha256": "82d2e1a8c83c23d2db9fb8be8c5f8d6080038b4df44d320ae7608c678fcc8c15"
+    },
+    {
+      "path": "v2/fixtures/valid/federation-hello-v1.json",
+      "bytes": 511,
+      "media_type": "application/json",
+      "sha256": "7c2aec0aa66c492ebea58321de45cd05d5b661c315d0c0e01eb40994f5a82e9b"
+    },
+    {
+      "path": "v2/fixtures/valid/federation-receipt-v1.json",
+      "bytes": 916,
+      "media_type": "application/json",
+      "sha256": "47ed6d8cf709fdca6484c3b957b56204d383c2b8409c68950d4f744dc02508c5"
+    },
+    {
+      "path": "v2/fixtures/valid/federation-request-v1.json",
+      "bytes": 645,
+      "media_type": "application/json",
+      "sha256": "ca1263fc991a7cc38e292fb73b98ce6e386d30d9eefafce60ea250a3d686c421"
     },
     {
       "path": "v2/fixtures/valid/outcome-receipt-v2.json",
@@ -586,6 +640,13 @@
       "schema_id": "https://abbey.local/contracts/abbey/v2/schemas/authorization/audit-record.schema.json"
     },
     {
+      "path": "v2/schemas/authorization/change-approval.schema.json",
+      "bytes": 1666,
+      "media_type": "application/schema+json",
+      "sha256": "9b5424f92a828a2e9b75f19a177b63eca9447b63b1993bd860d2cb2a94a89b3d",
+      "schema_id": "https://abbey.local/contracts/abbey/v2/schemas/authorization/change-approval.schema.json"
+    },
+    {
       "path": "v2/schemas/authorization/credential-ref.schema.json",
       "bytes": 977,
       "media_type": "application/schema+json",
@@ -607,6 +668,13 @@
       "schema_id": "https://abbey.local/contracts/abbey/v2/schemas/authorization/policy-decision.schema.json"
     },
     {
+      "path": "v2/schemas/capability/change-set.schema.json",
+      "bytes": 3071,
+      "media_type": "application/schema+json",
+      "sha256": "9f67166243d9c57187a5f24d5fe0e494740c4bf0ae2e808db04525f5f1a27c7a",
+      "schema_id": "https://abbey.local/contracts/abbey/v2/schemas/capability/change-set.schema.json"
+    },
+    {
       "path": "v2/schemas/capability/package.schema.json",
       "bytes": 3236,
       "media_type": "application/schema+json",
@@ -621,12 +689,39 @@
       "schema_id": "https://abbey.local/contracts/abbey/v2/schemas/common/definitions.schema.json"
     },
     {
+      "path": "v2/schemas/federation/hello.schema.json",
+      "bytes": 1092,
+      "media_type": "application/schema+json",
+      "sha256": "0192271b4c21499ab6be7823b59f3cfeed43f01c273d06df127b2d6c4adb0c69",
+      "schema_id": "https://abbey.local/contracts/abbey/v2/schemas/federation/hello.schema.json"
+    },
+    {
+      "path": "v2/schemas/federation/request.schema.json",
+      "bytes": 1624,
+      "media_type": "application/schema+json",
+      "sha256": "2ecfa648fa1e969ee4ece473346a655aee2fdf5d6e899e2c47689b67ef478719",
+      "schema_id": "https://abbey.local/contracts/abbey/v2/schemas/federation/request.schema.json"
+    },
+    {
+      "path": "v2/schemas/receipt/federation-receipt.schema.json",
+      "bytes": 2066,
+      "media_type": "application/schema+json",
+      "sha256": "3f5f27e8cede27303acfed3b7c527b85fdf3dc75efa43253d97e309c84da4c9c",
+      "schema_id": "https://abbey.local/contracts/abbey/v2/schemas/receipt/federation-receipt.schema.json"
+    },
+    {
       "path": "v2/schemas/receipt/outcome-receipt.schema.json",
       "bytes": 2063,
       "media_type": "application/schema+json",
       "sha256": "d378ff41f3b1ae2a32a0a0ed7b24534054fb288890bbcc7c08aa520bba017d40",
       "schema_id": "https://abbey.local/contracts/abbey/v2/schemas/receipt/outcome-receipt.schema.json"
+    },
+    {
+      "path": "v2/transport/abbey-v1.json",
+      "bytes": 643,
+      "media_type": "application/json",
+      "sha256": "7bd6bac94c22f215752f4f7aeb5da49dc21fd8b5b4e1427b477148f119e3525f"
     }
   ],
-  "aggregate_digest": "c0e752a2ee4520b8c795efcc55d032a91e10c50be6f07853f457ff696365820e"
+  "aggregate_digest": "3ffd487bdc497b7ce54b8c29978a3686dcbffdb66a85957a0ee4f99ba576cdfd"
 }

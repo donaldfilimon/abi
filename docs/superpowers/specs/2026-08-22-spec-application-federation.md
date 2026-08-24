@@ -17,8 +17,11 @@ authentication, negotiation, distribution, and deployment profiles; it does
 not redefine the Program 1 contracts.
 
 
-Status: **proposed design. No implementation is authorized by this document.**
-Evidence level: **C0 (specified)** per the Abbey System Constitution section 11.
+Status: **the complete federation design remains C0 (Specified).** The bounded
+contract/kernel slice recorded in
+`docs/superpowers/evidence/2026-08-24-abbey-v1-contract-kernel-c1.md` has local
+C1 source and contract evidence only. It does not establish a running service,
+qualified consumer, deployed adapter, or live federation witness.
 
 Author date: 2026-08-22.
 Governing document: `docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`.

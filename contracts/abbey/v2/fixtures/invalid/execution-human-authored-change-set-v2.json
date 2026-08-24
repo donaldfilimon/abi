@@ -1,0 +1,26 @@
+{
+  "case_id": "execution_human_authored_change_set_v2",
+  "schema": "https://abbey.local/contracts/abbey/v2/schemas/capability/change-set.schema.json",
+  "expect": "proposal_authority_invalid",
+  "document": {
+    "operation_id": "operation_ref",
+    "change_set_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "requested_by": {"principal_id": "requester_ref", "kind": "human_subject"},
+    "proposed_by": {"principal_id": "editor_ref", "kind": "human_subject"},
+    "guild_ref": "guild_ref",
+    "capability_id": "discord.channel.organize",
+    "capability_version": "2.0.0",
+    "package_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "compensation_class": "ExactRestore",
+    "risk_class": "Medium",
+    "required_approval": "A3Admin",
+    "precondition_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "expected_postcondition_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "rollback_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "snapshot_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "generator_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+    "created_at_ms": 1000,
+    "expires_at_ms": 301000,
+    "prepared_ttl_ms": 120000
+  }
+}
