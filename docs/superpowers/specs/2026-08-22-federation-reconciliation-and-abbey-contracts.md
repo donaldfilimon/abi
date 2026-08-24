@@ -688,8 +688,10 @@ Program 1 implementation order:
 - Every schema and fixture has a manifest entry and digest.
 - Two independent digest implementations agree.
 - Nightly Rust, stable Rust, and Swift pass the same corpus.
-- WDBX passes the episode, evidence, claim, retention, tombstone, and canonical-
-  CBOR subset and cannot decode an adapter projection as a canonical episode.
+- WDBX passes the episode, evidence, claim, retention, and tombstone subset and
+  cannot decode transport JSON or an adapter projection as a canonical
+  episode. Positive canonical-CBOR decoding requires an approved golden
+  fixture; the v1 corpus does not yet contain one and no encoding was invented.
 - Invalid authority, unknown-field, over-bound, stale-consent, and
   mismatched-digest fixtures fail closed.
 - Privacy tests prove errors, events, receipts, reports, and fixtures retain no
@@ -780,17 +782,25 @@ explicitly participant-consented session.
 
 ## 15. Evidence statement
 
-This document remains approved C0 design evidence. The checked-in Program 1
-source corpus separately establishes ABI-local C1 source and contract evidence:
-81 manifest-bound artifacts (86,945 bytes) at aggregate digest
-`43d606a06d4bd9de08a651a984a61c611f9ffe0c8150b105b0cbf50c801f0fa7`, 73
-Python repository/corpus behavior tests, independent Rust digest/schema/fixture
-verification, four temporary fail-closed mutations, and the complete local ABI
-strict gate on 2026-08-22.
+This document remains approved C0 design evidence. The final Program 1 v1
+source corpus establishes C1 source evidence at ABI revision
+`348754bdaaf59a40fbb858380f925e0aba95a23b`: 81 manifest-bound artifacts,
+88,328 bytes, 27 schemas, 52 fixtures, and aggregate digest
+`72e241e34967df318376bf68f4a0e2db13f5ebf17d1a219709731f1f470dbe8e`.
+The deterministic vendoring protocol, ABI reference validator, and independent
+Rust verifier pass the complete ABI strict gate.
 
-That evidence does not establish stable-Rust or Swift consumer conformance, an
-installed artifact, hosted workflow success, another repository's
-compatibility, production federation, authorization behavior, durable WDBX
-behavior, deployment qualification, or a participant-consented live Discord
-session. Public provider visibility and anonymous source readability remain
-separate observations above.
+The redacted
+[Program 1 C1 conformance matrix](../evidence/2026-08-22-program-1-c1-matrix.md)
+records exact WDBX, nightly-Rust Abbey, stable-Rust Abbey bot, and Swift AbbeyBot
+consumer revisions and their independent native gates. All four consumer trees
+are byte-identical to the qualified ABI source. The matrix also records the
+positive canonical-CBOR fixture gap, hosted/default-branch state, and each
+environmental qualification without widening the C1 claim.
+
+This evidence does not establish an installed artifact, production federation,
+production authorization behavior, a real Discord or provider effect, a
+durable WDBX episode write, deployment qualification, or a
+participant-consented live Discord session. Public visibility, anonymous source
+readability, local gates, hosted checks, installed artifacts, provider delivery,
+and witnessed live operation remain separate observations.

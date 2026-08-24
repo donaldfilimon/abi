@@ -111,7 +111,8 @@ class PublicWdbxWorkflowTests(unittest.TestCase):
         text = load_ci_text()
         self.assertNotIn("WDBX_CHECKOUT_TOKEN", text)
         self.assertNotIn("Require the substrate credential", text)
-        self.assertNotIn("token: ${{ secrets.", text)
+        github_expression = "token: $" + chr(123) * 2 + " secrets."
+        self.assertNotIn(github_expression, text)
         self.assertEqual(text.count("repository: donaldfilimon/wdbx"), 3)
         self.assertIn("WDBX_REVISION: f42b9789eabcf89f952df0a160a7b6837c5acb57", text)
 
