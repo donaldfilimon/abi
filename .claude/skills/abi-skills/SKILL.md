@@ -36,16 +36,18 @@ Codex plugin.
 
 **The home copy of this skill is not synchronized, and it drifts.** `/sync-clis`
 copies only the names in `CORE_SKILLS` in `~/.grok/scripts/sync-clis.py`, and
-`abi-skills` is not among them (verified 2026-08-22). Nothing keeps
-`~/.claude/skills/abi-skills/SKILL.md` in step with the canonical file here, and
-on 2026-08-22 that home copy was still the pre-rewrite Zig text — prescribing
+`abi-skills` is not among them (verified 2026-08-23). Nothing keeps the global
+`~/.agents/skills/abi-skills/SKILL.md`,
+`~/.claude/skills/abi-skills/SKILL.md`, or
+`~/.codex/skills/abi-skills/SKILL.md` in step with the canonical file here. The
+Claude copy was still the pre-rewrite Zig text on 2026-08-22, and the Agents
+copy had the same stale text on 2026-08-23 — prescribing
 `.zigversion`, `~/.zvm` PATH prefixes, `./build.sh check-parity`, and fixtures
 under `src/plugins/`, none of which exist. A session invoked through the home
 skill therefore starts from instructions the repository contradicts. **Diff the
 copy you were handed against `.agents/skills/abi-skills/SKILL.md` before
-following it**, and when you correct this file, push the same text to
-`~/.claude/skills/abi-skills/SKILL.md` and `~/.codex/skills/abi-skills/SKILL.md`
-by hand, because the launcher will not.
+following it**, and when you correct this file, push the same text to all three
+home copies by hand, because the launcher will not.
 
 **Do not run `sync-clis/launch.sh` from a worktree.** The launcher stamps an
 absolute `Base directory for this skill: <checkout>/.claude/skills/<name>` line
