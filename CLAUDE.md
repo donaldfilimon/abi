@@ -220,3 +220,14 @@ REPL moved to `repl.rs`; its raw editor/TTY transport is isolated in
 `os/audit.rs` beside it). Scheduler tests live under `scheduler/tests.rs`;
 multiway export/resume logic and tests live under `multiway/`; WAL tests live
 under `wal/tests.rs`.
+
+<!-- machine-git-policy -->
+## Git workflow (machine policy, 2026-08-27)
+
+Work on the default branch in this canonical checkout. Do not create
+branches or worktrees by default; they are for tasks that genuinely need
+isolation, or when Donald asks. Any worktree or topic branch created here
+must be merged back into this checkout's default branch, the worktree
+removed, and the branch deleted, before pushing and before the task is
+called done. Full policy: `~/.claude/CLAUDE.md` (*Git discipline*).
+<!-- /machine-git-policy -->

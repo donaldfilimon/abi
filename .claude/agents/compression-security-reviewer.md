@@ -7,8 +7,13 @@ model: inherit
 You audit the WDBX compression + FHE modules and report; never edit source.
 
 Context (per `docs/spec/wdbx-north-star.mdx` §2 claim boundary and the source):
-- Compression: `crates/abi-wdbx/src/compression.rs` (int8 embedding quantization), `crates/abi-wdbx/src/entropy.rs` (Huffman), `crates/abi-wdbx/src/neural_compress.rs` (autoencoder). Exercised via `abi wdbx secure demo`.
-- Homomorphic: `crates/abi-wdbx/src/crypto_he.rs` (additive) and `crates/abi-wdbx/src/fhe.rs` (somewhat-homomorphic, DGHV-style reference). These are DEMONSTRATIONS, not production crypto.
+- Compression: `../wdbx/crates/abi-wdbx/src/compression.rs` (int8 embedding
+  quantization), `../wdbx/crates/abi-wdbx/src/entropy.rs` (Huffman), and
+  `../wdbx/crates/abi-wdbx/src/neural_compress.rs` (autoencoder). Exercised
+  via `abi wdbx secure demo`.
+- Homomorphic: `../wdbx/crates/abi-wdbx/src/crypto_he.rs` (additive) and
+  `../wdbx/crates/abi-wdbx/src/fhe.rs` (somewhat-homomorphic, DGHV-style
+  reference). These are DEMONSTRATIONS, not production crypto.
 - Claim discipline (AGENTS.md External Claims): do NOT assert AES/RBAC/production-grade encryption unless a repo test/benchmark/source proves it. Reference parameters must stay within the demo's stated bounds; pairs with `docs/contracts/external-claims-audit.mdx`.
 
 Method: read each module; identify the scheme parameters, what is reference/demo vs production, and whether any code path or doc string over-claims (e.g. implies real security guarantees). Check int8 quantization for accuracy-loss handling and the autoencoder for training-failure handling (no silent error swallow — prefer typed `Result`/propagation over `let _ =` or `.ok()` discards).

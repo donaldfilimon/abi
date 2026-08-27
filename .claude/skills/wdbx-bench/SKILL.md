@@ -57,4 +57,4 @@ It builds the CLI, runs `abi wdbx benchmark <count>`, and asserts the markers
 | Symptom | Fix |
 |---|---|
 | `build` FAIL | Run `./tools/check.sh` to see the real error. |
-| missing `inserts:`/`searches:` marker | CLI grammar drifted — check `crates/abi-cli` WDBX handler + `crates/abi-wdbx`. |
+| missing `inserts:`/`searches:` marker | CLI grammar drifted — check the `crates/abi-cli` WDBX handler and `../wdbx/crates/abi-wdbx`. |
