@@ -539,6 +539,14 @@ mod tests {
     fn auth_signin_without_token_fails_honestly() {
         // Without ABI_AUTH_TOKEN and with empty non-TTY stdin, signin fails loudly
         // rather than hanging or inventing a credential.
+        //
+        // The "empty stdin" half of that precondition is not self-enforcing:
+        // `run` calls `read_secret` in-process, so it reads this test binary's
+        // own stdin. With no token set and stdin not a TTY, `read_secret`
+        // blocks in `read_line` until EOF, so an inherited stdin that stays
+        // open hangs this test rather than failing it. `tools/check.sh` runs
+        // the suite with `< /dev/null` to guarantee EOF; invoke `cargo test`
+        // the same way when running it by hand.
         let outcome = run(&args(&["auth", "signin", "openai"]));
         assert_eq!(outcome.exit_code, 1, "{}", outcome.stderr);
         assert!(

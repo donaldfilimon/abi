@@ -38,11 +38,17 @@ step "build"
 "${CARGO}" build --workspace --all-targets
 
 step "tests"
-"${CARGO}" test --workspace
+# Tests run with stdin at EOF. `abi auth signin` reads a secret from stdin when
+# ABI_AUTH_TOKEN is unset and stdin is not a TTY, so a test that exercises the
+# no-token path (app::tests::auth_signin_without_token_fails_honestly) blocks
+# forever on an inherited stdin that stays open. Redirecting here enforces the
+# non-TTY-empty-stdin precondition those tests document instead of inheriting
+# whatever the caller happened to have open.
+"${CARGO}" test --workspace < /dev/null
 
 step "local model device features"
 if [[ "$(uname -s)" == "Darwin" ]]; then
-  "${CARGO}" test -p abi-model-runtime --features metal
+  "${CARGO}" test -p abi-model-runtime --features metal < /dev/null
   RUSTDOCFLAGS="-D warnings" "${CARGO}" doc -p abi-model-runtime --features metal --no-deps --document-private-items --quiet
 else
   printf 'Metal runtime evidence unavailable: this gate is not running on macOS\n'

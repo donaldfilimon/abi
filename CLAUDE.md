@@ -41,6 +41,13 @@ PR #777 and now defers to `AGENTS.md`.
 | `./tools/cargo.sh clippy --workspace --all-targets -- -D warnings` | Lint, matching the gate exactly |
 | `./mcp/launcher.sh` | Launch the MCP server; prefers `target/release/abi-mcp` then `target/debug/abi-mcp`; run from repo root (or via the launcher) so `@loader_path` resolves `libabi_fm_shim.dylib` on arm64 macOS; set `ABI_MCP_AUTO_BUILD=1` to build on demand |
 
+**Run any `cargo test` here with `< /dev/null`.** `abi auth signin` reads a
+secret from stdin when `ABI_AUTH_TOKEN` is unset and stdin is not a TTY, and
+`app::tests::auth_signin_without_token_fails_honestly` exercises that no-token
+path in-process — so it blocks forever on an inherited stdin that stays open
+(a pipe, or a terminal). `tools/check.sh` redirects for you; a bare
+`./tools/cargo.sh test --workspace` typed by hand does not.
+
 There is no separate lint-only or build-only CI — `.github/workflows/ci.yml`
 runs `./tools/check.sh` on a **self-hosted macOS ARM64 runner** for trusted
 same-repo pushes/PRs, and that job does execute (see
