@@ -11,6 +11,9 @@ source. Session-start checklist: `tasks/lessons.md`; active board: `tasks/todo.m
   rustup on this machine — **always** use `./tools/cargo.sh` (never bare
   `cargo`). That wrapper also keeps Swiftly's `cc` from breaking the link step.
 - Primary gate: `./tools/check.sh` (fmt, clippy `-D warnings`, build, test, docs).
+- `./tools/check.sh` also runs `tools/check_rust_sizes.sh`, which caps every Rust
+  file at **1,000 lines** and `crates/abi-cli/src/main.rs` at **200**. A refactor
+  that pushes a file over either limit fails the gate before clippy runs.
 
 ## Commands
 
@@ -24,6 +27,14 @@ source. Session-start checklist: `tasks/lessons.md`; active board: `tasks/todo.m
 | `./tools/cargo.sh clippy --workspace --all-targets -- -D warnings` | Lint |
 
 Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
+
+**Redirect stdin on every hand-typed `cargo test` here:**
+`./tools/cargo.sh test --workspace < /dev/null`. `abi auth signin` reads a
+secret from stdin when `ABI_AUTH_TOKEN` is unset and stdin is not a TTY, and
+`app::tests::auth_signin_without_token_fails_honestly` exercises that path
+in-process — on an inherited open stdin it blocks in `read_line` forever and
+reads as a hung suite rather than a failing test. `tools/check.sh` redirects
+for you (added 2026-08-28); a direct `cargo.sh test` does not.
 
 ## Architecture
 
@@ -45,6 +56,9 @@ Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
 - **MCP launcher** (`mcp/launcher.sh`): prefers `target/release/abi-mcp` then
   `target/debug/abi-mcp`; optional `ABI_MCP_AUTO_BUILD=1`.
 - Golden fixtures under `tests/golden/` pin frozen CLI/MCP surfaces.
+- Canonical `ABI_*` environment names and all environment access live in
+  `../wdbx/crates/abi-foundation/src/env.rs`. Use its override and locking
+  hooks in tests rather than mutating the process environment ad hoc.
 
 ## Frozen surfaces (contract-tested — don't break)
 
@@ -84,6 +98,10 @@ use scratch `DurableStore` paths, `ABI_WDBX_PATH=:memory:`, or
   therefore skipped on trusted same-repo work. Treat either an executed
   self-hosted gate or Windows ACL failure as blocking; a conditionally skipped
   fallback is not a code failure.
+- Every CI job checks out `donaldfilimon/wdbx` into `../wdbx` at a pinned
+  revision, because ABI's manifests resolve the five substrate crates through
+  that relative path. A CI failure naming `abi-compute`/`abi-wdbx` as a missing
+  package is a checkout-pin problem, not a broken manifest.
 
 ## Learned User Preferences
 
