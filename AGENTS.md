@@ -1,7 +1,9 @@
 # AGENTS.md — abi
 
-Canonical instruction file for the **Rust (nightly)** ABI framework. Sibling
-files `CLAUDE.md` / `GEMINI.md` are thin redirects here. If anything conflicts
+Canonical instruction file for the **Rust (nightly)** ABI framework. `GEMINI.md`
+is a thin redirect here; `CLAUDE.md` is **not** — it is a deliberately expanded
+companion (env-var table, code-quality hotspots, conventions) that defers to this
+file where the two disagree. If anything conflicts
 with executable source (`Cargo.toml`, `tools/check.sh`, `crates/`), trust the
 source. Session-start checklist: `tasks/lessons.md`; active board: `tasks/todo.md`
 (OpenCode loads all three through `opencode.json`'s `instructions`).

@@ -30,7 +30,7 @@ PR #777 and now defers to `AGENTS.md`.
 
 | Command | What it does |
 |---|---|
-| `./tools/check.sh` | **Primary gate.** fmt check, clippy `-D warnings`, workspace build + tests, `tools/bench_regress.sh` (same-system benchmark-regression guard), doc build. Run this before considering any change done. |
+| `./tools/check.sh` | **Primary gate.** Run this before considering any change done. `AGENTS.md` carries the authoritative step order; the steps that surprise people are the three that run *before* fmt — repository policy tests, the Abbey contract corpus, and `tools/check_rust_sizes.sh` — plus `tools/bench_regress.sh` (same-system benchmark-regression guard), which runs after the workspace tests and before the doc build. |
 | `./build.sh check` | Thin compat wrapper → `./tools/check.sh` |
 | `./tools/cargo.sh build -p abi-cli` | Build `target/debug/abi` |
 | `./tools/cargo.sh build -p abi-mcp` | Build `target/debug/abi-mcp` |
