@@ -3,14 +3,19 @@
 Canonical instruction file for the **Rust (nightly)** ABI framework. Sibling
 files `CLAUDE.md` / `GEMINI.md` are thin redirects here. If anything conflicts
 with executable source (`Cargo.toml`, `tools/check.sh`, `crates/`), trust the
-source. Session-start checklist: `tasks/lessons.md`; active board: `tasks/todo.md`.
+source. Session-start checklist: `tasks/lessons.md`; active board: `tasks/todo.md`
+(OpenCode loads all three through `opencode.json`'s `instructions`).
 
 ## Toolchain
 
 - **Nightly Rust** via `rust-toolchain.toml`. Homebrew stable `cargo` shadows
   rustup on this machine — **always** use `./tools/cargo.sh` (never bare
   `cargo`). That wrapper also keeps Swiftly's `cc` from breaking the link step.
-- Primary gate: `./tools/check.sh` (fmt, clippy `-D warnings`, build, test, docs).
+- Primary gate: `./tools/check.sh`, in step order — repository policy tests,
+  Abbey contract corpus, Rust source size limits, fmt, clippy `-D warnings`,
+  build, workspace tests, local model device features (Metal on macOS; CUDA
+  compile only when `nvcc` exists), the same-system benchmark regression guard,
+  and docs. A step skipped for a missing platform prints why and is not a failure.
 - `./tools/check.sh` also runs `tools/check_rust_sizes.sh`, which caps every Rust
   file at **1,000 lines** and `crates/abi-cli/src/main.rs` at **200**. A refactor
   that pushes a file over either limit fails the gate before clippy runs.
@@ -48,6 +53,10 @@ for you (added 2026-08-28); a direct `cargo.sh test` does not.
   `abi-foundation`, `abi-telemetry`, and `abi-wdbx`. The sibling directories
   must stay adjacent because `Cargo.toml` resolves them through relative path
   dependencies; never recreate stale `crates/abi-*` copies here.
+- `abi-ai` owns deterministic persona routing and depends only on
+  `abi-foundation`, `abi-telemetry`, and serde — no WDBX, no I/O. Keep
+  retrieval and persistence in `abi-sea`, the CLI/MCP layer, or the substrate;
+  adding a store dependency here breaks the routing crate's determinism.
 - The sibling `abi-wdbx` package is the **provenance-aware episodic substrate**
   under the Abbey System Constitution, not merely a vector store. Conformance
   against its specification is measured in
