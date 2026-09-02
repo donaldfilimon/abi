@@ -57,7 +57,7 @@ jobs:
       - name: Ensure exact repository toolchain
         run: |
           rustup show
-          rustup toolchain install nightly-2026-09-01 --profile minimal --component rustfmt clippy rust-src
+          rustup toolchain install nightly-2026-09-01 --profile minimal --component rustfmt,clippy,rust-src
       - name: ./tools/check.sh
         run: ./tools/check.sh
 

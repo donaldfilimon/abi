@@ -31,6 +31,20 @@ class PublicWdbxWorkflowTests(unittest.TestCase):
     def test_repository_workflow_is_safe_and_credential_free(self) -> None:
         self.assertEqual(self.validate(), ())
 
+    def test_self_hosted_toolchain_install_uses_one_component_argument(self) -> None:
+        command = re.search(
+            r"rustup toolchain install nightly-2026-09-01[^\n]+",
+            self.workflow,
+        )
+        self.assertIsNotNone(command)
+        self.assertEqual(
+            command.group(0).strip(),
+            (
+                "rustup toolchain install nightly-2026-09-01 --profile minimal "
+                "--component rustfmt,clippy,rust-src"
+            ),
+        )
+
     def test_every_repository_workflow_disables_checkout_credentials(self) -> None:
         workflows = _workflow_files(ROOT / ".github" / "workflows")
         self.assertTrue(workflows)
