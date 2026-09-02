@@ -43,7 +43,7 @@ class PublicWdbxWorkflowTests(unittest.TestCase):
 
     def test_validator_catches_a_mutable_or_stale_wdbx_revision(self) -> None:
         mutated = self.workflow.replace(
-            "f42b9789eabcf89f952df0a160a7b6837c5acb57",
+            "8ceca077e1d888c2955a0aa52bcbb278c01967a5",
             "main",
             1,
         )

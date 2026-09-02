@@ -24,7 +24,7 @@ env:
   # Pinned for reproducibility, mirroring abbey's ABI_REVISION convention and
   # requirement R12 (a result must be tied to immutable code). Bump this only
   # through a reviewed change whose exact WDBX revision passes this workflow.
-  WDBX_REVISION: f42b9789eabcf89f952df0a160a7b6837c5acb57
+  WDBX_REVISION: 8ceca077e1d888c2955a0aa52bcbb278c01967a5
 
 jobs:
   check:
@@ -40,23 +40,24 @@ jobs:
       run:
         working-directory: abi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: abi
+          persist-credentials: false
       # ABI's Cargo manifests consume these crates through ../wdbx. The public
       # source checkout remains pinned and must be a sibling so Cargo observes
       # one crate identity across ABI and WDBX.
       - name: Check out the public WDBX substrate as a sibling
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: donaldfilimon/wdbx
           ref: ${{ env.WDBX_REVISION }}
           path: wdbx
-      - name: Ensure rustup nightly
+          persist-credentials: false
+      - name: Ensure exact repository toolchain
         run: |
           rustup show
-          rustup toolchain install nightly --profile minimal
-          rustup component add --toolchain nightly rustfmt clippy rust-src
+          rustup toolchain install nightly-2026-09-01 --profile minimal --component rustfmt clippy rust-src
       - name: ./tools/check.sh
         run: ./tools/check.sh
 
@@ -70,17 +71,20 @@ jobs:
       run:
         working-directory: abi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: abi
+          persist-credentials: false
       - name: Check out the public WDBX substrate as a sibling
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: donaldfilimon/wdbx
           ref: ${{ env.WDBX_REVISION }}
           path: wdbx
-      - uses: dtolnay/rust-toolchain@nightly
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
         with:
+          toolchain: nightly-2026-09-01
           components: rustfmt, clippy
       - name: ./tools/check.sh
         run: ./tools/check.sh
@@ -100,17 +104,20 @@ jobs:
       run:
         working-directory: abi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: abi
+          persist-credentials: false
       - name: Check out the public WDBX substrate as a sibling
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: donaldfilimon/wdbx
           ref: ${{ env.WDBX_REVISION }}
           path: wdbx
-      - uses: dtolnay/rust-toolchain@nightly
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
         with:
+          toolchain: nightly-2026-09-01
           components: rustfmt, clippy
       - name: Windows ACL + credentials file tests
         shell: bash
