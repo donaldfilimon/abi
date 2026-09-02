@@ -4,11 +4,17 @@ set -euo pipefail
 
 repo_dir="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_dir"
+wdbx_manifest="$repo_dir/../wdbx/Cargo.toml"
 
-./tools/cargo.sh test --release -p abi-wdbx \
+if [[ ! -f "$wdbx_manifest" ]]; then
+  echo "missing required sibling WDBX manifest: $wdbx_manifest" >&2
+  exit 1
+fi
+
+./tools/cargo.sh test --manifest-path "$wdbx_manifest" --release -p abi-wdbx \
   --features full-fhe,experimental-dghv-bootstrap \
   fhe::tests::educational_refresh_has_complete_truth_tables_and_fresh_ciphertexts
-./tools/cargo.sh test --release -p abi-wdbx \
+./tools/cargo.sh test --manifest-path "$wdbx_manifest" --release -p abi-wdbx \
   --features full-fhe \
   fhe::tfhe_demo::tests::pinned_tfhe_apis_execute_with_ephemeral_keys
 ./tools/cargo.sh test --release -p abi-cli \
