@@ -1,117 +1,122 @@
 ---
 name: sync-clis
-description: Sync canonical skills/personas/commands from central (~/.grok/skills + abi-mega) to all CLIs (grok, claude, codex, opencode, abi, agents, cursor, hermes, openclaw, factory, coreai, gemini). Idempotent. Launch with /sync-clis or launch.sh.
+description: Synchronize the explicitly cataloged portable skills and runtime-native task-agent and command adapters across Grok, Claude, Codex, OpenCode, ABI, shared agents, Cursor, Hermes, OpenClaw, Factory, CoreAI, and Gemini. Use for /sync-clis, cross-CLI skill drift, agent adapter drift, or OpenCode command repair.
 ---
+
 # /sync-clis
 
-There are **two distinct sync mechanisms**. They are not substitutes — they move
-different files between different directories. Know which one you are running.
+Two complementary mechanisms exist. Run them in this order.
 
-## A. Central driver — what `/sync-clis` actually runs
+## A. Central cross-CLI synchronization
 
-`~/.grok/skills/sync-clis/launch.sh`
-  -> `~/.grok/scripts/run-sync-clis.sh`  (tee wrapper; writes `sync.log` + `verify-evidence-main.txt`)
-  -> `~/.grok/scripts/sync-clis.py --verbose`
+Entry points:
 
-- **Source of truth:** `~/.grok/skills` (`central.skills` in `~/.grok/sync-targets.json`).
-- **Targets:** the 12 entries in `~/.grok/sync-targets.json` — grok, claude,
-  codex, opencode, abi, agents, cursor, hermes, openclaw, factory, coreai, gemini.
-- **Scope is narrow:** only the ~14 names in the script's `CORE_SKILLS` list
-  (`sl`, `check-work`, `code-review`, `abi-doc-claims-sync`, `help`,
-  `create-skill`, `imagine`, `docx`, `pptx`, `xlsx`, `sync-clis`, `swift`,
-  `goal-ledger`, `aggressive-macos-cleanup`) plus all seven task-role files in
-  `CORE_PERSONAS` (`design-doc-reviewer`, `design-doc-writer`, `implementer`,
-  `researcher`, `reviewer`, `security-auditor`, and `test-writer`). Codex is the
-  only non-source persona destination. The driver does **not** sync the full
-  skill set or the global Abbey charter.
-- `opencode` gets a flat `command/<name>.md` wrapper instead of a `SKILL.md` subdir.
-- `references/`, `scripts/`, `examples/`, and `assets/` are compared by entry
-  type and bytes. A divergent destination is **rmtree'd then copytree'd**; an
-  identical tree is left untouched. Replacement is still destructive, not a
-  merge, when a difference exists.
+- `~/.grok/skills/sync-clis/launch.sh`
+- `~/.grok/scripts/run-sync-clis.sh`
+- `python3 ~/.grok/scripts/sync-clis.py --verbose`
 
-## B. Repo launcher — in-repo mirrors
+Authoritative configuration:
 
-`~/dev/active/abi/.agents/skills/sync-clis/launch.sh [--dry-run]`
+- Manifest and artifact catalog: `~/.grok/sync-targets.json`
+- Portable skill source: `~/.grok/skills`
+- Task persona source: `~/.grok/bundled/personas`
+- Role source: `~/.grok/bundled/roles`
+- ABI Mega seed source: `~/dev/active/plugins/abi-mega/skills`
 
-- **Source:** `~/dev/active/abi/.agents/skills/`.
-- **Targets:** in-repo `~/dev/active/abi/.claude/skills/` and
-  `~/dev/active/abi/.grok/` (when present —
-  the launcher skips 12 universal skills listed in its `case` statement).
-- Copies `SKILL.md` plus `references/`/`examples/`; never copies `.sh` launchers.
-- Its `--dry-run` is honest: it echoes every intended write.
+The catalog distinguishes four classes:
 
-The central driver never touches the in-repo mirrors, so running A alone leaves
-`~/dev/active/abi/.claude/skills/` and `~/dev/active/abi/.grok/` stale. Run A,
-then B.
+1. `portableSkills`: user-maintained canonical skills synchronized to declared targets.
+2. `taskAgents`: central personas and roles rendered through runtime-native adapters.
+3. `externalLinkedSkills`: vendor/plugin-owned symlinks recorded for inventory but not mirrored as canonical content.
+4. `repositorySkillRoots`: repository-specific skills that remain under repository authority.
 
-## Gotchas — verified, do not skip
+Unmatched target files are preserved. The driver updates only names explicitly
+listed in the catalog. Supporting `references/`, `scripts/`, `examples/`,
+and `assets/` trees are synchronized as a source projection; destination-only
+entries are not deleted.
 
-1. **The python `--dry-run` lies by omission.** It reports a skill as changed
-   only when the destination `SKILL.md` is *missing*; it never detects a
-   *divergent* file. A clean dry-run says nothing about overwrites.
-2. **The driver writes git-tracked files in `~/dev/active/abi`.** The `abi`
-   target's `skillsDir` is `~/dev/active/abi/.agents/skills`, and the
-   `CORE_SKILLS` loop copies into it unguarded. The seed-only "skip if it
-   exists" guard protects only the later *abi-mega* branch, so
-   `abi-doc-claims-sync` (in both lists) is written by the unguarded path first.
-   **Diff before running on `main`:**
-   ```bash
-   for s in sl check-work code-review abi-doc-claims-sync help create-skill \
-            imagine docx pptx xlsx sync-clis swift goal-ledger; do
-     diff -q ~/.grok/skills/$s/SKILL.md \
-       ~/dev/active/abi/.agents/skills/$s/SKILL.md \
-       >/dev/null 2>&1 || echo "DIVERGENT/absent: $s"
-   done
-   ```
-   Check the *direction* of any divergence before deciding — the repo copy is
-   sometimes the stale one, in which case the write is a fix, not a clobber.
-   Either way it dirties a tracked file: surface the diff, do not auto-commit.
-3. **The marker is deterministic.** `.plugins-synced-from-central` in each
-   target `skillsDir` records only the target identity and is rewritten only
-   when missing or divergent. The retired ABI root `src/` tree is not a sync
-   target and must not be recreated. ABI Mega is discovered from
-   `central.abiMega` in `~/.grok/sync-targets.json`. A complete unchanged second
-   run must report `0 actions/changes`.
-4. **`~/.claude/skills/sync-clis/` is a sync target, not a source.** Editing it
-   is pointless — the next run overwrites it from `~/.grok/skills/sync-clis/`.
-   Edit the canonical copy.
-5. The repo launcher's `sed` rewrite of `^Base directory for this skill:` is a
-   no-op against these files — that line is harness-injected at invocation, not
-   stored in `SKILL.md`.
-6. The interactive shell here has `noclobber` set; plain `cat > file` is refused.
-   Use `cat >| file` when scripting edits by hand.
+### Runtime adapters
 
-7. **`abi-mega` is a live dependency — never archive or delete it.** It lives at
-   `~/dev/active/plugins/abi-mega` (moved twice: `~/plugins/` → `~/Projects/plugins/`
-   2026-08-04 → `~/dev/active/plugins/` 2026-08-09; the manifest
-   `~/.grok/sync-targets.json` was repointed both times and all 14 sync paths
-   verified). Central sources: `~/.grok/skills` (14 core synced skills) + abi-mega's `skills/`,
-   plus `~/.grok/bundled/personas` and `~/.grok/bundled/roles`. The sync recreates
-   `~/tmp/grok-goal-scratch/implementer/` for logs — that dir reappearing is
-   expected, not clutter.
-8. **Two sync mechanisms; the central one does not cover the other's targets.**
-   (A) the central driver above; (B) `~/dev/active/abi/.agents/skills/sync-clis/launch.sh`,
-   which mirrors abi's in-repo skills into `~/dev/active/abi/.claude/skills` and
-   `~/dev/active/abi/.grok`. **Run A, then B** — A alone leaves the in-repo mirrors
-   stale. B is idempotent (run 2026-08-19: 0 git changes).
-9. **opencode gets flat `command/<name>.md` wrappers, and `sync-clis.py` writes
-   them only `if not wrapper.exists()` — it can never repair or update one.**
-   New wrappers copy the complete central `SKILL.md` plus a source marker;
-   existing wrappers remain untouched. Found 2026-08-19: all 11 wrappers had accumulated
-   duplicate YAML frontmatter, so the visible description was the stub `synced from
-   central`. Rebuilt all 13 by hand (backup:
-   `~/Archive/2026-08-18-home-cleanup/opencode-command-before-2026-08-19/`). The
-   first-six cap was removed 2026-08-23 so new core skills can reach OpenCode;
-   the missing-only behavior still means divergent wrappers need manual repair.
-10. Parsing a `SKILL.md` frontmatter description with a regex is wrong — many use
-    folded scalars (`description: >`), and a naive pattern captures the literal
-    `>`. Parse the block scalar properly.
+- Codex task agents: `~/.codex/agents/*.toml`
+- Claude Code subagents: `~/.claude/agents/*.md`
+- OpenCode subagents: `~/.config/opencode/agents/*.md`
+- OpenCode skills: `~/.config/opencode/skills/<name>/SKILL.md`
+- OpenCode commands: both the documented `commands/*.md` surface and the
+  installed version's `command/*.md` compatibility surface
 
-## ABI context
+The OpenCode command renderer writes one frontmatter block: the canonical
+`SKILL.md` content followed by one source marker. Existing managed wrappers
+are compared and repaired, not merely seeded when absent.
 
-`~/dev/active/abi` is a **nightly Rust** workspace (`crates/*`,
-`./tools/cargo.sh`, `./tools/check.sh`). The Zig tree was removed in the Rust
-rewrite — synced skill text must not reference `build.zig`, `zig build`,
-`.zigversion`, or `src/` as ABI source. (Unrelated Zig projects such as
-`cell-lang` are fine to mention as such.)
+### Dry-run contract
+
+`--dry-run` performs the same byte and projected-tree comparisons as an apply
+run without writing managed targets. It reports missing and divergent skills,
+agents, commands, supporting files, and markers.
+
+A successful apply must be followed by a second full run. Acceptance is:
+
+```text
+Done. 0 actions/changes.
+```
+
+A zero-change run is meaningful only after the driver and manifest validate and
+all requested targets were included.
+
+## B. ABI in-repository mirror synchronization
+
+Run after the central pass:
+
+```bash
+~/dev/active/abi/.agents/skills/sync-clis/launch.sh [--dry-run]
+```
+
+This mechanism mirrors ABI's repository-authoritative skills into its
+`.claude/skills/` and `.grok/` surfaces. The central driver does not replace
+this in-repository mirror step.
+
+Before applying it:
+
+1. Inspect `git -C ~/dev/active/abi status --short --branch`.
+2. Preserve unrelated dirty work.
+3. Run the launcher's dry-run and review every named write.
+4. Apply.
+5. Confirm the resulting ABI diff is limited to intended mirror changes.
+6. Run it again and require no further writes.
+
+## Safety invariants
+
+- Never edit a synchronized target copy when the canonical central source is the
+  intended authority.
+- Never treat `~/.codex/memories` as a task-agent destination.
+- Never copy external/vendor symlinks into the portable catalog without first
+  choosing and preserving their real upstream authority.
+- Never delete unmatched runtime-native skills, agents, commands, or plugins.
+- Never delete or archive `~/dev/active/plugins/abi-mega`; it is a live source.
+- ABI's repo-adapted ABI Mega skills are seed-only and are not overwritten.
+- The ABI repository is a nightly Rust workspace; do not reintroduce removed
+  Zig-era paths or commands.
+- Central synchronization may intentionally dirty tracked ABI skill files when
+  canonical portable content changed. Inspect the diff and run repository gates
+  before committing.
+- Preserve recovery evidence before catalog repair or any destructive retirement.
+
+## Verification checklist
+
+```bash
+python3 -c 'from pathlib import Path; compile(Path.home().joinpath(".grok/scripts/sync-clis.py").read_text(), "sync-clis.py", "exec")'
+python3 -m json.tool ~/.grok/sync-targets.json >/dev/null
+python3 ~/.grok/scripts/sync-clis.py --dry-run --verbose
+~/.grok/skills/sync-clis/launch.sh
+~/dev/active/abi/.agents/skills/sync-clis/launch.sh
+~/.grok/skills/sync-clis/launch.sh
+```
+
+Then verify:
+
+- the final central run reports `0 actions/changes`;
+- every managed direct skill copy matches its source `SKILL.md`;
+- OpenCode's resolved agent list includes the managed task agents;
+- Codex agent TOML parses;
+- Claude and OpenCode Markdown agents have exactly one frontmatter block;
+- ABI's final diff is reviewed and its matching gate is run before closeout.

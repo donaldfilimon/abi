@@ -22,11 +22,29 @@ General Swift language knowledge is assumed; this skill encodes **machine- and r
 ## Hard toolchain rules
 
 1. Always `unset TOOLCHAINS` (or `unset TOOLCHAINS || true`) before any Swift invocation.
-2. Always invoke Swift via Xcode:
+   This one is universal — it holds in every tree, including the exceptions below.
+2. **Default** (AbbeyBot, AbbeyCompanion, CoreAIAssistant, Invasion3D, Mixed):
+   invoke Swift via Xcode.
 
 ```bash
 /usr/bin/xcrun --toolchain default swift …
 ```
+
+   **⚠️ TWO TREES ARE EXCEPTIONS AND PIN THEIR OWN SNAPSHOT. Using Xcode's
+   default there is the WRONG COMPILER**, and the check scripts will reject it:
+
+| Tree | Pin | Everyday invocation |
+|------|-----|---------------------|
+| `~/Desktop/Gama` | `.swift-version` = `main-snapshot-2026-08-21` (Swift 6.5-dev, id `org.swift.65202608211a`) | `swiftly run swift <build\|run\|test>` from the repo root |
+| `~/Desktop/String` | same snapshot via `.swift-version`; Xcode 6.4 is a **secondary** route, not the primary | `swiftly run swift build +main-snapshot-2026-08-21 --scratch-path <outside-iCloud> -Xswiftc -warnings-as-errors` |
+
+   Gama's own `CLAUDE.md` states it is the machine-wide exception to the
+   "Xcode default toolchain" rule; its `check-*.sh` scripts verify
+   `Swift version 6.5` and fail loudly on mismatch. String runs
+   warnings-as-errors on **both** build and test, on both routes.
+   Both trees are iCloud/FileProvider-managed: `swift test` needs a
+   `--scratch-path` outside the checkout or codesigning fails, and `git status`
+   can stall for 60+ seconds.
 
 3. Never trust PATH `swift` when it resolves to **swiftly** / `DEVELOPMENT-SNAPSHOT` — that mix breaks SwiftData macros (`@Query`, `\.modelContext`) against the macOS 27 SDK.
 4. Prefer a tree's own `Scripts/` wrappers when they exist — but `ls` that
@@ -48,6 +66,35 @@ Helper (absolute path):
 ```bash
 /Users/donaldfilimon/.grok/skills/swift/scripts/xcode-swift.sh --version
 ```
+
+## Move-only code: `-typecheck` gives FALSE PASSES
+
+Measured 2026-08-28 on both the 6.5-dev snapshot and Xcode 6.4, 27 probes,
+identical results. **`swiftc -typecheck` returns EXIT 0 on definitively illegal
+`~Copyable` code.** Move-only enforcement runs in SIL, *after* type checking, so
+a plain use-after-consume typechecks clean:
+
+```bash
+# WRONG - reports success on illegal code
+xcrun --toolchain <id> swiftc -typecheck -swift-version 6 probe.swift   # exit 0
+
+# RIGHT - actually enforces ownership
+xcrun --toolchain <id> swiftc -c -swift-version 6 -o /dev/null probe.swift
+#   error: 'a' consumed more than once
+```
+
+Anyone verifying a noncopyable migration, or writing a compile-fail fixture for
+one, must use `-c`. A `-typecheck` fixture that "must fail to compile" will pass
+and prove nothing.
+
+Related ownership facts established by the same probes: `self` is immutable
+inside a `~Copyable` deinit (no in-place mutation, no `inout` of a stored
+property — but consuming into a local and mutating the local is fine); copying
+out of `.pointee` for a noncopyable Pointee is illegal while in-place mutation,
+borrowing reads, `move()`, and `assumingMemoryBound` are all legal; a struct
+does **not** become noncopyable by inference and needs an explicit `: ~Copyable`
+when it stores one; and a global `~Copyable` var can be mutated but never
+consumed.
 
 ## Orient: which tree?
 
