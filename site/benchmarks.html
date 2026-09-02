@@ -195,6 +195,37 @@
     return `${direction} ${Math.abs(pct).toFixed(1)}% across the sample${better}`;
   }
 
+  function validIsoDate(value) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) return false;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (year < 1 || month < 1 || month > 12) return false;
+    const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+    const monthDays = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return day >= 1 && day <= monthDays[month - 1];
+  }
+
+  function validRecord(record) {
+    const keys = ["date", "p50", "p90", "p99", "throughput"];
+    const numericKeys = ["p50", "p90", "p99", "throughput"];
+    return record !== null &&
+      typeof record === "object" &&
+      Object.keys(record).length === keys.length &&
+      keys.every((key) => Object.hasOwn(record, key)) &&
+      typeof record.date === "string" && validIsoDate(record.date) &&
+      numericKeys.every((name) => Number.isFinite(record[name]) && record[name] >= 0) &&
+      record.p50 <= record.p90 &&
+      record.p90 <= record.p99;
+  }
+
+  function validRecords(records) {
+    return records.every(validRecord) && records.every((record, index) =>
+      index === 0 || records[index - 1].date < record.date
+    );
+  }
+
   async function main() {
     let records;
     try {
@@ -208,6 +239,10 @@
 
     if (!Array.isArray(records) || records.length === 0) {
       fail("data/sample_benchmarks.json parsed but held no records, so there is nothing to chart.");
+      return;
+    }
+    if (!validRecords(records)) {
+      fail("data/sample_benchmarks.json contains a malformed record, so no values were rendered.");
       return;
     }
 

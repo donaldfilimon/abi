@@ -89,10 +89,10 @@
         <div class="card">
           <h3>WDBX vector store <span class="pill pill-current">Current</span></h3>
           <p>
-            Ordered vector search, block metadata round-tripping, segment/WAL recovery and
-            compaction, and temporal graph snapshot restore — all contract-covered. Builds
-            with the feature disabled return explicit <code>error.FeatureDisabled</code>
-            rather than pretending to write.
+            The required sibling implementation has contract coverage for ordered vector search,
+            block metadata round-tripping, segment/WAL recovery and compaction, and temporal graph
+            snapshot restore. Runtime persistence that is skipped or unavailable never reports a
+            fabricated successful write.
           </p>
         </div>
 
@@ -100,8 +100,9 @@
           <h3>MCP server <span class="pill pill-current">Current</span></h3>
           <p>
             Twelve contract-covered tools over stdio JSON-RPC with a 64&nbsp;KB frame cap.
-            An optional loopback HTTP listener with a one-event <code>/sse</code> discovery
-            response is attempted at startup; a bind failure leaves stdio serving.
+            A custom loopback HTTP compatibility listener is attempted at startup; its
+            <code>/sse</code> response only advertises <code>/message</code> and is not a
+            persistent, spec-conforming MCP HTTP+SSE channel. A bind failure leaves stdio serving.
           </p>
         </div>
 
@@ -182,7 +183,10 @@
             build &amp; validate
             <button class="copy-btn" type="button" data-copy>Copy</button>
           </div>
-<pre><code><span class="cmt"># clone and enter the workspace</span>
+<pre><code><span class="cmt"># clone the path-dependent repositories as siblings</span>
+mkdir abi-workspace
+cd abi-workspace
+git clone https://github.com/donaldfilimon/wdbx
 git clone https://github.com/donaldfilimon/abi
 cd abi
 
@@ -236,7 +240,8 @@ $ABI wdbx compute info</code></pre>
 <pre><code>./tools/cargo.sh build -p abi-mcp
 ./mcp/launcher.sh
 
-<span class="cmt"># optional loopback HTTP/SSE:</span>
+<span class="cmt"># optional custom loopback HTTP compatibility listener:</span>
+<span class="cmt">#   GET /sse advertises POST /message; it is not persistent MCP SSE</span>
 <span class="cmt">#   ABI_MCP_HTTP_PORT   (default 8080)</span>
 <span class="cmt">#   ABI_MCP_HTTP_TOKEN  (bearer auth)</span></code></pre>
           </div>
