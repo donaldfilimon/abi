@@ -72,7 +72,7 @@ scored four requirements as present that are not.
 - **Consumers today:** `abbey` writes memory records as JSON into the durable KV
   space under `mem/<id>`; `abbey-bot` writes a single-file `# ABI-WDBX v1`
   projection, proven loadable by `abi-wdbx` in
-  `crates/abi-wdbx/tests/abbey_bot_projection_conformance.rs`.
+  `../wdbx/crates/abi-wdbx/tests/abbey_bot_projection_conformance.rs`.
 
 ## Proposed
 

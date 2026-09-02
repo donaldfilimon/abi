@@ -745,7 +745,7 @@ taxonomy it does not use.
 ## 9. Dependencies, and what blocks this program
 
 **Current.** The WDBX gap analysis measured every field this program needs to
-persist as absent from `V2AuditBlock` (`crates/abi-wdbx/src/v2/types.rs:116`,
+persist as absent from `V2AuditBlock` (`../wdbx/crates/abi-wdbx/src/v2/types.rs:116`,
 8 fields against roughly 28 specified): no `schema_version`, no `task_regime`,
 no `state_summary`, no `predicted_outcome` or `observed_outcome`, no
 `uncertainty`, `risk`, or `novelty`, no `model_versions`, `policy_version`, or

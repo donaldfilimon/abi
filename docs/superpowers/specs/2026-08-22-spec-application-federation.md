@@ -80,7 +80,7 @@ here is inferred from documentation prose alone unless labeled as such.
 | `dev/active/abbey-bot` | `rust-toolchain.toml` → `1.97.1`, `profile = "minimal"` | **Pinned stable** |
 | `dev/active/AbbeyBot` | Swift 6.4, macOS 27, Xcode toolchain for desktop | Swift, not Rust |
 
-`wdbx/crates/abi-compute/src/lib.rs:1` is `#![feature(portable_simd)]`.
+`../wdbx/crates/abi-compute/src/lib.rs:1` is `#![feature(portable_simd)]`.
 `abi/Cargo.toml:15` declares `abi-compute = { path = "../wdbx/crates/abi-compute" }`
 and `abi/Cargo.toml:27` declares `abi-wdbx = { path = "../wdbx/crates/abi-wdbx" }`.
 
@@ -93,12 +93,12 @@ adapter, and excludes Swift entirely.
 
 ### 1.2 The precedent already in the tree
 
-`wdbx/crates/abi-wdbx/tests/abbey_bot_projection_conformance.rs` exists and its
+`../wdbx/crates/abi-wdbx/tests/abbey_bot_projection_conformance.rs` exists and its
 header states the constraint and the chosen remedy directly:
 
 - `abbey-bot/tests/fixtures/wdbx_v1_conformance.seg.jsonl` is asserted
   byte-identical to its writer's output, inside `abbey-bot`, on stable.
-- `wdbx/crates/abi-wdbx/tests/golden/abbey-bot-projection.seg.jsonl` is asserted
+- `../wdbx/crates/abi-wdbx/tests/golden/abbey-bot-projection.seg.jsonl` is asserted
   parseable by `abi_wdbx::format::parse_segment`, inside `wdbx`, on nightly.
 - The fixture is duplicated in two repositories **on purpose**, each side
   pinning its own copy, so divergence fails a test rather than surfacing in
@@ -262,7 +262,7 @@ documented, tested decision.
 | `ABBEY_API_TOKEN` optional, routes open when unset | `AbbeyBot` Vapor `/api/*` | An unauthenticated local surface exists beside the authenticated one |
 | MCP stdio is tokenless | `abi-mcp/src/stdio.rs` | Acceptable for a stdio-child developer tool, unacceptable as an adapter federation channel |
 | `deny_unknown_fields` on every `abbey` daemon envelope | `abbey/src/daemon/protocol.rs` | Forecloses additive evolution unless a policy is chosen deliberately |
-| Digest is `serde_json` over declaration order, parents unsorted, no episode signature | `wdbx/crates/abi-wdbx/src/versioned.rs:499` per the gap analysis section 6.4 | Any API field that carries a digest must not imply the digest is currently canonical |
+| Digest is `serde_json` over declaration order, parents unsorted, no episode signature | `../wdbx/crates/abi-wdbx/src/versioned.rs:499` per the gap analysis section 6.4 | Any API field that carries a digest must not imply the digest is currently canonical |
 
 ## 2. Proposed: what the Abbey API is, and what it is not
 

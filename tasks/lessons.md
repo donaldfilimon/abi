@@ -24,9 +24,11 @@ Session-start checklist and conventions for agents working on this repo.
 - Constants: `SCREAMING_SNAKE_CASE`
 
 ### Crate layout
-- Live code under `crates/*` (`abi-foundation`, `abi-core`, `abi-ai`, `abi-sea`,
-  `abi-nn`, `abi-compute`, `abi-gpu`, `abi-wdbx`, `abi-wdbx-gateway`,
-  `abi-connectors`, `abi-plugins`, `abi-telemetry`, `abi-cli`, `abi-mcp`).
+- ABI-local workspace crates live under `crates/*`, including `abi-ai`,
+  `abi-sea`, `abi-nn`, `abi-gpu`, `abi-wdbx-gateway`, `abi-connectors`,
+  `abi-plugins`, `abi-cli`, and `abi-mcp`.
+- `abi-foundation`, `abi-core`, `abi-compute`, `abi-wdbx`, and
+  `abi-telemetry` are required path dependencies under sibling `../wdbx/crates`.
 - Frozen CLI (13) and MCP (12) surfaces — see `AGENTS.md`.
 - Golden fixtures under `tests/golden/` pin help/MCP contracts.
 
@@ -53,7 +55,7 @@ Session-start checklist and conventions for agents working on this repo.
 ./tools/cargo.sh build -p abi-mcp
 
 # Focused tests
-./tools/cargo.sh test -p abi-wdbx --lib -- <filter>
+./tools/cargo.sh test --manifest-path ../wdbx/Cargo.toml -p abi-wdbx --lib -- <filter> < /dev/null
 
 # Format / lint
 ./tools/cargo.sh fmt --all

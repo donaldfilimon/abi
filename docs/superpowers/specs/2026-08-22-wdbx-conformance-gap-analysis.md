@@ -47,7 +47,7 @@ stated purpose (section 6.1).
 ## 6.2 Logical block schema
 
 The specified `WDBXBlock` carries roughly 28 fields. The implemented
-`V2AuditBlock` (`crates/abi-wdbx/src/v2/types.rs:116`) carries 8.
+`V2AuditBlock` (`../wdbx/crates/abi-wdbx/src/v2/types.rs:116`) carries 8.
 
 | Spec field group | Implemented? | Note |
 | --- | --- | --- |
@@ -80,7 +80,7 @@ followed, or under which policy, which is what makes an episode an episode.
 The spec requires `c_t = CanonicalCBOR(header, payload, sort(parent_hashes))`,
 then `d_t = SHA256(c_t)`, then `sigma_t = Sign(d_t)`.
 
-`audit_hash` (`crates/abi-wdbx/src/versioned.rs:499`) computes:
+`audit_hash` (`../wdbx/crates/abi-wdbx/src/versioned.rs:499`) computes:
 
 ```rust
 let bytes = serde_json::to_vec(&input).expect("audit hash input serializes");
@@ -112,7 +112,7 @@ replacement, not adjustment.
 
 Specified: eight evidence dimensions, exposed separately, never collapsed.
 
-Implemented: `ScoreComponents` (`crates/abi-wdbx/src/temporal.rs:15`) with four
+Implemented: `ScoreComponents` (`../wdbx/crates/abi-wdbx/src/temporal.rs:15`) with four
 dimensions, collapsed multiplicatively.
 
 ```rust

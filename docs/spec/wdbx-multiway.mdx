@@ -3,10 +3,10 @@ title: "WDBX Multiway Rewriting Simulator"
 description: "Bounded, deterministic Wolfram-style string-rewriting over finite slices of computational rule space. Not a physics engine."
 ---
 
-**Status:** **Current** — implemented in `crates/abi-wdbx/src/multiway.rs`, exercised by unit, regression, persistence, resume, and CLI tests.
+**Status:** **Current** — implemented in `../wdbx/crates/abi-wdbx/src/multiway.rs`, exercised by unit, regression, persistence, resume, and CLI tests.
 **Scope:** A bounded multiway rewriting engine integrated into WDBX. It enumerates reachable computational states, preserves every valid rewriting branch, merges equivalent states deterministically, and persists experiments in WDBX.
 
-> **Scientific-scope discipline (read first).** This module simulates *finite, explicitly bounded slices* of computational rule space. It **does not** simulate "the complete ruliad" and makes **no** claim about fundamental physics. Structural resemblance between a rule's output and physical behavior is **not** proof — or evidence — that the rule describes the physical universe. Every exported number is either an *observed simulation output* (states, events, transitions) or a *derived structural metric* with an explicitly defined denominator; nothing here is statistical inference or speculative interpretation. When this document and the source disagree, the source wins (`crates/abi-wdbx/src/multiway.rs` and its tests).
+> **Scientific-scope discipline (read first).** This module simulates *finite, explicitly bounded slices* of computational rule space. It **does not** simulate "the complete ruliad" and makes **no** claim about fundamental physics. Structural resemblance between a rule's output and physical behavior is **not** proof — or evidence — that the rule describes the physical universe. Every exported number is either an *observed simulation output* (states, events, transitions) or a *derived structural metric* with an explicitly defined denominator; nothing here is statistical inference or speculative interpretation. When this document and the source disagree, the source wins (`../wdbx/crates/abi-wdbx/src/multiway.rs` and its tests).
 
 ## What a multiway rewriting system is
 
@@ -139,7 +139,7 @@ Invalid rules (missing `->`, empty LHS) and impossible bounds (zero cap, initial
 
 For the depth-5 reference case, the Rust CLI regression asserts 31 unique
 states and 62 unique transitions. Unit tests in
-`crates/abi-wdbx/src/multiway.rs` separately cover deterministic canonical
+`../wdbx/crates/abi-wdbx/src/multiway.rs` separately cover deterministic canonical
 exports, hard-cap behavior, resume equivalence, and WDBX persistence.
 
 An opt-in compatibility test can compare Rust output with an operator-supplied

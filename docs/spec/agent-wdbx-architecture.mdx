@@ -34,9 +34,10 @@ flowchart TD
 ```
 
 Both binaries are local-first. MCP uses JSON-RPC over stdio and automatically
-attempts a custom loopback HTTP compatibility listener. Its
-one-event `/sse` response is not persistent MCP HTTP+SSE. WDBX REST and cluster RPC have their own
-explicit bind, token, and claim boundaries.
+attempts a custom loopback HTTP compatibility listener. Its one-event `/sse`
+response only advertises `/message`; it is not persistent, spec-conforming MCP
+HTTP+SSE. WDBX REST and cluster RPC have their own explicit bind, token, and
+claim boundaries.
 
 ## Ownership
 
@@ -46,8 +47,8 @@ explicit bind, token, and claim boundaries.
 | MCP | `crates/abi-mcp/` | Frozen tool dispatch, stdio JSON-RPC, and a best-effort custom loopback HTTP compatibility listener |
 | AI | `crates/abi-ai/` | Profiles, deterministic routing, local templates, lexical constitution signal, model catalog, orchestration records |
 | SEA | `crates/abi-sea/` | Query planning, evidence scoring/selection, bounded prompt augmentation, adaptive-router persistence |
-| Core | `crates/abi-core/` | One-process scheduler, task accounting, registry, and memory tracking |
-| WDBX | `crates/abi-wdbx/` | In-process storage, HNSW search, recovery, records, reference crypto/compression, local RPC demos |
+| Core | `../wdbx/crates/abi-core/` | One-process scheduler, task accounting, registry, and memory tracking |
+| WDBX | `../wdbx/crates/abi-wdbx/` | In-process storage, HNSW search, recovery, records, reference crypto/compression, local RPC demos |
 | Connectors | `crates/abi-connectors/` | Explicit live/local provider transports and credential boundaries |
 
 ## Completion and evidence flow

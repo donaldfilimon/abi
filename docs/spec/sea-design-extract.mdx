@@ -333,7 +333,7 @@ cluster-diversity-aware sparse selection — were **promoted to Current** as of
 What remains **Proposed** (from this extract) that could inform a future `feat-sea` phase:
 
 - **Production-grade learned compression codec** — ABI has int8 quantization, order-0
-  Huffman, and a reference autoencoder (`crates/abi-wdbx/src/neural_compress.rs`); no SOTA/production-scale
+  Huffman, and a reference autoencoder (`../wdbx/crates/abi-wdbx/src/neural_compress.rs`); no SOTA/production-scale
   learned codec is proven.
 - **Non-modal integration** — the scorer is deterministic and model-free; the reference
   design's weight adjustments are advisory, and no real-time learned weight adaptation
@@ -345,7 +345,7 @@ What remains **Proposed** (from this extract) that could inform a future `feat-s
 
 This is a design extract from a now-archivable reference repo, not a description of ABI
 behavior. Before reusing any line externally, reconcile against ABI source
-(`crates/abi-sea/`, `crates/abi-wdbx/`, `tests/golden/`) and downgrade anything
+(`crates/abi-sea/`, `../wdbx/crates/abi-wdbx/`, `tests/golden/`) and downgrade anything
 ABI source does not prove. Promote any item here into ABI's real SEA surface only when
 source + a passing test back it (`docs/spec/wdbx-north-star.mdx` §9 describes the same
 Proposed → Partial → Current discipline).

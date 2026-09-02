@@ -72,7 +72,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 | Item | Status | Acceptance boundary |
 | ---- | ------ | ------------------- |
 | Federation reconciliation and P1 Abbey Contracts design | ✅ | Donald approved the C0 design on 2026-08-22. The constitutional P0-P7 slug map is fixed without Program 8; no production, deployment, Discord, or home-directory mutation is authorized by the document alone. |
-| Program 1 Abbey contract source corpus | ✅ | ABI-local C1 source/contract evidence: 81 manifest-bound artifacts (86,945 bytes), aggregate digest `43d606a06d4bd9de08a651a984a61c611f9ffe0c8150b105b0cbf50c801f0fa7`, 73 Python repository/corpus behavior tests, independent Rust verification, four fail-closed temporary mutations, and the complete strict gate. Stable-Rust/Swift consumers, installed artifacts, hosted CI, runtime federation, durable WDBX behavior, authorization, production, and live Discord remain unperformed. |
+| Program 1 Abbey contract source corpus | ✅ | ABI-local C1 source/contract evidence: 113 manifest-bound artifacts (133,200 bytes), aggregate digest `3ffd487bdc497b7ce54b8c29978a3686dcbffdb66a85957a0ee4f99ba576cdfd`, 89 Python repository/corpus behavior tests, independent Rust verification, four fail-closed temporary mutations, and the complete strict gate. Stable-Rust/Swift consumers, installed artifacts, hosted CI, runtime federation, durable WDBX behavior, authorization, production, and live Discord remain unperformed. |
 
 ---
 
@@ -84,7 +84,7 @@ See `docs/superpowers/archive/plans/2026-07-31-rust-647-followups.md`.
 | ---- | ------ | ----- |
 | Lock-across-I/O audit (REST/cluster/MCP) | ✅ | No lock held across TCP I/O; rate-limiter mutex is math-only |
 | MCP malformed/empty bearer contracts | ✅ | `abi-mcp` HTTP tests cover empty/Basic/wrong-case/no-space |
-| DurableStore concurrency regression test | ✅ | `DurableStore` holds a lifetime-scoped advisory writer lock; 50 concurrent opens return `WriterBusy`, drop releases the lock, and 50 real REST query → joined teardown → reopen/search lifecycles stay green. `open` also waits out a transient `WouldBlock` (50 ms budget, 1 ms steps) so the fork/exec window that duplicates the lock fd into a child cannot masquerade as contention; a genuinely held lock still reports `WriterBusy`. |
+| DurableStore concurrency regression test | ✅ | `DurableStore` holds a lifetime-scoped advisory writer lock; 50 concurrent opens return `WriterBusy`, drop releases the lock, and 50 real REST query → joined teardown → reopen/search lifecycles stay green. `open` also waits out a transient `WouldBlock` (250 ms budget, 1 ms steps) so the fork/exec window that duplicates the lock fd into a child cannot masquerade as contention; a genuinely held lock still reports `WriterBusy`. |
 | Bench regression gate in `check.sh` | ✅ | `tools/bench_regress.sh`: live Rust HNSW insert/search workload, best p50 of 5, 25% local debug threshold; same OS/arch baseline required (other host classes disclose `SKIP`). Deterministic pass/fail hooks prove the comparator. |
 
 ---

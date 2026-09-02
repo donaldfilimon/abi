@@ -46,7 +46,7 @@ One mechanism already exists and is proven, and this program generalizes it
 rather than inventing a second one: the cross-implementation conformance fixture
 checked into two repositories and asserted from both sides
 (`abbey-bot/tests/fixtures/wdbx_v1_conformance.seg.jsonl` and
-`wdbx/crates/abi-wdbx/tests/golden/abbey-bot-projection.seg.jsonl`), each pinned
+`../wdbx/crates/abi-wdbx/tests/golden/abbey-bot-projection.seg.jsonl`), each pinned
 by its own test and both pinned to LF by `.gitattributes` after a real
 CRLF-on-Windows failure.
 

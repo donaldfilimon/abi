@@ -135,13 +135,18 @@ transparency, security, fairness, non-maleficence, beneficence, and
 accountability. Safety should preserve legitimate usefulness rather than become
 an excuse for vague dismissal.
 
-In the current public API, `CompletionRequest.store_result=false` is the
-default. Setting it to `true` is the explicit local persistence choice. The
-completion metadata record stores derived vector IDs, profile/model labels,
-audit/provenance fields, and byte counts; it intentionally omits raw prompt and
-response text. This is a bounded implementation of minimization, not a claim of
-complete sensitive-data classification, encryption, deletion workflows, RBAC,
-or regulatory compliance.
+Pure `abi_ai::complete` is store-independent. The `abi complete` and
+`abi agent train` CLI paths and MCP `ai_complete`, `ai_train`, and `ai_learn`
+attempt the configured WDBX store, or `$HOME/.abi/wdbx` by default. The
+top-level `abi train` command does not open WDBX. Operators opt out with
+`ABI_WDBX_PERSIST=0` or
+`ABI_WDBX_PATH=:memory:`. The completion metadata record stores derived vector
+IDs, profile/model labels, audit/provenance fields, and byte counts; it
+intentionally omits raw prompt and response text. Its stable
+`persistence=explicit_store_result` value is a compatibility label, not a
+current public request field. This is a bounded implementation of minimization,
+not a claim of complete sensitive-data classification, encryption, deletion
+workflows, RBAC, or regulatory compliance.
 
 ## 8. Accessibility and digital inclusion
 
@@ -178,7 +183,7 @@ comparative, energy, QPS, latency, throughput, or accuracy result.
 | Identity and operating contract | **Current** | `crates/abi-ai/src/identity.rs`; this document; crate tests. |
 | Abbey primary / Aviva direct / ABI orchestration roles | **Current** | `router.rs`, `incremental.rs`, neutral/direct/governance routing tests. Responses are local deterministic templates. |
 | Constitutional governance | **Partial** | Six-principle substring audit, weighted E-score, and safety/privacy veto telemetry. Audit does not gate returned output and is not novel-harm detection. |
-| WDBX context and memory | **Partial** | Explicit `store_result`, minimal provenance metadata, vectors/blocks, bounded SEA recall and authority weighting. No perfect recall/truth or full consent-management UI. |
+| WDBX context and memory | **Partial** | Store-independent pure completion plus configured/default CLI/MCP persistence attempts, explicit opt-out, minimal provenance metadata, vectors/blocks, bounded SEA recall and authority weighting. No perfect recall/truth or full consent-management UI. |
 | Accessibility adaptation | **Proposed** | Normative contract only; no verified multi-depth or assistive runtime. |
 | Visual generation | **Proposed** | No image-generation model is embedded in the ABI Rust runtime. External tools may be used only when actually connected and disclosed. |
 | Distributed AI | **Proposed** | Local scheduler-backed orchestration only. |
