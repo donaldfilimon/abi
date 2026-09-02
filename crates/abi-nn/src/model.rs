@@ -281,8 +281,8 @@ pub fn backward(model: &Model, g: &mut Grads, sc: &mut Scratch, target: usize) {
 
     for c in 0..model.hidden {
         let mut s = 0.0_f32;
-        for r in 0..model.vocab_size {
-            s += model.w2.row(r)[c] * sc.dlogits[r];
+        for (r, dlogit) in sc.dlogits.iter().enumerate().take(model.vocab_size) {
+            s += model.w2.row(r)[c] * dlogit;
         }
         sc.dh[c] = s;
     }
@@ -301,8 +301,8 @@ pub fn backward(model: &Model, g: &mut Grads, sc: &mut Scratch, target: usize) {
 
     for c in 0..model.input_dim() {
         let mut s = 0.0_f32;
-        for r in 0..model.hidden {
-            s += model.w1.row(r)[c] * sc.dhpre[r];
+        for (r, dhpre) in sc.dhpre.iter().enumerate().take(model.hidden) {
+            s += model.w1.row(r)[c] * dhpre;
         }
         sc.dx[c] = s;
     }

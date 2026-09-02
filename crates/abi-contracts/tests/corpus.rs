@@ -47,13 +47,10 @@ fn independent_digest() {
         input.push(b'\n');
     }
     assert_eq!(
-        format!("{:x}", Sha256::digest(&input)),
+        to_hex(&Sha256::digest(&input)),
         "68f12c1e9aa7a0351750030e55a77a6662bb62d84c3a116e9f80084244313e31"
     );
-    assert_eq!(
-        document["expected_digest"],
-        format!("{:x}", Sha256::digest(&input))
-    );
+    assert_eq!(document["expected_digest"], to_hex(&Sha256::digest(&input)));
 }
 
 #[test]
@@ -67,7 +64,7 @@ fn jcs_vector_is_domain_separated_and_canonical() {
         .expect("bounded JCS input canonicalizes");
     assert_eq!(to_hex(&bytes), vector["document"]["expected_hex"]);
     assert_eq!(
-        format!("{:x}", Sha256::digest(&bytes)),
+        to_hex(&Sha256::digest(&bytes)),
         "262faad7d219c868992828da29beb28a646a028afe64a8ff4a1d1108f1dc659c"
     );
 }
