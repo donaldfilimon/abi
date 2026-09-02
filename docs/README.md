@@ -2,9 +2,11 @@
 
 ABI's published documentation lives under this directory and is configured by
 [`docs.json`](docs.json). The public site is served by **Mintlify** (GitHub app /
-linked project that publishes from this tree). It is **not** a custom static
-`gh-pages` tree for the main docs. Separately, optional benchmark dashboards may
-use the `gh-pages` branch via [`.github/workflows/benchmarks-gh-pages.yml`](../.github/workflows/benchmarks-gh-pages.yml).
+linked project that publishes from this tree). It is **not** the static GitHub
+Pages tree. Separately, the project landing page and benchmark dashboard are
+deployed from `site/` by the artifact-based
+[GitHub Pages workflow](../.github/workflows/benchmarks-gh-pages.yml); that
+workflow does not write a deployment branch.
 GitHub Actions validates the Mintlify site on every push/PR (`docs-validate`
 job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
 

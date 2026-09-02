@@ -21,10 +21,11 @@ site/
 
 ## Deployment
 
-`.github/workflows/benchmarks-gh-pages.yml` publishes this directory to the
-`gh-pages` branch on every push to `main`. That branch is a build artifact — it
-is written by CI and should never be edited by hand. Repository Pages settings
-point at `gh-pages` as the source.
+`.github/workflows/benchmarks-gh-pages.yml` uploads this directory as a GitHub
+Pages artifact when `site/` changes on `main` (or when manually dispatched),
+then deploys it through the `github-pages` environment. Repository Pages
+settings use **GitHub Actions** as the source; the workflow does not create a
+deployment branch.
 
 ## Local preview
 

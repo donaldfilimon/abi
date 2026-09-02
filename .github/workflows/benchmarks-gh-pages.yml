@@ -9,26 +9,37 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages-publish
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
 
-# Publishes the static site in `site/` (landing page + benchmark dashboard) to
-# the `gh-pages` branch. That branch is a build artifact: it is written by this
-# workflow and should never be edited by hand. Repository Pages settings point
-# at `gh-pages` as the source. Site source and conventions: site/README.md.
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./site
+          include-hidden-files: true
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+# Publishes `site/` through the GitHub Pages artifact/deployment API. The
+# repository's Pages source must be GitHub Actions; this workflow never creates
+# or writes a deployment branch. Site source and conventions: site/README.md.
