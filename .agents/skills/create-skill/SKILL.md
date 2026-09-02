@@ -72,6 +72,16 @@ Also write any supporting files (scripts, references) using the same create meth
    - Automatic: Grok will invoke it when the description matches user intent
 3. Tell the user the skill should appear in the slash menu within a few seconds (skills auto-reload when files change on disk).
 
+## Step 6: Register user-scope skills in the catalog
+
+If the skill was created under `~/.grok/skills/<name>` and it should sync across CLIs:
+
+1. Add `<name>` to `catalog.portableSkills` in `~/.grok/sync-targets.json`.
+2. Do not leave a real directory in `~/.grok/skills` that is absent from both `portableSkills` and `externalLinkedSkills`. The next `/sync-clis` run will refuse to start with a catalog mismatch.
+3. Run `/sync-clis` (`python3 ~/.grok/scripts/sync-clis.py --verbose`, then the ABI in-repo launcher). Require a follow-up run that reports `0 actions/changes`.
+
+Vendor or plugin-owned skills belong in `externalLinkedSkills` as live symlinks, not as copied trees. Do not create placeholder or TODO skills in `~/.grok/skills`.
+
 ## Guidelines
 
 - Keep the SKILL.md body focused and actionable. It is a prompt for the agent, not documentation.
@@ -79,3 +89,4 @@ Also write any supporting files (scripts, references) using the same create meth
 - Prefer referencing existing CLI tools over writing custom scripts.
 - Do NOT skip creating the directory. The file will fail to save without it.
 - Always use absolute paths when creating files to avoid writing to the wrong location.
+- User-scope skills are not portable until they are named in `~/.grok/sync-targets.json`.
