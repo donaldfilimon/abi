@@ -36,10 +36,18 @@ fn parse_error(message: &str) -> RpcResponse {
     err(&Value::Null, -32700, message)
 }
 
+/// The standard parse-error response used when a transport cannot decode a
+/// request frame as JSON text.
+pub(crate) fn parse_error_response() -> RpcResponse {
+    parse_error("Parse error")
+}
+
 fn request_error_response(error: RequestError) -> RpcResponse {
     let message = match error {
         RequestError::TooDeep => "Parse error: JSON nesting too deep",
-        RequestError::TooLarge | RequestError::InvalidFormat | RequestError::Empty => "Parse error",
+        RequestError::TooLarge | RequestError::InvalidFormat | RequestError::Empty => {
+            return parse_error_response();
+        }
     };
     parse_error(message)
 }
@@ -61,7 +69,7 @@ pub fn process(state: McpState, line: &str) -> Option<RpcResponse> {
 
     let request: crate::protocol::JsonRpcRequest = match serde_json::from_str(line) {
         Ok(request) => request,
-        Err(_) => return Some(parse_error("Parse error")),
+        Err(_) => return Some(parse_error_response()),
     };
 
     let is_notification = request.id.is_none();
