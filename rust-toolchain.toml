@@ -2,5 +2,5 @@
 # rustup shim, so it IGNORES this file. Always build through
 # `tools/cargo.sh` (or a rustup-mediated command) — never bare `cargo`.
 [toolchain]
-channel = "nightly-2026-08-20"
+channel = "nightly-2026-09-01"
 components = ["rustfmt", "clippy", "rust-src"]

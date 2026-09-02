@@ -16,5 +16,8 @@ pub mod rpc;
 pub mod state;
 pub mod stdio;
 
+#[cfg(test)]
+mod transport_contract;
+
 pub use http::{DEFAULT_HTTP_PORT, HttpConfig, McpHttpServer};
 pub use state::McpState;

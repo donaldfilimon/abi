@@ -36,6 +36,15 @@ fn chunks() -> Vec<ResultChunk> {
     ]
 }
 
+fn lower_hex(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    let mut encoded = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        let _ = write!(encoded, "{byte:02x}");
+    }
+    encoded
+}
+
 #[test]
 fn signed_job_admits_once_and_exact_retry_reuses_the_lease() {
     let mut manager = manager();
@@ -624,7 +633,7 @@ fn completion_history_after_lease_expiry_fails_even_with_a_valid_digest() {
         request_digest: lease.request_digest,
         status: JobStatus::Succeeded,
         chunks,
-        result_digest: ResultDigest::parse(format!("{:x}", Sha256::digest(canonical))).unwrap(),
+        result_digest: ResultDigest::parse(lower_hex(&Sha256::digest(canonical))).unwrap(),
         completed_at_unix_ms: after_lease,
     };
     let mut store = manager.control_store().clone();

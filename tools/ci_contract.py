@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 
 
-WDBX_REVISION = "f42b9789eabcf89f952df0a160a7b6837c5acb57"
+WDBX_REVISION = "8ceca077e1d888c2955a0aa52bcbb278c01967a5"
 WDBX_REPOSITORY = "donaldfilimon/wdbx"
 
 

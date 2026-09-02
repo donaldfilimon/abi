@@ -13,17 +13,6 @@ use crate::protocol::MAX_REQUEST_SIZE;
 use crate::rpc::{self, RpcResponse};
 use crate::state::McpState;
 
-fn overlong_line_response() -> RpcResponse {
-    // This shape (id always null, "Parse error") arises only from the
-    // transport's own length bound, not from `rpc::process`'s JSON-RPC parse
-    // path, so it is built directly rather than routed through parsing.
-    RpcResponse(serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": serde_json::Value::Null,
-        "error": {"code": -32700, "message": "Parse error"},
-    }))
-}
-
 fn write_response<W: Write>(writer: &mut W, response: &RpcResponse) -> std::io::Result<()> {
     writeln!(writer, "{}", response.to_json_string())
 }
@@ -52,12 +41,16 @@ pub fn run_loop<R: Read, W: Write>(state: McpState, mut reader: R, mut writer: W
                 continue;
             }
             if byte == b'\n' {
-                process_line(state, &mut writer, &line);
+                if !process_line(state, &mut writer, &line) {
+                    return;
+                }
                 line.clear();
                 continue;
             }
             if line.len() >= MAX_REQUEST_SIZE {
-                let _ = write_response(&mut writer, &overlong_line_response());
+                if write_response(&mut writer, &rpc::parse_error_response()).is_err() {
+                    return;
+                }
                 line.clear();
                 discarding_overlong_line = true;
                 continue;
@@ -67,18 +60,19 @@ pub fn run_loop<R: Read, W: Write>(state: McpState, mut reader: R, mut writer: W
     }
 
     if !discarding_overlong_line && !line.is_empty() {
-        process_line(state, &mut writer, &line);
+        let _ = process_line(state, &mut writer, &line);
     }
 }
 
-fn process_line<W: Write>(state: McpState, writer: &mut W, raw: &[u8]) {
+fn process_line<W: Write>(state: McpState, writer: &mut W, raw: &[u8]) -> bool {
     let trimmed = trim_trailing_cr(raw);
     let Ok(text) = std::str::from_utf8(trimmed) else {
-        return;
+        return write_response(writer, &rpc::parse_error_response()).is_ok();
     };
     if let Some(response) = rpc::process(state, text) {
-        let _ = write_response(writer, &response);
+        return write_response(writer, &response).is_ok();
     }
+    true
 }
 
 fn trim_trailing_cr(line: &[u8]) -> &[u8] {
@@ -94,14 +88,18 @@ mod tests {
     use super::*;
     use std::io::Cursor;
 
-    fn run(input: &str) -> Vec<String> {
+    fn run_bytes(input: &[u8]) -> Vec<String> {
         let mut out = Vec::new();
-        run_loop(McpState::new(), Cursor::new(input.as_bytes()), &mut out);
+        run_loop(McpState::new(), Cursor::new(input), &mut out);
         String::from_utf8(out)
             .expect("valid utf8")
             .lines()
             .map(ToString::to_string)
             .collect()
+    }
+
+    fn run(input: &str) -> Vec<String> {
+        run_bytes(input.as_bytes())
     }
 
     #[test]
@@ -126,6 +124,26 @@ mod tests {
         let lines = run("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\r\n");
         assert_eq!(lines.len(), 1);
         assert!(lines[0].contains("\"result\":{}"));
+    }
+
+    #[test]
+    fn invalid_utf8_returns_one_parse_error_and_recovers_at_the_next_frame() {
+        let mut input = b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\",\"bad\":\"".to_vec();
+        input.push(0xff);
+        input.extend_from_slice(b"\"}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"ping\"}\n");
+
+        let lines = run_bytes(&input);
+        assert_eq!(lines.len(), 2);
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&lines[0]).expect("parse error is json"),
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": null,
+                "error": {"code": -32700, "message": "Parse error"},
+            })
+        );
+        assert!(lines[1].contains("\"id\":2"));
+        assert!(lines[1].contains("\"result\":{}"));
     }
 
     #[test]
@@ -156,6 +174,24 @@ mod tests {
     fn empty_lines_produce_no_response() {
         let lines = run("\n\n");
         assert_eq!(lines, [] as [std::string::String; 0]);
+    }
+
+    struct FailWriter;
+
+    impl Write for FailWriter {
+        fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("sink closed"))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn write_error_ends_the_stdio_loop() {
+        let input = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"ping\"}\n";
+        run_loop(McpState::new(), Cursor::new(input.as_bytes()), FailWriter);
     }
 
     #[test]
