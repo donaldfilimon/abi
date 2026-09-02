@@ -3,10 +3,10 @@ name: swift
 description: >-
   This skill should be used when the user runs /swift, or asks about fixing Swift
   builds on this Mac, Xcode vs swiftly/TOOLCHAINS, SwiftData macro errors,
-  AbbeyBot/AbbeyServer, the archived AbbeyCompanion, DiscordBM, or
-  Swift 6.4 / macOS 27 SPM for those packages. Do not use for Rust/abi or general
-  Swift language tutorials.
-version: 0.1.0
+  AbbeyBot/AbbeyServer, the archived AbbeyCompanion, DiscordBM, Gama or String
+  repository-selected Swift 6.5-dev snapshots, external SwiftPM scratch paths
+  for FileProvider checkouts, or Swift 6.4 / macOS 27 SPM for those packages.
+  Do not use for Rust/abi or general Swift language tutorials.
 ---
 
 # Swift (toolchain + AbbeyBot)
@@ -20,6 +20,13 @@ General Swift language knowledge is assumed; this skill encodes **machine- and r
 - Pure Swift language or concurrency Q&A with no Mac toolchain or AbbeyBot context.
 
 ## Hard toolchain rules
+
+Before choosing a command, read the nearest repository instructions plus
+`.swift-version`, `Toolchains.toml`, `Package.swift`, and validation
+scripts that exist. Repository-selected compilers, build/scratch locations,
+and gates take precedence over generic SwiftPM commands. Use plain
+`swift build` or `swift test` only when the repository has no stronger
+selection.
 
 1. Always `unset TOOLCHAINS` (or `unset TOOLCHAINS || true`) before any Swift invocation.
    This one is universal — it holds in every tree, including the exceptions below.
@@ -66,6 +73,31 @@ Helper (absolute path):
 ```bash
 /Users/donaldfilimon/.grok/skills/swift/scripts/xcode-swift.sh --version
 ```
+
+## Probe modern language and SDK features
+
+Do not infer availability or suitability from a proposal title, a main-branch
+interface, or syntax highlighting. Compile the smallest representative source
+with the repository-selected compiler and every supported compiler/platform
+route affected by the change. A parser/type-check pass is not runtime,
+cross-SDK, ABI, or hosted-CI proof. For ownership and `~Copyable` negatives,
+use `swiftc -c` as described below because `-typecheck` can miss SIL
+ownership errors.
+
+These spellings are available in the installed Gama snapshot, but each has a
+different purpose:
+
+| Spelling | Use and boundary |
+| --- | --- |
+| `Module::Declaration` | Selects a module explicitly when a local declaration could shadow its name. It is especially useful in macro-generated source. |
+| `~Sendable` | Suppresses implicit `Sendable` inference and records intentional non-Sendability. It does not replace isolation design or, when a project requires one, an unavailable conformance used for a named diagnostic. |
+| `@diagnose(...)` | Changes one named compiler diagnostic for a tightly documented compatibility exception. Include a reason/removal condition; never use it to hide portability, ownership, or concurrency failures. |
+| `anyAppleOS` | Groups availability or conditional code that truly applies to every Apple OS. Prefer `canImport(AppKit)`, `canImport(UIKit)`, or a specific platform when framework capability is the real requirement. |
+| `@c(name)` | Declares a C-compatible entry point. It is not a mechanical replacement for `@_cdecl`: `@_cdecl` emits C and Swift-convention symbols while `@c` emits only the C symbol, so migration requires a separately versioned ABI and consumer audit. |
+
+Main-snapshot syntax is not a reason to adopt an API. Confirm that the feature
+is implemented rather than merely accepted/experimental, solves a current
+requirement, and passes the repository's supported toolchain and target gates.
 
 ## Move-only code: `-typecheck` gives FALSE PASSES
 
