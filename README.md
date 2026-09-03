@@ -1,7 +1,12 @@
 # ABI Framework
 
+**Intelligence Without Limits.** Local AI orchestration with inspectable memory.
+
 ABI is a **nightly Rust** framework for local AI service orchestration, semantic
 vector storage, claim-honest GPU capability reporting, and runtime primitives.
+abi is the runtime/WDBX twin; Abbey is the companion that will not claim what
+the ledger cannot prove. Cloud backends are optional. Browser autonomy is not
+Current. See [docs/brand.md](docs/brand.md).
 
 Project site: <https://donaldfilimon.github.io/abi/> — deployed from `site/`
 through the GitHub Pages Actions workflow when that source changes on `main`
