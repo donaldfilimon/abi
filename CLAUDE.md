@@ -10,6 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ABI is a **nightly Rust** framework for local AI service orchestration, semantic
 vector storage (WDBX), claim-honest GPU capability reporting, and an MCP server.
+**Intelligence Without Limits.** IWL is Abbey/ABI only; Quesar never carries this
+tagline. See `docs/brand.md`.
 The Zig implementation that used to live under `src/` has been fully replaced;
 see `RUST-REWRITE-PLAN.md` for the port history if you find stale Zig references
 in older docs. All live code is under `crates/`; the retired root `src/` tree is
@@ -30,7 +32,9 @@ PR #777 and now defers to `AGENTS.md`.
 
 | Command | What it does |
 |---|---|
-| `./tools/check.sh` | **Primary gate.** Run this before considering any change done. `AGENTS.md` carries the authoritative step order; the steps that surprise people are the three that run *before* fmt — repository policy tests, the Abbey contract corpus, and `tools/check_rust_sizes.sh` — plus `tools/bench_regress.sh` (same-system benchmark-regression guard), which runs after the workspace tests and before the doc build. |
+| `./tools/check.sh` | **Primary gate.** Run this before considering any change done. `AGENTS.md` carries the authoritative step order; the steps that surprise people are the ones that run *before* fmt — repository policy tests, `./tools/cargo.sh xtask ci verify` (judo #817), the Abbey contract corpus (Python oracle + `./tools/cargo.sh xtask abbey verify`; Python authoritative until byte-identical), and `tools/check_rust_sizes.sh` — plus `tools/bench_regress.sh` (same-system benchmark-regression guard), which runs after the workspace tests and before the doc build. |
+| `./tools/cargo.sh xtask ci verify` | Rust port of `tools/ci_contract.py` (judo #817). `check.sh` runs this; Python tests under `tools/tests/test_ci_contract.py` remain the CI-contract oracle. |
+| `./tools/cargo.sh xtask abbey verify contracts/abbey` | Rust port of Abbey corpus verify. `check.sh` runs Python then xtask. Vendor: `./tools/cargo.sh xtask abbey vendor --source … --destination … --source-revision …`. |
 | `./build.sh check` | Thin compat wrapper → `./tools/check.sh` |
 | `./tools/cargo.sh build -p abi-cli` | Build `target/debug/abi` |
 | `./tools/cargo.sh build -p abi-mcp` | Build `target/debug/abi-mcp` |
@@ -78,8 +82,8 @@ The `complete` / `agent` lines above touch the store, so prefix them with
 
 ## Architecture
 
-The ABI workspace has **16 local crates** under `crates/*`, verified 2026-08-23
-with `cargo metadata`. Five more packages are sibling path dependencies under
+The ABI workspace has **17 local crates** under `crates/*`, verified 2026-09-03
+with `cargo metadata` (the 17th is `xtask`, judo #817). Five more packages are sibling path dependencies under
 `../wdbx/crates/`: `abi-compute`, `abi-core`, `abi-foundation`,
 `abi-telemetry`, and `abi-wdbx`. They are not ABI-local workspace members.
 Keep `abi` and `wdbx` adjacent and verify the live metadata rather than trusting
@@ -103,6 +107,7 @@ dated prose.
 | `abi-worker` | Authenticated, bounded worker-control contracts and admission. Depends on `abi-agent-runtime`, `abi-wdbx-gateway`. |
 | `abi-cli` (bin `abi`) | Command metadata, help rendering, process dispatch. Depends on the local workspace and sibling substrate packages. The help surface is a stable, golden-tested contract boundary. |
 | `abi-mcp` (bin `abi-mcp`) | JSON-RPC MCP server: the frozen 12-tool stdio surface (primary, 64 KB frame cap); startup also attempts a custom loopback HTTP listener, and bind failure leaves stdio running. It is not persistent MCP HTTP+SSE. |
+| `xtask` | In-repo task runner (judo #817). Ports `tools/ci_contract.py` and Abbey corpus/vendor checks. Not a published product crate. Invoke via `./tools/cargo.sh xtask …` (alias in `.cargo/config.toml`). |
 
 The sibling substrate packages supply shared primitives (`abi-foundation`),
 telemetry, compute selection, core scheduling/configuration, and the durable
