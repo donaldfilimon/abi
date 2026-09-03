@@ -75,7 +75,7 @@ Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_lea
 - ABI targets **nightly Rust** (`rust-toolchain.toml`); validate with `./tools/check.sh`.
 - Core crates and MCP transport have contract/golden coverage; MCP stdio is primary, with an optional custom loopback HTTP compatibility listener whose `GET /sse` only advertises `POST /message`, not a persistent spec-conforming MCP HTTP+SSE channel.
 - Documentation: `CLAUDE.md`, `GEMINI.md`, and `AGENTS.md` describe the Rust lifecycle.
-- Build gate: `./tools/check.sh` runs fmt, clippy (`-D warnings`), workspace build/tests, and docs.
+- Build gate: `./tools/check.sh` runs policy tests, `./tools/cargo.sh xtask ci verify` (judo #817), Abbey corpus (Python + `./tools/cargo.sh xtask abbey verify`), size limits, fmt, clippy (`-D warnings`), workspace build/tests, and docs.
 - Local models: `abi-model-runtime` requires an exact registry model, accepting principal, external storage root, and device choice. Generated scratch fixtures prove its tiny `abi-bigram-v1` Candle path on CPU and locally exercised Metal; this is runtime-foundation evidence, not a Gemma, quality, placement, speedup, or CUDA-runtime claim.
 - Workers: `abi-worker` provides authenticated, audience-bound, bounded offline admission/control contracts with finite leases, cooperative cancellation, replay resistance, and verifiable results. It reuses the gateway mTLS configuration but does not claim a listener, scheduler, model execution, production cluster, or separate-host deployment.
 - GPU: capability table + preferred backend reporting with **honest `accelerated=false`** when native kernels are not linked; vector ops use deterministic CPU SIMD fallback. CUDA/Vulkan/ANE kernels remain non-claims.

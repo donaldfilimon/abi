@@ -5,15 +5,20 @@ loads `tasks/lessons.md` and `tasks/todo.md`; read those for the session checkli
 and active work. Executable source (`Cargo.toml`, `tools/check.sh`, `crates/`)
 wins over prose. `CLAUDE.md` is an expanded companion; `GEMINI.md` redirects here.
 
+Brand: **Intelligence Without Limits.** IWL is Abbey/ABI only; Quesar (private AI ops)
+never carries this tagline. See `docs/brand.md`.
+
 ## Toolchain And Gates
 
 - Never run bare `cargo`. Homebrew's stable Cargo ignores
   `rust-toolchain.toml`, and Swiftly's `cc` shim can break linking.
   `./tools/cargo.sh` selects the pinned nightly toolchain and system compiler.
-- Run `./tools/check.sh` after every edit. It executes policy and Abbey-contract
-  checks, Rust size limits, fmt check, warning-denied clippy, build, workspace
-  tests, platform feature checks, the local benchmark guard, and rustdoc in that
-  order. Missing platform tooling is reported as a skip.
+- Run `./tools/check.sh` after every edit. It executes policy tests, `./tools/cargo.sh xtask ci verify`
+  (Rust port of `tools/ci_contract.py`; judo #817), Abbey-contract checks (Python
+  oracle plus `./tools/cargo.sh xtask abbey verify`; Python remains authoritative until
+  byte-identical), Rust size limits, fmt check, warning-denied clippy, build,
+  workspace tests, platform feature checks, the local benchmark guard, and rustdoc
+  in that order. Missing platform tooling is reported as a skip.
 - `tools/check_rust_sizes.sh` rejects Rust files over 1,000 lines and
   `crates/abi-cli/src/main.rs` over 200 lines.
 - `./build.sh check` and `./build.sh full-check` are compatibility aliases for
@@ -22,6 +27,8 @@ wins over prose. `CLAUDE.md` is an expanded companion; `GEMINI.md` redirects her
 ## Focused Commands
 
 - Build CLI: `./tools/cargo.sh build -p abi-cli` (`target/debug/abi`).
+- CI/Abbey contract (xtask, judo #817): `./tools/cargo.sh xtask ci verify` ·
+  `./tools/cargo.sh xtask abbey verify contracts/abbey`. Alias is in `.cargo/config.toml`.
 - Build MCP: `./tools/cargo.sh build -p abi-mcp` (`target/debug/abi-mcp`).
 - Unit test/filter: `./tools/cargo.sh test -p <crate> --lib -- <filter> < /dev/null`.
 - Integration target: `./tools/cargo.sh test -p <crate> --test <name> < /dev/null`.
@@ -36,8 +43,11 @@ stdin. `tools/check.sh` already redirects its test invocations.
 
 ## Workspace Boundaries
 
-- Live code is under `crates/*`; removed Zig and rewrite scaffold trees are
-  historical only. `crates/abi-cli/src/main.rs`, `crates/abi-mcp/src/main.rs`,
+- Live code is under `crates/*` (17 workspace members, including `xtask`).
+  `crates/xtask` is the in-repo task runner, not a published product crate; it
+  ports CI-contract and Abbey corpus/vendor checks from Python (judo #817).
+  Removed Zig and rewrite scaffold trees are historical only.
+  `crates/abi-cli/src/main.rs`, `crates/abi-mcp/src/main.rs`,
   and `crates/abi-wdbx-gateway/src/main.rs` are the executable entrypoints.
 - `abi-compute`, `abi-core`, `abi-foundation`, `abi-telemetry`, and `abi-wdbx`
   are sibling path dependencies under `../wdbx/crates/`, not local workspace
