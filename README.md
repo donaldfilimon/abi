@@ -1,5 +1,10 @@
 # ABI Framework
 
+> **Intelligence Without Limits — local runtime.**  
+> Nightly Rust framework for agent orchestration, WDBX semantic storage,  
+> and claim-honest capability reporting. Inspectable on your machine.
+
+
 **Intelligence Without Limits.** Local AI orchestration with inspectable memory.
 
 ABI is a **nightly Rust** framework for local AI service orchestration, semantic
@@ -12,6 +17,8 @@ Project site: <https://donaldfilimon.github.io/abi/> — deployed from `site/`
 through the GitHub Pages Actions workflow when that source changes on `main`
 (see `site/README.md`); its benchmark dashboard renders synthetic sample data,
 not measurements.
+
+Companion interface: [abbey](https://github.com/donaldfilimon/abbey) — Intelligence Without Limits with a claims ledger.
 
 ## Quick Start
 ```bash
