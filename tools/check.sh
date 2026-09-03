@@ -23,8 +23,12 @@ step "rustc / cargo versions"
 step "repository policy tests"
 python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
 
-step "Abbey contract corpus"
+step "CI contract (xtask Rust port - must match Python oracle)"
+"${CARGO}" run -p xtask -- ci verify
+
+step "Abbey contract corpus (Python oracle + Rust port - both must pass; Python authoritative until byte-identical)"
 python3 tools/abbey_contracts.py verify contracts/abbey
+"${CARGO}" run -p xtask -- abbey verify contracts/abbey
 
 step "Rust source size limits"
 bash ./tools/check_rust_sizes.sh
