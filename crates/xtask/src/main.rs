@@ -1,5 +1,6 @@
 //! xtask task runner - Rust port of Python gate scripts.
 
+mod abbey;
 mod ci;
 
 use clap::{Parser, Subcommand};
@@ -16,6 +17,8 @@ struct Cli {
 enum Commands {
     /// CI contract checks (port of `tools/ci_contract.py`)
     Ci(CiArgs),
+    /// Abbey contract checks (port of `tools/abbey_contracts.py` + vendor)
+    Abbey(AbbeyArgs),
 }
 
 #[derive(Parser)]
@@ -41,6 +44,46 @@ struct VerifyArgs {
     /// Repo root (alternative to manifest/workflow)
     #[arg(long)]
     root: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+struct AbbeyArgs {
+    #[command(subcommand)]
+    command: AbbeyCommands,
+}
+
+#[derive(Subcommand)]
+enum AbbeyCommands {
+    /// Verify Abbey contract corpus (strict JSON, digests, aggregate)
+    Verify(AbbeyVerifyArgs),
+    /// Vendor exact-byte Abbey corpus with lock (exact-byte, atomic publish)
+    Vendor(AbbeyVendorArgs),
+}
+
+#[derive(Parser)]
+struct AbbeyVerifyArgs {
+    /// Corpus root (default: contracts/abbey)
+    #[arg(default_value = "contracts/abbey")]
+    corpus: PathBuf,
+}
+
+#[derive(Parser)]
+struct AbbeyVendorArgs {
+    /// Source corpus root
+    #[arg(long)]
+    source: PathBuf,
+    /// Destination vendor root (parent must exist)
+    #[arg(long)]
+    destination: PathBuf,
+    /// 40-char lowercase hex source revision
+    #[arg(long = "source-revision")]
+    source_revision: String,
+    /// Write vendor tree (atomic publish)
+    #[arg(long, conflicts_with = "check")]
+    write: bool,
+    /// Check vendor tree against source (read-only)
+    #[arg(long, conflicts_with = "write")]
+    check: bool,
 }
 
 fn find_repo_root() -> PathBuf {
@@ -73,6 +116,64 @@ fn main() {
         Commands::Ci(ci_args) => match ci_args.command {
             CiCommands::Verify(args) => run_ci_verify(&args),
         },
+        Commands::Abbey(abbey_args) => match abbey_args.command {
+            AbbeyCommands::Verify(args) => run_abbey_verify(&args),
+            AbbeyCommands::Vendor(args) => run_abbey_vendor(&args),
+        },
+    }
+}
+
+fn run_abbey_verify(args: &AbbeyVerifyArgs) {
+    let corpus = if args.corpus.is_absolute() {
+        args.corpus.clone()
+    } else {
+        // Resolve relative to current dir; if not found, try repo root fallback
+        let candidate = Path::new(&args.corpus);
+        if candidate.exists() {
+            candidate.to_path_buf()
+        } else {
+            find_repo_root().join(&args.corpus)
+        }
+    };
+    match abbey::verify(&corpus) {
+        Ok(report) => {
+            println!(
+                "abbey-contracts: verified {} artifacts ({} bytes), digest={}",
+                report.artifact_count, report.total_bytes, report.aggregate_digest
+            );
+            std::process::exit(0);
+        }
+        Err(e) => {
+            eprintln!("abbey-contracts: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn run_abbey_vendor(args: &AbbeyVendorArgs) {
+    if !args.write && !args.check {
+        eprintln!("abbey-contracts-vendor: --write or --check required");
+        std::process::exit(2);
+    }
+    let check = args.check;
+    match abbey::vendor(
+        &args.source,
+        &args.destination,
+        &args.source_revision,
+        check,
+    ) {
+        Ok(report) => {
+            let action = if check { "verified" } else { "wrote" };
+            println!(
+                "abbey-contracts-vendor: {action} {} artifacts ({} bytes), digest={}",
+                report.artifact_count, report.total_bytes, report.aggregate_digest
+            );
+            std::process::exit(0);
+        }
+        Err(e) => {
+            eprintln!("abbey-contracts-vendor: {e}");
+            std::process::exit(1);
+        }
     }
 }
 
