@@ -23,6 +23,9 @@ step "rustc / cargo versions"
 step "repository policy tests"
 python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
 
+step "CI contract (xtask Rust port - must match Python oracle)"
+"${CARGO}" run -p xtask -- ci verify
+
 step "Abbey contract corpus"
 python3 tools/abbey_contracts.py verify contracts/abbey
 
