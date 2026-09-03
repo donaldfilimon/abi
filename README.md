@@ -4,9 +4,6 @@
 > Nightly Rust framework for agent orchestration, WDBX semantic storage,  
 > and claim-honest capability reporting. Inspectable on your machine.
 
-
-**Intelligence Without Limits.** Local AI orchestration with inspectable memory.
-
 ABI is a **nightly Rust** framework for local AI service orchestration, semantic
 vector storage, claim-honest GPU capability reporting, and runtime primitives.
 abi is the runtime/WDBX twin; Abbey is the companion that will not claim what
