@@ -46,7 +46,7 @@ PR #777 and now defers to `AGENTS.md`.
 | `python3 tools/abbey_contracts.py verify contracts/abbey` | The authoritative Python oracle for the Abbey corpus; `xtask abbey verify` must match it |
 | `bash ./tools/check_rust_sizes.sh` | File-size gate on its own |
 | `RUSTDOCFLAGS="-D warnings" ./tools/cargo.sh doc --workspace --no-deps` | The doc gate on its own — a common late-stage failure |
-| `./build.sh cli` / `mcp` / `test` / `fmt` | Remaining `build.sh` aliases besides `check`/`full-check` |
+| `./build.sh cli` / `mcp` / `fmt`; `./build.sh test < /dev/null` | Remaining `build.sh` aliases besides `check`/`full-check`; the test alias needs EOF on stdin |
 | `./tools/cargo.sh clippy --workspace --all-targets -- -D warnings` | Lint, matching the gate exactly |
 | `./mcp/launcher.sh` | Launch the MCP server; prefers `target/release/abi-mcp` then `target/debug/abi-mcp`; run from repo root (or via the launcher) so `@loader_path` resolves `libabi_fm_shim.dylib` on arm64 macOS; set `ABI_MCP_AUTO_BUILD=1` to build on demand |
 
@@ -213,7 +213,7 @@ mutating the real process environment. Add new vars there; don't scatter raw
 | `ABI_LLAMA_CPP_ENDPOINT` / `ABI_MLX_ENDPOINT` | Local inference endpoints |
 | `ABI_OS_POLICY` | Override the `abi agent os` policy file (default `~/.abi/os-policy.toml`); tests set it so they never read the user's real policy |
 | `ABI_MCP_AUTO_BUILD` | `mcp/launcher.sh` only — build the server on demand |
-| `ABI_WDBX_ENCRYPTION_KEY_FILE` / `ABI_WDBX_SIGNING_KEY_FILE` / `ABI_WDBX_VERIFY_KEY_FILE` | WDBX v2 key material consumed by `abi wdbx db keygen` / `rekey` (`crates/abi-cli/src/wdbx/db.rs`) |
+| `ABI_WDBX_ENCRYPTION_KEY_FILE` / `ABI_WDBX_SIGNING_KEY_FILE` / `ABI_WDBX_VERIFY_KEY_FILE` | Paths to WDBX v2 key files, read by substrate store/lifecycle operations via `ObjectSecurity::from_env()`. `abi wdbx db keygen <directory>` writes fixed filenames and prints export hints; `rekey` reads fixed filenames from its positional key directory. |
 | `ABI_AUTH_TOKEN` | Non-interactive credential for `abi auth signin`; unset + non-TTY stdin reads the secret from stdin (the reason tests need `< /dev/null`) |
 | `ABI_BROWSER_STUDIO_TOKEN` | Bearer for the loopback browser studio (`abi agent browser --studio`) |
 
@@ -243,9 +243,9 @@ existing golden fixtures still cover the new path.
   prefer typed `Result`/domain errors, log or propagate.
 - Prefer feature branches `cursor/*` off `origin/main`; land via draft PR then
   `gh pr merge --squash`; delete merged `cursor/*` branches after.
-- Session-start reading order for agents: `tasks/lessons.md`, then
-  `tasks/todo.md` for current priorities, then `tasks/goals.md` (the largest
-  ledger; fed by `tools/goal_capture.sh` and the `goal-ledger` skill).
+- Session-start reads: `tasks/lessons.md`, then `tasks/todo.md` for current
+  priorities. Read `tasks/goals.md` when goal work is in scope; the
+  `goal-ledger` skill owns the ledger.
 
 ## Code quality hotspots
 
