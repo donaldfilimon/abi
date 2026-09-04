@@ -39,14 +39,16 @@ copies only the names in `CORE_SKILLS` in `~/.grok/scripts/sync-clis.py`, and
 `abi-skills` is not among them (verified 2026-08-23). Nothing keeps the global
 `~/.agents/skills/abi-skills/SKILL.md`,
 `~/.claude/skills/abi-skills/SKILL.md`, or
-`~/.codex/skills/abi-skills/SKILL.md` in step with the canonical file here. The
+`~/.codex/skills/abi-skills/SKILL.md`, or the fourth copy at
+`~/.config/ollama/skills/abi-skills/SKILL.md` (found 2026-09-04, one edit
+behind, no writer names it), in step with the canonical file here. The
 Claude copy was still the pre-rewrite Zig text on 2026-08-22, and the Agents
 copy had the same stale text on 2026-08-23 — prescribing
 `.zigversion`, `~/.zvm` PATH prefixes, `./build.sh check-parity`, and fixtures
 under `src/plugins/`, none of which exist. A session invoked through the home
 skill therefore starts from instructions the repository contradicts. **Diff the
 copy you were handed against `.agents/skills/abi-skills/SKILL.md` before
-following it**, and when you correct this file, push the same text to all three
+following it**, and when you correct this file, push the same text to all four
 home copies by hand, because the launcher will not.
 
 **Do not run `sync-clis/launch.sh` from a worktree.** The launcher stamps an
@@ -120,6 +122,10 @@ live telemetry, not durable capability claims.
    dispatch from registry listing alone.
 8. **Synchronize mirrors** — preview with
    `.agents/skills/sync-clis/launch.sh --dry-run`, then run the launcher.
+   The dry-run prints `would sync:` for every canonical skill whether or not
+   its mirror differs (measured 2026-09-04: a full `would sync` list, zero new
+   `git status` entries after the real run). Judge change by diffing
+   `git status --porcelain` before and after, not by the preview list.
 9. **Install Codex skill text** — copy the corrected `SKILL.md` to the matching
    `~/.codex/skills/<name>/SKILL.md`. Companion-resource parity is a separate
    policy decision.
@@ -130,7 +136,10 @@ live telemetry, not durable capability claims.
     binary.
 11. **Log** — `skill-loop log abi-skills success` (or `partial`/`failure`) when
     telemetry is initialized.
-12. **Integrate** — use a `cursor/` feature branch and PR; never force-push
+12. **Integrate** — commit on the default branch in this canonical checkout,
+    per `AGENTS.md` *Git Workflow*; a branch or PR only when isolation is
+    genuinely required or requested (the older `cursor/`-branch rule here
+    contradicted that policy; corrected 2026-09-04). Never force-push
     `main`. Re-inventory immediately before merge and cleanup.
 
 ## ABI Mega refresh
@@ -184,4 +193,11 @@ false green on this machine before.
 - Skill Loop reports scanner findings that require review; a count alone does not
   prove every reference is actionable or broken. In the 2026-08-22 inspection,
   the two `abi-skills` "broken references" were the contextual prose basenames
-  `sync-clis/launch.sh` and `SKILL.md`, not missing workflow files.
+  `sync-clis/launch.sh` and `SKILL.md`, not missing workflow files. On
+  2026-09-04 Skill Loop flagged 13; a manual audit of every path-like token in
+  this file against the repository root found 45 references, 11 unresolved,
+  and all 11 were prose basenames (`check.sh`, `SKILL.md`), the `/sync-clis`
+  command name, the `cursor/` prefix, worktree placeholders, or paths this
+  file itself describes as dead (`src/plugins/`, the `.zigversion` prefix).
+  Zero were actionable. The detector also resolves companion references such
+  as `references/claim-boundaries.md` against the wrong root.
