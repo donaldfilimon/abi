@@ -175,8 +175,19 @@ This is the right foundation. This program extends it. It does not replace it.
 
 ### 1.4 A verified conflict between the registry and the constitution
 
-**Current.** `Status::ALL` (`abbey/src/claims/mod.rs`) is exactly five variants:
-`Current`, `Partial`, `Proposed`, `Blocked`, `OutOfScope`.
+**Current.** `Status::CLASSIFYING` (`abbey/src/claims.rs`) is exactly five
+variants: `Current`, `Partial`, `Proposed`, `Blocked`, `OutOfScope`.
+
+> Corrected 2026-09-04 against source. This paragraph previously named
+> `Status::ALL` at `abbey/src/claims/mod.rs`. **Neither exists.** The file is
+> `abbey/src/claims.rs`, and the constant was split by constitution decision
+> 68 into `Status::CLASSIFYING` (the five positional states above, every
+> claim in exactly one, each required to carry at least one claim) and
+> `Status::LIFECYCLE` (`Failed`, `Revoked`, `Superseded`, `Expired`), which is
+> legitimately **empty** in a healthy registry. The enum therefore has **nine**
+> variants, not five; the five named here are still the correct partition for
+> this section's argument, but do not apply the "every status carries work"
+> invariant to the four terminal states.
 
 Constitution section 0 defines seven capability states: **proposed, partial,
 current, failed, revoked, superseded, expired.** Register #68 makes "failed,
@@ -690,8 +701,10 @@ existing `Claim` fields and the `claim!` macro shape:
   Option<&'static str>` (an `ExperimentManifest` digest), `expiry:
   Option<&'static str>`, and `rollback_condition: &'static str`.
 - The new fields arrive through a second `claim!` macro arm, or with defaults,
-  so the roughly thirty existing positional call sites in `registry.rs` migrate
-  incrementally. Adding required positional fields to the single existing arm
+  so the existing positional call sites in `registry.rs` migrate
+  incrementally (**57** lines match `claim!` there as of 2026-09-04; the
+  "roughly thirty" figure this bullet previously used was wrong under any
+  counting). Adding required positional fields to the single existing arm
   breaks every row at once and turns a versioned schema change into a
   mechanical rewrite of the whole table.
 - Extend `validate_registry()` with fail-closed checks:
