@@ -69,6 +69,27 @@ scored four requirements as present that are not.
 - **Absent entirely:** CBOR, COSE, `schema_version`, `policy_version`,
   `signer_key_id`, `task_regime`, `regime_posterior`, `quarantine`,
   `contradiction`, and all block-level retention or deletion semantics.
+
+> **Updated 2026-09-04 against source. Three items on that "absent entirely"
+> line are no longer absent.** WDBX v3 landed 2026-08-24 (PRs #2 `7ab61b5`,
+> #3 `5b41eca`) in `../wdbx/crates/abi-wdbx/src/v3/`:
+>
+> - **CBOR is implemented.** `v3/commitment.rs` (328 lines) defines the
+>   `abbey-cbor-episode-v1` deterministic profile (`PROFILE_NAME`, line 38) and
+>   hashes SHA-256 over the canonical bytes, with **parents sorted**
+>   (`parents.sort_unstable()`, line 144) — i.e. equation (30) as specified.
+> - **`schema_version` and `policy_version` exist** on the v3 episode types
+>   (`v3/episode/types.rs`), alongside `evidence_level` and `contract_digest`.
+> - `v3/episode/store.rs` (835 lines) is a durable append-only
+>   `episodes.v1.jsonl` ledger with `propose_write`, `preview_commitment` and
+>   `retrieve`.
+>
+> **Still genuinely absent**, verified by repo-wide grep on the same date: COSE,
+> `signer_key_id` on episodes, `task_regime`, `regime_posterior`, `quarantine`,
+> and block-level retention/deletion semantics. Beware the near-miss:
+> `signer_key_id` does occur in `abi-worker` for task and cancellation signing,
+> and `contradiction` occurs in `abi-sea` as a retrieval tag. Neither satisfies a
+> conformance row here.
 - **Consumers today:** `abbey` writes memory records as JSON into the durable KV
   space under `mem/<id>`; `abbey-bot` writes a single-file `# ABI-WDBX v1`
   projection, proven loadable by `abi-wdbx` in
@@ -261,7 +282,24 @@ run, and it must be able to return "no benefit."
 
 ## Honest residual
 
-Nothing in this document is implemented. The CSAPS paper it derives from is a
+**Corrected 2026-09-04: the sentence "Nothing in this document is implemented"
+is no longer true, and the correction must not be over-read either.** WDBX v3
+implements the commitment and the episode store (see the update box in the
+Baseline section). What it does **not** have is a single consumer: `grep "v3::"`
+outside `src/v3/` matches only its own two test files
+(`tests/v3_canonical_commitment.rs`, `tests/v3_episode_store.rs`), and nothing in
+`abi/`, `abbey/` or `abbey-bot/` references it. The **live** write path is still
+unchanged from this document's baseline: `V2AuditBlock` with 8 fields and
+`audit_hash = SHA256(serde_json::to_vec(...))` over **insertion-ordered**
+parents.
+
+So the accurate status is: **implemented and tested, shipped to no one.** Treat
+v3 as Proposed for any claim about system behaviour, and as Current only for
+claims about what code exists. Note also that `episodes.v1.jsonl` is a further
+on-disk memory format that nothing writes today; it becomes real the moment a
+consumer is wired.
+
+The remainder of this residual still stands as written. The CSAPS paper it derives from is a
 proposed architecture whose own status box states the integrated system has not
 been empirically validated, and its quantitative thresholds are acceptance
 targets rather than results. Independent cryptographic review of the commitment
