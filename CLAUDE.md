@@ -32,7 +32,7 @@ PR #777 and now defers to `AGENTS.md`.
 
 | Command | What it does |
 |---|---|
-| `./tools/check.sh` | **Primary gate.** Run this before considering any change done. `AGENTS.md` carries the authoritative step order; the steps that surprise people are the ones that run *before* fmt — repository policy tests, `./tools/cargo.sh xtask ci verify` (judo #817), the Abbey contract corpus (Python oracle + `./tools/cargo.sh xtask abbey verify`; Python authoritative until byte-identical), and `tools/check_rust_sizes.sh` — plus `tools/bench_regress.sh` (same-system benchmark-regression guard), which runs after the workspace tests and before the doc build. |
+| `./tools/check.sh` | **Primary gate.** Run this before considering any change done. `AGENTS.md` carries the authoritative step order; the steps that surprise people are the ones that run *before* fmt — repository policy tests, `./tools/cargo.sh xtask ci verify` (judo #817), the Abbey contract corpus (Python oracle + `./tools/cargo.sh xtask abbey verify`; Python authoritative until byte-identical), and `tools/check_rust_sizes.sh` — plus `tools/bench_regress.sh` (same-system benchmark-regression guard), which runs after the workspace tests and the platform-feature step (Darwin-only `abi-model-runtime --features metal` test/doc, `nvcc`-gated CUDA check) and before the doc build. `./build.sh full-check` is an alias. |
 | `./tools/cargo.sh xtask ci verify` | Rust port of `tools/ci_contract.py` (judo #817). `check.sh` runs this; Python tests under `tools/tests/test_ci_contract.py` remain the CI-contract oracle. |
 | `./tools/cargo.sh xtask abbey verify contracts/abbey` | Rust port of Abbey corpus verify. `check.sh` runs Python then xtask. Vendor: `./tools/cargo.sh xtask abbey vendor --source … --destination … --source-revision …`. |
 | `./build.sh check` | Thin compat wrapper → `./tools/check.sh` |
@@ -42,6 +42,11 @@ PR #777 and now defers to `AGENTS.md`.
 | `./tools/cargo.sh test -p <crate> --test <name>` | A single **integration** test target under a package's `tests/`, e.g. `./tools/cargo.sh test -p abi-cli --test golden`. `--lib` cannot reach these. |
 | `./tools/cargo.sh test --workspace` | Full test suite (also run by `check.sh`) |
 | `./tools/cargo.sh fmt --all` | Apply rustfmt |
+| `python3 -m unittest discover -s tools/tests -p 'test_*.py'` | The repository policy tests that open `check.sh` (six suites: abbey_contracts, ci_contract, docs_policy, docs_templates, pages_contract, site_contract) |
+| `python3 tools/abbey_contracts.py verify contracts/abbey` | The authoritative Python oracle for the Abbey corpus; `xtask abbey verify` must match it |
+| `bash ./tools/check_rust_sizes.sh` | File-size gate on its own |
+| `RUSTDOCFLAGS="-D warnings" ./tools/cargo.sh doc --workspace --no-deps` | The doc gate on its own — a common late-stage failure |
+| `./build.sh cli` / `mcp` / `test` / `fmt` | Remaining `build.sh` aliases besides `check`/`full-check` |
 | `./tools/cargo.sh clippy --workspace --all-targets -- -D warnings` | Lint, matching the gate exactly |
 | `./mcp/launcher.sh` | Launch the MCP server; prefers `target/release/abi-mcp` then `target/debug/abi-mcp`; run from repo root (or via the launcher) so `@loader_path` resolves `libabi_fm_shim.dylib` on arm64 macOS; set `ABI_MCP_AUTO_BUILD=1` to build on demand |
 
@@ -71,10 +76,10 @@ credentials — useful for verifying a change beyond what unit tests cover:
 ABI=./target/debug/abi
 $ABI backends
 $ABI scheduler status
-$ABI dashboard --once --plain
+$ABI dashboard --once --plain            # --json / --list-panes / --pane <n> are the scriptable forms
 $ABI complete "summarize ABI scheduler status"
 $ABI agent plan "stage a safe WDBX refactor"
-$ABI wdbx query "$(mktemp -d)/store"   # store stats as JSON; `wdbx stats` is not a command
+$ABI wdbx query "$(mktemp -d)/store"   # store stats as JSON; `wdbx stats` is not a command (README's walkthrough still says it is; README is the stale one)
 ```
 
 The `complete` / `agent` lines above touch the store, so prefix them with
@@ -87,7 +92,19 @@ with `cargo metadata` (the 17th is `xtask`, judo #817). Five more packages are s
 `../wdbx/crates/`: `abi-compute`, `abi-core`, `abi-foundation`,
 `abi-telemetry`, and `abi-wdbx`. They are not ABI-local workspace members.
 Keep `abi` and `wdbx` adjacent and verify the live metadata rather than trusting
-dated prose.
+dated prose. Without `../wdbx`, cargo fails at manifest resolution for the whole
+workspace (12 of 17 members need a sibling; only `abi-agent-runtime`,
+`abi-capability`, `abi-agent-host`, `abi-contracts`, and `xtask` build alone), so
+`./tools/check.sh` cannot pass even its early steps because `xtask ci verify`
+goes through cargo. CI pins the sibling to an exact SHA (`WDBX_REVISION` in
+`.github/workflows/ci.yml`, checked out in all three jobs); a local `../wdbx`
+is not pinned, so local green and CI green can diverge on substrate changes.
+
+Workspace policy from `Cargo.toml`: edition 2024, resolver 3,
+`rust-version = "1.99"` (the floor `tools/cargo.sh` exists to satisfy),
+`unsafe_code = "deny"`, `missing_docs = "warn"`, `clippy::all = "deny"` with
+`clippy::pedantic = "warn"`, and a release profile with `panic = "abort"` +
+thin LTO. Every crate inherits these with `[lints] workspace = true`.
 
 | Crate | Role |
 |---|---|
@@ -102,7 +119,7 @@ dated prose.
 | `abi-agent-host` | Bounded, policy-authorized tool orchestration for model providers. Depends on `abi-agent-runtime`. This is the crate closest to constitutional invariant A3: authorization is not a generative decision. |
 | `abi-wdbx-gateway` | Authenticated bounded gRPC and WebSocket gateway for WDBX v2. Depends on `abi-wdbx`. Its RPC surface (`PutVector`/`Search`/`PutKv`/`GetKv`/`ResolveConflict`/`Stats`/`MembershipChange`/`WatchMutations`) is **not** the CSAPS `MemoryService` surface: there is no `ProposeWrite` write gate and no `Verify`. |
 | `abi-model-runtime` | Explicit local model loading and evidenced Candle execution. Depends on `abi-agent-runtime`, `abi-compute`, `abi-models`. |
-| `abi-gpu` | Claim-honest GPU/accelerator backend detection — note it depends on `abi-wdbx`, not the reverse. Metal preferred on macOS; the `metal-kernels` feature is **on by default**, but `accelerated=true` additionally requires the Metal DOT pipeline to actually link and initialize at runtime — otherwise deterministic CPU SIMD fallback with `accelerated=false`. Also hosts claim-honest shaders/MLIR/mobile report surfaces. |
+| `abi-gpu` | Claim-honest GPU/accelerator backend detection. Depends on `abi-compute` and `abi-foundation` only (not `abi-wdbx`); default features are `metal-kernels` + `coreml-ane`, with `cuda-adapter`/`vulkan-adapter` as opt-in capability-only rows. Metal preferred on macOS; the `metal-kernels` feature is **on by default**, but `accelerated=true` additionally requires the Metal DOT pipeline to actually link and initialize at runtime — otherwise deterministic CPU SIMD fallback with `accelerated=false`. Also hosts claim-honest shaders/MLIR/mobile report surfaces. |
 | `abi-sea` | SEA (Sparse Evidence Attention) self-learning loop: recalls prior WDBX records relevant to an input, prepends them as context, runs adaptive completion, updates persona-router weights. |
 | `abi-worker` | Authenticated, bounded worker-control contracts and admission. Depends on `abi-agent-runtime`, `abi-wdbx-gateway`. |
 | `abi-cli` (bin `abi`) | Command metadata, help rendering, process dispatch. Depends on the local workspace and sibling substrate packages. The help surface is a stable, golden-tested contract boundary. |
@@ -146,9 +163,18 @@ timeout, and escapes TwiML/form payloads before dispatch either way.
     help text/JSON, `backends`, completion scripts.
   - `crates/abi-mcp/src/rpc.rs` — `initialize`, `tools/list` (tool order is
     contract order, **not** alphabetical — see `handlers.rs`), `tools/call`.
-  - `../wdbx/crates/abi-core/tests/golden_scheduler.rs`,
-    `../wdbx/crates/abi-core/src/registry.rs`
-    — scheduler status and the 16-plugin listing.
+  - `crates/abi-cli/tests/golden_scheduler.rs` — scheduler status; moved here
+    from `abi-core` when WDBX was extracted. Its fixtures were captured from the
+    retired Zig binaries and are the only record of the frozen format, so never
+    regenerate them casually.
+  - `crates/abi-plugins/tests/golden_plugins.rs` — the 16-plugin listing. This is
+    a three-way parity check (compiled-in `BUNDLED` table, on-disk
+    `abi-plugin.json` manifests, golden fixtures), and the MCP `plugin_list`
+    formatter is deliberately duplicated rather than shared so the two surfaces
+    fail instead of sharing a bug. `abi plugin list` is alphabetical; MCP
+    `plugin_list` is declaration order.
+  - CLI help goldens are one file per command (`tests/golden/help-*.txt`), so a
+    14th command means a new fixture, not just an edit to `usage.rs`.
 
 ## Claims discipline
 
@@ -187,6 +213,16 @@ mutating the real process environment. Add new vars there; don't scatter raw
 | `ABI_LLAMA_CPP_ENDPOINT` / `ABI_MLX_ENDPOINT` | Local inference endpoints |
 | `ABI_OS_POLICY` | Override the `abi agent os` policy file (default `~/.abi/os-policy.toml`); tests set it so they never read the user's real policy |
 | `ABI_MCP_AUTO_BUILD` | `mcp/launcher.sh` only — build the server on demand |
+| `ABI_WDBX_ENCRYPTION_KEY_FILE` / `ABI_WDBX_SIGNING_KEY_FILE` / `ABI_WDBX_VERIFY_KEY_FILE` | WDBX v2 key material consumed by `abi wdbx db keygen` / `rekey` (`crates/abi-cli/src/wdbx/db.rs`) |
+| `ABI_AUTH_TOKEN` | Non-interactive credential for `abi auth signin`; unset + non-TTY stdin reads the secret from stdin (the reason tests need `< /dev/null`) |
+| `ABI_BROWSER_STUDIO_TOKEN` | Bearer for the loopback browser studio (`abi agent browser --studio`) |
+
+Only vars referenced from local crates are listed here; the WDBX REST/rate-limit
+rows above are consumed in the sibling `abi-foundation` registry and cannot be
+verified without `../wdbx` present. Other locally used vars (`ABI_CREDENTIALS_*`,
+`ABI_MODELS_DIR`, `ABI_FM_SHIM_FORCE`, `ABI_METAL_KERNELS_FORCE`,
+`ABI_CUDA_TOOLCHAIN_DETECTED`, `ABI_VULKAN_TOOLCHAIN_DETECTED`) are documented at
+their use sites.
 
 Bearer tokens here are loopback-only hardening, not a TLS substitute.
 
@@ -208,25 +244,29 @@ existing golden fixtures still cover the new path.
 - Prefer feature branches `cursor/*` off `origin/main`; land via draft PR then
   `gh pr merge --squash`; delete merged `cursor/*` branches after.
 - Session-start reading order for agents: `tasks/lessons.md`, then
-  `tasks/todo.md` for current priorities.
+  `tasks/todo.md` for current priorities, then `tasks/goals.md` (the largest
+  ledger; fed by `tools/goal_capture.sh` and the `goal-ledger` skill).
 
 ## Code quality hotspots
 
 Re-measure before trusting this table — it goes stale as work lands
 (`find crates -name '*.rs' -exec wc -l {} + | sort -rn | head`).
 
-`tools/check_rust_sizes.sh` rejects Rust modules over 1,000 lines and rejects
-`crates/abi-cli/src/main.rs` over 200. Current watch list (900–1000 lines):
-`../wdbx/crates/abi-wdbx/src/hnsw.rs` (958),
-`../wdbx/crates/abi-wdbx/src/store.rs` (933),
+`tools/check_rust_sizes.sh` rejects Rust files (tracked or untracked, tests
+included) over 1,000 lines and rejects `crates/abi-cli/src/main.rs` over 200.
+Local watch list (900–1000 lines, measured 2026-09-04):
 `crates/abi-cli/src/dashboard.rs` (932),
-`../wdbx/crates/abi-wdbx/src/multiway.rs` (930),
-`../wdbx/crates/abi-wdbx/src/v2/lifecycle.rs` (921), and
-`crates/abi-cli/src/complete.rs` (904). Re-measure before trusting these numbers.
+`crates/abi-contracts/src/lib.rs` (929), and
+`crates/abi-cli/src/complete.rs` (904); next up is
+`crates/abi-cli/src/wdbx_simulate.rs` (827, the bounded multiway rewriting
+engine behind `abi wdbx simulate`). The sibling `../wdbx` tree has its own
+band-dwellers (`abi-wdbx/src/{hnsw,store,multiway,v2/lifecycle}.rs` were all
+920–960 when last measured) but that checkout is not always present, so
+measure there separately. Re-measure before trusting these numbers.
 
 Already split — don't recreate the flat versions: `crates/abi-cli/src/wdbx.rs` is
 now the `wdbx/` module directory, `../wdbx/crates/abi-wdbx/src/format.rs` is down to
-~444 lines, and `crates/abi-cli/src/agent.rs` is down to ~520 (the line-mode
+~444 lines, and `crates/abi-cli/src/agent.rs` is down to ~550 (the line-mode
 REPL moved to `repl.rs`; its raw editor/TTY transport is isolated in
 `repl_editor.rs`; `os.rs` owns command execution with `os/policy.rs` +
 `os/audit.rs` beside it). Scheduler tests live under `scheduler/tests.rs`;
