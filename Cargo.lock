@@ -54,6 +54,7 @@ dependencies = [
  "abi-wdbx-gateway",
  "ctrlc",
  "libc",
+ "rcgen",
  "serde_json",
  "tokio",
  "tonic",

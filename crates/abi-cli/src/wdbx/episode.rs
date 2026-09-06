@@ -11,19 +11,20 @@ use std::time::Duration;
 
 use abi_wdbx_gateway::proto::wdbx_gateway_client::WdbxGatewayClient;
 use abi_wdbx_gateway::proto::{EpisodeReceipt, ProposeEpisodeWriteRequest, VerifyEpisodeRequest};
-use tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint};
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint, Identity};
 use tonic::{Request, Status};
 
 use crate::app::Outcome;
 use crate::usage::is_help_token;
 
-pub(crate) const EPISODE_HELP: &str = "usage: abi wdbx episode propose <write.json> [--preview] [options]\n       abi wdbx episode verify <guild_ref> <digest-hex> [options]\n\nCall the gateway's canonical episode gate (WDBX v3). `propose` sends one\nEpisodeWrite as JSON (unknown fields are rejected by the gateway) and prints\nthe commitment; `--preview` computes the commitment without appending.\n`verify` asks whether a commitment exists anywhere in the guild's ledger.\n\nOptions\n  --endpoint <URL>       Gateway gRPC endpoint (default http://127.0.0.1:50051;\n                         env ABI_WDBX_GATEWAY_ENDPOINT). Plain http is accepted\n                         for loopback only; other hosts need https + --ca-cert\n  --token-file <PATH>    Bearer token file, the same file the gateway was given\n                         (env ABI_WDBX_GATEWAY_TOKEN_FILE; required)\n  --ca-cert <PEM>        Trust this CA for an https endpoint (server TLS only;\n                         an mTLS client identity is not wired yet)\n  --json                 Print the result as one JSON object\n\nExit status: 0 on append, preview, or found; 1 on a gateway rejection (stderr\ncarries the gRPC code and the store's reason label) or when verify finds\nnothing; 2 on usage errors.\n";
+pub(crate) const EPISODE_HELP: &str = "usage: abi wdbx episode propose <write.json> [--preview] [options]\n       abi wdbx episode verify <guild_ref> <digest-hex> [options]\n\nCall the gateway's canonical episode gate (WDBX v3). `propose` sends one\nEpisodeWrite as JSON (unknown fields are rejected by the gateway) and prints\nthe commitment; `--preview` computes the commitment without appending.\n`verify` asks whether a commitment exists anywhere in the guild's ledger.\n\nOptions\n  --endpoint <URL>       Gateway gRPC endpoint (default http://127.0.0.1:50051;\n                         env ABI_WDBX_GATEWAY_ENDPOINT). Plain http is accepted\n                         for loopback only; other hosts need https + --ca-cert\n  --token-file <PATH>    Bearer token file, the same file the gateway was given\n                         (env ABI_WDBX_GATEWAY_TOKEN_FILE; required)\n  --ca-cert <PEM>        Trust this CA for an https endpoint\n  --client-cert <PEM>    Present this client certificate (mTLS); needs\n  --client-key <PEM>     ... and its private key; both or neither, https only\n  --json                 Print the result as one JSON object\n\nExit status: 0 on append, preview, or found; 1 on a gateway rejection (stderr\ncarries the gRPC code and the store's reason label) or when verify finds\nnothing; 2 on usage errors.\n";
 
 const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:50051";
 const ENDPOINT_ENV: &str = "ABI_WDBX_GATEWAY_ENDPOINT";
 const TOKEN_FILE_ENV: &str = "ABI_WDBX_GATEWAY_TOKEN_FILE";
 const MAX_WRITE_BYTES: u64 = 64 * 1024;
 const MAX_TOKEN_BYTES: u64 = 64 * 1024;
+const MAX_PEM_BYTES: u64 = 256 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -31,6 +32,9 @@ struct Options {
     endpoint: String,
     token_file: Option<PathBuf>,
     ca_cert: Option<PathBuf>,
+    /// mTLS client identity: both files or neither.
+    client_cert: Option<PathBuf>,
+    client_key: Option<PathBuf>,
     json: bool,
     preview: bool,
     positional: Vec<String>,
@@ -49,6 +53,8 @@ fn parse(args: &[String]) -> Result<Options, Outcome> {
         endpoint: std::env::var(ENDPOINT_ENV).unwrap_or_else(|_| DEFAULT_ENDPOINT.to_owned()),
         token_file: std::env::var_os(TOKEN_FILE_ENV).map(PathBuf::from),
         ca_cert: None,
+        client_cert: None,
+        client_key: None,
         json: false,
         preview: false,
         positional: Vec::new(),
@@ -67,10 +73,28 @@ fn parse(args: &[String]) -> Result<Options, Outcome> {
             "--ca-cert" => {
                 options.ca_cert = Some(PathBuf::from(iter.next().ok_or_else(|| usage(2))?));
             }
+            "--client-cert" => {
+                options.client_cert = Some(PathBuf::from(iter.next().ok_or_else(|| usage(2))?));
+            }
+            "--client-key" => {
+                options.client_key = Some(PathBuf::from(iter.next().ok_or_else(|| usage(2))?));
+            }
             other if is_help_token(other) => return Err(usage(0)),
             other if other.starts_with('-') => return Err(usage(2)),
             other => options.positional.push(other.to_owned()),
         }
+    }
+    if options.client_cert.is_some() != options.client_key.is_some() {
+        return Err(Outcome::stderr(
+            "episode: --client-cert and --client-key must be given together\n".to_owned(),
+            2,
+        ));
+    }
+    if options.client_cert.is_some() && !options.endpoint.starts_with("https://") {
+        return Err(Outcome::stderr(
+            "episode: a client identity needs an https endpoint\n".to_owned(),
+            2,
+        ));
     }
     Ok(options)
 }
@@ -225,11 +249,21 @@ async fn connect(options: &Options) -> Result<WdbxGatewayClient<Channel>, String
         .map_err(|error| format!("endpoint {}: {error}", options.endpoint))?
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(REQUEST_TIMEOUT);
-    if let Some(ca_cert) = &options.ca_cert {
-        let pem = std::fs::read(ca_cert)
-            .map_err(|error| format!("CA certificate {}: {error}", ca_cert.display()))?;
+    if options.ca_cert.is_some() || options.client_cert.is_some() {
+        let mut tls = ClientTlsConfig::new();
+        if let Some(ca_cert) = &options.ca_cert {
+            tls = tls.ca_certificate(Certificate::from_pem(read_pem(ca_cert, "CA certificate")?));
+        }
+        if let (Some(cert), Some(key)) = (&options.client_cert, &options.client_key) {
+            // Both files are read whole and handed to the TLS stack; neither
+            // is logged, echoed, or kept beyond this call.
+            tls = tls.identity(Identity::from_pem(
+                read_pem(cert, "client certificate")?,
+                read_pem(key, "client key")?,
+            ));
+        }
         endpoint = endpoint
-            .tls_config(ClientTlsConfig::new().ca_certificate(Certificate::from_pem(pem)))
+            .tls_config(tls)
             .map_err(|error| format!("TLS configuration: {error}"))?;
     }
     let channel = endpoint
@@ -246,6 +280,11 @@ fn authenticated<T>(message: T, token: &str) -> Result<Request<T>, Status> {
         .map_err(|_| Status::invalid_argument("bearer token must be visible ASCII"))?;
     request.metadata_mut().insert("authorization", value);
     Ok(request)
+}
+
+fn read_pem(path: &Path, what: &str) -> Result<Vec<u8>, String> {
+    read_bounded(path, MAX_PEM_BYTES)
+        .map_err(|detail| format!("{what} {}: {detail}", path.display()))
 }
 
 fn load_token(path: Option<&Path>) -> Result<String, String> {
@@ -403,6 +442,32 @@ mod tests {
             cleartext.stderr.contains("require https and --ca-cert"),
             "{}",
             cleartext.stderr
+        );
+        let half_identity = run_episode(&[
+            "verify".to_owned(),
+            "guild".to_owned(),
+            "00".repeat(32),
+            "--endpoint".to_owned(),
+            "https://localhost:1".to_owned(),
+            "--client-cert".to_owned(),
+            "cert.pem".to_owned(),
+        ]);
+        assert_eq!(half_identity.exit_code, 2);
+        assert!(half_identity.stderr.contains("must be given together"));
+        let identity_over_http = run_episode(&[
+            "verify".to_owned(),
+            "guild".to_owned(),
+            "00".repeat(32),
+            "--client-cert".to_owned(),
+            "cert.pem".to_owned(),
+            "--client-key".to_owned(),
+            "key.pem".to_owned(),
+        ]);
+        assert_eq!(identity_over_http.exit_code, 2);
+        assert!(
+            identity_over_http
+                .stderr
+                .contains("needs an https endpoint")
         );
         let bad_digest = run_episode(&["verify".to_owned(), "guild".to_owned(), "nope".to_owned()]);
         assert_eq!(bad_digest.exit_code, 1);

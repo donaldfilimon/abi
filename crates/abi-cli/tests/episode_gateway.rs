@@ -6,13 +6,17 @@
 #![cfg(unix)]
 
 use abi_wdbx_gateway::proto::wdbx_gateway_client::WdbxGatewayClient;
-use abi_wdbx_gateway::{GatewayConfig, PreparedGateway};
+use abi_wdbx_gateway::{GatewayConfig, PreparedGateway, TlsFiles};
+use rcgen::{
+    BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, KeyPair, KeyUsagePurpose,
+};
 use std::collections::BTreeMap;
 use std::net::{SocketAddr, TcpListener};
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::time::Duration;
+use tonic::transport::{Certificate, ClientTlsConfig, Endpoint, Identity};
 
 const TOKEN: &str = "episode-cli-test-token";
 
@@ -214,6 +218,167 @@ async fn cli_proposes_verifies_and_reports_rejections_through_a_live_gateway() {
         ]);
         assert_eq!(denied.status.code(), Some(1));
         assert!(text(&denied.stderr).contains("Unauthenticated"));
+        scratch
+    })
+    .await
+    .unwrap();
+
+    let _ = shutdown.send(());
+    server.await.unwrap().unwrap();
+    drop(outcome);
+}
+
+struct Pki {
+    ca: PathBuf,
+    server_cert: PathBuf,
+    server_key: PathBuf,
+    client_cert: PathBuf,
+    client_key: PathBuf,
+    ca_pem: String,
+    client_cert_pem: String,
+    client_key_pem: String,
+}
+
+/// One CA signing a `localhost` server certificate and a client certificate,
+/// the same shape the gateway's own mTLS test uses.
+fn generate_pki(scratch: &Scratch) -> Pki {
+    let ca_key = KeyPair::generate().unwrap();
+    let mut ca_params = CertificateParams::new(Vec::<String>::new()).unwrap();
+    ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+    ca_params.key_usages = vec![
+        KeyUsagePurpose::DigitalSignature,
+        KeyUsagePurpose::KeyCertSign,
+        KeyUsagePurpose::CrlSign,
+    ];
+    let ca = ca_params.self_signed(&ca_key).unwrap();
+    let server_key = KeyPair::generate().unwrap();
+    let mut server_params = CertificateParams::new(vec!["localhost".into()]).unwrap();
+    server_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
+    let server = server_params.signed_by(&server_key, &ca, &ca_key).unwrap();
+    let client_key = KeyPair::generate().unwrap();
+    let mut client_params = CertificateParams::new(vec!["episode-cli".into()]).unwrap();
+    client_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ClientAuth];
+    let client = client_params.signed_by(&client_key, &ca, &ca_key).unwrap();
+
+    let pki = Pki {
+        ca: scratch.path("ca.pem"),
+        server_cert: scratch.path("server-cert.pem"),
+        server_key: scratch.path("server-key.pem"),
+        client_cert: scratch.path("client-cert.pem"),
+        client_key: scratch.path("client-key.pem"),
+        ca_pem: ca.pem(),
+        client_cert_pem: client.pem(),
+        client_key_pem: client_key.serialize_pem(),
+    };
+    std::fs::write(&pki.ca, &pki.ca_pem).unwrap();
+    std::fs::write(&pki.server_cert, server.pem()).unwrap();
+    write_private(&pki.server_key, server_key.serialize_pem().as_bytes());
+    std::fs::write(&pki.client_cert, &pki.client_cert_pem).unwrap();
+    write_private(&pki.client_key, pki.client_key_pem.as_bytes());
+    pki
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cli_presents_a_client_identity_to_an_mtls_gateway() {
+    let scratch = Scratch::new();
+    let pki = generate_pki(&scratch);
+    let token_file = scratch.path("token");
+    write_private(&token_file, format!("{TOKEN}\n").as_bytes());
+    let policy_file = scratch.path("policy.json");
+    std::fs::write(&policy_file, policy_json()).unwrap();
+    let write_file = scratch.path("write.json");
+    std::fs::write(&write_file, write_json("req_cli_tls_1")).unwrap();
+
+    let mut config = GatewayConfig::loopback(scratch.path("store"), &token_file);
+    config.grpc_addr = free_loopback();
+    config.events_addr = free_loopback();
+    config.episode_policy = Some(policy_file);
+    config.tls = TlsFiles {
+        certificate: Some(pki.server_cert.clone()),
+        private_key: Some(pki.server_key.clone()),
+        client_ca: Some(pki.ca.clone()),
+    };
+    let endpoint = format!("https://localhost:{}", config.grpc_addr.port());
+    let gateway = PreparedGateway::prepare(config).await.unwrap();
+    let (shutdown, shutdown_receiver) = tokio::sync::oneshot::channel::<()>();
+    let server = tokio::spawn(gateway.serve(async move {
+        let _ = shutdown_receiver.await;
+    }));
+    let probe = Endpoint::from_shared(endpoint.clone())
+        .unwrap()
+        .tls_config(
+            ClientTlsConfig::new()
+                .domain_name("localhost")
+                .ca_certificate(Certificate::from_pem(pki.ca_pem.clone()))
+                .identity(Identity::from_pem(
+                    pki.client_cert_pem.clone(),
+                    pki.client_key_pem.clone(),
+                )),
+        )
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while probe.clone().connect().await.is_err() {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("mTLS gateway listener readiness");
+
+    let outcome = tokio::task::spawn_blocking(move || {
+        let path = |p: &Path| p.to_str().unwrap().to_owned();
+        let (token_arg, write_arg) = (path(&token_file), path(&write_file));
+        let (ca_arg, cert_arg, key_arg) =
+            (path(&pki.ca), path(&pki.client_cert), path(&pki.client_key));
+        let common = [
+            "--endpoint",
+            endpoint.as_str(),
+            "--token-file",
+            token_arg.as_str(),
+            "--ca-cert",
+            ca_arg.as_str(),
+        ];
+        let run = |head: &[&str], tail: &[&str]| {
+            let mut arguments: Vec<&str> = head.to_vec();
+            arguments.extend_from_slice(&common);
+            arguments.extend_from_slice(tail);
+            abi(&arguments)
+        };
+
+        // With the identity: appended over mTLS.
+        let appended = run(
+            &["wdbx", "episode", "propose", &write_arg],
+            &["--client-cert", &cert_arg, "--client-key", &key_arg],
+        );
+        assert!(appended.status.success(), "{}", text(&appended.stderr));
+        let appended_line = text(&appended.stdout);
+        assert_eq!(field(&appended_line, "decision"), "appended");
+        let digest = field(&appended_line, "episode_digest").to_owned();
+
+        let verified = run(
+            &["wdbx", "episode", "verify", "guild_ref", &digest],
+            &["--client-cert", &cert_arg, "--client-key", &key_arg],
+        );
+        assert!(verified.status.success(), "{}", text(&verified.stderr));
+        assert!(text(&verified.stdout).starts_with("found=true"));
+
+        // Without the identity the gateway refuses the handshake or the call;
+        // either way the CLI exits 1 and never reports a receipt.
+        let anonymous = run(&["wdbx", "episode", "verify", "guild_ref", &digest], &[]);
+        assert_eq!(
+            anonymous.status.code(),
+            Some(1),
+            "{}",
+            text(&anonymous.stdout)
+        );
+        assert!(!text(&anonymous.stdout).contains("found=true"));
+
+        // Half an identity is a usage error, before any network activity.
+        let half = run(
+            &["wdbx", "episode", "verify", "guild_ref", &digest],
+            &["--client-cert", &cert_arg],
+        );
+        assert_eq!(half.status.code(), Some(2));
+        assert!(text(&half.stderr).contains("must be given together"));
         scratch
     })
     .await
