@@ -249,20 +249,19 @@ existing golden fixtures still cover the new path.
 
 ## Code quality hotspots
 
-Re-measure before trusting this table — it goes stale as work lands
+Measure before trusting any of this — it goes stale as work lands
 (`find crates -name '*.rs' -exec wc -l {} + | sort -rn | head`).
 
 `tools/check_rust_sizes.sh` rejects Rust files (tracked or untracked, tests
 included) over 1,000 lines and rejects `crates/abi-cli/src/main.rs` over 200.
-Local watch list (900–1000 lines, measured 2026-09-04):
-`crates/abi-cli/src/dashboard.rs` (932),
-`crates/abi-contracts/src/lib.rs` (929), and
-`crates/abi-cli/src/complete.rs` (904); next up is
-`crates/abi-cli/src/wdbx_simulate.rs` (827, the bounded multiway rewriting
-engine behind `abi wdbx simulate`). The sibling `../wdbx` tree has its own
-band-dwellers (`abi-wdbx/src/{hnsw,store,multiway,v2/lifecycle}.rs` were all
-920–960 when last measured) but that checkout is not always present, so
-measure there separately. Re-measure before trusting these numbers.
+The files that habitually sit in the 900–1000 band are
+`crates/abi-cli/src/dashboard.rs`, `crates/abi-contracts/src/lib.rs`,
+`crates/abi-cli/src/complete.rs`, and `crates/abi-cli/src/wdbx_simulate.rs`
+(the bounded multiway rewriting engine behind `abi wdbx simulate`); run the
+command above rather than trusting a written-down count. The sibling `../wdbx`
+tree has its own band-dwellers under `abi-wdbx/src/`
+(`{hnsw,store,multiway,v2/lifecycle}.rs`), but that checkout is not always
+present, so measure there separately.
 
 Already split — don't recreate the flat versions: `crates/abi-cli/src/wdbx.rs` is
 now the `wdbx/` module directory, `../wdbx/crates/abi-wdbx/src/format.rs` is down to
