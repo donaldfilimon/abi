@@ -219,4 +219,9 @@ candidate; or the DQN path proposes per step rather than per checkpoint.
 
 ## 9. Approval record
 
-_Empty until Donald records approval or requested changes here, with a date._
+- **2026-09-06 03:4x, approved as written by Donald** (answer to the bundled decision question in the
+  session that wrote this document: "Approve as written"). Status moves from proposed to approved.
+  Implementation may now proceed in the §7 order (wdbx store, then abi gateway/CLI, then the
+  abbey-bot adapter), each as its own gated slice with its own push decision. The two §5 register
+  entries are still quoted here, not yet written into the constitution; that edit lands with the
+  wdbx slice that makes them true.
