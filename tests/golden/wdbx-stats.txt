@@ -15,3 +15,5 @@ abi wdbx <command> ...
   secure demo                    Demonstrate int8 + Huffman/rANS entropy + autoencoder + HE/FHE demos (not SOTA / not audited)
   gpu info                       Report GPU backend capabilities
   api serve [port]               Serve the REST API (POST /insert /query /verify, GET /health /stats)
+  episode propose <write.json>   Propose (or --preview) one canonical episode write through the gateway's v3 gate (see `episode --help`)
+  episode verify <guild> <hex>   Ask the gateway whether a commitment exists in the guild's ledger

@@ -211,10 +211,10 @@ pub const COMMANDS: &[Command] = &[
     },
     Command {
         name: "wdbx",
-        usage: "abi wdbx <db|block|query|benchmark|simulate|cluster|compute|secure|gpu|api> ...",
+        usage: "abi wdbx <db|block|query|benchmark|simulate|cluster|compute|secure|gpu|api|episode> ...",
         summary: "Operate WDBX storage, WAL, blocks, stats, and demos",
         category: Category::Data,
-        details: "Subcommands: db init|verify|compact, block insert|get, query [--limit/--json/--text/--persona], benchmark, simulate (bounded multiway rewriting experiments), cluster status|demo|serve, compute info, secure demo, gpu info, api serve. Query runs hybrid semantic\u{d7}temporal\u{d7}causal\u{d7}persona ranking over a recovered store.",
+        details: "Subcommands: db init|verify|compact, block insert|get, query [--limit/--json/--text/--persona], benchmark, simulate (bounded multiway rewriting experiments), cluster status|demo|serve, compute info, secure demo, gpu info, api serve, episode propose|verify (the gateway's canonical episode gate over gRPC). Query runs hybrid semantic\u{d7}temporal\u{d7}causal\u{d7}persona ranking over a recovered store.",
         examples: &[
             "abi wdbx db verify",
             "abi wdbx query ./store.jsonl \"local memory\" --limit 5 --json",

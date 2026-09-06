@@ -10,6 +10,7 @@ mod block;
 mod cluster;
 mod compute;
 mod db;
+mod episode;
 mod gpu;
 mod query;
 mod secure;
@@ -59,6 +60,7 @@ fn help_for(subcommand: &str) -> Option<&'static str> {
         "secure" => Some(secure::SECURE_HELP),
         "gpu" => Some(gpu::GPU_HELP),
         "api" => Some(api::API_HELP),
+        "episode" => Some(episode::EPISODE_HELP),
         _ => None,
     }
 }
@@ -90,6 +92,7 @@ pub(crate) fn run(args: &[String]) -> Outcome {
         "secure" => secure::run_secure(&args[1..]),
         "gpu" => gpu::run_gpu(&args[1..]),
         "api" => api::run_api(&args[1..]),
+        "episode" => episode::run_episode(&args[1..]),
         _ => usage(),
     }
 }

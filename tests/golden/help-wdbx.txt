@@ -1,8 +1,8 @@
-abi wdbx <db|block|query|benchmark|simulate|cluster|compute|secure|gpu|api> ...
+abi wdbx <db|block|query|benchmark|simulate|cluster|compute|secure|gpu|api|episode> ...
 
 Operate WDBX storage, WAL, blocks, stats, and demos
 
-Subcommands: db init|verify|compact, block insert|get, query [--limit/--json/--text/--persona], benchmark, simulate (bounded multiway rewriting experiments), cluster status|demo|serve, compute info, secure demo, gpu info, api serve. Query runs hybrid semantic×temporal×causal×persona ranking over a recovered store.
+Subcommands: db init|verify|compact, block insert|get, query [--limit/--json/--text/--persona], benchmark, simulate (bounded multiway rewriting experiments), cluster status|demo|serve, compute info, secure demo, gpu info, api serve, episode propose|verify (the gateway's canonical episode gate over gRPC). Query runs hybrid semantic×temporal×causal×persona ranking over a recovered store.
 
 Subcommands:
   db           abi wdbx db <init|verify|compact> <path> [keep]
@@ -25,6 +25,8 @@ Subcommands:
                Report GPU backend capability and native-kernel status.
   api          abi wdbx api serve [port]
                Serve the loopback WDBX REST API; bearer token via ABI_WDBX_REST_TOKEN; TLS via ABI_WDBX_TLS_CERT/KEY (proxy-terminated).
+  episode      abi wdbx episode propose <write.json> [--preview] | episode verify <guild_ref> <digest-hex>
+               Call the gateway's canonical episode gate over gRPC (WDBX v3 ProposeEpisodeWrite/VerifyEpisode); bearer token via --token-file/ABI_WDBX_GATEWAY_TOKEN_FILE; endpoint via --endpoint/ABI_WDBX_GATEWAY_ENDPOINT.
 
 Examples:
   abi wdbx db verify

@@ -51,7 +51,7 @@ _abi_complete() {
       COMPREPLY=( $(compgen -W "$words" -- "$cur") )
       ;;
     wdbx)
-      words="db block query benchmark simulate cluster compute secure gpu api "
+      words="db block query benchmark simulate cluster compute secure gpu api episode "
       COMPREPLY=( $(compgen -W "$words" -- "$cur") )
       ;;
     scheduler)

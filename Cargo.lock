@@ -51,9 +51,12 @@ dependencies = [
  "abi-sea",
  "abi-telemetry",
  "abi-wdbx",
+ "abi-wdbx-gateway",
  "ctrlc",
  "libc",
  "serde_json",
+ "tokio",
+ "tonic",
  "unicode-width",
  "uuid",
 ]

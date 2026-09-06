@@ -36,7 +36,7 @@ complete -c abi -n '__fish_seen_subcommand_from dashboard' -l once
 complete -c abi -n '__fish_seen_subcommand_from dashboard' -l interval
 complete -c abi -n '__fish_seen_subcommand_from dashboard' -l json
 complete -c abi -n '__fish_seen_subcommand_from dashboard' -l list-panes
-complete -c abi -n '__fish_seen_subcommand_from wdbx' -a 'db block query benchmark simulate cluster compute secure gpu api '
+complete -c abi -n '__fish_seen_subcommand_from wdbx' -a 'db block query benchmark simulate cluster compute secure gpu api episode '
 complete -c abi -n '__fish_seen_subcommand_from scheduler' -a 'status '
 complete -c abi -n '__fish_seen_subcommand_from nn' -a 'train sample '
 complete -c abi -n '__fish_seen_subcommand_from nn' -l jsonl

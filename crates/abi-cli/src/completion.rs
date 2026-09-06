@@ -30,7 +30,7 @@ fn command_words(name: &str) -> String {
         "auth" => "status logout signin ".to_owned(),
         "twilio" => "simulate ".to_owned(),
         "tui" | "dashboard" => "--pane 1 2 3 4 5 system plugins storage wdbx scheduler memory --plain --no-color --compact --once --interval --json --list-panes ".to_owned(),
-        "wdbx" => "db block query benchmark simulate cluster compute secure gpu api ".to_owned(),
+        "wdbx" => "db block query benchmark simulate cluster compute secure gpu api episode ".to_owned(),
         "scheduler" => "status ".to_owned(),
         "nn" => "train sample --jsonl --field --text --seed --n ".to_owned(),
         _ => String::new(),
@@ -194,7 +194,7 @@ complete -c abi -f\n",
             "wdbx" => fish_line(
                 &mut output,
                 &seen,
-                " -a 'db block query benchmark simulate cluster compute secure gpu api '",
+                " -a 'db block query benchmark simulate cluster compute secure gpu api episode '",
             ),
             "scheduler" => fish_line(&mut output, &seen, " -a 'status '"),
             "nn" => {

@@ -115,3 +115,11 @@ capture of an AI tool is not a read-only operation.
 Silver lining: those temporal records are the only real ones in existence, so
 they are what first exercised the Rust temporal-record path against actual data
 rather than a fixture.
+
+## Deliberate contract changes since the Zig capture
+
+- 2026-09-06: `abi wdbx episode propose|verify` added as the first caller of the
+  gateway's WDBX v3 episode gate. `help.json`, `help-wdbx.txt`, `wdbx-stats.txt`,
+  and the three completion scripts were edited by hand to match `usage.rs` and
+  `completion.rs`; the top-level `help.txt` is unchanged because it shows only
+  the `wdbx` summary line.

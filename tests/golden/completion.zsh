@@ -53,7 +53,7 @@ case "$cmd" in
       compadd -- --pane 1 2 3 4 5 system plugins storage wdbx scheduler memory --plain --no-color --compact --once --interval --json --list-panes 
       ;;
     wdbx)
-      compadd -- db block query benchmark simulate cluster compute secure gpu api 
+      compadd -- db block query benchmark simulate cluster compute secure gpu api episode 
       ;;
     scheduler)
       compadd -- status 

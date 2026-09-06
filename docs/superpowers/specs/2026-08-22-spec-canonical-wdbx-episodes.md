@@ -306,10 +306,16 @@ receipts of that guild in ledger order, because `retrieve` iterates oldest-first
 and caps at 2,048; a digest lookup on the store is the follow-up), backed by `v3::episode::EpisodeStore` under
 `<store>/episodes` and bound to a JSON `StorePolicy` given by
 `--episode-policy`; rejections return the store's stable reason label as the
-gRPC status message. What is still not true: no adapter calls it (the "adapters
-migrate off unconditional writes" half), so the live write path is unchanged,
-and `episodes.v1.jsonl` is written only by the gateway's own tests. Status is
-therefore *gate exposed and tested; consumer still absent*.
+gRPC status message. **Updated 2026-09-06:** the first consumer exists,
+`abi wdbx episode propose|verify` in `abi-cli`, a gRPC client that sends one
+`EpisodeWrite` as JSON (preview or append) and checks a commitment; it is
+end-to-end tested against a real gateway and refuses to send the bearer token
+in cleartext to any non-loopback host. What is still not true: no *adapter*
+calls the gate (the "adapters migrate off unconditional writes" half), so the
+live write path of abbey-bot and AbbeyBot is unchanged, and `episodes.v1.jsonl`
+is written only by the gateway's tests, the CLI's test, and whoever runs the
+CLI by hand. Status is therefore *gate exposed and tested; one operator-facing
+consumer; adapter consumer still absent*.
 
 The remainder of this residual still stands as written. The CSAPS paper it derives from is a
 proposed architecture whose own status box states the integrated system has not
