@@ -3,9 +3,11 @@
 use crate::proto::wdbx_gateway_server::WdbxGateway;
 use crate::proto::{
     GetKvRequest, GetKvResponse, MembershipAction, MembershipChangeRequest,
-    MembershipChangeResponse, MutationEvent, PutKvRequest, PutKvResponse, PutVectorRequest,
-    PutVectorResponse, ResolveConflictRequest, ResolveConflictResponse, SearchHit, SearchRequest,
-    SearchResponse, StatsRequest, StatsResponse, WatchMutationsRequest,
+    MembershipChangeResponse, MutationEvent, ProposeEpisodeWriteRequest,
+    ProposeEpisodeWriteResponse, PutKvRequest, PutKvResponse, PutVectorRequest, PutVectorResponse,
+    ResolveConflictRequest, ResolveConflictResponse, SearchHit, SearchRequest, SearchResponse,
+    StatsRequest, StatsResponse, VerifyEpisodeRequest, VerifyEpisodeResponse,
+    WatchMutationsRequest,
 };
 use crate::{BearerToken, EventHub, GatewayError, Limits, StoreExecutor};
 use abi_wdbx::{RecordId, V2Mutation};
@@ -365,6 +367,36 @@ impl WdbxGateway for GatewayService {
             head_digest: outcome.head_digest,
             tombstoned: outcome.tombstoned,
         }))
+    }
+
+    async fn propose_episode_write(
+        &self,
+        request: Request<ProposeEpisodeWriteRequest>,
+    ) -> Result<Response<ProposeEpisodeWriteResponse>, Status> {
+        self.admit(&request)?;
+        let response = crate::episodes::propose(
+            &self.executor,
+            self.limits.value_bytes,
+            request.into_inner(),
+        )
+        .await?;
+        if response.receipt.is_some() {
+            self.events.publish(
+                "propose_episode_write",
+                crate::episodes::digest_hex(&response.episode_digest),
+                1,
+            );
+        }
+        Ok(Response::new(response))
+    }
+
+    async fn verify_episode(
+        &self,
+        request: Request<VerifyEpisodeRequest>,
+    ) -> Result<Response<VerifyEpisodeResponse>, Status> {
+        self.admit(&request)?;
+        let response = crate::episodes::verify(&self.executor, request.into_inner()).await?;
+        Ok(Response::new(response))
     }
 
     async fn watch_mutations(

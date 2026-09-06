@@ -299,6 +299,18 @@ claims about what code exists. Note also that `episodes.v1.jsonl` is a further
 on-disk memory format that nothing writes today; it becomes real the moment a
 consumer is wired.
 
+**Updated 2026-09-05: Sequencing step 4 is half done.** `abi-wdbx-gateway` now
+exposes the gate as `ProposeEpisodeWrite` (preview or append) and
+`VerifyEpisode` (guild reference plus digest, answered from the first 2,048
+receipts of that guild in ledger order, because `retrieve` iterates oldest-first
+and caps at 2,048; a digest lookup on the store is the follow-up), backed by `v3::episode::EpisodeStore` under
+`<store>/episodes` and bound to a JSON `StorePolicy` given by
+`--episode-policy`; rejections return the store's stable reason label as the
+gRPC status message. What is still not true: no adapter calls it (the "adapters
+migrate off unconditional writes" half), so the live write path is unchanged,
+and `episodes.v1.jsonl` is written only by the gateway's own tests. Status is
+therefore *gate exposed and tested; consumer still absent*.
+
 The remainder of this residual still stands as written. The CSAPS paper it derives from is a
 proposed architecture whose own status box states the integrated system has not
 been empirically validated, and its quantitative thresholds are acceptance

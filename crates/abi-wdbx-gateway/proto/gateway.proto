@@ -11,6 +11,9 @@ service WdbxGateway {
   rpc Stats(StatsRequest) returns (StatsResponse);
   rpc MembershipChange(MembershipChangeRequest) returns (MembershipChangeResponse);
   rpc WatchMutations(WatchMutationsRequest) returns (stream MutationEvent);
+  // Canonical episode gate over the WDBX v3 episode store (Program 4, step 4).
+  rpc ProposeEpisodeWrite(ProposeEpisodeWriteRequest) returns (ProposeEpisodeWriteResponse);
+  rpc VerifyEpisode(VerifyEpisodeRequest) returns (VerifyEpisodeResponse);
 }
 
 message VectorInput { repeated float values = 1; }
@@ -84,4 +87,45 @@ message MutationEvent {
   string transaction_id = 3;
   uint32 item_count = 4;
   int64 unix_ms = 5;
+}
+
+// The episode write vocabulary is owned by `abi_wdbx::v3::episode::EpisodeWrite`
+// and travels as its JSON encoding so the closed enums are defined in exactly
+// one place. Unknown fields are rejected server-side.
+message ProposeEpisodeWriteRequest {
+  bytes episode_write_json = 1;
+  // Compute the canonical commitment without appending anything.
+  bool preview_only = 2;
+}
+// Sanitized, content-free receipt mirrored from the store.
+message EpisodeReceipt {
+  uint64 sequence = 1;
+  string request_id = 2;
+  string operation_id = 3;
+  string guild_ref = 4;
+  bytes episode_digest = 5;
+  // Empty when the event opened its operation chain.
+  bytes previous_digest = 6;
+  string event_kind = 7;
+  string policy_version = 8;
+  string evidence_level = 9;
+  // Empty unless the event is terminal.
+  string terminal_status = 10;
+  bool redacted = 11;
+}
+message ProposeEpisodeWriteResponse {
+  // "appended" or "preview". Rejections are gRPC statuses whose message is
+  // the store's stable reason label (for example `episode_replay`).
+  string decision = 1;
+  bytes episode_digest = 2;
+  // Present only when the decision is "appended".
+  EpisodeReceipt receipt = 3;
+}
+message VerifyEpisodeRequest {
+  string guild_ref = 1;
+  bytes episode_digest = 2;
+}
+message VerifyEpisodeResponse {
+  bool found = 1;
+  EpisodeReceipt receipt = 2;
 }

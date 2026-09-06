@@ -3,8 +3,12 @@
 `abi-wdbx-gateway` is a bounded network adapter around the synchronous WDBX v2
 product facade. It deliberately uses two explicit listeners:
 
-- gRPC (`--grpc`, loopback `127.0.0.1:50051` by default) implements the eight
-  RPCs in `proto/gateway.proto`.
+- gRPC (`--grpc`, loopback `127.0.0.1:50051` by default) implements the ten
+  RPCs in `proto/gateway.proto`: the eight WDBX v2 facade methods plus the
+  canonical episode gate `ProposeEpisodeWrite` / `VerifyEpisode`, which is live
+  only when `--episode-policy <json StorePolicy>` is configured (otherwise both
+  answer `FAILED_PRECONDITION`). `VerifyEpisode` answers from the first 2,048
+  receipts of the guild in ledger order (the store's retrieval cap and order).
 - HTTP/WebSocket (`--events`, loopback `127.0.0.1:50052` by default) exposes
   only `/v1/events`.
 

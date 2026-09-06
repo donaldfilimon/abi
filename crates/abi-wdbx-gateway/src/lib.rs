@@ -1,4 +1,5 @@
-//! Authenticated, bounded network gateway for the synchronous WDBX v2 facade.
+//! Authenticated, bounded network gateway for the synchronous WDBX v2 facade
+//! and the canonical WDBX v3 episode gate (`ProposeEpisodeWrite` / `VerifyEpisode`).
 //!
 //! The gateway keeps network policy separate from [`abi_wdbx`]: requests are
 //! validated and admitted before synchronous store work reaches a bounded
@@ -6,6 +7,7 @@
 
 mod auth;
 mod config;
+mod episodes;
 mod events;
 mod executor;
 mod membership;

@@ -121,6 +121,9 @@ pub struct GatewayConfig {
     pub tls: TlsFiles,
     /// Exact accepted browser origins for WebSocket upgrades.
     pub allowed_origins: Vec<String>,
+    /// Optional JSON `abi_wdbx::v3::episode::StorePolicy`. When absent the two
+    /// episode RPCs answer `FAILED_PRECONDITION` and no episode store is opened.
+    pub episode_policy: Option<PathBuf>,
     /// Resource limits.
     pub limits: Limits,
 }
@@ -136,6 +139,7 @@ impl GatewayConfig {
             token_file: token_file.into(),
             tls: TlsFiles::default(),
             allowed_origins: vec!["http://127.0.0.1".into(), "http://localhost".into()],
+            episode_policy: None,
             limits: Limits::default(),
         }
     }
@@ -165,6 +169,9 @@ impl GatewayConfig {
             ));
         }
         validate_regular_file(&self.token_file, true, "bearer token")?;
+        if let Some(path) = &self.episode_policy {
+            validate_regular_file(path, false, "episode policy")?;
+        }
         if let Some(path) = &self.tls.certificate {
             validate_regular_file(path, false, "TLS certificate")?;
         }

@@ -22,6 +22,9 @@ struct Arguments {
     tls_key: Option<PathBuf>,
     #[arg(long)]
     client_ca: Option<PathBuf>,
+    /// JSON `StorePolicy` that enables the canonical episode RPCs.
+    #[arg(long)]
+    episode_policy: Option<PathBuf>,
     #[arg(long = "origin", default_values_t = [
         "http://127.0.0.1".to_owned(),
         "http://localhost".to_owned(),
@@ -36,6 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.grpc_addr = arguments.grpc;
     config.events_addr = arguments.events;
     config.allowed_origins = arguments.origins;
+    config.episode_policy = arguments.episode_policy;
     config.tls = TlsFiles {
         certificate: arguments.tls_cert,
         private_key: arguments.tls_key,

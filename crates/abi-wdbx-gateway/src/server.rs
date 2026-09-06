@@ -56,7 +56,16 @@ impl PreparedGateway {
         let token = Arc::new(BearerToken::load(&config.token_file)?);
         let grpc_tls = grpc_tls_config(&config.tls)?;
         let websocket_tls = websocket_tls_config(&config.tls).await?;
-        let executor = StoreExecutor::open(&config.store_path, config.limits.blocking_jobs)?;
+        let episode_policy = config
+            .episode_policy
+            .as_deref()
+            .map(crate::episodes::load_policy)
+            .transpose()?;
+        let executor = StoreExecutor::open_with_episodes(
+            &config.store_path,
+            config.limits.blocking_jobs,
+            episode_policy,
+        )?;
         let events = Arc::new(EventHub::new(&config.limits));
         Ok(Self {
             config,
