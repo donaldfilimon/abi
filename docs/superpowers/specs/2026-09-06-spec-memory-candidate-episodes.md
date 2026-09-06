@@ -163,7 +163,7 @@ adapter, abbey-bot first because its caller already exists.
    (`tests/fixtures/episode_write_memory_candidate.json`) pins the
    transcription, exactly as the proposal fixture does today.
 
-## 5. Proposed decision-register entries (text only; not edited into the constitution)
+## 5. Decision-register entries (entered into the constitution as 84 and 85 on 2026-09-06, with the wdbx store slice `14cb134`)
 
 > 84. Adapter memory writes are proposals. An adapter persists a memory
 >     record locally only after the WDBX gate appends a content-free

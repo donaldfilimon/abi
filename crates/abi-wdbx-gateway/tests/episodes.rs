@@ -113,6 +113,139 @@ fn episode_proposal_json(request_id: &str, operation_id: &str) -> Vec<u8> {
     serde_json::to_vec(&write).unwrap()
 }
 
+fn episode_memory_candidate_json(request_id: &str, operation_id: &str) -> Vec<u8> {
+    use abi_wdbx::v3::episode::{
+        ActorKind, ActorRef, EpisodeEvent, EpisodeSource, EpisodeWrite, EvidenceLevel,
+        MemoryCandidate, MemoryClass, RetentionClass,
+    };
+
+    let write = EpisodeWrite {
+        request_id: request_id.into(),
+        operation_id: operation_id.into(),
+        contract_revision: 2,
+        contract_digest: [9; 32],
+        guild_ref: "guild_ref".into(),
+        consent_epoch: None,
+        source_type: EpisodeSource::DiscordGuild,
+        policy_version: "policy_v1".into(),
+        evidence_level: EvidenceLevel::C1,
+        event: EpisodeEvent::MemoryCandidate {
+            recorded_by: ActorRef {
+                principal_id: "abbey_service".into(),
+                kind: ActorKind::Service,
+            },
+            candidate: MemoryCandidate {
+                class: MemoryClass::Embedding,
+                retention: RetentionClass::Durable,
+                payload_commitment: [4; 32],
+                payload_bytes: 1_536,
+                dimension: Some(384),
+                embedding_version: Some("abbey-embedding-v1".into()),
+                member_scoped: true,
+                supersedes: None,
+                forgets: None,
+            },
+        },
+        token_cost: 1,
+        expected_commitment: None,
+        quiet: false,
+    };
+    serde_json::to_vec(&write).unwrap()
+}
+
+fn episode_approval_json(request_id: &str, operation_id: &str) -> Vec<u8> {
+    use abi_wdbx::v3::episode::{
+        ActorKind, ActorRef, EpisodeEvent, EpisodeSource, EpisodeWrite, EvidenceLevel,
+    };
+
+    let write = EpisodeWrite {
+        request_id: request_id.into(),
+        operation_id: operation_id.into(),
+        contract_revision: 2,
+        contract_digest: [9; 32],
+        guild_ref: "guild_ref".into(),
+        consent_epoch: None,
+        source_type: EpisodeSource::DiscordGuild,
+        policy_version: "policy_v1".into(),
+        evidence_level: EvidenceLevel::C1,
+        event: EpisodeEvent::Approval {
+            approved_by: ActorRef {
+                principal_id: "admin_ref".into(),
+                kind: ActorKind::GuildAdministrator,
+            },
+        },
+        token_cost: 1,
+        expected_commitment: None,
+        quiet: false,
+    };
+    serde_json::to_vec(&write).unwrap()
+}
+
+#[tokio::test]
+async fn memory_candidate_receipts_pass_through_as_completed_single_event_operations() {
+    let scratch = Scratch::new("memory");
+    let limits = Limits::default();
+    let token = Arc::new(BearerToken::load(&scratch.token).unwrap());
+    let executor = StoreExecutor::open_with_episodes(
+        &scratch.store(),
+        limits.blocking_jobs,
+        Some(episode_policy(true)),
+    )
+    .unwrap();
+    let events = Arc::new(EventHub::new(&limits));
+    let service = GatewayService::new(token, limits, executor, Arc::clone(&events));
+
+    let appended = service
+        .propose_episode_write(authenticated(ProposeEpisodeWriteRequest {
+            episode_write_json: episode_memory_candidate_json("req_m1", "mem_1"),
+            preview_only: false,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(appended.decision, "appended");
+    let receipt = appended.receipt.clone().unwrap();
+    assert_eq!(receipt.event_kind, "memory_candidate");
+    assert_eq!(receipt.terminal_status, "completed");
+    assert_eq!(receipt.previous_digest, Vec::<u8>::new());
+    assert!(receipt.redacted);
+    let serialized = format!("{receipt:?}");
+    assert!(!serialized.contains("payload"));
+    assert!(!serialized.contains("abbey-embedding"));
+
+    // The operation is closed in the same append: a second candidate on it
+    // is a replay (as is any operation-opening event on a taken identifier),
+    // and any lifecycle event on it is an invalid transition.
+    let replay = service
+        .propose_episode_write(authenticated(ProposeEpisodeWriteRequest {
+            episode_write_json: episode_memory_candidate_json("req_m2", "mem_1"),
+            preview_only: false,
+        }))
+        .await
+        .unwrap_err();
+    assert_eq!(replay.code(), Code::AlreadyExists);
+    let follow = service
+        .propose_episode_write(authenticated(ProposeEpisodeWriteRequest {
+            episode_write_json: episode_approval_json("req_m3", "mem_1"),
+            preview_only: false,
+        }))
+        .await
+        .unwrap_err();
+    assert_eq!(follow.code(), Code::FailedPrecondition);
+    assert!(follow.message().contains("episode_transition_invalid"));
+
+    let verified = service
+        .verify_episode(authenticated(VerifyEpisodeRequest {
+            guild_ref: "guild_ref".into(),
+            episode_digest: appended.episode_digest.clone(),
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert!(verified.found);
+    assert_eq!(verified.receipt.unwrap().event_kind, "memory_candidate");
+}
+
 #[tokio::test]
 async fn episode_gate_previews_appends_rejects_replays_and_verifies() {
     let scratch = Scratch::new("episodes");

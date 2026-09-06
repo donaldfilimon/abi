@@ -106,6 +106,46 @@ fn write_json(request_id: &str) -> Vec<u8> {
     .unwrap()
 }
 
+fn memory_candidate_json(request_id: &str) -> Vec<u8> {
+    use abi_wdbx::v3::episode::{
+        ActorKind, ActorRef, EpisodeEvent, EpisodeSource, EpisodeWrite, EvidenceLevel,
+        MemoryCandidate, MemoryClass, RetentionClass,
+    };
+
+    serde_json::to_vec(&EpisodeWrite {
+        request_id: request_id.into(),
+        operation_id: "mem_cli_1".into(),
+        contract_revision: 2,
+        contract_digest: [9; 32],
+        guild_ref: "guild_ref".into(),
+        consent_epoch: None,
+        source_type: EpisodeSource::DiscordGuild,
+        policy_version: "policy_v1".into(),
+        evidence_level: EvidenceLevel::C1,
+        event: EpisodeEvent::MemoryCandidate {
+            recorded_by: ActorRef {
+                principal_id: "abbey_service".into(),
+                kind: ActorKind::Service,
+            },
+            candidate: MemoryCandidate {
+                class: MemoryClass::Fact,
+                retention: RetentionClass::Durable,
+                payload_commitment: [4; 32],
+                payload_bytes: 64,
+                dimension: None,
+                embedding_version: None,
+                member_scoped: true,
+                supersedes: None,
+                forgets: None,
+            },
+        },
+        token_cost: 1,
+        expected_commitment: None,
+        quiet: false,
+    })
+    .unwrap()
+}
+
 fn abi(arguments: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_abi"))
         .env("ABI_WDBX_PATH", ":memory:")
@@ -138,6 +178,8 @@ async fn cli_proposes_verifies_and_reports_rejections_through_a_live_gateway() {
     std::fs::write(&policy_file, policy_json()).unwrap();
     let write_file = scratch.path("write.json");
     std::fs::write(&write_file, write_json("req_cli_1")).unwrap();
+    let memory_file = scratch.path("memory.json");
+    std::fs::write(&memory_file, memory_candidate_json("req_cli_mem_1")).unwrap();
 
     let mut config = GatewayConfig::loopback(scratch.path("store"), &token_file);
     config.grpc_addr = free_loopback();
@@ -159,6 +201,7 @@ async fn cli_proposes_verifies_and_reports_rejections_through_a_live_gateway() {
 
     let token_arg = token_file.to_str().unwrap().to_owned();
     let write_arg = write_file.to_str().unwrap().to_owned();
+    let memory_arg = memory_file.to_str().unwrap().to_owned();
     let endpoint_clone = endpoint.clone();
     let outcome = tokio::task::spawn_blocking(move || {
         let common = [
@@ -197,6 +240,14 @@ async fn cli_proposes_verifies_and_reports_rejections_through_a_live_gateway() {
         let json: serde_json::Value = serde_json::from_slice(&verified.stdout).unwrap();
         assert_eq!(json["found"], "true");
         assert_eq!(json["request_id"], "req_cli_1");
+
+        let memory = run(&["wdbx", "episode", "propose", &memory_arg]);
+        assert!(memory.status.success(), "{}", text(&memory.stderr));
+        let memory_line = text(&memory.stdout);
+        assert_eq!(field(&memory_line, "decision"), "appended");
+        assert_eq!(field(&memory_line, "event_kind"), "memory_candidate");
+        assert_eq!(field(&memory_line, "terminal_status"), "completed");
+        assert_eq!(field(&memory_line, "previous_digest"), "none");
 
         let missing = run(&["wdbx", "episode", "verify", "guild_ref", &"0".repeat(64)]);
         assert_eq!(missing.status.code(), Some(1));

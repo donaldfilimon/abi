@@ -924,6 +924,19 @@ Program specs may add mechanism but may not silently reverse these answers.
     never audio, identity, transcript, response, or message content.
 83. A strict local gate and a consented Discord acceptance session remain
     separate claims even when both pass.
+84. Adapter memory writes are proposals. An adapter persists a memory record
+    locally only after the WDBX gate appends a content-free memory-candidate
+    episode for it; the ledger holds the commitment and the decision, never
+    the payload, and the local store remains the projection.
+85. Memory candidates are single-event operations. Correction and forgetting
+    are new candidates that reference the superseded commitment; nothing in
+    the ledger is rewritten, and a forgotten payload is destroyed by the
+    adapter while its tombstone edge remains.
+
+Entries 84 and 85 were added on 2026-09-06 by the memory-candidate amendment
+(`2026-09-06-spec-memory-candidate-episodes.md`), approved by Donald on
+2026-09-06 as recorded in that document's section 9; the store half landed in
+wdbx as `14cb134`.
 
 ## 15. Amendment and review
 
