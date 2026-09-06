@@ -2,8 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> Note: `AGENTS.md` (and its twin `GEMINI.md`) is this repo's normal canonical
-> instruction file, kept deliberately thin to avoid drift across the three. This
+> Note: `AGENTS.md` is canonical; `GEMINI.md` redirects to it. This
 > file is an expanded version for Claude Code. If anything here disagrees with
 > `AGENTS.md`, `AGENTS.md` wins; if either disagrees with executable source
 > (`Cargo.toml`, `tools/check.sh`, `crates/`), trust the source.
@@ -22,13 +21,16 @@ PR #777 and now defers to `AGENTS.md`.
 ## Toolchain — read this before running anything
 
 - **Nightly Rust** pinned via `rust-toolchain.toml`.
-- Homebrew installs a stable `cargo`/`rustc` that shadows rustup on `PATH`.
+- Homebrew's real `cargo`/`rustc` binaries can shadow rustup on `PATH`.
   **Never invoke bare `cargo`** — always use `./tools/cargo.sh`, which resolves
   the rustup nightly toolchain bin dir and prepends it to `PATH`. It also pins
   `cc` to `/usr/bin/cc` ahead of Swiftly's shim, which otherwise refuses to
   link because of an unrelated `.swift-version` pin.
 
 ## Commands
+
+For documentation-only edits, use the scoped checks in `AGENTS.md`; the full
+gate below is for code changes.
 
 | Command | What it does |
 |---|---|
@@ -93,8 +95,7 @@ with `cargo metadata` (the 17th is `xtask`, judo #817). Five more packages are s
 `abi-telemetry`, and `abi-wdbx`. They are not ABI-local workspace members.
 Keep `abi` and `wdbx` adjacent and verify the live metadata rather than trusting
 dated prose. Without `../wdbx`, cargo fails at manifest resolution for the whole
-workspace (12 of 17 members need a sibling; only `abi-agent-runtime`,
-`abi-capability`, `abi-agent-host`, `abi-contracts`, and `xtask` build alone), so
+workspace, even when selecting a package without substrate dependencies, so
 `./tools/check.sh` cannot pass even its early steps because `xtask ci verify`
 goes through cargo. CI pins the sibling to an exact SHA (`WDBX_REVISION` in
 `.github/workflows/ci.yml`, checked out in all three jobs); a local `../wdbx`
@@ -114,7 +115,7 @@ thin LTO. Every crate inherits these with `[lints] workspace = true`.
 | `abi-models` | Hash-verified model manifest registry, license-acceptance ledger, and resumable download plumbing. Depends on `abi-foundation`. |
 | `abi-contracts` | Independent, bounded verifier for the language-neutral Abbey contract corpus. External schema resolution is disabled. |
 | `abi-connectors` | External-service connectors (OpenAI, Anthropic, Grok, Discord, Twilio) built around a `Transport` trait. Every connector has a local and a live transport — see "The local/live split" below. |
-| `abi-ai` | Persona identity, routing (Abbey/Aviva/Abi), generation, governance/constitution, and the model catalog (`models.rs`, default `claude-fable-5`). **Pure**: no WDBX dependency, no I/O, fully deterministic — this is what makes `ai_run` byte-reproducible and golden-testable. |
+| `abi-ai` | Store-independent persona identity, routing (Abbey/Aviva/Abi), generation, governance, and model catalog. The `ai_run` routing core is deterministic; the crate is not I/O-free: `file_context` and `training::inspect_dataset` read external state. Keep WDBX retrieval/persistence in the integration layers. |
 | `abi-plugins` | The 16 bundled plugins plus the plugin manager. Each plugin ships as a compiled-in `mod.rs`/`stub.rs` pair under `crates/abi-plugins/plugins/`, checked with `assert_plugin_parity!`. `abi plugin run` and the MCP `plugin_run` tool dispatch through the same `PluginManager` over the same `BUNDLED` table. |
 | `abi-agent-host` | Bounded, policy-authorized tool orchestration for model providers. Depends on `abi-agent-runtime`. This is the crate closest to constitutional invariant A3: authorization is not a generative decision. |
 | `abi-wdbx-gateway` | Authenticated bounded gRPC and WebSocket gateway for WDBX v2. Depends on `abi-wdbx`. Its RPC surface is the eight WDBX v2 methods (`PutVector`/`Search`/`PutKv`/`GetKv`/`ResolveConflict`/`Stats`/`MembershipChange`/`WatchMutations`) plus, since 2026-09-05, the CSAPS write gate over the v3 episode store: `ProposeEpisodeWrite` and `VerifyEpisode`, live only when `--episode-policy` names a JSON `StorePolicy` (otherwise `FAILED_PRECONDITION`). No in-repo client calls the gate yet; `abi-worker` only imports its `Limits`/`TlsFiles`. |
@@ -241,8 +242,7 @@ existing golden fixtures still cover the new path.
   types/traits, `SCREAMING_SNAKE_CASE` for constants.
 - No silent error swallowing on persistence, inference, or connector paths —
   prefer typed `Result`/domain errors, log or propagate.
-- Prefer feature branches `cursor/*` off `origin/main`; land via draft PR then
-  `gh pr merge --squash`; delete merged `cursor/*` branches after.
+- Follow the canonical-checkout policy below, not a default topic-branch flow.
 - Session-start reads: `tasks/lessons.md`, then `tasks/todo.md` for current
   priorities. Read `tasks/goals.md` when goal work is in scope; the
   `goal-ledger` skill owns the ledger.
