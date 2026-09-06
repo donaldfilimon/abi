@@ -71,6 +71,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 | Item | Status | Acceptance boundary |
 | ---- | ------ | ------------------- |
+| Abbey v1 change-set and approval replay | 🟡 | PR #814 follow-up: frozen synthetic replay, expiry, tampering, and approval invalidation coverage in progress. Baseline `./tools/check.sh` passed on 2026-09-06; C2 qualification awaits focused and final gates. Corpus remains data-only; no CLI/MCP surface change. |
 | Federation reconciliation and P1 Abbey Contracts design | ✅ | Donald approved the C0 design on 2026-08-22. The constitutional P0-P7 slug map is fixed without Program 8; no production, deployment, Discord, or home-directory mutation is authorized by the document alone. |
 | Program 1 Abbey contract source corpus | ✅ | ABI-local C1 source/contract evidence: 113 manifest-bound artifacts (133,200 bytes), aggregate digest `3ffd487bdc497b7ce54b8c29978a3686dcbffdb66a85957a0ee4f99ba576cdfd`, 89 Python repository/corpus behavior tests, independent Rust verification, four fail-closed temporary mutations, and the complete strict gate. Stable-Rust/Swift consumers, installed artifacts, hosted CI, runtime federation, durable WDBX behavior, authorization, production, and live Discord remain unperformed. |
 

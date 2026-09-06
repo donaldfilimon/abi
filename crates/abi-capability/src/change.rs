@@ -99,20 +99,8 @@ impl ChangeSet {
     ) -> Result<Self, TypeError> {
         let capability_id = capability_id.into();
         let capability_version = capability_version.into();
-        if proposed_by.kind != PrincipalKind::Service
-            || proposed_by.id == requested_by.id
-            || !valid_capability_id(&capability_id)
-            || !valid_semver(&capability_version)
-            || expires_at_ms <= created_at_ms
-            || expires_at_ms.saturating_sub(created_at_ms) > 300_000
-            || !(1..=120_000).contains(&prepared_ttl_ms)
-            || (compensation_class == CompensationClass::ExactRestore
-                && rollback_digest == Digest::default())
-        {
-            return Err(TypeError::InvalidField);
-        }
         let mut change_set = Self {
-            operation_id: bounded_id(operation_id.into())?,
+            operation_id: operation_id.into(),
             change_set_digest: Digest::default(),
             requested_by,
             proposed_by,
@@ -132,8 +120,27 @@ impl ChangeSet {
             expires_at_ms,
             prepared_ttl_ms,
         };
+        change_set.validate_fields()?;
         change_set.change_set_digest = change_set.computed_digest();
         Ok(change_set)
+    }
+
+    // Deserialization and edits to public fields must not bypass construction rules.
+    fn validate_fields(&self) -> Result<(), TypeError> {
+        if !valid_id(&self.operation_id)
+            || self.proposed_by.kind != PrincipalKind::Service
+            || self.proposed_by.id == self.requested_by.id
+            || !valid_capability_id(&self.capability_id)
+            || !valid_semver(&self.capability_version)
+            || self.expires_at_ms <= self.created_at_ms
+            || self.expires_at_ms.saturating_sub(self.created_at_ms) > 300_000
+            || !(1..=120_000).contains(&self.prepared_ttl_ms)
+            || (self.compensation_class == CompensationClass::ExactRestore
+                && self.rollback_digest == Digest::default())
+        {
+            return Err(TypeError::InvalidField);
+        }
+        Ok(())
     }
 
     /// Recompute the domain-separated commitment over every immutable field.
@@ -188,6 +195,10 @@ impl ChangeApproval {
         expires_at_ms: u64,
         now_ms: u64,
     ) -> Result<Self, TypeError> {
+        change_set.validate_fields()?;
+        if change_set.change_set_digest != change_set.computed_digest() {
+            return Err(TypeError::InvalidField);
+        }
         let human = approved_by.kind != PrincipalKind::Service;
         let identities_are_distinct = approved_by.id != change_set.requested_by.id
             && approved_by.id != change_set.proposed_by.id
@@ -224,18 +235,46 @@ impl ChangeApproval {
             state: ApprovalState::Approved,
         })
     }
+
+    /// Recheck an existing decision against the exact live proposal.
+    ///
+    /// Rejects changed proposals, expired decisions, invalidated states, and
+    /// insufficient or non-distinct approvers, including after deserialization.
+    /// This is a pure check: the caller owns trusted identity/state provenance,
+    /// cancellation, and durable single-use accounting. It grants no execution
+    /// authority and does not consume or revive a decision.
+    pub fn validate_for(&self, change_set: &ChangeSet, now_ms: u64) -> Result<(), TypeError> {
+        if self.state != ApprovalState::Approved
+            || self.change_set_digest != change_set.change_set_digest
+        {
+            return Err(TypeError::InvalidField);
+        }
+        Self::approve(
+            self.decision_id.clone(),
+            change_set,
+            self.approved_by.clone(),
+            self.coapproved_by.clone(),
+            self.level,
+            self.expires_at_ms,
+            now_ms,
+        )
+        .map(|_| ())
+    }
 }
 
 fn bounded_id(value: String) -> Result<String, TypeError> {
-    if value.is_empty()
-        || value.len() > 64
-        || !value.bytes().all(|byte| {
-            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-')
-        })
-    {
+    if !valid_id(&value) {
         return Err(TypeError::InvalidField);
     }
     Ok(value)
+}
+
+fn valid_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-')
+        })
 }
 
 fn valid_capability_id(value: &str) -> bool {

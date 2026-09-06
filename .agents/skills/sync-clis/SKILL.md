@@ -120,3 +120,5 @@ Then verify:
 - Codex agent TOML parses;
 - Claude and OpenCode Markdown agents have exactly one frontmatter block;
 - ABI's final diff is reviewed and its matching gate is run before closeout.
+
+- **Task-agent tool/model control lives in the central TOML, not in `~/.claude/agents/*.md` (added 2026-09-05).** The `claude-markdown` adapter in `sync-clis.py` reads two optional keys from `~/.grok/bundled/{roles,personas}/<agent>.toml`: `claude_tools = ["Read", "Grep", ...]` renders a `tools:` frontmatter line, and `claude_model = "haiku"` overrides the default `model: inherit`. Editing the synced Markdown directly is reverted on the next SessionEnd sync. Codex/OpenCode adapters ignore both keys. Insert new top-level keys in a persona file BEFORE its first `[[inputs]]` table, or `tomllib` fails and the sync aborts mid-target (agents already rendered stay written; the rest do not).

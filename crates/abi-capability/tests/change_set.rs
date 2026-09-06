@@ -134,6 +134,25 @@ fn proposal_author_and_approver_are_distinct_and_expiring() {
 }
 
 #[test]
+fn approving_a_tampered_proposal_fails_closed() {
+    let mut proposal = change_set(digest(6));
+    proposal.snapshot_digest = digest(42);
+    assert!(
+        ChangeApproval::approve(
+            "decision_ref",
+            &proposal,
+            principal("admin_ref", PrincipalKind::GuildAdministrator),
+            None,
+            ApprovalLevel::A3Admin,
+            120_000,
+            2_000,
+        )
+        .is_err(),
+        "approval must reject an edited proposal retaining its old commitment"
+    );
+}
+
+#[test]
 fn exact_restore_requires_rollback_and_bounded_execution_windows() {
     let result = ChangeSet::new(
         "operation_ref",

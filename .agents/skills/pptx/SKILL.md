@@ -11,8 +11,8 @@ license: Proprietary. LICENSE.txt has complete terms
 | Task | Guide |
 |------|-------|
 | Read/analyze content | `python -m markitdown /tmp/input.pptx` |
-| Edit or create from template | Read [editing.md](editing.md) |
-| Create from scratch | Read [pptxgenjs.md](pptxgenjs.md) |
+| Edit or create from template | Read [editing.md](references/editing.md) |
+| Create from scratch | Read [pptxgenjs.md](references/creating.md) |
 
 ---
 
@@ -33,7 +33,7 @@ python $SKILL_DIR/scripts/office/unpack.py /tmp/input.pptx /tmp/unpacked/
 
 ## Editing Workflow
 
-**Read [editing.md](editing.md) for full details.**
+**Read [editing.md](references/editing.md) for full details.**
 
 1. Analyze template with `thumbnail.py`
 2. Unpack → manipulate slides → edit content → clean → pack
@@ -42,7 +42,7 @@ python $SKILL_DIR/scripts/office/unpack.py /tmp/input.pptx /tmp/unpacked/
 
 ## Creating from Scratch
 
-**Read [pptxgenjs.md](pptxgenjs.md) for full details.**
+**Read [pptxgenjs.md](references/creating.md) for full details.**
 
 Use when no template or reference presentation is available.
 
