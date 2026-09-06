@@ -1,0 +1,194 @@
+{
+  "contract_major": 2,
+  "contract_revision": 2,
+  "corpus_digest": "3ffd487bdc497b7ce54b8c29978a3686dcbffdb66a85957a0ee4f99ba576cdfd",
+  "kernel_version": "0.1.0",
+  "proposal": {
+    "operation_id": "operation_ref",
+    "change_set_digest": "sha256:5f17724aed56d466994cf1bfffdb30f3b6bae78554c0dab800423cf06d1d54b9",
+    "requested_by": {
+      "id": "requester_ref",
+      "kind": "HumanSubject"
+    },
+    "proposed_by": {
+      "id": "abbey_service",
+      "kind": "Service"
+    },
+    "scope": {
+      "organization_id": "org_ref",
+      "deployment_id": "deploy_ref",
+      "tenant_id": "tenant_ref",
+      "platform": "discord_recording",
+      "guild_ref": "guild_ref",
+      "resource_digest": "sha256:0808080808080808080808080808080808080808080808080808080808080808",
+      "subject_digest": "sha256:0909090909090909090909090909090909090909090909090909090909090909"
+    },
+    "capability_id": "discord.channel.organize",
+    "capability_version": "2.0.0",
+    "package_digest": "sha256:0101010101010101010101010101010101010101010101010101010101010101",
+    "compensation_class": "ExactRestore",
+    "risk": "Medium",
+    "required_approval": "A3Admin",
+    "precondition_digest": "sha256:0202020202020202020202020202020202020202020202020202020202020202",
+    "expected_postcondition_digest": "sha256:0303030303030303030303030303030303030303030303030303030303030303",
+    "rollback_digest": "sha256:0404040404040404040404040404040404040404040404040404040404040404",
+    "snapshot_digest": "sha256:0505050505050505050505050505050505050505050505050505050505050505",
+    "generator_digest": "sha256:0606060606060606060606060606060606060606060606060606060606060606",
+    "created_at_ms": 1000,
+    "expires_at_ms": 301000,
+    "prepared_ttl_ms": 120000
+  },
+  "events": [
+    {
+      "event": "issue",
+      "decision_id": "decision_one",
+      "approved_by": {
+        "id": "admin_ref",
+        "kind": "GuildAdministrator"
+      },
+      "coapproved_by": null,
+      "level": "A3Admin",
+      "expires_at_ms": 120000,
+      "now_ms": 2000
+    },
+    {
+      "event": "check",
+      "now_ms": 119999
+    },
+    {
+      "event": "check",
+      "now_ms": 120000
+    },
+    {
+      "event": "issue",
+      "decision_id": "decision_two",
+      "approved_by": {
+        "id": "admin_ref",
+        "kind": "GuildAdministrator"
+      },
+      "coapproved_by": null,
+      "level": "A3Admin",
+      "expires_at_ms": 250000,
+      "now_ms": 200000
+    },
+    {
+      "event": "invalidate",
+      "state": "Cancelled",
+      "now_ms": 200001
+    },
+    {
+      "event": "check",
+      "now_ms": 200002
+    },
+    {
+      "event": "issue",
+      "decision_id": "decision_three",
+      "approved_by": {
+        "id": "admin_ref",
+        "kind": "GuildAdministrator"
+      },
+      "coapproved_by": null,
+      "level": "A3Admin",
+      "expires_at_ms": 250000,
+      "now_ms": 200003
+    },
+    {
+      "event": "snapshot",
+      "digest": "sha256:2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a",
+      "reseal": false,
+      "now_ms": 200004
+    },
+    {
+      "event": "issue",
+      "decision_id": "decision_four",
+      "approved_by": {
+        "id": "admin_ref",
+        "kind": "GuildAdministrator"
+      },
+      "coapproved_by": null,
+      "level": "A3Admin",
+      "expires_at_ms": 250000,
+      "now_ms": 200005
+    },
+    {
+      "event": "snapshot",
+      "digest": "sha256:0505050505050505050505050505050505050505050505050505050505050505",
+      "reseal": false,
+      "now_ms": 200006
+    },
+    {
+      "event": "issue",
+      "decision_id": "decision_five",
+      "approved_by": {
+        "id": "admin_ref",
+        "kind": "GuildAdministrator"
+      },
+      "coapproved_by": null,
+      "level": "A3Admin",
+      "expires_at_ms": 250000,
+      "now_ms": 200007
+    },
+    {
+      "event": "snapshot",
+      "digest": "sha256:2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a",
+      "reseal": true,
+      "now_ms": 200008
+    },
+    {
+      "event": "issue",
+      "decision_id": "decision_six",
+      "approved_by": {
+        "id": "admin_ref",
+        "kind": "GuildAdministrator"
+      },
+      "coapproved_by": null,
+      "level": "A3Admin",
+      "expires_at_ms": 250000,
+      "now_ms": 200009
+    },
+    {
+      "event": "check",
+      "now_ms": 249999
+    },
+    {
+      "event": "check",
+      "now_ms": 250000
+    },
+    {
+      "event": "check",
+      "now_ms": 301000
+    },
+    {
+      "event": "issue",
+      "decision_id": "decision_seven",
+      "approved_by": {
+        "id": "admin_ref",
+        "kind": "GuildAdministrator"
+      },
+      "coapproved_by": null,
+      "level": "A3Admin",
+      "expires_at_ms": 301000,
+      "now_ms": 301000
+    }
+  ],
+  "expected_accepted": [
+    true,
+    true,
+    false,
+    true,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    true,
+    false,
+    true,
+    true,
+    false,
+    false,
+    false
+  ],
+  "transcript_digest": "sha256:4eed0c7e51945ada2dbd7e17af9d57ead9dcb84005e45274453a902bbb28d3c7"
+}
