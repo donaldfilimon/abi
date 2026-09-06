@@ -20,8 +20,12 @@ not redefine the Program 1 contracts.
 Status: **the complete federation design remains C0 (Specified).** The bounded
 contract/kernel slice recorded in
 `docs/superpowers/evidence/2026-08-24-abbey-v1-contract-kernel-c1.md` has local
-C1 source and contract evidence only. It does not establish a running service,
-qualified consumer, deployed adapter, or live federation witness.
+C1 source and contract evidence. The follow-up in
+`docs/superpowers/evidence/2026-09-06-abbey-v1-change-approval-c2.md` qualifies
+local C2 replay only for the immutable change-set/approval kernel, including
+expiry, tampering, and recorded cancellation-state invalidation. Full
+federation C2, a running service, qualified consumer, deployed adapter, and
+live federation witness remain unproven by this slice.
 
 Author date: 2026-08-22.
 Governing document: `docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`.

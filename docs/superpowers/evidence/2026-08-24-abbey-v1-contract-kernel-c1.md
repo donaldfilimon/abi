@@ -6,6 +6,11 @@ Contract major: 2
 Contract revision: 2  
 Corpus digest: `3ffd487bdc497b7ce54b8c29978a3686dcbffdb66a85957a0ee4f99ba576cdfd`
 
+Follow-up, 2026-09-06: [local change-set/approval C2 replay evidence](2026-09-06-abbey-v1-change-approval-c2.md)
+adds deterministic process-restart replay, tampering refusal, expiry, and
+approval invalidation coverage. This document retains the historical C1
+boundary; the follow-up does not promote the corpus or full federation to C2.
+
 ## Proven in this slice
 
 - The ABI corpus contains a closed `abbey.v1` request envelope with all 19
