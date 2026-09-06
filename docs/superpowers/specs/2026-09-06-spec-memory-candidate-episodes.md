@@ -122,6 +122,15 @@ any other event.
 | --- | --- | --- |
 | `session` | policy `learning_enabled` | payload lives only for the bounded session; adapter never persists it to disk |
 | `operational` | policy `learning_enabled` | adapter persists under a TTL from its own configuration (the store carries no TTL field in this revision); expiry emits a `forgets` candidate |
+
+Sizing note (decision 2026-09-06 03:5x, below): `payload_bytes` is charged
+cumulatively and a superseded candidate is never refunded, so a guild whose
+adapter proposes replay checkpoints needs `storage_budget_bytes` sized for
+the checkpoints it will admit over the ledger's life: roughly
+`changed checkpoints × checkpoint bytes`, plus the ledger lines, within the
+store's 64 MiB ledger cap. A 200 KB checkpoint under a 1 MiB budget is
+refused after about five changes; the adapter then keeps persisting the last
+admitted checkpoint, visibly (§4.3).
 | `durable` | policy `learning_enabled` | adapter persists; correction and deletion go through `supersedes`/`forgets` |
 
 `ephemeral` is never proposed (there is nothing to record) and
@@ -225,3 +234,9 @@ candidate; or the DQN path proposes per step rather than per checkpoint.
   abbey-bot adapter), each as its own gated slice with its own push decision. The two §5 register
   entries are still quoted here, not yet written into the constitution; that edit lands with the
   wdbx slice that makes them true.
+- **2026-09-06 03:5x, implemented and pushed:** wdbx `14cb134` (store), abi `aefd4bce`
+  (passthrough tests, register entries 84 and 85, CI pin), abbey-bot `046fce1` + `a7b39fb`
+  (adapter). Two follow-up decisions by Donald the same minute: the cumulative
+  `payload_bytes` charge stays as written and checkpoint guilds get larger budgets in the
+  gateway policy (no §3.2 amendment); and the model's `remember_fact` tool, refused while
+  the gate is configured in `a7b39fb`, is to queue a proposal instead (next slice).
