@@ -310,12 +310,17 @@ gRPC status message. **Updated 2026-09-06:** the first consumer exists,
 `abi wdbx episode propose|verify` in `abi-cli`, a gRPC client that sends one
 `EpisodeWrite` as JSON (preview or append) and checks a commitment; it is
 end-to-end tested against a real gateway and refuses to send the bearer token
-in cleartext to any non-loopback host. What is still not true: no *adapter*
-calls the gate (the "adapters migrate off unconditional writes" half), so the
-live write path of abbey-bot and AbbeyBot is unchanged, and `episodes.v1.jsonl`
-is written only by the gateway's tests, the CLI's test, and whoever runs the
-CLI by hand. Status is therefore *gate exposed and tested; one operator-facing
-consumer; adapter consumer still absent*.
+in cleartext to any non-loopback host. **Later the same day:** the first
+*adapter* caller exists, abbey-bot `src/episode_gate.rs` (its commit
+`a66656f`): default-off, it shells out to the `abi` binary to mirror
+`/admin learning on|off` as a content-free `proposal` event, and its write
+fixture was accepted by a real gateway. What is still not true: it is not
+deployed (the live bot's env does not set `ABBEY_EPISODE_GATE_CONFIG`), only
+the `proposal` stage is emitted, and the bots' DQN/memory-bank writes remain
+unconditional local writes, because this gate's vocabulary is operation
+lifecycle rather than memory vectors (routing *those* needs a contract
+amendment first). Status is therefore *gate exposed and tested; one
+operator-facing consumer; one adapter caller wired default-off, not deployed*.
 
 The remainder of this residual still stands as written. The CSAPS paper it derives from is a
 proposed architecture whose own status box states the integrated system has not
