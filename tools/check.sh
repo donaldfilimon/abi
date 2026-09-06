@@ -18,7 +18,12 @@ step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
 step "rustc / cargo versions"
 "${CARGO}" --version
-"${CARGO}" rustc --version -- --version 2>/dev/null | head -1 || true
+# `cargo rustc --version` does NOT print the compiler version: cargo rejects
+# `--version` as an unknown flag ("a similar argument exists: '--verbose'"), and
+# the old `2>/dev/null | head -1 || true` swallowed that error, so this step
+# silently recorded no rustc evidence at all. Resolve rustc through rustup the
+# same way tools/cargo.sh resolves cargo, and let a failure be loud under set -e.
+"$(rustup which rustc)" --version
 
 step "repository policy tests"
 python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
