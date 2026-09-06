@@ -1,6 +1,6 @@
 # Memory-candidate episodes: routing adapter memory writes through the WDBX gate
 
-Status: **proposed, awaiting Donald's explicit approval.** Written 2026-09-06.
+Status: **approved by Donald 2026-09-06 03:0x, as written (see §9).** Written 2026-09-06.
 This is a written revision under constitution section 15. Nothing in it is
 authorized for implementation until that approval is recorded with a date; the
 implementation plan at the end is what would follow, not what exists.
@@ -219,7 +219,7 @@ candidate; or the DQN path proposes per step rather than per checkpoint.
 
 ## 9. Approval record
 
-- **2026-09-06 03:4x, approved as written by Donald** (answer to the bundled decision question in the
+- **2026-09-06 03:0x, approved as written by Donald** (answer to the bundled decision question in the
   session that wrote this document: "Approve as written"). Status moves from proposed to approved.
   Implementation may now proceed in the §7 order (wdbx store, then abi gateway/CLI, then the
   abbey-bot adapter), each as its own gated slice with its own push decision. The two §5 register
