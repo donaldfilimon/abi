@@ -16,11 +16,6 @@ use abi_wdbx::v3::episode::{EpisodeReceipt, EpisodeStoreError, EpisodeWrite, Sto
 use std::path::Path;
 use tonic::Status;
 
-/// Largest per-guild receipt window the store retrieves in one call. The store
-/// returns receipts in ledger order (oldest first), so one verification covers
-/// the first 2,048 records of a guild; a guild past that count needs a
-/// store-side digest lookup, which is a named follow-up, not a gateway option.
-const VERIFY_WINDOW: usize = 2_048;
 /// Maximum bytes accepted for one guild reference.
 const MAX_GUILD_REF_BYTES: usize = 128;
 const DECISION_APPENDED: &str = "appended";
@@ -152,14 +147,8 @@ fn verify_blocking(
         return EpisodeOutcome::Unconfigured;
     };
     store
-        .retrieve(guild_ref, VERIFY_WINDOW)
-        .map_or_else(EpisodeOutcome::Store, |receipts| {
-            EpisodeOutcome::Ok(
-                receipts
-                    .into_iter()
-                    .find(|receipt| receipt.episode_digest == digest),
-            )
-        })
+        .find_receipt(guild_ref, &digest)
+        .map_or_else(EpisodeOutcome::Store, EpisodeOutcome::Ok)
 }
 
 fn finish<T>(outcome: EpisodeOutcome<T>) -> Result<T, Status> {
@@ -203,10 +192,10 @@ fn receipt_message(receipt: EpisodeReceipt) -> ReceiptMessage {
             .unwrap_or_default(),
         event_kind: receipt.event_kind,
         policy_version: receipt.policy_version,
-        evidence_level: format!("{:?}", receipt.evidence_level),
+        evidence_level: receipt.evidence_level.label().to_owned(),
         terminal_status: receipt
             .terminal_status
-            .map(|status| format!("{status:?}").to_ascii_lowercase())
+            .map(|status| status.label().to_owned())
             .unwrap_or_default(),
         redacted: receipt.redacted,
     }

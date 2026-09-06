@@ -301,9 +301,9 @@ consumer is wired.
 
 **Updated 2026-09-05: Sequencing step 4 is half done.** `abi-wdbx-gateway` now
 exposes the gate as `ProposeEpisodeWrite` (preview or append) and
-`VerifyEpisode` (guild reference plus digest, answered from the first 2,048
-receipts of that guild in ledger order, because `retrieve` iterates oldest-first
-and caps at 2,048; a digest lookup on the store is the follow-up), backed by `v3::episode::EpisodeStore` under
+`VerifyEpisode` (guild reference plus digest; until 2026-09-06 it answered
+from the first 2,048 receipts in ledger order, and since wdbx `de82a99` it
+scans the guild's whole ledger through `EpisodeStore::find_receipt`), backed by `v3::episode::EpisodeStore` under
 `<store>/episodes` and bound to a JSON `StorePolicy` given by
 `--episode-policy`; rejections return the store's stable reason label as the
 gRPC status message. **Updated 2026-09-06:** the first consumer exists,

@@ -7,8 +7,8 @@ product facade. It deliberately uses two explicit listeners:
   RPCs in `proto/gateway.proto`: the eight WDBX v2 facade methods plus the
   canonical episode gate `ProposeEpisodeWrite` / `VerifyEpisode`, which is live
   only when `--episode-policy <json StorePolicy>` is configured (otherwise both
-  answer `FAILED_PRECONDITION`). `VerifyEpisode` answers from the first 2,048
-  receipts of the guild in ledger order (the store's retrieval cap and order).
+  answer `FAILED_PRECONDITION`). `VerifyEpisode` answers from the guild's whole
+  ledger (`EpisodeStore::find_receipt`, not the windowed `retrieve`).
 - HTTP/WebSocket (`--events`, loopback `127.0.0.1:50052` by default) exposes
   only `/v1/events`.
 

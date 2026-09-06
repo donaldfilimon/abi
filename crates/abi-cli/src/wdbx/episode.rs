@@ -17,7 +17,7 @@ use tonic::{Request, Status};
 use crate::app::Outcome;
 use crate::usage::is_help_token;
 
-pub(crate) const EPISODE_HELP: &str = "usage: abi wdbx episode propose <write.json> [--preview] [options]\n       abi wdbx episode verify <guild_ref> <digest-hex> [options]\n\nCall the gateway's canonical episode gate (WDBX v3). `propose` sends one\nEpisodeWrite as JSON (unknown fields are rejected by the gateway) and prints\nthe commitment; `--preview` computes the commitment without appending.\n`verify` asks whether a commitment exists in the guild's ledger (the gateway\nanswers from the first 2048 receipts of that guild in ledger order).\n\nOptions\n  --endpoint <URL>       Gateway gRPC endpoint (default http://127.0.0.1:50051;\n                         env ABI_WDBX_GATEWAY_ENDPOINT). Plain http is accepted\n                         for loopback only; other hosts need https + --ca-cert\n  --token-file <PATH>    Bearer token file, the same file the gateway was given\n                         (env ABI_WDBX_GATEWAY_TOKEN_FILE; required)\n  --ca-cert <PEM>        Trust this CA for an https endpoint (server TLS only;\n                         an mTLS client identity is not wired yet)\n  --json                 Print the result as one JSON object\n\nExit status: 0 on append, preview, or found; 1 on a gateway rejection (stderr\ncarries the gRPC code and the store's reason label) or when verify finds\nnothing; 2 on usage errors.\n";
+pub(crate) const EPISODE_HELP: &str = "usage: abi wdbx episode propose <write.json> [--preview] [options]\n       abi wdbx episode verify <guild_ref> <digest-hex> [options]\n\nCall the gateway's canonical episode gate (WDBX v3). `propose` sends one\nEpisodeWrite as JSON (unknown fields are rejected by the gateway) and prints\nthe commitment; `--preview` computes the commitment without appending.\n`verify` asks whether a commitment exists anywhere in the guild's ledger.\n\nOptions\n  --endpoint <URL>       Gateway gRPC endpoint (default http://127.0.0.1:50051;\n                         env ABI_WDBX_GATEWAY_ENDPOINT). Plain http is accepted\n                         for loopback only; other hosts need https + --ca-cert\n  --token-file <PATH>    Bearer token file, the same file the gateway was given\n                         (env ABI_WDBX_GATEWAY_TOKEN_FILE; required)\n  --ca-cert <PEM>        Trust this CA for an https endpoint (server TLS only;\n                         an mTLS client identity is not wired yet)\n  --json                 Print the result as one JSON object\n\nExit status: 0 on append, preview, or found; 1 on a gateway rejection (stderr\ncarries the gRPC code and the store's reason label) or when verify finds\nnothing; 2 on usage errors.\n";
 
 const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:50051";
 const ENDPOINT_ENV: &str = "ABI_WDBX_GATEWAY_ENDPOINT";
@@ -161,7 +161,7 @@ fn verify(options: &Options) -> Outcome {
             if !response.found {
                 outcome.exit_code = 1;
                 outcome.stderr = format!(
-                    "episode verify: commitment {digest_hex} not found in the first 2048 receipts of guild {printed_guild}\n"
+                    "episode verify: commitment {digest_hex} not found in the ledger of guild {printed_guild}\n"
                 );
             }
             outcome
