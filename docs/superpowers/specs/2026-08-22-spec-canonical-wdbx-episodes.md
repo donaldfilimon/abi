@@ -319,7 +319,11 @@ deployed (the live bot's env does not set `ABBEY_EPISODE_GATE_CONFIG`), only
 the `proposal` stage is emitted, and the bots' DQN/memory-bank writes remain
 unconditional local writes, because this gate's vocabulary is operation
 lifecycle rather than memory vectors (routing *those* needs a contract
-amendment first). Status is therefore *gate exposed and tested; one
+amendment first). **The amendment is now written:**
+`2026-09-06-spec-memory-candidate-episodes.md` proposes a `memory_candidate`
+event class and the adapter contract for it, and is awaiting Donald's explicit
+approval under constitution section 15 before any store, gateway, or adapter
+code. Status is therefore *gate exposed and tested; one
 operator-facing consumer; one adapter caller wired default-off, not deployed*.
 
 The remainder of this residual still stands as written. The CSAPS paper it derives from is a
