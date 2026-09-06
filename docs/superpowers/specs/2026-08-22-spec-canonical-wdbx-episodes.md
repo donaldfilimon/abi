@@ -323,8 +323,25 @@ amendment first). **The amendment is now written:**
 `2026-09-06-spec-memory-candidate-episodes.md` proposes a `memory_candidate`
 event class and the adapter contract for it, and is awaiting Donald's explicit
 approval under constitution section 15 before any store, gateway, or adapter
-code. Status is therefore *gate exposed and tested; one
-operator-facing consumer; one adapter caller wired default-off, not deployed*.
+code. **Updated 2026-09-06 04:4x:** that amendment was approved and implemented
+in all three repositories the same day (wdbx `14cb134`, abi `aefd4bce`,
+abbey-bot `046fce1`..`6bf3252`), and the adapter is now deployed: since
+2026-09-06 04:30 EDT the live abbey-bot runs with `ABBEY_EPISODE_GATE_CONFIG`
+covering one guild (MLAI) against `abi-wdbx-gateway` as a launchd agent
+(`com.donaldfilimon.abbey-wdbx-gateway`, loopback, store
+`~/.local/share/abbey-bot/wdbx-gateway`, policy with sized per-guild budgets).
+For that guild, `/remember`, `/forget`, `/pending confirm`, the model's memory
+tool (queued, drained after the turn), and the DQN replay checkpoint are
+proposals first and local writes only on `appended`; the memory path was
+accepted live end to end against a real gateway by the bot's ignored
+acceptance test (four records incl. supersede and tombstone edges, one live
+refusal, every receipt re-verified by `abi wdbx episode verify`). Status is
+therefore *gate exposed and tested; one operator-facing consumer; one adapter
+deployed for one guild, memory writes routed*. Still not true: the bots' other
+scopes and the `abbey` CLI remain unconditional local writers, the live
+`V2AuditBlock` path is unchanged, and the first admitted production record for
+MLAI had not yet been observed at the time of this update (unchanged rows are
+not proposed; it needs activity there).
 
 The remainder of this residual still stands as written. The CSAPS paper it derives from is a
 proposed architecture whose own status box states the integrated system has not

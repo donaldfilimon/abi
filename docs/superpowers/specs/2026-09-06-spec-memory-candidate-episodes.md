@@ -240,3 +240,18 @@ candidate; or the DQN path proposes per step rather than per checkpoint.
   `payload_bytes` charge stays as written and checkpoint guilds get larger budgets in the
   gateway policy (no §3.2 amendment); and the model's `remember_fact` tool, refused while
   the gate is configured in `a7b39fb`, is to queue a proposal instead (next slice).
+- **2026-09-06 04:4x, queue landed, gate scoped and deployed:** abbey-bot `ba61202` makes the
+  model's `remember_fact` tool queue a proposal (drained after the turn and before every gated
+  persist; refused items dropped, not retried). abbey-bot `6bf3252` adds deployment scoping (the
+  gate config's optional `guilds` list; an uncovered scope is byte-identical to no gate, including
+  checkpoints; the ledger's per-guild policy still decides admission, so this is not a hole in §4),
+  an ignored live acceptance test (real `abi` binary, real gateway, tool host → queue → drain →
+  slash-style admit with supersede → forget tombstone → gated checkpoint persist, every receipt
+  re-verified out of process, one live refusal), and the gateway launchd deployment. Donald's
+  decisions the same hour: keep the MLAI storage budget at the store's 64 MiB cap (about 1,290
+  admitted checkpoints of a ~52 KB `BrainRow`, since payload bytes are charged cumulatively and
+  never refunded) and watch `/inspect` rather than add a bot-side lever now; bootstrap the
+  gateway, set `ABBEY_EPISODE_GATE_CONFIG` for MLAI only, and restart the live bot (done 04:30
+  EDT). Honest residual: the first admitted production record for MLAI was not yet observed when
+  this was written; the acceptance evidence is the bot's memory code path end to end, not a
+  Discord slash command.

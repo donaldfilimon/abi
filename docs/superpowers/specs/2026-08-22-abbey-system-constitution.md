@@ -729,7 +729,7 @@ numbering authority.
 | Program | Spec |
 | --- | --- |
 | 0 Reconcile the live-voice verifier | none; landed directly in `abbey-bot` (PR #35) |
-| 1 Abbey contracts | none yet, and it is the next program to spec |
+| 1 Abbey contracts | `2026-08-22-spec-abbey-contracts.md`; the v1 federation contract kernel is in `abi-contracts` (`63e6d6a7`, #814). This row read "none yet" until 2026-09-06, a stale index line corrected then, not a program change |
 | 2 ABI authorization and capability kernel | `2026-08-22-spec-capability-authorization-kernel.md` |
 | 3 Read-only Discord guild intelligence | `2026-08-22-spec-discord-guild-intelligence-and-execution.md` (covers 3 and 5) |
 | 4 Canonical WDBX episodes and claims | `2026-08-22-spec-canonical-wdbx-episodes.md`, informed by `2026-08-22-wdbx-conformance-gap-analysis.md` |
@@ -936,7 +936,11 @@ Program specs may add mechanism but may not silently reverse these answers.
 Entries 84 and 85 were added on 2026-09-06 by the memory-candidate amendment
 (`2026-09-06-spec-memory-candidate-episodes.md`), approved by Donald on
 2026-09-06 as recorded in that document's section 9; the store half landed in
-wdbx as `14cb134`.
+wdbx as `14cb134`, the gateway and CLI half in abi as `aefd4bce`, and the
+adapter half in abbey-bot (`046fce1`, `a7b39fb`, `ba61202`, `6bf3252`). Since
+2026-09-06 04:30 EDT the adapter is deployed with the gate on for one guild
+(MLAI, `discord-1275617641620443146`) against a launchd-run gateway on this
+Mac; every other scope of that bot is uncovered by its config and unchanged.
 
 ## 15. Amendment and review
 
