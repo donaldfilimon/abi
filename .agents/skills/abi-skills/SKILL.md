@@ -35,8 +35,9 @@ Codex plugin.
 ## Two traps that have already cost a session
 
 **The home copy of this skill is not synchronized, and it drifts.** `/sync-clis`
-copies only the names in `CORE_SKILLS` in `~/.grok/scripts/sync-clis.py`, and
-`abi-skills` is not among them (verified 2026-08-23). Nothing keeps the global
+copies portable skills named in `catalog.portableSkills` in
+`~/.grok/sync-targets.json`, and `abi-skills` is not among them (covered by
+`tools/tests/test_sync_clis.py`, verified 2026-09-06). Nothing keeps the global
 `~/.agents/skills/abi-skills/SKILL.md`,
 `~/.claude/skills/abi-skills/SKILL.md`, or
 `~/.codex/skills/abi-skills/SKILL.md`, or the fourth copy at
@@ -156,6 +157,33 @@ Codex plugin. Confirm the source manifest version and installed-plugin state
 separately through Plugin Management.
 
 ## Validation commands
+
+The central sync regressions run through `./tools/check.sh` policy-test discovery,
+or independently:
+
+```bash
+python3 -m unittest discover -s tools/tests -p test_sync_clis.py -v
+```
+
+They execute the installed `~/.grok/scripts/sync-clis.py` with a synthetic
+12-target manifest and temporary sources, destinations, home, and logs. The
+second complete run must report `0 actions/changes` and preserve managed bytes,
+entry types, inode identities, and modification times. Dry-run and apply must
+agree on pending actions. Run logs are intentionally refreshed and excluded
+from the managed-file comparison. The installed manifest is also checked
+read-only for source and native agent destinations.
+
+The current central contract preserves destination-only support entries even
+when a source file diverges; a conflicting entry is replaced individually.
+Task agents are rendered for Codex TOML, Claude Markdown, and OpenCode Markdown;
+Codex memories and the global charter are not task-agent destinations. This
+supersedes the earlier whole-tree replacement and Codex-only persona wording.
+The source remains `~/.grok/skills` with the bundled personas and roles.
+
+Hosts without the central driver explicitly skip these integration tests; the
+manifest check also skips when its file is absent. A skipped suite is not sync
+evidence. The tests do not vendor the driver or run synchronization against live
+CLI targets. ABI's separate mirror launcher retains its existing behavior.
 
 ```bash
 ./tools/check.sh                                # full gate: fmt, clippy, build, tests, docs
