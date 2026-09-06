@@ -36,6 +36,24 @@ Never delete closed goals. Never explode one vague ask into many `##` headers.
 4. **Execute** — smallest verified slice (project gate: `./check.sh`, etc.).
 5. **Close** — `done` only when acceptance criteria hold; add one outcome bullet.
 
+## Reading an existing section
+
+**The ledger is append-ordered by writing session, not by time, so the newest
+text is not the newest state.** A later session can append above an earlier
+bullet, leaving a stale "not implemented" or "still unpushed" line sitting at
+the tail. Reading only the last paragraph is how approved work gets redone and
+how a closed residual gets re-reported as open.
+
+Before acting on any claim a section makes:
+
+1. **Verify the artefact, not the prose.** `git log`/`grep` the file, run the
+   gate, `git branch -r --contains` the commit. Source and gates beat bullets.
+2. **Re-measure counts you are about to act on.** An ahead/behind count needs a
+   `git fetch` first; `@{u}` reads a cached tracking ref, so `0 ahead` can be
+   describing a server you never contacted.
+3. **Correct by appending, never by editing history.** Add a bullet naming what
+   was stale, what the measurement was, and how you measured it.
+
 ## Iron rules
 
 1. **Green ≠ done.** `continue` / `do all` / `finalize` → keep advancing open
