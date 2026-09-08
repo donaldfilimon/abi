@@ -343,8 +343,10 @@ async fn episode_gate_previews_appends_rejects_replays_and_verifies() {
 #[tokio::test]
 async fn verify_episode_finds_receipt_beyond_former_2048_window() {
     let scratch = Scratch::new("episodes-whole-ledger-verify");
-    let mut limits = Limits::default();
-    limits.requests_per_second = 10_000;
+    let limits = Limits {
+        requests_per_second: 10_000,
+        ..Default::default()
+    };
     let mut policy = episode_policy(true);
     let guild_policy = policy.guilds.get_mut("guild_ref").unwrap();
     guild_policy.token_budget = 1_000_000;
