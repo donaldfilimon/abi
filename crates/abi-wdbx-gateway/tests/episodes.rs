@@ -341,6 +341,57 @@ async fn episode_gate_previews_appends_rejects_replays_and_verifies() {
 }
 
 #[tokio::test]
+async fn verify_episode_finds_receipt_beyond_former_2048_window() {
+    let scratch = Scratch::new("episodes-whole-ledger-verify");
+    let mut limits = Limits::default();
+    limits.requests_per_second = 10_000;
+    let mut policy = episode_policy(true);
+    let guild_policy = policy.guilds.get_mut("guild_ref").unwrap();
+    guild_policy.token_budget = 1_000_000;
+    guild_policy.storage_budget_bytes = 32 * 1024 * 1024;
+    let token = Arc::new(BearerToken::load(&scratch.token).unwrap());
+    let executor =
+        StoreExecutor::open_with_episodes(&scratch.store(), limits.blocking_jobs, Some(policy))
+            .unwrap();
+    let events = Arc::new(EventHub::new(&limits));
+    let service = GatewayService::new(token, limits, executor, events);
+
+    let count = 2_049_usize;
+    let mut target = None;
+    for index in 0..count {
+        target = Some(
+            service
+                .propose_episode_write(authenticated(ProposeEpisodeWriteRequest {
+                    episode_write_json: episode_proposal_json(
+                        &format!("window_req_{index}"),
+                        &format!("window_op_{index}"),
+                    ),
+                    preview_only: false,
+                }))
+                .await
+                .unwrap()
+                .into_inner(),
+        );
+    }
+    let target = target.unwrap();
+    let target_receipt = target.receipt.unwrap();
+    assert_eq!(target_receipt.sequence, u64::try_from(count).unwrap());
+
+    let verified = service
+        .verify_episode(authenticated(VerifyEpisodeRequest {
+            guild_ref: "guild_ref".into(),
+            episode_digest: target.episode_digest,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert!(verified.found);
+    let verified_receipt = verified.receipt.unwrap();
+    assert_eq!(verified_receipt.sequence, u64::try_from(count).unwrap());
+    assert_eq!(verified_receipt.request_id, "window_req_2048");
+}
+
+#[tokio::test]
 async fn episode_gate_rejects_unconfigured_disabled_unauthenticated_and_malformed_writes() {
     let scratch = Scratch::new("episodes-unconfigured");
     let (service, _) = service(&scratch, Limits::default());

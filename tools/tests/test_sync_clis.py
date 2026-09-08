@@ -286,7 +286,22 @@ class CentralSyncTests(unittest.TestCase):
     def test_installed_manifest_keeps_grok_source_and_native_agent_destinations(self) -> None:
         # Read only configuration, never load real skills, personas or memories.
         manifest = json.loads(MANIFEST.read_text())
-        self.assertNotIn("abi-skills", manifest["catalog"]["portableSkills"])
+        portable_skills = set(manifest["catalog"]["portableSkills"])
+        self.assertTrue({
+            "swift",
+            "zig",
+            "zig-build",
+            "zig-builtins",
+            "zig-c-interop",
+            "zig-comptime",
+            "zig-errors",
+            "zig-io",
+            "zig-memory",
+            "zig-std",
+            "zig-testing",
+            "zig-toolchain",
+            "zig-types",
+        }.issubset(portable_skills))
         self.assertEqual(Path(manifest["central"]["skills"]), Path.home() / ".grok/skills")
         self.assertEqual(Path(manifest["central"]["personas"]), Path.home() / ".grok/bundled/personas")
         self.assertEqual(Path(manifest["central"]["roles"]), Path.home() / ".grok/bundled/roles")

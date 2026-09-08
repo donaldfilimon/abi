@@ -5,8 +5,9 @@ description: >-
   builds on this Mac, Xcode vs swiftly/TOOLCHAINS, SwiftData macro errors,
   AbbeyBot/AbbeyServer, the archived AbbeyCompanion, DiscordBM, Gama or String
   repository-selected Swift 6.5-dev snapshots, external SwiftPM scratch paths
-  for FileProvider checkouts, or Swift 6.4 / macOS 27 SPM for those packages.
-  Do not use for Rust/abi or general Swift language tutorials.
+  for FileProvider checkouts, Swift Testing #expect on ~Copyable values,
+  --filter matching nothing and exiting 0, or Swift 6.4 / macOS 27 SPM for
+  those packages. Do not use for Rust/abi or general Swift language tutorials.
 ---
 
 # Swift (toolchain + AbbeyBot)
@@ -42,7 +43,7 @@ selection.
 
 | Tree | Pin | Everyday invocation |
 |------|-----|---------------------|
-| `~/Desktop/Gama` | `.swift-version` = `main-snapshot-2026-08-21` (Swift 6.5-dev, id `org.swift.65202608211a`) | `swiftly run swift <build\|run\|test>` from the repo root |
+| `~/Desktop/Gama` | `.swift-version` = `main-snapshot-2026-08-21` (Swift 6.5-dev, id `org.swift.65202608211a`). `check-apple-platforms.sh` is the exception: `xcrun --toolchain default` must report Swift 6.4; do not raise `swift-tools-version` to match the compiler. | `swiftly run swift <build\|run\|test>` from the repo root |
 | `~/Desktop/String` | same snapshot via `.swift-version`; Xcode 6.4 is a **secondary** route, not the primary | `swiftly run swift build +main-snapshot-2026-08-21 --scratch-path <outside-iCloud> -Xswiftc -warnings-as-errors` |
 
    Gama's own `CLAUDE.md` states it is the machine-wide exception to the
@@ -118,6 +119,18 @@ xcrun --toolchain <id> swiftc -c -swift-version 6 -o /dev/null probe.swift
 Anyone verifying a noncopyable migration, or writing a compile-fail fixture for
 one, must use `-c`. A `-typecheck` fixture that "must fail to compile" will pass
 and prove nothing.
+
+Swift Testing has a separate `~Copyable` trap: `#expect` cannot read a bare
+stored property off a noncopyable value. `#expect(host.needsFrame)` expands to
+`__checkPropertyAccess`, which requires `Copyable`, and the diagnostic names
+that helper rather than the property. Bind first
+(`let dirty = host.needsFrame; #expect(dirty)`). Comparisons
+(`#expect(host.duplicateIDs == [...])`) use a different overload and are fine.
+
+`--filter` matches the source identifier (the struct or function name), not the
+`@Suite` display name and not the filename. A non-matching filter prints a
+warning and **exits 0**; confirm the reported test count. Do not treat exit 0
+as "those tests passed."
 
 Related ownership facts established by the same probes: `self` is immutable
 inside a `~Copyable` deinit (no in-place mutation, no `inout` of a stored
