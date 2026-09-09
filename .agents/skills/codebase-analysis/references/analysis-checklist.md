@@ -6,7 +6,13 @@ Use before planning a modernization. Capture evidence (path + line + why), not v
 
 - [ ] Module / package boundaries identified (entrypoints, public API, generated files)
 - [ ] Frozen contracts listed (CLI commands, MCP tools, public `mod`/`stub` pairs)
-- [ ] Generated or host-only paths noted (do not hand-edit; e.g. `crates/abi-plugins/src/lib.rs`)
+- [ ] Generated or host-only paths noted (do not hand-edit). **Verified 2026-09-08: no
+      file under `crates/` carries a `@generated` or `DO NOT EDIT` marker, and nothing
+      generates `crates/abi-plugins/src/lib.rs`** — it is *manually maintained* (`BUNDLED`,
+      `registry_descriptors()`), and both `abi-plugin-system/SKILL.md` and the
+      `plugin-system-reviewer` agent instruct updating it. Treat it as a source of truth,
+      not a generated artifact. (This line previously named it as generated and told
+      agents not to edit the one file two other instructions ask them to edit.)
 - [ ] Executable sources of truth named (`Cargo.toml`, `crates/abi-cli/src/usage.rs`, contract tests, gates)
 
 ## 2. Legacy pattern scan
