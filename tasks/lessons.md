@@ -82,3 +82,10 @@ when kernels are not linked. WDBX secure demos are reference-grade. Audit:
    `target/{release,debug}/abi-mcp` and the FM dylib resolve.
 6. **Historical Zig prose** — `docs/superpowers/archive/**` and rewrite audit
    notes may still say Zig; live gates are Rust only.
+7. **Rewriting a `target/<profile>/*.dylib` in place** — a build that
+   `fs::copy`s or `cp`s over an existing dylib truncates the same inode; if a
+   long-lived `abi-mcp stdio` still has it mapped, the kernel keeps the old code
+   directory and every later exec of `abi`/`abi-mcp` dies `SIGKILL (Code
+   Signature Invalid)` while `codesign -vv` says valid (2026-09-16). Build
+   scripts copy to `.tmp` and `rename`; repair a broken tree with
+   `cp X X.new && mv -f X.new X`, not a rebuild.
