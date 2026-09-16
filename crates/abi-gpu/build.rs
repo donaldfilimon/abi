@@ -99,9 +99,20 @@ fn main() {
     // no build-time symptom — the first sign would be a dyld abort at runtime —
     // so fail loudly instead.
     if let Some(dir) = profile_dir(&out_dir) {
+        // Copy to a sibling temp name, then rename over the destination. A
+        // bare `fs::copy` truncates the existing file in place, and a process
+        // that already has the old dylib mapped (a long-lived `abi-mcp stdio`)
+        // leaves the kernel holding that inode's code directory: every later
+        // exec that maps the rewritten bytes then dies with `SIGKILL (Code
+        // Signature Invalid)` while `codesign -vv` still reports the file
+        // valid (seen 2026-09-16). `rename` swaps in a new inode instead.
         let dest = dir.join("libabi_metal_dot.dylib");
-        std::fs::copy(&dylib, &dest).unwrap_or_else(|err| {
-            panic!("copy libabi_metal_dot.dylib to {}: {err}", dest.display());
+        let tmp = dir.join("libabi_metal_dot.dylib.tmp");
+        std::fs::copy(&dylib, &tmp).unwrap_or_else(|err| {
+            panic!("copy libabi_metal_dot.dylib to {}: {err}", tmp.display());
+        });
+        std::fs::rename(&tmp, &dest).unwrap_or_else(|err| {
+            panic!("rename {} to {}: {err}", tmp.display(), dest.display());
         });
         println!("cargo:rustc-link-search=native={}", dir.display());
     }
