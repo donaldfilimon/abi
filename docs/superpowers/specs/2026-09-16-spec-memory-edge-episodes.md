@@ -254,3 +254,12 @@ This amendment is wrong if, after implementation, any of the following holds:
   `abbey`'s CI pins `WDBX_REVISION` `f42b9789…`, older than both `56767f7` and `9788ae7`. That
   is drift, not breakage: abbey has no exhaustive `EpisodeEvent` match and passed
   `cargo check --all-targets --features wdbx` against `9788ae7`.
+- **2026-09-16 06:3x EDT, §7 step 3 implemented** with the emitter Donald chose the same
+  morning: an owner/admin-only review command. abbey-bot PR #161 (merge `bc3ae9d`) adds
+  `/admin quarantine <member> <fact> <reason>`, recorded by the service against the fact's
+  receipt, and `/admin resolve <edge> <verdict>`, recorded under the reviewer's keyed
+  principal as `GuildOwner`/`GuildAdministrator`/`GuildManager`. Both check the role in code,
+  and neither hides nor deletes a fact. The edge fixture is copied byte for byte from wdbx
+  `9788ae7`. `./check.sh` was green with 1306 tests on the merged head `c74ba08`; hosted CI
+  was billing-locked. `contradicts` has no emitter yet, and no automatic quarantine exists.
+  Live Discord acceptance of the two commands is not yet measured.
