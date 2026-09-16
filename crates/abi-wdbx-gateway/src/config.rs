@@ -124,6 +124,11 @@ pub struct GatewayConfig {
     /// Optional JSON `abi_wdbx::v3::episode::StorePolicy`. When absent the two
     /// episode RPCs answer `FAILED_PRECONDITION` and no episode store is opened.
     pub episode_policy: Option<PathBuf>,
+    /// Optional owner-only raw 32-byte Ed25519 secret key. When set, the
+    /// episode ledger signs every record it appends. Requires
+    /// [`Self::episode_policy`] and must not be the membership signing key.
+    /// Absent, episodes are appended unsigned exactly as before.
+    pub episode_signing_key: Option<PathBuf>,
     /// Resource limits.
     pub limits: Limits,
 }
@@ -140,6 +145,7 @@ impl GatewayConfig {
             tls: TlsFiles::default(),
             allowed_origins: vec!["http://127.0.0.1".into(), "http://localhost".into()],
             episode_policy: None,
+            episode_signing_key: None,
             limits: Limits::default(),
         }
     }
@@ -171,6 +177,14 @@ impl GatewayConfig {
         validate_regular_file(&self.token_file, true, "bearer token")?;
         if let Some(path) = &self.episode_policy {
             validate_regular_file(path, false, "episode policy")?;
+        }
+        if let Some(path) = &self.episode_signing_key {
+            if self.episode_policy.is_none() {
+                return Err(GatewayError::Configuration(
+                    "an episode signing key requires an episode policy".into(),
+                ));
+            }
+            validate_regular_file(path, true, "episode signing key")?;
         }
         if let Some(path) = &self.tls.certificate {
             validate_regular_file(path, false, "TLS certificate")?;

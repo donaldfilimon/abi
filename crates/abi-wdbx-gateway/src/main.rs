@@ -25,6 +25,10 @@ struct Arguments {
     /// JSON `StorePolicy` that enables the canonical episode RPCs.
     #[arg(long)]
     episode_policy: Option<PathBuf>,
+    /// Owner-only raw 32-byte Ed25519 key that signs every appended episode.
+    /// Requires `--episode-policy`; must not be the membership signing key.
+    #[arg(long)]
+    episode_signing_key: Option<PathBuf>,
     #[arg(long = "origin", default_values_t = [
         "http://127.0.0.1".to_owned(),
         "http://localhost".to_owned(),
@@ -40,6 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.events_addr = arguments.events;
     config.allowed_origins = arguments.origins;
     config.episode_policy = arguments.episode_policy;
+    config.episode_signing_key = arguments.episode_signing_key;
     config.tls = TlsFiles {
         certificate: arguments.tls_cert,
         private_key: arguments.tls_key,

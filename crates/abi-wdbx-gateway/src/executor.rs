@@ -2,7 +2,7 @@
 
 use crate::GatewayError;
 use crate::membership::MembershipStore;
-use abi_wdbx::v3::episode::{EpisodeStore, StorePolicy};
+use abi_wdbx::v3::episode::{EpisodeSigner, EpisodeStore, StorePolicy};
 use abi_wdbx::{StorePaths, VersionedError, VersionedStore};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -41,20 +41,54 @@ impl StoreExecutor {
     }
 
     /// Open the store and, when a policy is supplied, the canonical episode
-    /// ledger under `<path>/episodes` bound to that exact policy.
+    /// ledger under `<path>/episodes` bound to that exact policy. Appended
+    /// episodes are unsigned; see [`Self::open_with_signed_episodes`].
     pub fn open_with_episodes(
         path: &Path,
         maximum_jobs: usize,
         episode_policy: Option<StorePolicy>,
     ) -> Result<Self, GatewayError> {
+        Self::open_with_signed_episodes(path, maximum_jobs, episode_policy, None)
+    }
+
+    /// Like [`Self::open_with_episodes`], but when `episode_signer` is
+    /// supplied the episode ledger signs every record it appends.
+    ///
+    /// The signer must hold a key that signs nothing else. The gateway's
+    /// membership ledger already signs with its own key under the store root,
+    /// so a signer whose key equals that one is refused: one key signing both
+    /// domains would let an episode signature be presented as a membership
+    /// signature. A signer without a policy is refused too, because no episode
+    /// store would exist for it to sign.
+    ///
+    /// Once a ledger holds signed records, a gateway build that predates
+    /// episode signing can no longer open it.
+    pub fn open_with_signed_episodes(
+        path: &Path,
+        maximum_jobs: usize,
+        episode_policy: Option<StorePolicy>,
+        episode_signer: Option<EpisodeSigner>,
+    ) -> Result<Self, GatewayError> {
+        if episode_signer.is_some() && episode_policy.is_none() {
+            return Err(GatewayError::Configuration(
+                "an episode signing key requires an episode policy".into(),
+            ));
+        }
         let store = VersionedStore::open(StorePaths::new(path))
             .map_err(|error| GatewayError::Store(error.to_string()))?;
         let membership =
             MembershipStore::open(path).map_err(|error| GatewayError::Store(error.to_string()))?;
+        if let Some(signer) = &episode_signer {
+            reject_membership_key(path, signer)?;
+        }
         let episodes = episode_policy
             .map(|policy| {
-                EpisodeStore::open(path.join(EPISODE_DIRECTORY), policy)
-                    .map_err(|error| GatewayError::Store(format!("episode store: {error}")))
+                let directory = path.join(EPISODE_DIRECTORY);
+                match episode_signer {
+                    Some(signer) => EpisodeStore::open_with_signer(directory, policy, signer),
+                    None => EpisodeStore::open(directory, policy),
+                }
+                .map_err(|error| GatewayError::Store(format!("episode store: {error}")))
             })
             .transpose()?;
         Ok(Self {
@@ -100,4 +134,19 @@ impl StoreExecutor {
         .await
         .map_err(|error| GatewayError::Store(format!("blocking store job failed: {error}")))?
     }
+}
+
+/// Refuse an episode signer that holds the membership ledger's signing key.
+///
+/// Compared by key, not by path, so a copied key file is caught too.
+fn reject_membership_key(store_root: &Path, signer: &EpisodeSigner) -> Result<(), GatewayError> {
+    let membership_key = crate::membership::signing_key_path(store_root);
+    let membership = EpisodeSigner::from_key_file(&membership_key)
+        .map_err(|error| GatewayError::Store(format!("membership signing key: {error}")))?;
+    if membership.verifying_key() == signer.verifying_key() {
+        return Err(GatewayError::Configuration(
+            "the episode signing key must differ from the membership signing key".into(),
+        ));
+    }
+    Ok(())
 }

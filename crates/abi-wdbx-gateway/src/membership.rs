@@ -45,7 +45,7 @@ pub(crate) struct MembershipOutcome {
 
 impl MembershipStore {
     pub(crate) fn open(store_root: &Path) -> Result<Self, MembershipStoreError> {
-        let root = store_root.join("gateway-membership");
+        let root = membership_root(store_root);
         std::fs::create_dir_all(&root).map_err(|_| MembershipStoreError::Io)?;
         let security = open_security(&root)?;
         let cluster_id = open_cluster_id(&root)?;
@@ -121,6 +121,15 @@ impl MembershipStore {
             tombstoned: self.ledger.is_tombstoned(id),
         }
     }
+}
+
+fn membership_root(store_root: &Path) -> PathBuf {
+    store_root.join("gateway-membership")
+}
+
+/// Path of the membership ledger's signing key under a gateway store root.
+pub(crate) fn signing_key_path(store_root: &Path) -> PathBuf {
+    membership_root(store_root).join("signing.key")
 }
 
 fn open_security(root: &Path) -> Result<ObjectSecurity, MembershipStoreError> {

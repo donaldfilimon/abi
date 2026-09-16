@@ -545,3 +545,182 @@ async fn episode_gate_survives_reopen_beside_the_v2_store() {
     assert!(!unknown_guild.found);
     assert!(unknown_guild.receipt.is_none());
 }
+
+/// Write a 32-byte Ed25519 secret to `name` under the scratch root, owner-only.
+fn write_signing_key(scratch: &Scratch, name: &str, fill: u8) -> PathBuf {
+    let path = scratch.root.join(name);
+    std::fs::write(&path, [fill; 32]).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    path
+}
+
+/// Append one proposal through a gateway service and return its digest.
+async fn append_one(executor: StoreExecutor, limits: &Limits, scratch: &Scratch) -> Vec<u8> {
+    let token = Arc::new(BearerToken::load(&scratch.token).unwrap());
+    let service = GatewayService::new(
+        token,
+        limits.clone(),
+        executor,
+        Arc::new(EventHub::new(limits)),
+    );
+    let appended = service
+        .propose_episode_write(authenticated(ProposeEpisodeWriteRequest {
+            episode_write_json: episode_proposal_json("req_s1", "op_s1"),
+            preview_only: false,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(appended.decision, "appended");
+    appended.episode_digest
+    // `service` drops here, releasing the episode ledger's writer lock.
+}
+
+/// Reopen the ledger read-side and report one record's signature state.
+fn stored_signature(
+    scratch: &Scratch,
+    digest: &[u8],
+    signer: &abi_wdbx::v3::episode::EpisodeSigner,
+) -> abi_wdbx::v3::episode::SignatureStatus {
+    let digest: [u8; 32] = digest.try_into().unwrap();
+    let store = abi_wdbx::v3::episode::EpisodeStore::open(
+        scratch.store().join("episodes"),
+        episode_policy(true),
+    )
+    .unwrap();
+    let known = signer.key_id().clone();
+    let verifying = signer.verifying_key();
+    store
+        .signature_status("guild_ref", &digest, |id| {
+            (*id == known).then_some(verifying)
+        })
+        .unwrap()
+        .expect("the appended digest is in the ledger")
+}
+
+#[tokio::test]
+async fn configured_signing_key_signs_every_appended_episode() {
+    use abi_wdbx::v3::episode::{EpisodeSigner, SignatureStatus};
+
+    let scratch = Scratch::new("episodes-signed");
+    let limits = Limits::default();
+    let key = write_signing_key(&scratch, "episode-signing.key", 7);
+    let signer = EpisodeSigner::from_key_file(&key).unwrap();
+
+    let executor = StoreExecutor::open_with_signed_episodes(
+        &scratch.store(),
+        limits.blocking_jobs,
+        Some(episode_policy(true)),
+        Some(EpisodeSigner::from_key_file(&key).unwrap()),
+    )
+    .unwrap();
+    let digest = append_one(executor, &limits, &scratch).await;
+
+    assert_eq!(
+        stored_signature(&scratch, &digest, &signer),
+        SignatureStatus::Valid(signer.key_id().clone())
+    );
+}
+
+#[tokio::test]
+async fn unconfigured_signing_key_still_appends_unsigned_episodes() {
+    use abi_wdbx::v3::episode::{EpisodeSigner, SignatureStatus};
+
+    let scratch = Scratch::new("episodes-unsigned");
+    let limits = Limits::default();
+    let key = write_signing_key(&scratch, "unused.key", 7);
+    let signer = EpisodeSigner::from_key_file(&key).unwrap();
+
+    let executor = StoreExecutor::open_with_episodes(
+        &scratch.store(),
+        limits.blocking_jobs,
+        Some(episode_policy(true)),
+    )
+    .unwrap();
+    let digest = append_one(executor, &limits, &scratch).await;
+
+    assert_eq!(
+        stored_signature(&scratch, &digest, &signer),
+        SignatureStatus::Unsigned
+    );
+}
+
+#[test]
+fn episode_signing_key_refuses_a_missing_policy_and_the_membership_key() {
+    use abi_wdbx::v3::episode::EpisodeSigner;
+    use abi_wdbx_gateway::GatewayError;
+
+    let scratch = Scratch::new("episodes-signing-refusals");
+    let limits = Limits::default();
+    let key = write_signing_key(&scratch, "episode-signing.key", 7);
+
+    // Nothing to sign without a policy.
+    let without_policy = StoreExecutor::open_with_signed_episodes(
+        &scratch.store(),
+        limits.blocking_jobs,
+        None,
+        Some(EpisodeSigner::from_key_file(&key).unwrap()),
+    );
+    assert!(matches!(
+        without_policy,
+        Err(GatewayError::Configuration(_))
+    ));
+
+    // The first open creates the membership keypair; a copy of its secret
+    // must be refused as an episode key even though the path differs.
+    drop(StoreExecutor::open(&scratch.store(), limits.blocking_jobs).unwrap());
+    let membership_secret = scratch
+        .store()
+        .join("gateway-membership")
+        .join("signing.key");
+    let copied = scratch.root.join("copied-membership.key");
+    std::fs::copy(&membership_secret, &copied).unwrap();
+    std::fs::set_permissions(&copied, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let reused = StoreExecutor::open_with_signed_episodes(
+        &scratch.store(),
+        limits.blocking_jobs,
+        Some(episode_policy(true)),
+        Some(EpisodeSigner::from_key_file(&copied).unwrap()),
+    );
+    assert!(matches!(reused, Err(GatewayError::Configuration(_))));
+
+    // A distinct key on the same store is accepted.
+    StoreExecutor::open_with_signed_episodes(
+        &scratch.store(),
+        limits.blocking_jobs,
+        Some(episode_policy(true)),
+        Some(EpisodeSigner::from_key_file(&key).unwrap()),
+    )
+    .unwrap();
+}
+
+#[test]
+fn episode_signing_key_is_validated_before_bind() {
+    let scratch = Scratch::new("episodes-signing-config");
+    let policy_file = scratch.root.join("policy.json");
+    std::fs::write(
+        &policy_file,
+        serde_json::to_vec(&episode_policy(true)).unwrap(),
+    )
+    .unwrap();
+    let key = write_signing_key(&scratch, "episode-signing.key", 7);
+
+    let mut config = GatewayConfig::loopback(scratch.store(), scratch.token.clone());
+    config.episode_signing_key = Some(key.clone());
+    assert!(
+        config.validate_pre_bind().is_err(),
+        "a signing key without a policy must be refused"
+    );
+
+    config.episode_policy = Some(policy_file);
+    config.validate_pre_bind().unwrap();
+
+    std::fs::set_permissions(&key, std::fs::Permissions::from_mode(0o644)).unwrap();
+    assert!(
+        config.validate_pre_bind().is_err(),
+        "a group- or world-readable signing key must be refused"
+    );
+
+    config.episode_signing_key = Some(scratch.root.join("missing.key"));
+    assert!(config.validate_pre_bind().is_err());
+}

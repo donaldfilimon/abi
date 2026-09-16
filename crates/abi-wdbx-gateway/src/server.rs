@@ -61,10 +61,24 @@ impl PreparedGateway {
             .as_deref()
             .map(crate::episodes::load_policy)
             .transpose()?;
-        let executor = StoreExecutor::open_with_episodes(
+        let episode_signer = config
+            .episode_signing_key
+            .as_deref()
+            .map(|path| {
+                abi_wdbx::v3::episode::EpisodeSigner::from_key_file(path).map_err(|error| {
+                    GatewayError::File {
+                        label: "episode signing key".into(),
+                        path: path.to_path_buf(),
+                        message: error.to_string(),
+                    }
+                })
+            })
+            .transpose()?;
+        let executor = StoreExecutor::open_with_signed_episodes(
             &config.store_path,
             config.limits.blocking_jobs,
             episode_policy,
+            episode_signer,
         )?;
         let events = Arc::new(EventHub::new(&config.limits));
         Ok(Self {
