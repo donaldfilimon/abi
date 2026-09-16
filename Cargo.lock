@@ -279,18 +279,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1973cfbc1a2daf9cf550e74e1f088c28e7f7d8c1e1418fb6c9dc5184b7e84c99"
 dependencies = [
  "crypto-common 0.2.2",
- "inout 0.2.2",
-]
-
-[[package]]
-name = "aes"
-version = "0.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b169f7a6d4742236a0a00c541b845991d0ac43e546831af1249753ab4c3aa3a0"
-dependencies = [
- "cfg-if",
- "cipher 0.4.4",
- "cpufeatures 0.2.17",
+ "inout",
 ]
 
 [[package]]
@@ -299,7 +288,7 @@ version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35f0f96ce78e38c3dc6d8948aa8163d06385be74000f3c7a95bf1eef35d3ea32"
 dependencies = [
- "cipher 0.5.2",
+ "cipher",
  "cpubits",
  "cpufeatures 0.3.1",
 ]
@@ -889,7 +878,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce2dc9ee5f88d11e0beb842c88b33c8a5cf0d1329c4b19494af42b07dbfe8896"
 dependencies = [
- "cipher 0.5.2",
+ "cipher",
 ]
 
 [[package]]
@@ -921,7 +910,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06"
 dependencies = [
  "cfg-if",
- "cipher 0.5.2",
+ "cipher",
  "cpufeatures 0.3.1",
 ]
 
@@ -933,18 +922,8 @@ checksum = "9b89e1c441e926b9c82a8d023f6e1b7ae0adcfaa7d621814e4d60789bac751cb"
 dependencies = [
  "aead",
  "chacha20",
- "cipher 0.5.2",
+ "cipher",
  "poly1305",
-]
-
-[[package]]
-name = "cipher"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
-dependencies = [
- "crypto-common 0.1.7",
- "inout 0.1.4",
 ]
 
 [[package]]
@@ -955,7 +934,7 @@ checksum = "e8cf2a2c93cd704877c0858356ed03480ff301ee950b43f1cbe4573b088bfa6c"
 dependencies = [
  "block-buffer 0.12.1",
  "crypto-common 0.2.2",
- "inout 0.2.2",
+ "inout",
 ]
 
 [[package]]
@@ -2281,15 +2260,6 @@ dependencies = [
 
 [[package]]
 name = "inout"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
-dependencies = [
- "generic-array",
-]
-
-[[package]]
-name = "inout"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4250ce6452e92010fdf7268ccc5d14faa80bb12fc741938534c58f16804e03c7"
@@ -2309,6 +2279,15 @@ name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
 dependencies = [
  "either",
 ]
@@ -3008,7 +2987,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03da047801ff44bb6a4d407d4860c05fd70bb81714e6b2f3812603d5b145b042"
 dependencies = [
  "heck",
- "itertools",
+ "itertools 0.14.0",
  "log",
  "multimap",
  "petgraph",
@@ -3029,7 +3008,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b570b25f7617e43d59005d0990ccb79e950a423952cea19671b7a876da390adf"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -3266,7 +3245,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2964d0cf57a3e7a06e8183d14a8b527195c706b7983549cd5462d5aa3747438f"
 dependencies = [
  "either",
- "itertools",
+ "itertools 0.14.0",
  "rayon",
 ]
 
@@ -3501,7 +3480,7 @@ version = "5.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5107b24b91445dd2aa449a258a1807b63240942157292354dc5bfdbeb8bc6db8"
 dependencies = [
- "aes 0.9.3",
+ "aes",
  "cbc",
  "futures-util",
  "getrandom 0.4.3",
@@ -3875,16 +3854,16 @@ dependencies = [
 
 [[package]]
 name = "tfhe"
-version = "1.7.0"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f341a7a6fe90bf813ecb2b098f04c0e5bca82436ddd1b256e6f1ec68be58da52"
+checksum = "12c1dec4e123492cec47594236a388cda589468b5f25a01f473efb0d87e3fa9a"
 dependencies = [
  "aligned-vec",
  "bincode",
  "blake3",
  "bytemuck",
  "dyn-stack",
- "itertools",
+ "itertools 0.15.0",
  "paste",
  "pulp 0.22.3",
  "rand_core 0.6.4",
@@ -3901,11 +3880,11 @@ dependencies = [
 
 [[package]]
 name = "tfhe-csprng"
-version = "0.9.2"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9c677a5732dd133544c5e76e448da8d8bc26c4131e30c50920165472a9d6a3c"
+checksum = "e0f36be0a9dee8018cbe2be48a0f6c1b094ba022be5c29da7a35c537a9e98022"
 dependencies = [
- "aes 0.8.4",
+ "aes",
  "getrandom 0.2.17",
  "libc",
  "rayon",
@@ -4046,7 +4025,7 @@ dependencies = [
  "esaxx-rs",
  "fancy-regex 0.14.0",
  "getrandom 0.3.4",
- "itertools",
+ "itertools 0.14.0",
  "log",
  "macro_rules_attribute",
  "monostate",
