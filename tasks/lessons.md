@@ -89,3 +89,13 @@ when kernels are not linked. WDBX secure demos are reference-grade. Audit:
    Signature Invalid)` while `codesign -vv` says valid (2026-09-16). Build
    scripts copy to `.tmp` and `rename`; repair a broken tree with
    `cp X X.new && mv -f X.new X`, not a rebuild.
+8. **Exec'ing the toolchain's `cargo` directly drops rustup's
+   `DYLD_FALLBACK_LIBRARY_PATH`** — rustc on Apple targets strips release
+   binaries with `lib/rustlib/<host>/bin/rust-objcopy`, whose
+   `@rpath/libLLVM.dylib` only resolves through the fallback path the rustup
+   proxy injects (`<toolchain>/lib` first). Without it every release link
+   prints `warning: stripping debug info with rust-objcopy failed: signal: 6
+   (SIGABRT)`, ships the binary unstripped, and writes a dyld crash report,
+   while cargo still exits 0 (2026-09-16). `tools/cargo.sh` now exports the
+   same list rustup uses; the rustc warning line is the evidence, because
+   macOS throttles crash reports and their count under-reports aborts.

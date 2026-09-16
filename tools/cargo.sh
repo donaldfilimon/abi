@@ -34,4 +34,21 @@ if [[ -z "${CXX:-}" && -x /usr/bin/c++ ]]; then
   export CXX=/usr/bin/c++
 fi
 
+# Exec'ing the toolchain's cargo directly also skips the one piece of
+# environment the rustup proxy would have set: DYLD_FALLBACK_LIBRARY_PATH with
+# the toolchain's lib/ directory first. rustc on Apple targets strips release
+# binaries with lib/rustlib/<host>/bin/rust-objcopy, which links
+# @rpath/libLLVM.dylib through an rpath of @loader_path/../lib, and the rustc
+# component only ships libLLVM.dylib in lib/. Without the fallback path every
+# release link prints "stripping debug info with `rust-objcopy` failed: signal: 6
+# (SIGABRT)" and leaves the binary unstripped (rust-lld has the same
+# dependency). Mirror rustup's exact value: the variable replaces dyld's default
+# fallback list, so the system entries must stay on it.
+TOOLCHAIN_LIB="${TOOLCHAIN_BIN%/bin}/lib"
+if [[ -n "${DYLD_FALLBACK_LIBRARY_PATH:-}" ]]; then
+  export DYLD_FALLBACK_LIBRARY_PATH="${TOOLCHAIN_LIB}:${DYLD_FALLBACK_LIBRARY_PATH}"
+else
+  export DYLD_FALLBACK_LIBRARY_PATH="${TOOLCHAIN_LIB}:${HOME}/lib:/usr/local/lib:/usr/lib"
+fi
+
 exec "${TOOLCHAIN_BIN}/cargo" "$@"
