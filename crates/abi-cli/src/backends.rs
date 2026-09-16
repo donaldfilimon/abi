@@ -184,26 +184,16 @@ fn report() -> String {
         accel_note,
     )
     .expect("writing to a String cannot fail");
-    // These rows are the abstraction-only compatibility table, matching the
-    // `compat` / `service_available` wording `abi wdbx compute` already uses.
-    // `service_available` means "a request for this backend is served", which
-    // for every accelerator row is true via deterministic CPU fallback — it is
-    // not a claim that the accelerator itself is present or dispatching. The
-    // authoritative runtime evidence is the native-kernel line above and the
-    // capability ladder in `abi wdbx compute`.
-    for capability in abi_wdbx::capabilities() {
-        let selection = abi_wdbx::select(capability.backend);
-        writeln!(
-            output,
-            "  compat {:<10} class={:<3} service_available={} native={} effective={}",
-            capability.backend.name(),
-            capability.backend.class(),
-            capability.available,
-            capability.native,
-            selection.effective.name(),
-        )
-        .expect("writing to a String cannot fail");
-    }
+    // The abstraction-only compatibility table (`compat … service_available=`)
+    // is deliberately not repeated here: printing it four lines under the
+    // authoritative native-kernel evidence made `native=false` for `gpu-metal`
+    // read as a contradiction of `Metal DOT active`. `abi wdbx compute info`
+    // owns that table and the per-backend evidence ladder.
+    writeln!(
+        output,
+        "  Compatibility table + evidence ladder: `abi wdbx compute info`"
+    )
+    .expect("writing to a String cannot fail");
     writeln!(
         output,
         "  Apple Neural Engine: hardware_present={} native_dispatch=false\n  Remote compute endpoint: {} (reference transport; local fallback, not production TPU)\n  Shaders         {}  {}  (compiler available={})\n  MLIR            {} → {}  (toolchain available={})\n  Hash            wyhash64=0x{hash_smoke:x}  (Zig-compatible)\n  Metrics         registry counters={}  (enabled={})\n  Mobile          {}\n  FoundationModels bridge_linked={} model_ready={}",
@@ -261,6 +251,16 @@ mod tests {
         assert!(output.stderr.contains("FoundationModels bridge_linked="));
         assert!(output.stderr.contains("native_dispatch=false"));
         assert!(!output.stderr.contains("native=true"));
+        // The abstraction-only compat table lives in `abi wdbx compute info`;
+        // `abi backends` points there instead of repeating rows that read as
+        // contradicting the native-kernel evidence above them.
+        assert!(!output.stderr.contains("compat "));
+        assert!(!output.stderr.contains("service_available="));
+        assert!(
+            output
+                .stderr
+                .contains("Compatibility table + evidence ladder: `abi wdbx compute info`")
+        );
         if abi_gpu::metal_kernels::kernels_active() {
             assert!(
                 output.stderr.contains("accelerated=\u{1b}[32myes")
