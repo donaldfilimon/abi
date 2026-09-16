@@ -22,11 +22,27 @@ fn same_ranking(left: &[ScoredIndex], right: &[ScoredIndex]) -> bool {
 }
 
 /// Native Metal numerical adapter with deterministic CPU fallback and oracle.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MetalAccelerator {
     cpu: CpuBackend,
     executed: AtomicBool,
     verified: AtomicBool,
+    /// Whether the Metal pipeline is initialized. Indirected so the
+    /// inactive-kernel degradation path stays provable on a host where Metal
+    /// genuinely is available; production always uses the real probe, and it
+    /// is called live because shim initialization is lazy.
+    kernels_active: fn() -> bool,
+}
+
+impl Default for MetalAccelerator {
+    fn default() -> Self {
+        Self {
+            cpu: CpuBackend::default(),
+            executed: AtomicBool::default(),
+            verified: AtomicBool::default(),
+            kernels_active: metal_kernels::kernels_active,
+        }
+    }
 }
 
 impl MetalAccelerator {
@@ -34,6 +50,44 @@ impl MetalAccelerator {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Adapter wired to kernels that are linked but never active, so the
+    /// CPU-fallback path can be asserted on a Metal-capable host.
+    #[cfg(test)]
+    fn with_inactive_kernels() -> Self {
+        Self {
+            kernels_active: || false,
+            ..Self::default()
+        }
+    }
+
+    /// Invoke a native kernel, or `None` when the Metal pipeline is inactive.
+    fn native<T>(&self, call: impl FnOnce() -> Option<T>) -> Option<T> {
+        if (self.kernels_active)() {
+            call()
+        } else {
+            None
+        }
+    }
+
+    /// Reconcile a native result against the deterministic CPU oracle.
+    ///
+    /// Collapses the identical accept/verify/fall-back shape every operation
+    /// had open-coded: no native result means the oracle stands untouched and
+    /// no evidence advances.
+    fn reconcile<T>(
+        &self,
+        oracle: T,
+        native: Option<T>,
+        matches: impl FnOnce(&T, &T) -> bool,
+    ) -> T {
+        let Some(native) = native else {
+            return oracle;
+        };
+        let verified = matches(&native, &oracle);
+        self.record(verified);
+        if verified { native } else { oracle }
     }
 
     fn record(&self, verified: bool) {
@@ -50,7 +104,7 @@ impl Accelerator for MetalAccelerator {
     }
 
     fn capability(&self) -> CapabilityState {
-        let initialized = metal_kernels::kernels_active();
+        let initialized = (self.kernels_active)();
         let executed = self.executed.load(Ordering::Relaxed);
         let verified = self.verified.load(Ordering::Relaxed);
         CapabilityState::new(
@@ -76,32 +130,29 @@ impl Accelerator for MetalAccelerator {
 
     fn dot(&self, left: &[f32], right: &[f32]) -> Result<f32, ComputeError> {
         let oracle = self.cpu.dot(left, right)?;
-        let Some(native) = metal_kernels::dot(left, right) else {
-            return Ok(oracle);
-        };
-        let verified = close(native, oracle);
-        self.record(verified);
-        Ok(if verified { native } else { oracle })
+        Ok(self.reconcile(
+            oracle,
+            self.native(|| metal_kernels::dot(left, right)),
+            |n, o| close(*n, *o),
+        ))
     }
 
     fn cosine(&self, left: &[f32], right: &[f32]) -> Result<f32, ComputeError> {
         let oracle = self.cpu.cosine(left, right)?;
-        let Some(native) = metal_kernels::cosine(left, right) else {
-            return Ok(oracle);
-        };
-        let verified = close(native, oracle);
-        self.record(verified);
-        Ok(if verified { native } else { oracle })
+        Ok(self.reconcile(
+            oracle,
+            self.native(|| metal_kernels::cosine(left, right)),
+            |n, o| close(*n, *o),
+        ))
     }
 
     fn norm(&self, values: &[f32]) -> Result<f32, ComputeError> {
         let oracle = self.cpu.norm(values);
-        let Some(native) = metal_kernels::norm(values) else {
-            return Ok(oracle);
-        };
-        let verified = close(native, oracle);
-        self.record(verified);
-        Ok(if verified { native } else { oracle })
+        Ok(self.reconcile(
+            oracle,
+            self.native(|| metal_kernels::norm(values)),
+            |n, o| close(*n, *o),
+        ))
     }
 
     fn top_k(
@@ -114,12 +165,8 @@ impl Accelerator for MetalAccelerator {
         if limit == 0 {
             return Ok(oracle);
         }
-        let Some(native) = metal_kernels::top_k(query, candidates, limit) else {
-            return Ok(oracle);
-        };
-        let verified = same_ranking(&native, &oracle);
-        self.record(verified);
-        Ok(if verified { native } else { oracle })
+        let native = self.native(|| metal_kernels::top_k(query, candidates, limit));
+        Ok(self.reconcile(oracle, native, |n, o| same_ranking(n, o)))
     }
 }
 
@@ -346,6 +393,46 @@ mod tests {
             assert!(!state.runtime_verified());
             assert!(!state.can_dispatch());
         }
+    }
+
+    #[test]
+    fn inactive_kernels_fall_back_to_cpu_without_claiming_execution() {
+        // On this host Metal is genuinely active, so the runtime `if` in the
+        // test above only ever exercises the accelerated branch. Injecting
+        // linked-but-inactive kernels proves the degradation path locally.
+        let adapter = MetalAccelerator::with_inactive_kernels();
+        let before = adapter.capability();
+        assert!(!before.initialized());
+        assert!(!before.executed());
+        assert!(!before.runtime_verified());
+        assert!(!before.can_dispatch());
+        assert_eq!(before.compiled(), metal_kernels::kernels_linked());
+
+        let query = [1.0, 2.0, 3.0, 4.0];
+        let first = [1.0, 0.0, 0.0, 0.0];
+        let second = [0.0, 1.0, 0.0, 0.0];
+
+        // Every operation still returns the deterministic CPU oracle.
+        let cpu = CpuBackend::default();
+        assert!(close(
+            adapter.dot(&query, &first).expect("dot"),
+            cpu.dot(&query, &first).expect("dot oracle")
+        ));
+        assert!(close(
+            adapter.cosine(&query, &first).expect("cosine"),
+            cpu.cosine(&query, &first).expect("cosine oracle")
+        ));
+        assert!(close(adapter.norm(&query).expect("norm"), cpu.norm(&query)));
+        assert!(same_ranking(
+            &adapter.top_k(&query, &[&first, &second], 2).expect("top k"),
+            &cpu.top_k(&query, &[&first, &second], 2).expect("oracle")
+        ));
+
+        // No native call happened, so no evidence may advance.
+        let after = adapter.capability();
+        assert!(!after.executed());
+        assert!(!after.runtime_verified());
+        assert!(after.message().contains("CPU fallback"));
     }
 
     #[test]

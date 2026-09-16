@@ -184,11 +184,18 @@ fn report() -> String {
         accel_note,
     )
     .expect("writing to a String cannot fail");
+    // These rows are the abstraction-only compatibility table, matching the
+    // `compat` / `service_available` wording `abi wdbx compute` already uses.
+    // `service_available` means "a request for this backend is served", which
+    // for every accelerator row is true via deterministic CPU fallback — it is
+    // not a claim that the accelerator itself is present or dispatching. The
+    // authoritative runtime evidence is the native-kernel line above and the
+    // capability ladder in `abi wdbx compute`.
     for capability in abi_wdbx::capabilities() {
         let selection = abi_wdbx::select(capability.backend);
         writeln!(
             output,
-            "  {:<10} class={:<3} usable={} native={} effective={}",
+            "  compat {:<10} class={:<3} service_available={} native={} effective={}",
             capability.backend.name(),
             capability.backend.class(),
             capability.available,

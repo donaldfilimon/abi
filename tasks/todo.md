@@ -203,3 +203,13 @@ under constitutional invariant A1 abi-ai owns persona routing and modulation
 while Abbey owns persona definition, so introducing I/O or a substrate
 dependency here would both break determinism and blur an authority boundary.
 No change was required and none was made.
+
+## GPU surface fix-and-improve train
+
+- [x] Survey `crates/abi-gpu` (7 files, ~2,000 lines) and establish runtime ground truth from `abi backends` rather than prose.
+- [x] Run the abi-gpu feature matrix: default, `--all-features`, `--no-default-features`, `+metal-kernels`, `+cuda-adapter,vulkan-adapter`. All five exit 0 at 20 passed / 0 failed.
+- [x] Relabel the `abi backends` compatibility matrix (`usable=` → `compat … service_available=`) so accelerator rows stop reading as accelerator-presence claims. `./tools/check.sh` exit 0, `check: all green`.
+- [x] Confirm `abi_compute::capabilities()` accelerator availability is a deliberate pinned contract and leave it unchanged.
+- [x] Make the Metal-inactive degradation path testable on a Metal-capable host. `MetalAccelerator` now reaches kernels through a function-pointer seam (`MetalKernels::REAL` in production, a test-only inactive set otherwise). Mutation-checked: injecting `REAL` into the inactive constructor makes the new test fail at `!before.initialized()`. 21 tests pass in all five feature configurations; `./tools/check.sh` exit 0, `check: all green`.
+- [ ] Decide whether two capability tables (`abi-gpu` evidence ladder vs `abi-compute` compat table) should remain separate, or whether `abi backends` should print the ladder as `abi wdbx compute` already does. Cross-repo; Donald's call.
+- [x] Commit the `abi-cli/src/backends.rs` relabel (currently uncommitted; 3 unrelated docs files in the tree belong to another session and must stay out of the commit).
