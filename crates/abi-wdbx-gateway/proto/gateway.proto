@@ -128,4 +128,12 @@ message VerifyEpisodeRequest {
 message VerifyEpisodeResponse {
   bool found = 1;
   EpisodeReceipt receipt = 2;
+  // Signature state of the found record, checked only against the key this
+  // gateway signs with: "unsigned", "valid", "invalid", or "unknown_key" (a
+  // signature under a key the gateway does not hold; unverifiable, not
+  // forged). Empty when `found` is false.
+  string signature_status = 3;
+  // Key id the record's signature claims (`ed25519:<hex>`); empty when the
+  // record is unsigned or not found.
+  string signer_key_id = 4;
 }

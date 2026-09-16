@@ -724,3 +724,100 @@ fn episode_signing_key_is_validated_before_bind() {
     config.episode_signing_key = Some(scratch.root.join("missing.key"));
     assert!(config.validate_pre_bind().is_err());
 }
+
+/// Build a service over an executor, with the standard test token.
+fn service_over(executor: StoreExecutor, limits: &Limits, scratch: &Scratch) -> GatewayService {
+    let token = Arc::new(BearerToken::load(&scratch.token).unwrap());
+    GatewayService::new(
+        token,
+        limits.clone(),
+        executor,
+        Arc::new(EventHub::new(limits)),
+    )
+}
+
+async fn verify(
+    service: &GatewayService,
+    digest: &[u8],
+) -> abi_wdbx_gateway::proto::VerifyEpisodeResponse {
+    service
+        .verify_episode(authenticated(VerifyEpisodeRequest {
+            guild_ref: "guild_ref".into(),
+            episode_digest: digest.to_vec(),
+        }))
+        .await
+        .unwrap()
+        .into_inner()
+}
+
+#[tokio::test]
+async fn verify_episode_reports_signature_state_against_the_gateway_key() {
+    use abi_wdbx::v3::episode::EpisodeSigner;
+
+    let scratch = Scratch::new("episodes-verify-signature");
+    let limits = Limits::default();
+    let key_a = write_signing_key(&scratch, "episode-a.key", 7);
+    let key_b = write_signing_key(&scratch, "episode-b.key", 8);
+    let id_a = EpisodeSigner::from_key_file(&key_a)
+        .unwrap()
+        .key_id()
+        .as_str()
+        .to_owned();
+    let open = |key: Option<&PathBuf>| {
+        StoreExecutor::open_with_signed_episodes(
+            &scratch.store(),
+            limits.blocking_jobs,
+            Some(episode_policy(true)),
+            key.map(|path| EpisodeSigner::from_key_file(path).unwrap()),
+        )
+        .unwrap()
+    };
+
+    // Appended under key A, verified by the gateway holding key A.
+    let service = service_over(open(Some(&key_a)), &limits, &scratch);
+    let digest = append_via(&service, "req_v1", "op_v1").await;
+    let signed = verify(&service, &digest).await;
+    assert!(signed.found);
+    assert_eq!(signed.signature_status, "valid");
+    assert_eq!(signed.signer_key_id, id_a);
+
+    // A digest that was never appended carries no signature fields.
+    let missing = verify(&service, &[0x55; 32]).await;
+    assert!(!missing.found);
+    assert_eq!(missing.signature_status, "");
+    assert_eq!(missing.signer_key_id, "");
+    drop(service);
+
+    // The same record, seen by a gateway that now holds key B, is
+    // unverifiable under B: reported as unknown, never as invalid.
+    let service = service_over(open(Some(&key_b)), &limits, &scratch);
+    let rotated = verify(&service, &digest).await;
+    assert_eq!(rotated.signature_status, "unknown_key");
+    assert_eq!(rotated.signer_key_id, id_a);
+    drop(service);
+
+    // A gateway with no key cannot resolve any key id either.
+    let service = service_over(open(None), &limits, &scratch);
+    let keyless = verify(&service, &digest).await;
+    assert_eq!(keyless.signature_status, "unknown_key");
+    assert_eq!(keyless.signer_key_id, id_a);
+
+    // And a record it appends itself is unsigned, with no key id.
+    let unsigned_digest = append_via(&service, "req_v2", "op_v2").await;
+    let unsigned = verify(&service, &unsigned_digest).await;
+    assert_eq!(unsigned.signature_status, "unsigned");
+    assert_eq!(unsigned.signer_key_id, "");
+}
+
+async fn append_via(service: &GatewayService, request_id: &str, operation_id: &str) -> Vec<u8> {
+    let appended = service
+        .propose_episode_write(authenticated(ProposeEpisodeWriteRequest {
+            episode_write_json: episode_proposal_json(request_id, operation_id),
+            preview_only: false,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(appended.decision, "appended");
+    appended.episode_digest
+}

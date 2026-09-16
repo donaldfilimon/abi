@@ -240,6 +240,10 @@ async fn cli_proposes_verifies_and_reports_rejections_through_a_live_gateway() {
         let json: serde_json::Value = serde_json::from_slice(&verified.stdout).unwrap();
         assert_eq!(json["found"], "true");
         assert_eq!(json["request_id"], "req_cli_1");
+        // This gateway has no signing key, so the record is reported unsigned
+        // and no key id is printed.
+        assert_eq!(json["signature_status"], "unsigned");
+        assert!(json.get("signer_key_id").is_none());
 
         let memory = run(&["wdbx", "episode", "propose", &memory_arg]);
         assert!(memory.status.success(), "{}", text(&memory.stderr));

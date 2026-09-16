@@ -14,6 +14,7 @@ abi-wdbx = { workspace = true }
 axum = { workspace = true }
 axum-server = { workspace = true }
 clap = { workspace = true }
+ed25519-dalek = { workspace = true }
 futures-util = { workspace = true }
 prost = { workspace = true }
 rustls = { workspace = true }

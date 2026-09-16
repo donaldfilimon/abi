@@ -2,8 +2,9 @@
 
 use crate::GatewayError;
 use crate::membership::MembershipStore;
-use abi_wdbx::v3::episode::{EpisodeSigner, EpisodeStore, StorePolicy};
+use abi_wdbx::v3::episode::{EpisodeSigner, EpisodeStore, SignerKeyId, StorePolicy};
 use abi_wdbx::{StorePaths, VersionedError, VersionedStore};
+use ed25519_dalek::VerifyingKey;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Semaphore;
@@ -13,6 +14,9 @@ pub(crate) struct GatewayState {
     pub(crate) membership: MembershipStore,
     /// Canonical episode ledger; `None` until an episode policy is configured.
     pub(crate) episodes: Option<EpisodeStore>,
+    /// The key the episode ledger signs with, used to check signatures on
+    /// verification; `None` when appends are unsigned.
+    pub(crate) episode_verifier: Option<(SignerKeyId, VerifyingKey)>,
 }
 
 /// Subdirectory of the store path that holds the v3 episode ledger.
@@ -81,6 +85,9 @@ impl StoreExecutor {
         if let Some(signer) = &episode_signer {
             reject_membership_key(path, signer)?;
         }
+        let episode_verifier = episode_signer
+            .as_ref()
+            .map(|signer| (signer.key_id().clone(), signer.verifying_key()));
         let episodes = episode_policy
             .map(|policy| {
                 let directory = path.join(EPISODE_DIRECTORY);
@@ -96,6 +103,7 @@ impl StoreExecutor {
                 store,
                 membership,
                 episodes,
+                episode_verifier,
             })),
             permits: Arc::new(Semaphore::new(maximum_jobs)),
         })

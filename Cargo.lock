@@ -231,6 +231,7 @@ dependencies = [
  "axum",
  "axum-server",
  "clap",
+ "ed25519-dalek",
  "futures-util",
  "libc",
  "nix",

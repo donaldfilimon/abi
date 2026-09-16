@@ -12,7 +12,9 @@ use crate::proto::{
     VerifyEpisodeRequest, VerifyEpisodeResponse,
 };
 use crate::{GatewayError, StoreExecutor};
-use abi_wdbx::v3::episode::{EpisodeReceipt, EpisodeStoreError, EpisodeWrite, StorePolicy};
+use abi_wdbx::v3::episode::{
+    EpisodeReceipt, EpisodeStoreError, EpisodeWrite, SignatureStatus, StorePolicy,
+};
 use std::path::Path;
 use tonic::Status;
 
@@ -89,10 +91,18 @@ pub(crate) async fn verify(
         .run_gateway(move |state| Ok(verify_blocking(state, &guild_ref, digest)))
         .await
         .map_err(Status::from)?;
-    let receipt = finish(outcome)?;
+    let found = finish(outcome)?;
+    let (signature_status, signer_key_id) = found
+        .as_ref()
+        .map_or((String::new(), String::new()), |(_, status)| {
+            signature_fields(status)
+        });
+    let receipt = found.map(|(receipt, _)| receipt);
     Ok(VerifyEpisodeResponse {
         found: receipt.is_some(),
         receipt: receipt.map(receipt_message),
+        signature_status,
+        signer_key_id,
     })
 }
 
@@ -142,13 +152,38 @@ fn verify_blocking(
     state: &mut GatewayState,
     guild_ref: &str,
     digest: [u8; 32],
-) -> EpisodeOutcome<Option<EpisodeReceipt>> {
+) -> EpisodeOutcome<Option<(EpisodeReceipt, SignatureStatus)>> {
     let Some(store) = state.episodes.as_ref() else {
         return EpisodeOutcome::Unconfigured;
     };
-    store
-        .find_receipt(guild_ref, &digest)
-        .map_or_else(EpisodeOutcome::Store, EpisodeOutcome::Ok)
+    let receipt = match store.find_receipt(guild_ref, &digest) {
+        Ok(Some(receipt)) => receipt,
+        Ok(None) => return EpisodeOutcome::Ok(None),
+        Err(error) => return EpisodeOutcome::Store(error),
+    };
+    // Only this gateway's own key can be resolved; any other key id is
+    // reported as unknown rather than guessed at.
+    let verifier = state.episode_verifier.as_ref();
+    let status = store.signature_status(guild_ref, &digest, |id| {
+        verifier.and_then(|(known, key)| (known == id).then_some(*key))
+    });
+    match status {
+        Ok(Some(status)) => EpisodeOutcome::Ok(Some((receipt, status))),
+        // `find_receipt` just found this digest under the same lock, so a
+        // missing status would mean the ledger changed underneath us.
+        Ok(None) => EpisodeOutcome::Store(EpisodeStoreError::Corrupt),
+        Err(error) => EpisodeOutcome::Store(error),
+    }
+}
+
+/// Wire labels for a signature state: `(status, claimed key id)`.
+fn signature_fields(status: &SignatureStatus) -> (String, String) {
+    match status {
+        SignatureStatus::Unsigned => ("unsigned".into(), String::new()),
+        SignatureStatus::Valid(id) => ("valid".into(), id.as_str().to_owned()),
+        SignatureStatus::Invalid(id) => ("invalid".into(), id.as_str().to_owned()),
+        SignatureStatus::UnknownKey(id) => ("unknown_key".into(), id.as_str().to_owned()),
+    }
 }
 
 fn finish<T>(outcome: EpisodeOutcome<T>) -> Result<T, Status> {
