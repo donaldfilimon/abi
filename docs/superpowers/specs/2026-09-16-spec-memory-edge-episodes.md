@@ -240,3 +240,17 @@ This amendment is wrong if, after implementation, any of the following holds:
   `dfc839a6…`); abi gateway/CLI edge fields, register entries 86 and 87, and this document,
   gated with `./tools/check.sh` green (854 tests) against the sibling at `9788ae7`, followed by
   the `WDBX_REVISION` pin commit. Step 3 (abbey-bot emitting edges) is not started.
+- **2026-09-16 05:4x EDT, correction to §7 step 3 (measured, appended rather than edited).**
+  abbey-bot does not compute v3 digests: `src/` has no canonical-CBOR code, and its
+  `episode_gate.rs` carries a JSON wire type whose `EpisodeEvent` has only the two
+  variants it writes (`proposal`, `memory_candidate`). Its golden test
+  (`src/episode_gate/tests.rs:539`) pins the JSON bytes only, and the digest is quoted in a
+  comment. So there is no "transcription arm" to add before something emits edges, and
+  adding an unused `MemoryEdge` variant would be dead code. Step 3 therefore waits for a
+  product decision on the **first emitter** (for example an owner/admin-only report or review
+  command). That decision is outside this revision, which by §6 sets no automatic quarantine
+  policy. When it is made, the wire variant and a byte-for-byte copy of
+  `wdbx/crates/abi-wdbx/tests/golden/episode_write_memory_edge.json` land with it. Separately,
+  `abbey`'s CI pins `WDBX_REVISION` `f42b9789…`, older than both `56767f7` and `9788ae7`. That
+  is drift, not breakage: abbey has no exhaustive `EpisodeEvent` match and passed
+  `cargo check --all-targets --features wdbx` against `9788ae7`.

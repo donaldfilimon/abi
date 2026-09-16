@@ -953,7 +953,7 @@ Mac; every other scope of that bot is uncovered by its config and unchanged.
 Entries 86 and 87 were added on 2026-09-16 by the memory-edge amendment
 (`2026-09-16-spec-memory-edge-episodes.md`), approved by Donald on 2026-09-16
 as recorded in that document's section 9; the store half landed in wdbx as
-`9788ae7`, the gateway and CLI half in abi alongside this entry. No adapter
+`9788ae7`, the gateway and CLI half in abi as `465a8750`. No adapter
 emits memory edges yet.
 
 ## 15. Amendment and review
