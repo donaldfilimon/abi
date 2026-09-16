@@ -8,12 +8,12 @@
 use crate::config::open_validated_file;
 use crate::executor::GatewayState;
 use crate::proto::{
-    EpisodeReceipt as ReceiptMessage, ProposeEpisodeWriteRequest, ProposeEpisodeWriteResponse,
-    VerifyEpisodeRequest, VerifyEpisodeResponse,
+    EpisodeReceipt as ReceiptMessage, MemoryContradiction, ProposeEpisodeWriteRequest,
+    ProposeEpisodeWriteResponse, VerifyEpisodeRequest, VerifyEpisodeResponse,
 };
 use crate::{GatewayError, StoreExecutor};
 use abi_wdbx::v3::episode::{
-    EpisodeReceipt, EpisodeStoreError, EpisodeWrite, SignatureStatus, StorePolicy,
+    EpisodeReceipt, EpisodeStoreError, EpisodeWrite, MemoryEdgeState, SignatureStatus, StorePolicy,
 };
 use std::path::Path;
 use tonic::Status;
@@ -23,6 +23,16 @@ const MAX_GUILD_REF_BYTES: usize = 128;
 const DECISION_APPENDED: &str = "appended";
 const DECISION_PREVIEW: &str = "preview";
 const UNCONFIGURED: &str = "episode policy is not configured";
+
+/// One found record with everything `VerifyEpisode` reports about it.
+struct FoundEpisode {
+    receipt: EpisodeReceipt,
+    signature: SignatureStatus,
+    /// Present only for a memory candidate.
+    candidate_edges: Option<MemoryEdgeState>,
+    /// Present only for a `quarantines`/`contradicts` edge episode.
+    edge_open: Option<bool>,
+}
 
 /// Outcome of one blocking episode job, kept separate from gateway failures so
 /// the gRPC status code survives the executor boundary.
@@ -91,18 +101,37 @@ pub(crate) async fn verify(
         .run_gateway(move |state| Ok(verify_blocking(state, &guild_ref, digest)))
         .await
         .map_err(Status::from)?;
-    let found = finish(outcome)?;
-    let (signature_status, signer_key_id) = found
-        .as_ref()
-        .map_or((String::new(), String::new()), |(_, status)| {
-            signature_fields(status)
-        });
-    let receipt = found.map(|(receipt, _)| receipt);
+    let Some(found) = finish(outcome)? else {
+        return Ok(VerifyEpisodeResponse::default());
+    };
+    let (signature_status, signer_key_id) = signature_fields(&found.signature);
+    let edges = found.candidate_edges.unwrap_or(MemoryEdgeState {
+        forgotten: false,
+        open_quarantine: None,
+        open_contradictions: Vec::new(),
+    });
     Ok(VerifyEpisodeResponse {
-        found: receipt.is_some(),
-        receipt: receipt.map(receipt_message),
+        found: true,
+        receipt: Some(receipt_message(found.receipt)),
         signature_status,
         signer_key_id,
+        memory_forgotten: edges.forgotten,
+        open_quarantine_edge: edges
+            .open_quarantine
+            .map_or_else(Vec::new, |digest| digest.to_vec()),
+        open_contradictions: edges
+            .open_contradictions
+            .into_iter()
+            .map(|item| MemoryContradiction {
+                counterpart: item.counterpart.to_vec(),
+                edge: item.edge.to_vec(),
+            })
+            .collect(),
+        memory_edge_status: match found.edge_open {
+            Some(true) => "open".into(),
+            Some(false) => "closed".into(),
+            None => String::new(),
+        },
     })
 }
 
@@ -152,7 +181,7 @@ fn verify_blocking(
     state: &mut GatewayState,
     guild_ref: &str,
     digest: [u8; 32],
-) -> EpisodeOutcome<Option<(EpisodeReceipt, SignatureStatus)>> {
+) -> EpisodeOutcome<Option<FoundEpisode>> {
     let Some(store) = state.episodes.as_ref() else {
         return EpisodeOutcome::Unconfigured;
     };
@@ -167,13 +196,27 @@ fn verify_blocking(
     let status = store.signature_status(guild_ref, &digest, |id| {
         verifier.and_then(|(known, key)| (known == id).then_some(*key))
     });
-    match status {
-        Ok(Some(status)) => EpisodeOutcome::Ok(Some((receipt, status))),
+    let signature = match status {
+        Ok(Some(status)) => status,
         // `find_receipt` just found this digest under the same lock, so a
         // missing status would mean the ledger changed underneath us.
-        Ok(None) => EpisodeOutcome::Store(EpisodeStoreError::Corrupt),
-        Err(error) => EpisodeOutcome::Store(error),
-    }
+        Ok(None) => return EpisodeOutcome::Store(EpisodeStoreError::Corrupt),
+        Err(error) => return EpisodeOutcome::Store(error),
+    };
+    let candidate_edges = match store.memory_edge_state(guild_ref, &digest) {
+        Ok(state) => state,
+        Err(error) => return EpisodeOutcome::Store(error),
+    };
+    let edge_open = match store.memory_edge_open(guild_ref, &digest) {
+        Ok(open) => open,
+        Err(error) => return EpisodeOutcome::Store(error),
+    };
+    EpisodeOutcome::Ok(Some(FoundEpisode {
+        receipt,
+        signature,
+        candidate_edges,
+        edge_open,
+    }))
 }
 
 /// Wire labels for a signature state: `(status, claimed key id)`.

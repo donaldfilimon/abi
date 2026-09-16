@@ -136,4 +136,19 @@ message VerifyEpisodeResponse {
   // Key id the record's signature claims (`ed25519:<hex>`); empty when the
   // record is unsigned or not found.
   string signer_key_id = 4;
+  // Memory-edge state. Fields 5-7 describe a found memory candidate and stay
+  // false/empty for every other record; quarantine and contradiction never
+  // hide a record, so this is how a caller learns about them.
+  bool memory_forgotten = 5;
+  // Digest of the open `quarantines` edge naming the candidate; empty if none.
+  bytes open_quarantine_edge = 6;
+  repeated MemoryContradiction open_contradictions = 7;
+  // "open" or "closed" for a found `quarantines`/`contradicts` edge episode;
+  // empty for every other record.
+  string memory_edge_status = 8;
+}
+// One open contradiction as seen from one of its two candidates.
+message MemoryContradiction {
+  bytes counterpart = 1;
+  bytes edge = 2;
 }

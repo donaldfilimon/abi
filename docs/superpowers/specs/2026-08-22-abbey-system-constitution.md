@@ -932,6 +932,14 @@ Program specs may add mechanism but may not silently reverse these answers.
     are new candidates that reference the superseded commitment; nothing in
     the ledger is rewritten, and a forgotten payload is destroyed by the
     adapter while its tombstone edge remains.
+86. Quarantine, contradiction, and resolution are single-event memory-edge
+    episodes. They never alter the records they name, never hide them, and
+    never block forgetting; a quarantine or contradiction ends only by a
+    resolution edge naming it. A service may flag; only guild or
+    organization governance may resolve.
+87. New memory vocabulary enters the canonical record as new event variants,
+    not as new fields on an existing committed type, so existing digests and
+    their signatures stay valid without a migration.
 
 Entries 84 and 85 were added on 2026-09-06 by the memory-candidate amendment
 (`2026-09-06-spec-memory-candidate-episodes.md`), approved by Donald on
@@ -941,6 +949,12 @@ adapter half in abbey-bot (`046fce1`, `a7b39fb`, `ba61202`, `6bf3252`). Since
 2026-09-06 04:30 EDT the adapter is deployed with the gate on for one guild
 (MLAI, `discord-1275617641620443146`) against a launchd-run gateway on this
 Mac; every other scope of that bot is uncovered by its config and unchanged.
+
+Entries 86 and 87 were added on 2026-09-16 by the memory-edge amendment
+(`2026-09-16-spec-memory-edge-episodes.md`), approved by Donald on 2026-09-16
+as recorded in that document's section 9; the store half landed in wdbx as
+`9788ae7`, the gateway and CLI half in abi alongside this entry. No adapter
+emits memory edges yet.
 
 ## 15. Amendment and review
 

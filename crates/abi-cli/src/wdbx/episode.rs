@@ -10,14 +10,16 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use abi_wdbx_gateway::proto::wdbx_gateway_client::WdbxGatewayClient;
-use abi_wdbx_gateway::proto::{EpisodeReceipt, ProposeEpisodeWriteRequest, VerifyEpisodeRequest};
+use abi_wdbx_gateway::proto::{
+    EpisodeReceipt, ProposeEpisodeWriteRequest, VerifyEpisodeRequest, VerifyEpisodeResponse,
+};
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint, Identity};
 use tonic::{Request, Status};
 
 use crate::app::Outcome;
 use crate::usage::is_help_token;
 
-pub(crate) const EPISODE_HELP: &str = "usage: abi wdbx episode propose <write.json> [--preview] [options]\n       abi wdbx episode verify <guild_ref> <digest-hex> [options]\n\nCall the gateway's canonical episode gate (WDBX v3). `propose` sends one\nEpisodeWrite as JSON (unknown fields are rejected by the gateway) and prints\nthe commitment; `--preview` computes the commitment without appending.\n`verify` asks whether a commitment exists anywhere in the guild's ledger\nand, when found, prints signature_status (unsigned, valid, invalid, or\nunknown_key: signed under a key the gateway does not hold) and signer_key_id.\n\nEvent kinds: proposal, approval, execution, compensation, terminal, and\nmemory_candidate (an adapter memory write proposed before it is written\nlocally; a single-event operation whose receipt reports\nterminal_status=completed).\n\nOptions\n  --endpoint <URL>       Gateway gRPC endpoint (default http://127.0.0.1:50051;\n                         env ABI_WDBX_GATEWAY_ENDPOINT). Plain http is accepted\n                         for loopback only; other hosts need https + --ca-cert\n  --token-file <PATH>    Bearer token file, the same file the gateway was given\n                         (env ABI_WDBX_GATEWAY_TOKEN_FILE; required)\n  --ca-cert <PEM>        Trust this CA for an https endpoint\n  --client-cert <PEM>    Present this client certificate (mTLS); needs\n  --client-key <PEM>     ... and its private key; both or neither, https only\n  --json                 Print the result as one JSON object\n\nExit status: 0 on append, preview, or found; 1 on a gateway rejection (stderr\ncarries the gRPC code and the store's reason label) or when verify finds\nnothing; 2 on usage errors.\n";
+pub(crate) const EPISODE_HELP: &str = "usage: abi wdbx episode propose <write.json> [--preview] [options]\n       abi wdbx episode verify <guild_ref> <digest-hex> [options]\n\nCall the gateway's canonical episode gate (WDBX v3). `propose` sends one\nEpisodeWrite as JSON (unknown fields are rejected by the gateway) and prints\nthe commitment; `--preview` computes the commitment without appending.\n`verify` asks whether a commitment exists anywhere in the guild's ledger\nand, when found, prints signature_status (unsigned, valid, invalid, or\nunknown_key: signed under a key the gateway does not hold) and signer_key_id.\nFor a memory candidate it also prints memory_forgotten, open_quarantine_edge,\nand open_contradictions (counterpart:edge pairs); for a quarantine or\ncontradiction edge, memory_edge_status (open or closed).\n\nEvent kinds: proposal, approval, execution, compensation, terminal,\nmemory_candidate (an adapter memory write proposed before it is written\nlocally), and memory_edge (quarantines, contradicts, or resolves; a service\nflags, only guild or organization governance resolves). Both memory kinds\nare single-event operations whose receipt reports terminal_status=completed.\n\nOptions\n  --endpoint <URL>       Gateway gRPC endpoint (default http://127.0.0.1:50051;\n                         env ABI_WDBX_GATEWAY_ENDPOINT). Plain http is accepted\n                         for loopback only; other hosts need https + --ca-cert\n  --token-file <PATH>    Bearer token file, the same file the gateway was given\n                         (env ABI_WDBX_GATEWAY_TOKEN_FILE; required)\n  --ca-cert <PEM>        Trust this CA for an https endpoint\n  --client-cert <PEM>    Present this client certificate (mTLS); needs\n  --client-key <PEM>     ... and its private key; both or neither, https only\n  --json                 Print the result as one JSON object\n\nExit status: 0 on append, preview, or found; 1 on a gateway rejection (stderr\ncarries the gRPC code and the store's reason label) or when verify finds\nnothing; 2 on usage errors.\n";
 
 const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:50051";
 const ENDPOINT_ENV: &str = "ABI_WDBX_GATEWAY_ENDPOINT";
@@ -186,6 +188,7 @@ fn verify(options: &Options) -> Outcome {
                 if !response.signer_key_id.is_empty() {
                     fields.push(("signer_key_id", response.signer_key_id.clone()));
                 }
+                fields.extend(memory_edge_fields(&response));
             }
             let mut outcome = render(options.json, &fields);
             if !response.found {
@@ -352,6 +355,46 @@ fn receipt_fields(receipt: &EpisodeReceipt) -> Vec<(&'static str, String)> {
         ),
         ("redacted", receipt.redacted.to_string()),
     ]
+}
+
+/// Memory-edge state of a found record: candidates report forgetting, the open
+/// quarantine edge, and open contradictions (`counterpart:edge`, comma
+/// separated); edge episodes report `open` or `closed`. Other records add
+/// nothing.
+fn memory_edge_fields(response: &VerifyEpisodeResponse) -> Vec<(&'static str, String)> {
+    let is_candidate = response
+        .receipt
+        .as_ref()
+        .is_some_and(|receipt| receipt.event_kind == "memory_candidate");
+    let mut fields = Vec::new();
+    if is_candidate {
+        fields.push(("memory_forgotten", response.memory_forgotten.to_string()));
+        fields.push((
+            "open_quarantine_edge",
+            if response.open_quarantine_edge.is_empty() {
+                "none".to_owned()
+            } else {
+                hex(&response.open_quarantine_edge)
+            },
+        ));
+        fields.push((
+            "open_contradictions",
+            if response.open_contradictions.is_empty() {
+                "none".to_owned()
+            } else {
+                response
+                    .open_contradictions
+                    .iter()
+                    .map(|item| format!("{}:{}", hex(&item.counterpart), hex(&item.edge)))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            },
+        ));
+    }
+    if !response.memory_edge_status.is_empty() {
+        fields.push(("memory_edge_status", response.memory_edge_status.clone()));
+    }
+    fields
 }
 
 fn render(json: bool, fields: &[(&'static str, String)]) -> Outcome {

@@ -156,6 +156,33 @@ fn abi(arguments: &[&str]) -> Output {
         .expect("abi executable runs")
 }
 
+/// `verify` prints memory-edge state for a memory candidate only: a fresh
+/// candidate reports no flags, and a proposal reports no edge fields at all.
+fn assert_memory_edge_output(
+    run: &impl Fn(&[&str]) -> std::process::Output,
+    proposal_digest: &str,
+    memory_line: &str,
+) {
+    let memory_digest = field(memory_line, "episode_digest");
+    let verified = run(&["wdbx", "episode", "verify", "guild_ref", memory_digest]);
+    assert!(verified.status.success(), "{}", text(&verified.stderr));
+    let line = text(&verified.stdout);
+    assert_eq!(field(&line, "memory_forgotten"), "false");
+    assert_eq!(field(&line, "open_quarantine_edge"), "none");
+    assert_eq!(field(&line, "open_contradictions"), "none");
+    assert!(!line.contains("memory_edge_status="), "{line}");
+
+    let proposal = text(&run(&["wdbx", "episode", "verify", "guild_ref", proposal_digest]).stdout);
+    assert!(proposal.starts_with("found=true"), "{proposal}");
+    for absent in [
+        "memory_forgotten",
+        "open_quarantine_edge",
+        "memory_edge_status",
+    ] {
+        assert!(!proposal.contains(&format!("{absent}=")), "{proposal}");
+    }
+}
+
 fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
@@ -252,6 +279,7 @@ async fn cli_proposes_verifies_and_reports_rejections_through_a_live_gateway() {
         assert_eq!(field(&memory_line, "event_kind"), "memory_candidate");
         assert_eq!(field(&memory_line, "terminal_status"), "completed");
         assert_eq!(field(&memory_line, "previous_digest"), "none");
+        assert_memory_edge_output(&run, &digest, &memory_line);
 
         let missing = run(&["wdbx", "episode", "verify", "guild_ref", &"0".repeat(64)]);
         assert_eq!(missing.status.code(), Some(1));
