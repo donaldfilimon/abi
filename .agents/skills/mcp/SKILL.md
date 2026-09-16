@@ -30,3 +30,12 @@ custom loopback listener (`127.0.0.1:8080` by default, configured with
 one JSON-RPC message per connection. This is not conforming persistent MCP
 HTTP+SSE, and non-loopback serving is not supported. Rust handlers return
 bounded JSON-RPC errors without exposing internal error chains.
+
+Client registrations (cleaned 2026-09): consistent across grok/claude/codex/opencode/cursor + abi project scopes. Use launcher for abi-mcp everywhere. See `opencode` and `help` skills for the exact current lists.
+
+## Finalized state (2026-09-16)
+- Best options: central only ~/.grok/skills + launch.sh sync (idempotent, 0 on re-run); donald-mode; bot-repo authority separate (abbey-bot etc); permission fixes in opencode.jsonc + .grok/config.toml; key comments (GITHUB_TOKEN="", disabled with # requires KEY).
+- Global MCPs standardized: .cursor/mcp.json, .claude.json, ~/.grok/config.toml [mcp_servers.*], ~/.config/opencode/opencode.jsonc — core: abi-mcp (via /.../abi/mcp/launcher.sh stdio), skill-loop@0.3.3, context7, fetch(uvx), filesystem(~/.abi/), github(unauth), memory, playwright. (4 more disabled w/ comments).
+- Verifs: central sync-clis.py --dry-run = "0 actions/changes"; abi in-repo .agents/skills/sync-clis/launch.sh --dry-run (separate mech); mcp-smoke.sh = "RESULT: PASS — 12/12"; configs parse clean; no drift (timestamps match, dry=0); key files re-read (abs paths).
+- Maintain: ALWAYS edit only central ~/.grok/skills/* (or .grok/config.toml for grok MCPs); run sync; never hand-edit copies. Abbey-bot/others: own AGENTS/CLAUDE, separate.
+- No loose ends. All per context + final re-checks.

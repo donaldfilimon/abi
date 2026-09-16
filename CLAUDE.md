@@ -43,6 +43,7 @@ gate below is for code changes.
 | `./tools/cargo.sh test -p <crate> --lib -- <filter>` | Focused **unit** tests (in-module `#[cfg(test)]`), e.g. `./tools/cargo.sh test -p abi-contracts --lib -- manifest` |
 | `./tools/cargo.sh test -p <crate> --test <name>` | A single **integration** test target under a package's `tests/`, e.g. `./tools/cargo.sh test -p abi-cli --test golden`. `--lib` cannot reach these. |
 | `./tools/cargo.sh test --workspace` | Full test suite (also run by `check.sh`) |
+| `./tools/cargo.sh test --manifest-path ../wdbx/Cargo.toml -p abi-wdbx --lib -- <filter>` | Test the **sibling substrate** from this checkout. No cargo command here reaches `../wdbx` without `--manifest-path`: `--workspace` stops at ABI's own members even though the path deps resolve. |
 | `./tools/cargo.sh fmt --all` | Apply rustfmt |
 | `python3 -m unittest discover -s tools/tests -p 'test_*.py'` | The repository policy tests that open `check.sh` (six suites: abbey_contracts, ci_contract, docs_policy, docs_templates, pages_contract, site_contract) |
 | `python3 tools/abbey_contracts.py verify contracts/abbey` | The authoritative Python oracle for the Abbey corpus; `xtask abbey verify` must match it |
@@ -59,7 +60,11 @@ path in-process — so it blocks forever on an inherited stdin that stays open
 (a pipe, or a terminal). `tools/check.sh` redirects for you; a bare
 `./tools/cargo.sh test --workspace` typed by hand does not.
 
-There is no separate lint-only or build-only CI — `.github/workflows/ci.yml`
+There is no separate lint-only or build-only CI (the only other workflows are
+`dependency-scan.yml`, a RustSec scan on push and schedule, and
+`benchmarks-gh-pages.yml`, which publishes benchmarks to Pages on push, both
+`ubuntu-latest`; the `Push on main` run is GitHub's default-setup CodeQL with no
+workflow file) — `.github/workflows/ci.yml`
 runs `./tools/check.sh` on a **self-hosted macOS ARM64 runner** for trusted
 same-repo pushes/PRs, and that job does execute (see
 `.github/self-hosted-runner.md`). The GitHub-hosted `windows credential ACL`
@@ -68,6 +73,21 @@ tests successfully on 2026-08-19. The hosted macOS `check-hosted` fallback is
 restricted to fork PRs and is skipped on same-repo branches by design. Treat a
 red executed self-hosted or Windows job as blocking; do not treat a
 conditionally skipped fallback as a code failure.
+
+A hosted job can also be **refused**, which reads like red and is neither:
+since 2026-09-08 (last hosted success 20:26Z; the Windows job was refused at
+23:13Z, and `main`'s run for `25b34339` at 2026-09-16 03:18Z still carries it)
+every GitHub-hosted job on this account has been declined for a billing lock.
+Signature: the job completes in 2–10 s with **0 steps** (`gh run view <run>
+--json jobs` shows `steps: []`; `runner_name` is null for the self-hosted job
+too, so it is not the tell), and its check-run annotation reads `The job was not started because your account
+is locked due to a billing issue.` (read it with
+`gh api repos/donaldfilimon/abi/check-runs/<job id>/annotations`;
+`gh run view --log-failed` answers `log not found`, which is not evidence).
+Treat such a job as unmeasured, keep `check (self-hosted)` as the evidence (it
+is unaffected and passed in the same run that had the refused Windows job), and
+never change code to satisfy a locked check. Clearing it is GitHub billing
+settings, Donald's, not this repo's.
 
 ### Local smoke walkthrough
 
@@ -118,7 +138,7 @@ thin LTO. Every crate inherits these with `[lints] workspace = true`.
 | `abi-ai` | Store-independent persona identity, routing (Abbey/Aviva/Abi), generation, governance, and model catalog. The `ai_run` routing core is deterministic; the crate is not I/O-free: `file_context` and `training::inspect_dataset` read external state. Keep WDBX retrieval/persistence in the integration layers. |
 | `abi-plugins` | The 16 bundled plugins plus the plugin manager. Each plugin ships as a compiled-in `mod.rs`/`stub.rs` pair under `crates/abi-plugins/plugins/`, checked with `assert_plugin_parity!`. `abi plugin run` and the MCP `plugin_run` tool dispatch through the same `PluginManager` over the same `BUNDLED` table. |
 | `abi-agent-host` | Bounded, policy-authorized tool orchestration for model providers. Depends on `abi-agent-runtime`. This is the crate closest to constitutional invariant A3: authorization is not a generative decision. |
-| `abi-wdbx-gateway` | Authenticated bounded gRPC and WebSocket gateway for WDBX v2. Depends on `abi-wdbx`. Its RPC surface is the eight WDBX v2 methods (`PutVector`/`Search`/`PutKv`/`GetKv`/`ResolveConflict`/`Stats`/`MembershipChange`/`WatchMutations`) plus, since 2026-09-05, the CSAPS write gate over the v3 episode store: `ProposeEpisodeWrite` and `VerifyEpisode`, live only when `--episode-policy` names a JSON `StorePolicy` (otherwise `FAILED_PRECONDITION`). No in-repo client calls the gate yet; `abi-worker` only imports its `Limits`/`TlsFiles`. |
+| `abi-wdbx-gateway` | Authenticated bounded gRPC and WebSocket gateway for WDBX v2. Depends on `abi-wdbx`. Its RPC surface is the eight WDBX v2 methods (`PutVector`/`Search`/`PutKv`/`GetKv`/`ResolveConflict`/`Stats`/`MembershipChange`/`WatchMutations`) plus, since 2026-09-05, the CSAPS write gate over the v3 episode store: `ProposeEpisodeWrite` and `VerifyEpisode`, live only when `--episode-policy` names a JSON `StorePolicy` (otherwise `FAILED_PRECONDITION`). Its in-repo gRPC client is `abi-cli` (`crates/abi-cli/src/wdbx/episode.rs`, behind `abi wdbx episode propose|verify`); `abi-worker` only imports its `Limits`/`TlsFiles`. |
 | `abi-model-runtime` | Explicit local model loading and evidenced Candle execution. Depends on `abi-agent-runtime`, `abi-compute`, `abi-models`. |
 | `abi-gpu` | Claim-honest GPU/accelerator backend detection. Depends on `abi-compute` and `abi-foundation` only (not `abi-wdbx`); default features are `metal-kernels` + `coreml-ane`, with `cuda-adapter`/`vulkan-adapter` as opt-in capability-only rows. Metal preferred on macOS; the `metal-kernels` feature is **on by default**, but `accelerated=true` additionally requires the Metal DOT pipeline to actually link and initialize at runtime — otherwise deterministic CPU SIMD fallback with `accelerated=false`. Also hosts claim-honest shaders/MLIR/mobile report surfaces. |
 | `abi-sea` | SEA (Sparse Evidence Attention) self-learning loop: recalls prior WDBX records relevant to an input, prepends them as context, runs adaptive completion, updates persona-router weights. |
@@ -254,23 +274,27 @@ Measure before trusting any of this — it goes stale as work lands
 
 `tools/check_rust_sizes.sh` rejects Rust files (tracked or untracked, tests
 included) over 1,000 lines and rejects `crates/abi-cli/src/main.rs` over 200.
-The files that habitually sit in the 900–1000 band are
-`crates/abi-cli/src/dashboard.rs`, `crates/abi-contracts/src/lib.rs`,
-`crates/abi-cli/src/complete.rs`, and `crates/abi-cli/src/wdbx_simulate.rs`
-(the bounded multiway rewriting engine behind `abi wdbx simulate`); run the
+On 2026-09-15 only `crates/abi-cli/src/complete.rs` (904) sat inside the
+900–1000 band; `crates/abi-cli/src/wdbx_simulate.rs` (the bounded multiway
+rewriting engine behind `abi wdbx simulate`) had dropped to 827. Run the
 command above rather than trusting a written-down count. The sibling `../wdbx`
 tree has its own band-dwellers under `abi-wdbx/src/`
-(`{hnsw,store,multiway,v2/lifecycle}.rs`), but that checkout is not always
-present, so measure there separately.
+(`{hnsw,multiway,v2/lifecycle,v3/episode/store}.rs`), but that checkout is not
+always present, and `check_rust_sizes.sh` scans only `crates/` — so the sibling
+is governed by its own gate and must be measured separately.
 
-Already split — don't recreate the flat versions: `crates/abi-cli/src/wdbx.rs` is
-now the `wdbx/` module directory, `../wdbx/crates/abi-wdbx/src/format.rs` is down to
-~444 lines, and `crates/abi-cli/src/agent.rs` is down to ~550 (the line-mode
-REPL moved to `repl.rs`; its raw editor/TTY transport is isolated in
-`repl_editor.rs`; `os.rs` owns command execution with `os/policy.rs` +
-`os/audit.rs` beside it). Scheduler tests live under `scheduler/tests.rs`;
-multiway export/resume logic and tests live under `multiway/`; WAL tests live
-under `wal/tests.rs`.
+Already split — don't recreate the flat versions. `crates/abi-cli/src/wdbx.rs`
+and `crates/abi-cli/src/dashboard.rs` are now the `wdbx/` and `dashboard/`
+module directories. `crates/abi-contracts/src/lib.rs` went 929 -> ~504 when
+`f9ef63f7` moved JCS canonicalization, semantic refusal codes, and
+duplicate-key-rejecting JSON into `jcs.rs`/`semantics.rs`/`strict_json.rs` —
+a pure move, with `canonicalize_jcs` still re-exported from the crate root.
+`../wdbx/crates/abi-wdbx/src/format.rs` is down to ~444 lines, and
+`crates/abi-cli/src/agent.rs` to ~550 (the line-mode REPL moved to `repl.rs`;
+its raw editor/TTY transport is isolated in `repl_editor.rs`; `os.rs` owns
+command execution with `os/policy.rs` + `os/audit.rs` beside it). Scheduler
+tests live under `scheduler/tests.rs`; multiway export/resume logic and tests
+live under `multiway/`; WAL tests live under `wal/tests.rs`.
 
 <!-- machine-git-policy -->
 ## Git workflow (machine policy, 2026-08-27)

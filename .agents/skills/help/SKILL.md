@@ -16,7 +16,8 @@ Answer the user's question about Grok setup, configuration, or features.
 ## Steps
 
 1. If the question is about **current config** (what MCP servers, models, or settings are active),
-   read `/Users/donaldfilimon/.grok/config.toml`. MCP servers are under `[mcp_servers.*]` sections.
+read `/Users/donaldfilimon/.grok/config.toml`. MCP servers are under `[mcp_servers.*]` sections.
+    (Standardized core post-cleanup: abi-mcp via launcher, skill-loop@0.3.3, context7, fetch(uvx), filesystem(~/.abi), github, memory, playwright. Cred servers disabled with comments.)
 
 2. If the question is about **how to do something** (setup, adding MCP servers, creating skills,
    authentication, keyboard shortcuts, troubleshooting), first check the user-guide docs at

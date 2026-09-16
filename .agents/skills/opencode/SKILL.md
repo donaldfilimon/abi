@@ -16,9 +16,14 @@ opencode loads abi via mechanisms wired in repo-root `opencode.json` and the
   `/context`, `/history`, `/reset`, `/features`, `/clear`, and `/quit` plus
   documented aliases. Workflow skills for Git or session planning do not add
   `/diff`, `/commit`, `/save`, or `/load` to the binary.
-- **MCP servers**: `opencode.json` `mcp` wires `abi-mcp` (via
-  `./mcp/launcher.sh stdio`) and `skill-loop` (the telemetry/registry engine).
-  `.mcp.json` mirrors the same for other clients.
+- **MCP servers**: standardized core set across CLIs (post-2026-09 cleanup):
+  `abi-mcp` (via full-path or `./mcp/launcher.sh stdio`),
+  `skill-loop` (@0.3.3 pinned),
+  `context7`, `fetch` (uvx), `filesystem` (~/.abi/ with ~/.abi/** allow),
+  `github` (unauth ok), `memory`, `playwright`.
+  Global: `~/.config/opencode/opencode.jsonc` + `~/.cursor/mcp.json` + `~/.claude.json` + `~/.codex/config.toml` + `~/.grok/config.toml`.
+  Project (abi/): `.mcp.json`, `.cursor/mcp.json`, `opencode.json`, `.codex/config.toml` use relative launcher + minimal (abi-mcp + skill-loop).
+  Comments present for key-requiring servers; enabled=false for brave/postgres/sentry/supabase.
 - **Instructions**: `opencode.json` `instructions` points at `AGENTS.md`,
   `tasks/lessons.md`, and `tasks/todo.md`.
 

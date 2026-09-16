@@ -81,3 +81,5 @@ The twelve handlers are built into `abi-mcp`; the historical `feat-ai`,
 workspace. The loopback listener is attempted at process startup and bind
 failure leaves stdio running. `GET /sse` emits one discovery event and closes;
 this is not a persistent conforming MCP HTTP+SSE transport.
+
+Client-side: registered consistently (see `mcp` skill + post-cleanup global configs).
