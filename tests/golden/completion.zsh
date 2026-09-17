@@ -14,6 +14,7 @@ commands=(  help
   wdbx
   scheduler
   nn
+  improve
   --tui
 )
 if (( CURRENT == 2 )); then
@@ -23,7 +24,7 @@ fi
 local cmd="${words[2]}"
 case "$cmd" in
     help)
-      compadd -- --json --completion bash zsh fish help complete train agent backends plugin auth twilio tui dashboard wdbx scheduler nn --tui 
+      compadd -- --json --completion bash zsh fish help complete train agent backends plugin auth twilio tui dashboard wdbx scheduler nn improve --tui 
       ;;
     complete)
       compadd -- --live --confirm --learn --soul --soul-alpha --stream --neural --model 
@@ -60,5 +61,8 @@ case "$cmd" in
       ;;
     nn)
       compadd -- train sample --jsonl --field --text --seed --n 
+      ;;
+    improve)
+      compadd -- --apply --model 
       ;;
 esac

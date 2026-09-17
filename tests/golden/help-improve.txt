@@ -1,0 +1,14 @@
+abi improve [--apply] [--model <id>] <input>
+
+Preview a SEA self-learning pass; --apply persists it only when the audit passes
+
+The default is a dry run that recalls evidence but writes nothing. --apply persists the completion and updates router weights, and only when the dry-run completion passed the constitution audit without a veto. Needs a persistent WDBX store.
+
+Arguments:
+  --apply              persist the completion and update router weights (audit-gated)
+  --model <value>       select a catalog model id (default abi-local)
+  <input>             prompt to learn from (required)
+
+Examples:
+  abi improve "plan next repair"
+  abi improve --apply "plan next repair"

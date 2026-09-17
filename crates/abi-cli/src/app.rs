@@ -34,6 +34,7 @@ fn captured_command_help(name: &str) -> Option<&'static str> {
         "wdbx" => Some(include_str!("../../../tests/golden/help-wdbx.txt")),
         "scheduler" => Some(include_str!("../../../tests/golden/help-scheduler.txt")),
         "nn" => Some(include_str!("../../../tests/golden/help-nn.txt")),
+        "improve" => Some(include_str!("../../../tests/golden/help-improve.txt")),
         _ => None,
     }
 }
@@ -402,6 +403,9 @@ pub fn run(args: &[String]) -> Outcome {
     if resolved == "complete" {
         return crate::complete::run(&args[1..]);
     }
+    if resolved == "improve" {
+        return crate::improve::run(&args[1..]);
+    }
     if resolved == "train" {
         return crate::train::run(&args[1..]);
     }
@@ -418,7 +422,7 @@ pub fn run(args: &[String]) -> Outcome {
         return crate::twilio::run(&args[1..]);
     }
 
-    // All thirteen frozen COMMANDS have handlers above. Reaching here means a
+    // All fourteen frozen COMMANDS have handlers above. Reaching here means a
     // new name was added to `usage::COMMANDS` without a dispatch arm.
     Outcome::stderr(
         format!("error: internal: no handler registered for `{resolved}`\n"),

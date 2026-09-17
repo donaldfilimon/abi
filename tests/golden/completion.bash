@@ -4,14 +4,14 @@ _abi_complete() {
   COMPREPLY=()
   cur="${COMP_WORDS[COMP_CWORD]}"
   if [[ ${COMP_CWORD} -eq 1 ]]; then
-    words="help complete train agent backends plugin auth twilio tui dashboard wdbx scheduler nn --tui "
+    words="help complete train agent backends plugin auth twilio tui dashboard wdbx scheduler nn improve --tui "
     COMPREPLY=( $(compgen -W "$words" -- "$cur") )
     return 0
   fi
   cmd="${COMP_WORDS[1]}"
   case "$cmd" in
     help)
-      words="--json --completion bash zsh fish help complete train agent backends plugin auth twilio tui dashboard wdbx scheduler nn --tui "
+      words="--json --completion bash zsh fish help complete train agent backends plugin auth twilio tui dashboard wdbx scheduler nn improve --tui "
       COMPREPLY=( $(compgen -W "$words" -- "$cur") )
       ;;
     complete)
@@ -60,6 +60,10 @@ _abi_complete() {
       ;;
     nn)
       words="train sample --jsonl --field --text --seed --n "
+      COMPREPLY=( $(compgen -W "$words" -- "$cur") )
+      ;;
+    improve)
+      words="--apply --model "
       COMPREPLY=( $(compgen -W "$words" -- "$cur") )
       ;;
   esac

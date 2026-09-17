@@ -14,6 +14,7 @@ mod browser_studio;
 mod complete;
 mod completion;
 mod dashboard;
+mod improve;
 mod nn;
 mod os;
 mod plugin;

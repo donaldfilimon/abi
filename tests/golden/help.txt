@@ -9,6 +9,7 @@ Usage: abi <command> [args...]
   [36mtrain       [0m Run the AI pipeline compatibility trainer
   [36magent       [0m Agent planning, training, TUI, multi-worker orchestration, browser planning, OS-control
   [36mnn          [0m Run the miniature character-level demo trainer
+  [36mimprove     [0m Preview a SEA self-learning pass; --apply persists it only when the audit passes
 
 [1mData[0m
   [36mplugin      [0m Inspect or execute installed plugins

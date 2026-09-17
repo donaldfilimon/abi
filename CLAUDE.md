@@ -167,8 +167,11 @@ timeout, and escapes TwiML/form payloads before dispatch either way.
 
 ### Frozen surfaces — contract-tested, don't break casually
 
-- **CLI (13 commands)**: `help`, `complete`, `train`, `agent`, `backends`,
-  `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`.
+- **CLI (14 commands)**: `help`, `complete`, `train`, `agent`, `backends`,
+  `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`,
+  `improve`. The first 13 are the ported Zig contract; `improve` (added
+  2026-09-17) is Rust-native, an audit-gated dry-run/apply wrapper over the SEA
+  learn loop, and has no Zig capture behind its goldens.
 - **MCP (12 tools)**: `ai_run`, `ai_complete`, `ai_learn`, `ai_train`,
   `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`,
   `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`.

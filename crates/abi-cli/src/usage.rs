@@ -88,7 +88,8 @@ pub struct Command {
     pub examples: &'static [&'static str],
 }
 
-/// The frozen set of 13 top-level commands, in declaration order.
+/// The frozen set of 14 top-level commands, in declaration order (13 ported
+/// from Zig plus the Rust-native `improve`).
 ///
 /// Declaration order is not display order — see [`Category::ORDER`] for that —
 /// but it is the order `--json` emits `commands` in, and that is part of the
@@ -236,6 +237,17 @@ pub const COMMANDS: &[Command] = &[
         details: "This is a small local demo trainer, not a production/LLM/distributed trainer.",
         examples: &["abi nn sample --text \"hello\" --seed h --n 16"],
     },
+    Command {
+        name: "improve",
+        usage: "abi improve [--apply] [--model <id>] <input>",
+        summary: "Preview a SEA self-learning pass; --apply persists it only when the audit passes",
+        category: Category::Ai,
+        details: "The default is a dry run that recalls evidence but writes nothing. --apply persists the completion and updates router weights, and only when the dry-run completion passed the constitution audit without a veto. Needs a persistent WDBX store.",
+        examples: &[
+            "abi improve \"plan next repair\"",
+            "abi improve --apply \"plan next repair\"",
+        ],
+    },
 ];
 
 /// A top-level shortcut that maps to a full command.
@@ -347,8 +359,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn exactly_the_thirteen_frozen_commands_are_present() {
-        assert_eq!(COMMANDS.len(), 13);
+    fn exactly_the_fourteen_frozen_commands_are_present() {
+        assert_eq!(COMMANDS.len(), 14);
         let names: Vec<&str> = COMMANDS.iter().map(|c| c.name).collect();
         assert_eq!(
             names,
@@ -365,7 +377,8 @@ mod tests {
                 "dashboard",
                 "wdbx",
                 "scheduler",
-                "nn"
+                "nn",
+                "improve"
             ]
         );
     }

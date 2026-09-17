@@ -30,8 +30,11 @@ TERM=dumb NO_COLOR=1 ./zig-out/bin/abi help --json > tests/golden/help.json
 | `completion.{bash,zsh,fish}` | `abi help --completion <shell>` |
 | `help-<command>.txt` | `abi help <command>`, one per top-level command |
 
-The 13 top-level commands: `help`, `complete`, `train`, `agent`, `backends`,
-`plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`. Plus
+The 14 top-level commands: `help`, `complete`, `train`, `agent`, `backends`,
+`plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`, `scheduler`, `nn`, and
+`improve`. The first 13 were captured from the Zig binary; `improve` (added
+2026-09-17) is Rust-native, so `help-improve.txt` and its lines in `help.txt`,
+`help.json`, and the completion files were generated from the Rust binary. Plus
 the `--tui` → `tui` shortcut, which `help.json` records under `shortcuts`.
 
 Captured with `TERM=dumb NO_COLOR=1`; `help.txt` still contains ANSI SGR escapes,

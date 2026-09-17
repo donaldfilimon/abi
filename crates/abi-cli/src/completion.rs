@@ -33,6 +33,7 @@ fn command_words(name: &str) -> String {
         "wdbx" => "db block query benchmark simulate cluster compute secure gpu api episode ".to_owned(),
         "scheduler" => "status ".to_owned(),
         "nn" => "train sample --jsonl --field --text --seed --n ".to_owned(),
+        "improve" => "--apply --model ".to_owned(),
         _ => String::new(),
     }
 }
@@ -200,6 +201,12 @@ complete -c abi -f\n",
             "nn" => {
                 fish_line(&mut output, &seen, " -a 'train sample '");
                 for option in ["jsonl", "field", "text", "seed", "n"] {
+                    fish_line(&mut output, &seen, &format!(" -l {option}"));
+                }
+            }
+            "improve" => {
+                fish_line(&mut output, &seen, " -a ''");
+                for option in ["apply", "model"] {
                     fish_line(&mut output, &seen, &format!(" -l {option}"));
                 }
             }
