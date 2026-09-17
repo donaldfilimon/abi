@@ -130,11 +130,10 @@ pub(crate) fn run(args: &[String]) -> Outcome {
         Ok(request) => request,
         Err(message) => return Outcome::stderr(format!("{message}\n"), 2),
     };
-    let Some(mut store) = util::open_store() else {
-        return Outcome::stderr(
-            "error: abi improve needs a persistent WDBX store (set ABI_WDBX_PATH)\n".to_owned(),
-            1,
-        );
+    let mut store = match util::open_store_result() {
+        Ok(Some(store)) => store,
+        Ok(None) => return Outcome::stderr(store_error_message(None), 1),
+        Err(error) => return Outcome::stderr(store_error_message(Some(&error)), 1),
     };
     match improve(&mut store, &request, abi_foundation::time::unix_ms()) {
         Ok(stdout) => Outcome {
@@ -143,6 +142,16 @@ pub(crate) fn run(args: &[String]) -> Outcome {
             exit_code: 0,
         },
         Err(message) => Outcome::stderr(format!("{message}\n"), 1),
+    }
+}
+
+/// Explain why no store is available, keeping the open error when there is one.
+fn store_error_message(error: Option<&dyn std::fmt::Display>) -> String {
+    match error {
+        None => "error: abi improve needs a persistent WDBX store (set ABI_WDBX_PATH)\n".to_owned(),
+        Some(error) => format!(
+            "error: abi improve could not open the WDBX store: {error} (set ABI_WDBX_PATH to a store directory)\n"
+        ),
     }
 }
 
@@ -177,6 +186,18 @@ mod tests {
             model: DEFAULT_MODEL.to_owned(),
             input: "summarize the prior repair decision".to_owned(),
         }
+    }
+
+    #[test]
+    fn store_error_message_keeps_the_open_error() {
+        assert!(store_error_message(None).contains("needs a persistent WDBX store"));
+        let open_error = "Not a directory";
+        let message = store_error_message(Some(&open_error));
+        assert!(
+            message.contains("could not open the WDBX store: Not a directory"),
+            "{message}"
+        );
+        assert!(message.ends_with('\n'));
     }
 
     #[test]
