@@ -1,11 +1,7 @@
 # AGENTS.md - abi
 
-Canonical instructions; executable source wins over prose. `CLAUDE.md` is an
-expanded companion; `GEMINI.md` redirects here. `opencode.json` also loads
-`tasks/lessons.md` and `tasks/todo.md` for the session checklist and active work.
-
-Brand: **Intelligence Without Limits.** IWL is Abbey/ABI only; Quesar (private AI ops)
-never carries this tagline. See `docs/brand.md`.
+Canonical instructions; executable source wins over prose. `opencode.json` loads
+`tasks/lessons.md` and `tasks/todo.md` alongside this file.
 
 ## Toolchain And Gates
 
@@ -20,7 +16,7 @@ never carries this tagline. See `docs/brand.md`.
 - Doc-only edits: py unittest (test_docs*.py or policy) + `git diff --check`; for docs/ also run (after loading abi-doc-claims-sync skill) `.agents/skills/docs-validate/validate.sh`.
 - Size gate: `tools/check_rust_sizes.sh` (and in check.sh): *.rs <=1000 lines via git ls-files; crates/abi-cli/src/main.rs <=200.
 - Build: `./tools/cargo.sh build -p abi-cli` (→ target/debug/abi), `-p abi-mcp` (→ abi-mcp).
-- xtask: `./tools/cargo.sh xtask ci verify` (alias via .cargo/config.toml); same for `xtask abbey verify contracts/abbey`.
+- xtask: `./tools/cargo.sh xtask ci verify` (alias defined in `.cargo/config.toml` as `run --manifest-path crates/xtask/Cargo.toml --`); same for `xtask abbey verify contracts/abbey`.
 - Focused: unit `./tools/cargo.sh test -p <crate> --lib -- <filter> < /dev/null`; integ `./tools/cargo.sh test -p <crate> --test <name> < /dev/null`.
 - WDBX substrate tests (from abi checkout): `./tools/cargo.sh test --manifest-path ../wdbx/Cargo.toml -p abi-wdbx --lib -- <filter> < /dev/null`.
 
@@ -34,7 +30,7 @@ Always run hand-invoked `cargo test` (or via tools/cargo.sh) with `< /dev/null`.
 - Launch MCP **only** via `./mcp/launcher.sh [stdio]` (from repo root or the script) so release/debug pick + @loader_path for libabi_fm_shim.dylib succeeds on arm64. `ABI_MCP_AUTO_BUILD=1` builds if absent (not on source change). Direct target/.../abi-mcp can hide stale build or break dylib.
 - ABI_* env vars + test hooks are in `../wdbx/crates/abi-foundation/src/env.rs`; use the provided overrides/locks in tests, never raw env mutation.
 - Frozen surfaces (change requires coordinated source + golden + test updates):
-  - 13 CLI commands (usage.rs in abi-cli): help, complete, train, agent, backends, plugin, auth, twilio, tui, dashboard, wdbx, scheduler, nn.
+  - 14 CLI commands (usage.rs in abi-cli): help, complete, train, agent, backends, plugin, auth, twilio, tui, dashboard, wdbx, scheduler, nn, improve.
   - 12 MCP tools (handlers.rs in abi-mcp): ai_run, ai_complete, ai_learn, ai_train, wdbx_query, scheduler_stats, scheduler_info, connector_test, gpu_status, plugin_list, wdbx_stats, plugin_run.
 - Golden contracts under `tests/golden/` (help, mcp json, completions bash/zsh/fish, wdbx samples). Pulled via include_str/bytes — must rebuild the test binary (e.g. -p abi-cli --test golden) after edits.
 - MCP: stdio is the contract (newline JSON-RPC, 64 KiB frame cap). Loopback HTTP (ABI_MCP_HTTP_*) is one-shot compat only; GET /sse just advertises POST /message, not persistent SSE.
@@ -46,6 +42,9 @@ Always run hand-invoked `cargo test` (or via tools/cargo.sh) with `< /dev/null`.
 - opencode.json (and .mcp.json) wire MCP to `./mcp/launcher.sh stdio` — use that, never raw binary path.
 - Store-safe smoke: `ABI_WDBX_PATH=:memory: ./tools/cargo.sh run -p abi-cli -- complete "..."` (and similar for agent etc.).
 - After editing frozen surfaces or goldens, rebuild the specific test target that embeds them.
+- **Rewriting a `target/<profile>/*.dylib` in place** — a build that `fs::copy`s or `cp`s over an existing dylib truncates the same inode; if a long-lived `abi-mcp stdio` still has it mapped, the kernel keeps the old code directory and every later exec of `abi`/`abi-mcp` dies `SIGKILL (Code Signature Invalid)` while `codesign -vv` says valid (2026-09-16). Build scripts copy to `.tmp` and `rename`; repair a broken tree with `cp X X.new && mv -f X.new X`, not a rebuild.
+- **Exec'ing the toolchain's `cargo` directly drops rustup's `DYLD_FALLBACK_LIBRARY_PATH`** — rustc on Apple targets strips release binaries with `lib/rustlib/<host>/bin/rust-objcopy`, whose `@rpath/libLLVM.dylib` only resolves through the fallback path the rustup proxy injects (`<toolchain>/lib` first). Without it every release link prints `warning: stripping debug info with rust-objcopy failed: signal: 6 (SIGABRT)`, ships the binary unstripped, and writes a dyld crash report, while cargo still exits 0 (2026-09-16). `tools/cargo.sh` now exports the same list rustup uses; the rustc warning line is the evidence, because macOS throttles crash reports and their count under-reports aborts.
+
 ## Data And Claims Safety
 
 - Never open live user store (`~/.abi/`) from tests/smokes. Use `ABI_WDBX_PATH=:memory:`, `ABI_WDBX_PERSIST=0`, or foundation temp paths / scratch DurableStore.

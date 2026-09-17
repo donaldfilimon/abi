@@ -29,7 +29,7 @@ Session-start checklist and conventions for agents working on this repo.
   `abi-plugins`, `abi-cli`, and `abi-mcp`.
 - `abi-foundation`, `abi-core`, `abi-compute`, `abi-wdbx`, and
   `abi-telemetry` are required path dependencies under sibling `../wdbx/crates`.
-- Frozen CLI (13) and MCP (12) surfaces — see `AGENTS.md`.
+- Frozen CLI (14) and MCP (12) surfaces — see `AGENTS.md`.
 - Golden fixtures under `tests/golden/` pin help/MCP contracts.
 
 ### Error handling
