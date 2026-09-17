@@ -1,5 +1,6 @@
 //! Tonic WDBX service with admission checks ahead of store dispatch.
 
+use crate::membership::MembershipStoreError;
 use crate::proto::wdbx_gateway_server::WdbxGateway;
 use crate::proto::{
     GetKvRequest, GetKvResponse, MembershipAction, MembershipChangeRequest,
@@ -105,7 +106,10 @@ impl GatewayService {
 
 impl From<GatewayError> for Status {
     fn from(error: GatewayError) -> Self {
-        Self::internal(error.to_string())
+        match error {
+            GatewayError::InvalidMutation(message) => Self::invalid_argument(message),
+            other => Self::internal(other.to_string()),
+        }
     }
 }
 
@@ -333,7 +337,7 @@ impl WdbxGateway for GatewayService {
         let maximum_members = self.limits.membership_entries;
         let outcome = self
             .executor
-            .run(move |state| {
+            .run_gateway(move |state| {
                 let result = match action {
                     MembershipAction::Add => {
                         state
@@ -342,17 +346,16 @@ impl WdbxGateway for GatewayService {
                     }
                     MembershipAction::Remove => state.membership.remove(parsed_node),
                     MembershipAction::Unspecified => {
-                        return Err(abi_wdbx::VersionedError::V2(
-                            abi_wdbx::V2Error::InvalidMutation(
-                                "membership action is required".into(),
-                            ),
+                        return Err(GatewayError::InvalidMutation(
+                            "membership action is required".into(),
                         ));
                     }
                 };
-                result.map_err(|error| {
-                    abi_wdbx::VersionedError::V2(abi_wdbx::V2Error::InvalidMutation(
-                        error.to_string(),
-                    ))
+                result.map_err(|error| match error {
+                    MembershipStoreError::Malformed(_) => {
+                        GatewayError::InvalidMutation(error.to_string())
+                    }
+                    other => GatewayError::Store(other.to_string()),
                 })
             })
             .await

@@ -3,7 +3,7 @@
 use crate::GatewayError;
 use crate::membership::MembershipStore;
 use abi_wdbx::v3::episode::{EpisodeSigner, EpisodeStore, SignerKeyId, StorePolicy};
-use abi_wdbx::{StorePaths, VersionedError, VersionedStore};
+use abi_wdbx::{StorePaths, V2Error, VersionedError, VersionedStore};
 use ed25519_dalek::VerifyingKey;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -116,7 +116,12 @@ impl StoreExecutor {
         F: FnOnce(&mut GatewayState) -> Result<R, VersionedError> + Send + 'static,
     {
         self.run_gateway(move |state| {
-            job(state).map_err(|error| GatewayError::Store(error.to_string()))
+            job(state).map_err(|error| match error {
+                VersionedError::V2(V2Error::InvalidMutation(message)) => {
+                    GatewayError::InvalidMutation(message)
+                }
+                other => GatewayError::Store(other.to_string()),
+            })
         })
         .await
     }

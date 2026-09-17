@@ -268,6 +268,34 @@ async fn bearer_auth_and_all_eight_methods_use_a_scratch_store() {
 }
 
 #[tokio::test]
+async fn mismatched_vector_width_is_invalid_argument() {
+    let scratch = Scratch::new("width");
+    let (service, _) = service(&scratch, Limits::default());
+    service
+        .put_vector(authenticated(PutVectorRequest {
+            vectors: vec![VectorInput {
+                values: vec![1.0, 0.0, 0.0],
+            }],
+        }))
+        .await
+        .unwrap();
+    let mismatch = service
+        .put_vector(authenticated(PutVectorRequest {
+            vectors: vec![VectorInput {
+                values: vec![1.0, 0.0],
+            }],
+        }))
+        .await
+        .unwrap_err();
+    assert_eq!(mismatch.code(), Code::InvalidArgument, "{mismatch:?}");
+    assert!(
+        mismatch.message().contains("expected 3, found 2"),
+        "{}",
+        mismatch.message()
+    );
+}
+
+#[tokio::test]
 async fn request_vector_key_value_rate_and_stream_limits_fail_before_dispatch() {
     let scratch = Scratch::new("limits");
     let limits = Limits {

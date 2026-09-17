@@ -315,6 +315,9 @@ pub enum GatewayError {
     /// Store initialization failed.
     #[error("WDBX gateway store failed: {0}")]
     Store(String),
+    /// The store refused a client-supplied mutation before writing anything.
+    #[error("invalid WDBX mutation: {0}")]
+    InvalidMutation(String),
     /// A transport failed.
     #[error("WDBX gateway transport failed: {0}")]
     Transport(String),
