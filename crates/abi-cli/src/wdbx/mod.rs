@@ -24,8 +24,19 @@ use crate::usage::is_help_token;
 
 const USAGE: &str = include_str!("../../../../tests/golden/wdbx-stats.txt");
 
+/// Resolve a CLI store argument.
+///
+/// The argument is a file prefix (`<dir>/wdbx` names `<dir>/wdbx.manifest`
+/// and so on), except that an existing directory is taken as the store
+/// directory with the default `wdbx` base, the same meaning `ABI_WDBX_PATH`
+/// has. Without that exception, `abi wdbx db verify ~/.abi/wdbx` read the
+/// prefix `~/.abi/wdbx` as base `wdbx` in `~/.abi` and reported a healthy
+/// directory store as empty.
 pub(crate) fn paths_from_cli_base(raw: &str) -> Result<StorePaths, String> {
     let path = Path::new(raw);
+    if path.is_dir() {
+        return Ok(StorePaths::new(path));
+    }
     let base = path
         .file_name()
         .and_then(|name| name.to_str())
@@ -185,6 +196,33 @@ mod tests {
         let repeated = run(&strings(&["db", "keygen", &key_dir_string]));
         assert_eq!(repeated.exit_code, 1);
         assert!(repeated.stderr.contains("refusing to overwrite"));
+    }
+
+    #[test]
+    fn cli_base_treats_an_existing_directory_as_the_store_directory() {
+        let fixture = Fixture::new();
+        let dir = fixture.dir.to_str().unwrap().to_owned();
+        let as_dir = paths_from_cli_base(&dir).unwrap();
+        assert_eq!(as_dir.dir, fixture.dir);
+        assert_eq!(as_dir.base, "wdbx");
+
+        let prefix = fixture.dir.join("store");
+        let as_prefix = paths_from_cli_base(prefix.to_str().unwrap()).unwrap();
+        assert_eq!(as_prefix.dir, fixture.dir);
+        assert_eq!(as_prefix.base, "store");
+    }
+
+    #[test]
+    fn verify_through_a_directory_argument_sees_the_stored_records() {
+        let fixture = Fixture::new();
+        let mut store = VersionedStore::open(StorePaths::new(&fixture.dir)).unwrap();
+        store.put_vector(&[1.0, 0.5, 0.25]).unwrap();
+        drop(store);
+        let dir = fixture.dir.to_str().unwrap().to_owned();
+        let outcome = run(&strings(&["db", "verify", &dir]));
+        assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
+        let text = format!("{}{}", outcome.stdout, outcome.stderr);
+        assert!(text.contains("vectors=1"), "{text}");
     }
 
     #[test]
