@@ -299,6 +299,35 @@ public func abi_coreml_cpu_and_neural_engine_requested() -> Bool {
     return false
 }
 
+/// Runs `xcrun coremlcompiler compile <model> <dir>` and returns the compiled
+/// `.mlmodelc` URL, or nil when the tool is missing or the compile fails.
+private func compileCoreMlModelOutOfProcess(_ modelURL: URL, into directory: URL) -> URL? {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+    process.arguments = ["coremlcompiler", "compile", modelURL.path, directory.path]
+    process.standardOutput = FileHandle.nullDevice
+    process.standardError = FileHandle.nullDevice
+    do {
+        try process.run()
+    } catch {
+        return nil
+    }
+    process.waitUntilExit()
+    guard process.terminationReason == .exit, process.terminationStatus == 0 else {
+        return nil
+    }
+    let compiledURL = directory.appendingPathComponent(
+        modelURL.deletingPathExtension().lastPathComponent + ".mlmodelc", isDirectory: true
+    )
+    var isDirectory: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: compiledURL.path, isDirectory: &isDirectory),
+          isDirectory.boolValue
+    else {
+        return nil
+    }
+    return compiledURL
+}
+
 private func verifyTinyCoreMlInference() -> Bool {
     guard #available(macOS 12.0, *) else { return false }
 
@@ -316,8 +345,20 @@ private func verifyTinyCoreMlInference() -> Bool {
         )
         defer { try? fileManager.removeItem(at: modelURL) }
 
-        let compiledURL = try MLModel.compileModel(at: modelURL)
-        defer { try? fileManager.removeItem(at: compiledURL) }
+        // Compile out of process. On macOS 27.2 (26B5086k) an in-process
+        // `MLModel.compileModel` SIGBUSes inside Espresso on this exact spec,
+        // taking the whole host process down, while `coremlcompiler` compiles
+        // it cleanly and the result loads and predicts in-process. A host
+        // without developer tools reports "not verified" instead of crashing.
+        // Repro: ~/Archive/2026-09-17-coreml-sigbus-repro/ on the build Mac.
+        let compiledDir = fileManager.temporaryDirectory.appendingPathComponent(
+            "abi-coreml-\(UUID().uuidString)", isDirectory: true
+        )
+        try fileManager.createDirectory(at: compiledDir, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: compiledDir) }
+        guard let compiledURL = compileCoreMlModelOutOfProcess(modelURL, into: compiledDir) else {
+            return false
+        }
         let model = try MLModel(contentsOf: compiledURL, configuration: configuration)
 
         let input = try MLMultiArray(shape: [1], dataType: .float32)
