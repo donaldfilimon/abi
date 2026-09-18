@@ -36,7 +36,7 @@ $ABI train "example"
 $ABI agent plan "stage a safe WDBX refactor"
 $ABI agent train all
 $ABI plugin list
-$ABI wdbx stats
+$ABI wdbx query "$(mktemp -d)/store"   # store stats as JSON (no `wdbx stats` command)
 $ABI wdbx compute info
 $ABI wdbx secure demo
 $ABI wdbx cluster status

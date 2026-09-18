@@ -45,4 +45,4 @@ Requires an LTS Node (22.x; Mintlify rejects Node 25+). Preview: `cd docs && npx
 - Add `superpowers/archive/` (or draft `.md` plans) to `docs.json` navigation.
 - Promote Proposed items (ANE, CUDA/Vulkan native, sharding, audited FHE, SOTA codecs)
   to Current without source + tests.
-- Re-list the frozen 13 CLI commands / 12 MCP tools — link [`contracts/public-api.mdx`](contracts/public-api.mdx).
+- Re-list the frozen 14 CLI commands / 12 MCP tools — link [`contracts/public-api.mdx`](contracts/public-api.mdx).

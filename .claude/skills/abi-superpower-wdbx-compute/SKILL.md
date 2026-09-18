@@ -62,8 +62,9 @@ Backend selection is internal to the Rust compute API. There is no public
 selection and its fallback reason.
 
 ### backend
-There is no public per-backend subcommand. Use `abi backends` for the complete
-capability matrix or `abi wdbx compute info` for WDBX selection.
+There is no public per-backend subcommand. Use `abi wdbx compute info` for the
+compat table, the per-backend evidence ladder, and WDBX selection; `abi backends`
+reports the native-kernel state and points there for the table (since 2026-09-16).
 
 ### remote
 `ABI_REMOTE_COMPUTE_ENDPOINT` opts `abi wdbx compute info` into one authenticated,

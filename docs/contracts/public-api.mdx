@@ -21,7 +21,7 @@ Public library and binary surfaces live under `crates/`:
 - `abi-worker` — authenticated bounded worker admission, lease, cancellation, result, and control-log contracts
 - `abi-plugins` — bundled plugins + `PluginManager` (compile-time `Plugin` trait + mod/stub parity)
 - `abi-sea` / `abi-nn` / `abi-telemetry` — feature crates behind the same workspace
-- `abi-cli` — binary `abi` (frozen 13-command CLI)
+- `abi-cli` — binary `abi` (frozen 14-command CLI)
 - `abi-mcp` — binary `abi-mcp` (frozen 12 MCP tools)
 
 There is no monolithic root crate re-exporting every namespace; consumers depend on the workspace crates above.
@@ -98,10 +98,13 @@ The CLI command surface is guarded by golden fixtures under `tests/golden/` and 
 - `wdbx`
 - `scheduler`
 - `nn`
+- `improve`
 
 The top-level `abi --tui` shortcut is handled in `crates/abi-cli` outside the frozen `usage.commands` array. `abi complete` prints completion governance/persistence observability (`audit_passed=`, `audit_escore=`, `audit_vetoed=`, `persisted=`, WDBX counts, vector IDs, metadata key, and block hash when available) for the configured/default local WDBX store; operators may disable persistence as described above. `abi agent plan <input>`, `train <abbey|aviva|abi|all>`, `multi <input>`, and `spawn [--background] [--workers <spec>] <input>` run through local scheduler-backed AI helpers; they do not imply live external model training or distributed agents. `abi agent browser [--url <url>] [--execute --confirm] <task>` emits a reviewed local orchestration plan and local planner result. It does not embed or launch a browser; real navigation remains an external MCP integration step. `abi agent tui` uses a bounded raw-mode editor when both stdin and stdout are TTYs; redirected input preserves the deterministic legacy line mode and bytes. `abi dashboard` / `abi tui` enter a raw-mode refresh loop on a TTY; `--once`, `--json`, or non-TTY force one-shot digest (`crates/abi-cli/src/dashboard.rs`). `abi scheduler status` reports a one-shot CLI scheduler probe with task counts and attached memory-tracker counters; it is not a long-running daemon.
 
 `abi nn` is a miniature character-level demo trainer behind the nn feature: `nn train "<text>"`, `nn train --jsonl <path> [--field <name>]`, and `nn sample ...`. It is not a production LLM trainer, distributed trainer, or external model benchmark surface.
+
+`abi improve [--apply] [--model <id>] <input>` previews a SEA self-learning pass; the default dry run recalls evidence but writes nothing, while `--apply` persists the completion and updates router weights only when the constitution audit passes without veto and needs a persistent WDBX store (`crates/abi-cli/src/improve.rs`).
 
 `abi wdbx <db|block|query|benchmark|simulate|cluster|compute|secure|gpu|api>` is a WDBX runtime control surface backed by the versioned store (`crates/abi-cli/src/wdbx/`). New stores use v2; the v1 segment/JSONL/WAL engine remains the compatibility reader and verified migration oracle. `db compact <path> [--codec none|pq|autoencoder]` publishes a verified immutable v2 generation: `none` preserves vector bits exactly, while `pq` and `autoencoder` are explicit lossy policies that report artifact and quality evidence. `cluster local-demo` proves exact authenticated 3-9 process behavior on one host, not production multi-host deployment. `compute info` reports separate compiled/available/initialized/executed/runtime-verified states, performs a bounded remote DOT probe only when explicitly configured, and preserves deterministic CPU fallback. `secure` keeps the existing reference demos while exposing separately named educational DGHV refresh and optional pinned TFHE-rs paths. These surfaces do **not** establish production sharding, ANE residency, CUDA/Vulkan runtime execution, production/SOTA learned compression, an independent cryptographic audit, or production-secure FHE — see `docs/spec/wdbx-north-star.mdx` and `docs/contracts/external-claims-audit.mdx`.
 

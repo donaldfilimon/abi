@@ -1,7 +1,7 @@
 # AGENTS.md - abi
 
 Canonical instructions; executable source wins over prose. `opencode.json` loads
-`tasks/lessons.md` and `tasks/todo.md` alongside this file.
+`tasks/lessons.md`, `tasks/todo.md`, and `tasks/goals.md` alongside this file.
 
 ## Toolchain And Gates
 
@@ -38,7 +38,7 @@ Always run hand-invoked `cargo test` (or via tools/cargo.sh) with `< /dev/null`.
 
 ## Workflow Gotchas
 
-- At start of work: read `tasks/lessons.md` + `tasks/todo.md` (opencode loads them); run `./tools/check.sh`; `git status --short --branch`.
+- At start of work: read `tasks/lessons.md` + `tasks/todo.md` + `tasks/goals.md` (opencode loads them); run `./tools/check.sh`; `git status --short --branch`.
 - opencode.json (and .mcp.json) wire MCP to `./mcp/launcher.sh stdio` — use that, never raw binary path.
 - Store-safe smoke: `ABI_WDBX_PATH=:memory: ./tools/cargo.sh run -p abi-cli -- complete "..."` (and similar for agent etc.).
 - After editing frozen surfaces or goldens, rebuild the specific test target that embeds them.

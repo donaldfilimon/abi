@@ -52,7 +52,7 @@ $ABI complete --neural "hello"  # in-process char-LM demo (not a production LLM)
 $ABI complete --model llama/phi3 "hello"  # local OpenAI-compat bridge (falls back offline)
 $ABI agent plan "stage a safe WDBX refactor"
 $ABI agent train all
-$ABI wdbx stats
+$ABI wdbx query "$(mktemp -d)/store"   # store stats as JSON (no `wdbx stats` command)
 $ABI wdbx compute info
 $ABI wdbx secure demo
 $ABI wdbx cluster status
