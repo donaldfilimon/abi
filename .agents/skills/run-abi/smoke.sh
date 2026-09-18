@@ -50,7 +50,7 @@ run() {
 : > "$TRANSCRIPT"
 log "=== run-abi smoke @ $(date) ==="
 log "repo: $REPO_ROOT"
-log "rustc: $(./tools/cargo.sh rustc --version -- --version 2>/dev/null | head -1 || echo MISSING)"
+log "rustc: $(rustup which rustc 2>/dev/null || echo MISSING)"
 
 # --- Build ---------------------------------------------------------------
 run "build cli"  "-" -- ./tools/cargo.sh build -p abi-cli
@@ -71,7 +71,7 @@ run "cli agent multi"   "MULTI-AGENT RESULTS" -- "$ABI" agent multi "smoke multi
 run "cli agent browser" "orchestration=browser-local" -- "$ABI" agent browser "smoke browser"
 
 # --- WDBX store round-trip ----------------------------------------------
-rm -f "$STORE"
+rm -f "$STORE" "$STORE".active && rm -rf "$STORE".v2-*
 run "wdbx db init"      "initialized empty WDBX" -- "$ABI" wdbx db init "$STORE"
 run "wdbx block insert" "appended block"          -- "$ABI" wdbx block insert "$STORE" abi '{"note":"smoke checkpoint"}'
 run "wdbx query"        "blocks"                  -- "$ABI" wdbx query "$STORE"
