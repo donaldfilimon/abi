@@ -6,6 +6,11 @@ It is **not** stranded branch work and does **not** ship inside `abi` releases.
 
 ## Location
 
+> **Status 2026-09-21: every `dev/active/plugins/abi-mega` path below dangles.** `plugins` moved to
+> `~/Archive/experimental-2026-09-18/plugins` on 2026-09-18 (restore-only), and `~/.grok/sync-targets.json`
+> `central.abiMega` still points at the old path, so the commands below fail and `/sync-clis` skips or
+> fails abi-mega. Restoring `plugins` or repointing the key is Donald's call; do not point it at `~/Archive`.
+
 - Plugin: `/Users/donaldfilimon/dev/active/plugins/abi-mega` (live dependency for `/sync-clis`; do not archive)
 - Sync registry: `/Users/donaldfilimon/.grok/sync-targets.json` (`central.abiMega`)
 - Generated inventory: `/Users/donaldfilimon/dev/active/plugins/abi-mega/assets/abi-current-inventory.md`
