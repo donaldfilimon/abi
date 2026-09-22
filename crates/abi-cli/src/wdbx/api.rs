@@ -5,29 +5,29 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::app::Outcome;
-use abi_wdbx::{RestConfig, RestServer, StorePaths, VersionedStore};
+use abi_wdbx::{
+    MemoryReason, RestConfig, RestServer, StoreLocation, StorePaths, VersionedStore,
+    resolve_store_location_from_env,
+};
 
 pub(crate) const API_HELP: &str = "usage: abi wdbx api serve [port]\n\nServe the loopback WDBX REST API.\n\nEnv:\n  ABI_WDBX_REST_TOKEN     Optional bearer token for request auth.\n  ABI_WDBX_TLS_CERT       Path to PEM certificate (TLS config / proxy deployment).\n  ABI_WDBX_TLS_KEY        Path to PEM private key (TLS config / proxy deployment).\n\nTLS: native termination is not linked; deploy behind nginx/Caddy/haproxy.\n";
 
 fn open_default_store() -> Result<VersionedStore, String> {
-    if let Ok(path) = std::env::var("ABI_WDBX_PATH") {
-        if path == ":memory:" {
-            return Err(
-                "ABI_WDBX_PATH=:memory: is not valid for durable REST/cluster serving".into(),
-            );
+    // Shares `util::default_store_roots` so the lib-test build's refusal to
+    // touch the operator's live store covers this path too.
+    let (xdg_data_home, home) = crate::util::default_store_roots();
+    match resolve_store_location_from_env(xdg_data_home.as_deref(), home.as_deref()) {
+        StoreLocation::Durable(base) => {
+            VersionedStore::open(StorePaths::new(base)).map_err(|e| e.to_string())
         }
-        return VersionedStore::open(StorePaths::new(path)).map_err(|e| e.to_string());
+        StoreLocation::Memory(MemoryReason::PersistDisabled) => {
+            Err("WDBX persistence disabled (ABI_WDBX_PERSIST=0)".into())
+        }
+        StoreLocation::Memory(MemoryReason::Sentinel) => {
+            Err("ABI_WDBX_PATH=:memory: is not valid for durable REST/cluster serving".into())
+        }
+        StoreLocation::Memory(MemoryReason::NoHome) => Err("HOME is unset".into()),
     }
-    if matches!(
-        std::env::var("ABI_WDBX_PERSIST").as_deref(),
-        Ok("0" | "false" | "no" | "off")
-    ) {
-        return Err("WDBX persistence disabled (ABI_WDBX_PERSIST=0)".into());
-    }
-    // Shared with `util::open_store_result` so the lib-test build's refusal to
-    // touch the operator's live `~/.abi/` store covers this path too.
-    let home = crate::util::default_store_home().ok_or_else(|| "HOME is unset".to_string())?;
-    VersionedStore::open(StorePaths::new(format!("{home}/.abi/wdbx"))).map_err(|e| e.to_string())
 }
 
 fn api_serve(port_raw: Option<&str>) -> Outcome {

@@ -30,7 +30,15 @@ class DurableStoreDocumentationPolicyTests(unittest.TestCase):
         agent = (ROOT / "crates/abi-cli/src/agent.rs").read_text(encoding="utf-8")
         top_level_train = (ROOT / "crates/abi-cli/src/train.rs").read_text(encoding="utf-8")
         mcp_ai_tools = (ROOT / "crates/abi-mcp/src/ai_tools.rs").read_text(encoding="utf-8")
-        self.assertIn('format!("{home}/.abi/wdbx")', util)
+        # The `$HOME/.abi/wdbx` default lives in the resolver the CLI and MCP share.
+        self.assertIn("let (xdg_data_home, home) = default_store_roots();", util)
+        self.assertIn(
+            "resolve_store_location_from_env(xdg_data_home.as_deref(), home.as_deref())", util
+        )
+        manifest = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
+        wdbx_path = manifest["workspace"]["dependencies"]["abi-wdbx"]["path"]
+        store_path = (ROOT / wdbx_path / "src/store_path.rs").resolve().read_text(encoding="utf-8")
+        self.assertIn('.join(".abi").join("wdbx")', store_path)
         self.assertIn("let mut store = util::open_store();", completion)
         self.assertIn("let mut store = util::open_store();", agent)
         self.assertNotIn("open_store(", top_level_train)

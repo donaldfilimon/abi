@@ -5,8 +5,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 /// The spawned executable is a non-test build, so the `cfg(test)` refusal in
-/// `util::default_store_home` does not apply to it: left alone it would resolve
-/// `$HOME/.abi/wdbx` and write into the operator's live store. Pin every spawn
+/// `util::default_store_roots` does not apply to it: left alone it would resolve
+/// `$XDG_DATA_HOME/abi/wdbx` or `$HOME/.abi/wdbx` and write into the operator's
+/// live store. Pin every spawn
 /// at `:memory:` instead. It is set before `envs` so a caller can still choose
 /// its own store path.
 fn spawn(arguments: &[&str], environment: &[(&str, &str)]) -> Output {
@@ -358,7 +359,7 @@ fn auth_status_and_logout_cross_the_real_process_boundary() {
 
 /// Guards the `ABI_WDBX_PATH` pin in [`spawn`]: `abi complete` resolves the
 /// durable store, and the spawned binary is a non-test build that the
-/// `cfg(test)` refusal in `util::default_store_home` cannot reach. Without the
+/// `cfg(test)` refusal in `util::default_store_roots` cannot reach. Without the
 /// pin the child writes `.abi/wdbx/{wdbx.wal, wdbx.writer.lock}` under `HOME` —
 /// here a scratch directory, so removing the pin fails this test rather than
 /// touching the operator's live store.

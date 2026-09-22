@@ -12,7 +12,10 @@
 use std::path::PathBuf;
 
 use abi_core::Scheduler;
-use abi_wdbx::{StorePaths, VersionedStore, open_versioned_read_only};
+use abi_wdbx::{
+    StoreLocation, StorePaths, VersionedStore, open_versioned_read_only,
+    resolve_store_location_from_env,
+};
 
 /// Home-dir env var, Windows-aware.
 #[cfg(windows)]
@@ -20,55 +23,15 @@ const HOME_VAR: &str = "USERPROFILE";
 #[cfg(not(windows))]
 const HOME_VAR: &str = "HOME";
 
-const PATH_ENV: &str = "ABI_WDBX_PATH";
-const PERSIST_ENV: &str = "ABI_WDBX_PERSIST";
-const MEMORY_SENTINEL: &str = ":memory:";
-const DEFAULT_SUBPATH: &str = ".abi/wdbx";
-
-fn is_falsey(value: &str) -> bool {
-    matches!(value, "0" | "false" | "no" | "off")
-}
-
-/// The pure resolution logic behind [`resolve_wdbx_base_path`], taking each
-/// input explicitly so it is testable without mutating process-global
-/// environment state. `None` means an in-memory store.
-///
-/// Matches `durable_store.resolveConfig` in Zig: `persist` falsey wins
-/// outright; then `path` (with the `:memory:` sentinel); then, off Windows,
-/// `xdg`; then `home` joined with the default subpath; then in-memory if
-/// `home` is absent too.
-fn resolve_from(
-    persist: Option<&str>,
-    path: Option<&str>,
-    xdg: Option<&str>,
-    home: Option<&str>,
-) -> Option<PathBuf> {
-    if persist.is_some_and(is_falsey) {
-        return None;
-    }
-    if let Some(p) = path {
-        return if p == MEMORY_SENTINEL {
-            None
-        } else {
-            Some(PathBuf::from(p))
-        };
-    }
-    if !cfg!(windows)
-        && let Some(xdg) = xdg
-    {
-        return Some(PathBuf::from(xdg).join("abi").join("wdbx"));
-    }
-    home.map(|home| PathBuf::from(home).join(DEFAULT_SUBPATH))
-}
-
-/// Resolve the durable-store base path from the real process environment.
+/// Resolve the durable-store base path from the real process environment
+/// through the resolver the CLI shares. `None` means an in-memory store.
 fn resolve_wdbx_base_path() -> Option<PathBuf> {
-    resolve_from(
-        std::env::var(PERSIST_ENV).ok().as_deref(),
-        std::env::var(PATH_ENV).ok().as_deref(),
-        std::env::var("XDG_DATA_HOME").ok().as_deref(),
-        std::env::var(HOME_VAR).ok().as_deref(),
-    )
+    let xdg_data_home = abi_foundation::env::get("XDG_DATA_HOME");
+    let home = abi_foundation::env::get(HOME_VAR);
+    match resolve_store_location_from_env(xdg_data_home.as_deref(), home.as_deref()) {
+        StoreLocation::Durable(base) => Some(base),
+        StoreLocation::Memory(_) => None,
+    }
 }
 
 /// `wdbx_stats` could not read the durable store.
@@ -166,57 +129,5 @@ mod tests {
             state.scheduler_stats_text(),
             "scheduler running=0 pending=0 completed=0 failed=0 cancelled=0 total_tasks=0 source=mcp-server"
         );
-    }
-
-    #[test]
-    fn falsey_persist_forces_in_memory_regardless_of_path() {
-        assert_eq!(
-            resolve_from(Some("0"), Some("/tmp/store"), None, Some("/home/x")),
-            None
-        );
-        assert_eq!(
-            resolve_from(Some("false"), None, None, Some("/home/x")),
-            None
-        );
-    }
-
-    #[test]
-    fn memory_sentinel_path_forces_in_memory() {
-        assert_eq!(
-            resolve_from(None, Some(MEMORY_SENTINEL), None, Some("/home/x")),
-            None
-        );
-    }
-
-    #[test]
-    fn explicit_path_wins_over_xdg_and_home() {
-        assert_eq!(
-            resolve_from(None, Some("/explicit/path"), Some("/xdg"), Some("/home/x")),
-            Some(PathBuf::from("/explicit/path"))
-        );
-    }
-
-    #[test]
-    fn xdg_data_home_wins_over_home_off_windows() {
-        if cfg!(windows) {
-            return;
-        }
-        assert_eq!(
-            resolve_from(None, None, Some("/xdg"), Some("/home/x")),
-            Some(PathBuf::from("/xdg/abi/wdbx"))
-        );
-    }
-
-    #[test]
-    fn home_is_the_last_resort_default() {
-        assert_eq!(
-            resolve_from(None, None, None, Some("/home/x")),
-            Some(PathBuf::from("/home/x/.abi/wdbx"))
-        );
-    }
-
-    #[test]
-    fn no_home_falls_back_to_in_memory() {
-        assert_eq!(resolve_from(None, None, None, None), None);
     }
 }
