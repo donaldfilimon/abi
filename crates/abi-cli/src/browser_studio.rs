@@ -275,18 +275,64 @@ fn is_loopback_host(host: &str) -> bool {
     matches!(hostname, "127.0.0.1" | "localhost" | "[::1]")
 }
 
+/// Accept only a serialized `http` origin whose authority is exactly a
+/// loopback host with an optional nonzero port. Parsed structurally, never
+/// prefix-matched: `http://localhost.evil.example` and
+/// `http://localhost@evil.example` both begin with `http://localhost`.
 fn is_loopback_origin(origin: &str) -> bool {
-    origin.starts_with("http://127.0.0.1")
-        || origin.starts_with("http://localhost")
-        || origin.starts_with("http://[::1]")
+    let Some(authority) = origin.strip_prefix("http://") else {
+        return false;
+    };
+    if authority.is_empty()
+        || authority
+            .bytes()
+            .any(|byte| matches!(byte, b'/' | b'?' | b'#' | b'@'))
+    {
+        return false;
+    }
+    // A bracketed IPv6 literal contains colons, so split after its `]`.
+    let (host, rest) = if authority.starts_with('[') {
+        match authority.find(']') {
+            Some(end) => authority.split_at(end + 1),
+            None => return false,
+        }
+    } else {
+        authority
+            .find(':')
+            .map_or((authority, ""), |index| authority.split_at(index))
+    };
+    if !matches!(host, "127.0.0.1" | "localhost" | "[::1]") {
+        return false;
+    }
+    rest.is_empty()
+        || rest
+            .strip_prefix(':')
+            .and_then(|port| port.parse::<u16>().ok())
+            .is_some_and(|port| port != 0)
 }
 
 fn host_allowed(raw: &str) -> bool {
     header_value(raw, "Host").is_some_and(is_loopback_host)
 }
 
+/// Native clients omit `Origin`; a browser request must carry exactly one
+/// loopback origin. Repeated `Origin` fields are ambiguous and fail closed.
 fn origin_allowed(raw: &str) -> bool {
-    header_value(raw, "Origin").is_none_or(is_loopback_origin)
+    let block = raw.find("\r\n\r\n").map_or(raw, |index| &raw[..index]);
+    let mut origins = block
+        .split("\r\n")
+        .skip(1)
+        .take_while(|line| !line.is_empty())
+        .filter_map(|line| line.split_once(':'))
+        .filter(|(name, _)| {
+            name.trim_matches([' ', '\t'])
+                .eq_ignore_ascii_case("Origin")
+        })
+        .map(|(_, value)| value.trim_matches([' ', '\t']));
+    let Some(origin) = origins.next() else {
+        return true;
+    };
+    origins.next().is_none() && is_loopback_origin(origin)
 }
 
 fn request_target(raw: &str) -> Option<(&str, &str)> {
@@ -550,5 +596,52 @@ mod tests {
         assert!(!is_loopback_host("evil.example"));
         assert!(is_loopback_origin("http://127.0.0.1:8095"));
         assert!(!is_loopback_origin("https://evil.example"));
+    }
+
+    #[test]
+    fn loopback_origin_is_parsed_structurally_not_prefix_matched() {
+        for origin in [
+            "http://localhost",
+            "http://localhost:8095",
+            "http://127.0.0.1",
+            "http://127.0.0.1:8095",
+            "http://[::1]",
+            "http://[::1]:8095",
+        ] {
+            assert!(is_loopback_origin(origin), "{origin}");
+        }
+        for origin in [
+            "http://localhost.evil.example",
+            "http://localhost@evil.example",
+            "http://localhost:1234@evil",
+            "http://127.0.0.1.evil.example",
+            "http://[::1].evil.example",
+            "http://[::1]@evil.example",
+            "http://localhost/",
+            "http://localhost?x",
+            "http://localhost#x",
+            "http://localhost:0",
+            "http://localhost:",
+            "http://localhost:not-a-port",
+            "http://localhost:65536",
+            "http://[::1",
+            "http://",
+            "https://localhost",
+            "HTTP://localhost",
+            "null",
+        ] {
+            assert!(!is_loopback_origin(origin), "{origin}");
+        }
+    }
+
+    #[test]
+    fn duplicate_origin_headers_fail_closed() {
+        assert!(origin_allowed("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"));
+        assert!(origin_allowed(
+            "GET / HTTP/1.1\r\nHost: localhost\r\nOrigin: http://localhost:8095\r\n\r\n"
+        ));
+        assert!(!origin_allowed(
+            "GET / HTTP/1.1\r\nOrigin: http://localhost\r\norigin: https://evil.example\r\n\r\n"
+        ));
     }
 }
