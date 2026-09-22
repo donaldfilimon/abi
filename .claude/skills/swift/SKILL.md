@@ -143,13 +143,16 @@ consumed.
 
 ## Orient: which tree?
 
-> **Current as of 2026-08-22:** the canonical Swift AbbeyBot tree is
-> `/Users/donaldfilimon/dev/active/AbbeyBot`. It is separate from the Rust
-> Discord bot at `/Users/donaldfilimon/dev/active/abbey-bot`.
+> **Current as of 2026-09-21:** the Swift AbbeyBot tree was moved (with 22 other
+> projects) to `/Users/donaldfilimon/Archive/experimental-2026-09-18/AbbeyBot` on
+> 2026-09-18. It is restore-only there: do not build or develop in it unless
+> Donald restores it. It is separate from the active Rust Discord bot at
+> `/Users/donaldfilimon/dev/active/abbey-bot`. The table and gate below describe
+> the tree as it was when active.
 
 | Path | Role | Present? |
 |------|------|----------|
-| `/Users/donaldfilimon/dev/active/AbbeyBot` | Canonical Swift dual product (`AbbeyBot` desktop + `AbbeyServer` + `abbey` CLI); its own git repo and remote. | **active** |
+| `/Users/donaldfilimon/Archive/experimental-2026-09-18/AbbeyBot` (was `dev/active/AbbeyBot`) | Swift dual product (`AbbeyBot` desktop + `AbbeyServer` + `abbey` CLI); its own git repo and remote. | **archived 2026-09-18** |
 | `/Users/donaldfilimon/dev/archive/AbbeyCompanion` | Retired companion predecessor; wrappers are `Scripts/check.sh`, `run.sh`, `smoke.sh`, `lib.sh`. | archived |
 | `/Users/donaldfilimon/Downloads/AbbeyCompanion 4` | Former superseded companion copy | **gone** |
 
@@ -185,7 +188,7 @@ See `.env.example`: `DISCORD_BOT_TOKEN`, `DISCORD_DEV_GUILD_ID`, `DATABASE_URL`,
 These are two different gates covering two different projects. Do not treat one
 as evidence for the other.
 
-**AbbeyBot gate — active and runnable locally:**
+**AbbeyBot gate (tree archived 2026-09-18; runnable only after Donald restores it):**
 
 ```bash
 cd /Users/donaldfilimon/dev/active/AbbeyBot

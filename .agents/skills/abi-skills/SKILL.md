@@ -27,7 +27,9 @@ Codex plugin.
   `crates/abi-plugins/plugins/` (including `tui-plugin`); verify manifest,
   registry, and runtime-dispatch agreement with
   `.agents/skills/plugin-runtime-tester/plugins.sh`.
-- ABI Mega source: `~/dev/active/plugins/abi-mega/`; marketplace registration alone does not
+- ABI Mega source: `~/dev/active/plugins/abi-mega/` (dangling since 2026-09-18: `plugins` moved to
+  `~/Archive/experimental-2026-09-18/plugins`; restoring or repointing is Donald's call, so the
+  script paths below fail until then); marketplace registration alone does not
   prove that the current version is installed.
 - Live Rust pin: read repo-root `rust-toolchain.toml`. Always use `./tools/cargo.sh`
   (Homebrew stable `cargo` may shadow rustup nightly).

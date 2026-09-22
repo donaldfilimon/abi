@@ -1,7 +1,7 @@
 ---
 name: goal-ledger
 description: >-
-  Use when the user says /goals, mentions goals.md, asks to capture/track/update
+  Use when the user runs /goal (or says goals), mentions goals.md, asks to capture/track/update
   a goal, says continue/do all/finalize on goal work, or an agent is about to
   mark a goal done after a green gate, stub, demo, or stakeholder pressure.
 ---
@@ -13,10 +13,24 @@ slice, not automatic goal completion.
 
 When present, follow donald-mode for `continue` / `do all` / `finalize`.
 
+## Which ledger
+
+Resolve one ledger before reading or writing, and say which you used:
+
+1. The nearest `tasks/goals.md` from the current directory up to the enclosing
+   git repository root (a repository's own ledger wins inside it).
+2. Otherwise `~/tasks/goals.md`, the machine-wide ledger. Container directories
+   (`~/dev/active`) and home root have no ledger of their own.
+3. Create a new `tasks/goals.md` with `# Goals` only inside a git repository.
+   Never at home root, `~/dev/active`, `~/Archive`, or an iCloud path.
+
+Repositories may ship a project-scoped goal skill (abi's `.agents/skills/goals`
+adds abi gates and claim rules). Follow it inside that repository; this skill
+remains the contract.
+
 ## Contract
 
-Create `tasks/goals.md` with `# Goals` if missing. One `## <Goal>` per
-intention:
+One `## <Goal>` per intention:
 
 ```markdown
 ## Ship hybrid agent CLI
@@ -30,7 +44,9 @@ Never delete closed goals. Never explode one vague ask into many `##` headers.
 
 ## Workflow
 
-1. Read `tasks/goals.md`, `tasks/todo.md`, optional `tasks/lessons.md`.
+1. Read `tasks/goals.md`, `tasks/todo.md`, optional `tasks/lessons.md`. For a
+   large ledger (hundreds of lines), list `grep -n '^## \|^status:'` first and
+   read only the sections you act on.
 2. **Capture** — one coarse `##` section; checklists go in `todo.md`.
 3. **Track** — report name+status; updates rewrite that `status:` line.
 4. **Execute** — smallest verified slice (project gate: `./check.sh`, etc.).
@@ -74,7 +90,7 @@ Before acting on any claim a section makes:
 
 | Trigger | Action |
 |---------|--------|
-| `/goals` / list | Read ledger; name + status |
+| `/goal` / list | Resolve ledger; name + status |
 | New intention | One `##` section |
 | `continue` / `do all` | Next open slice; no green-only stop |
 | “mark done” + stub | No Current docs; open or demo-scoped note |

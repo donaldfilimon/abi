@@ -88,8 +88,10 @@ toolchain and frozen surfaces. This skill is style and process only.
   `.cursor/` is gitignored here. Mirror personal copies to
   `~/.cursor/skills/<name>/` (and `~/.codex/skills/<name>/` when installing
   for Codex) after content changes.
-- Fix skills at the central source (`~/.grok/skills`,
-  `~/dev/active/plugins/abi-mega`),
+- Fix skills at the central source (`~/.grok/skills`, and abi-mega, whose
+  `~/dev/active/plugins/abi-mega` path has dangled since `plugins` moved to
+  `~/Archive/experimental-2026-09-18/plugins` on 2026-09-18; restoring or
+  repointing it is Donald's call),
   not at sync targets. Sync with `.agents/skills/sync-clis/launch.sh` or the
   home `/sync-clis` skill (`python3 ~/.grok/scripts/sync-clis.py`).
 - After `/sync-clis`, check that repo-adapted abi skills were not clobbered by
@@ -115,17 +117,19 @@ toolchain and frozen surfaces. This skill is style and process only.
 
 ## Orientation (Abbey, Cell, Functions, CoreAI, Parallel)
 
-- Abbey on Discord / `Package.swift` means
-  `/Users/donaldfilimon/dev/active/AbbeyBot` (DiscordBM), not CoreAIAssistant.
+- Abbey on Discord means the Rust `~/dev/active/abbey-bot` (serenity/poise;
+  gate `./check.sh`). The Swift DiscordBM AbbeyBot (`Package.swift`) and
+  CoreAIAssistant were archived to `~/Archive/experimental-2026-09-18/` on
+  2026-09-18 (restore-only).
   Orient with a path table when ambiguous, then ask which lane if still unclear.
 - Cell / cell-lang / `build cel` / `build cell lang` means
-  `/Volumes/ExtremeSSD/public/cell-lang` (SSD Zig 0.17 tree; not under
-  `~/dev/active/abi`).
-  Default bar: `zig build`, `zig build run -- version`,
-  `zig build run -- check examples/hello.cell`, `zig build test`. Bare
-  `zig build run` exits 1 by design (CLI needs a subcommand).
+  `~/dev/active/cell-lang` (Zig master; public `donaldfilimon/cell-lang`; the
+  old SSD tree no longer exists). Gate: `./tools/check.sh` with
+  `-Dswift=false` (runs well past 120 s); `zig build test` alone is weak
+  evidence. Bare `zig build run` exits 1 by design (CLI needs a subcommand).
 - `/functions` means Browserbase Functions at
-  `/Users/donaldfilimon/dev/active/AbbeyBot/functions` (bun `dev` / `deploy`;
+  `~/Archive/experimental-2026-09-18/AbbeyBot/functions` (archived with AbbeyBot
+  on 2026-09-18; restore-only) (bun `dev` / `deploy`;
   credentials in that project's `.env`). Do not re-scaffold unless asked.
 - `/model-compression-exploration` or `/model-authoring`: follow the attached
   CoreAI skill. Need `torch` + `coreai-opt`, plus model/data/forward/quality

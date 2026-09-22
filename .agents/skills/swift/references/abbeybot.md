@@ -1,7 +1,8 @@
 # AbbeyBot reference
 
-Canonical Swift tree:
-`/Users/donaldfilimon/dev/active/AbbeyBot` (verified 2026-08-22).
+Swift tree: `/Users/donaldfilimon/Archive/experimental-2026-09-18/AbbeyBot`
+(was `/Users/donaldfilimon/dev/active/AbbeyBot`, verified 2026-08-22; moved to
+the restore-only Archive on 2026-09-18). Paths below describe it as it was.
 
 Do not confuse it with either of these separate projects:
 
