@@ -287,21 +287,8 @@ class CentralSyncTests(unittest.TestCase):
         # Read only configuration, never load real skills, personas or memories.
         manifest = json.loads(MANIFEST.read_text())
         portable_skills = set(manifest["catalog"]["portableSkills"])
-        self.assertTrue({
-            "swift",
-            "zig",
-            "zig-build",
-            "zig-builtins",
-            "zig-c-interop",
-            "zig-comptime",
-            "zig-errors",
-            "zig-io",
-            "zig-memory",
-            "zig-std",
-            "zig-testing",
-            "zig-toolchain",
-            "zig-types",
-        }.issubset(portable_skills))
+        # The zig-* topic skills were merged into zig/references/ (39a2679e).
+        self.assertTrue({"swift", "zig"}.issubset(portable_skills))
         self.assertEqual(Path(manifest["central"]["skills"]), Path.home() / ".grok/skills")
         self.assertEqual(Path(manifest["central"]["personas"]), Path.home() / ".grok/bundled/personas")
         self.assertEqual(Path(manifest["central"]["roles"]), Path.home() / ".grok/bundled/roles")
