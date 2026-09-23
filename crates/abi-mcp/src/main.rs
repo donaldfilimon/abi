@@ -16,7 +16,7 @@ fn main() {
             Ok(port) => {
                 let stop = server.stop_flag();
                 eprintln!(
-                    "MCP loopback HTTP compatibility transport listening on http://127.0.0.1:{port}/sse and /message"
+                    "MCP loopback HTTP transport listening on http://127.0.0.1:{port}/sse and /message"
                 );
                 let handle = std::thread::spawn(move || {
                     let _ = server.run();
