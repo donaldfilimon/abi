@@ -6,7 +6,7 @@ Safe execution steps for clean-slate modernization. Pair with the validation pha
 
 1. Analysis checklist complete (targets + evidence).
 2. Strategy chosen (direct / phased strangler / parallel modern impl).
-3. Baseline gate green: `./tools/check.sh` (or the narrowest gate that covers the blast radius).
+3. Baseline gate green (run the project's narrowest covering gate).
 4. Frozen surfaces listed — do **not** resurrect legacy CLI names or invent MCP tools.
 
 ## Execution loop
@@ -27,10 +27,10 @@ Safe execution steps for clean-slate modernization. Pair with the validation pha
 
 | Change kind | Minimum gate |
 | ----------- | ------------ |
-| Docs prose only | Spot-check claims vs `docs/contracts/external-claims-audit.mdx`; `npx mint@latest validate` if nav/content structure changes |
-| Tools scripts (no assertion rewrite) | Re-run the wired step or `./tools/check.sh` |
-| Public feature API | Update `mod.rs` + `stub.rs`; `./tools/check.sh`; `./tools/check.sh` |
-| CLI/MCP handler | Contract suites + `./tools/check.sh` (surface must stay frozen unless intentional) |
+| Docs prose only | Spot-check claims vs the project's external-claims audit doc; run docs validator if structure changes |
+| Tools scripts (no assertion rewrite) | Re-run the wired step or host gate |
+| Public feature API | Update `mod.rs` + `stub.rs`; host gate |
+| CLI/MCP handler | Contract suites + host gate (surface must stay frozen unless intentional) |
 
 ### 4. Cutover rules
 
