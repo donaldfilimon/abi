@@ -5,7 +5,9 @@ description: Plan, execute, and validate a codebase modernization or refactor wi
 
 # Refactor
 
-One skill, three phases (merged from the former `refactor-strategy`, `refactor-implementation` and `refactor-validation` skills on 2026-09-21). Run `./tools/check.sh` before and after.
+One skill, three phases (merged from the former `refactor-strategy`, `refactor-implementation` and `refactor-validation` skills on 2026-09-21). Run the host gate before and after.
+
+**Host gate** means the repository's own full gate, named in its `AGENTS.md`/`CLAUDE.md`. In abi (`~/dev/active/abi`) that is `./tools/check.sh` (it drives `./tools/cargo.sh`; never invoke bare `cargo` there); hand-run `cargo test` there needs `< /dev/null`. A bare `cargo test` is not a gate: in a `default-members` workspace it can run zero tests and pass.
 
 ## Phase 1: strategy
 
@@ -47,18 +49,14 @@ When designing the target:
 
 ### Additional Resources
 
-- `.agents/skills/refactor/references/strategy-guide.md` — detailed decision trees and examples of each strategy.
-- `.agents/skills/refactor/examples/sample-plan-outline.md` — real plan outlines from previous modernizations.
+- `references/strategy-guide.md` — detailed decision trees and examples of each strategy.
+- `examples/sample-plan-outline.md` — real plan outlines from previous modernizations.
 
-Use this skill before touching code. Always run `./tools/check.sh` before and after.
+Use this skill before touching code. Always run the host gate (see above) before and after.
 
 ### Optional host settings
 
-For repo-local strictness (focus areas, gate list, claims discipline), copy
-`modern-refactor/.claude/modern-refactor.local.md.example` to the host project
-as an optional Claude-side local override file (host-side only; not
-required for this skill). The template is not auto-loaded from
-inside the plugin package — it is an optional host-side override only.
+For repo-local strictness (focus areas, gate list, claims discipline), copy the example template from the modern-refactor package to the host project as an optional Claude-side local override file (host-side only; this skill does not ship or auto-load host overrides).
 
 ## Phase 2: implementation
 
@@ -71,13 +69,13 @@ Safe transformation techniques for applying modern designs while preserving beha
 
 - Write modern impl beside old (parallel) when risk high.
 - Use strangler fig for gradual cutover.
-- Validate at each step with ./tools/check.sh, parity, contracts.
+- Validate at each step with the host gate, parity, contracts.
 - Prefer direct boring code.
 
 ### Additional Resources
 
-- `.agents/skills/refactor/references/implementation-playbook.md`
-- `.agents/skills/refactor/examples/parallel-extract-outline.md`
+- `references/implementation-playbook.md`
+- `examples/parallel-extract-outline.md`
 
 Pair with the Rust-aware `abi` or `refactor-planner` agent for larger modules.
 
@@ -90,13 +88,15 @@ Validation layers for modernization: behavioral parity, modern quality, structur
 
 ### Layers
 
-- Behavioral: contracts, tests, ./tools/check.sh, check-parity pass.
+- Behavioral: contracts, tests, host gate, check-parity pass.
 - Modern: apply patterns from modern-patterns, no legacy smells.
 - Structural: boundaries clean, no god files, explicit over implicit.
 
 ### Additional Resources
 
-- `.agents/skills/refactor/references/validation-checklist.md`
+- `references/validation-checklist.md`
 
 Run the validation skill plus a Rust-aware `abi` or `refactor-planner` agent
 review as the final step.
+
+<!-- synced from central: ~/.grok/skills/refactor/SKILL.md -->

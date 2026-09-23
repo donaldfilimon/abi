@@ -7,6 +7,8 @@ description: Plan, execute, and validate a codebase modernization or refactor wi
 
 One skill, three phases (merged from the former `refactor-strategy`, `refactor-implementation` and `refactor-validation` skills on 2026-09-21). Run the host gate before and after.
 
+**Host gate** means the repository's own full gate, named in its `AGENTS.md`/`CLAUDE.md`. In abi (`~/dev/active/abi`) that is `./tools/check.sh` (it drives `./tools/cargo.sh`; never invoke bare `cargo` there); hand-run `cargo test` there needs `< /dev/null`. A bare `cargo test` is not a gate: in a `default-members` workspace it can run zero tests and pass.
+
 ## Phase 1: strategy
 
 *Use when:* This skill should be used when the user asks how to approach a modernization — e.g. 'should we rewrite or do this incrementally', 'plan a refactor of X', 'what's the risk here' — at the start of significant work.
@@ -50,7 +52,7 @@ When designing the target:
 - `references/strategy-guide.md` — detailed decision trees and examples of each strategy.
 - `examples/sample-plan-outline.md` — real plan outlines from previous modernizations.
 
-Use this skill before touching code. Always run the host gate (e.g. the project's check script or `cargo test`) before and after.
+Use this skill before touching code. Always run the host gate (see above) before and after.
 
 ### Optional host settings
 
