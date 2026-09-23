@@ -1,8 +1,11 @@
-//! Shared JSON-RPC boundary contracts for stdio and loopback HTTP.
+//! Shared JSON-RPC boundary contracts for stdio and loopback HTTP, including
+//! the persistent HTTP+SSE session path.
 
 use std::io::{Cursor, Read, Write};
 use std::net::{Ipv4Addr, Shutdown, TcpStream};
+use std::sync::atomic::Ordering;
 use std::thread;
+use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
@@ -213,4 +216,195 @@ fn oversized_frames_use_transport_specific_errors_and_both_recover() {
         assert_eq!(value["id"], json!(2));
         assert_eq!(value["result"], json!({}));
     });
+}
+
+/// An open `GET /sse` session as a client sees it.
+struct SseClient {
+    stream: TcpStream,
+    pending: Vec<u8>,
+    endpoint: String,
+}
+
+impl SseClient {
+    fn open(port: u16) -> Self {
+        let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).expect("connect SSE");
+        stream
+            .write_all(b"GET /sse HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+            .expect("write SSE request");
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .expect("SSE read timeout");
+        let mut client = Self {
+            stream,
+            pending: Vec::new(),
+            endpoint: String::new(),
+        };
+        let head = client.read_through(b"\r\n\r\n");
+        let head = String::from_utf8(head).expect("SSE head is UTF-8");
+        assert!(head.starts_with("HTTP/1.1 200 OK\r\n"), "{head}");
+        assert!(head.contains("Content-Type: text/event-stream"), "{head}");
+        let (event, data) = client.next_event();
+        assert_eq!(event, "endpoint");
+        assert!(data.starts_with("/message?sessionId="), "{data}");
+        client.endpoint = data;
+        client
+    }
+
+    /// Consume bytes up to and including `terminator`.
+    fn read_through(&mut self, terminator: &[u8]) -> Vec<u8> {
+        let mut buffer = [0_u8; 4096];
+        loop {
+            if let Some(index) = self
+                .pending
+                .windows(terminator.len())
+                .position(|window| window == terminator)
+            {
+                let rest = self.pending.split_off(index + terminator.len());
+                return std::mem::replace(&mut self.pending, rest);
+            }
+            match self.stream.read(&mut buffer) {
+                Ok(0) => panic!("SSE stream closed early; had {:?}", self.pending),
+                Ok(count) => self.pending.extend_from_slice(&buffer[..count]),
+                Err(error) => panic!("SSE read: {error}; had {:?}", self.pending),
+            }
+        }
+    }
+
+    /// The next `(event, data)` pair, skipping `:` keepalive comments.
+    fn next_event(&mut self) -> (String, String) {
+        loop {
+            let block = String::from_utf8(self.read_through(b"\n\n")).expect("SSE event is UTF-8");
+            let mut event = "message".to_string();
+            let mut data = None;
+            for line in block.lines() {
+                if let Some(value) = line.strip_prefix("event: ") {
+                    event = value.to_string();
+                } else if let Some(value) = line.strip_prefix("data: ") {
+                    data = Some(value.to_string());
+                }
+            }
+            if let Some(data) = data {
+                return (event, data);
+            }
+        }
+    }
+
+    fn post(&self, port: u16, body: &str) -> Vec<u8> {
+        let request = format!(
+            "POST {} HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+            self.endpoint,
+            body.len()
+        );
+        send_http(port, request.as_bytes())
+    }
+
+    /// POST `body` and return the JSON of the `message` event it produced.
+    fn exchange(&mut self, port: u16, body: &str) -> Value {
+        let response = self.post(port, body);
+        assert_eq!(http_status(&response), "HTTP/1.1 202 Accepted");
+        assert_eq!(http_body(&response), b"");
+        let (event, data) = self.next_event();
+        assert_eq!(event, "message");
+        serde_json::from_str(&data).expect("SSE data is JSON")
+    }
+}
+
+fn wait_until(what: &str, mut condition: impl FnMut() -> bool) {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while !condition() {
+        assert!(Instant::now() < deadline, "timed out waiting for {what}");
+        thread::sleep(Duration::from_millis(20));
+    }
+}
+
+#[test]
+fn sse_sessions_publish_the_same_json_as_stdio() {
+    let bodies = [
+        r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#.to_string(),
+        nested_ping(MAX_JSON_DEPTH + 1),
+        r#"{"jsonrpc":"2.0","id":null,"method":"ping"}"#.to_string(),
+        r#"{"jsonrpc":"2.0","id":9,"method":"unknown"}"#.to_string(),
+    ];
+    with_http_server(1 + bodies.len(), |port| {
+        let mut client = SseClient::open(port);
+        for body in &bodies {
+            let mut frame = body.as_bytes().to_vec();
+            frame.push(b'\n');
+            let stdio = stdio_exchange(&frame);
+            assert_eq!(stdio.len(), 1, "{body}");
+            assert_eq!(client.exchange(port, body), stdio[0], "{body}");
+        }
+    });
+}
+
+#[test]
+fn sse_notifications_are_accepted_without_an_event() {
+    with_http_server(3, |port| {
+        let mut client = SseClient::open(port);
+        let accepted = client.post(
+            port,
+            r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+        );
+        assert_eq!(http_status(&accepted), "HTTP/1.1 202 Accepted");
+        // The first event on the stream belongs to the next request, so the
+        // notification queued nothing.
+        let next = client.exchange(port, r#"{"jsonrpc":"2.0","id":3,"method":"ping"}"#);
+        assert_eq!(next["id"], json!(3));
+    });
+}
+
+#[test]
+fn unknown_sessions_get_404_not_a_silent_202() {
+    with_http_server(1, |port| {
+        let body = r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#;
+        let request = format!(
+            "POST /message?sessionId=00000000000000000000000000000000 HTTP/1.1\r\nContent-Length: {}\r\n\r\n{body}",
+            body.len()
+        );
+        let response = send_http(port, request.as_bytes());
+        assert_eq!(http_status(&response), "HTTP/1.1 404 Not Found");
+        assert_eq!(http_body(&response), br#"{"error":"unknown session"}"#);
+    });
+}
+
+#[test]
+fn sessions_end_when_the_client_disconnects_or_the_server_stops() {
+    let server = McpHttpServer::bind(
+        HttpConfig {
+            port: 0,
+            bearer_token: None,
+        },
+        McpState::new(),
+    )
+    .expect("bind ephemeral HTTP server");
+    let port = server.local_port().expect("ephemeral port");
+    let sessions = server.sessions();
+    let stop = server.stop_flag();
+    let handle = thread::spawn(move || {
+        for _ in 0..2 {
+            server.serve_one().expect("serve SSE open");
+        }
+    });
+
+    let leaving = SseClient::open(port);
+    let mut staying = SseClient::open(port);
+    handle.join().expect("HTTP server joins");
+    assert_eq!(sessions.len(), 2);
+
+    drop(leaving);
+    wait_until("the disconnected session to deregister", || {
+        sessions.len() == 1
+    });
+
+    stop.store(true, Ordering::SeqCst);
+    let mut buffer = [0_u8; 64];
+    let closed = loop {
+        match staying.stream.read(&mut buffer) {
+            Ok(0) => break true,
+            Ok(_) => {}
+            Err(_) => break false,
+        }
+    };
+    assert!(closed, "stop must close an open session stream");
+    wait_until("every session to deregister", || sessions.is_empty());
 }

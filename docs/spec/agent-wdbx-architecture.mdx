@@ -34,9 +34,9 @@ flowchart TD
 ```
 
 Both binaries are local-first. MCP uses JSON-RPC over stdio and automatically
-attempts a custom loopback HTTP compatibility listener. Its one-event `/sse`
-response only advertises `/message`; it is not persistent, spec-conforming MCP
-HTTP+SSE. WDBX REST and cluster RPC have their own explicit bind, token, and
+attempts a custom loopback HTTP listener that serves persistent MCP 2024-11-05
+HTTP+SSE sessions and a one-shot direct-reply `/message` compatibility mode; it
+is not Streamable HTTP (2025-03-26). WDBX REST and cluster RPC have their own explicit bind, token, and
 claim boundaries.
 
 ## Ownership
@@ -109,8 +109,8 @@ durable background-agent system.
 ## Security and deployment boundary
 
 - The automatically attempted custom MCP loopback HTTP compatibility listener
-  and WDBX REST are loopback-oriented. The MCP `/sse` response is one event,
-  not persistent conforming MCP HTTP+SSE. Bearer tokens are local hardening,
+  and WDBX REST are loopback-oriented. MCP `/sse` sessions are persistent
+  2024-11-05 HTTP+SSE, capped at 16, not Streamable HTTP. Bearer tokens are local hardening,
   not complete authorization or TLS.
 - Cluster RPC is real TCP RequestVote/AppendEntries with optional token and
   peer allowlist controls. Production multi-host deployment and sharding are

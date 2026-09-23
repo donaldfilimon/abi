@@ -69,7 +69,8 @@ For MCP smoke testing, build the server and call the same contract tools through
 ./mcp/launcher.sh
 # stdio is primary; optional custom loopback HTTP compatibility listener on
 # ABI_MCP_HTTP_PORT (default 8080), with optional ABI_MCP_HTTP_TOKEN bearer auth.
-# GET /sse only advertises POST /message; it is not persistent MCP HTTP+SSE.
+# GET /sse opens a persistent MCP 2024-11-05 HTTP+SSE session; POST /message
+# without a sessionId keeps the one-shot direct-reply compatibility mode.
 ```
 
 Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, and `plugin_run`. `wdbx_query` returns a local hybrid-ranked match from the configured WDBX store; `connector_test` uses deterministic local connector paths and does not perform live network dispatch.
@@ -77,7 +78,7 @@ Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_lea
 ## Current Status
 
 - ABI targets **nightly Rust** (`rust-toolchain.toml`); validate with `./tools/check.sh`.
-- Core crates and MCP transport have contract/golden coverage; MCP stdio is primary, with an optional custom loopback HTTP compatibility listener whose `GET /sse` only advertises `POST /message`, not a persistent spec-conforming MCP HTTP+SSE channel.
+- Core crates and MCP transport have contract/golden coverage; MCP stdio is primary, with an optional custom loopback HTTP compatibility listener that serves persistent MCP 2024-11-05 HTTP+SSE sessions and keeps a one-shot direct-reply `POST /message` compatibility mode (not Streamable HTTP).
 - Documentation: `CLAUDE.md`, `GEMINI.md`, and `AGENTS.md` describe the Rust lifecycle.
 - Build gate: `./tools/check.sh` runs policy tests, `./tools/cargo.sh xtask ci verify` (judo #817), Abbey corpus (Python + `./tools/cargo.sh xtask abbey verify`), size limits, fmt, clippy (`-D warnings`), workspace build/tests, and docs.
 - Local models: `abi-model-runtime` requires an exact registry model, accepting principal, external storage root, and device choice. Generated scratch fixtures prove its tiny `abi-bigram-v1` Candle path on CPU and locally exercised Metal; this is runtime-foundation evidence, not a Gemma, quality, placement, speedup, or CUDA-runtime claim.

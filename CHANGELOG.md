@@ -8,6 +8,15 @@ truth is the nightly-Rust workspace under `crates/`; readiness is gated by
 
 ### Added
 
+- feat(abi-mcp): the loopback HTTP listener serves persistent MCP 2024-11-05
+  HTTP+SSE sessions. `GET /sse` announces `/message?sessionId=<id>` (random v4
+  UUID) and stays open on its own thread; POSTs there answer `202` and publish
+  the response as an SSE `message` event byte-identical to stdio; unknown
+  sessions get `404` before dispatch; sessions are capped at 16 (`503`) and end
+  on disconnect or server stop. `POST /message` without a session keeps the
+  one-shot direct-reply mode. Completes and repairs `4c50ac8b`, which did not
+  compile and could not deliver events. Not Streamable HTTP (2025-03-26).
+
 - feat(browser): `abi agent browser --studio` serves a loopback multimodal
   capture page (camera stills, short video frames, mic PCM, client-side Web
   Speech STT/TTS) and JSON `/analyze` `/fuse` routes through deterministic

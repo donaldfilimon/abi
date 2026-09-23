@@ -1,6 +1,7 @@
-//! The ABI MCP server: JSON-RPC protocol, the frozen 12-tool surface, and the
-//! stdio plus a custom one-request-per-connection loopback HTTP compatibility
-//! transport with one-shot SSE endpoint discovery.
+//! The ABI MCP server: JSON-RPC protocol, the frozen 12-tool surface, stdio,
+//! and a custom loopback HTTP listener that serves persistent MCP 2024-11-05
+//! HTTP+SSE sessions alongside the original one-request-per-connection
+//! `POST /message` compatibility mode.
 //!
 //! Ported from `src/mcp/`. The optional HTTP listener binds `127.0.0.1` only
 //! (`ABI_MCP_HTTP_PORT`, optional `ABI_MCP_HTTP_TOKEN`).
@@ -13,6 +14,7 @@ pub mod middleware;
 pub mod plugin_tools;
 pub mod protocol;
 pub mod rpc;
+pub mod sse;
 pub mod state;
 pub mod stdio;
 

@@ -33,7 +33,7 @@ Always run hand-invoked `cargo test` (or via tools/cargo.sh) with `< /dev/null`.
   - 14 CLI commands (usage.rs in abi-cli): help, complete, train, agent, backends, plugin, auth, twilio, tui, dashboard, wdbx, scheduler, nn, improve.
   - 12 MCP tools (handlers.rs in abi-mcp): ai_run, ai_complete, ai_learn, ai_train, wdbx_query, scheduler_stats, scheduler_info, connector_test, gpu_status, plugin_list, wdbx_stats, plugin_run.
 - Golden contracts under `tests/golden/` (help, mcp json, completions bash/zsh/fish, wdbx samples). Pulled via include_str/bytes — must rebuild the test binary (e.g. -p abi-cli --test golden) after edits.
-- MCP: stdio is the contract (newline JSON-RPC, 64 KiB frame cap). Loopback HTTP (ABI_MCP_HTTP_*) is one-shot compat only; GET /sse just advertises POST /message, not persistent SSE.
+- MCP: stdio is the contract (newline JSON-RPC, 64 KiB frame cap). Loopback HTTP (ABI_MCP_HTTP_*): GET /sse opens a persistent MCP 2024-11-05 HTTP+SSE session (POST /message?sessionId=<id> gets 202 and its response arrives as an SSE `message` event; unknown session 404; at most 16 sessions, then 503); POST /message without a session keeps the one-shot direct-reply compat mode. Not Streamable HTTP (2025-03-26).
 - `connector_test` (MCP/CLI) always uses deterministic local transport, never live net.
 
 ## Workflow Gotchas

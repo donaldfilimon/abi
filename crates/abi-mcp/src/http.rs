@@ -1,31 +1,35 @@
 //! Custom loopback HTTP compatibility transport for MCP JSON-RPC.
 //!
 //! Ported from `src/mcp/http_transport.zig`. Listens on `127.0.0.1` only:
-//! - `GET /sse` — establishes a persistent SSE stream, returns a stream id
-//!   in the `endpoint` event; keeps the connection open for `message` events
-//! - `POST /message?id={stream_id}` — publishes the JSON-RPC response as an
-//!   SSE `message` event on the named stream
+//! - `GET /sse` — opens a persistent MCP 2024-11-05 HTTP+SSE session: an
+//!   `endpoint` event names `/message?sessionId=<id>`, and the stream stays
+//!   open for `message` events (see [`crate::sse`])
+//! - `POST /message?sessionId=<id>` — dispatches one JSON-RPC request and
+//!   publishes its response as a `message` event on that session; the POST
+//!   itself gets `202 Accepted`, and an unknown session gets `404`
+//! - `POST /message` without a session — the original compatibility mode: one
+//!   JSON-RPC request body → one JSON-RPC response, directly over HTTP
 //!
 //! Optional bearer auth via `ABI_MCP_HTTP_TOKEN`. Default port 8080
-//! (`ABI_MCP_HTTP_PORT`). Not a general web server. This implements the
-//! MCP 2024-11-05 persistent HTTP+SSE channel: response-bearing POSTs
-//! publish as SSE `message` events rather than replying directly over HTTP.
+//! (`ABI_MCP_HTTP_PORT`). Not a general web server and not Streamable HTTP
+//! (2025-03-26). Every connection except an SSE session is one request: SSE
+//! sessions run on their own threads so the accept loop can still take the
+//! POSTs that publish to them.
 
-use std::collections::HashMap;
-use std::io::Read;
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc::{Sender, channel};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
 use abi_foundation::env::{self, MCP_HTTP_PORT, MCP_HTTP_TOKEN};
 use abi_foundation::http::{
-    MAX_REQUEST_SIZE, ReadResult, has_bearer_token, read_request, write_all, write_unauthorized,
+    MAX_REQUEST_SIZE, ReadResult, find_body, has_bearer_token, read_request, write_all,
+    write_unauthorized,
 };
 
 use crate::rpc;
+use crate::sse::{self, SessionRegistry};
 use crate::state::McpState;
 
 /// Default MCP HTTP port when `ABI_MCP_HTTP_PORT` is unset.
@@ -46,6 +50,10 @@ pub struct HttpConfig {
 
 impl HttpConfig {
     /// Load port/token from process env (empty token = auth off).
+    ///
+    /// Port zero is an internal-only request for a kernel-assigned test port.
+    /// The operator-facing environment contract treats it as invalid and falls
+    /// back to 8080, alongside empty, malformed and out-of-range values.
     #[must_use]
     pub fn from_env() -> Self {
         let port = env::get(MCP_HTTP_PORT)
@@ -57,41 +65,6 @@ impl HttpConfig {
     }
 }
 
-/// Shared SSE stream registry: maps stream id to a sender, tracks the next id.
-#[derive(Debug)]
-pub struct SseRegistry {
-    streams: Arc<std::sync::Mutex<HashMap<String, Sender<String>>>>,
-    next_id: Arc<AtomicU64>,
-}
-
-impl SseRegistry {
-    fn new() -> Self {
-        Self {
-            streams: Arc::new(std::sync::Mutex::new(HashMap::new())),
-            next_id: Arc::new(AtomicU64::new(1)),
-        }
-    }
-    fn create(&self) -> (String, Sender<String>) {
-        let id = self.next_id.fetch_add(1, Ordering::SeqCst).to_string();
-        let (tx, _rx) = channel();
-        self.streams
-            .lock()
-            .expect("registry lock")
-            .insert(id.clone(), tx.clone());
-        (id, tx)
-    }
-    fn next_stream_id(&self) -> String {
-        self.next_id.fetch_add(1, Ordering::SeqCst).to_string()
-    }
-    fn get(&self, id: &str) -> Option<Sender<String>> {
-        self.streams.lock().expect("registry lock").get(id).cloned()
-    }
-    fn remove(&self, id: &str) {
-        self.streams.lock().expect("registry lock").remove(id);
-    }
-}
-type StreamRegistry = Arc<SseRegistry>;
-
 /// Running loopback MCP HTTP server.
 #[derive(Debug)]
 pub struct McpHttpServer {
@@ -99,20 +72,21 @@ pub struct McpHttpServer {
     config: HttpConfig,
     state: McpState,
     stop: Arc<AtomicBool>,
-    registry: StreamRegistry,
+    sessions: Arc<SessionRegistry>,
 }
 
 impl McpHttpServer {
     /// Bind `127.0.0.1:port` and prepare to serve.
     pub fn bind(config: HttpConfig, state: McpState) -> std::io::Result<Self> {
         let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, config.port))?;
+        // Short accept timeout so Ctrl-C / stop flags are observed.
         let _ = listener.set_nonblocking(false);
         Ok(Self {
             listener,
             config,
             state,
             stop: Arc::new(AtomicBool::new(false)),
-            registry: Arc::new(SseRegistry::new()),
+            sessions: Arc::new(SessionRegistry::new()),
         })
     }
 
@@ -127,15 +101,17 @@ impl McpHttpServer {
         Arc::clone(&self.stop)
     }
 
-    /// Shared stream registry for testing.
+    /// Open SSE sessions. Setting the stop flag ends every session thread
+    /// within one poll interval.
     #[must_use]
-    pub fn registry(&self) -> StreamRegistry {
-        Arc::clone(&self.registry)
+    pub fn sessions(&self) -> Arc<SessionRegistry> {
+        Arc::clone(&self.sessions)
     }
 
     /// Request shutdown of the accept loop.
     pub fn request_stop(&self) {
         self.stop.store(true, Ordering::SeqCst);
+        // Wake a blocking accept with a local connect.
         if let Ok(port) = self.local_port() {
             let _ = TcpStream::connect(SocketAddrV4::new(Ipv4Addr::LOCALHOST, port));
         }
@@ -147,14 +123,12 @@ impl McpHttpServer {
         if self.stop.load(Ordering::SeqCst) {
             return Ok(());
         }
-        let registry = Arc::clone(&self.registry);
-        let stop = Arc::clone(&self.stop);
         handle_connection(
             stream,
             self.state,
             self.config.bearer_token.as_deref(),
-            registry,
-            stop,
+            &self.sessions,
+            &self.stop,
         )
     }
 
@@ -180,15 +154,16 @@ impl McpHttpServer {
     }
 }
 
-/// Handle one HTTP connection end-to-end.
+/// Handle one HTTP connection end-to-end. A `GET /sse` connection is handed to
+/// a session thread and this returns once that thread owns it.
 pub fn handle_connection(
     stream: TcpStream,
     state: McpState,
     bearer_token: Option<&str>,
-    streams: StreamRegistry,
-    stop: Arc<AtomicBool>,
+    sessions: &Arc<SessionRegistry>,
+    stop: &Arc<AtomicBool>,
 ) -> std::io::Result<()> {
-    handle_connection_with(stream, state, bearer_token, rpc::process, streams, stop)
+    handle_connection_with(stream, state, bearer_token, rpc::process, sessions, stop)
 }
 
 fn handle_connection_with<F>(
@@ -196,11 +171,11 @@ fn handle_connection_with<F>(
     state: McpState,
     bearer_token: Option<&str>,
     process: F,
-    streams: StreamRegistry,
-    stop: Arc<AtomicBool>,
+    sessions: &Arc<SessionRegistry>,
+    stop: &Arc<AtomicBool>,
 ) -> std::io::Result<()>
 where
-    F: Fn(McpState, &str) -> Option<crate::rpc::RpcResponse>,
+    F: FnOnce(McpState, &str) -> Option<crate::rpc::RpcResponse>,
 {
     let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
     let raw = match read_request(&mut stream, MAX_REQUEST_SIZE) {
@@ -234,10 +209,17 @@ where
     let request_line = raw_text[..line_end].trim_end_matches('\r');
     let mut parts = request_line.split(' ');
     let method = parts.next().unwrap_or("");
-    let path_and_query = parts.next().unwrap_or("");
-    let path = path_and_query.split('?').next().unwrap_or("");
+    let target = parts.next().unwrap_or("");
+    let (path, query) = target.split_once('?').unwrap_or((target, ""));
+    let session_id = query
+        .split('&')
+        .find_map(|pair| pair.strip_prefix("sessionId="));
 
-    if !request_origin_is_allowed(&raw) {
+    // MCP's HTTP transports require Origin validation to prevent a website
+    // from reaching a loopback listener through DNS rebinding. Native clients
+    // normally omit Origin. Browser-style requests are admitted only when the
+    // serialized origin itself is the exact IPv4 loopback or localhost host.
+    if !request_origin_is_allowed(raw_text) {
         return write_all(
             &mut stream,
             b"HTTP/1.1 403 Forbidden\r\nContent-Type: application/json\r\nContent-Length: 26\r\nConnection: close\r\n\r\n{\"error\":\"invalid origin\"}",
@@ -251,11 +233,61 @@ where
     }
 
     if method == "GET" && path == "/sse" {
-        return serve_sse(&mut stream, &streams, &stop)?;
+        return sse::open(stream, sessions, stop);
     }
 
     if method == "POST" && path == "/message" {
-        return serve_message(&mut stream, state, &raw, body_raw(&raw), &process, &streams);
+        let Some(body) = find_body(&raw) else {
+            return write_all(
+                &mut stream,
+                b"HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"no body\"}",
+            );
+        };
+        if body.len() > MAX_REQUEST_SIZE {
+            return write_all(
+                &mut stream,
+                b"HTTP/1.1 413 Payload Too Large\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"request too large\"}",
+            );
+        }
+        let Ok(body_text) = std::str::from_utf8(body) else {
+            return write_all(
+                &mut stream,
+                b"HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"invalid utf-8 body\"}",
+            );
+        };
+        if let Some(session_id) = session_id {
+            // Checked before dispatch so a stale or guessed session id cannot
+            // trigger a side-effecting tool call whose result nobody receives.
+            if !sessions.contains(session_id) {
+                return write_unknown_session(&mut stream);
+            }
+            if let Some(response) = process(state, body_text)
+                && !sessions.publish(session_id, response.to_json_string())
+            {
+                // The client left while the request was being dispatched.
+                return write_unknown_session(&mut stream);
+            }
+            return write_all(
+                &mut stream,
+                b"HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            );
+        }
+        let Some(response) = process(state, body_text) else {
+            // Accepted JSON-RPC notifications never receive a JSON-RPC
+            // response. 202 + an empty body also matches Streamable HTTP's
+            // notification acknowledgement if this endpoint is upgraded later.
+            return write_all(
+                &mut stream,
+                b"HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            );
+        };
+        let result_json = response.to_json_string();
+        let mut out = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            result_json.len()
+        );
+        out.push_str(&result_json);
+        return write_all(&mut stream, out.as_bytes());
     }
 
     write_all(
@@ -264,117 +296,15 @@ where
     )
 }
 
-/// Extract the raw body bytes from an HTTP request line and headers.
-fn body_raw(raw: &[u8]) -> Option<&[u8]> {
-    let raw_str = std::str::from_utf8(raw).ok()?;
-    let header_end = raw_str.find("\r\n\r\n")?;
-    let body_start = header_end + 4;
-    let body = &raw[body_start..];
-    let len = raw_str[..header_end]
-        .lines()
-        .find(|l| l.to_ascii_lowercase().starts_with("content-length:"))
-        .and_then(|l| l.split_once(':'))
-        .and_then(|(_, v)| v.trim().parse::<usize>().ok())?;
-    if body.len() < len {
-        return None;
-    }
-    Some(&body[..len])
-}
-
-/// Handle `GET /sse`: establish a persistent SSE stream.
-fn serve_sse(
-    stream: &mut TcpStream,
-    streams: &StreamRegistry,
-    stop: &Arc<AtomicBool>,
-) -> std::io::Result<()> {
-    let stream_id = streams.next_stream_id();
-    let (_id, _tx) = streams.create();
-
-    let mut response = String::new();
-    response.push_str("HTTP/1.1 200 OK\r\n");
-    response.push_str("Content-Type: text/event-stream\r\n");
-    response.push_str("Cache-Control: no-cache\r\n");
-    response.push_str("Connection: keep-alive\r\n");
-    response.push_str("\r\n");
-    response.push_str(&format!(
-        "data: {}\n\n",
-        serde_json::json!({
-            "endpoint": format!("/message?id={stream_id}")
-        })
-        .to_string()
-    ));
-
-    write_all(stream, response.as_bytes())?;
-
-    // Keep the connection open until stop or peer disconnects.
-    let mut buf = [0_u8; 4096];
-    while !stop.load(Ordering::SeqCst) {
-        match stream.read(&mut buf) {
-            Ok(0) | Err(_) => break,
-            Ok(_) => {}
-        }
-    }
-    streams.remove(&stream_id);
-    Ok(())
-}
-
-/// Handle `POST /message?id={stream_id}`: publish JSON-RPC response as SSE event.
-fn serve_message<F>(
-    stream: &mut TcpStream,
-    state: McpState,
-    raw: &[u8],
-    body: Option<&[u8]>,
-    process: &F,
-    streams: &StreamRegistry,
-) -> std::io::Result<()>
-where
-    F: Fn(McpState, &str) -> Option<crate::rpc::RpcResponse>,
-{
-    let stream_id = std::str::from_utf8(raw)
-        .ok()
-        .and_then(|text| {
-            text.lines()
-                .find(|l| l.to_ascii_lowercase().starts_with("request-target:"))
-                .or_else(|| {
-                    let request_line_end = text.find("\r\n").unwrap_or(text.len());
-                    text[..request_line_end].split(' ').nth(1)
-                })
-        })
-        .and_then(|target| {
-            target.split('?').nth(1).and_then(|q| {
-                q.split('&')
-                    .find(|pair| pair.starts_with("id="))
-                    .and_then(|pair| pair.strip_prefix("id="))
-            })
-        })
-        .unwrap_or("");
-
-    let body_text = body.unwrap_or_default();
-    let body_str = std::str::from_utf8(body_text).unwrap_or("");
-
-    if let Some(response) = process(state, body_str) {
-        if let Some(sender) = streams.get(stream_id) {
-            let _ = sender.send(serde_json::to_string(&response.0).unwrap_or_default());
-        }
-    }
-    streams.remove(stream_id);
-
+fn write_unknown_session(stream: &mut TcpStream) -> std::io::Result<()> {
     write_all(
         stream,
-        b"HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-    )?;
-    Ok(())
+        b"HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: 27\r\nConnection: close\r\n\r\n{\"error\":\"unknown session\"}",
+    )
 }
 
-/// Validate the `Origin` header against loopback to prevent DNS rebinding.
-fn request_origin_is_allowed(raw: &[u8]) -> bool {
-    let block = std::str::from_utf8(raw)
-        .ok()
-        .map(|text| {
-            let header_end = text.find("\r\n\r\n").unwrap_or(text.len());
-            &text[..header_end]
-        })
-        .unwrap_or("");
+fn request_origin_is_allowed(raw: &str) -> bool {
+    let block = raw.find("\r\n\r\n").map_or(raw, |index| &raw[..index]);
     let mut origins = block
         .split("\r\n")
         .skip(1)
@@ -388,6 +318,8 @@ fn request_origin_is_allowed(raw: &[u8]) -> bool {
     let Some(origin) = origins.next() else {
         return true;
     };
+    // Multiple Origin fields are ambiguous and therefore fail closed, even if
+    // one happens to name loopback.
     origins.next().is_none() && is_allowed_loopback_origin(origin)
 }
 
@@ -453,6 +385,7 @@ mod tests {
         let stop = server.stop_flag();
         let stop_for_thread = Arc::clone(&stop);
         let handle = thread::spawn(move || {
+            // Serve a few connections then exit when stop is set.
             for _ in 0..8 {
                 if stop_for_thread.load(Ordering::SeqCst) {
                     break;
@@ -460,6 +393,7 @@ mod tests {
                 let _ = server.serve_one();
             }
         });
+        // Brief settle.
         thread::sleep(Duration::from_millis(30));
         f(port);
         stop.store(true, Ordering::SeqCst);
@@ -468,6 +402,7 @@ mod tests {
     }
 
     fn read_http(stream: &mut TcpStream) -> String {
+        use std::io::Read;
         let mut out = Vec::new();
         let mut buf = [0_u8; 4096];
         loop {
@@ -475,7 +410,9 @@ mod tests {
                 Ok(0) | Err(_) => break,
                 Ok(n) => out.extend_from_slice(&buf[..n]),
             }
+            // Enough for our test responses.
             if out.len() > 64 && out.windows(4).any(|w| w == b"\r\n\r\n") {
+                // If Content-Length is present and satisfied, stop.
                 if let Ok(text) = std::str::from_utf8(&out)
                     && let Some(cl) = text
                         .lines()
@@ -505,6 +442,7 @@ mod tests {
             env::set_override(MCP_HTTP_PORT, value);
             assert_eq!(HttpConfig::from_env().port, DEFAULT_HTTP_PORT, "{value:?}");
         }
+
         env::set_override(MCP_HTTP_PORT, "61234");
         assert_eq!(HttpConfig::from_env().port, 61_234);
     }
@@ -523,7 +461,11 @@ mod tests {
         assert_ne!(port, 0);
         let stop = server.stop_flag();
         let handle = thread::spawn(move || server.run());
+
         stop.store(true, Ordering::SeqCst);
+        // The server may observe the stop flag before blocking in `accept`, in
+        // which case it can close before this wake connection arrives. Either
+        // outcome is correct; the join below is the shutdown invariant.
         let _ = TcpStream::connect((Ipv4Addr::LOCALHOST, port));
         handle
             .join()
@@ -532,19 +474,23 @@ mod tests {
     }
 
     #[test]
-    fn post_message_ping_returns_sse_message() {
+    fn post_message_ping_returns_jsonrpc_result() {
         use std::io::Write;
         with_server(None, |port| {
             let mut stream = TcpStream::connect(format!("127.0.0.1:{port}")).expect("connect");
             let body = r#"{"jsonrpc":"2.0","id":7,"method":"ping"}"#;
             let req = format!(
-                "POST /message?id=test-stream HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+                "POST /message HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
                 body.len()
             );
             stream.write_all(req.as_bytes()).expect("write");
             let resp = read_http(&mut stream);
-            assert!(resp.contains("202 Accepted"), "{resp}");
-            assert!(resp.contains("Content-Length: 0"), "{resp}");
+            assert!(resp.contains("200 OK"), "{resp}");
+            assert!(
+                resp.contains(r#""id":7"#) || resp.contains(r#""result":{}"#),
+                "{resp}"
+            );
+            assert!(resp.contains("jsonrpc"), "{resp}");
         });
     }
 
@@ -555,13 +501,15 @@ mod tests {
             let mut stream = TcpStream::connect(format!("127.0.0.1:{port}")).expect("connect");
             let body = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
             let req = format!(
-                "POST /message?id=test-stream HTTP/1.1\r\nContent-Length: {}\r\n\r\n{body}",
+                "POST /message HTTP/1.1\r\nContent-Length: {}\r\n\r\n{body}",
                 body.len()
             );
             stream.write_all(req.as_bytes()).expect("write");
             let resp = read_http(&mut stream);
             assert!(resp.starts_with("HTTP/1.1 202 Accepted"), "{resp}");
             assert!(resp.contains("Content-Length: 0"), "{resp}");
+            let body = find_body(resp.as_bytes()).unwrap_or_default();
+            assert!(body.is_empty(), "notification response body: {body:?}");
         });
     }
 
@@ -574,8 +522,6 @@ mod tests {
         let dispatched_in_handler = Arc::clone(&dispatched);
         let handle = thread::spawn(move || {
             let (stream, _) = listener.accept().expect("accept probe request");
-            let streams = Arc::new(SseRegistry::new());
-            let stop = Arc::new(AtomicBool::new(false));
             handle_connection_with(
                 stream,
                 McpState::new(),
@@ -584,8 +530,8 @@ mod tests {
                     dispatched_in_handler.store(true, Ordering::SeqCst);
                     None
                 },
-                streams,
-                stop,
+                &Arc::new(SessionRegistry::new()),
+                &Arc::new(AtomicBool::new(false)),
             )
             .expect("handle hostile origin");
         });
@@ -635,21 +581,46 @@ mod tests {
             assert!(!is_allowed_loopback_origin(origin), "{origin}");
         }
         assert!(!request_origin_is_allowed(
-            b"GET /sse HTTP/1.1\r\nOrigin: http://localhost\r\nOrigin: https://attacker.example\r\n\r\n"
+            "GET /sse HTTP/1.1\r\nOrigin: http://localhost\r\nOrigin: https://attacker.example\r\n\r\n"
         ));
     }
 
     #[test]
-    fn get_sse_announces_message_endpoint() {
-        use std::io::Write;
+    fn get_sse_announces_a_session_endpoint_and_stays_open() {
+        use std::io::{Read, Write};
         with_server(None, |port| {
             let mut stream = TcpStream::connect(format!("127.0.0.1:{port}")).expect("connect");
             stream
                 .write_all(b"GET /sse HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
                 .expect("write");
-            let resp = read_http(&mut stream);
-            assert!(resp.contains("200 OK"), "{resp}");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("read timeout");
+            let mut out = Vec::new();
+            let mut buf = [0_u8; 1024];
+            while !String::from_utf8_lossy(&out).contains("sessionId=") || !out.ends_with(b"\n\n") {
+                match stream.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => out.extend_from_slice(&buf[..n]),
+                }
+            }
+            let resp = String::from_utf8_lossy(&out);
+            assert!(resp.starts_with("HTTP/1.1 200 OK"), "{resp}");
             assert!(resp.contains("text/event-stream"), "{resp}");
+            assert!(resp.contains("Connection: keep-alive"), "{resp}");
+            assert!(
+                resp.contains("\r\n\r\nevent: endpoint\ndata: /message?sessionId="),
+                "{resp}"
+            );
+
+            // The stream stays open: a short read times out instead of EOF.
+            stream
+                .set_read_timeout(Some(Duration::from_millis(300)))
+                .expect("short timeout");
+            assert!(
+                !matches!(stream.read(&mut buf), Ok(0)),
+                "an SSE session must not close after the endpoint event"
+            );
         });
     }
 
@@ -660,21 +631,22 @@ mod tests {
             let mut stream = TcpStream::connect(format!("127.0.0.1:{port}")).expect("connect");
             let body = r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#;
             let req = format!(
-                "POST /message?id=test-stream HTTP/1.1\r\nContent-Length: {}\r\n\r\n{body}",
+                "POST /message HTTP/1.1\r\nContent-Length: {}\r\n\r\n{body}",
                 body.len()
             );
             stream.write_all(req.as_bytes()).expect("write");
             let resp = read_http(&mut stream);
             assert!(resp.contains("401"), "{resp}");
 
+            // Wake server for second connection.
             let mut stream2 = TcpStream::connect(format!("127.0.0.1:{port}")).expect("connect2");
             let req2 = format!(
-                "POST /message?id=test-stream HTTP/1.1\r\nAuthorization: Bearer local-token\r\nContent-Length: {}\r\n\r\n{body}",
+                "POST /message HTTP/1.1\r\nAuthorization: Bearer local-token\r\nContent-Length: {}\r\n\r\n{body}",
                 body.len()
             );
             stream2.write_all(req2.as_bytes()).expect("write2");
             let resp2 = read_http(&mut stream2);
-            assert!(resp2.contains("202 Accepted"), "{resp2}");
+            assert!(resp2.contains("200 OK"), "{resp2}");
         });
     }
 
@@ -706,7 +678,7 @@ mod tests {
             ] {
                 let mut stream = TcpStream::connect(format!("127.0.0.1:{port}")).expect("connect");
                 let req = format!(
-                    "POST /message?id=test-stream HTTP/1.1\r\n{auth}Content-Length: {}\r\n\r\n{body}",
+                    "POST /message HTTP/1.1\r\n{auth}Content-Length: {}\r\n\r\n{body}",
                     body.len()
                 );
                 stream.write_all(req.as_bytes()).expect("write");

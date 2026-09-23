@@ -1,8 +1,9 @@
 //! `abi-mcp`: stdio plus a best-effort custom loopback HTTP entry point.
 //!
 //! Ported from `src/mcp/main.zig`. Stdio remains the primary transport; the
-//! one-request-per-connection HTTP compatibility endpoint is spawned on a
-//! background thread when the loopback bind succeeds.
+//! loopback HTTP listener (persistent HTTP+SSE sessions plus the one-shot
+//! `POST /message` compatibility mode) is spawned on a background thread when
+//! the loopback bind succeeds.
 
 use std::sync::atomic::Ordering;
 
