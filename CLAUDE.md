@@ -45,7 +45,7 @@ gate below is for code changes.
 | `./tools/cargo.sh test --workspace` | Full test suite (also run by `check.sh`) |
 | `./tools/cargo.sh test --manifest-path ../wdbx/Cargo.toml -p abi-wdbx --lib -- <filter>` | Test the **sibling substrate** from this checkout. No cargo command here reaches `../wdbx` without `--manifest-path`: `--workspace` stops at ABI's own members even though the path deps resolve. |
 | `./tools/cargo.sh fmt --all` | Apply rustfmt |
-| `python3 -m unittest discover -s tools/tests -p 'test_*.py'` | The repository policy tests that open `check.sh` (six suites: abbey_contracts, ci_contract, docs_policy, docs_templates, pages_contract, site_contract) |
+| `python3 -m unittest discover -s tools/tests -p 'test_*.py'` | The repository policy tests that open `check.sh` (seven suites: abbey_contracts, ci_contract, docs_policy, docs_templates, pages_contract, site_contract, sync_clis) |
 | `python3 tools/abbey_contracts.py verify contracts/abbey` | The authoritative Python oracle for the Abbey corpus; `xtask abbey verify` must match it |
 | `bash ./tools/check_rust_sizes.sh` | File-size gate on its own |
 | `RUSTDOCFLAGS="-D warnings" ./tools/cargo.sh doc --workspace --no-deps` | The doc gate on its own — a common late-stage failure |
@@ -277,9 +277,11 @@ Measure before trusting any of this — it goes stale as work lands
 
 `tools/check_rust_sizes.sh` rejects Rust files (tracked or untracked, tests
 included) over 1,000 lines and rejects `crates/abi-cli/src/main.rs` over 200.
-On 2026-09-15 only `crates/abi-cli/src/complete.rs` (904) sat inside the
-900–1000 band; `crates/abi-cli/src/wdbx_simulate.rs` (the bounded multiway
-rewriting engine behind `abi wdbx simulate`) had dropped to 827. Run the
+On 2026-09-23 two files sat inside the 900–1000 band:
+`crates/abi-wdbx-gateway/tests/episodes.rs` (983, the closest to the limit, so
+new episode-gate tests belong in a new test file) and
+`crates/abi-cli/src/complete.rs` (904); `crates/abi-cli/src/wdbx_simulate.rs`
+(the bounded multiway rewriting engine behind `abi wdbx simulate`) was 827. Run the
 command above rather than trusting a written-down count. The sibling `../wdbx`
 tree has its own band-dwellers under `abi-wdbx/src/`
 (`{hnsw,multiway,v2/lifecycle,v3/episode/store}.rs`), but that checkout is not
