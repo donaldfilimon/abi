@@ -78,5 +78,6 @@ Maps to:
 
 All twelve handlers are built into `abi-mcp`; the historical `feat-*` switches
 do not exist in this Rust workspace. The loopback listener is attempted at
-startup, bind failure leaves stdio running, and one-event `GET /sse` is not a
-persistent conforming MCP HTTP+SSE transport.
+startup, bind failure leaves stdio running, and `GET /sse` opens a persistent
+MCP 2024-11-05 HTTP+SSE session (not Streamable HTTP); `POST /message` without
+a session keeps the one-shot direct-reply mode.

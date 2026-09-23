@@ -26,9 +26,11 @@ Entry point for the abi MCP server (`crates/abi-mcp/src/`). Routes to specialist
 Stdio exits on stdin EOF (not a long-lived daemon). Startup also attempts the
 custom loopback listener (`127.0.0.1:8080` by default, configured with
 `ABI_MCP_HTTP_PORT` / `ABI_MCP_HTTP_TOKEN`); bind failure leaves stdio running.
-`GET /sse` emits one discovery event and closes, while `POST /message` handles
-one JSON-RPC message per connection. This is not conforming persistent MCP
-HTTP+SSE, and non-loopback serving is not supported. Rust handlers return
+`GET /sse` opens a persistent MCP 2024-11-05 HTTP+SSE session whose
+`POST /message?sessionId=<id>` responses arrive as SSE `message` events (`202`
+on the POST; unknown session `404`; at most 16 sessions), while `POST /message`
+without a session keeps the one-shot direct-reply mode. It is not Streamable
+HTTP (2025-03-26), and non-loopback serving is not supported. Rust handlers return
 bounded JSON-RPC errors without exposing internal error chains.
 
 Client registrations (cleaned 2026-09): consistent across grok/claude/codex/opencode/cursor + abi project scopes. Use launcher for abi-mcp everywhere. See `opencode` and `help` skills for the exact current lists.

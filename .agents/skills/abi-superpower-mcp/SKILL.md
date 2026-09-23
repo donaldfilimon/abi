@@ -79,7 +79,9 @@ Maps to:
 The twelve handlers are built into `abi-mcp`; the historical `feat-ai`,
 `feat-wdbx`, `feat-metrics`, and `feat-tui` switches do not exist in this Rust
 workspace. The loopback listener is attempted at process startup and bind
-failure leaves stdio running. `GET /sse` emits one discovery event and closes;
-this is not a persistent conforming MCP HTTP+SSE transport.
+failure leaves stdio running. `GET /sse` opens a persistent MCP 2024-11-05
+HTTP+SSE session (responses to `POST /message?sessionId=<id>` arrive as SSE
+`message` events); `POST /message` without a session keeps the one-shot
+direct-reply mode. It is not Streamable HTTP (2025-03-26).
 
 Client-side: registered consistently (see `mcp` skill + post-cleanup global configs).

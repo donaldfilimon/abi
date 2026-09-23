@@ -13,8 +13,9 @@ Safe repo-backed wording:
 - WDBX is an in-process vector/key-value/block store with segment checkpoints, WAL recovery, temporal/causal records, HNSW-style cosine search, and hybrid ranking where wired.
 - CLI and MCP surfaces are frozen and contract-tested.
 - MCP stdio is local IPC. Startup also attempts a custom loopback HTTP listener
-  that can require `ABI_MCP_HTTP_TOKEN`; its one-event `/sse` discovery response
-  is not persistent MCP HTTP+SSE.
+  that can require `ABI_MCP_HTTP_TOKEN`. It serves persistent MCP 2024-11-05
+  HTTP+SSE sessions (contract-tested against stdio bytes) plus a one-shot
+  direct-reply `POST /message` mode; it is not Streamable HTTP (2025-03-26).
 - WDBX REST is loopback and can require `ABI_WDBX_REST_TOKEN`.
 - WDBX cluster RPC uses real TCP RequestVote/AppendEntries, supports `ABI_WDBX_CLUSTER_TOKEN`, optional `ABI_WDBX_CLUSTER_PEERS`, and refuses non-loopback binds without a token. Signed membership, rendezvous placement, exact committed-transaction replication/read repair, resumable rebalance, and `cluster local-demo` are locally tested; they are not production separate-host proof.
 - GPU support includes capability/status reporting and vector operations with
