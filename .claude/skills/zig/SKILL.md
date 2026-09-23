@@ -1,6 +1,6 @@
 ---
 name: zig
-description: Start here for any Zig work on this Mac. Covers, through its eleven references/ files, the toolchain, types, errors, memory, comptime, builtins, the standard library, the std.Io rewrite, the build system, testing, and C interop. Load this before writing Zig from memory, because the installed toolchain is master and has removed constructs that every tutorial and every model still teaches. Also use for Zig type-system, error-set, allocator, comptime/reflection, @-builtin, std library, std.Io readers/writers, build.zig/build.zig.zon, test-block, and extern/export/zig cc questions (these were the separate zig-* skills).
+description: Start here for any Zig work on this Mac. Routes to the eleven zig-* skills covering the toolchain, types, errors, memory, comptime, builtins, the standard library, the std.Io rewrite, the build system, testing, and C interop. Load this before writing Zig from memory, because the installed toolchain is master and has removed constructs that every tutorial and every model still teaches.
 ---
 
 # Zig on this Mac
@@ -45,29 +45,27 @@ Never answer a Zig question from memory. Read
 
 ## Where to go
 
-Each topic below is a file in this skill's `references/` directory (merged from the former `zig-*` skills on 2026-09-21); read the one you need rather than all of them.
-
-- **[references/toolchain.md](references/toolchain.md)** first for anything environmental: which zig is active,
+- **[[zig-toolchain]]** first for anything environmental: which zig is active,
   the dangling `~/.zvm/current` symlink, the second zig on PATH, where the
   langref and stdlib source live, scratch-path rules.
-- **[references/types.md](references/types.md)** for the type system: pointers, slices, sentinels, optionals,
+- **[[zig-types]]** for the type system: pointers, slices, sentinels, optionals,
   error unions, structs, enums, unions, vectors, coercion, casting.
-- **[references/errors.md](references/errors.md)** for error sets, `try`, `catch`, `errdefer`, error return
+- **[[zig-errors]]** for error sets, `try`, `catch`, `errdefer`, error return
   traces, and when to use `unreachable` or `assert` instead of an error.
-- **[references/memory.md](references/memory.md)** for allocators, ownership discipline, alignment, and the
+- **[[zig-memory]]** for allocators, ownership discipline, alignment, and the
   leak-checked test pattern.
-- **[references/comptime.md](references/comptime.md)** for generics, `inline`, `@TypeOf`, `@typeInfo`,
+- **[[zig-comptime]]** for generics, `inline`, `@TypeOf`, `@typeInfo`,
   reflection, and the comptime failure modes.
-- **[references/builtins.md](references/builtins.md)** for the `@`-builtin reference: 128 recognized, 126 usable.
-- **[references/std.md](references/std.md)** for the standard library map: containers, `fmt`, `mem`, `json`,
+- **[[zig-builtins]]** for the `@`-builtin reference: 128 recognized, 126 usable.
+- **[[zig-std]]** for the standard library map: containers, `fmt`, `mem`, `json`,
   `http`, `crypto`, `math`, `sort`, threads, time.
-- **[references/io.md](references/io.md)** for the `std.Io` rewrite: readers, writers, buffering, printing
+- **[[zig-io]]** for the `std.Io` rewrite: readers, writers, buffering, printing
   to stdout, and async under `Io.Threaded`. **The most-changed surface; go here
   before any I/O or concurrency work.**
-- **[references/build.md](references/build.md)** for `build.zig`, `build.zig.zon`, modules, steps,
+- **[[zig-build]]** for `build.zig`, `build.zig.zon`, modules, steps,
   dependencies, and cross-compilation.
-- **[references/testing.md](references/testing.md)** for test blocks, filters, `std.testing`, and fuzzing.
-- **[references/c-interop.md](references/c-interop.md)** for `extern`, `export`, the C ABI, linking, and using
+- **[[zig-testing]]** for test blocks, filters, `std.testing`, and fuzzing.
+- **[[zig-c-interop]]** for `extern`, `export`, the C ABI, linking, and using
   `zig cc` as a cross compiler.
 
 ## False greens seen on this toolchain
@@ -81,6 +79,6 @@ status, not the command's, which has manufactured false green claims here before
 ## Projects using Zig here
 
 `~/dev/active/cell-lang` is the Cell language compiler; read its `AGENTS.md`
-first, and always build it with `-Dswift=false`. `~/dev/archive/string-zig-nogit-20260906` is a small
-unversioned Zig package (formerly `~/string`, moved 2026-09-21). `~/dev/archive/wdbx-zig-scaffold` is a
+first, and always build it with `-Dswift=false`. `~/string` is a small
+unversioned Zig package at the home root. `~/dev/archive/wdbx-zig-scaffold` is a
 historical scaffold and not the Rust WDBX substrate.
