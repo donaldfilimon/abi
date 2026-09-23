@@ -42,7 +42,9 @@ Safe execution steps for clean-slate modernization. Pair with the validation pha
 
 - Source wins over prose (`AGENTS.md` / `CLAUDE.md` / `GEMINI.md` stay siblings when conventions change).
 - Claims: no unproven sharding, production FHE, native GPU dispatch, non-loopback hardening, QPS/latency/accuracy figures.
-- Inside `src/`: relative `.rs` imports only (MCP handler group may crate root / `abi_*` deps).
+- Live code is under `crates/*` (the Zig `src/` tree is retired). The substrate crates (`abi-foundation`, `abi-core`, `abi-telemetry`, `abi-compute`, `abi-wdbx`) come from sibling `../wdbx/crates/` as path deps: never vendor them or turn them into git deps.
+- Keep `abi-ai`'s routing core store-agnostic; WDBX retrieval and persistence belong in the SEA/CLI/MCP layers.
+- Split before a file crosses the size gate (`tools/check_rust_sizes.sh`: 1,000 lines per `.rs`, 200 for `crates/abi-cli/src/main.rs`).
 - Prefer configurable temp dirs (`TMPDIR` / `SCRATCH` env) over hardcoded session paths in tools.
 
 ## Done criteria (before handoff)
