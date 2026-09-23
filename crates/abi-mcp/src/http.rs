@@ -1,4 +1,4 @@
-//! Custom loopback HTTP compatibility transport for MCP JSON-RPC.
+//! Custom loopback HTTP transport for MCP JSON-RPC.
 //!
 //! Ported from `src/mcp/http_transport.zig`. Listens on `127.0.0.1` only:
 //! - `GET /sse` — opens a persistent MCP 2024-11-05 HTTP+SSE session: an
