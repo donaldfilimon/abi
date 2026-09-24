@@ -14,8 +14,11 @@ use abi_ai::{
 };
 use abi_foundation::http::{
     DeadlineReader, MAX_REQUEST_SIZE, ReadResult, find_body, has_bearer_token, header_value,
-    read_request, reason_phrase, write_all, write_unauthorized,
+    loopback_host_allowed, loopback_origin_allowed, read_request, reason_phrase, write_all,
+    write_unauthorized,
 };
+#[cfg(test)]
+use abi_foundation::http::{is_loopback_host, is_loopback_origin};
 use serde_json::{Value, json};
 
 use crate::app::Outcome;
@@ -271,69 +274,8 @@ fn token_from_env() -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-fn is_loopback_host(host: &str) -> bool {
-    let hostname = host.rsplit_once(':').map_or(host, |(name, _)| name);
-    matches!(hostname, "127.0.0.1" | "localhost" | "[::1]")
-}
-
-/// Accept only a serialized `http` origin whose authority is exactly a
-/// loopback host with an optional nonzero port. Parsed structurally, never
-/// prefix-matched: `http://localhost.evil.example` and
-/// `http://localhost@evil.example` both begin with `http://localhost`.
-fn is_loopback_origin(origin: &str) -> bool {
-    let Some(authority) = origin.strip_prefix("http://") else {
-        return false;
-    };
-    if authority.is_empty()
-        || authority
-            .bytes()
-            .any(|byte| matches!(byte, b'/' | b'?' | b'#' | b'@'))
-    {
-        return false;
-    }
-    // A bracketed IPv6 literal contains colons, so split after its `]`.
-    let (host, rest) = if authority.starts_with('[') {
-        match authority.find(']') {
-            Some(end) => authority.split_at(end + 1),
-            None => return false,
-        }
-    } else {
-        authority
-            .find(':')
-            .map_or((authority, ""), |index| authority.split_at(index))
-    };
-    if !matches!(host, "127.0.0.1" | "localhost" | "[::1]") {
-        return false;
-    }
-    rest.is_empty()
-        || rest
-            .strip_prefix(':')
-            .and_then(|port| port.parse::<u16>().ok())
-            .is_some_and(|port| port != 0)
-}
-
 fn host_allowed(raw: &str) -> bool {
-    header_value(raw, "Host").is_some_and(is_loopback_host)
-}
-
-/// Native clients omit `Origin`; a browser request must carry exactly one
-/// loopback origin. Repeated `Origin` fields are ambiguous and fail closed.
-fn origin_allowed(raw: &str) -> bool {
-    let block = raw.find("\r\n\r\n").map_or(raw, |index| &raw[..index]);
-    let mut origins = block
-        .split("\r\n")
-        .skip(1)
-        .take_while(|line| !line.is_empty())
-        .filter_map(|line| line.split_once(':'))
-        .filter(|(name, _)| {
-            name.trim_matches([' ', '\t'])
-                .eq_ignore_ascii_case("Origin")
-        })
-        .map(|(_, value)| value.trim_matches([' ', '\t']));
-    let Some(origin) = origins.next() else {
-        return true;
-    };
-    origins.next().is_none() && is_loopback_origin(origin)
+    header_value(raw, "Host").is_some() && loopback_host_allowed(raw)
 }
 
 fn request_target(raw: &str) -> Option<(&str, &str)> {
@@ -387,7 +329,7 @@ fn handle_connection_with_deadline(
     let Ok(raw_text) = std::str::from_utf8(&raw) else {
         return write_response(stream, &StudioResponse::error(400, "incomplete request"));
     };
-    if !host_allowed(raw_text) || !origin_allowed(raw_text) {
+    if !host_allowed(raw_text) || !loopback_origin_allowed(raw_text) {
         return write_response(stream, &StudioResponse::error(403, "loopback origin only"));
     }
     let Some((method, path)) = request_target(raw_text) else {
@@ -606,8 +548,15 @@ mod tests {
         assert!(is_loopback_host("127.0.0.1:8095"));
         assert!(is_loopback_host("localhost"));
         assert!(!is_loopback_host("evil.example"));
+        assert!(!is_loopback_host("localhost:not-a-port"));
         assert!(is_loopback_origin("http://127.0.0.1:8095"));
         assert!(!is_loopback_origin("https://evil.example"));
+        assert!(!host_allowed(
+            "GET / HTTP/1.1\r\nHost: localhost:not-a-port\r\n\r\n"
+        ));
+        assert!(!host_allowed(
+            "GET / HTTP/1.1\r\nHost: localhost\r\nHost: attacker.example\r\n\r\n"
+        ));
     }
 
     #[test]
@@ -648,11 +597,13 @@ mod tests {
 
     #[test]
     fn duplicate_origin_headers_fail_closed() {
-        assert!(origin_allowed("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"));
-        assert!(origin_allowed(
+        assert!(loopback_origin_allowed(
+            "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
+        ));
+        assert!(loopback_origin_allowed(
             "GET / HTTP/1.1\r\nHost: localhost\r\nOrigin: http://localhost:8095\r\n\r\n"
         ));
-        assert!(!origin_allowed(
+        assert!(!loopback_origin_allowed(
             "GET / HTTP/1.1\r\nOrigin: http://localhost\r\norigin: https://evil.example\r\n\r\n"
         ));
     }

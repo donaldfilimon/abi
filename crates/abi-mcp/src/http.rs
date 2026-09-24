@@ -25,8 +25,8 @@ use std::time::Duration;
 
 use abi_foundation::env::{self, MCP_HTTP_PORT, MCP_HTTP_TOKEN};
 use abi_foundation::http::{
-    DeadlineReader, MAX_REQUEST_SIZE, ReadResult, find_body, has_bearer_token, read_request,
-    write_all, write_unauthorized,
+    DeadlineReader, MAX_REQUEST_SIZE, ReadResult, find_body, has_bearer_token,
+    loopback_host_allowed, read_request, write_all, write_unauthorized,
 };
 
 use crate::rpc;
@@ -205,10 +205,15 @@ where
         .split('&')
         .find_map(|pair| pair.strip_prefix("sessionId="));
 
-    // MCP's HTTP transports require Origin validation to prevent a website
-    // from reaching a loopback listener through DNS rebinding. Native clients
-    // normally omit Origin. Browser-style requests are admitted only when the
-    // serialized origin itself is the exact IPv4 loopback or localhost host.
+    // Check a supplied Host before auth or dispatch to reject DNS-rebound
+    // names; native clients may omit it. A browser-supplied Origin must also
+    // name the exact IPv4 loopback or localhost authority.
+    if !loopback_host_allowed(raw_text) {
+        return write_all(
+            &mut stream,
+            b"HTTP/1.1 403 Forbidden\r\nContent-Type: application/json\r\nContent-Length: 24\r\nConnection: close\r\n\r\n{\"error\":\"invalid host\"}",
+        );
+    }
     if !request_origin_is_allowed(raw_text) {
         return write_all(
             &mut stream,
@@ -714,6 +719,52 @@ mod tests {
             !dispatched.load(Ordering::SeqCst),
             "hostile Origin reached the mutating dispatch seam"
         );
+    }
+
+    #[test]
+    fn hostile_host_is_rejected_before_auth_or_dispatch() {
+        use std::io::Write;
+
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind probe listener");
+        let port = listener.local_addr().expect("probe address").port();
+        let dispatched = Arc::new(AtomicBool::new(false));
+        let dispatched_in_handler = Arc::clone(&dispatched);
+        let handle = thread::spawn(move || {
+            for _ in 0..2 {
+                let (stream, _) = listener.accept().expect("accept probe request");
+                let flag = Arc::clone(&dispatched_in_handler);
+                handle_connection_with(
+                    stream,
+                    McpState::new(),
+                    Some("local-token"),
+                    move |_, _| {
+                        flag.store(true, Ordering::SeqCst);
+                        None
+                    },
+                    &Arc::new(SessionRegistry::new()),
+                    &Arc::new(AtomicBool::new(false)),
+                )
+                .expect("reject hostile host");
+            }
+        });
+
+        for host_headers in [
+            "Host: attacker.example\r\n",
+            "Host: localhost\r\nHost: attacker.example\r\n",
+        ] {
+            let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).expect("connect");
+            let body = r#"{"jsonrpc":"2.0","id":7,"method":"ping"}"#;
+            let request = format!(
+                "POST /message HTTP/1.1\r\n{host_headers}Content-Length: {}\r\n\r\n{body}",
+                body.len()
+            );
+            stream.write_all(request.as_bytes()).expect("write");
+            let response = read_http(&mut stream);
+            assert!(response.starts_with("HTTP/1.1 403 Forbidden"), "{response}");
+            assert!(response.contains("invalid host"), "{response}");
+        }
+        handle.join().expect("host probe joins");
+        assert!(!dispatched.load(Ordering::SeqCst));
     }
 
     #[test]
