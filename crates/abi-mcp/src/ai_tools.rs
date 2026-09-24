@@ -343,26 +343,22 @@ pub fn report_train(
         Err(err) => return format!("error: {err}"),
     };
     let (query_vec, response_vec) = training_vectors(profile);
-    let Ok(query_id) = store.put_vector(&query_vec) else {
-        return failed_training_persistence(&result, before, store.stats());
-    };
-    let Ok(response_id) = store.put_vector(&response_vec) else {
+    let Ok(recorded) = store.record_vector_pair(
+        &query_vec,
+        &response_vec,
+        &config.profile,
+        now_ms,
+        |query_id, response_id| {
+            (
+                training_store_key(&config.profile),
+                training_store_value(config, query_id, response_id, "cpu"),
+            )
+        },
+    ) else {
         return failed_training_persistence(&result, before, store.stats());
     };
 
-    let value = training_store_value(config, query_id, response_id, "cpu");
-    let key = training_store_key(&config.profile);
-    if store.put(&key, &value).is_err() {
-        return failed_training_persistence(&result, before, store.stats());
-    }
-    if store
-        .add_block(&config.profile, query_id, response_id, &value, now_ms)
-        .is_err()
-    {
-        return failed_training_persistence(&result, before, store.stats());
-    }
-
-    result = abi_ai::apply_store_persistence(result, query_id, response_id);
+    result = abi_ai::apply_store_persistence(result, recorded.query_id, recorded.response_id);
     let after = store.stats();
 
     format!(
@@ -386,7 +382,7 @@ fn failed_training_persistence(
     after: VersionedStats,
 ) -> String {
     format!(
-        "training accepted profile={} dataset={} records=0 backend=cpu wdbx_kv_entries={} wdbx_vectors={} wdbx_blocks={} total_kv_entries={} total_vectors={} total_blocks={}: training accepted; wdbx write failed",
+        "training accepted profile={} dataset={} records=0 backend=cpu wdbx_kv_entries={} wdbx_vectors={} wdbx_blocks={} total_kv_entries={} total_vectors={} total_blocks={}: training accepted; wdbx write outcome unknown",
         result.profile,
         result.dataset_path,
         stat_delta(after.kv_entries, before.kv_entries),
@@ -771,6 +767,28 @@ mod tests {
         assert!(output.contains("wdbx_vectors=2"));
         assert!(output.contains("wdbx_blocks=1"));
         assert!(output.contains("training metadata recorded in wdbx"));
+        assert_eq!(store.snapshot().committed_transactions(), 1);
+    }
+
+    #[test]
+    fn rejected_training_write_does_not_leave_a_partial_record() {
+        let (_dir, mut store) = scratch_store();
+        store.put_vector(&[1.0]).unwrap();
+        let before = store.stats();
+        let config = TrainingConfig {
+            profile: "abi".into(),
+            dataset: abi_ai::DatasetSpec {
+                path: "missing".into(),
+                format: abi_ai::DatasetFormat::Text,
+            },
+            artifact_dir: "out".into(),
+        };
+        let output = report_train(Some(&mut store), &config, FIXED_NOW_MS);
+        assert!(output.contains("records=0 backend=cpu"), "{output}");
+        assert!(output.contains("wdbx write outcome unknown"), "{output}");
+        assert_eq!(store.stats(), before);
+        assert_eq!(store.snapshot().committed_transactions(), 1);
+        assert!(store.get(&training_store_key("abi")).is_none());
     }
 
     #[test]
@@ -810,7 +828,7 @@ mod tests {
     }
 
     #[test]
-    fn failed_training_report_discloses_partial_writes_without_counting_a_record() {
+    fn failed_training_report_preserves_observed_counters_without_claiming_a_record() {
         let config = TrainingConfig {
             profile: "abi".into(),
             dataset: abi_ai::DatasetSpec {
@@ -839,7 +857,7 @@ mod tests {
             "{output}"
         );
         assert!(output.contains("total_kv_entries=5 total_vectors=10 total_blocks=2"));
-        assert!(output.ends_with("wdbx write failed"));
+        assert!(output.ends_with("wdbx write outcome unknown"));
     }
 
     #[test]

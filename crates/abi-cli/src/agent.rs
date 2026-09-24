@@ -159,31 +159,28 @@ fn train_profile(profile_arg: &str) -> Outcome {
             continue;
         };
         let mut records = 0_usize;
-        let mut write_failed = false;
+        let mut write_outcome_unknown = false;
         if let Some(store) = store.as_mut()
             && let Ok(profile) = parse_agent_profile(p)
         {
             let (q, r) = training_vectors(profile);
-            if let (Ok(qid), Ok(rid)) = (store.put_vector(&q), store.put_vector(&r)) {
-                let value = training_store_value(&config, qid, rid, "cpu");
-                let key = training_store_key(p);
-                if store.put(&key, &value).is_ok()
-                    && store
-                        .add_block(p, qid, rid, &value, abi_foundation::time::unix_ms())
-                        .is_ok()
-                {
-                    records = 1;
-                } else {
-                    write_failed = true;
-                }
+            let recorded =
+                store.record_vector_pair(&q, &r, p, abi_foundation::time::unix_ms(), |qid, rid| {
+                    (
+                        training_store_key(p),
+                        training_store_value(&config, qid, rid, "cpu"),
+                    )
+                });
+            if recorded.is_ok() {
+                records = 1;
             } else {
-                write_failed = true;
+                write_outcome_unknown = true;
             }
         }
         let status = if store_open_failed {
             "; wdbx_status=store-open-failed"
-        } else if write_failed {
-            "; wdbx_status=write-failed"
+        } else if write_outcome_unknown {
+            "; wdbx_status=write-outcome-unknown"
         } else {
             ""
         };
@@ -593,7 +590,40 @@ mod tests {
         assert!(store.get(&training_store_key("abi")).is_some());
         assert_eq!(store.stats().vectors, 2);
         assert_eq!(store.stats().blocks, 1);
+        assert_eq!(store.snapshot().committed_transactions(), 1);
         drop(store);
+        std::fs::remove_dir_all(&scratch).expect("remove scratch directory");
+    }
+
+    #[test]
+    fn train_profile_rejected_write_leaves_no_partial_record() {
+        let _guard = abi_foundation::env::lock_for_test();
+        let scratch =
+            std::env::temp_dir().join(format!("abi-agent-train-atomic-{}", uuid::Uuid::new_v4()));
+        let store_path = scratch.join("wdbx");
+        std::fs::create_dir_all(&scratch).expect("create scratch directory");
+        let mut seeded = abi_wdbx::VersionedStore::open(abi_wdbx::StorePaths::new(&store_path))
+            .expect("open scratch store");
+        seeded.put_vector(&[1.0]).unwrap();
+        let before = seeded.stats();
+        drop(seeded);
+        abi_foundation::env::set_override(
+            abi_foundation::env::WDBX_PATH,
+            &store_path.display().to_string(),
+        );
+        abi_foundation::env::set_override(abi_foundation::env::WDBX_PERSIST, "1");
+        let outcome = train_profile("abi");
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PATH);
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PERSIST);
+
+        assert_eq!(outcome.exit_code, 0);
+        assert!(outcome.stdout.contains("0 wdbx record(s)"));
+        assert!(outcome.stdout.contains("wdbx_status=write-outcome-unknown"));
+        let reopened = abi_wdbx::VersionedStore::open(abi_wdbx::StorePaths::new(&store_path))
+            .expect("reopen scratch store");
+        assert_eq!(reopened.stats(), before);
+        assert!(reopened.get(&training_store_key("abi")).is_none());
+        drop(reopened);
         std::fs::remove_dir_all(&scratch).expect("remove scratch directory");
     }
 
