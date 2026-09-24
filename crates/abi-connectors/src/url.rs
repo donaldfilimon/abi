@@ -7,27 +7,12 @@
 //! so its base URL must be HTTPS. Loopback is exempted so local integration tests
 //! and on-device servers work without TLS.
 //!
-//! The subtlety is the *host boundary* check. A plain `starts_with("http://127.0.0.1")`
-//! test would accept `http://127.0.0.1.evil.com` and `http://127.0.0.1@evil.com`,
-//! both of which resolve to an attacker's host while looking loopback-shaped. The
-//! prefix must therefore end at a real boundary — end of string, `:`, or `/`.
+//! The subtlety is parsing the destination, not checking a textual host prefix.
+//! Userinfo such as `127.0.0.1:443@evil.com` can look loopback-shaped while
+//! directing a cleartext request and its API key to the remote host.
 
 use crate::connector::{ConnectorError, Result};
 use base64::Engine as _;
-
-/// Whether `s` starts with `prefix`, case-insensitively, ending at a host boundary.
-///
-/// A boundary is end-of-string, `:` (port) or `/` (path). Anything else means the
-/// prefix is only a *substring* of a longer hostname, which is precisely the
-/// bypass this guards against.
-fn has_host_prefix(s: &str, prefix: &str) -> bool {
-    if s.len() < prefix.len() || !s[..prefix.len()].eq_ignore_ascii_case(prefix) {
-        return false;
-    }
-    // End of string, a port, or a path all end the hostname. Anything else means
-    // the prefix is a substring of a longer host — the bypass being guarded.
-    matches!(s.as_bytes().get(prefix.len()), None | Some(b':' | b'/'))
-}
 
 /// Require that a live connector's base URL cannot leak credentials.
 ///
@@ -35,12 +20,20 @@ fn has_host_prefix(s: &str, prefix: &str) -> bool {
 /// (optionally with a port or path). Everything else is
 /// [`ConnectorError::InsecureBaseUrl`].
 pub fn require_https_base_url(base_url: &str) -> Result<()> {
-    const HTTPS: &str = "https://";
-    if base_url.len() >= HTTPS.len() && base_url[..HTTPS.len()].eq_ignore_ascii_case(HTTPS) {
+    // ureq also parses requests as http::Uri. Use the same authority semantics
+    // before allowing cleartext, so userinfo cannot disguise a remote host.
+    let uri: http::Uri = base_url
+        .parse()
+        .map_err(|_| ConnectorError::InsecureBaseUrl)?;
+    let scheme = uri.scheme_str().ok_or(ConnectorError::InsecureBaseUrl)?;
+    let authority = uri.authority().ok_or(ConnectorError::InsecureBaseUrl)?;
+    if scheme.eq_ignore_ascii_case("https") {
         return Ok(());
     }
-    if has_host_prefix(base_url, "http://127.0.0.1")
-        || has_host_prefix(base_url, "http://localhost")
+    if scheme.eq_ignore_ascii_case("http")
+        && !authority.as_str().contains('@')
+        && (authority.host().eq_ignore_ascii_case("127.0.0.1")
+            || authority.host().eq_ignore_ascii_case("localhost"))
     {
         return Ok(());
     }
@@ -150,13 +143,14 @@ mod tests {
 
     #[test]
     fn loopback_lookalike_hostnames_do_not_bypass_the_check() {
-        // The whole reason for the host-boundary check. Each of these resolves
-        // to an attacker-controlled host while starting with a loopback prefix.
+        // Each of these resolves to a remote host while looking loopback-shaped.
         for url in [
             "http://127.0.0.1.evil.com",
             "http://127.0.0.1@evil.com",
+            "http://127.0.0.1:443@evil.com",
             "http://localhost.evil.com",
             "http://localhost@evil.com",
+            "http://localhost:80@evil.com",
             "http://127.0.0.10",
             "http://localhosts",
             "http://127.0.0.1x",

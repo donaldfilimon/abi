@@ -322,6 +322,29 @@ mod tests {
     }
 
     #[test]
+    fn build_request_rejects_loopback_userinfo_before_adding_credentials() {
+        for base_url in [
+            "http://127.0.0.1:443@evil.com",
+            "http://localhost:80@evil.com",
+        ] {
+            let config = ConnectorConfig::new("sk-test", base_url).live();
+            assert_eq!(
+                build_request(
+                    &config,
+                    Method::Post,
+                    "/v1",
+                    None,
+                    None,
+                    vec![Header::new("authorization", "Bearer sk-test")],
+                )
+                .unwrap_err(),
+                ConnectorError::InsecureBaseUrl,
+                "{base_url} must not reach a transport"
+            );
+        }
+    }
+
+    #[test]
     fn build_request_composes_url_headers_and_timeout() {
         let config = live_config().with_timeout_ms(1_500);
         let request = build_request(

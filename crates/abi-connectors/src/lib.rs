@@ -22,8 +22,8 @@
 //! ## Security invariants
 //!
 //! - A live `base_url` must be HTTPS, or loopback. Enforced by
-//!   [`url::require_https_base_url`], which checks the loopback prefix ends at a
-//!   real host boundary — `http://127.0.0.1.evil.com` must not pass.
+//!   [`url::require_https_base_url`], which checks the parsed destination host;
+//!   `http://127.0.0.1:443@evil.com` must not pass.
 //!   [`url::join_url`] re-checks, so a URL that would leak a key cannot be built.
 //! - The live transport does not follow redirects. A redirect from an HTTPS base
 //!   URL to an `http://` location would send the API key in cleartext.

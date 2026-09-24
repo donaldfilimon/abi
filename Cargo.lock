@@ -72,6 +72,7 @@ version = "0.1.0"
 dependencies = [
  "abi-foundation",
  "base64 0.22.1",
+ "http",
  "rcgen",
  "rustls",
  "rustls-pki-types",

@@ -66,6 +66,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 | Bound WDBX v3 episode ledger appends | ✅ | The append path checks the same 64 MiB whole-ledger ceiling enforced on reopen, independent of per-guild budgets. A scratch-store regression covers rejection without mutation and successful append/reopen after space is restored; WDBX and ABI full gates passed. |
 | Keep WDBX forgetting tombstones out of live-memory edges | ✅ | A zero-payload `forgets` record remains auditable but cannot itself be forgotten, superseded, quarantined, or contradicted as a live memory. A red-to-green scratch regression and edge tests cover append and reopen; WDBX and ABI full gates pass. |
 | Parse episode CLI endpoints before bearer-token dispatch | ✅ | A URL with loopback-looking userinfo and a remote host passed the old text-split check. The CLI now rejects userinfo and classifies the host from Tonic's parsed URI before loading the token or connecting. Red-to-green parser/ordering tests, live loopback/TLS/mTLS episode tests, and `./tools/check.sh` pass. |
+| Parse connector HTTP destinations before loopback exemption | ✅ | `http://127.0.0.1:443@evil.com` passed the prior prefix check, but ureq would address the remote host with the configured Authorization header. Validation now uses the same `http::Uri` authority semantics as ureq and rejects userinfo for cleartext loopback. Red-to-green URL/request regressions, default and no-default connector tests, local connector smoke, and `./tools/check.sh` pass. |
 
 ---
 
