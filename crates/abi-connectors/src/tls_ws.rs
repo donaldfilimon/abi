@@ -464,23 +464,8 @@ impl TwilioMediaClient {
     /// `token` or `AuthToken` query value, or a non-empty `auth_token` appended
     /// as `?token=` / `&token=` when the URL has no such value.
     pub fn connect(wss_url: &str, auth_token: &str) -> Result<Self, TlsWsError> {
-        let (host, port, mut path) = parse_wss_url(wss_url)?;
-        let url_has_secret = has_twilio_token(&path);
-        if auth_token.is_empty() && !url_has_secret {
-            return Err(TlsWsError::NotConfigured(
-                "TWILIO auth missing — pass a Twilio stream URL with embedded auth or a non-empty auth_token"
-                    .into(),
-            ));
-        }
-        if !auth_token.is_empty() && !url_has_secret {
-            if path.contains('?') {
-                path.push_str("&token=");
-            } else {
-                path.push_str("?token=");
-            }
-            // Percent-encode is overkill for Twilio tokens (ASCII); keep raw.
-            path.push_str(auth_token);
-        }
+        let (host, port, path) = parse_wss_url(wss_url)?;
+        let path = twilio_path_with_auth(path, auth_token)?;
         let client = connect_wss(&host, port, &path, Duration::from_secs(15))?;
         Ok(Self { client })
     }
@@ -493,6 +478,38 @@ impl TwilioMediaClient {
     /// Read next JSON text event.
     pub fn read_event(&mut self) -> Result<Option<String>, TlsWsError> {
         self.client.read_text()
+    }
+}
+
+fn twilio_path_with_auth(mut path: String, auth_token: &str) -> Result<String, TlsWsError> {
+    let url_has_secret = has_twilio_token(&path);
+    if auth_token.is_empty() && !url_has_secret {
+        return Err(TlsWsError::NotConfigured(
+            "TWILIO auth missing — pass a Twilio stream URL with embedded auth or a non-empty auth_token"
+                .into(),
+        ));
+    }
+    if !auth_token.is_empty() && !url_has_secret {
+        if path.contains('?') {
+            path.push_str("&token=");
+        } else {
+            path.push_str("?token=");
+        }
+        append_encoded_query_value(&mut path, auth_token);
+    }
+    Ok(path)
+}
+
+fn append_encoded_query_value(path: &mut String, value: &str) {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
+            path.push(char::from(byte));
+        } else {
+            path.push('%');
+            path.push(char::from(HEX[usize::from(byte >> 4)]));
+            path.push(char::from(HEX[usize::from(byte & 0x0F)]));
+        }
     }
 }
 
@@ -727,5 +744,28 @@ X-Abi-Test-Peer: 1\r\n\r\n";
             TwilioMediaClient::connect("wss://localhost:0/stream/@mention", ""),
             Err(TlsWsError::NotConfigured(_))
         ));
+    }
+
+    #[test]
+    fn supplied_twilio_token_is_one_encoded_query_value() {
+        let path =
+            twilio_path_with_auth("/stream?mode=live".to_string(), "a&b? c\r\nX-Injected: yes")
+                .unwrap();
+        assert_eq!(
+            path,
+            "/stream?mode=live&token=a%26b%3F%20c%0D%0AX-Injected%3A%20yes"
+        );
+        let request = build_handshake_request("localhost", &path, "test-key");
+        assert_eq!(request.matches("\r\nX-Injected:").count(), 0);
+        assert_eq!(request.matches("\r\n").count(), 7);
+
+        assert_eq!(
+            twilio_path_with_auth("/stream".to_string(), "é+%").unwrap(),
+            "/stream?token=%C3%A9%2B%25"
+        );
+        assert_eq!(
+            twilio_path_with_auth("/stream?AuthToken=existing".to_string(), "new").unwrap(),
+            "/stream?AuthToken=existing"
+        );
     }
 }
