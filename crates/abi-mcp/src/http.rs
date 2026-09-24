@@ -16,11 +16,12 @@
 //! sessions run on their own threads so the accept loop can still take the
 //! POSTs that publish to them.
 
+use std::io::{self, ErrorKind, Read};
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use abi_foundation::env::{self, MCP_HTTP_PORT, MCP_HTTP_TOKEN};
 use abi_foundation::http::{
@@ -38,6 +39,50 @@ pub const DEFAULT_HTTP_PORT: u16 = 8080;
 /// Avoid an unbounded stderr stream if a broken peer repeatedly causes
 /// connection-level failures. The next error emits one suppression notice.
 const MAX_REPORTED_SERVER_ERRORS: usize = 8;
+/// An HTTP peer may take this long to send one complete request.
+const REQUEST_DEADLINE: Duration = Duration::from_secs(30);
+/// Check the stop flag even when the peer has not sent another byte.
+const READ_POLL_INTERVAL: Duration = Duration::from_millis(250);
+
+struct RequestReader<'a> {
+    stream: &'a mut TcpStream,
+    stop: &'a AtomicBool,
+    deadline: Instant,
+}
+
+impl<'a> RequestReader<'a> {
+    fn new(stream: &'a mut TcpStream, stop: &'a AtomicBool, duration: Duration) -> Self {
+        Self {
+            stream,
+            stop,
+            deadline: Instant::now() + duration,
+        }
+    }
+}
+
+impl Read for RequestReader<'_> {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        loop {
+            if self.stop.load(Ordering::SeqCst) {
+                return Err(ErrorKind::Interrupted.into());
+            }
+            let remaining = self.deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Err(ErrorKind::TimedOut.into());
+            }
+            self.stream
+                .set_read_timeout(Some(remaining.min(READ_POLL_INTERVAL)))?;
+            match self.stream.read(buffer) {
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        ErrorKind::Interrupted | ErrorKind::TimedOut | ErrorKind::WouldBlock
+                    ) => {}
+                result => return result,
+            }
+        }
+    }
+}
 
 /// Configuration for the custom loopback HTTP listener.
 #[derive(Debug, Clone)]
@@ -177,8 +222,10 @@ fn handle_connection_with<F>(
 where
     F: FnOnce(McpState, &str) -> Option<crate::rpc::RpcResponse>,
 {
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
-    let raw = match read_request(&mut stream, MAX_REQUEST_SIZE) {
+    let raw = match read_request(
+        &mut RequestReader::new(&mut stream, stop, REQUEST_DEADLINE),
+        MAX_REQUEST_SIZE,
+    ) {
         ReadResult::Empty => return Ok(()),
         ReadResult::Incomplete => {
             return write_all(
@@ -394,6 +441,7 @@ pub fn spawn_from_env(state: McpState) -> Option<(u16, Arc<AtomicBool>, thread::
 mod tests {
     use super::*;
     use std::net::TcpStream;
+    use std::sync::mpsc;
     use std::time::Duration;
 
     struct EnvOverrideCleanup;
@@ -501,6 +549,79 @@ mod tests {
             .join()
             .expect("server thread joins")
             .expect("server stops cleanly");
+    }
+
+    #[test]
+    fn trickling_request_stops_at_the_absolute_deadline() {
+        use std::io::Write;
+
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind probe listener");
+        let port = listener.local_addr().expect("probe address").port();
+        let (result_tx, result_rx) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept probe request");
+            let stop = AtomicBool::new(false);
+            let result = read_request(
+                &mut RequestReader::new(&mut stream, &stop, Duration::from_millis(120)),
+                1024,
+            );
+            result_tx.send(result).expect("report read result");
+        });
+
+        let mut client = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).expect("connect");
+        client
+            .write_all(b"POST /message HTTP/1.1\r\nContent-Length: 20\r\n\r\n")
+            .expect("write partial request");
+        for _ in 0..4 {
+            thread::sleep(Duration::from_millis(35));
+            let _ = client.write_all(b"x");
+        }
+        assert_eq!(
+            result_rx
+                .recv_timeout(Duration::from_secs(1))
+                .expect("absolute deadline must end the read while the peer stays open"),
+            ReadResult::Incomplete
+        );
+        handle.join().expect("reader joins");
+    }
+
+    #[test]
+    fn shutdown_interrupts_an_incomplete_request() {
+        use std::io::Write;
+
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind probe listener");
+        let port = listener.local_addr().expect("probe address").port();
+        let stop = Arc::new(AtomicBool::new(false));
+        let stop_in_handler = Arc::clone(&stop);
+        let (accepted_tx, accepted_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("accept probe request");
+            accepted_tx.send(()).expect("report accepted connection");
+            let result = handle_connection_with(
+                stream,
+                McpState::new(),
+                None,
+                |_, _| panic!("incomplete request must not dispatch"),
+                &Arc::new(SessionRegistry::new()),
+                &stop_in_handler,
+            );
+            done_tx.send(result).expect("report handler result");
+        });
+
+        let mut client = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).expect("connect");
+        client
+            .write_all(b"POST /message HTTP/1.1\r\nContent-Length: 20\r\n\r\nx")
+            .expect("write partial request");
+        accepted_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("handler accepts the partial request");
+        stop.store(true, Ordering::SeqCst);
+        done_rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("shutdown must interrupt the active read")
+            .expect("handler writes an incomplete-request response");
+        handle.join().expect("handler joins");
     }
 
     #[test]

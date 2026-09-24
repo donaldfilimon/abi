@@ -49,6 +49,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 | Add TTY line editing and dashboard navigation | ✅ | Bounded Unicode-column-aware editor, history, Tab completion, single-stream output, Ctrl-C/D restoration, session-local SEA state, keyboard cycling, and bounded SGR mouse pane selection are covered. Capture enable/disable is guard-scoped; unit tests plus the dashboard and `tui` PTY drivers prove selection, exit, and cleanup. |
 | Harden MCP transports found in code review | ✅ | 64 KiB physical-frame discard/recovery, absent-ID notification semantics, explicit-null validation, port-zero shutdown, hostile-Origin rejection, and exact HTTP 202/no-body behavior are covered without changing the frozen 12-tool catalog. |
 | Bound MCP SSE pending responses | ✅ | Each session admits at most 32 queued/reserved responses; a full session returns `503` before dispatch. Notifications and failed sends release their slots. The MCP transport tests, warning-denied clippy, Mintlify validation, and `./tools/check.sh` pass. |
+| Bound MCP HTTP request reads | ✅ | A 30-second absolute deadline ends trickling requests; the reader checks shutdown at most every 250 ms. Focused MCP tests, warning-denied clippy, Mintlify validation, and `./tools/check.sh` pass. |
 
 ---
 
