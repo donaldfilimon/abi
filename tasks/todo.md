@@ -17,9 +17,9 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 | Item | Status | Notes |
 | ---- | ------ | ----- |
 | Zig teardown | ✅ | 0 tracked `*.zig` / `build.zig*` |
-| Frozen CLI (13) + MCP (12) | ✅ | Golden + unit coverage |
+| Frozen CLI (14) + MCP (12) | ✅ | Golden + unit coverage; `improve` is the 14th CLI command |
 | FoundationModels shim | ✅ | `libabi_fm_shim.dylib` on arm64 macOS; honest offline |
-| Local OpenAI bridge + MCP HTTP compatibility transport | ◑ | Loopback one-shot HTTP + endpoint-advertising SSE; not a persistent spec-conforming MCP 2024-11-05 SSE response channel |
+| Local OpenAI bridge + MCP HTTP transport | ✅ | Loopback persistent MCP 2024-11-05 HTTP+SSE sessions are contract-tested against stdio responses; one-shot `POST /message` remains for compatibility. Not Streamable HTTP (2025-03-26). |
 | Land `rust-rewrite` on `main` | ✅ | Squash-merged [#756](https://github.com/donaldfilimon/abi/pull/756) as `34c35d5` |
 
 ---
@@ -178,15 +178,14 @@ architecture therefore requires no neuromorphic processor".
 | Mobile `native_dispatch` simulated on a desktop profile | **Correct by design, disclosed** | CSAPS-1 is explicitly a nonhazardous digital testbed on conventional programmable hardware. Mobile is not on its critical path. |
 | Production FHE / multi-host sharding (DGHV educational, TFHE-rs demo, single-host multi-process cluster proof) | **Correct by design, with one real gap** | Reference-scoped crypto matches the paper's posture. The genuine gap is **independent cryptographic and security review**, which section 6.6's threat model needs and which no amount of local work supplies. |
 | Full ggml/llama.cpp (demo GGUF container, char-LM payload) | **Out of scope, not a gap** | CSAPS never requires a production LLM. The deliberative path may call one; hosting it is not the substrate's job. |
-| Local OpenAI bridge + MCP HTTP compatibility transport (not a persistent spec-conforming MCP 2024-11-05 SSE channel) | **Genuine gap, small** | Bounded, well understood, and belongs to Program 6 (Abbey API and Application Federation) rather than to the substrate. |
+| Local OpenAI bridge + MCP HTTP transport | **Closed since this assessment** | Persistent MCP 2024-11-05 HTTP+SSE sessions now deliver JSON-RPC responses as SSE `message` events; the stdio parity contract covers the transport. Streamable HTTP (2025-03-26) is not claimed. |
 | WDBX v2 causal multi-writer program | **Genuine gap, large — and now measured** | See `docs/superpowers/specs/2026-08-22-wdbx-conformance-gap-analysis.md`. The row's own listed boundaries (separate-host deployment, hosted/Windows/Linux runtime proof, DAST, independent crypto review) remain accurate, and the analysis adds the substrate-contract gaps: canonical CBOR/COSE, sorted parent hashes, episode-level signing, regime and version fields, contradiction and quarantine edges, evidence-weighted retrieval, the selective write gate, and section 6.9 retention semantics. |
 
-**Net effect.** Of seven disclosed residuals, four are the paper's recommended
-engineering posture rather than shortfalls, one is out of scope, one is a small
-gap owned by Program 6, and one is the large gap that Program 3 exists to close.
-"Complete abi" is therefore a much smaller target than the row count suggested —
-but it is not zero, and the two survivors are correctly disclosed rather than
-quietly overstated.
+**Net effect at the 2026-08-22 assessment.** Of seven disclosed residuals,
+four were the paper's recommended engineering posture rather than shortfalls,
+one was out of scope, and two were implementation gaps. The MCP transport gap
+has since closed; the WDBX conformance gap and external review boundaries
+remain disclosed above.
 
 **Not reclassified as done, and deliberately so:** independent cryptographic
 review, independent security review, and DAST. Those cannot be self-certified.
