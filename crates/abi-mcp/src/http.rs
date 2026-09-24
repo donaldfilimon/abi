@@ -29,7 +29,7 @@ use abi_foundation::http::{
 };
 
 use crate::rpc;
-use crate::sse::{self, SessionRegistry};
+use crate::sse::{self, ReserveError, SessionRegistry};
 use crate::state::McpState;
 
 /// Default MCP HTTP port when `ABI_MCP_HTTP_PORT` is unset.
@@ -256,20 +256,13 @@ where
             );
         };
         if let Some(session_id) = session_id {
-            // Checked before dispatch so a stale or guessed session id cannot
-            // trigger a side-effecting tool call whose result nobody receives.
-            if !sessions.contains(session_id) {
-                return write_unknown_session(&mut stream);
-            }
-            if let Some(response) = process(state, body_text)
-                && !sessions.publish(session_id, response.to_json_string())
-            {
-                // The client left while the request was being dispatched.
-                return write_unknown_session(&mut stream);
-            }
-            return write_all(
+            return dispatch_session_post(
                 &mut stream,
-                b"HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                state,
+                body_text,
+                session_id,
+                process,
+                sessions,
             );
         }
         let Some(response) = process(state, body_text) else {
@@ -296,10 +289,47 @@ where
     )
 }
 
+fn dispatch_session_post<F>(
+    stream: &mut TcpStream,
+    state: McpState,
+    body: &str,
+    session_id: &str,
+    process: F,
+    sessions: &SessionRegistry,
+) -> std::io::Result<()>
+where
+    F: FnOnce(McpState, &str) -> Option<crate::rpc::RpcResponse>,
+{
+    // Reserve capacity before dispatch so an overloaded session does not
+    // execute a tool whose response cannot be queued.
+    let reservation = match sessions.reserve(session_id) {
+        Ok(reservation) => reservation,
+        Err(ReserveError::UnknownSession) => return write_unknown_session(stream),
+        Err(ReserveError::Full) => return write_session_overloaded(stream),
+    };
+    if let Some(response) = process(state, body)
+        && !reservation.publish(response.to_json_string())
+    {
+        // The client left while the request was being dispatched.
+        return write_unknown_session(stream);
+    }
+    write_all(
+        stream,
+        b"HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    )
+}
+
 fn write_unknown_session(stream: &mut TcpStream) -> std::io::Result<()> {
     write_all(
         stream,
         b"HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: 27\r\nConnection: close\r\n\r\n{\"error\":\"unknown session\"}",
+    )
+}
+
+fn write_session_overloaded(stream: &mut TcpStream) -> std::io::Result<()> {
+    write_all(
+        stream,
+        b"HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\nContent-Length: 30\r\nConnection: close\r\n\r\n{\"error\":\"session overloaded\"}",
     )
 }
 
@@ -557,6 +587,52 @@ mod tests {
             !dispatched.load(Ordering::SeqCst),
             "hostile Origin reached the mutating dispatch seam"
         );
+    }
+
+    #[test]
+    fn full_sse_session_rejects_before_dispatch() {
+        use std::io::Write;
+
+        let sessions = Arc::new(SessionRegistry::new());
+        let (session_id, _receiver) = sessions.register_for_test();
+        let held: Vec<_> = (0..sse::MAX_PENDING_RESPONSES)
+            .map(|_| sessions.reserve(&session_id).ok().expect("free slot"))
+            .collect();
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind probe listener");
+        let port = listener.local_addr().expect("probe address").port();
+        let dispatched = Arc::new(AtomicBool::new(false));
+        let dispatched_in_handler = Arc::clone(&dispatched);
+        let sessions_in_handler = Arc::clone(&sessions);
+        let handle = thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("accept probe request");
+            handle_connection_with(
+                stream,
+                McpState::new(),
+                None,
+                move |_, _| {
+                    dispatched_in_handler.store(true, Ordering::SeqCst);
+                    None
+                },
+                &sessions_in_handler,
+                &Arc::new(AtomicBool::new(false)),
+            )
+            .expect("handle overloaded session");
+        });
+
+        let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).expect("connect");
+        let body = r#"{"jsonrpc":"2.0","id":7,"method":"ping"}"#;
+        let request = format!(
+            "POST /message?sessionId={session_id} HTTP/1.1\r\nContent-Length: {}\r\n\r\n{body}",
+            body.len()
+        );
+        stream.write_all(request.as_bytes()).expect("write");
+        let response = read_http(&mut stream);
+        handle.join().expect("overload probe joins");
+
+        assert!(response.starts_with("HTTP/1.1 503 Service Unavailable"));
+        assert!(response.contains("session overloaded"));
+        assert!(!dispatched.load(Ordering::SeqCst));
+        drop(held);
     }
 
     #[test]
