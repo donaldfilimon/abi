@@ -180,6 +180,46 @@ fn audited_refusals_remain_stored_but_cannot_be_recalled_or_skew_recency() {
 }
 
 #[test]
+fn rejected_nearest_hits_do_not_hide_eligible_evidence_within_the_search_cap() {
+    let dir = Scratch::new();
+    let mut store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
+    let input = "recall safe evidence";
+    let query = text_embedding(input);
+    for _ in 0..20 {
+        let id = store.put_vector(&query).unwrap();
+        store
+            .put(
+                &format!("completion:{id}"),
+                r#"{"kind":"completion","audit_vetoed":true,"text":"rejected"}"#,
+            )
+            .unwrap();
+    }
+    let safe_id = store
+        .put_vector(&text_embedding("different valid note"))
+        .unwrap();
+    store
+        .put(
+            &format!("completion:{safe_id}"),
+            r#"{"kind":"note","text":"different valid note"}"#,
+        )
+        .unwrap();
+
+    let first_pool = store.search(&query, 20).unwrap();
+    assert!(!first_pool.iter().any(|hit| hit.id == safe_id));
+    assert!(
+        store
+            .search(&query, 21)
+            .unwrap()
+            .iter()
+            .any(|hit| hit.id == safe_id)
+    );
+
+    let ctx = gather_evidence(&store, input, 5);
+    assert_eq!(ctx.items.len(), 1);
+    assert_eq!(ctx.items[0].vector_id, safe_id);
+}
+
+#[test]
 fn malformed_metadata_is_bounded_and_low_trust() {
     let dir = Scratch::new();
     let mut store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();

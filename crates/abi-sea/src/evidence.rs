@@ -163,6 +163,70 @@ impl Default for ParsedStoredMetadata {
     }
 }
 
+struct RecalledCandidate {
+    id: RecordId,
+    hit_score: f32,
+    metadata: String,
+    parsed: ParsedStoredMetadata,
+    block_timestamp_ms: Option<i64>,
+}
+
+fn recall_eligible(
+    store: &VersionedStore,
+    embedding: &[f32],
+    limit: usize,
+    candidate_limit: usize,
+    search_ceiling: usize,
+) -> (Vec<RecalledCandidate>, Option<i64>) {
+    let snapshot = store.snapshot();
+    let mut block_timestamp_by_query = std::collections::BTreeMap::new();
+    for block in snapshot.audit_blocks() {
+        block_timestamp_by_query
+            .entry(block.query_id)
+            .and_modify(|timestamp: &mut i64| *timestamp = (*timestamp).max(block.timestamp_ms))
+            .or_insert(block.timestamp_ms);
+    }
+    let mut recalled = Vec::new();
+    let mut seen_ids = std::collections::BTreeSet::new();
+    let mut latest_timestamp_ms = None;
+    let mut search_limit = candidate_limit;
+
+    loop {
+        let Ok(hits) = store.search(embedding, search_limit) else {
+            break;
+        };
+        for hit in hits {
+            if !seen_ids.insert(hit.id) {
+                continue;
+            }
+            let key = format!("completion:{}", hit.id);
+            let Some(metadata) = store.get(&key) else {
+                continue;
+            };
+            let parsed = parse_stored_metadata(&metadata);
+            // Refusals remain durable, but cannot enter prompts or skew recency.
+            if parsed.audit_rejected {
+                continue;
+            }
+            let block_timestamp_ms = block_timestamp_by_query.get(&hit.id).copied();
+            latest_timestamp_ms = latest_timestamp_ms.max(parsed.updated_ms.or(block_timestamp_ms));
+            recalled.push(RecalledCandidate {
+                id: hit.id,
+                hit_score: hit.score,
+                metadata,
+                parsed,
+                block_timestamp_ms,
+            });
+        }
+        if recalled.len() >= limit || search_limit == search_ceiling {
+            break;
+        }
+        search_limit = search_ceiling;
+    }
+
+    (recalled, latest_timestamp_ms)
+}
+
 /// Gather evidence, inferring a plan from `input`.
 #[must_use]
 pub fn gather_evidence(store: &VersionedStore, input: &str, limit: usize) -> EvidenceContext {
@@ -181,55 +245,31 @@ pub fn gather_evidence_with_plan(
         return EvidenceContext::default();
     }
 
-    let (limit, candidate_limit) = recall_limits(store.stats().vectors, limit);
+    let store_vectors = store.stats().vectors;
+    let (limit, candidate_limit) = recall_limits(store_vectors, limit);
     if limit == 0 || candidate_limit == 0 {
         return EvidenceContext::default();
     }
 
     let embedding = text_embedding(input);
-    // Over-fetch bounded candidates so cluster/token selection can remain
-    // sparse without returning fewer records merely because an early hit was
-    // missing metadata or duplicated by an upstream index implementation. The
-    // shared hard cap still bounds the WDBX search and every later clone.
-    let Ok(hits) = store.search(&embedding, candidate_limit) else {
-        return EvidenceContext::default();
-    };
-
-    let snapshot = store.snapshot();
-    let mut block_timestamp_by_query = std::collections::BTreeMap::new();
-    let mut latest_timestamp_ms = None;
-    for block in snapshot.audit_blocks() {
-        block_timestamp_by_query
-            .entry(block.query_id)
-            .and_modify(|timestamp: &mut i64| *timestamp = (*timestamp).max(block.timestamp_ms))
-            .or_insert(block.timestamp_ms);
-    }
-    let mut recalled = Vec::new();
-    let mut seen_ids = std::collections::BTreeSet::new();
-
-    for hit in hits {
-        if !seen_ids.insert(hit.id) {
-            continue;
-        }
-        let key = format!("completion:{}", hit.id);
-        let Some(metadata) = store.get(&key) else {
-            continue;
-        };
-        let parsed = parse_stored_metadata(&metadata);
-        // Refusals remain in the durable audit trail, but cannot be promoted
-        // into future prompts or change the recency baseline for safe records.
-        if parsed.audit_rejected {
-            continue;
-        }
-        let block_timestamp_ms = block_timestamp_by_query.get(&hit.id).copied();
-        latest_timestamp_ms = latest_timestamp_ms.max(parsed.updated_ms.or(block_timestamp_ms));
-        recalled.push((hit.id, hit.score, metadata, parsed, block_timestamp_ms));
-    }
+    // Start with a bounded over-fetch. If missing or audit-rejected metadata
+    // exhausts it, retry once at the same hard search ceiling rather than
+    // letting those records hide eligible evidence inside the capped pool.
+    let search_ceiling = store_vectors.min(MAX_EVIDENCE_LIMIT);
+    let (recalled, latest_timestamp_ms) =
+        recall_eligible(store, &embedding, limit, candidate_limit, search_ceiling);
 
     let weights = adjust_weights_for_task(DEFAULT_SEA_WEIGHTS, plan.task);
     let mut candidates = Vec::new();
     let mut evidence_by_id = std::collections::BTreeMap::new();
-    for (id, hit_score, metadata, parsed, block_timestamp_ms) in recalled {
+    for RecalledCandidate {
+        id,
+        hit_score,
+        metadata,
+        parsed,
+        block_timestamp_ms,
+    } in recalled
+    {
         let authority = Authority::Inferred;
         let signals = SeaSignals {
             semantic: semantic_score(hit_score),
