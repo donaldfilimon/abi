@@ -1,0 +1,4 @@
+self-hosted-runner:
+  # Custom label of the macOS arm64 runner registered to this repository.
+  labels:
+    - abi
