@@ -6,9 +6,10 @@ on:
   schedule:
     - cron: '0 3 * * 1'
 
-# Workflow-level permissions must stay read-only: with publish_results: true,
-# the Scorecard results API rejects any workflow-level write scope ("global perm
-# is set to write"). The write scopes live on the scan job instead.
+# Workflow-level permissions stay read-only: scorecard-action's workflow
+# restrictions for publish_results: true allow write scopes only on the job.
+# The job needs id-token: write to publish; no step uploads SARIF to code
+# scanning, so it does not need security-events: write.
 # https://github.com/ossf/scorecard-action#workflow-restrictions
 permissions:
   contents: read
@@ -18,7 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
       id-token: write
     steps:
       - name: Checkout
