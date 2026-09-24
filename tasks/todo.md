@@ -50,6 +50,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 | Harden MCP transports found in code review | ✅ | 64 KiB physical-frame discard/recovery, absent-ID notification semantics, explicit-null validation, port-zero shutdown, hostile-Origin rejection, and exact HTTP 202/no-body behavior are covered without changing the frozen 12-tool catalog. |
 | Bound MCP SSE pending responses | ✅ | Each session admits at most 32 queued/reserved responses; a full session returns `503` before dispatch. Notifications and failed sends release their slots. The MCP transport tests, warning-denied clippy, Mintlify validation, and `./tools/check.sh` pass. |
 | Bound MCP HTTP request reads | ✅ | A 30-second absolute deadline ends trickling requests; the reader checks shutdown at most every 250 ms. Focused MCP tests, warning-denied clippy, Mintlify validation, and `./tools/check.sh` pass. |
+| Bound WDBX v3 episode ledger appends | ✅ | The append path checks the same 64 MiB whole-ledger ceiling enforced on reopen, independent of per-guild budgets. A scratch-store regression covers rejection without mutation and successful append/reopen after space is restored; WDBX and ABI full gates passed. |
 
 ---
 
