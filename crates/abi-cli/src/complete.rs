@@ -99,7 +99,11 @@ fn run_local(input: &str, model: &str) -> Outcome {
         return Outcome::stderr("error: completion input must not be empty\n".to_owned(), 1);
     };
 
-    let mut store = util::open_store();
+    let (mut store, unavailable_status) = match util::open_store_result() {
+        Ok(Some(store)) => (Some(store), None),
+        Ok(None) => (None, Some("no persistent WDBX path configured")),
+        Err(_) => (None, Some("wdbx store open failed")),
+    };
     let (persisted, qid, rid, hex, kv, vectors, blocks, status) =
         if let Some(store) = store.as_mut() {
             let before = store.stats();
@@ -146,16 +150,7 @@ fn run_local(input: &str, model: &str) -> Outcome {
                 },
             )
         } else {
-            (
-                false,
-                None,
-                None,
-                None,
-                0,
-                0,
-                0,
-                Some("no persistent WDBX path configured"),
-            )
+            (false, None, None, None, 0, 0, 0, unavailable_status)
         };
 
     let text = render_local(&MetaReport {
@@ -183,8 +178,10 @@ fn run_local(input: &str, model: &str) -> Outcome {
 }
 
 fn run_learn(input: &str, model: &str) -> Outcome {
-    let Some(mut store) = util::open_store() else {
-        return run_local(input, model);
+    let mut store = match util::open_store_result() {
+        Ok(Some(store)) => store,
+        Ok(None) => return run_local(input, model),
+        Err(_) => return Outcome::stderr("error: WDBX store open failed\n".into(), 1),
     };
     let before = store.stats();
     let Ok(learned) = run_learn_loop(
@@ -742,6 +739,49 @@ mod tests {
         assert!(text.contains("profile=abbey"));
         assert!(text.contains("persisted=false"));
         assert!(text.contains("Abbey: hello world"));
+    }
+
+    #[test]
+    fn configured_store_open_failure_is_not_reported_as_no_store() {
+        let _guard = abi_foundation::env::lock_for_test();
+        let obstruction = std::env::temp_dir().join(format!(
+            "abi-complete-store-obstruction-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::write(&obstruction, b"not a store directory").expect("write scratch obstruction");
+        abi_foundation::env::set_override(
+            abi_foundation::env::WDBX_PATH,
+            &obstruction.display().to_string(),
+        );
+        abi_foundation::env::set_override(abi_foundation::env::WDBX_PERSIST, "1");
+
+        let local = run_local("hello world", "claude-fable-5");
+        let learn = run_learn("hello world", "claude-fable-5");
+        abi_foundation::env::set_override(abi_foundation::env::WDBX_PERSIST, "0");
+        let disabled = run_local("hello world", "claude-fable-5");
+        let disabled_learn = run_learn("hello world", "claude-fable-5");
+
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PATH);
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PERSIST);
+        std::fs::remove_file(&obstruction).expect("remove scratch obstruction");
+        assert_eq!(local.exit_code, 0);
+        assert!(local.stdout.contains("persisted=false"));
+        assert!(local.stdout.contains("wdbx_status=wdbx store open failed"));
+        assert!(!local.stdout.contains("no persistent WDBX path configured"));
+        assert_eq!(learn.exit_code, 1);
+        assert!(learn.stderr.contains("WDBX store open failed"));
+        assert_eq!(disabled.exit_code, 0);
+        assert!(
+            disabled
+                .stdout
+                .contains("no persistent WDBX path configured")
+        );
+        assert_eq!(disabled_learn.exit_code, 0);
+        assert!(
+            disabled_learn
+                .stdout
+                .contains("no persistent WDBX path configured")
+        );
     }
 
     #[test]

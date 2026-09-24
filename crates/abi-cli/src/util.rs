@@ -39,13 +39,6 @@ pub(crate) fn default_store_roots() -> (Option<String>, Option<String>) {
     (None, None)
 }
 
-/// Compatibility helper for completion/training paths that already disclose
-/// persistence only as available/unavailable. Security-sensitive callers such
-/// as OS audit should use [`open_store_result`] and preserve the error detail.
-pub(crate) fn open_store() -> Option<VersionedStore> {
-    open_store_result().ok().flatten()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

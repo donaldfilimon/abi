@@ -39,7 +39,8 @@ class DurableStoreDocumentationPolicyTests(unittest.TestCase):
         wdbx_path = manifest["workspace"]["dependencies"]["abi-wdbx"]["path"]
         store_path = (ROOT / wdbx_path / "src/store_path.rs").resolve().read_text(encoding="utf-8")
         self.assertIn('.join(".abi").join("wdbx")', store_path)
-        self.assertIn("let mut store = util::open_store();", completion)
+        self.assertGreaterEqual(completion.count("util::open_store_result()"), 2)
+        self.assertIn("wdbx store open failed", completion)
         self.assertIn(
             "let (mut store, store_open_failed) = match util::open_store_result()", agent
         )
