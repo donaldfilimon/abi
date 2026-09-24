@@ -6,7 +6,7 @@ use abi_ai::{
     AdaptiveModulator, CompletionResult, EMBED_DIM, EmptyInputError, MODULATOR_STORE_KEY,
     analyze_sentiment, complete_adaptive, completion, text_embedding,
 };
-use abi_wdbx::{RecordId, VersionedStore};
+use abi_wdbx::{RecordId, VersionedError, VersionedStore};
 
 use crate::evidence::{self, MAX_PROMPT_BYTES};
 use crate::query_plan::{self, TaskType};
@@ -48,6 +48,21 @@ pub struct LearnLoopResult {
     pub query_task: TaskType,
     /// Query / response vector ids and block hash, when `persist` succeeded.
     pub persisted: Option<PersistedIds>,
+    /// Why no completion record was reported, or that one committed.
+    pub persistence_status: LearnPersistenceStatus,
+}
+
+/// Completion-evidence persistence outcome for one learning pass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LearnPersistenceStatus {
+    /// Completion evidence was committed and its ids are in `persisted`.
+    Committed,
+    /// Persistence was disabled by the caller.
+    Disabled,
+    /// A non-passing or vetoed audit intentionally prevented the write.
+    AuditRejected,
+    /// WDBX returned an error; publication may or may not have occurred.
+    OutcomeUnknown,
 }
 
 /// Ids produced when a completion is persisted.
@@ -103,10 +118,15 @@ pub fn run_learn_loop(
 
     // Zig's completeWithStoreAdaptive embeds request.input (the augmented
     // prompt) as the query vector — not the raw user text.
-    let persisted = if config.persist && audit_allows_learning {
-        persist_completion(store, &augmented, &completion, now_ms)
+    let (persisted, persistence_status) = if !config.persist {
+        (None, LearnPersistenceStatus::Disabled)
+    } else if !audit_allows_learning {
+        (None, LearnPersistenceStatus::AuditRejected)
     } else {
-        None
+        match persist_completion(store, &augmented, &completion, now_ms) {
+            Ok(ids) => (Some(ids), LearnPersistenceStatus::Committed),
+            Err(_) => (None, LearnPersistenceStatus::OutcomeUnknown),
+        }
     };
 
     Ok(LearnLoopResult {
@@ -115,6 +135,7 @@ pub fn run_learn_loop(
         adapted,
         query_task: plan.task,
         persisted,
+        persistence_status,
     })
 }
 
@@ -123,31 +144,27 @@ fn persist_completion(
     generation_input: &str,
     result: &CompletionResult,
     now_ms: i64,
-) -> Option<PersistedIds> {
+) -> Result<PersistedIds, VersionedError> {
     let query_vec: [f32; EMBED_DIM] = text_embedding(generation_input);
     let response_vec: [f32; EMBED_DIM] = text_embedding(&result.output);
 
-    let query_id = store.put_vector(&query_vec).ok()?;
-    let response_id = store.put_vector(&response_vec).ok()?;
+    let recorded = store.record_vector_pair(
+        &query_vec,
+        &response_vec,
+        result.selected_profile.label(),
+        now_ms,
+        |query_id, response_id| {
+            (
+                completion::metadata_key(query_id),
+                completion::metadata_json(generation_input, result, query_id, response_id),
+            )
+        },
+    )?;
 
-    let metadata = completion::metadata_json(generation_input, result, query_id, response_id);
-    let key = completion::metadata_key(query_id);
-    store.put(&key, &metadata).ok()?;
-
-    let block = store
-        .add_block(
-            result.selected_profile.label(),
-            query_id,
-            response_id,
-            &metadata,
-            now_ms,
-        )
-        .ok()?;
-
-    Some(PersistedIds {
-        query_vector_id: query_id,
-        response_vector_id: response_id,
-        block_hash_hex: block.hash,
+    Ok(PersistedIds {
+        query_vector_id: recorded.query_id,
+        response_vector_id: recorded.response_id,
+        block_hash_hex: recorded.block_hash,
     })
 }
 
@@ -200,6 +217,7 @@ mod tests {
         assert_eq!(result.query_task, TaskType::ProjectRecall);
         assert!(!result.adapted);
         assert!(result.persisted.is_none());
+        assert_eq!(result.persistence_status, LearnPersistenceStatus::Disabled);
     }
 
     #[test]
@@ -222,6 +240,28 @@ mod tests {
     }
 
     #[test]
+    fn completion_evidence_uses_one_wdbx_transaction() {
+        let (_dir, mut store) = open();
+        let result = run_learn_loop(
+            &mut store,
+            "ordinary completion evidence",
+            "abi-local",
+            LearnLoopConfig {
+                adapt_router: false,
+                ..LearnLoopConfig::default()
+            },
+            1_700_000_000_000,
+        )
+        .unwrap();
+        assert!(result.persisted.is_some());
+        assert_eq!(result.persistence_status, LearnPersistenceStatus::Committed);
+        assert_eq!(store.snapshot().committed_transactions(), 1);
+        assert_eq!(store.stats().kv_entries, 1);
+        assert_eq!(store.stats().vectors, 2);
+        assert_eq!(store.stats().blocks, 1);
+    }
+
+    #[test]
     fn vetoed_completion_neither_adapts_nor_enters_the_evidence_store() {
         let (_dir, mut store) = open();
         let before = store.stats();
@@ -237,8 +277,37 @@ mod tests {
         assert!(!result.completion.audit.passed);
         assert!(!result.adapted);
         assert!(result.persisted.is_none());
+        assert_eq!(
+            result.persistence_status,
+            LearnPersistenceStatus::AuditRejected
+        );
         assert_eq!(store.stats(), before);
         assert!(store.get(MODULATOR_STORE_KEY).is_none());
+    }
+
+    #[test]
+    fn failed_completion_write_reports_an_unknown_outcome_without_partial_mutations() {
+        let (_dir, mut store) = open();
+        store.put_vector(&[1.0]).unwrap();
+        let before = store.stats();
+        let result = run_learn_loop(
+            &mut store,
+            "ordinary completion evidence",
+            "abi-local",
+            LearnLoopConfig {
+                adapt_router: false,
+                ..LearnLoopConfig::default()
+            },
+            1_700_000_000_000,
+        )
+        .unwrap();
+        assert_eq!(
+            result.persistence_status,
+            LearnPersistenceStatus::OutcomeUnknown
+        );
+        assert!(result.persisted.is_none());
+        assert_eq!(store.stats(), before);
+        assert_eq!(store.snapshot().committed_transactions(), 1);
     }
 
     #[test]

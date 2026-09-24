@@ -20,7 +20,7 @@ use abi_connectors::{
     parse_stream,
 };
 use abi_foundation::credentials::{self, CredentialField};
-use abi_sea::{LearnLoopConfig, run_learn_loop};
+use abi_sea::{LearnLoopConfig, LearnPersistenceStatus, run_learn_loop};
 use abi_wdbx::RecordId;
 
 use crate::app::Outcome;
@@ -104,54 +104,52 @@ fn run_local(input: &str, model: &str) -> Outcome {
         Ok(None) => (None, Some("no persistent WDBX path configured")),
         Err(_) => (None, Some("wdbx store open failed")),
     };
-    let (persisted, qid, rid, hex, kv, vectors, blocks, status) =
-        if let Some(store) = store.as_mut() {
-            let before = store.stats();
-            let query = abi_ai::text_embedding(input);
-            let response = abi_ai::text_embedding(&result.output);
-            let query_id = store.put_vector(&query).ok();
-            let response_id = store.put_vector(&response).ok();
-            let persisted_record = match (query_id, response_id) {
-                (Some(q), Some(r)) => {
-                    let metadata = abi_ai::completion::metadata_json(input, &result, q, r);
-                    let key = abi_ai::completion::metadata_key(q);
-                    store.put(&key, &metadata).ok().and_then(|_| {
-                        store
-                            .add_block(
-                                result.selected_profile.label(),
-                                q,
-                                r,
-                                &metadata,
-                                abi_foundation::time::unix_ms(),
-                            )
-                            .ok()
-                            .map(|block| (q, r, block.hash))
-                    })
-                }
-                _ => None,
-            };
-            let after = store.stats();
-            let persisted = persisted_record.is_some();
-            let (qid, rid, hex) = persisted_record.map_or((None, None, None), |(q, r, hash)| {
-                (Some(q), Some(r), Some(hash))
-            });
-            (
-                persisted,
-                qid,
-                rid,
-                hex,
-                after.kv_entries.saturating_sub(before.kv_entries),
-                after.vectors.saturating_sub(before.vectors),
-                after.blocks.saturating_sub(before.blocks),
-                if persisted {
-                    None
-                } else {
-                    Some("wdbx write failed")
+    let (persisted, qid, rid, hex, kv, vectors, blocks, status) = if let Some(store) =
+        store.as_mut()
+    {
+        let before = store.stats();
+        let query = abi_ai::text_embedding(input);
+        let response = abi_ai::text_embedding(&result.output);
+        let persisted_record = store
+            .record_vector_pair(
+                &query,
+                &response,
+                result.selected_profile.label(),
+                abi_foundation::time::unix_ms(),
+                |query_id, response_id| {
+                    (
+                        abi_ai::completion::metadata_key(query_id),
+                        abi_ai::completion::metadata_json(input, &result, query_id, response_id),
+                    )
                 },
             )
-        } else {
-            (false, None, None, None, 0, 0, 0, unavailable_status)
-        };
+            .ok();
+        let after = store.stats();
+        let persisted = persisted_record.is_some();
+        let (qid, rid, hex) = persisted_record.map_or((None, None, None), |recorded| {
+            (
+                Some(recorded.query_id),
+                Some(recorded.response_id),
+                Some(recorded.block_hash),
+            )
+        });
+        (
+            persisted,
+            qid,
+            rid,
+            hex,
+            after.kv_entries.saturating_sub(before.kv_entries),
+            after.vectors.saturating_sub(before.vectors),
+            after.blocks.saturating_sub(before.blocks),
+            if persisted {
+                None
+            } else {
+                Some("wdbx write outcome unknown")
+            },
+        )
+    } else {
+        (false, None, None, None, 0, 0, 0, unavailable_status)
+    };
 
     let text = render_local(&MetaReport {
         requested_model: &result.model,
@@ -213,10 +211,11 @@ fn run_learn(input: &str, model: &str) -> Outcome {
             .persisted
             .as_ref()
             .map(|p| p.block_hash_hex.as_str()),
-        wdbx_status: if persisted {
-            None
-        } else {
-            Some("wdbx write failed")
+        wdbx_status: match learned.persistence_status {
+            LearnPersistenceStatus::Committed => None,
+            LearnPersistenceStatus::Disabled => Some("learning persistence disabled"),
+            LearnPersistenceStatus::AuditRejected => Some("audit rejected; learning write skipped"),
+            LearnPersistenceStatus::OutcomeUnknown => Some("wdbx write outcome unknown"),
         },
         output: &result.output,
     });
@@ -739,6 +738,63 @@ mod tests {
         assert!(text.contains("profile=abbey"));
         assert!(text.contains("persisted=false"));
         assert!(text.contains("Abbey: hello world"));
+    }
+
+    #[test]
+    fn local_completion_evidence_uses_one_wdbx_transaction() {
+        let _guard = abi_foundation::env::lock_for_test();
+        let dir = std::env::temp_dir().join(format!("abi-atomic-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        abi_foundation::env::set_override(
+            abi_foundation::env::WDBX_PATH,
+            &dir.display().to_string(),
+        );
+        abi_foundation::env::set_override(abi_foundation::env::WDBX_PERSIST, "1");
+        let output = run_local("ordinary completion", "claude-fable-5");
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PATH);
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PERSIST);
+        assert_eq!(output.exit_code, 0);
+        assert!(output.stdout.contains("persisted=true"));
+        let store = abi_wdbx::VersionedStore::open(abi_wdbx::StorePaths::new(&dir)).unwrap();
+        assert_eq!(store.snapshot().committed_transactions(), 1);
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rejected_learning_and_failed_local_writes_have_distinct_statuses() {
+        let _guard = abi_foundation::env::lock_for_test();
+        let dir = std::env::temp_dir().join(format!("abi-status-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut seeded = abi_wdbx::VersionedStore::open(abi_wdbx::StorePaths::new(&dir)).unwrap();
+        seeded.put_vector(&[1.0]).unwrap();
+        drop(seeded);
+        abi_foundation::env::set_override(
+            abi_foundation::env::WDBX_PATH,
+            &dir.display().to_string(),
+        );
+        abi_foundation::env::set_override(abi_foundation::env::WDBX_PERSIST, "1");
+        let vetoed = run_learn("this will cause harm", "claude-fable-5");
+        let failed = run_local("ordinary note", "claude-fable-5");
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PATH);
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PERSIST);
+
+        assert!(vetoed.stdout.contains("persisted=false"));
+        assert!(
+            vetoed
+                .stdout
+                .contains("wdbx_status=audit rejected; learning write skipped")
+        );
+        assert!(failed.stdout.contains("persisted=false"));
+        assert!(
+            failed
+                .stdout
+                .contains("wdbx_status=wdbx write outcome unknown")
+        );
+        let reopened = abi_wdbx::VersionedStore::open(abi_wdbx::StorePaths::new(&dir)).unwrap();
+        assert_eq!(reopened.snapshot().committed_transactions(), 1);
+        drop(reopened);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

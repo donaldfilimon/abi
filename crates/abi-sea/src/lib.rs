@@ -15,7 +15,9 @@ pub use evidence::{
     EvidenceContext, EvidenceItem, MAX_PROMPT_BYTES, augment_prompt, gather_evidence,
     gather_evidence_with_plan,
 };
-pub use learn_loop::{LearnLoopConfig, LearnLoopResult, PersistedIds, run_learn_loop};
+pub use learn_loop::{
+    LearnLoopConfig, LearnLoopResult, LearnPersistenceStatus, PersistedIds, run_learn_loop,
+};
 pub use query_plan::{QueryPlan, TaskType, infer as infer_query_plan};
 pub use scorer::{
     DEFAULT_SEA_WEIGHTS, SeaCandidate, SeaOptions, SeaSelection, SeaSignals, SeaWeights,

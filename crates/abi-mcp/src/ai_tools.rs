@@ -33,7 +33,7 @@ use abi_ai::{
     select_best_profile, text_embedding, train_inspect, training_store_key, training_store_value,
     training_vectors,
 };
-use abi_sea::{LearnLoopConfig, run_learn_loop};
+use abi_sea::{LearnLoopConfig, LearnPersistenceStatus, run_learn_loop};
 use abi_wdbx::{HybridScorer, RecordId, TemporalCausalGraph, VersionedStats, VersionedStore};
 
 use crate::state::{WdbxStatsError, open_wdbx_store};
@@ -148,10 +148,8 @@ struct Persisted {
     block_hash: String,
 }
 
-/// Embed, store, and chain-append one completion. Returns `None` if nothing
-/// backs persistence for this build (currently unreachable — WDBX is always
-/// linked — kept as a `Result`-shaped seam for the day a build-time WDBX
-/// toggle exists, matching Zig's `isFeatureDisabled` catch).
+/// Embed and commit one completion record as a single WDBX transaction.
+/// Returns `None` when the store rejects or cannot complete the write.
 fn persist(
     store: &mut VersionedStore,
     input: &str,
@@ -161,35 +159,32 @@ fn persist(
     let query_vec: [f32; EMBED_DIM] = text_embedding(input);
     let response_vec: [f32; EMBED_DIM] = text_embedding(&result.output);
 
-    let query_id = store.put_vector(&query_vec).ok()?;
-    let response_id = store.put_vector(&response_vec).ok()?;
-
-    let metadata = abi_ai::completion::metadata_json(input, result, query_id, response_id);
-    let key = abi_ai::completion::metadata_key(query_id);
-    store.put(&key, &metadata).ok()?;
-
-    let block = store
-        .add_block(
+    let recorded = store
+        .record_vector_pair(
+            &query_vec,
+            &response_vec,
             result.selected_profile.label(),
-            query_id,
-            response_id,
-            &metadata,
             now_ms,
+            |query_id, response_id| {
+                (
+                    abi_ai::completion::metadata_key(query_id),
+                    abi_ai::completion::metadata_json(input, result, query_id, response_id),
+                )
+            },
         )
         .ok()?;
 
     Some(Persisted {
-        query_vector_id: query_id,
-        response_vector_id: response_id,
-        block_hash: block.hash,
+        query_vector_id: recorded.query_id,
+        response_vector_id: recorded.response_id,
+        block_hash: recorded.block_hash,
     })
 }
 
-/// Placeholder disclosure for the (currently unreachable) in-store persist
-/// failure path — distinct from [`NO_STORE_STATUS`], which covers "no store at
-/// all".
+/// Conservative disclosure: a storage error may follow publication of the
+/// complete transaction, so absence is not proven by an error return.
 fn persistence_failure_status() -> &'static str {
-    "wdbx write failed"
+    "wdbx write outcome unknown"
 }
 
 /// Saturating difference, matching `state.statDelta` in Zig.
@@ -289,7 +284,14 @@ pub fn report_learn(
             ids.query_vector_id, ids.query_vector_id, ids.response_vector_id, ids.block_hash_hex,
         );
     } else {
-        let _ = write!(out, " wdbx_status={}", persistence_failure_status());
+        let status = match learned.persistence_status {
+            LearnPersistenceStatus::Disabled => "learning persistence disabled",
+            LearnPersistenceStatus::AuditRejected => "audit rejected; learning write skipped",
+            LearnPersistenceStatus::Committed | LearnPersistenceStatus::OutcomeUnknown => {
+                persistence_failure_status()
+            }
+        };
+        let _ = write!(out, " wdbx_status={status}");
     }
     let _ = write!(out, ": {}", result.output);
     out
@@ -613,6 +615,7 @@ mod tests {
         assert!(output.contains(&format!("metadata_key=completion:{query_id}")));
         assert!(output.contains("kv_entries=1 vectors=2 blocks=1"));
         assert!(output.contains("total_kv_entries=1 total_vectors=2 total_blocks=1"));
+        assert_eq!(store.snapshot().committed_transactions(), 1);
         assert!(output.contains("block_id="));
         // The hex block_id is 64 lowercase hex characters (32-byte SHA-256).
         let hex = output
@@ -650,6 +653,29 @@ mod tests {
         assert!(output.ends_with(
             ": I cannot provide that response because it violates the safety constitution (hard veto)."
         ));
+    }
+
+    #[test]
+    fn rejected_learning_is_skipped_and_a_write_error_is_reported_as_uncertain() {
+        let (_dir, mut store) = scratch_store();
+        let vetoed = report_learn(
+            Some(&mut store),
+            "this will cause harm",
+            "m",
+            5,
+            FIXED_NOW_MS,
+        );
+        assert!(vetoed.contains("persisted=false"));
+        assert!(vetoed.contains("wdbx_status=audit rejected; learning write skipped"));
+        assert_eq!(store.stats().vectors, 0);
+        assert_eq!(store.stats().blocks, 0);
+
+        store.put_vector(&[1.0]).unwrap();
+        let failed = report(Some(&mut store), "ordinary note", "m", FIXED_NOW_MS);
+        assert!(failed.contains("persisted=false"));
+        assert!(failed.contains("wdbx_status=wdbx write outcome unknown"));
+        assert_eq!(store.stats().vectors, 1);
+        assert_eq!(store.stats().blocks, 0);
     }
 
     #[test]
