@@ -12,14 +12,14 @@
 //!
 //! Optional bearer auth via `ABI_MCP_HTTP_TOKEN`. Default port 8080
 //! (`ABI_MCP_HTTP_PORT`). Not a general web server and not Streamable HTTP
-//! (2025-03-26). Every connection except an SSE session is one request: SSE
-//! sessions run on their own threads so the accept loop can still take the
-//! POSTs that publish to them.
+//! (2025-03-26). Each non-SSE connection is one request. Bounded request
+//! workers keep slow peers off the accept loop; SSE sessions then run on their
+//! own capped threads so POSTs can still publish to them.
 
 use std::io::{self, ErrorKind, Read};
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -33,12 +33,11 @@ use crate::rpc;
 use crate::sse::{self, ReserveError, SessionRegistry};
 use crate::state::McpState;
 
+mod concurrency;
+
 /// Default MCP HTTP port when `ABI_MCP_HTTP_PORT` is unset.
 pub const DEFAULT_HTTP_PORT: u16 = 8080;
 
-/// Avoid an unbounded stderr stream if a broken peer repeatedly causes
-/// connection-level failures. The next error emits one suppression notice.
-const MAX_REPORTED_SERVER_ERRORS: usize = 8;
 /// An HTTP peer may take this long to send one complete request.
 const REQUEST_DEADLINE: Duration = Duration::from_secs(30);
 /// Check the stop flag even when the peer has not sent another byte.
@@ -118,6 +117,7 @@ pub struct McpHttpServer {
     state: McpState,
     stop: Arc<AtomicBool>,
     sessions: Arc<SessionRegistry>,
+    active_requests: Arc<AtomicUsize>,
 }
 
 impl McpHttpServer {
@@ -132,6 +132,7 @@ impl McpHttpServer {
             state,
             stop: Arc::new(AtomicBool::new(false)),
             sessions: Arc::new(SessionRegistry::new()),
+            active_requests: Arc::new(AtomicUsize::new(0)),
         })
     }
 
@@ -179,22 +180,7 @@ impl McpHttpServer {
 
     /// Serve until [`Self::request_stop`].
     pub fn run(&self) -> std::io::Result<()> {
-        let mut reported_errors = 0_usize;
-        while !self.stop.load(Ordering::SeqCst) {
-            if let Err(err) = self.serve_one() {
-                if self.stop.load(Ordering::SeqCst) {
-                    break;
-                }
-                if reported_errors < MAX_REPORTED_SERVER_ERRORS {
-                    eprintln!("MCP loopback HTTP serve error: {err}");
-                } else if reported_errors == MAX_REPORTED_SERVER_ERRORS {
-                    eprintln!(
-                        "MCP loopback HTTP serve errors suppressed after {MAX_REPORTED_SERVER_ERRORS} reports"
-                    );
-                }
-                reported_errors = reported_errors.saturating_add(1);
-            }
-        }
+        concurrency::run(self);
         Ok(())
     }
 }
