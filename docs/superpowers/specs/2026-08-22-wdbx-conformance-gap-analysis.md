@@ -5,6 +5,22 @@ Status: **observation.** Measured against `dev/active/abi` at `origin/main`
 (`2026-08-22-spec-canonical-wdbx-episodes.md`), which the ratified
 constitution section 13 calls Program 4.
 
+> **Current-state note (2026-09-24).** The findings below describe the
+> 2026-08-22 v2 snapshot, not the current sibling checkout. WDBX v3 now has
+> deterministic CBOR commitments with sorted parents, a policy-bound
+> append-only episode write gate, detached per-episode Ed25519 signatures,
+> memory candidates with supersession/forgetting, and visible quarantine,
+> contradiction, and resolution edges. ABI's gateway exposes
+> `ProposeEpisodeWrite` and `VerifyEpisode`, including signature and edge state.
+> Source: `../wdbx/crates/abi-wdbx/src/v3/` and
+> `crates/abi-wdbx-gateway/src/episodes.rs`; tests include
+> `v3_cross_language_episode.rs`, `v3_episode_signing.rs`,
+> `v3_memory_edge.rs`, and `crates/abi-wdbx-gateway/tests/episodes.rs`.
+> The remaining Program 4 gaps include a complete constitutional episode
+> schema, COSE, evidence-weighted retrieval, regime compatibility, key
+> revocation, and block-level retention, redaction, and deletion semantics.
+> V2's existing JSON commitment domain is intentionally unchanged.
+
 Reference: `CSAPS_WDBX_Revised_2026.pdf` revision 2.0, sections 6.1 through 6.9
 and normative requirements R1 through R12. The paper is a **proposed
 architecture**; its requirements are proposed criteria, not obligations this

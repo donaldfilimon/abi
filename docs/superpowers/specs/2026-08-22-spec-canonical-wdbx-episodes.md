@@ -84,16 +84,28 @@ scored four requirements as present that are not.
 >   `episodes.v1.jsonl` ledger with `propose_write`, `preview_commitment` and
 >   `retrieve`.
 >
-> **Still genuinely absent**, verified by repo-wide grep on the same date: COSE,
-> `signer_key_id` on episodes, `task_regime`, `regime_posterior`, `quarantine`,
-> and block-level retention/deletion semantics. Beware the near-miss:
-> `signer_key_id` does occur in `abi-worker` for task and cancellation signing,
-> and `contradiction` occurs in `abi-sea` as a retrieval tag. Neither satisfies a
-> conformance row here.
-- **Consumers today:** `abbey` writes memory records as JSON into the durable KV
-  space under `mem/<id>`; `abbey-bot` writes a single-file `# ABI-WDBX v1`
-  projection, proven loadable by `abi-wdbx` in
+> **Still absent on 2026-09-04**, at that snapshot: COSE, episode signing,
+> `task_regime`, `regime_posterior`, quarantine, and block-level
+> retention/deletion semantics.
+>
+> **Updated 2026-09-24 against the sibling source.** The v3 episode store now
+> signs each digest with a detached Ed25519 signature and a derived
+> `signer_key_id` (`v3/episode/signing.rs`); `v3_episode_signing.rs` exercises
+> verification and replay. Memory-edge episodes now record quarantine,
+> contradiction, and resolution without hiding their targets
+> (`v3/episode/store.rs`, `v3_memory_edge.rs`). ABI's gateway exposes their
+> state through `VerifyEpisode` (`crates/abi-wdbx-gateway/src/episodes.rs`).
+> COSE, a signer identity inside the canonical episode envelope, task-regime
+> fields, evidence-weighted retrieval, key revocation, and block-level
+> retention/deletion behavior remain unimplemented. The v2 format stays
+> separate and unchanged.
+- **Consumer snapshot on 2026-08-22:** `abbey` wrote memory records as JSON
+  into the durable KV space under `mem/<id>`; `abbey-bot` wrote a single-file
+  `# ABI-WDBX v1` projection, proven loadable by `abi-wdbx` in
   `../wdbx/crates/abi-wdbx/tests/abbey_bot_projection_conformance.rs`.
+  The current `abbey-bot/src/episode_gate.rs` also offers a default-off v3
+  gate client: when configured, it proposes content-free memory candidates
+  before local writes and stores them only after an appended receipt.
 
 ## Proposed
 
