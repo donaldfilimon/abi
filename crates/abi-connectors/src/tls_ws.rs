@@ -275,34 +275,46 @@ fn validate_ws_handshake_response(headers: &str, key_b64: &str) -> Result<(), Tl
     if !http.starts_with("HTTP/") || code != "101" {
         return Err(TlsWsError::Ws(format!("handshake failed: {status}")));
     }
-    let lower = headers.to_ascii_lowercase();
-    if !lower.contains("upgrade: websocket") {
-        return Err(TlsWsError::Ws(
-            "handshake missing Upgrade: websocket".into(),
-        ));
-    }
-    if !lower.contains("connection:") || !lower.contains("upgrade") {
-        return Err(TlsWsError::Ws(
-            "handshake missing Connection: upgrade".into(),
-        ));
-    }
     let expected = expected_sec_websocket_accept(key_b64);
+    let mut saw_upgrade = false;
+    let mut saw_connection_upgrade = false;
     let mut saw_accept = false;
-    for line in headers.lines() {
+    for line in headers.lines().skip(1) {
+        if line.trim().is_empty() {
+            break;
+        }
         let Some((name, value)) = line.split_once(':') else {
-            continue;
+            return Err(TlsWsError::Ws("malformed handshake header".into()));
         };
-        if name.trim().eq_ignore_ascii_case("sec-websocket-accept") {
+        if name.eq_ignore_ascii_case("upgrade") {
+            saw_upgrade |= value
+                .split(',')
+                .any(|token| token.trim().eq_ignore_ascii_case("websocket"));
+        } else if name.eq_ignore_ascii_case("connection") {
+            saw_connection_upgrade |= value
+                .split(',')
+                .any(|token| token.trim().eq_ignore_ascii_case("upgrade"));
+        } else if name.eq_ignore_ascii_case("sec-websocket-accept") {
+            if saw_accept {
+                return Err(TlsWsError::Ws("duplicate Sec-WebSocket-Accept".into()));
+            }
             saw_accept = true;
             if value.trim() != expected {
                 return Err(TlsWsError::Ws("sec-websocket-accept mismatch".into()));
             }
         }
     }
-    // Some test peers omit Accept; production servers must send it. Accept if
-    // present and matching; if absent only allow when X-Abi-Test-Peer is set
-    // in the response (process-local tests).
-    if !saw_accept && !lower.contains("x-abi-test-peer:") {
+    if !saw_upgrade {
+        return Err(TlsWsError::Ws(
+            "handshake missing Upgrade: websocket".into(),
+        ));
+    }
+    if !saw_connection_upgrade {
+        return Err(TlsWsError::Ws(
+            "handshake missing Connection: upgrade".into(),
+        ));
+    }
+    if !saw_accept {
         return Err(TlsWsError::Ws(
             "handshake missing Sec-WebSocket-Accept".into(),
         ));
@@ -620,6 +632,24 @@ mod tests {
     }
 
     #[test]
+    fn websocket_handshake_requires_real_accept_and_exact_upgrade_headers() {
+        let key = "dGhlIHNhbXBsZSBub25jZQ==";
+        let accept = expected_sec_websocket_accept(key);
+        let valid = format!(
+            "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: keep-alive, Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
+        );
+        assert!(validate_ws_handshake_response(&valid, key).is_ok());
+
+        for invalid in [
+            "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nX-Abi-Test-Peer: 1\r\n\r\n".to_string(),
+            format!("HTTP/1.1 101 Switching Protocols\r\nX-Note: Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"),
+            format!("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: keep-alive\r\nX-Note: upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"),
+        ] {
+            assert!(validate_ws_handshake_response(&invalid, key).is_err(), "{invalid}");
+        }
+    }
+
+    #[test]
     fn process_local_tls_ws_handshake_and_frame_round_trip() {
         let (cert_der, key_der, root_bytes) = test_cert();
         let server_config = ServerConfig::builder()
@@ -646,12 +676,20 @@ mod tests {
                     break;
                 }
             }
-            // Process-local peer: mark as test peer so Accept is optional.
-            let response = b"HTTP/1.1 101 Switching Protocols\r\n\
-Upgrade: websocket\r\n\
-Connection: Upgrade\r\n\
-X-Abi-Test-Peer: 1\r\n\r\n";
-            stream.write_all(response).expect("write 101");
+            let request = std::str::from_utf8(&buf).expect("utf8 request");
+            let key = request
+                .lines()
+                .find_map(|line| {
+                    let (name, value) = line.split_once(':')?;
+                    name.eq_ignore_ascii_case("sec-websocket-key")
+                        .then(|| value.trim())
+                })
+                .expect("websocket key");
+            let accept = expected_sec_websocket_accept(key);
+            let response = format!(
+                "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
+            );
+            stream.write_all(response.as_bytes()).expect("write 101");
             stream.flush().expect("flush");
             // Send one unmasked text frame
             let payload = br#"{"op":10,"d":{"heartbeat_interval":45000}}"#;
