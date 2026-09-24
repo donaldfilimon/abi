@@ -29,11 +29,12 @@
 use std::fmt::Write as _;
 
 use abi_ai::{
-    EMBED_DIM, PROFILE_LABELS, TrainingConfig, analyze_sentiment, complete, select_best_profile,
-    text_embedding, train_inspect, training_store_key, training_store_value, training_vectors,
+    EMBED_DIM, PROFILE_LABELS, TrainingConfig, TrainingResult, analyze_sentiment, complete,
+    select_best_profile, text_embedding, train_inspect, training_store_key, training_store_value,
+    training_vectors,
 };
 use abi_sea::{LearnLoopConfig, run_learn_loop};
-use abi_wdbx::{HybridScorer, RecordId, TemporalCausalGraph, VersionedStore};
+use abi_wdbx::{HybridScorer, RecordId, TemporalCausalGraph, VersionedStats, VersionedStore};
 
 use crate::state::{WdbxStatsError, open_wdbx_store};
 
@@ -329,8 +330,8 @@ pub fn report_train(
 
     let Some(store) = store else {
         return format!(
-            "training accepted profile={} dataset={} records={} backend=cpu wdbx_kv_entries=0 wdbx_vectors=0 wdbx_blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={NO_STORE_STATUS}: {}",
-            result.profile, result.dataset_path, result.records_stored, result.message,
+            "training accepted profile={} dataset={} records=0 backend=cpu wdbx_kv_entries=0 wdbx_vectors=0 wdbx_blocks=0 total_kv_entries=0 total_vectors=0 total_blocks=0 wdbx_status={NO_STORE_STATUS}: {}",
+            result.profile, result.dataset_path, result.message,
         );
     };
 
@@ -341,26 +342,23 @@ pub fn report_train(
     };
     let (query_vec, response_vec) = training_vectors(profile);
     let Ok(query_id) = store.put_vector(&query_vec) else {
-        return format!(
-            "training accepted profile={} dataset={} records=0 backend=cpu wdbx_kv_entries=0 wdbx_vectors=0 wdbx_blocks=0 total_kv_entries={} total_vectors={} total_blocks={}: training accepted; wdbx write failed",
-            result.profile, result.dataset_path, before.kv_entries, before.vectors, before.blocks,
-        );
+        return failed_training_persistence(&result, before, store.stats());
     };
     let Ok(response_id) = store.put_vector(&response_vec) else {
-        return format!(
-            "training accepted profile={} dataset={} records=0 backend=cpu wdbx_kv_entries=0 wdbx_vectors=0 wdbx_blocks=0 total_kv_entries={} total_vectors={} total_blocks={}: training accepted; wdbx write failed",
-            result.profile,
-            result.dataset_path,
-            store.stats().kv_entries,
-            store.stats().vectors,
-            store.stats().blocks,
-        );
+        return failed_training_persistence(&result, before, store.stats());
     };
 
     let value = training_store_value(config, query_id, response_id, "cpu");
     let key = training_store_key(&config.profile);
-    let _ = store.put(&key, &value);
-    let _ = store.add_block(&config.profile, query_id, response_id, &value, now_ms);
+    if store.put(&key, &value).is_err() {
+        return failed_training_persistence(&result, before, store.stats());
+    }
+    if store
+        .add_block(&config.profile, query_id, response_id, &value, now_ms)
+        .is_err()
+    {
+        return failed_training_persistence(&result, before, store.stats());
+    }
 
     result = abi_ai::apply_store_persistence(result, query_id, response_id);
     let after = store.stats();
@@ -377,6 +375,24 @@ pub fn report_train(
         after.vectors,
         after.blocks,
         result.message,
+    )
+}
+
+fn failed_training_persistence(
+    result: &TrainingResult,
+    before: VersionedStats,
+    after: VersionedStats,
+) -> String {
+    format!(
+        "training accepted profile={} dataset={} records=0 backend=cpu wdbx_kv_entries={} wdbx_vectors={} wdbx_blocks={} total_kv_entries={} total_vectors={} total_blocks={}: training accepted; wdbx write failed",
+        result.profile,
+        result.dataset_path,
+        stat_delta(after.kv_entries, before.kv_entries),
+        stat_delta(after.vectors, before.vectors),
+        stat_delta(after.blocks, before.blocks),
+        after.kv_entries,
+        after.vectors,
+        after.blocks,
     )
 }
 
@@ -744,6 +760,60 @@ mod tests {
         let output = report_train(None, &config, FIXED_NOW_MS);
         assert!(output.contains("backend=cpu"));
         assert!(output.contains(&format!("wdbx_status={NO_STORE_STATUS}")));
+    }
+
+    #[test]
+    fn train_without_store_does_not_count_inspected_dataset_lines_as_stored() {
+        let dir = ScratchDir::new();
+        let dataset = dir.0.join("sample.txt");
+        std::fs::write(&dataset, "first\nsecond\n").expect("write scratch dataset");
+        let config = TrainingConfig {
+            profile: "abi".into(),
+            dataset: abi_ai::DatasetSpec {
+                path: dataset.display().to_string(),
+                format: abi_ai::DatasetFormat::Text,
+            },
+            artifact_dir: "out".into(),
+        };
+        let output = report_train(None, &config, FIXED_NOW_MS);
+        assert!(output.contains("records=0 backend=cpu"), "{output}");
+        assert!(
+            output.contains("dataset_available=true; records=2"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn failed_training_report_discloses_partial_writes_without_counting_a_record() {
+        let config = TrainingConfig {
+            profile: "abi".into(),
+            dataset: abi_ai::DatasetSpec {
+                path: "missing".into(),
+                format: abi_ai::DatasetFormat::Text,
+            },
+            artifact_dir: "out".into(),
+        };
+        let (result, _) = train_inspect(&config).expect("valid training config");
+        let before = VersionedStats {
+            kv_entries: 4,
+            vectors: 8,
+            blocks: 2,
+            ..VersionedStats::default()
+        };
+        let after = VersionedStats {
+            kv_entries: 5,
+            vectors: 10,
+            blocks: 2,
+            ..VersionedStats::default()
+        };
+        let output = failed_training_persistence(&result, before, after);
+        assert!(output.contains("records=0 backend=cpu"), "{output}");
+        assert!(
+            output.contains("wdbx_kv_entries=1 wdbx_vectors=2 wdbx_blocks=0"),
+            "{output}"
+        );
+        assert!(output.contains("total_kv_entries=5 total_vectors=10 total_blocks=2"));
+        assert!(output.ends_with("wdbx write failed"));
     }
 
     #[test]

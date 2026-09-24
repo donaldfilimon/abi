@@ -40,7 +40,10 @@ class DurableStoreDocumentationPolicyTests(unittest.TestCase):
         store_path = (ROOT / wdbx_path / "src/store_path.rs").resolve().read_text(encoding="utf-8")
         self.assertIn('.join(".abi").join("wdbx")', store_path)
         self.assertIn("let mut store = util::open_store();", completion)
-        self.assertIn("let mut store = util::open_store();", agent)
+        self.assertIn(
+            "let (mut store, store_open_failed) = match util::open_store_result()", agent
+        )
+        self.assertIn("wdbx_status=store-open-failed", agent)
         self.assertNotIn("open_store(", top_level_train)
         self.assertIn("pub fn run(input:", mcp_ai_tools)
         self.assertIn("pub fn run_train(", mcp_ai_tools)

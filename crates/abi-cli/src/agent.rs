@@ -137,7 +137,10 @@ fn train_profile(profile_arg: &str) -> Outcome {
     }
     let _ = scheduler.run_all();
 
-    let mut store = util::open_store();
+    let (mut store, store_open_failed) = match util::open_store_result() {
+        Ok(store) => (store, false),
+        Err(_) => (None, true),
+    };
     let mut out = String::from("training executed via scheduler (real tasks, not demos)\n");
     print_scheduler_stats(&mut out, scheduler.stats());
     print_memory_stats(&mut out, tracker.peak_usage(), tracker.record_count());
@@ -156,6 +159,7 @@ fn train_profile(profile_arg: &str) -> Outcome {
             continue;
         };
         let mut records = 0_usize;
+        let mut write_failed = false;
         if let Some(store) = store.as_mut()
             && let Ok(profile) = parse_agent_profile(p)
         {
@@ -163,15 +167,30 @@ fn train_profile(profile_arg: &str) -> Outcome {
             if let (Ok(qid), Ok(rid)) = (store.put_vector(&q), store.put_vector(&r)) {
                 let value = training_store_value(&config, qid, rid, "cpu");
                 let key = training_store_key(p);
-                let _ = store.put(&key, &value);
-                let _ = store.add_block(p, qid, rid, &value, abi_foundation::time::unix_ms());
-                records = 1;
+                if store.put(&key, &value).is_ok()
+                    && store
+                        .add_block(p, qid, rid, &value, abi_foundation::time::unix_ms())
+                        .is_ok()
+                {
+                    records = 1;
+                } else {
+                    write_failed = true;
+                }
+            } else {
+                write_failed = true;
             }
         }
+        let status = if store_open_failed {
+            "; wdbx_status=store-open-failed"
+        } else if write_failed {
+            "; wdbx_status=write-failed"
+        } else {
+            ""
+        };
         let _ = writeln!(
             out,
-            "{p}: {} ({records} wdbx record(s), backend={})",
-            result.message, result.acceleration_backend
+            "{p}: {} ({records} wdbx record(s), backend={}{status})",
+            result.message, result.acceleration_backend,
         );
     }
     Outcome {
@@ -544,5 +563,62 @@ mod tests {
     fn train_unknown_profile_is_usage() {
         let outcome = train_profile("nobody");
         assert_eq!(outcome.exit_code, 2);
+    }
+
+    #[test]
+    fn train_profile_counts_only_a_complete_scratch_store_record() {
+        let _guard = abi_foundation::env::lock_for_test();
+        let scratch =
+            std::env::temp_dir().join(format!("abi-agent-train-{}", uuid::Uuid::new_v4()));
+        let store_path = scratch.join("wdbx");
+        std::fs::create_dir_all(&scratch).expect("create scratch directory");
+        abi_foundation::env::set_override(
+            abi_foundation::env::WDBX_PATH,
+            &store_path.display().to_string(),
+        );
+        abi_foundation::env::set_override(abi_foundation::env::WDBX_PERSIST, "1");
+
+        let outcome = train_profile("abi");
+
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PATH);
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PERSIST);
+        assert_eq!(outcome.exit_code, 0);
+        assert!(
+            outcome.stdout.contains("1 wdbx record(s)"),
+            "{}",
+            outcome.stdout
+        );
+        let store = abi_wdbx::VersionedStore::open(abi_wdbx::StorePaths::new(&store_path))
+            .expect("reopen scratch store");
+        assert!(store.get(&training_store_key("abi")).is_some());
+        assert_eq!(store.stats().vectors, 2);
+        assert_eq!(store.stats().blocks, 1);
+        drop(store);
+        std::fs::remove_dir_all(&scratch).expect("remove scratch directory");
+    }
+
+    #[test]
+    fn train_profile_discloses_a_configured_store_open_failure() {
+        let _guard = abi_foundation::env::lock_for_test();
+        let scratch =
+            std::env::temp_dir().join(format!("abi-agent-train-fail-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&scratch).expect("create scratch directory");
+        let obstruction = scratch.join("not-a-directory");
+        std::fs::write(&obstruction, b"file blocks store directory")
+            .expect("create store-path obstruction");
+        abi_foundation::env::set_override(
+            abi_foundation::env::WDBX_PATH,
+            &obstruction.display().to_string(),
+        );
+        abi_foundation::env::set_override(abi_foundation::env::WDBX_PERSIST, "1");
+
+        let outcome = train_profile("abi");
+
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PATH);
+        abi_foundation::env::clear_override(abi_foundation::env::WDBX_PERSIST);
+        assert_eq!(outcome.exit_code, 0);
+        assert!(outcome.stdout.contains("0 wdbx record(s)"));
+        assert!(outcome.stdout.contains("wdbx_status=store-open-failed"));
+        std::fs::remove_dir_all(&scratch).expect("remove scratch directory");
     }
 }
