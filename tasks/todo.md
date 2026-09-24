@@ -51,6 +51,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 | Bound MCP SSE pending responses | ✅ | Each session admits at most 32 queued/reserved responses; a full session returns `503` before dispatch. Notifications and failed sends release their slots. The MCP transport tests, warning-denied clippy, Mintlify validation, and `./tools/check.sh` pass. |
 | Bound MCP HTTP request reads | ✅ | A 30-second absolute deadline ends trickling requests; the reader checks shutdown at most every 250 ms. Focused MCP tests, warning-denied clippy, Mintlify validation, and `./tools/check.sh` pass. |
 | Keep MCP HTTP accept responsive under slow peers | ✅ | At most 16 request workers keep slow reads off the accept loop; overload gets `503` before dispatch, with a separate 25 ms rejection-read cap. Fair-service, saturation, and shutdown tests passed 20 consecutive concurrent runs; 80 MCP unit tests, warning-denied clippy, and `./tools/check.sh` passed. |
+| Honor declared HTTP request body length | ✅ | The shared foundation reader now returns exactly the declared request, dropping coalesced surplus bytes. A red-to-green framing regression, MCP no-dispatch socket test, and REST no-mutation route test cover the boundary; WDBX and ABI full gates passed. |
 | Bound WDBX v3 episode ledger appends | ✅ | The append path checks the same 64 MiB whole-ledger ceiling enforced on reopen, independent of per-guild budgets. A scratch-store regression covers rejection without mutation and successful append/reopen after space is restored; WDBX and ABI full gates passed. |
 
 ---

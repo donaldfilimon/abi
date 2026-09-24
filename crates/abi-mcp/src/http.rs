@@ -632,6 +632,36 @@ mod tests {
     }
 
     #[test]
+    fn undeclared_coalesced_body_never_reaches_dispatch() {
+        use std::io::Write;
+        use std::net::Shutdown;
+
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind probe listener");
+        let port = listener.local_addr().expect("probe address").port();
+        for request in [
+            b"POST /message HTTP/1.1\r\nContent-Length: 0\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"ping\"}".as_slice(),
+            b"POST /message HTTP/1.1\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"ping\"}".as_slice(),
+        ] {
+            let mut client = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).expect("connect");
+            client.write_all(request).expect("queue full request");
+            client.shutdown(Shutdown::Write).expect("finish request");
+            let (server_stream, _) = listener.accept().expect("accept queued request");
+            handle_connection_with(
+                server_stream,
+                McpState::new(),
+                None,
+                |_, _| panic!("undeclared body must not dispatch"),
+                &Arc::new(SessionRegistry::new()),
+                &Arc::new(AtomicBool::new(false)),
+            )
+            .expect("reject missing body");
+            let response = read_http(&mut client);
+            assert!(response.starts_with("HTTP/1.1 400 Bad Request"), "{response}");
+            assert!(response.contains("no body"), "{response}");
+        }
+    }
+
+    #[test]
     fn notification_is_accepted_without_a_jsonrpc_response_body() {
         use std::io::Write;
         with_server(None, |port| {
