@@ -26,6 +26,10 @@ use abi_wdbx::RecordId;
 use crate::app::Outcome;
 use crate::util;
 
+mod neural;
+
+use neural::run_neural;
+
 const USAGE: &str = "usage: abi complete [--live] [--stream] [--learn] [--neural] [--soul <file>] [--soul-alpha <0..1>] [--model <id>] [--confirm] [--] <input>";
 
 /// Fields for the one-line-per-field completion metadata block.
@@ -219,37 +223,6 @@ fn run_learn(input: &str, model: &str) -> Outcome {
         },
         output: &result.output,
     });
-    Outcome {
-        stdout: text,
-        stderr: String::new(),
-        exit_code: 0,
-    }
-}
-
-fn run_neural(input: &str) -> Outcome {
-    // In-process char-LM demo via abi-nn — not a production LLM.
-    let corpus = format!("{input} {input} ");
-    let model = match abi_nn::train_model(
-        corpus.as_bytes(),
-        abi_nn::TrainConfig {
-            epochs: 80,
-            lr: 0.3,
-            seed: 7,
-            ..abi_nn::TrainConfig::default()
-        },
-    ) {
-        Ok(model) => model,
-        Err(err) => {
-            return Outcome::stderr(format!("error: neural train failed: {err}\n"), 1);
-        }
-    };
-    let seed = input.as_bytes().first().copied().unwrap_or(b'h');
-    let sampled = abi_nn::sample(&model, seed, 48);
-    let text = format!(
-        "[model=nn-char-lm | neural=true | stream=false | note=in-process character-level demo model — not a production LLM]\n{}\nnn sample: {}\n",
-        abi_nn::format_report(&model.report),
-        String::from_utf8_lossy(&sampled),
-    );
     Outcome {
         stdout: text,
         stderr: String::new(),
