@@ -94,15 +94,20 @@ pub enum Frame {
 
 /// Try to parse one complete WebSocket frame from the front of `buf`.
 ///
-/// On success returns `(frame, bytes_consumed)`. Server frames are unmasked;
-/// payloads larger than [`MAX_SERVER_FRAME_PAYLOAD_BYTES`] are rejected from
-/// the header alone, before buffering the advertised body.
+/// On success returns `(frame, bytes_consumed)`. Accepts both masked client
+/// frames and unmasked server frames for local transport tests. Live server
+/// reads must use [`try_parse_server_frame`]. Payloads larger than
+/// [`MAX_SERVER_FRAME_PAYLOAD_BYTES`] are rejected from the header alone.
 pub fn try_parse_frame(buf: &[u8]) -> Result<Option<(Frame, usize)>, WsError> {
     if buf.len() < 2 {
         return Ok(None);
     }
+    // This client does not negotiate extensions or assemble fragments.
+    if buf[0] & 0xF0 != 0x80 {
+        return Err(WsError::BadFrame);
+    }
     let opcode = buf[0] & 0x0F;
-    let masked = (buf[1] & 0x80) != 0;
+    let masked = buf[1] & 0x80 != 0;
     let mut len = usize::from(buf[1] & 0x7F);
     let mut offset = 2_usize;
     if len == 126 {
@@ -122,29 +127,20 @@ pub fn try_parse_frame(buf: &[u8]) -> Result<Option<(Frame, usize)>, WsError> {
     if len > MAX_SERVER_FRAME_PAYLOAD_BYTES {
         return Err(WsError::BadFrame);
     }
+    if matches!(opcode, 0x8..=0xA) && len > 125 {
+        return Err(WsError::BadFrame);
+    }
     let mask_len = if masked { 4 } else { 0 };
     let payload_offset = offset.checked_add(mask_len).ok_or(WsError::BadFrame)?;
     let frame_len = payload_offset.checked_add(len).ok_or(WsError::BadFrame)?;
     if buf.len() < frame_len {
         return Ok(None);
     }
-    let mask = if masked {
-        [
-            buf[offset],
-            buf[offset + 1],
-            buf[offset + 2],
-            buf[offset + 3],
-        ]
-    } else {
-        [0; 4]
-    };
+    let mut payload = buf[payload_offset..frame_len].to_vec();
     if masked {
-        offset += 4;
-    }
-    let mut payload = buf[offset..offset + len].to_vec();
-    if masked {
-        for (i, b) in payload.iter_mut().enumerate() {
-            *b ^= mask[i % 4];
+        let mask = &buf[offset..payload_offset];
+        for (i, byte) in payload.iter_mut().enumerate() {
+            *byte ^= mask[i % 4];
         }
     }
     let frame = match opcode {
@@ -156,6 +152,14 @@ pub fn try_parse_frame(buf: &[u8]) -> Result<Option<(Frame, usize)>, WsError> {
         _ => return Err(WsError::BadFrame),
     };
     Ok(Some((frame, frame_len)))
+}
+
+/// Parse an unmasked server frame, rejecting a masked header immediately.
+pub fn try_parse_server_frame(buf: &[u8]) -> Result<Option<(Frame, usize)>, WsError> {
+    if buf.len() >= 2 && buf[1] & 0x80 != 0 {
+        return Err(WsError::BadFrame);
+    }
+    try_parse_frame(buf)
 }
 
 /// Encode a random-looking base64 WebSocket key from 16 seed bytes.
@@ -227,11 +231,15 @@ mod tests {
         // Strip mask for server-style parse: rebuild as unmasked server frame.
         let mut server = vec![0x81, u8::try_from(payload.len()).unwrap()];
         server.extend_from_slice(payload);
-        let (parsed, n) = try_parse_frame(&server).unwrap().unwrap();
+        let (parsed, n) = try_parse_server_frame(&server).unwrap().unwrap();
         assert_eq!(n, server.len());
         assert_eq!(parsed, Frame::Text(payload.to_vec()));
         // Masked frame is longer by 4 mask bytes.
         assert_eq!(frame.len(), 2 + 4 + payload.len());
+        assert_eq!(
+            try_parse_frame(&frame),
+            Ok(Some((Frame::Text(payload.to_vec()), frame.len())))
+        );
     }
 
     #[test]
@@ -261,6 +269,23 @@ mod tests {
             let mut header = vec![0x81, 0x7f];
             header.extend_from_slice(&declared.to_be_bytes());
             assert_eq!(try_parse_frame(&header), Err(WsError::BadFrame));
+        }
+    }
+
+    #[test]
+    fn invalid_server_frame_headers_fail_before_the_payload_arrives() {
+        for header in [
+            &[0x81, 0x80][..],             // Servers must not mask frames.
+            &[0xC1, 0x00][..],             // No extension negotiated reserved bits.
+            &[0x01, 0x00][..],             // Fragmentation is not supported.
+            &[0x09, 0x00][..],             // Control frames must not be fragmented.
+            &[0x89, 0x7e, 0x00, 0x7e][..], // Control payloads are at most 125 bytes.
+        ] {
+            assert_eq!(
+                try_parse_server_frame(header),
+                Err(WsError::BadFrame),
+                "{header:?}"
+            );
         }
     }
 }

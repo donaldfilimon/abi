@@ -14,7 +14,7 @@
 
 use crate::discord_ws::{
     Frame, WsError, build_handshake_request, encode_masked_text_frame, key_b64_from_seed,
-    try_parse_frame,
+    try_parse_server_frame,
 };
 use base64::Engine as _;
 use rustls::ClientConfig;
@@ -189,7 +189,7 @@ impl<S: Read + Write> WsClient<S> {
     /// Read the next text frame, auto-responding to pings.
     pub fn read_text(&mut self) -> Result<Option<String>, TlsWsError> {
         loop {
-            match try_parse_frame(&self.read_buf)? {
+            match try_parse_server_frame(&self.read_buf)? {
                 Some((Frame::Text(payload), n)) => {
                     self.read_buf.drain(..n);
                     let s = String::from_utf8(payload)
@@ -705,7 +705,7 @@ mod tests {
                     break;
                 }
                 inbuf.extend_from_slice(&tmp[..n]);
-                if let Ok(Some((Frame::Text(p), _))) = try_parse_frame(&inbuf) {
+                if let Ok(Some((Frame::Text(p), _))) = crate::discord_ws::try_parse_frame(&inbuf) {
                     let s = String::from_utf8_lossy(&p).into_owned();
                     let _ = tx.send(s);
                     break;
@@ -815,6 +815,19 @@ mod tests {
         header.extend_from_slice(&declared.to_be_bytes());
         let mut client = WsClient {
             stream: std::io::Cursor::new(header),
+            read_buf: Vec::new(),
+            mask_seed: [0; 16],
+        };
+        assert_eq!(
+            client.read_text(),
+            Err(TlsWsError::Ws("malformed websocket frame".into()))
+        );
+    }
+
+    #[test]
+    fn websocket_reader_rejects_masked_server_header_without_waiting_for_body() {
+        let mut client = WsClient {
+            stream: std::io::Cursor::new(vec![0x81, 0x80]),
             read_buf: Vec::new(),
             mask_seed: [0; 16],
         };
