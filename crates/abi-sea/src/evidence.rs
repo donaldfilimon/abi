@@ -75,6 +75,7 @@ struct ParsedStoredMetadata {
     updated_ms: Option<i64>,
     graph_flags: u8,
     valid_json: bool,
+    audit_rejected: bool,
 }
 
 /// Parse only exact top-level JSON fields. Generic-store authority cannot
@@ -142,6 +143,8 @@ fn parse_stored_metadata(metadata: &str) -> ParsedStoredMetadata {
         updated_ms,
         graph_flags,
         valid_json: true,
+        audit_rejected: object.get("audit_vetoed").and_then(Value::as_bool) == Some(true)
+            || object.get("audit_passed").and_then(Value::as_bool) == Some(false),
     }
 }
 
@@ -155,6 +158,7 @@ impl Default for ParsedStoredMetadata {
             updated_ms: None,
             graph_flags: 0,
             valid_json: false,
+            audit_rejected: false,
         }
     }
 }
@@ -195,7 +199,6 @@ pub fn gather_evidence_with_plan(
     let mut block_timestamp_by_query = std::collections::BTreeMap::new();
     let mut latest_timestamp_ms = None;
     for block in snapshot.audit_blocks() {
-        latest_timestamp_ms = latest_timestamp_ms.max(Some(block.timestamp_ms));
         block_timestamp_by_query
             .entry(block.query_id)
             .and_modify(|timestamp: &mut i64| *timestamp = (*timestamp).max(block.timestamp_ms))
@@ -213,6 +216,11 @@ pub fn gather_evidence_with_plan(
             continue;
         };
         let parsed = parse_stored_metadata(&metadata);
+        // Refusals remain in the durable audit trail, but cannot be promoted
+        // into future prompts or change the recency baseline for safe records.
+        if parsed.audit_rejected {
+            continue;
+        }
         let block_timestamp_ms = block_timestamp_by_query.get(&hit.id).copied();
         latest_timestamp_ms = latest_timestamp_ms.max(parsed.updated_ms.or(block_timestamp_ms));
         recalled.push((hit.id, hit.score, metadata, parsed, block_timestamp_ms));

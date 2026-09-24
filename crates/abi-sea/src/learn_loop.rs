@@ -82,9 +82,12 @@ pub fn run_learn_loop(
     // text so an explicit "Aviva, ..." address is not masked by the preamble.
     let persisted_weights = store.get(MODULATOR_STORE_KEY);
     let completion = complete_adaptive(&augmented, model, input, persisted_weights.as_deref())?;
+    // A refusal may remain observable to the caller, but it must not train
+    // routing weights or enter the completion evidence pool.
+    let audit_allows_learning = completion.audit.passed && !completion.audit.vetoed;
 
     let mut adapted = false;
-    if config.adapt_router {
+    if config.adapt_router && audit_allows_learning {
         // Zig reloads weights from the store for the save path, independently
         // of the routing-time update inside complete_adaptive.
         let mut modulator = match store.get(MODULATOR_STORE_KEY) {
@@ -100,7 +103,7 @@ pub fn run_learn_loop(
 
     // Zig's completeWithStoreAdaptive embeds request.input (the augmented
     // prompt) as the query vector — not the raw user text.
-    let persisted = if config.persist {
+    let persisted = if config.persist && audit_allows_learning {
         persist_completion(store, &augmented, &completion, now_ms)
     } else {
         None
@@ -216,6 +219,26 @@ mod tests {
         .unwrap();
         assert!(result.adapted);
         assert!(store.get(MODULATOR_STORE_KEY).is_some());
+    }
+
+    #[test]
+    fn vetoed_completion_neither_adapts_nor_enters_the_evidence_store() {
+        let (_dir, mut store) = open();
+        let before = store.stats();
+        let result = run_learn_loop(
+            &mut store,
+            "this will cause harm",
+            "abi-local",
+            LearnLoopConfig::default(),
+            1_700_000_000_000,
+        )
+        .unwrap();
+        assert!(result.completion.audit.vetoed);
+        assert!(!result.completion.audit.passed);
+        assert!(!result.adapted);
+        assert!(result.persisted.is_none());
+        assert_eq!(store.stats(), before);
+        assert!(store.get(MODULATOR_STORE_KEY).is_none());
     }
 
     #[test]

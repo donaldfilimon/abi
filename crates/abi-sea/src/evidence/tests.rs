@@ -127,6 +127,59 @@ fn missing_metadata_is_not_admitted_as_evidence() {
 }
 
 #[test]
+fn audited_refusals_remain_stored_but_cannot_be_recalled_or_skew_recency() {
+    let dir = Scratch::new();
+    let mut store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
+    let embedding = text_embedding("matching evidence");
+    let safe_id = store.put_vector(&embedding).unwrap();
+    let vetoed_id = store.put_vector(&embedding).unwrap();
+    let failed_id = store.put_vector(&embedding).unwrap();
+
+    let safe = abi_ai::complete("ordinary note", "m").unwrap();
+    let vetoed = abi_ai::complete("this will cause harm", "m").unwrap();
+    assert!(safe.audit.passed);
+    assert!(vetoed.audit.vetoed);
+    let safe_metadata =
+        abi_ai::completion::metadata_json("ordinary note", &safe, safe_id, RecordId::Legacy(0));
+    let vetoed_metadata = abi_ai::completion::metadata_json(
+        "this will cause harm",
+        &vetoed,
+        vetoed_id,
+        RecordId::Legacy(0),
+    );
+    store
+        .put(&format!("completion:{safe_id}"), &safe_metadata)
+        .unwrap();
+    store
+        .put(&format!("completion:{vetoed_id}"), &vetoed_metadata)
+        .unwrap();
+    store
+        .put(
+            &format!("completion:{failed_id}"),
+            r#"{"kind":"completion","audit_passed":false,"text":"rejected evidence"}"#,
+        )
+        .unwrap();
+    store
+        .add_block("abbey", safe_id, RecordId::Legacy(0), &safe_metadata, 1_000)
+        .unwrap();
+    store
+        .add_block(
+            "abbey",
+            vetoed_id,
+            RecordId::Legacy(0),
+            &vetoed_metadata,
+            2_592_001_000,
+        )
+        .unwrap();
+
+    let ctx = gather_evidence(&store, "matching evidence", 5);
+    assert_eq!(ctx.items.len(), 1);
+    assert_eq!(ctx.items[0].vector_id, safe_id);
+    assert!((ctx.items[0].signals.recency - 1.0).abs() < 1e-5);
+    assert!(store.get(&format!("completion:{vetoed_id}")).is_some());
+}
+
+#[test]
 fn malformed_metadata_is_bounded_and_low_trust() {
     let dir = Scratch::new();
     let mut store = VersionedStore::open(StorePaths::new(&dir.0)).unwrap();
