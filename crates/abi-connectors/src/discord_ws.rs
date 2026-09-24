@@ -13,6 +13,8 @@ use std::io::{Read, Write};
 pub const GATEWAY_PATH: &str = "/?v=10&encoding=json";
 /// Default Discord gateway host.
 pub const GATEWAY_HOST: &str = "gateway.discord.gg";
+/// Maximum payload accepted from one server WebSocket frame.
+pub const MAX_SERVER_FRAME_PAYLOAD_BYTES: usize = 1024 * 1024;
 
 /// Errors from WebSocket framing / handshake.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,7 +94,9 @@ pub enum Frame {
 
 /// Try to parse one complete WebSocket frame from the front of `buf`.
 ///
-/// On success returns `(frame, bytes_consumed)`. Server frames are unmasked.
+/// On success returns `(frame, bytes_consumed)`. Server frames are unmasked;
+/// payloads larger than [`MAX_SERVER_FRAME_PAYLOAD_BYTES`] are rejected from
+/// the header alone, before buffering the advertised body.
 pub fn try_parse_frame(buf: &[u8]) -> Result<Option<(Frame, usize)>, WsError> {
     if buf.len() < 2 {
         return Ok(None);
@@ -115,8 +119,13 @@ pub fn try_parse_frame(buf: &[u8]) -> Result<Option<(Frame, usize)>, WsError> {
         len = usize::try_from(n).map_err(|_| WsError::BadFrame)?;
         offset = 10;
     }
+    if len > MAX_SERVER_FRAME_PAYLOAD_BYTES {
+        return Err(WsError::BadFrame);
+    }
     let mask_len = if masked { 4 } else { 0 };
-    if buf.len() < offset + mask_len + len {
+    let payload_offset = offset.checked_add(mask_len).ok_or(WsError::BadFrame)?;
+    let frame_len = payload_offset.checked_add(len).ok_or(WsError::BadFrame)?;
+    if buf.len() < frame_len {
         return Ok(None);
     }
     let mask = if masked {
@@ -146,7 +155,7 @@ pub fn try_parse_frame(buf: &[u8]) -> Result<Option<(Frame, usize)>, WsError> {
         0xA => Frame::Pong(payload),
         _ => return Err(WsError::BadFrame),
     };
-    Ok(Some((frame, offset + len)))
+    Ok(Some((frame, frame_len)))
 }
 
 /// Encode a random-looking base64 WebSocket key from 16 seed bytes.
@@ -233,5 +242,25 @@ mod tests {
                 .unwrap()
                 .is_none()
         );
+    }
+
+    #[test]
+    fn oversized_declared_frames_fail_before_the_payload_arrives() {
+        let mut allowed_header = vec![0x81, 0x7f];
+        allowed_header.extend_from_slice(
+            &u64::try_from(MAX_SERVER_FRAME_PAYLOAD_BYTES)
+                .unwrap()
+                .to_be_bytes(),
+        );
+        assert_eq!(try_parse_frame(&allowed_header), Ok(None));
+
+        for declared in [
+            u64::try_from(MAX_SERVER_FRAME_PAYLOAD_BYTES).unwrap() + 1,
+            u64::MAX,
+        ] {
+            let mut header = vec![0x81, 0x7f];
+            header.extend_from_slice(&declared.to_be_bytes());
+            assert_eq!(try_parse_frame(&header), Err(WsError::BadFrame));
+        }
     }
 }

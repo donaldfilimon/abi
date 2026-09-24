@@ -768,4 +768,21 @@ X-Abi-Test-Peer: 1\r\n\r\n";
             "/stream?AuthToken=existing"
         );
     }
+
+    #[test]
+    fn websocket_reader_rejects_oversized_frame_header_without_waiting_for_body() {
+        let declared =
+            u64::try_from(crate::discord_ws::MAX_SERVER_FRAME_PAYLOAD_BYTES).unwrap() + 1;
+        let mut header = vec![0x81, 0x7f];
+        header.extend_from_slice(&declared.to_be_bytes());
+        let mut client = WsClient {
+            stream: std::io::Cursor::new(header),
+            read_buf: Vec::new(),
+            mask_seed: [0; 16],
+        };
+        assert_eq!(
+            client.read_text(),
+            Err(TlsWsError::Ws("malformed websocket frame".into()))
+        );
+    }
 }
