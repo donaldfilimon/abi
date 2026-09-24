@@ -197,6 +197,21 @@ pub fn handle_connection(
     handle_connection_with(stream, state, bearer_token, rpc::process, sessions, stop)
 }
 
+fn read_http_request(stream: &mut TcpStream, stop: &AtomicBool) -> io::Result<Option<Vec<u8>>> {
+    let response = match read_request(
+        &mut RequestReader::new(stream, stop, REQUEST_DEADLINE),
+        MAX_REQUEST_SIZE,
+    ) {
+        ReadResult::Request(raw) => return Ok(Some(raw)),
+        ReadResult::Empty => return Ok(None),
+        ReadResult::Malformed => b"HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"malformed request\"}".as_slice(),
+        ReadResult::Incomplete => b"HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"incomplete request\"}".as_slice(),
+        ReadResult::TooLarge => b"HTTP/1.1 413 Payload Too Large\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"request too large\"}".as_slice(),
+    };
+    write_all(stream, response)?;
+    Ok(None)
+}
+
 fn handle_connection_with<F>(
     mut stream: TcpStream,
     state: McpState,
@@ -208,24 +223,8 @@ fn handle_connection_with<F>(
 where
     F: FnOnce(McpState, &str) -> Option<crate::rpc::RpcResponse>,
 {
-    let raw = match read_request(
-        &mut RequestReader::new(&mut stream, stop, REQUEST_DEADLINE),
-        MAX_REQUEST_SIZE,
-    ) {
-        ReadResult::Empty => return Ok(()),
-        ReadResult::Incomplete => {
-            return write_all(
-                &mut stream,
-                b"HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"incomplete request\"}",
-            );
-        }
-        ReadResult::TooLarge => {
-            return write_all(
-                &mut stream,
-                b"HTTP/1.1 413 Payload Too Large\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"error\":\"request too large\"}",
-            );
-        }
-        ReadResult::Request(raw) => raw,
+    let Some(raw) = read_http_request(&mut stream, stop)? else {
+        return Ok(());
     };
 
     let Ok(raw_text) = std::str::from_utf8(&raw) else {
@@ -658,6 +657,39 @@ mod tests {
             let response = read_http(&mut client);
             assert!(response.starts_with("HTTP/1.1 400 Bad Request"), "{response}");
             assert!(response.contains("no body"), "{response}");
+        }
+    }
+
+    #[test]
+    fn ambiguous_body_framing_is_rejected_before_dispatch() {
+        use std::io::Write;
+        use std::net::Shutdown;
+
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind probe listener");
+        let port = listener.local_addr().expect("probe address").port();
+        for request in [
+            b"POST /message HTTP/1.1\r\nContent-Length: 0\r\nContent-Length: 0\r\n\r\n".as_slice(),
+            b"POST /message HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n".as_slice(),
+        ] {
+            let mut client = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).expect("connect");
+            client.write_all(request).expect("queue malformed request");
+            client.shutdown(Shutdown::Write).expect("finish request");
+            let (server_stream, _) = listener.accept().expect("accept queued request");
+            handle_connection_with(
+                server_stream,
+                McpState::new(),
+                None,
+                |_, _| panic!("malformed request must not dispatch"),
+                &Arc::new(SessionRegistry::new()),
+                &Arc::new(AtomicBool::new(false)),
+            )
+            .expect("reject malformed framing");
+            let response = read_http(&mut client);
+            assert!(
+                response.starts_with("HTTP/1.1 400 Bad Request"),
+                "{response}"
+            );
+            assert!(response.contains("malformed request"), "{response}");
         }
     }
 

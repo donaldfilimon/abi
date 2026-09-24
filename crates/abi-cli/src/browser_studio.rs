@@ -364,6 +364,9 @@ fn write_response(stream: &mut TcpStream, response: &StudioResponse) -> io::Resu
 fn handle_connection(stream: &mut TcpStream, token: Option<&str>) -> io::Result<()> {
     let raw = match read_request(stream, MAX_REQUEST_SIZE) {
         ReadResult::Empty => return Ok(()),
+        ReadResult::Malformed => {
+            return write_response(stream, &StudioResponse::error(400, "malformed request"));
+        }
         ReadResult::Incomplete => {
             return write_response(stream, &StudioResponse::error(400, "incomplete request"));
         }
@@ -643,5 +646,29 @@ mod tests {
         assert!(!origin_allowed(
             "GET / HTTP/1.1\r\nOrigin: http://localhost\r\norigin: https://evil.example\r\n\r\n"
         ));
+    }
+
+    #[test]
+    fn ambiguous_body_framing_is_rejected_before_studio_routing() {
+        use std::io::{Read as _, Write as _};
+        use std::net::Shutdown;
+
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind probe listener");
+        let port = listener.local_addr().expect("probe address").port();
+        for request in [
+            b"POST /analyze HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\nContent-Length: 0\r\n\r\n".as_slice(),
+            b"POST /analyze HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n".as_slice(),
+        ] {
+            let mut client = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).expect("connect");
+            client.write_all(request).expect("queue malformed request");
+            client.shutdown(Shutdown::Write).expect("finish request");
+            let (mut server_stream, _) = listener.accept().expect("accept queued request");
+            handle_connection(&mut server_stream, None).expect("reject malformed framing");
+            drop(server_stream);
+            let mut response = String::new();
+            client.read_to_string(&mut response).expect("read response");
+            assert!(response.starts_with("HTTP/1.1 400 Bad Request"), "{response}");
+            assert!(response.contains("malformed request"), "{response}");
+        }
     }
 }
