@@ -460,20 +460,19 @@ impl std::fmt::Debug for TwilioMediaClient {
 impl TwilioMediaClient {
     /// Connect to Twilio media / `ConversationRelay` over `wss://`.
     ///
-    /// `wss_url` must be `wss://host[:port]/path`. Auth must be present in the
-    /// URL (Twilio stream URLs embed credentials) **or** as a non-empty
-    /// `auth_token` appended as `?token=` / `&token=` when missing from the path.
+    /// `wss_url` must be `wss://host[:port]/path`. Auth must be a non-empty
+    /// `token` or `AuthToken` query value, or a non-empty `auth_token` appended
+    /// as `?token=` / `&token=` when the URL has no such value.
     pub fn connect(wss_url: &str, auth_token: &str) -> Result<Self, TlsWsError> {
         let (host, port, mut path) = parse_wss_url(wss_url)?;
-        let url_has_secret =
-            path.contains("token=") || path.contains("AuthToken") || wss_url.contains('@');
+        let url_has_secret = has_twilio_token(&path);
         if auth_token.is_empty() && !url_has_secret {
             return Err(TlsWsError::NotConfigured(
                 "TWILIO auth missing — pass a Twilio stream URL with embedded auth or a non-empty auth_token"
                     .into(),
             ));
         }
-        if !auth_token.is_empty() && !path.contains("token=") {
+        if !auth_token.is_empty() && !url_has_secret {
             if path.contains('?') {
                 path.push_str("&token=");
             } else {
@@ -498,22 +497,54 @@ impl TwilioMediaClient {
 }
 
 fn parse_wss_url(url: &str) -> Result<(String, u16, String), TlsWsError> {
-    let rest = url
-        .strip_prefix("wss://")
-        .ok_or_else(|| TlsWsError::Connect(format!("expected wss:// URL, got {url}")))?;
-    let (host_port, path) = match rest.split_once('/') {
-        Some((hp, p)) => (hp, format!("/{p}")),
-        None => (rest, "/".to_string()),
-    };
-    let (host, port) = if let Some((h, p)) = host_port.rsplit_once(':') {
-        let port: u16 = p
-            .parse()
-            .map_err(|_| TlsWsError::Connect(format!("bad port in {url}")))?;
-        (h.to_string(), port)
+    const INVALID: &str = "invalid wss URL";
+    let uri: http::Uri = url
+        .parse()
+        .map_err(|_| TlsWsError::Connect(INVALID.into()))?;
+    if uri.scheme_str() != Some("wss") || url.contains('#') {
+        return Err(TlsWsError::Connect(INVALID.into()));
+    }
+    let authority = uri
+        .authority()
+        .ok_or_else(|| TlsWsError::Connect(INVALID.into()))?;
+    // A userinfo-looking prefix is not sent as Twilio authentication. Reject
+    // it instead of mistaking it for a credential or a destination host.
+    if authority.as_str().contains('@') || authority.host().is_empty() {
+        return Err(TlsWsError::Connect(INVALID.into()));
+    }
+    let host = authority.host();
+    let suffix = authority
+        .as_str()
+        .strip_prefix(host)
+        .ok_or_else(|| TlsWsError::Connect(INVALID.into()))?;
+    let port = if suffix.is_empty() {
+        443
     } else {
-        (host_port.to_string(), 443)
+        suffix
+            .strip_prefix(':')
+            .ok_or_else(|| TlsWsError::Connect(INVALID.into()))?
+            .parse::<u16>()
+            .map_err(|_| TlsWsError::Connect("invalid wss port".into()))?
     };
-    Ok((host, port, path))
+    let path = uri.path_and_query().map_or("/", |value| value.as_str());
+    let path = if path.starts_with('?') {
+        format!("/{path}")
+    } else {
+        path.to_string()
+    };
+    Ok((host.to_string(), port, path))
+}
+
+fn has_twilio_token(path: &str) -> bool {
+    let Some((_, query)) = path.split_once('?') else {
+        return false;
+    };
+    query.split('&').any(|field| {
+        field.split_once('=').is_some_and(|(name, value)| {
+            !value.is_empty()
+                && (name.eq_ignore_ascii_case("token") || name.eq_ignore_ascii_case("AuthToken"))
+        })
+    })
 }
 
 /// Attempt live Discord connect; returns a disclosed error string when not configured.
@@ -649,5 +680,52 @@ X-Abi-Test-Peer: 1\r\n\r\n";
         assert_eq!(h, "media.twilio.com");
         assert_eq!(p, 443);
         assert_eq!(path, "/v1/stream");
+
+        let (h, p, path) = parse_wss_url("wss://media.twilio.com:8443?token=abc").unwrap();
+        assert_eq!(h, "media.twilio.com");
+        assert_eq!(p, 8443);
+        assert_eq!(path, "/?token=abc");
+    }
+
+    #[test]
+    fn twilio_url_auth_requires_a_nonempty_query_value() {
+        for path in [
+            "/stream/token=abc",
+            "/stream/@mention",
+            "/stream?token=",
+            "/stream?mytoken=abc",
+            "/stream?hint=token=abc",
+        ] {
+            assert!(!has_twilio_token(path), "{path} is not auth");
+        }
+        for path in ["/stream?token=abc", "/stream?x=1&AuthToken=abc"] {
+            assert!(has_twilio_token(path), "{path} carries auth");
+        }
+    }
+
+    #[test]
+    fn twilio_url_rejects_userinfo_instead_of_treating_it_as_auth() {
+        let error = parse_wss_url("wss://name:secret@media.twilio.com/stream").unwrap_err();
+        assert!(!error.to_string().contains("secret"));
+    }
+
+    #[test]
+    fn malformed_twilio_urls_never_echo_embedded_tokens() {
+        for url in [
+            "ws://media.twilio.com/stream?token=private-test-token",
+            "wss://media.twilio.com:bad/stream?token=private-test-token",
+        ] {
+            let error = try_twilio_media_connect(Some(url), None).unwrap_err();
+            assert!(!error.contains("private-test-token"), "{error}");
+            assert!(!error.contains(url), "{error}");
+        }
+    }
+
+    #[test]
+    fn at_sign_in_twilio_path_is_not_authentication() {
+        assert!(matches!(
+            TwilioMediaClient::connect("wss://localhost:0/stream/@mention", ""),
+            Err(TlsWsError::NotConfigured(_))
+        ));
     }
 }
