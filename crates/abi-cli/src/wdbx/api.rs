@@ -73,13 +73,8 @@ fn api_serve(port_raw: Option<&str>) -> Outcome {
         stop_flag.store(true, Ordering::SeqCst);
     });
 
-    while !stop.load(Ordering::SeqCst) {
-        if let Err(err) = server.serve_one() {
-            if stop.load(Ordering::SeqCst) {
-                break;
-            }
-            eprintln!("wdbx REST serve error: {err}");
-        }
+    if let Err(err) = server.serve_until(&stop) {
+        return super::error("api serve failed", err);
     }
     Outcome::stderr("wdbx REST stopped\n".into(), 0)
 }

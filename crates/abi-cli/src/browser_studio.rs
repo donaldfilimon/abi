@@ -6,7 +6,9 @@
 
 use std::io::{self, Write as _};
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use abi_ai::{
     AnalysisReport, MAX_FRAMES, MAX_SAMPLES, MAX_SIDE, MediaError, analyze_audio, analyze_image,
@@ -27,7 +29,9 @@ const HTML: &str = include_str!("browser_studio.html");
 const STUDIO_USAGE: &str = "usage: abi agent browser --studio [--port <port>] [--once]\n";
 const DEFAULT_PORT: u16 = 8095;
 const TOKEN_ENV: &str = "ABI_BROWSER_STUDIO_TOKEN";
-const REQUEST_DEADLINE: std::time::Duration = std::time::Duration::from_secs(5);
+const REQUEST_DEADLINE: Duration = Duration::from_secs(5);
+
+mod concurrency;
 
 /// One studio HTTP response.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -311,9 +315,25 @@ fn handle_connection(stream: &mut TcpStream, token: Option<&str>) -> io::Result<
 fn handle_connection_with_deadline(
     stream: &mut TcpStream,
     token: Option<&str>,
-    deadline: std::time::Duration,
+    deadline: Duration,
 ) -> io::Result<()> {
-    let raw = match read_request(&mut DeadlineReader::new(stream, deadline), MAX_REQUEST_SIZE) {
+    handle_connection_with_stop(stream, token, deadline, None)
+}
+
+fn handle_connection_with_stop(
+    stream: &mut TcpStream,
+    token: Option<&str>,
+    deadline: Duration,
+    stop: Option<&AtomicBool>,
+) -> io::Result<()> {
+    let raw = match stop {
+        Some(stop) => read_request(
+            &mut DeadlineReader::with_stop(stream, stop, deadline),
+            MAX_REQUEST_SIZE,
+        ),
+        None => read_request(&mut DeadlineReader::new(stream, deadline), MAX_REQUEST_SIZE),
+    };
+    let raw = match raw {
         ReadResult::Empty => return Ok(()),
         ReadResult::Malformed => {
             return write_response(stream, &StudioResponse::error(400, "malformed request"));
@@ -416,27 +436,13 @@ pub(crate) fn run_from_args(args: &[String]) -> Outcome {
         };
     }
 
-    let stop = std::sync::Arc::new(AtomicBool::new(false));
-    let stop_flag = std::sync::Arc::clone(&stop);
+    let stop = Arc::new(AtomicBool::new(false));
+    let stop_flag = Arc::clone(&stop);
     let _ = ctrlc::set_handler(move || {
         stop_flag.store(true, Ordering::SeqCst);
     });
-    while !stop.load(Ordering::SeqCst) {
-        match listener.accept() {
-            Ok((mut stream, _)) => {
-                if let Err(error) = handle_connection(&mut stream, token.as_deref())
-                    && !stop.load(Ordering::SeqCst)
-                {
-                    eprintln!("browser studio: {error}");
-                }
-            }
-            Err(error) => {
-                if stop.load(Ordering::SeqCst) {
-                    break;
-                }
-                eprintln!("browser studio: {error}");
-            }
-        }
+    if let Err(error) = concurrency::serve_studio_loop(&listener, token, &stop) {
+        return Outcome::stderr(format!("error: browser studio: {error}\n"), 2);
     }
     Outcome {
         stdout: banner,
