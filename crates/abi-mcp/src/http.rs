@@ -16,17 +16,17 @@
 //! workers keep slow peers off the accept loop; SSE sessions then run on their
 //! own capped threads so POSTs can still publish to them.
 
-use std::io::{self, ErrorKind, Read};
+use std::io;
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use abi_foundation::env::{self, MCP_HTTP_PORT, MCP_HTTP_TOKEN};
 use abi_foundation::http::{
-    MAX_REQUEST_SIZE, ReadResult, find_body, has_bearer_token, read_request, write_all,
-    write_unauthorized,
+    DeadlineReader, MAX_REQUEST_SIZE, ReadResult, find_body, has_bearer_token, read_request,
+    write_all, write_unauthorized,
 };
 
 use crate::rpc;
@@ -40,48 +40,6 @@ pub const DEFAULT_HTTP_PORT: u16 = 8080;
 
 /// An HTTP peer may take this long to send one complete request.
 const REQUEST_DEADLINE: Duration = Duration::from_secs(30);
-/// Check the stop flag even when the peer has not sent another byte.
-const READ_POLL_INTERVAL: Duration = Duration::from_millis(250);
-
-struct RequestReader<'a> {
-    stream: &'a mut TcpStream,
-    stop: &'a AtomicBool,
-    deadline: Instant,
-}
-
-impl<'a> RequestReader<'a> {
-    fn new(stream: &'a mut TcpStream, stop: &'a AtomicBool, duration: Duration) -> Self {
-        Self {
-            stream,
-            stop,
-            deadline: Instant::now() + duration,
-        }
-    }
-}
-
-impl Read for RequestReader<'_> {
-    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-        loop {
-            if self.stop.load(Ordering::SeqCst) {
-                return Err(ErrorKind::Interrupted.into());
-            }
-            let remaining = self.deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero() {
-                return Err(ErrorKind::TimedOut.into());
-            }
-            self.stream
-                .set_read_timeout(Some(remaining.min(READ_POLL_INTERVAL)))?;
-            match self.stream.read(buffer) {
-                Err(error)
-                    if matches!(
-                        error.kind(),
-                        ErrorKind::Interrupted | ErrorKind::TimedOut | ErrorKind::WouldBlock
-                    ) => {}
-                result => return result,
-            }
-        }
-    }
-}
 
 /// Configuration for the custom loopback HTTP listener.
 #[derive(Debug, Clone)]
@@ -199,7 +157,7 @@ pub fn handle_connection(
 
 fn read_http_request(stream: &mut TcpStream, stop: &AtomicBool) -> io::Result<Option<Vec<u8>>> {
     let response = match read_request(
-        &mut RequestReader::new(stream, stop, REQUEST_DEADLINE),
+        &mut DeadlineReader::with_stop(stream, stop, REQUEST_DEADLINE),
         MAX_REQUEST_SIZE,
     ) {
         ReadResult::Request(raw) => return Ok(Some(raw)),
@@ -547,7 +505,7 @@ mod tests {
             let (mut stream, _) = listener.accept().expect("accept probe request");
             let stop = AtomicBool::new(false);
             let result = read_request(
-                &mut RequestReader::new(&mut stream, &stop, Duration::from_millis(120)),
+                &mut DeadlineReader::with_stop(&mut stream, &stop, Duration::from_millis(120)),
                 1024,
             );
             result_tx.send(result).expect("report read result");

@@ -1,6 +1,7 @@
 //! Bounded request workers keep an incomplete HTTP read off the accept loop.
 
-use super::{McpHttpServer, RequestReader, handle_connection};
+use super::{McpHttpServer, handle_connection};
+use abi_foundation::http::DeadlineReader;
 use std::io;
 use std::net::TcpStream;
 use std::sync::Arc;
@@ -91,7 +92,7 @@ fn reject_overloaded(
     // client sees the 503. Consume a complete queued request if available,
     // but cap this accept-loop work independently of the normal 30 s reader.
     let _ = abi_foundation::http::read_request(
-        &mut RequestReader::new(stream, stop, OVERLOAD_READ_DEADLINE),
+        &mut DeadlineReader::with_stop(stream, stop, OVERLOAD_READ_DEADLINE),
         abi_foundation::http::MAX_REQUEST_SIZE,
     );
     stream.set_write_timeout(Some(RESPONSE_WRITE_TIMEOUT))?;

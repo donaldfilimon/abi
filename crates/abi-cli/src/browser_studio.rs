@@ -13,8 +13,8 @@ use abi_ai::{
     analyze_video, analyze_voice, fuse_embeddings,
 };
 use abi_foundation::http::{
-    MAX_REQUEST_SIZE, ReadResult, find_body, has_bearer_token, header_value, read_request,
-    reason_phrase, write_all, write_unauthorized,
+    DeadlineReader, MAX_REQUEST_SIZE, ReadResult, find_body, has_bearer_token, header_value,
+    read_request, reason_phrase, write_all, write_unauthorized,
 };
 use serde_json::{Value, json};
 
@@ -24,6 +24,7 @@ const HTML: &str = include_str!("browser_studio.html");
 const STUDIO_USAGE: &str = "usage: abi agent browser --studio [--port <port>] [--once]\n";
 const DEFAULT_PORT: u16 = 8095;
 const TOKEN_ENV: &str = "ABI_BROWSER_STUDIO_TOKEN";
+const REQUEST_DEADLINE: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// One studio HTTP response.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -362,7 +363,15 @@ fn write_response(stream: &mut TcpStream, response: &StudioResponse) -> io::Resu
 }
 
 fn handle_connection(stream: &mut TcpStream, token: Option<&str>) -> io::Result<()> {
-    let raw = match read_request(stream, MAX_REQUEST_SIZE) {
+    handle_connection_with_deadline(stream, token, REQUEST_DEADLINE)
+}
+
+fn handle_connection_with_deadline(
+    stream: &mut TcpStream,
+    token: Option<&str>,
+    deadline: std::time::Duration,
+) -> io::Result<()> {
+    let raw = match read_request(&mut DeadlineReader::new(stream, deadline), MAX_REQUEST_SIZE) {
         ReadResult::Empty => return Ok(()),
         ReadResult::Malformed => {
             return write_response(stream, &StudioResponse::error(400, "malformed request"));
@@ -670,5 +679,49 @@ mod tests {
             assert!(response.starts_with("HTTP/1.1 400 Bad Request"), "{response}");
             assert!(response.contains("malformed request"), "{response}");
         }
+    }
+
+    #[test]
+    fn slow_partial_request_times_out_then_next_request_is_served() {
+        use std::io::{Read as _, Write as _};
+        use std::time::Duration;
+
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind probe listener");
+        let port = listener.local_addr().expect("probe address").port();
+        let handle = std::thread::spawn(move || {
+            for _ in 0..2 {
+                let (mut stream, _) = listener.accept().expect("accept request");
+                handle_connection_with_deadline(&mut stream, None, Duration::from_millis(100))
+                    .expect("respond to request");
+            }
+        });
+
+        let mut slow = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).expect("connect slow peer");
+        slow.set_read_timeout(Some(Duration::from_secs(1)))
+            .expect("read timeout");
+        slow.write_all(b"GET /health HTTP/1.1\r\nHost: localhost\r\n")
+            .expect("write incomplete headers");
+        let mut rejected = String::new();
+        slow.read_to_string(&mut rejected)
+            .expect("deadline ends the open request");
+        assert!(
+            rejected.starts_with("HTTP/1.1 400 Bad Request"),
+            "{rejected}"
+        );
+
+        let mut healthy =
+            TcpStream::connect((Ipv4Addr::LOCALHOST, port)).expect("connect next peer");
+        healthy
+            .write_all(b"GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .expect("write health request");
+        healthy
+            .shutdown(std::net::Shutdown::Write)
+            .expect("finish health request");
+        let mut response = String::new();
+        healthy
+            .read_to_string(&mut response)
+            .expect("read health response");
+        assert!(response.starts_with("HTTP/1.1 200 OK"), "{response}");
+        handle.join().expect("server joins");
     }
 }
