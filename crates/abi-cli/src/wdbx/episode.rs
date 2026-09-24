@@ -227,19 +227,24 @@ where
 /// Mirror the gateway's own listener rule: a bearer token only travels in
 /// cleartext to loopback. Any other host needs `https` and a CA to trust.
 fn check_endpoint_transport(endpoint: &str, ca_cert: Option<&Path>) -> Result<(), String> {
-    let (scheme, rest) = endpoint
-        .split_once("://")
-        .ok_or_else(|| format!("endpoint {endpoint}: missing scheme"))?;
-    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
-    let host = authority.strip_prefix('[').map_or_else(
-        || {
-            authority
-                .rsplit_once(':')
-                .map_or(authority, |(host, _)| host)
-        },
-        |bracketed| bracketed.split(']').next().unwrap_or(""),
-    );
-    let loopback = matches!(host, "127.0.0.1" | "::1" | "localhost");
+    // Use the same URI parser as `connect`: text splitting can mistake
+    // `127.0.0.1:port@remote-host` for a loopback destination.
+    let parsed = Endpoint::from_shared(endpoint.to_owned())
+        .map_err(|_| "endpoint URL is invalid".to_owned())?;
+    let uri = parsed.uri();
+    let authority = uri
+        .authority()
+        .ok_or_else(|| "endpoint URL has no authority".to_owned())?;
+    if authority.as_str().contains('@') {
+        return Err("endpoint userinfo is not supported".to_owned());
+    }
+    let scheme = uri
+        .scheme_str()
+        .ok_or_else(|| "endpoint URL has no scheme".to_owned())?;
+    let host = uri
+        .host()
+        .ok_or_else(|| "endpoint URL has no host".to_owned())?;
+    let loopback = matches!(host, "127.0.0.1" | "[::1]" | "localhost");
     match scheme {
         "http" if loopback => Ok(()),
         "http" => Err(format!(
@@ -492,6 +497,19 @@ mod tests {
             "{}",
             cleartext.stderr
         );
+        let deceptive = run_episode(&[
+            "verify".to_owned(),
+            "guild".to_owned(),
+            "00".repeat(32),
+            "--endpoint".to_owned(),
+            "http://127.0.0.1:443@evil.example".to_owned(),
+            "--token-file".to_owned(),
+            "missing-token".to_owned(),
+        ]);
+        assert_eq!(deceptive.exit_code, 1);
+        assert!(deceptive.stderr.contains("userinfo is not supported"));
+        assert!(!deceptive.stderr.contains("token file"));
+        assert!(!deceptive.stderr.contains("evil.example"));
         let half_identity = run_episode(&[
             "verify".to_owned(),
             "guild".to_owned(),
@@ -536,5 +554,20 @@ mod tests {
         );
         assert!(check_endpoint_transport("gateway.internal:50051", None).is_err());
         assert!(check_endpoint_transport("ftp://127.0.0.1:1", None).is_err());
+    }
+
+    #[test]
+    fn endpoint_userinfo_cannot_relabel_a_remote_host_as_loopback() {
+        for deceptive in [
+            "http://127.0.0.1:443@evil.example",
+            "http://[::1]@evil.example",
+            "https://localhost:443@evil.example",
+        ] {
+            let parsed = Endpoint::from_shared(deceptive.to_owned()).expect("tonic accepts URI");
+            assert_eq!(parsed.uri().host(), Some("evil.example"));
+            assert!(check_endpoint_transport(deceptive, None).is_err());
+            assert!(check_endpoint_transport(deceptive, Some(Path::new("ca.pem"))).is_err());
+        }
+        assert!(check_endpoint_transport("http://user:pass@127.0.0.1", None).is_err());
     }
 }
