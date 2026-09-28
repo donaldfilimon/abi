@@ -6,14 +6,20 @@ on:
   schedule:
     - cron: '0 3 * * 1'
 
+# Workflow-level permissions stay read-only: scorecard-action's workflow
+# restrictions for publish_results: true allow write scopes only on the job.
+# The job needs id-token: write to publish; no step uploads SARIF to code
+# scanning, so it does not need security-events: write.
+# https://github.com/ossf/scorecard-action#workflow-restrictions
 permissions:
   contents: read
-  security-events: write
-  id-token: write
 
 jobs:
   scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

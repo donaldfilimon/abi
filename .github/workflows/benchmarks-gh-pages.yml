@@ -18,8 +18,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Runs on the macOS arm64 self-hosted runner registered to this repository
+  # (label abi), because GitHub-hosted jobs cannot start while the account's
+  # Actions billing is locked. This workflow has no pull_request trigger, so
+  # only push to main and workflow_dispatch reach the self-hosted machine and
+  # no GitHub-hosted fork fallback is needed. Runner notes:
+  # .github/self-hosted-runner.md
   deploy:
-    runs-on: ubuntu-latest
+    if: >
+      github.repository == 'donaldfilimon/abi' &&
+      (github.event_name == 'push' ||
+       github.event_name == 'workflow_dispatch')
+    runs-on: [self-hosted, macOS, ARM64, abi]
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -28,6 +38,17 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      # actions/upload-pages-artifact archives with `gtar` (GNU tar) when
+      # runner.os is macOS; stock macOS ships only bsdtar. Fail early with a
+      # clear message instead of a bare "gtar: not found" inside the action.
+      - name: Check GNU tar on the runner host
+        run: |
+          if ! command -v gtar >/dev/null; then
+            echo "::error::gtar is not on the runner PATH. Run 'brew install gnu-tar' on the runner host, make sure the runner's PATH includes the Homebrew bin directory, then restart the runner service."
+            exit 1
+          fi
+          gtar --version | head -n 1
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
