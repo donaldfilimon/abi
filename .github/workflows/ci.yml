@@ -25,7 +25,7 @@ env:
   # Pinned for reproducibility, mirroring abbey's ABI_REVISION convention and
   # requirement R12 (a result must be tied to immutable code). Bump this only
   # through a reviewed change whose exact WDBX revision passes this workflow.
-  WDBX_REVISION: 3ac03f085196dbe6e922a127ceaa37bc2368de89
+  WDBX_REVISION: 9fee98ff5ccb92fa86a2ed44f93abd65e7e181ae
 
 jobs:
   check:

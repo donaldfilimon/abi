@@ -36,6 +36,15 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
   or proof that every historical Abbey AI proposal is implemented.
 - No open PR remained in `donaldfilimon/abi` at inspection. The external PR
   remains open; the signed-in account has no push access to its destination.
+- Follow-up CI run `36524711811` exposed a stale WDBX pin: `abi-sea` calls
+  `VersionedStore::record_vector_pair`, which the pinned `3ac03f0` did not
+  provide. Update `WDBX_REVISION` to the clean, published local-gate substrate
+  `9fee98ff5ccb92fa86a2ed44f93abd65e7e181ae`; keep the sibling path layout and
+  exact revision pin. GitHub's separate hosted CodeQL job did not execute
+  because of the account billing lock, and supplies no validation evidence.
+- The complete local gate passed again with the updated pin and exact WDBX
+  revision (`./tools/check.sh`, exit 0). CUDA feature compilation remains
+  unavailable on this host because `nvcc` is absent.
 
 ---
 
