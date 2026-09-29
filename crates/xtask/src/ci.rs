@@ -1,7 +1,7 @@
 //! Rust port of `tools/ci_contract.py`.
 //! Mirrors Python logic exactly for byte-identical oracle parity.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
 use regex::Regex;
 
@@ -286,7 +286,7 @@ pub fn validate_workflow(workflow: &str, cargo_toml: &str) -> Vec<String> {
     }
 
     let sections = job_sections(workflow);
-    let required = ["check", "check-hosted", "windows-acl"];
+    let required = ["check"];
     if required.iter().any(|name| !sections.contains_key(*name)) {
         failures.push("required ABI CI jobs are missing".to_string());
         return dedup(failures);
@@ -329,21 +329,18 @@ pub fn validate_workflow(workflow: &str, cargo_toml: &str) -> Vec<String> {
         );
     }
 
-    let hosted = &sections["check-hosted"];
-    let hosted_re = Regex::new(r"(?m)^    runs-on:\s*([^\n#]+)").unwrap();
-    let hosted_runner = hosted_re
-        .captures(hosted)
-        .map(|c| c.get(1).unwrap().as_str().trim().to_string());
-    let has_fork_check =
-        hosted.contains("github.event.pull_request.head.repo.full_name != github.repository");
-    let valid_runners: BTreeSet<&str> = ["macos-latest", "ubuntu-latest", "windows-latest"]
-        .into_iter()
-        .collect();
-    let runner_ok = hosted_runner
-        .as_ref()
-        .is_some_and(|r| valid_runners.contains(r.as_str()));
-    if !has_fork_check || hosted_runner.is_none() || !runner_ok {
-        failures.push("fork pull requests must run on a GitHub-hosted runner".to_string());
+    let runs_on_re = Regex::new(r"(?m)^    runs-on:\s*([^\n#]+)").unwrap();
+    for section in sections.values() {
+        let self_hosted = runs_on_re.captures(section).is_some_and(|c| {
+            c.get(1)
+                .unwrap()
+                .as_str()
+                .trim()
+                .starts_with("[self-hosted")
+        });
+        if !self_hosted {
+            failures.push("every ABI CI job must run on the self-hosted runner".to_string());
+        }
     }
 
     dedup(failures)

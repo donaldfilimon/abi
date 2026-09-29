@@ -2,17 +2,14 @@
 
 Ops and security notes for the repository self-hosted runner used by `.github/workflows/ci.yml` and `.github/workflows/benchmarks-gh-pages.yml`.
 
-The donaldfilimon account's GitHub Actions billing is locked, so GitHub-hosted jobs are refused at dispatch (they fail in about two seconds without a runner). Self-hosted jobs still run, so every trusted job that can run on macOS arm64 uses this runner.
+The donaldfilimon account's GitHub Actions billing is locked, so GitHub-hosted jobs are refused at dispatch (they fail in about two seconds without a runner). Self-hosted jobs still run, so every job runs on this runner. The GitHub-hosted jobs (`check-hosted` for fork PRs, `windows-acl`, and `dependency-scan.yml`'s Linux-only OSSF Scorecard `scan`) were removed on 2026-09-28; restore them from history if hosted Actions come back.
 
 ## Which jobs run where
 
 | Workflow | Job (check name) | Runner | Why |
 |----------|------------------|--------|-----|
 | `ci.yml` | `check` (`check (self-hosted)`) | self-hosted `abi` | Primary gate; same-repo events only. |
-| `ci.yml` | `check-hosted` (`check (GitHub-hosted, fork PRs)`) | `macos-latest` | Fork PR code must never run on this machine. |
-| `ci.yml` | `windows-acl` (`windows credential ACL`) | `windows-latest` | Proves Windows DACL behaviour; needs Windows. Blocked while billing is locked. |
 | `benchmarks-gh-pages.yml` | `deploy` | self-hosted `abi` | Pages publish; runs only on push to `main` and `workflow_dispatch` (no PR trigger). |
-| `dependency-scan.yml` | `scan` | `ubuntu-latest` | `ossf/scorecard-action` is a Docker action and runs only on Linux. Blocked while billing is locked. |
 
 ## Current registration
 
@@ -39,7 +36,7 @@ Hardening applied here:
    - `github.repository == 'donaldfilimon/abi'`, and
    - event is `push` / `workflow_dispatch`, or a `pull_request` whose
      `head.repo.full_name == github.repository` (same-repo PR only).
-2. **Fork PRs** use GitHub-hosted `macos-latest` jobs only (`check-hosted`). The Pages workflow has no `pull_request` trigger, so its self-hosted `deploy` job is gated to `push` and `workflow_dispatch` only and needs no hosted fallback.
+2. **Fork PRs** get no CI job; build a fork's branch locally with `./tools/check.sh` before merging it. The Pages workflow has no `pull_request` trigger, so its self-hosted `deploy` job is gated to `push` and `workflow_dispatch` only.
 3. **Least-privilege token** — workflow `permissions: contents: read`; the Pages workflow adds only `pages: write` and `id-token: write`, which deployment requires. Every checkout uses `persist-credentials: false`.
 4. **Nightly Rust via rustup** — self-hosted jobs install/ensure `nightly` with `rustfmt`/`clippy`/`rust-src` and build only through `./tools/cargo.sh` / `./tools/check.sh` (Homebrew’s stable `cargo` shadows rustup and must not be used bare).
 
@@ -131,4 +128,4 @@ That script is read-only by default; it prints a checklist and optional steps (L
 - Never add `runs-on: self-hosted` (or the `abi` label set) without the same-repo `if:` gate used in `ci.yml`.
 - Prefer `permissions:` minimal scopes on every workflow.
 - Do not use `pull_request_target` with checkout of the PR head on self-hosted runners.
-- Keep fork coverage on `macos-latest` (or another GitHub-hosted label).
+- Do not add GitHub-hosted jobs to `ci.yml`: `xtask ci verify` (and `tools/ci_contract.py`) require every job there to run on the self-hosted runner.

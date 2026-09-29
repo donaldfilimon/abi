@@ -60,19 +60,17 @@ path in-process — so it blocks forever on an inherited stdin that stays open
 (a pipe, or a terminal). `tools/check.sh` redirects for you; a bare
 `./tools/cargo.sh test --workspace` typed by hand does not.
 
-There is no separate lint-only or build-only CI (the only other workflows are
-`dependency-scan.yml`, a RustSec scan on push and schedule, and
-`benchmarks-gh-pages.yml`, which publishes benchmarks to Pages on push, both
-`ubuntu-latest`; the `Push on main` run is GitHub's default-setup CodeQL with no
-workflow file) — `.github/workflows/ci.yml`
-runs `./tools/check.sh` on a **self-hosted macOS ARM64 runner** for trusted
-same-repo pushes/PRs, and that job does execute (see
-`.github/self-hosted-runner.md`). The GitHub-hosted `windows credential ACL`
-job executes too: PR #794 ran the Windows Server 2025 ACL and credential-file
-tests successfully on 2026-08-19. The hosted macOS `check-hosted` fallback is
-restricted to fork PRs and is skipped on same-repo branches by design. Treat a
-red executed self-hosted or Windows job as blocking; do not treat a
-conditionally skipped fallback as a code failure.
+There is no separate lint-only or build-only CI (the only other workflow is
+`benchmarks-gh-pages.yml`, which publishes `site/` to Pages on push from the
+same self-hosted runner; the `Push on main` run is GitHub's default-setup
+CodeQL with no workflow file) — `.github/workflows/ci.yml` has one job,
+`check`, which runs `./tools/check.sh` on a **self-hosted macOS ARM64 runner**
+for trusted same-repo pushes/PRs (see `.github/self-hosted-runner.md`). Fork
+PRs get no job. On 2026-09-28 the GitHub-hosted jobs were removed: the macOS
+`check-hosted` fork fallback, the `windows credential ACL` job (last executed
+by PR #794 on 2026-08-19; the Windows ACL tests now run nowhere in CI), and
+`dependency-scan.yml` (Linux-only OSSF Scorecard). Treat a red executed
+self-hosted job as blocking.
 
 A hosted job can also be **refused**, which reads like red and is neither:
 since 2026-09-08 (last hosted success 20:26Z; the Windows job was refused at

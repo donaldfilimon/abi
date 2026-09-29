@@ -3,9 +3,8 @@
 #
 # Covers the same ground the Zig gate did: format, lint, build, tests, and the
 # frozen-contract checks. CI runs this same script on the self-hosted macOS
-# ARM64 runner for trusted events and on a GitHub-hosted macOS runner for fork
-# PRs; a separate GitHub-hosted Windows job checks credential ACLs. Treat a red
-# result as blocking.
+# ARM64 runner for trusted events; fork PRs get no CI job. Treat a red result
+# as blocking.
 #
 # Always invoked through tools/cargo.sh, never bare `cargo` — see that script for
 # why that distinction matters here.

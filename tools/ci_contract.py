@@ -168,7 +168,7 @@ def validate_workflow(workflow: str, cargo_toml: str | None = None) -> tuple[str
         failures.append("wdbx checkout must not use a secret")
 
     sections = _job_sections(workflow)
-    required = ("check", "check-hosted", "windows-acl")
+    required = ("check",)
     if any(name not in sections for name in required):
         failures.append("required ABI CI jobs are missing")
         return tuple(failures)
@@ -198,14 +198,9 @@ def validate_workflow(workflow: str, cargo_toml: str | None = None) -> tuple[str
             "trusted self-hosted job must require a same-repository pull request"
         )
 
-    hosted = sections["check-hosted"]
-    hosted_runner = re.search(r"(?m)^    runs-on:\s*([^\n#]+)", hosted)
-    if (
-        "github.event.pull_request.head.repo.full_name != github.repository" not in hosted
-        or hosted_runner is None
-        or hosted_runner.group(1).strip()
-        not in {"macos-latest", "ubuntu-latest", "windows-latest"}
-    ):
-        failures.append("fork pull requests must run on a GitHub-hosted runner")
+    for section in sections.values():
+        runner = re.search(r"(?m)^    runs-on:\s*([^\n#]+)", section)
+        if runner is None or not runner.group(1).strip().startswith("[self-hosted"):
+            failures.append("every ABI CI job must run on the self-hosted runner")
 
     return tuple(dict.fromkeys(failures))

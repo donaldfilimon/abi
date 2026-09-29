@@ -52,7 +52,7 @@ Always run hand-invoked `cargo test` (or via tools/cargo.sh) with `< /dev/null`.
 
 ## CI
 
-- `.github/workflows/ci.yml`: self-hosted macOS ARM64 for same-repo trusted (push/PR from this repo); hosted macOS fallback only for fork PRs. Separate windows-latest for credential ACL tests (abi-foundation windows_acl/file).
+- `.github/workflows/ci.yml`: one job, `check`, on the self-hosted macOS ARM64 runner for same-repo trusted events (push/PR from this repo). Fork PRs get no job. The hosted `check-hosted` fork fallback, the hosted `windows-acl` job and `dependency-scan.yml` were removed on 2026-09-28 (billing lock, no Windows or Linux runner), so the Windows credential ACL tests run nowhere in CI.
 - WDBX always checked out as sibling at exact `WDBX_REVISION` (update the const + verify full gate on the rev before PR).
 - Billing-locked hosted jobs may refuse (steps=[], no logs, annotation about account lock) — treat self-hosted green as the signal; do not alter code for refused jobs.
 

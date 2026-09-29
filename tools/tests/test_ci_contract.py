@@ -95,10 +95,13 @@ class PublicWdbxWorkflowTests(unittest.TestCase):
             self.validate(mutated),
         )
 
-    def test_validator_catches_loss_of_the_hosted_fork_path(self) -> None:
-        mutated = self.workflow.replace("runs-on: macos-latest", "runs-on: [self-hosted]", 1)
+    def test_validator_rejects_a_github_hosted_job(self) -> None:
+        mutated = self.workflow.replace(
+            "runs-on: [self-hosted, macOS, ARM64, abi]", "runs-on: macos-latest", 1
+        )
+        self.assertNotEqual(mutated, self.workflow)
         self.assertIn(
-            "fork pull requests must run on a GitHub-hosted runner",
+            "every ABI CI job must run on the self-hosted runner",
             self.validate(mutated),
         )
 
@@ -244,10 +247,10 @@ jobs:
         self.assertEqual(validate_checkout_credentials(workflow), ())
 
     def test_repository_policy_rejects_a_missing_with_block_outside_ci(self) -> None:
-        dependency_scan = (
-            ROOT / ".github" / "workflows" / "dependency-scan.yml"
+        pages = (
+            ROOT / ".github" / "workflows" / "benchmarks-gh-pages.yml"
         ).read_text(encoding="utf-8")
-        mutated = dependency_scan.replace(
+        mutated = pages.replace(
             "        with:\n          persist-credentials: false\n",
             "",
             1,

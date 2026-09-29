@@ -1,8 +1,9 @@
 name: CI
 
 # Trusted same-repo events run on the macOS arm64 self-hosted runner.
-# Fork PRs (and any untrusted head) stay on GitHub-hosted runners only —
-# never schedule untrusted code on the self-hosted machine.
+# Fork PRs (and any untrusted head) get no job: never schedule untrusted code
+# on the self-hosted machine. GitHub-hosted jobs cannot start while the
+# account's Actions billing is locked, so this workflow has none.
 #
 # Runner ops / security: .github/self-hosted-runner.md
 # Primary gate: ./tools/check.sh (nightly Rust via tools/cargo.sh).
@@ -60,67 +61,3 @@ jobs:
           rustup toolchain install nightly-2026-09-01 --profile minimal --component rustfmt,clippy,rust-src
       - name: ./tools/check.sh
         run: ./tools/check.sh
-
-  check-hosted:
-    name: check (GitHub-hosted, fork PRs)
-    if: >
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: macos-latest
-    defaults:
-      run:
-        working-directory: abi
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          path: abi
-          persist-credentials: false
-      - name: Check out the public WDBX substrate as a sibling
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: donaldfilimon/wdbx
-          ref: ${{ env.WDBX_REVISION }}
-          path: wdbx
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
-        with:
-          toolchain: nightly-2026-09-01
-          components: rustfmt, clippy
-      - name: ./tools/check.sh
-        run: ./tools/check.sh
-
-  # Windows credential DACL runtime proof (owner-only ACL apply + save_to_path).
-  # Additive; does not replace the macOS primary gate.
-  windows-acl:
-    name: windows credential ACL
-    if: >
-      github.repository == 'donaldfilimon/abi' &&
-      (github.event_name == 'push' ||
-       github.event_name == 'workflow_dispatch' ||
-       (github.event_name == 'pull_request' &&
-        github.event.pull_request.head.repo.full_name == github.repository))
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: abi
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          path: abi
-          persist-credentials: false
-      - name: Check out the public WDBX substrate as a sibling
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: donaldfilimon/wdbx
-          ref: ${{ env.WDBX_REVISION }}
-          path: wdbx
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
-        with:
-          toolchain: nightly-2026-09-01
-          components: rustfmt, clippy
-      - name: Windows ACL + credentials file tests
-        shell: bash
-        run: |
-          cargo test -p abi-foundation --lib -- credentials::windows_acl
-          cargo test -p abi-foundation --lib -- credentials::file
