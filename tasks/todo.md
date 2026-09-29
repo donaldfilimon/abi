@@ -12,6 +12,33 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ---
 
+## Historical Discord PR reconciliation (2026-09-29)
+
+- Donald selected this canonical checkout (`~/dev/active/abi`, remote
+  `donaldfilimon/abi`) when reviewing the similarly named
+  `donald-filimon/abi` PR #1. The two GitHub repositories are distinct.
+- The original `wos8hs-codex/design-architecture-for-discord-ai-bot-abbey`
+  branch landed here as [PR #14](https://github.com/donaldfilimon/abi/pull/14),
+  **Add Discord gateway skeleton**, on 2025-06-07, merge
+  `eed2ed34b1ea98fcb13ffc5a3bfce66ce6bcb1e8`. Canonical PR #1 is the unrelated
+  **Add Zig agent client**, also already merged.
+- The other repository's open PR #1 points to XFOSS/abi head
+  `f04bff2dbd63981ff77e168ecaa223e02bc8a22c`: 1,227 commits and 1,896 changed
+  files against its own base. That historical Zig snapshot has no common Git
+  ancestor with current canonical `main`; it is not a pending Rust change to
+  import wholesale. No historical branch was merged or force-pushed.
+- Current implementations are `crates/abi-connectors/src/discord_gateway.rs`,
+  `discord_routing.rs`, `discord_ws.rs`, and `tls_ws.rs`. The complete
+  `./tools/check.sh` gate passed with exit 0 on canonical
+  `37d8b6b51719a9afd96cbd0a2583905ddafc97ad`, including gateway routing,
+  malformed WebSocket handling, local REST transport, and process-local TLS
+  tests. This is local implementation evidence, not a live Discord deployment
+  or proof that every historical Abbey AI proposal is implemented.
+- No open PR remained in `donaldfilimon/abi` at inspection. The external PR
+  remains open; the signed-in account has no push access to its destination.
+
+---
+
 ## Rewrite closeout
 
 | Item | Status | Notes |
