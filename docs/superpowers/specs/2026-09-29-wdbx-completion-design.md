@@ -36,7 +36,7 @@ Provable member erasure, as `2026-09-29-spec-member-erasure.md` revision 3. Bind
 - Erasure clears all channel summaries in that scope.
 - Each fact has its own key wrapped by the member key, so forgetting one fact destroys that fact's key.
 - New byte fields are base64 in ledger lines, and the ledger cap for this work is 256 MiB.
-- A scope switches to WDBX automatically after 7 days of shadow reads with zero mismatches. Rollback is operator-only through the abi CLI. An environment kill switch disables auto-switchover. After that rollback, this revision does not auto-switch the scope again.
+- A scope switches to WDBX automatically after 7 days of shadow reads with zero mismatches. Rollback is operator-only through the abi CLI and restarts that clock. The scope may auto-switch again after 7 new clean shadow days (Donald, 2026-09-29 10:2x EDT, D14). An environment kill switch disables auto-switchover. There is no separate resume command.
 
 Erasure appends a tombstone and destroys keys. It does not rewrite encrypted records, so digests, signatures, and replay stay valid. Holds are signed records and block erasure until released. Nothing in that spec is implemented. §12 approval is empty.
 
@@ -65,7 +65,6 @@ This is the only deferral list for the completion design. It matches erasure-spe
 
 - Future-learning opt-out (erasure does not itself stop later learning).
 - A dedicated DM `guild_ref` assignment scheme beyond one key per `(guild_ref, member)`.
-- A resume command that would let a rolled-back scope auto-switch again.
 - Redacted derivative blocks.
 - Auditable garbage collection of high-rate traces.
 - Retrieval-time staleness weighting.

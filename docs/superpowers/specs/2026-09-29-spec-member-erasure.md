@@ -82,6 +82,9 @@ The other revision-1 questions are either decided rules of this draft (§11.2) o
 - **Switchover is automatic:** the bot switches a scope after 7 days of shadow reads with zero
   mismatches; the switch is a signed event; rollback is operator-only through the abi CLI; an
   environment kill switch disables auto-switchover (§7.2).
+- **After operator rollback the clock restarts (Q15, D14):** the scope may auto-switch to WDBX
+  again after 7 new clean shadow days. This overrides a draft that left the scope in shadow.
+  There is no separate resume command.
 
 ## 2. Premise check (measured 2026-09-29)
 
@@ -364,7 +367,7 @@ The store enforces kinds, mirroring `edge_author_allowed` (`validate.rs:341-355`
 | `retention_hold` | `host_operator`; `guild_owner` | member scope: key known and not dead | `host_operator` needs the operator token |
 | `hold_release` | the placing class: `host_operator` releases operator holds; `guild_owner` or `host_operator` releases owner holds | target is an open hold here | as above |
 | `ledger_compaction` | `host_operator` | §7.3 | offline CLI only |
-| `memory_authority` | `service` (to `wdbx_canonical`, `auto_shadow_clean`); `host_operator` (to `shadow`, `operator_rollback`/`operator_resume`) | §4.9 | `host_operator` needs the operator token |
+| `memory_authority` | `service` (to `wdbx_canonical`, `auto_shadow_clean`, including after a prior rollback once the new window is clean); `host_operator` (to `shadow`, `operator_rollback`) | §4.9 | `host_operator` needs the operator token |
 
 "A guild owner, for their own guild only" is scoped by the write's `guild_ref`; the ownership
 claim is asserted by abbey-bot after a fresh REST check (`abbey-bot/src/commands_brain/memory_review.rs:40-53`).
@@ -419,7 +422,7 @@ Rebuilt state gains, per guild: `member_keys: BTreeMap<[u8;16], Live | Dead(tomb
 EpisodeEvent::MemoryAuthority { recorded_by: ActorRef, change: MemoryAuthority }
 MemoryAuthority {
     authority:       FactAuthority,   // wdbx_canonical | shadow
-    basis:           AuthorityBasis,  // auto_shadow_clean | operator_rollback | operator_resume
+    basis:           AuthorityBasis,  // auto_shadow_clean | operator_rollback
     clean_window_secs: u64,           // auto_shadow_clean only; >= 604800; 0 otherwise
     clean_compares:  u64,             // auto_shadow_clean only; >= 7; 0 otherwise
     compared_records: u64,
@@ -430,8 +433,10 @@ MemoryAuthority {
 Canonical map (label `memory_authority`) with those six keys. Content-free: counts, a window
 length, and a digest over record digests already in the ledger. Rules: `wdbx_canonical` only with
 `auto_shadow_clean` from `service`, and only when the guild's current authority is `shadow`;
-`shadow` with `operator_rollback` or `operator_resume` only from `host_operator`; a no-op change
-(same authority, same basis) is `InvalidTransition`. The rebuilt state keeps the current authority
+`shadow` with `operator_rollback` only from `host_operator`; a no-op change
+(same authority, same basis) is `InvalidTransition`. A later `auto_shadow_clean` from `shadow` is
+allowed. Its clean window is the one that started at that rollback (D14), not the window the
+rollback discarded. The rebuilt state keeps the current authority
 per guild, and `ReadMemberRecords` returns it. Recorded even when `learning_enabled` is false, like
 holds, so a guild can be rolled back after turning learning off.
 
@@ -568,7 +573,6 @@ message ReadMemberRecordsResponse {
   repeated bytes forgotten = 3;         // digests forgotten after after_sequence
   uint64 high_sequence = 4;
   string authority = 5;                 // "shadow" | "wdbx_canonical" | "" (never switched)
-  bool auto_resume_allowed = 6;         // false after an operator rollback until operator_resume
 }
 
 message ForgetMemberRecordRequest {
@@ -719,7 +723,7 @@ abi wdbx hold place   <guild_ref> (--member <subject_ref> | --guild) --reason <r
 abi wdbx hold release <guild_ref> <hold-digest> --reason <reason> --operator-token-file <path>
 abi wdbx hold list    <guild_ref> [--member <subject_ref>]
 abi wdbx member rollback <guild_ref> --operator-token-file <path>
-                                                     (host operator; §7.2; no resume flag, §11.2)
+                                                     (host operator; §7.2; restarts the 7-day clock, D14)
 abi wdbx keys status | rotate --operator-token-file <path>
 abi wdbx episode compact --store <path> --signing-key <path> [--dry-run]   (offline, §7.3)
 ```
@@ -965,9 +969,10 @@ other value, or unset, leaves auto-switchover on. The switch never happens while
 `authority = shadow`, `basis = operator_rollback`. The store accepts `authority = shadow` only from
 `host_operator` (§4.6), so abbey-bot cannot roll a scope back. On its next refresh abbey-bot sees
 the authority change, rebuilds local facts from `ReadMemberRecords`, persists them, returns the
-scope to shadow, and resets its clock. **Decided rule of this draft (§11.2):** after
-`operator_rollback`, this revision does not auto-switch that scope again. A resume command is
-deferred (§11.3). Erased members cannot be restored by rollback, by design.
+scope to shadow, and resets its clock. **Decided by Donald (D14, Q15, 2026-09-29 10:2x EDT):**
+the clock restarts. The scope may auto-switch to WDBX again after 7 new clean shadow days with
+zero mismatches. This overrides a draft that left the scope in shadow. There is no separate
+resume command. Erased members cannot be restored by rollback, by design.
 
 ### 7.3 Compaction (offline; removes the legacy hashes)
 
@@ -1224,8 +1229,8 @@ unavailable is reported, never empty; shadow compare detects an injected mismatc
 on a mismatch; each mismatch kind resets the clock; an incomplete compare neither advances nor
 resets it; a 24-hour gap resets it; the switch happens at 7 days and 7 clean compares and not
 before; the kill switch blocks it; a crash after the append completes the switch at startup; the
-service cannot append `shadow`; operator rollback rebuilds local facts and does not
-auto-switch that scope again in this revision; the inventory test; plan counts; display-name
+service cannot append `shadow`; operator rollback rebuilds local facts, restarts the clean
+clock, and may auto-switch that scope again after 7 new clean shadow days (D14); the inventory test; plan counts; display-name
 matching only without `author_ref`; all summaries cleared; an addendum lapses below threshold;
 resume from each §8.2 crash point with the fake gate pattern (`memory_gate.rs:401-424`); gate
 unavailable deletes nothing; held deletes nothing; `/forget` refuses under a hold; a feed notice
@@ -1260,8 +1265,9 @@ The source table is §12. These are binding, including the four end-state answer
 member payloads in WDBX (keyed commitments rejected), direct host-operator erasure with a signed
 receipt, automatic master-key rotation at most hourly on a this-device-only Keychain item, and
 clearing every channel summary in the scope. Per-fact keys, after-first-unlock Keychain access,
-base64 ledger fields with a 256 MiB cap, and automatic switchover after 7 clean shadow days are
-also binding. None of these is an open question.
+base64 ledger fields with a 256 MiB cap, automatic switchover after 7 clean shadow days, and
+the Q15 rule that an operator rollback restarts that clock so the scope may auto-switch again
+after 7 new clean shadow days, are also binding. None of these is an open question.
 
 ### 11.2 Decided rules of this draft
 
@@ -1279,8 +1285,6 @@ them. They are not open, and they do not authorize implementation (§12).
 - **Q14.** Only the class that placed a hold may release it. A guild owner does not release a
   host-operator hold.
 - **Key granularity.** One member key per `(guild_ref, member)`. A DM scope is its own `guild_ref`.
-- **After operator rollback.** The scope returns to shadow and this revision does not auto-switch
-  it again. There is no resume flag.
 
 ### 11.3 Explicit deferrals
 
@@ -1290,8 +1294,6 @@ This is the only deferral list in this spec.
   stop later learning about the member.
 - **Q10.** A dedicated scheme for assigning DM `guild_ref` values beyond treating a DM as its own
   `guild_ref`.
-- **Q15.** A command that lets a rolled-back scope auto-switch again. This revision does not add
-  one (§11.2).
 - **Redacted derivative blocks** that link to an original without overwriting it (gap analysis §6.9).
 - **Auditable garbage collection** of unreferenced high-rate traces (gap analysis §6.9).
 - **Later evidence-half work**, ordered in `2026-09-29-wdbx-completion-design.md`: retrieval-time
@@ -1305,8 +1307,8 @@ Status: **not approved and not implemented.** No implementation is authorized un
 approval of this document here, with a date. §11.2 is already the draft's rule set. §11.3 stays
 deferred. Each push still needs its own yes.
 
-Decisions Donald made on 2026-09-29. Source for every row: AskUserQuestion, 2026-09-29, as relayed
-to this session by the coordinating session.
+Decisions Donald made on 2026-09-29. Source for D1–D13: AskUserQuestion, 2026-09-29, as relayed
+to the session that wrote revision 3. D14's source is the note under the table.
 
 | # | Decision | Where it lands |
 |---|---|---|
@@ -1323,5 +1325,8 @@ to this session by the coordinating session.
 | D11 | The Keychain master uses after-first-unlock, this-device-only access; the exact attribute is verified on macOS 27.2. | §5.1, §6.2, §10 phase 2 |
 | D12 | The new byte fields are base64 in ledger lines, and the ledger cap rises to 256 MiB. | §5.3, §10 phase 1 |
 | D13 | Switchover is automatic after 7 days of shadow reads with zero mismatches, recorded as a signed event and logged; rollback is operator-only through the abi CLI; an environment kill switch disables auto-switchover. Chosen over operator-driven switchover. | §4.9, §7.2 |
+| D14 (Q15) | After an operator rollback the shadow clock restarts. The scope may auto-switch to WDBX again after 7 new clean shadow days. This overrides a draft that left the scope in shadow. There is no separate resume command. | §1.4, §4.9, §7.2 |
+
+D1–D13 were relayed to the session that wrote revision 3. D14 was recorded at 2026-09-29 10:2x EDT in `~/tasks/goals.md` under Federate (AskUserQuestion, relayed by abbey-bot session b47e75a2).
 
 Approval of this document for implementation: **not yet given.**

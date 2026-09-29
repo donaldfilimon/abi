@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-29-spec-member-erasure.md`
 
-**Not in this plan:** COSE, evidence-weighted retrieval, retrieval-time staleness, `task_regime`, `regime_posterior`, C3–C7 promotion, hosted federation, redacted derivative blocks, high-rate garbage collection, a future-learning opt-out, a DM `guild_ref` scheme beyond one key per `(guild_ref, member)`, and a resume flag after operator rollback. abi, abbey, and wdbx stay sibling path dependencies. abbey-bot does not gain an abi or wdbx crate dependency.
+**Not in this plan:** COSE, evidence-weighted retrieval, retrieval-time staleness, `task_regime`, `regime_posterior`, C3–C7 promotion, hosted federation, redacted derivative blocks, high-rate garbage collection, a future-learning opt-out, and a DM `guild_ref` scheme beyond one key per `(guild_ref, member)`. abi, abbey, and wdbx stay sibling path dependencies. abbey-bot does not gain an abi or wdbx crate dependency.
 
 ---
 
@@ -275,7 +275,7 @@ Expected: the focused test passes and `check.sh` prints its own success line wit
 
 - [ ] **Step 5: Commit** in abbey-bot only when status is limited to this task.
 
-### Task 7: Seven clean shadow days, then stop after rollback
+### Task 7: Seven clean shadow days, and the same window again after rollback
 
 **Files:**
 - Modify: `../abbey-bot/src/member_erasure.rs`
@@ -283,14 +283,20 @@ Expected: the focused test passes and `check.sh` prints its own success line wit
 - [ ] **Step 1: Write the failing test**
 
 ```rust
+fn days(n: u64) -> u64 {
+    n * 24 * 3_600_000
+}
+
 #[test]
-fn switchover_waits_for_seven_clean_days_and_stops_after_rollback() {
-    let mut clock = ShadowClock::default();
+fn rollback_restarts_the_shadow_clock() {
+    let mut clock = ShadowClock { window_start_ms: 0 };
     assert!(!clock.ready(days(6), 7));
     assert!(clock.ready(days(7), 7));
     assert!(!clock.ready(days(7), 6));
-    clock.rollback();
-    assert!(!clock.ready(days(30), 30));
+    clock.rollback(days(7));
+    assert!(!clock.ready(days(7), 7));
+    assert!(!clock.ready(days(13), 6));
+    assert!(clock.ready(days(14), 7));
 }
 ```
 
@@ -302,21 +308,22 @@ Expected: FAIL to compile.
 
 ```rust
 pub struct ShadowClock {
-    rolled_back: bool,
+    window_start_ms: u64,
 }
 
 impl ShadowClock {
-    pub fn ready(&self, elapsed_ms: u64, clean_compares: u32) -> bool {
-        !self.rolled_back && elapsed_ms >= 7 * 24 * 3_600_000 && clean_compares >= 7
+    pub fn ready(&self, now_ms: u64, clean_compares: u32) -> bool {
+        now_ms.saturating_sub(self.window_start_ms) >= 7 * 24 * 3_600_000 && clean_compares >= 7
     }
 
-    pub fn rollback(&mut self) {
-        self.rolled_back = true;
+    /// Operator rollback restarts the clean window. It does not forbid a later auto-switch.
+    pub fn rollback(&mut self, now_ms: u64) {
+        self.window_start_ms = now_ms;
     }
 }
 ```
 
-A mismatch resets the clean window. `ABBEY_MEMORY_AUTO_SWITCHOVER=off` forces `ready` false without resetting the window. Do not add `--resume-auto`.
+A mismatch resets the clean window the same way `rollback` does: the next auto-switch needs 7 new clean days and 7 new clean compares. `ABBEY_MEMORY_AUTO_SWITCHOVER=off` forces `ready` false without moving `window_start_ms`. There is no resume command and no `rolled_back` latch.
 
 - [ ] **Step 4: Re-run the test**
 
@@ -340,4 +347,4 @@ Expected: PASS.
 
 ## Self-review
 
-Spec coverage: encrypted payloads and the rejected keyed commitment are Tasks 1–2; tombstone stability is Task 3; hourly this-device-only rotation is Task 4; direct operator erasure is Task 5; summaries cleared is Task 6; seven-day switch and no resume flag are Task 7. Deferred Program 4 work has no task. The plan does not say any of this code already exists.
+Spec coverage: encrypted payloads and the rejected keyed commitment are Tasks 1–2; tombstone stability is Task 3; hourly this-device-only rotation is Task 4; direct operator erasure is Task 5; summaries cleared is Task 6; the seven-day switch and the restarted clock after operator rollback are Task 7. Deferred Program 4 work has no task. The plan does not say any of this code already exists.
