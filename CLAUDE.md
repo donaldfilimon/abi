@@ -116,7 +116,7 @@ dated prose. Without `../wdbx`, cargo fails at manifest resolution for the whole
 workspace, even when selecting a package without substrate dependencies, so
 `./tools/check.sh` cannot pass even its early steps because `xtask ci verify`
 goes through cargo. CI pins the sibling to an exact SHA (`WDBX_REVISION` in
-`.github/workflows/ci.yml`, checked out in all three jobs); a local `../wdbx`
+`.github/workflows/ci.yml`, checked out by its one `check` job); a local `../wdbx`
 is not pinned, so local green and CI green can diverge on substrate changes.
 
 Workspace policy from `Cargo.toml`: edition 2024, resolver 3,
