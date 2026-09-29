@@ -12,6 +12,14 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ---
 
+## ABI source-release hardening (2026-09-29)
+
+- [x] Regress and fix gateway credential diagnostics and error teardown, malformed provider-turn admission, and release-gate build identity.
+- [x] Require locked builds, WDBX contract conformance, the existing dependency-security policy, and release binaries in the gate.
+- [x] Complete local source acceptance: 143 Python policy tests, 924 Rust tests (zero ignored), required audit, benchmark, docs, and release binaries passed. Mintlify and actionlint passed separately.
+- Publication acceptance requires a successful self-hosted CI receipt whose `headSha` equals published `main`; the delivered release record carries this post-publication proof and artifact checksums without embedding a self-referential source SHA here.
+- Scope is `donaldfilimon/abi` only. The completed Rust rewrite and historical Discord PR reconciliation remain closed. Bot deployment, music/voice acceptance, real providers, sibling changes, and new public commands are outside this adaptation.
+
 ## Historical Discord PR reconciliation (2026-09-29)
 
 - Donald selected this canonical checkout (`~/dev/active/abi`, remote

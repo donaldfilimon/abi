@@ -59,5 +59,20 @@ jobs:
         run: |
           rustup show
           rustup toolchain install nightly-2026-09-01 --profile minimal --component rustfmt,clippy,rust-src
+      - name: Allocate isolated build directory
+        run: |
+          echo "CARGO_TARGET_DIR=$(mktemp -d "$RUNNER_TEMP/abi-build-XXXXXX")" >> "$GITHUB_ENV"
       - name: ./tools/check.sh
         run: ./tools/check.sh
+      - name: Remove isolated build directory
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import shutil
+          target = Path(os.environ.get("CARGO_TARGET_DIR", ""))
+          root = Path(os.environ["RUNNER_TEMP"])
+          if target.parent == root and target.name.startswith("abi-build-") and target.is_dir():
+              shutil.rmtree(target)
+          PY

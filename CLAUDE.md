@@ -72,6 +72,13 @@ by PR #794 on 2026-08-19; the Windows ACL tests now run nowhere in CI), and
 `dependency-scan.yml` (Linux-only OSSF Scorecard). Treat a red executed
 self-hosted job as blocking.
 
+The primary gate now locks every dependency-resolving Cargo invocation, requires
+the existing dependency-security policy and WDBX native/cross-language episode
+conformance tests, and builds the `abi` and `abi-mcp` release binaries. A missing
+dependency scanner fails the gate. `CARGO_TARGET_DIR` selects both Cargo output
+and the benchmark binary; CI allocates a fresh directory and removes it after
+the job. See `AGENTS.md` for the complete step order.
+
 A hosted job can also be **refused**, which reads like red and is neither:
 since 2026-09-08 (last hosted success 20:26Z; the Windows job was refused at
 23:13Z, and `main`'s run for `25b34339` at 2026-09-16 03:18Z still carries it)

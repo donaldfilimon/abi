@@ -2,7 +2,7 @@
 
 Ops and security notes for the repository self-hosted runner used by `.github/workflows/ci.yml` and `.github/workflows/benchmarks-gh-pages.yml`.
 
-The donaldfilimon account's GitHub Actions billing is locked, so GitHub-hosted jobs are refused at dispatch (they fail in about two seconds without a runner). Self-hosted jobs still run, so every job runs on this runner. The GitHub-hosted jobs (`check-hosted` for fork PRs, `windows-acl`, and `dependency-scan.yml`'s Linux-only OSSF Scorecard `scan`) were removed on 2026-09-28; restore them from history if hosted Actions come back.
+The donaldfilimon account's GitHub Actions billing has refused hosted jobs at dispatch. Both checked-in workflows use this self-hosted runner. GitHub's default-setup CodeQL can still appear as a separate hosted check; a billing-refused run is unmeasured. The GitHub-hosted jobs (`check-hosted` for fork PRs, `windows-acl`, and `dependency-scan.yml`'s Linux-only OSSF Scorecard `scan`) were removed on 2026-09-28; restore them from history if hosted Actions come back.
 
 ## Which jobs run where
 
@@ -58,10 +58,19 @@ CI expects a rustup **nightly** toolchain matching [`rust-toolchain.toml`](../ru
 
 ```bash
 rustup show
-rustup run nightly rustc --version
+"$(rustup which rustc)" --version
 ./tools/cargo.sh --version   # never bare `cargo` — Homebrew shadows rustup
 xcode-select -p              # needed for Apple-framework / Foundation Models paths when those features are on
 ```
+
+The primary gate also requires an installed `cargo-audit` or `cargo-deny` on
+PATH. Its security scan fails if neither is available; existing scoped
+exceptions stay in `tools/security/run-dep-scan.sh`. CI checks out WDBX at the
+immutable `WDBX_REVISION`, requires native and cross-language contract tests,
+and builds locked release binaries. Each run allocates a new target below
+`RUNNER_TEMP`; the benchmark uses that target, and the final cleanup step
+removes only the allocated build directory. Local builds may set
+`CARGO_TARGET_DIR` to their own dedicated directory.
 
 The Pages `deploy` job additionally needs:
 

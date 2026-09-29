@@ -23,7 +23,7 @@ pub const API_BASE: &str = "https://discord.com/api/v10";
 pub const DEFAULT_INTENTS: u32 = (1 << 9) | (1 << 12) | (1 << 15);
 
 /// Gateway run configuration.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct GatewayConfig {
     /// Bot token (printable ASCII, non-empty for identify).
     pub token: String,
@@ -33,6 +33,17 @@ pub struct GatewayConfig {
     pub intents: u32,
     /// Command prefix (empty disables all replies).
     pub prefix: String,
+}
+
+impl std::fmt::Debug for GatewayConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GatewayConfig")
+            .field("token", &"[redacted]")
+            .field("token_configured", &self.token_configured)
+            .field("intents", &self.intents)
+            .field("prefix", &self.prefix)
+            .finish()
+    }
 }
 
 impl GatewayConfig {
@@ -125,6 +136,18 @@ impl Gateway {
         transport: &mut dyn GatewayTransport,
         max_message_events: Option<usize>,
     ) -> std::result::Result<GatewayStats, GatewayError> {
+        let result = self.run_inner(transport, max_message_events);
+        // The caller retains ownership of the transport, so returning an error
+        // does not drop it. Release its connection on every ordinary exit.
+        transport.close();
+        result
+    }
+
+    fn run_inner(
+        &self,
+        transport: &mut dyn GatewayTransport,
+        max_message_events: Option<usize>,
+    ) -> std::result::Result<GatewayStats, GatewayError> {
         let mut stats = GatewayStats::default();
         let mut seq: Option<i64> = None;
 
@@ -183,7 +206,6 @@ impl Gateway {
             }
         }
 
-        transport.close();
         Ok(stats)
     }
 }
@@ -332,6 +354,95 @@ fn extract_message_create(msg: &str) -> Option<MessageCreate> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gateway_debug_never_exposes_the_token() {
+        let config = GatewayConfig::new("PRIVATE_DISCORD_FIXTURE_TOKEN", true);
+        assert!(!format!("{config:?}").contains("PRIVATE_DISCORD_FIXTURE_TOKEN"));
+        assert!(!format!("{:?}", Gateway::new(config)).contains("PRIVATE_DISCORD_FIXTURE_TOKEN"));
+    }
+
+    #[test]
+    fn gateway_closes_on_invalid_hello_and_authentication_failure() {
+        for (token, hello, expected) in [
+            ("token", None, GatewayError::ClosedEarly),
+            ("token", Some("{}"), GatewayError::MissingHeartbeatInterval),
+            (
+                "",
+                Some(r#"{"op":10,"d":{"heartbeat_interval":45000}}"#),
+                GatewayError::Authentication,
+            ),
+        ] {
+            let mut transport = FakeTransport::new();
+            if let Some(hello) = hello {
+                transport.enqueue(hello);
+            }
+            let error = Gateway::new(GatewayConfig::new(token, false))
+                .run(&mut transport, None)
+                .expect_err("invalid start fails");
+            assert_eq!(error, expected);
+            assert!(transport.closed);
+        }
+    }
+
+    #[test]
+    fn gateway_closes_once_on_each_transport_failure() {
+        struct FailingTransport {
+            inner: FakeTransport,
+            fail_at: usize,
+            operations: usize,
+            closes: usize,
+        }
+        impl FailingTransport {
+            fn checkpoint(&mut self) -> std::result::Result<(), GatewayError> {
+                self.operations += 1;
+                if self.operations == self.fail_at {
+                    return Err(GatewayError::Transport("fixture failure".into()));
+                }
+                Ok(())
+            }
+        }
+        impl GatewayTransport for FailingTransport {
+            fn read_message(&mut self) -> std::result::Result<Option<String>, GatewayError> {
+                self.checkpoint()?;
+                self.inner.read_message()
+            }
+            fn send_text(&mut self, text: &str) -> std::result::Result<(), GatewayError> {
+                self.checkpoint()?;
+                self.inner.send_text(text)
+            }
+            fn send_reply(
+                &mut self,
+                channel: &str,
+                content: &str,
+            ) -> std::result::Result<(), GatewayError> {
+                self.checkpoint()?;
+                self.inner.send_reply(channel, content)
+            }
+            fn close(&mut self) {
+                self.closes += 1;
+            }
+        }
+        // Hello read, Identify send, heartbeat read/send, message read/reply,
+        // then EOF. Each error must retain its identity and release transport.
+        for fail_at in 1..=7 {
+            let mut inner = FakeTransport::new();
+            inner.enqueue(r#"{"op":10,"d":{"heartbeat_interval":45000}}"#);
+            inner.enqueue(r#"{"op":1}"#);
+            inner.enqueue(r#"{"op":0,"t":"MESSAGE_CREATE","d":{"channel_id":"123","content":"!help","author":{"bot":false}}}"#);
+            let mut transport = FailingTransport {
+                inner,
+                fail_at,
+                operations: 0,
+                closes: 0,
+            };
+            let error = Gateway::new(GatewayConfig::new("fixture", true))
+                .run(&mut transport, None)
+                .expect_err("injected I/O failure");
+            assert_eq!(error, GatewayError::Transport("fixture failure".into()));
+            assert_eq!(transport.closes, 1, "failure at operation {fail_at}");
+        }
+    }
 
     #[test]
     fn gateway_loop_hello_identify_heartbeat_message_create() {

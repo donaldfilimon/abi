@@ -9,9 +9,13 @@ Canonical instructions; executable source wins over prose. `opencode.json` loads
 - Primary gate (run before commit or handoff): `./tools/check.sh` (build.sh check is compat alias).
   Exact steps (trust script): versions; py policy tests (tools/tests/test_*.py); xtask ci verify;
   py abbey_contracts.py verify + xtask abbey verify contracts/abbey (py oracle authoritative until byte-id);
-  sizes; fmt --check; clippy -D warnings; build --workspace --all-targets; test --workspace < /dev/null;
+  required dependency-security policy (cargo-audit or cargo-deny); sizes; fmt --check;
+  clippy -D warnings; build --workspace --all-targets; test --workspace < /dev/null;
+  sibling WDBX abbey_contracts + v3_cross_language_commitment + v3_cross_language_episode tests;
    Darwin: abi-model-runtime --features metal test+doc (RUSTDOCFLAGS=-D); if nvcc: check --features cuda;
-  bench_regress.sh; RUSTDOCFLAGS=-D cargo doc --workspace --no-deps.
+  bench_regress.sh; RUSTDOCFLAGS=-D cargo doc --workspace --no-deps; release build of abi-cli + abi-mcp.
+  Dependency-resolving Cargo stages use --locked. Set CARGO_TARGET_DIR for an isolated build;
+  bench_regress.sh uses that same target. CI allocates and removes a fresh target for every run.
   Skips are not evidence.
 - Doc-only edits: py unittest (test_docs*.py or policy) + `git diff --check`; for docs/ also run (after loading abi-doc-claims-sync skill) `.agents/skills/docs-validate/validate.sh`.
 - Size gate: `tools/check_rust_sizes.sh` (and in check.sh): *.rs <=1000 lines via git ls-files; crates/abi-cli/src/main.rs <=200.

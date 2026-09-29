@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # docs-validate — validate the Mintlify docs site (docs/docs.json + docs/**/*.mdx).
 #
-# This is the one surface `./tools/check.sh` intentionally omits; CI covers it
-# via the docs-validate job (Node 22). Broken docs.json/.mdx still only break the
-# Mintlify-hosted site if both local and CI gates are skipped. Run this as a
+# This is the one surface `./tools/check.sh` intentionally omits. There is no
+# separate docs-validate CI job in the current workflow. Run this as a
 # pre-push gate after touching docs/. Requires network (npx fetches mint).
 set -uo pipefail
 

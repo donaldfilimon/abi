@@ -307,6 +307,14 @@ impl EventSink for TurnSink {
             self.rejected = Some(HostError::BudgetExceeded(HostBudgetLimit::EventBytes));
             return;
         }
+        // A provider cannot attest to a tool's outcome. Reject the entire
+        // buffered turn before an earlier call in that turn can execute.
+        if let ModelEvent::ToolResult(result) = event {
+            self.rejected = Some(HostError::ProviderToolResult {
+                call_id: result.call_id.clone(),
+            });
+            return;
+        }
         self.events.push(event.clone());
     }
 }

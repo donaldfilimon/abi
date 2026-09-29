@@ -28,11 +28,14 @@ step "repository policy tests"
 python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
 
 step "CI contract (xtask Rust port - must match Python oracle)"
-"${CARGO}" run -p xtask -- ci verify
+"${CARGO}" run --locked -p xtask -- ci verify
 
 step "Abbey contract corpus (Python oracle + Rust port - both must pass; Python authoritative until byte-identical)"
 python3 tools/abbey_contracts.py verify contracts/abbey
-"${CARGO}" run -p xtask -- abbey verify contracts/abbey
+"${CARGO}" run --locked -p xtask -- abbey verify contracts/abbey
+
+step "required dependency-security policy"
+ABI_DEP_SCAN_REQUIRE=1 ./tools/security/run-dep-scan.sh
 
 step "Rust source size limits"
 bash ./tools/check_rust_sizes.sh
@@ -41,10 +44,10 @@ step "format (check only)"
 "${CARGO}" fmt --all -- --check
 
 step "clippy (warnings are errors)"
-"${CARGO}" clippy --workspace --all-targets -- -D warnings
+"${CARGO}" clippy --locked --workspace --all-targets -- -D warnings
 
 step "build"
-"${CARGO}" build --workspace --all-targets
+"${CARGO}" build --locked --workspace --all-targets
 
 step "tests"
 # Tests run with stdin at EOF. `abi auth signin` reads a secret from stdin when
@@ -53,17 +56,20 @@ step "tests"
 # forever on an inherited stdin that stays open. Redirecting here enforces the
 # non-TTY-empty-stdin precondition those tests document instead of inheriting
 # whatever the caller happened to have open.
-"${CARGO}" test --workspace < /dev/null
+"${CARGO}" test --locked --workspace < /dev/null
+
+step "required sibling WDBX contract conformance"
+"${CARGO}" test --locked --manifest-path ../wdbx/Cargo.toml -p abi-wdbx --test abbey_contracts --test v3_cross_language_commitment --test v3_cross_language_episode < /dev/null
 
 step "local model device features"
 if [[ "$(uname -s)" == "Darwin" ]]; then
-  "${CARGO}" test -p abi-model-runtime --features metal < /dev/null
-  RUSTDOCFLAGS="-D warnings" "${CARGO}" doc -p abi-model-runtime --features metal --no-deps --document-private-items --quiet
+  "${CARGO}" test --locked -p abi-model-runtime --features metal < /dev/null
+  RUSTDOCFLAGS="-D warnings" "${CARGO}" doc --locked -p abi-model-runtime --features metal --no-deps --document-private-items --quiet
 else
   printf 'Metal runtime evidence unavailable: this gate is not running on macOS\n'
 fi
 if command -v nvcc >/dev/null 2>&1; then
-  "${CARGO}" check -p abi-model-runtime --features cuda
+  "${CARGO}" check --locked -p abi-model-runtime --features cuda
 else
   printf 'CUDA feature compilation unavailable: nvcc is not installed\n'
 fi
@@ -72,6 +78,9 @@ step "benchmark regression (same-system local guard)"
 ./tools/bench_regress.sh
 
 step "docs (broken intra-doc links are errors)"
-RUSTDOCFLAGS="-D warnings" "${CARGO}" doc --workspace --no-deps --quiet
+RUSTDOCFLAGS="-D warnings" "${CARGO}" doc --locked --workspace --no-deps --quiet
+
+step "release binaries"
+"${CARGO}" build --locked --release -p abi-cli -p abi-mcp
 
 printf '\n\033[1;32mcheck: all green\033[0m\n'

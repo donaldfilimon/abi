@@ -349,6 +349,31 @@ fn provider_fabricated_results_and_post_terminal_events_fail_closed() {
 }
 
 #[test]
+fn fabricated_result_after_a_call_rejects_the_turn_before_execution() {
+    let provider = SequenceProvider::new([vec![
+        call("c1"),
+        ModelEvent::ToolResult(ToolResult::ok("c1", "fabricated")),
+    ]]);
+    let executor = FixtureExecutor::default();
+    let audit = MemoryAuditSink::new();
+    let registry = tool_registry();
+    let host = assemble_host(&provider, &registry, &AllowAll, &audit, &executor);
+    let mut sink = CollectingSink::new();
+    let error = host
+        .run(
+            &request(),
+            &mut sink,
+            &CancellationToken::new(),
+            HostBudget::bounded(),
+        )
+        .expect_err("provider cannot invent the result of an unexecuted call");
+    assert!(matches!(error, HostError::ProviderToolResult { .. }));
+    assert_eq!(executor.calls(), 0);
+    assert_eq!(audit.len(), 0);
+    assert_eq!(sink.kinds(), ["finished"]);
+}
+
+#[test]
 fn oversized_raw_tool_output_is_rejected_not_truncated() {
     let provider = SequenceProvider::new([vec![call("c1")]]);
     let executor = FixtureExecutor::returning([Ok(ToolOutput::ok("four"))]);

@@ -451,7 +451,10 @@ impl crate::discord_gateway::GatewayTransport for DiscordTlsTransport {
     }
 
     fn close(&mut self) {
-        // Drop closes TCP; best-effort flush already done in send paths.
+        // Gateway::run borrows this transport; it may remain alive after an
+        // error or bounded run. Shut down TCP now, without a blocking flush.
+        let _ = self.client.stream.sock.shutdown(std::net::Shutdown::Both);
+        self.client.read_buf.clear();
     }
 }
 
@@ -623,6 +626,38 @@ mod tests {
         let err = DiscordTlsTransport::connect("").expect_err("must refuse");
         assert!(matches!(err, TlsWsError::NotConfigured(_)));
         assert!(err.to_string().contains("not attempted"));
+    }
+
+    #[test]
+    fn discord_transport_close_releases_socket_before_transport_is_dropped() {
+        use crate::discord_gateway::GatewayTransport;
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let tcp = TcpStream::connect(listener.local_addr().expect("address")).expect("connect");
+        let (mut peer, _) = listener.accept().expect("accept");
+        peer.set_read_timeout(Some(Duration::from_secs(1)))
+            .expect("timeout");
+        let connection = rustls::ClientConnection::new(
+            production_client_config(),
+            ServerName::try_from("localhost").expect("name"),
+        )
+        .expect("connection");
+        let mut transport = DiscordTlsTransport {
+            client: WsClient {
+                stream: rustls::StreamOwned::new(connection, tcp),
+                read_buf: Vec::new(),
+                mask_seed: [0; 16],
+            },
+            token: "fixture".into(),
+        };
+        transport.close();
+        transport.close();
+        let mut byte = [0];
+        assert_eq!(
+            peer.read(&mut byte).expect("peer observes socket shutdown"),
+            0
+        );
+        // Keep the transport alive until after the peer observes EOF.
+        assert_eq!(transport.token, "fixture");
     }
 
     #[test]

@@ -22,7 +22,7 @@
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-ABI="$ROOT/target/debug/abi"
+ABI="${CARGO_TARGET_DIR:-$ROOT/target}/debug/abi"
 BASELINE="$ROOT/tools/bench_baseline.json"
 COUNT="${ABI_BENCH_COUNT:-500}"
 RUNS="${ABI_BENCH_RUNS:-5}"
@@ -85,7 +85,7 @@ run_suite() {
   best_search=""
   run=1
   while [ "$run" -le "$RUNS" ]; do
-    output="$($ABI wdbx benchmark "$COUNT" 2>&1)"
+    output="$("$ABI" wdbx benchmark "$COUNT" 2>&1)"
     metrics="$(printf '%s\n' "$output" | parse_metrics)"
     insert="${metrics%% *}"
     search="${metrics##* }"
