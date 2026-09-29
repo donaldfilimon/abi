@@ -48,14 +48,17 @@ It does not imply deployment or live service acceptance.
   selected build cannot silently use an old default binary.
 - Self-hosted CI allocates a new temporary build directory for each run and
   cleans up that directory afterward. Executed workflow-step tests prove fresh
-  allocation and confinement of cleanup; existing checkout/trust tests remain.
+  allocation, failure without export, and confinement of cleanup; existing
+  checkout/trust tests remain.
 
 ## Reproduction and evidence
 
 Run from the canonical ABI checkout with the required sibling WDBX checkout:
 
 ```bash
-export CARGO_TARGET_DIR="$(mktemp -d "${TMPDIR:-/tmp}/abi-release-XXXXXX")"
+CARGO_TARGET_DIR="$(mktemp -d "${TMPDIR:-/tmp}/abi-release-XXXXXX")" || exit 1
+test -n "$CARGO_TARGET_DIR" && test -d "$CARGO_TARGET_DIR" || exit 1
+export CARGO_TARGET_DIR
 ABI_WDBX_PATH=:memory: ./tools/check.sh
 ```
 
@@ -86,8 +89,10 @@ defects before their fixes; five new Python tests cover gate and CI identity.
 
 Release receipts must contain the clean source SHA, lockfile hash, WDBX pin,
 toolchain, artifact checksums, test results, and a successful CI URL whose
-`headSha` equals published `main`. Copy the macOS FoundationModels shim beside
-the binaries when retaining artifacts. A release build and checksums establish
+`headSha` equals published `main`. Copy the macOS FoundationModels shim and
+Metal dot library beside the binaries when retaining artifacts. Verify the
+copied executables' loader dependencies, signatures, and frozen CLI help.
+A release build and checksums establish
 artifact identity; no cross-host byte-for-byte reproducibility is asserted.
 Repository completion evidence belongs in `tasks/goals.md`; post-publication
 CI receipts accompany the delivered artifacts to avoid a self-referential SHA.

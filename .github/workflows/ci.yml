@@ -61,7 +61,9 @@ jobs:
           rustup toolchain install nightly-2026-09-01 --profile minimal --component rustfmt,clippy,rust-src
       - name: Allocate isolated build directory
         run: |
-          echo "CARGO_TARGET_DIR=$(mktemp -d "$RUNNER_TEMP/abi-build-XXXXXX")" >> "$GITHUB_ENV"
+          target_dir="$(mktemp -d "$RUNNER_TEMP/abi-build-XXXXXX")"
+          test -n "$target_dir" && test -d "$target_dir"
+          echo "CARGO_TARGET_DIR=$target_dir" >> "$GITHUB_ENV"
       - name: ./tools/check.sh
         run: |
           ABI_WDBX_PATH=:memory: ./tools/check.sh

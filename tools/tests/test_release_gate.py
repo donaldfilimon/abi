@@ -142,6 +142,17 @@ class IsolatedCiTargetTests(unittest.TestCase):
                            check=True, timeout=10)
             self.assertTrue(protected.is_dir())
 
+    def test_failed_allocation_exits_without_export(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="abi ci failure ") as directory:
+            root = Path(directory)
+            env_file = root / "github-env"
+            env = {**os.environ, "RUNNER_TEMP": str(root), "GITHUB_ENV": str(env_file)}
+            failed_allocator = "mktemp() { return 41; }\n" + self.step("Allocate isolated build directory")
+            result = subprocess.run(["bash", "-euc", failed_allocator], env=env,
+                                    text=True, capture_output=True, timeout=10)
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertFalse(env_file.exists(), env_file.read_text() if env_file.exists() else "")
+
 
 if __name__ == "__main__":
     unittest.main()
