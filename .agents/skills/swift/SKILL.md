@@ -2,110 +2,114 @@
 name: swift
 description: >-
   This skill should be used when the user runs /swift, or asks about fixing Swift
-  builds on this Mac, Xcode vs swiftly/TOOLCHAINS, SwiftData macro errors,
-  AbbeyBot/AbbeyServer, the archived AbbeyCompanion, DiscordBM, Gama or String
-  repository-selected Swift 6.5-dev snapshots, external SwiftPM scratch paths
-  for FileProvider checkouts, Swift Testing #expect on ~Copyable values,
-  --filter matching nothing and exiting 0, or Swift 6.4 / macOS 27 SPM for
-  those packages. Do not use for Rust/abi or general Swift language tutorials.
+  builds on this Mac: Xcode vs swiftly/TOOLCHAINS, which compiler a Swift tree
+  under ~/dev/active pins (Gama, GamaStudio, Gama qt/, String, Mixed,
+  accountforge, FlipperCompanion, SocialPilot, DeviceConnector, LiveContainer),
+  SwiftData macro errors, repository-selected Swift 6.5-dev snapshots, external
+  SwiftPM scratch paths, ~Copyable verification (-typecheck false passes),
+  Swift Testing #expect on ~Copyable values, --filter matching nothing and
+  exiting 0, or probing main-snapshot language features. Do not use for
+  Rust/abi or general Swift language tutorials.
 ---
 
-# Swift (toolchain + AbbeyBot)
+# Swift on this Mac
 
-Procedural rules for Swift work on this Mac and for the unified AbbeyBot package.
-General Swift language knowledge is assumed; this skill encodes **machine- and repo-specific** constraints that otherwise cause false SwiftData errors and codesign failures.
+Procedural rules for Swift work on this machine. General Swift language
+knowledge is assumed; this skill encodes the machine- and repo-specific
+constraints that otherwise produce false SwiftData errors, codesign failures,
+wrong-compiler builds, and false-green tests.
+
+The repository's own `AGENTS.md`/`CLAUDE.md` and gate script are the
+authority inside a tree. This skill routes you to the right compiler and gate;
+it does not replace them.
 
 ## When not to use
 
-- Rust / `~/dev/active/abi` work — use ABI project skills instead.
-- Pure Swift language or concurrency Q&A with no Mac toolchain or AbbeyBot context.
+- Rust / `~/dev/active/abi` work: use ABI project skills instead.
+- Pure Swift language or concurrency Q&A with no toolchain or repository context.
 
 ## Hard toolchain rules
 
-Before choosing a command, read the nearest repository instructions plus
-`.swift-version`, `Toolchains.toml`, `Package.swift`, and validation
-scripts that exist. Repository-selected compilers, build/scratch locations,
-and gates take precedence over generic SwiftPM commands. Use plain
-`swift build` or `swift test` only when the repository has no stronger
-selection.
+1. **Always `unset TOOLCHAINS`** (or prefix `env -u TOOLCHAINS`) before any
+   Swift invocation, in every tree. A stray value silently swaps the compiler
+   behind a bare `xcrun swift`.
+2. **PATH `swift` is a swiftly shim.** `~/.swiftly/bin` is first on PATH and
+   shims `swift`, `swiftc` and `strings`. Plain `swift` resolves through the
+   nearest `.swift-version`, else swiftly's default, which is a main snapshot,
+   not Xcode. Never trust a bare `swift` unless the repo's gate does exactly
+   that on purpose.
+3. **Default compiler is Xcode's**, invoked explicitly:
 
-1. Always `unset TOOLCHAINS` (or `unset TOOLCHAINS || true`) before any Swift invocation.
-   This one is universal — it holds in every tree, including the exceptions below.
-2. **Default** (AbbeyBot, AbbeyCompanion, CoreAIAssistant, Invasion3D, Mixed):
-   invoke Swift via Xcode.
+   ```bash
+   /usr/bin/xcrun --toolchain default swift …
+   # or: /Users/donaldfilimon/.grok/skills/swift/scripts/xcode-swift.sh …
+   ```
 
-```bash
-/usr/bin/xcrun --toolchain default swift …
-```
+   A snapshot compiler against the macOS 27 SDK produces nonsense SwiftData
+   macro errors (`@Query`, `\.modelContext`) and codesign failures.
+4. **Read the pin before choosing a command:** `.swift-version`,
+   `Toolchains.toml`, `Package.swift` tools version, and the gate script. A
+   repository-selected compiler, scratch path, or wrapper beats every generic
+   command here.
+5. **Keep build output outside the checkout** (`--scratch-path` or
+   `--build-path` under `/private/tmp`), and give each session its own path
+   when a peer may be running the same gate. For `swift run`, put the path
+   flag **before** the product name.
+6. **Change toolchains only through `swiftly`**, then verify `swiftly list`,
+   `swift --version`, `swiftly run swift --version +main-snapshot-2026-08-21`,
+   and `strings /bin/ls | head -1`. `~/Library/Developer/Toolchains` is
+   swiftly-owned, not free space. Do not "fix" `SWIFT_PROJECT_BIN`.
 
-   **⚠️ TWO TREES ARE EXCEPTIONS AND PIN THEIR OWN SNAPSHOT. Using Xcode's
-   default there is the WRONG COMPILER**, and the check scripts will reject it:
+## Which compiler and gate, per tree
 
-| Tree | Pin | Everyday invocation |
-|------|-----|---------------------|
-| `~/Desktop/Gama` | `.swift-version` = `main-snapshot-2026-08-21` (Swift 6.5-dev, id `org.swift.65202608211a`). `check-apple-platforms.sh` is the exception: `xcrun --toolchain default` must report Swift 6.4; do not raise `swift-tools-version` to match the compiler. | `swiftly run swift <build\|run\|test>` from the repo root |
-| `~/Desktop/String` | same snapshot via `.swift-version`; Xcode 6.4 is a **secondary** route, not the primary | `swiftly run swift build +main-snapshot-2026-08-21 --scratch-path <outside-iCloud> -Xswiftc -warnings-as-errors` |
+Re-measure before trusting a row: `cat <tree>/.swift-version` and read the
+gate's opening comment. Snapshot as of 2026-09-29.
 
-   Gama's own `CLAUDE.md` states it is the machine-wide exception to the
-   "Xcode default toolchain" rule; its `check-*.sh` scripts verify
-   `Swift version 6.5` and fail loudly on mismatch. String runs
-   warnings-as-errors on **both** build and test, on both routes.
-   Both trees are iCloud/FileProvider-managed: `swift test` needs a
-   `--scratch-path` outside the checkout or codesigning fails, and `git status`
-   can stall for 60+ seconds.
+| Tree (`~/dev/active/…`) | Compiler | Gate (authority) |
+|------|------|------|
+| `Gama` | **Snapshot pin** `main-snapshot-2026-08-21` (6.5-dev, id `org.swift.65202608211a`) via `.swift-version`; `swiftly run swift …` from the root. Manifest stays `swift-tools-version: 6.4` on purpose. | `./scripts/check-apple.sh` fast; `./scripts/check.sh` full matrix. `check-apple-platforms.sh` alone requires Xcode default to report 6.4. |
+| `Gama/GamaStudio` | Same snapshot pin; depends on Gama by path | `cd GamaStudio && ./tools/check.sh` (not in Gama's gate or CI: run it after Apple-host or layout changes) |
+| `Gama/qt` | **Exception inside the exception:** Xcode default 6.4 plus Homebrew Qt 6 | `cd qt && env -u TOOLCHAINS ./Scripts/check.sh`, verdict `check.sh: PASSED` |
+| `String` | Snapshot pin `main-snapshot-2026-08-21`; Xcode 6.4 is a secondary route | `swiftly run swift build/test +main-snapshot-2026-08-21 --scratch-path /private/tmp/… -Xswiftc -warnings-as-errors` (both routes, build and test). `./script/build_and_run.sh --verify` builds and launches but **runs no tests**. |
+| `Mixed` | Xcode project, Xcode default (`env -u TOOLCHAINS`) | `./script/build_and_run.sh all` (see `--help`) |
+| `accountforge` | `.swift-version` 6.4.0 | `./tools/check.sh` |
+| `FlipperCompanion` | `.swift-version` 6.4.0; Xcode project | `./check.sh` |
+| `SocialPilot` | Xcode default via `xcrun --toolchain default` | `./check.sh` |
+| `DeviceConnector` | `.swift-version` 6.4.0 | see `BUILD.md` |
+| `LiveContainer` | Xcode project | `Scripts/check.sh`, verdict `check.sh: PASSED` |
 
-3. Never trust PATH `swift` when it resolves to **swiftly** / `DEVELOPMENT-SNAPSHOT` — that mix breaks SwiftData macros (`@Query`, `\.modelContext`) against the macOS 27 SDK.
-4. Prefer a tree's own `Scripts/` wrappers when they exist — but `ls` that
-   directory first rather than trusting this file; the script set differs per
-   tree.
-5. Keep SwiftPM build output outside the checkout. This avoids stale build
-   products and extended-attribute codesign failures regardless of where the
-   source tree lives:
-
-| Tree | Build path |
-|------|------------|
-| AbbeyBot | `--build-path "${TMPDIR}/AbbeyBot.build"` (server: `AbbeyBot.server.build`) |
-| AbbeyCompanion | `--build-path "${TMPDIR}/AbbeyCompanion.build"` |
-
-For `swift run`, put `--build-path` **before** the product name.
-
-Helper (absolute path):
-
-```bash
-/Users/donaldfilimon/.grok/skills/swift/scripts/xcode-swift.sh --version
-```
+None of these trees is under iCloud any more (Gama, String and Mixed cut over
+on 2026-09-24). Their parked iCloud originals are recovery copies: never
+develop there, and load `home-ops:icloud-git-safety` before any git operation
+on an iCloud path.
 
 ## Probe modern language and SDK features
 
-Do not infer availability or suitability from a proposal title, a main-branch
-interface, or syntax highlighting. Compile the smallest representative source
-with the repository-selected compiler and every supported compiler/platform
-route affected by the change. A parser/type-check pass is not runtime,
-cross-SDK, ABI, or hosted-CI proof. For ownership and `~Copyable` negatives,
-use `swiftc -c` as described below because `-typecheck` can miss SIL
-ownership errors.
+Do not infer availability from a proposal title, a main-branch interface, or
+syntax highlighting. Compile the smallest representative source with the
+repository-selected compiler and every supported route the change affects. A
+type-check pass is not runtime, cross-SDK, ABI, or hosted-CI proof. Inspect the
+installed public `.swiftinterface` when prose and the compiler disagree.
 
-These spellings are available in the installed Gama snapshot, but each has a
-different purpose:
+These spellings are available in the Gama snapshot, each for a narrow purpose:
 
 | Spelling | Use and boundary |
 | --- | --- |
-| `Module::Declaration` | Selects a module explicitly when a local declaration could shadow its name. It is especially useful in macro-generated source. |
-| `~Sendable` | Suppresses implicit `Sendable` inference and records intentional non-Sendability. It does not replace isolation design or, when a project requires one, an unavailable conformance used for a named diagnostic. |
-| `@diagnose(...)` | Changes one named compiler diagnostic for a tightly documented compatibility exception. Include a reason/removal condition; never use it to hide portability, ownership, or concurrency failures. |
-| `anyAppleOS` | Groups availability or conditional code that truly applies to every Apple OS. Prefer `canImport(AppKit)`, `canImport(UIKit)`, or a specific platform when framework capability is the real requirement. |
-| `@c(name)` | Declares a C-compatible entry point. It is not a mechanical replacement for `@_cdecl`: `@_cdecl` emits C and Swift-convention symbols while `@c` emits only the C symbol, so migration requires a separately versioned ABI and consumer audit. |
+| `Module::Declaration` | Selects a module explicitly when a local declaration could shadow its name; useful in macro-generated source. |
+| `~Sendable` | Suppresses implicit `Sendable` inference to record intentional non-Sendability. It does not replace isolation design or an unavailable conformance a project uses for a named diagnostic. |
+| `@diagnose(...)` | Changes one named diagnostic for a documented compatibility exception, with a removal condition. Never to hide portability, ownership, or concurrency failures. |
+| `anyAppleOS` | Availability that truly applies to every Apple OS. Prefer `canImport(AppKit)`/`canImport(UIKit)` when framework capability is the real requirement. |
+| `@c(name)` | C entry point. Not a drop-in for `@_cdecl`: `@_cdecl` emits C and Swift-convention symbols, `@c` only the C one, so migrating needs a versioned ABI and a consumer audit. |
 
-Main-snapshot syntax is not a reason to adopt an API. Confirm that the feature
-is implemented rather than merely accepted/experimental, solves a current
-requirement, and passes the repository's supported toolchain and target gates.
+Main-snapshot syntax is not a reason to adopt an API. Confirm it is
+implemented rather than experimental, solves a current requirement, and passes
+every supported toolchain and target gate.
 
 ## Move-only code: `-typecheck` gives FALSE PASSES
 
-Measured 2026-08-28 on both the 6.5-dev snapshot and Xcode 6.4, 27 probes,
-identical results. **`swiftc -typecheck` returns EXIT 0 on definitively illegal
-`~Copyable` code.** Move-only enforcement runs in SIL, *after* type checking, so
-a plain use-after-consume typechecks clean:
+Measured 2026-08-28 on the 6.5-dev snapshot and Xcode 6.4 (27 probes,
+identical). `swiftc -typecheck` exits 0 on definitively illegal `~Copyable`
+code: move-only enforcement runs in SIL, after type checking.
 
 ```bash
 # WRONG - reports success on illegal code
@@ -116,117 +120,54 @@ xcrun --toolchain <id> swiftc -c -swift-version 6 -o /dev/null probe.swift
 #   error: 'a' consumed more than once
 ```
 
-Anyone verifying a noncopyable migration, or writing a compile-fail fixture for
-one, must use `-c`. A `-typecheck` fixture that "must fail to compile" will pass
-and prove nothing.
+A compile-fail fixture for a noncopyable contract must use `-c`, or it passes
+and proves nothing.
 
-Swift Testing has a separate `~Copyable` trap: `#expect` cannot read a bare
-stored property off a noncopyable value. `#expect(host.needsFrame)` expands to
-`__checkPropertyAccess`, which requires `Copyable`, and the diagnostic names
-that helper rather than the property. Bind first
-(`let dirty = host.needsFrame; #expect(dirty)`). Comparisons
-(`#expect(host.duplicateIDs == [...])`) use a different overload and are fine.
+Related facts from the same probes: `self` is immutable inside a `~Copyable`
+deinit (consume into a local and mutate that); copying out of `.pointee` for a
+noncopyable Pointee is illegal while in-place mutation, borrowing reads,
+`move()` and `assumingMemoryBound` are legal; a struct storing a noncopyable
+value needs an explicit `: ~Copyable`; a global `~Copyable` var can be mutated
+but never consumed.
 
-`--filter` matches the source identifier (the struct or function name), not the
-`@Suite` display name and not the filename. A non-matching filter prints a
-warning and **exits 0**; confirm the reported test count. Do not treat exit 0
-as "those tests passed."
+## Swift Testing traps
 
-Related ownership facts established by the same probes: `self` is immutable
-inside a `~Copyable` deinit (no in-place mutation, no `inout` of a stored
-property — but consuming into a local and mutating the local is fine); copying
-out of `.pointee` for a noncopyable Pointee is illegal while in-place mutation,
-borrowing reads, `move()`, and `assumingMemoryBound` are all legal; a struct
-does **not** become noncopyable by inference and needs an explicit `: ~Copyable`
-when it stores one; and a global `~Copyable` var can be mutated but never
-consumed.
+- `#expect` cannot read a bare stored property off a noncopyable value.
+  `#expect(host.needsFrame)` expands to `__checkPropertyAccess`, which
+  requires `Copyable`, and the diagnostic names that helper, not the property.
+  Bind first: `let dirty = host.needsFrame; #expect(dirty)`. Comparisons
+  (`#expect(host.ids == [...])`) use another overload and are fine.
+- `--filter` matches the source identifier (struct or function name), not the
+  `@Suite` display name and not the filename. A non-matching filter prints a
+  warning and **exits 0**: confirm the reported test count.
+- Do not add XCTest to a tree that is Swift Testing only (Gama, String).
 
-## Orient: which tree?
+## Failure signatures
 
-> **Current as of 2026-09-21:** the Swift AbbeyBot tree was moved (with 22 other
-> projects) to `/Users/donaldfilimon/Archive/experimental-2026-09-18/AbbeyBot` on
-> 2026-09-18. It is restore-only there: do not build or develop in it unless
-> Donald restores it. It is separate from the active Rust Discord bot at
-> `/Users/donaldfilimon/dev/active/abbey-bot`. The table and gate below describe
-> the tree as it was when active.
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| Nonsense errors on `@Query` / `\.modelContext` | Snapshot compiler (swiftly shim or `TOOLCHAINS`) | `unset TOOLCHAINS`; `/usr/bin/xcrun --toolchain default swift` |
+| Gama/String check script fails on the version line | Built with Xcode 6.4 instead of the pin | `swiftly run swift …` from the repo root |
+| "resource fork, Finder information, or similar detritus not allowed" | xattrs on in-tree build output | Scratch path under `/private/tmp` |
+| `swiftc` aborts `couldNotFindTmpDir` | The `TMPDIR` passed does not exist | `mkdir -p` it first |
+| Build path ignored by `swift run` | Flag order | Path flag before the product name |
+| A gate collides with another session's run | Shared fixed scratch path (Gama: `/private/tmp/gama-framework-swiftpm`) | Use the repo's per-gate scratch variable with a unique root |
 
-| Path | Role | Present? |
-|------|------|----------|
-| `/Users/donaldfilimon/Archive/experimental-2026-09-18/AbbeyBot` (was `dev/active/AbbeyBot`) | Swift dual product (`AbbeyBot` desktop + `AbbeyServer` + `abbey` CLI); its own git repo and remote. | **archived 2026-09-18** |
-| `/Users/donaldfilimon/dev/archive/AbbeyCompanion` | Retired companion predecessor; wrappers are `Scripts/check.sh`, `run.sh`, `smoke.sh`, `lib.sh`. | archived |
-| `/Users/donaldfilimon/Downloads/AbbeyCompanion 4` | Former superseded companion copy | **gone** |
+## Archived Swift trees
 
-Read `AGENTS.md` in the active tree before changing architecture. Keep `CLAUDE.md` a thin redirect to `AGENTS.md`.
-
-## AbbeyBot quick map
-
-| Layer | Path | Notes |
-|-------|------|-------|
-| Core | `Sources/AbbeyCore/` | No SwiftData; DiscordBM, personas, `IngestScorer`, `ReputationMath`, `DiscordCopy` |
-| Desktop | `Sources/AbbeyBotApp/` | SwiftUI + SwiftData; `AbbeyEngine` |
-| Server | `Sources/AbbeyServer/` | Vapor + Fluent; `BotRuntime`; Leaf + `/api/*` |
-| Tests | `Tests/AbbeyCoreTests/` | AbbeyCore unit tests |
-| Verify | `Scripts/verify-all.sh` | Static/security, package graphs, desktop, server, CLI, web, and related smoke gates; read the script for the current exact sequence |
-
-Platforms: `.macOS(.v27)`. Language mode: `.v6` / tools-version `6.4`.
-
-### Mirrored engines
-
-Desktop `AbbeyEngine` and server `BotRuntime` are **persistence adapters** around shared AbbeyCore. When changing ingest, slash-command copy, persona resolve, or scoring:
-
-1. Prefer editing AbbeyCore helpers first.
-2. Check **both** engines' `ingestMessage` / `makeInteractionRouter` / `makeMessageIngress` for drift.
-
-### Server env (non-secrets)
-
-See `.env.example`: `DISCORD_BOT_TOKEN`, `DISCORD_DEV_GUILD_ID`, `DATABASE_URL`, optional `ABBEY_API_TOKEN` for `POST /api/ingest`.
-
-`DATABASE_URL`: `postgres://…`, `sqlite://memory` / `sqlite::memory:`, or `sqlite:///path`.
-
-### Verify gates
-
-These are two different gates covering two different projects. Do not treat one
-as evidence for the other.
-
-**AbbeyBot gate (tree archived 2026-09-18; runnable only after Donald restores it):**
-
-```bash
-cd /Users/donaldfilimon/dev/active/AbbeyBot
-unset TOOLCHAINS
-bash Scripts/verify-all.sh
-```
-
-**AbbeyCompanion gate — a DIFFERENT project, present and runnable.** A green result
-here says nothing about AbbeyBot:
-
-```bash
-cd /Users/donaldfilimon/dev/archive/AbbeyCompanion
-unset TOOLCHAINS
-bash Scripts/check.sh
-```
-
-Claim-honest: green local smoke does not prove live Discord (needs Message
-Content intent, credentials, and manual observation). Follow `AGENTS.md` and
-the repository ledgers for the current voice and dashboard acceptance boundary.
-
-## Git / process (AbbeyBot)
-
-- Prefer `cursor/` branches from `main`; FF-merge when finishing; never force-push `main`.
-- Conventional Commits.
-- `origin` is `https://github.com/donaldfilimon/AbbeyBot.git`; inspect branch,
-  ancestry, and user authorization before pushing or opening a PR.
+The Swift `AbbeyBot` (desktop + Vapor server + CLI) and `AbbeyCompanion` trees
+are no longer on disk: they were moved to the Trash on 2026-09-28 with the
+archive trees. Their history is on GitHub (`donaldfilimon/AbbeyBot`,
+`donaldfilimon/AbbeyCompanion`) and in `~/at-risk-bundles/2026-09-28-archives/`
+(`MANIFEST.tsv`). Restoring either is Donald's call. They share no code with
+the active Rust `abbey-bot` or `abbey`. See `references/abbeybot.md`.
 
 ## Additional resources
 
-### Reference files
+Central root: `/Users/donaldfilimon/.grok/skills/swift/` (edit here; copies
+under `~/.claude/skills/` and abi's `.agents/`/`.claude/` mirrors are sync
+targets and get overwritten).
 
-Load as needed from the central skill (or synced copy):
-
-- **`references/toolchain.md`** — toolchain diagnosis, codesign/xattr, common failures
-- **`references/abbeybot.md`** — API surface, architecture, smoke expectations, deferred scope
-
-Central root: `/Users/donaldfilimon/.grok/skills/swift/`
-
-### Scripts
-
-- **`/Users/donaldfilimon/.grok/skills/swift/scripts/xcode-swift.sh`** — `unset TOOLCHAINS` + `xcrun --toolchain default swift` passthrough
+- `references/toolchain.md`: toolchain diagnosis and route verification.
+- `references/abbeybot.md`: pointer to the archived Swift AbbeyBot.
+- `scripts/xcode-swift.sh`: `unset TOOLCHAINS` + `xcrun --toolchain default swift` passthrough.
