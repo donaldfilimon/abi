@@ -116,6 +116,9 @@ class IsolatedCiTargetTests(unittest.TestCase):
         return textwrap.dedent(block.split("run: |\n", 1)[1])
 
     def test_each_allocation_is_fresh_and_cleanup_is_confined(self) -> None:
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        gate = workflow.split("- name: ./tools/check.sh\n", 1)[1].split("\n      - ", 1)[0]
+        self.assertIn("run: |\n          ABI_WDBX_PATH=:memory: ./tools/check.sh", gate)
         with tempfile.TemporaryDirectory(prefix="abi ci fixture ") as directory:
             root = Path(directory)
             env_file = root / "github-env"

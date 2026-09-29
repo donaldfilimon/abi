@@ -63,7 +63,8 @@ jobs:
         run: |
           echo "CARGO_TARGET_DIR=$(mktemp -d "$RUNNER_TEMP/abi-build-XXXXXX")" >> "$GITHUB_ENV"
       - name: ./tools/check.sh
-        run: ./tools/check.sh
+        run: |
+          ABI_WDBX_PATH=:memory: ./tools/check.sh
       - name: Remove isolated build directory
         if: always()
         run: |
