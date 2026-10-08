@@ -32,6 +32,8 @@ struct FoundEpisode {
     candidate_edges: Option<MemoryEdgeState>,
     /// Present only for a `quarantines`/`contradicts` edge episode.
     edge_open: Option<bool>,
+    /// Canonical closing episode, present only for a resolved edge.
+    edge_resolution: Option<[u8; 32]>,
 }
 
 /// Outcome of one blocking episode job, kept separate from gateway failures so
@@ -132,6 +134,9 @@ pub(crate) async fn verify(
             Some(false) => "closed".into(),
             None => String::new(),
         },
+        memory_edge_resolution: found
+            .edge_resolution
+            .map_or_else(Vec::new, |digest| digest.to_vec()),
     })
 }
 
@@ -211,11 +216,16 @@ fn verify_blocking(
         Ok(open) => open,
         Err(error) => return EpisodeOutcome::Store(error),
     };
+    let edge_resolution = match store.memory_edge_resolution(guild_ref, &digest) {
+        Ok(resolution) => resolution,
+        Err(error) => return EpisodeOutcome::Store(error),
+    };
     EpisodeOutcome::Ok(Some(FoundEpisode {
         receipt,
         signature,
         candidate_edges,
         edge_open,
+        edge_resolution,
     }))
 }
 

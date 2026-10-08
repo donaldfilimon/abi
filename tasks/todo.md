@@ -281,3 +281,39 @@ No change was required and none was made.
 - [x] Make the Metal-inactive degradation path testable on a Metal-capable host. `MetalAccelerator` now reaches kernels through a function-pointer seam (`MetalKernels::REAL` in production, a test-only inactive set otherwise). Mutation-checked: injecting `REAL` into the inactive constructor makes the new test fail at `!before.initialized()`. 21 tests pass in all five feature configurations; `./tools/check.sh` exit 0, `check: all green`.
 - [x] Decide whether two capability tables (`abi-gpu` evidence ladder vs `abi-compute` compat table) should remain separate, or whether `abi backends` should print the ladder as `abi wdbx compute` already does. Cross-repo; Donald's call. **Decided 2026-09-16 (Donald): keep them separate.** `abi backends` no longer repeats the `compat` rows; it prints one pointer line to `abi wdbx compute info`, which already owned both the compat table and the `evidence` ladder (verified on the built binary before the change).
 - [x] Commit the `abi-cli/src/backends.rs` relabel (landed as `ee435e9e`, on `origin/main`; 3 unrelated docs files in the tree belong to another session and are preserved outside the commit).
+
+
+## 2026-10-03 training-foundation verification checklist
+
+- [x] Preserve canonical HEAD/index and every prior change; establish coordinated sole source ownership and isolate build artifacts from live MCP processes.
+- [x] Read all 29 initial changed paths and subsystem interactions; record confirmed F1/H1 findings and scoped episode review.
+- [x] Observe F1's 1-pass/6-fail regression run, apply the retained-history guard and observe 7 passes.
+- [x] Observe H1's 1-pass/3-fail regression run, apply cancellation-first callback admission checks and observe 4 passes.
+- [x] Run the meaningful foundation suites: contracts 23, registry 39, artifacts 6, integrated foundation 2, complete host 29; all pass, none ignored.
+- [x] Preserve actual baseline/failure/repair logs and source artifacts outside the shared tree; keep historical receipts intact.
+
+Final source qualification is determined by the external `abi-final-result.json`:
+actual gate exit 0, stable complete ABI/sibling input manifests and no blocking
+independent review findings are required. The corresponding source receipt records
+suite counts, ignored/skipped checks and remaining proof gaps. The unchecked old
+foundation plan's initial-draft RED steps are historical proof gaps, not claims of
+executed failures; the recorded execution ruling and confirmed repair RED/GREEN
+apply to this current review.
+
+Actual Abbey/Aviva/ABI/Quesar weights, real optimization, independent numerical
+quality and teacher/student evaluation, licensed base/trainer selection, resource
+commitments and serving/deployment remain outside this bounded source foundation.
+
+
+## 2026-10-08 integration and publication verification
+
+Donald authorized integration of pending source and worktrees into main and
+origin/main, with launcher updates after validation. The full `./tools/check.sh`
+gate passed twice on the pending ABI source, including the run with
+`WDBX_REVISION=7ddeb3d1389ec0e9fab5ac5397acf0da91a01174`. The required sibling
+passed `bash tools/check.sh` before that exact source revision was published.
+This qualifies the retained training foundation, callback admission guards and
+per-edge resolution projection at their source/local-test boundaries. CUDA
+compilation remains unavailable without nvcc; independent audits, actual trained
+weights, separate-host operation and live provider acceptance remain unproved.
+Remote CI and installed-artifact verification are separate subsequent checks.

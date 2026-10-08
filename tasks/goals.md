@@ -256,3 +256,78 @@ status: source acceptance verified; exact-commit publication receipt required
 - Dependency scan passed with the existing unmaintained bincode (RUSTSEC-2025-0141) and paste (RUSTSEC-2024-0436) exceptions unchanged. WDBX CI pin remains `9fee98ff5ccb92fa86a2ed44f93abd65e7e181ae`; the locally consumed crates, manifests, lockfile, corpus and episode oracle match it despite unrelated sibling work.
 - Source acceptance matrix and reproduction instructions: `docs/releases/2026-09-29-abi-source-release.md`. The post-publication release receipt must verify successful self-hosted CI at published main, a clean matching local/remote SHA, and checksummed binaries/source. That receipt is delivered beside the artifacts rather than adding a self-referential commit SHA here.
 - Live providers, installed-artifact identity, live Discord isolation, managed deployment, human-witnessed voice, Linux/Windows runtime, CUDA/Vulkan execution, ANE placement, separate-host operation and independent audits remain a separate operator phase. No service was installed/restarted, real message sent, command registered, or production store opened.
+
+
+## 2026-10-03 approved training-foundation source verification
+
+Pre-gate evidence entry; final qualification is recorded outside the shared source
+at `/Users/donaldfilimon/.codex/verification/abbey-bot-continuity-20261003/abi-final-result.json`
+and `abi-final-source-qualification.md`. Source-qualified requires the saved actual
+exit 0, matching complete ABI and consumed sibling WDBX manifests, and no unresolved
+blocking review finding. A prior baseline or focused run is not final qualification.
+
+Donald paused competing writers and authorized this chat's sequential source work
+across AbbeyBot, Abbey, ABI and WDBX (`abbey-bot/tasks/goals.md`, 2026-10-03 sole-writer
+entry). HEAD remains `80dfe079ebe7413a6815c2d564be1f0aaa901267`; index and all prior
+dirty/untracked source are preserved. Builds use the pinned `tools/cargo.sh`, locked
+resolution, stdin EOF, `ABI_WDBX_PATH=:memory:` and an externally owned isolated target;
+no mapped MCP artifact, live store, dependency, public CLI/MCP surface or service changed.
+
+Initial baseline exited 1 at 144 Python cases (4 failures, 6 errors): the closed
+corpus correctly refused three ignored Finder `.DS_Store` files. They were renamed
+into private external evidence and byte/hash-verified; no source, verifier, corpus
+manifest or golden byte was altered. The rerun exited 0 with 1,237 ABI and 756 WDBX
+inputs unchanged. This environment correction does not constitute a behavioral RED.
+
+Independent complete-diff review confirmed two defects. F1 allowed a record or
+related family to move between held-out and Train splits in separately registered
+immutable snapshots, including revoked history and legacy recovery. Seven actual
+regressions ran: 1 compatibility control passed and 6 failed before the repair;
+all 7 passed afterward. A private aggregate scan now runs after canonical recovery,
+after existing candidate evidence/revocation checks before publication, and before
+training export. It retains every immutable manifest, refuses contaminated legacy
+state without migration, and preserves snapshot digests, schema, evaluator exports
+and existing error precedence. This restores the approved split-isolation contract.
+
+H1 admitted subsequent buffered text or tool execution after a sink, policy or audit
+callback consumed the absolute deadline. Four actual regressions ran: 1 normal
+continuation control passed and 3 failed before repair; all 4 passed afterward.
+Three admission boundaries now use the existing cancellation-first deadline check.
+An already observed authorization decision remains audited. The first H1 attempt
+failed to compile because the child module needed an explicit path; that attempt
+is preserved and is not counted as RED.
+
+Focused verification, each actual exit 0 with no ignored tests: training contracts
+23; training registry 39; private artifact publication 6; four-profile integrated
+foundation 2; complete agent host 6 unit plus 23 contract tests. These prove source,
+authority, scoped persistence, exact identity, recovery/refusal and fixture behavior.
+They do not prove actual trained weights, tensor changes, independent model quality,
+licensed training permission, real teacher/student optimization or serving cutover.
+
+The preexisting draft foundation APIs were already present before this review;
+historical first-implementation RED cannot be reconstructed or claimed. Confirmed
+behavioral repairs have attributable RED/GREEN. The coordinated sole-writer and
+no-commit instructions supersede generic per-task implementers/commits/worktrees.
+Exact owned diff packages and execution ledgers are retained externally; all four
+foundation task briefs were registered in the ignored superpowers workspace.
+
+The final gate must include policy/security, sizes, format, warning-denied Clippy,
+workspace builds/tests, required sibling conformance, local Metal tests/docs, actual
+same-system benchmark, workspace rustdoc and locked release binaries. Record any
+unavailable CUDA/cross-platform paths and accepted security exceptions honestly.
+Linux/Windows runtime, installed artifact identity, live MCP/providers, production
+corpus, downloads/resources/training, publication and deployment remain unperformed.
+
+
+## 2026-10-08 integration and publication verification
+
+Donald authorized integration of pending source and worktrees into main and
+origin/main, with launcher updates after validation. The full `./tools/check.sh`
+gate passed twice on the pending ABI source, including the run with
+`WDBX_REVISION=7ddeb3d1389ec0e9fab5ac5397acf0da91a01174`. The required sibling
+passed `bash tools/check.sh` before that exact source revision was published.
+This qualifies the retained training foundation, callback admission guards and
+per-edge resolution projection at their source/local-test boundaries. CUDA
+compilation remains unavailable without nvcc; independent audits, actual trained
+weights, separate-host operation and live provider acceptance remain unproved.
+Remote CI and installed-artifact verification are separate subsequent checks.

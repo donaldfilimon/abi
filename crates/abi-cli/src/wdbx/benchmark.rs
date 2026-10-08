@@ -74,7 +74,7 @@ fn benchmark_result(count: usize) -> Result<String, String> {
         search_ns / u64::try_from(query_count).unwrap_or(u64::MAX)
     };
     Ok(format!(
-        "benchmark (local, in-memory; not a published throughput claim):\n  inserts: {count} in {insert_ns} ns  (avg {insert_average} ns/op; includes per-op acceleration-kernel dispatch)\n    p50={} ns  p95={} ns  p99={} ns\n  searches: {query_count} in {search_ns} ns (avg {search_average} ns/op, k=10 over {} vectors)\n    p50={} ns  p95={} ns  p99={} ns\n",
+        "benchmark (local, in-memory; not a published throughput claim):\n  inserts: {count} in {insert_ns} ns  (avg {insert_average} ns/op)\n    p50={} ns  p95={} ns  p99={} ns\n  searches: {query_count} in {search_ns} ns (avg {search_average} ns/op, k=10 over {} vectors)\n    p50={} ns  p95={} ns  p99={} ns\n  workload: deterministic 4D vectors [i % 97, i % 31, 0, 0]; repeated query [1, 0, 0, 0]\n  scope: scalar-cosine HNSW; recall/accuracy not measured; no durable-store or accelerator timing\n",
         percentile_sorted(&insert_samples, 50),
         percentile_sorted(&insert_samples, 95),
         percentile_sorted(&insert_samples, 99),

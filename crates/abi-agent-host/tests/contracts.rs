@@ -1,14 +1,14 @@
 //! External contracts for bounded host orchestration.
 
 use abi_agent_host::{
-    AgentHost, HostBudget, HostBudgetLimit, HostError, HostStopReason, ToolExecutionContext,
-    ToolExecutionError, ToolExecutor, ToolOutput,
+    AgentHost, HostBudget, HostBudgetLimit, HostError, HostRunReport, HostStopReason,
+    ToolExecutionContext, ToolExecutionError, ToolExecutor, ToolOutput,
 };
 use abi_agent_runtime::{
-    CancellationToken, CollectingSink, DenyAllPolicy, EffectScopedPolicy, ExecutionPolicy, Flow,
-    MemoryAuditSink, ModelEvent, ModelProvider, ModelRequest, PolicyDecision, Role, RunContext,
-    RuntimeError, StaticToolRegistry, StopReason, ToolCall, ToolRegistry, ToolResult, ToolSpec,
-    ToolStatus,
+    AuditEntry, AuditSink, CancellationToken, CollectingSink, DenyAllPolicy, EffectScopedPolicy,
+    EventSink, ExecutionPolicy, Flow, MemoryAuditSink, ModelEvent, ModelProvider, ModelRequest,
+    PolicyDecision, Role, RunContext, RuntimeError, StaticToolRegistry, StopReason, ToolCall,
+    ToolRegistry, ToolResult, ToolSpec, ToolStatus,
 };
 use std::{
     collections::VecDeque,
@@ -576,3 +576,377 @@ fn pre_cancelled_and_expired_runs_admit_no_provider_or_tool_work() {
     assert_eq!(error, HostError::BudgetExceeded(HostBudgetLimit::Deadline));
     assert_eq!(provider.requests(), Vec::<ModelRequest>::new());
 }
+
+struct CancellingSink {
+    collected: CollectingSink,
+    cancellation: CancellationToken,
+    on_kind: &'static str,
+}
+
+impl CancellingSink {
+    fn new(cancellation: &CancellationToken, on_kind: &'static str) -> Self {
+        Self {
+            collected: CollectingSink::new(),
+            cancellation: cancellation.clone(),
+            on_kind,
+        }
+    }
+}
+
+impl EventSink for CancellingSink {
+    fn emit(&mut self, event: &ModelEvent) {
+        self.collected.emit(event);
+        if event.kind() == self.on_kind {
+            self.cancellation.cancel();
+        }
+    }
+}
+
+fn assert_cancelled(report: &HostRunReport, sink: &CollectingSink) {
+    assert_eq!(report.stop, HostStopReason::Cancelled);
+    assert_eq!(report.provider_runs, 1);
+    assert_eq!(
+        report.events,
+        u64::try_from(sink.events().len() - 1).expect("event count fits")
+    );
+    assert_eq!(
+        sink.events()
+            .iter()
+            .filter(|event| event.is_terminal())
+            .count(),
+        1
+    );
+    assert_eq!(
+        sink.events().last(),
+        Some(&ModelEvent::Finished {
+            stop: StopReason::Cancelled
+        })
+    );
+}
+
+#[test]
+fn cancellation_in_buffered_event_callback_stops_remaining_events_and_output() {
+    for on_kind in ["text_delta", "started"] {
+        let provider = SequenceProvider::new([vec![
+            ModelEvent::text("first"),
+            ModelEvent::text("must-not-emit"),
+            call("c1"),
+        ]]);
+        let executor = FixtureExecutor::default();
+        let audit = MemoryAuditSink::new();
+        let registry = tool_registry();
+        let host = assemble_host(&provider, &registry, &AllowAll, &audit, &executor);
+        let cancellation = CancellationToken::new();
+        let mut sink = CancellingSink::new(&cancellation, on_kind);
+        let report = host
+            .run(&request(), &mut sink, &cancellation, HostBudget::bounded())
+            .expect("callback cancellation is a terminal report");
+
+        assert_cancelled(&report, &sink.collected);
+        let expected = if on_kind == "started" { "" } else { "first" };
+        assert_eq!(report.text(), expected);
+        let expected_kinds = if on_kind == "started" {
+            vec!["started", "finished"]
+        } else {
+            vec!["started", "text_delta", "finished"]
+        };
+        assert_eq!(sink.collected.kinds(), expected_kinds);
+        assert_eq!(report.tool_calls, 0);
+        assert_eq!(report.tool_results, Vec::<ToolResult>::new());
+        assert_eq!(executor.calls(), 0);
+        assert!(audit.is_empty());
+        assert_eq!(provider.requests().len(), 1);
+    }
+}
+
+#[test]
+fn cancellation_in_tool_call_callback_admits_no_authorization_or_execution() {
+    let provider = SequenceProvider::new([vec![call("c1"), call("c2")]]);
+    let executor = FixtureExecutor::default();
+    let audit = MemoryAuditSink::new();
+    let registry = tool_registry();
+    let host = assemble_host(&provider, &registry, &AllowAll, &audit, &executor);
+    let cancellation = CancellationToken::new();
+    let mut sink = CancellingSink::new(&cancellation, "tool_call");
+    let report = host
+        .run(&request(), &mut sink, &cancellation, HostBudget::bounded())
+        .expect("call callback cancellation is a terminal report");
+
+    assert_cancelled(&report, &sink.collected);
+    assert_eq!(sink.collected.kinds(), ["started", "tool_call", "finished"]);
+    assert_eq!(report.tool_calls, 1);
+    assert_eq!(report.tool_results, Vec::<ToolResult>::new());
+    assert_eq!(executor.calls(), 0);
+    assert!(audit.is_empty());
+    assert_eq!(provider.requests().len(), 1);
+}
+
+struct CancellingAuthorization {
+    cancellation: CancellationToken,
+    in_policy: bool,
+    decision: PolicyDecision,
+    audit: MemoryAuditSink,
+}
+
+impl ExecutionPolicy for CancellingAuthorization {
+    fn name(&self) -> &'static str {
+        "cancelling-fixture"
+    }
+
+    fn authorize(&self, _call: &ToolCall, _spec: Option<&ToolSpec>) -> PolicyDecision {
+        if self.in_policy {
+            self.cancellation.cancel();
+        }
+        self.decision.clone()
+    }
+}
+
+impl AuditSink for CancellingAuthorization {
+    fn record(&self, entry: &AuditEntry) {
+        self.audit.record(entry);
+        if !self.in_policy {
+            self.cancellation.cancel();
+        }
+    }
+}
+
+#[test]
+fn cancellation_in_policy_or_audit_retains_the_decision_without_emitting_a_result() {
+    for in_policy in [true, false] {
+        for decision in [
+            PolicyDecision::Allow,
+            PolicyDecision::Deny {
+                reason: "denied".into(),
+            },
+            PolicyDecision::RequireConfirmation {
+                reason: "confirm".into(),
+            },
+        ] {
+            let provider = SequenceProvider::new([vec![call("c1"), call("c2")]]);
+            let executor = FixtureExecutor::default();
+            let registry = tool_registry();
+            let cancellation = CancellationToken::new();
+            let authorization = CancellingAuthorization {
+                cancellation: cancellation.clone(),
+                in_policy,
+                decision: decision.clone(),
+                audit: MemoryAuditSink::new(),
+            };
+            let host = AgentHost::new(
+                &provider,
+                &registry,
+                &authorization,
+                &authorization,
+                &executor,
+            )
+            .expect("host assembles");
+            let mut sink = CollectingSink::new();
+            let report = host
+                .run(&request(), &mut sink, &cancellation, HostBudget::bounded())
+                .expect("authorization callback cancellation is a terminal report");
+
+            assert_cancelled(&report, &sink);
+            assert_eq!(sink.kinds(), ["started", "tool_call", "finished"]);
+            assert_eq!(report.tool_calls, 1);
+            assert_eq!(report.tool_results, Vec::<ToolResult>::new());
+            assert_eq!(executor.calls(), 0);
+            assert_eq!(
+                authorization.audit.entries(),
+                [AuditEntry::new(
+                    "cancelling-fixture",
+                    &ToolCall::new("c1", "read", r#"{"path":"notes.md"}"#),
+                    decision
+                )]
+            );
+            assert_eq!(provider.requests().len(), 1);
+        }
+    }
+}
+
+struct CancellingExecutor {
+    cancellation: CancellationToken,
+    inner: FixtureExecutor,
+}
+
+impl ToolExecutor for CancellingExecutor {
+    fn execute(
+        &self,
+        call: &ToolCall,
+        spec: &ToolSpec,
+        context: ToolExecutionContext<'_>,
+    ) -> Result<ToolOutput, ToolExecutionError> {
+        let result = self.inner.execute(call, spec, context);
+        self.cancellation.cancel();
+        result
+    }
+}
+
+#[test]
+fn cancellation_in_executor_suppresses_success_error_and_oversized_results() {
+    for output in [
+        Ok(ToolOutput::ok("ok")),
+        Err(ToolExecutionError::new("fixture error")),
+        Ok(ToolOutput::ok("larger than the result limit")),
+    ] {
+        let provider = SequenceProvider::new([vec![call("c1"), ModelEvent::text("must-not-emit")]]);
+        let cancellation = CancellationToken::new();
+        let executor = CancellingExecutor {
+            cancellation: cancellation.clone(),
+            inner: FixtureExecutor::returning([output]),
+        };
+        let audit = MemoryAuditSink::new();
+        let registry = tool_registry();
+        let host = assemble_host(&provider, &registry, &AllowAll, &audit, &executor);
+        let mut sink = CollectingSink::new();
+        let report = host
+            .run(
+                &request(),
+                &mut sink,
+                &cancellation,
+                HostBudget::bounded().with_max_tool_result_bytes(2),
+            )
+            .expect("executor cancellation wins before result conversion");
+
+        assert_cancelled(&report, &sink);
+        assert_eq!(sink.kinds(), ["started", "tool_call", "finished"]);
+        assert_eq!(report.tool_calls, 1);
+        assert_eq!(report.text(), "");
+        assert_eq!(report.tool_results, Vec::<ToolResult>::new());
+        assert_eq!(executor.inner.calls(), 1);
+        assert_eq!(audit.len(), 1);
+        assert_eq!(provider.requests().len(), 1);
+    }
+}
+
+#[test]
+fn cancellation_in_tool_result_callback_retains_only_the_delivered_result() {
+    let provider = SequenceProvider::new([vec![
+        call("c1"),
+        call("c2"),
+        ModelEvent::text("must-not-emit"),
+    ]]);
+    let executor = FixtureExecutor::default();
+    let audit = MemoryAuditSink::new();
+    let registry = tool_registry();
+    let host = assemble_host(&provider, &registry, &AllowAll, &audit, &executor);
+    let cancellation = CancellationToken::new();
+    let mut sink = CancellingSink::new(&cancellation, "tool_result");
+    let report = host
+        .run(&request(), &mut sink, &cancellation, HostBudget::bounded())
+        .expect("result callback cancellation is a terminal report");
+
+    assert_cancelled(&report, &sink.collected);
+    assert_eq!(
+        sink.collected.kinds(),
+        ["started", "tool_call", "tool_result", "finished"]
+    );
+    assert_eq!(report.tool_calls, 1);
+    assert_eq!(report.text(), "");
+    assert_eq!(report.tool_results.len(), 1);
+    assert_eq!(report.tool_results[0].call_id, "c1");
+    assert_eq!(report.tool_results[0].status, ToolStatus::Ok);
+    assert_eq!(executor.calls(), 1);
+    assert_eq!(audit.len(), 1);
+    assert_eq!(provider.requests().len(), 1);
+}
+
+struct CancellingProvider {
+    inner: SequenceProvider,
+    cancellation: CancellationToken,
+}
+
+impl ModelProvider for CancellingProvider {
+    fn id(&self) -> &'static str {
+        "cancelling-fixture"
+    }
+
+    fn run(&self, request: &ModelRequest, run: &mut RunContext<'_>) -> Result<(), RuntimeError> {
+        self.inner.run(request, run)?;
+        run.record_input_tokens(7);
+        self.cancellation.cancel();
+        Ok(())
+    }
+}
+
+#[test]
+fn cancellation_in_provider_suppresses_buffered_output_but_retains_usage() {
+    let cancellation = CancellationToken::new();
+    let provider = CancellingProvider {
+        inner: SequenceProvider::new([vec![ModelEvent::text("unpublished"), call("c1")]])
+            .with_output_tokens_per_turn(3),
+        cancellation: cancellation.clone(),
+    };
+    let executor = FixtureExecutor::default();
+    let audit = MemoryAuditSink::new();
+    let registry = tool_registry();
+    let host = assemble_host(&provider, &registry, &AllowAll, &audit, &executor);
+    let mut sink = CollectingSink::new();
+    let report = host
+        .run(&request(), &mut sink, &cancellation, HostBudget::bounded())
+        .expect("provider cancellation is a terminal report");
+
+    assert_cancelled(&report, &sink);
+    assert_eq!(sink.kinds(), ["finished"]);
+    assert_eq!(report.text(), "");
+    assert_eq!(report.tool_calls, 0);
+    assert_eq!(report.tool_results, Vec::<ToolResult>::new());
+    assert_eq!(report.usage.input_tokens, 7);
+    assert_eq!(report.usage.output_tokens, 3);
+    assert_eq!(executor.calls(), 0);
+    assert!(audit.is_empty());
+    assert_eq!(provider.inner.requests().len(), 1);
+}
+
+#[test]
+fn provider_cancellation_does_not_hide_invalid_buffered_turns() {
+    for (events, expected) in [
+        (
+            vec![
+                call("c1"),
+                ModelEvent::ToolResult(ToolResult::ok("c1", "fake")),
+            ],
+            HostError::ProviderToolResult {
+                call_id: "c1".into(),
+            },
+        ),
+        (
+            vec![
+                ModelEvent::Finished {
+                    stop: StopReason::Completed,
+                },
+                ModelEvent::text("after"),
+            ],
+            HostError::PostTerminalEvent {
+                kind: "text_delta".into(),
+            },
+        ),
+    ] {
+        let cancellation = CancellationToken::new();
+        let provider = CancellingProvider {
+            inner: SequenceProvider::new([events]),
+            cancellation: cancellation.clone(),
+        };
+        let executor = FixtureExecutor::default();
+        let audit = MemoryAuditSink::new();
+        let registry = tool_registry();
+        let host = assemble_host(&provider, &registry, &AllowAll, &audit, &executor);
+        let mut sink = CollectingSink::new();
+        let error = host
+            .run(&request(), &mut sink, &cancellation, HostBudget::bounded())
+            .expect_err("whole-turn validation still fails closed before admission");
+
+        assert_eq!(error, expected);
+        assert_eq!(
+            sink.events(),
+            [ModelEvent::Finished {
+                stop: StopReason::Failed
+            }]
+        );
+        assert_eq!(executor.calls(), 0);
+        assert!(audit.is_empty());
+        assert_eq!(provider.inner.requests().len(), 1);
+    }
+}
+
+#[path = "contracts/deadline_callbacks.rs"]
+mod deadline_callbacks;

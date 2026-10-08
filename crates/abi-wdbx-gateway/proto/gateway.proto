@@ -146,6 +146,9 @@ message VerifyEpisodeResponse {
   // "open" or "closed" for a found `quarantines`/`contradicts` edge episode;
   // empty for every other record.
   string memory_edge_status = 8;
+  // Canonical digest of the `resolves` episode closing this exact edge.
+  // 32 bytes when closed; empty for open edges and every other record.
+  bytes memory_edge_resolution = 9;
 }
 // One open contradiction as seen from one of its two candidates.
 message MemoryContradiction {

@@ -13,7 +13,9 @@ Codex plugin.
 
 - Repository instructions: `AGENTS.md`, then `tasks/lessons.md` and `tasks/todo.md`.
 - Nightly pin: `rust-toolchain.toml` and `.github/workflows/ci.yml` must agree.
-- Canonical repository skills: `.agents/skills/`.
+- Repository-specific skills: `.agents/skills/`. This portable `abi-skills`
+  text is synchronized there from `~/.grok/skills/abi-skills/SKILL.md` under
+  the live `~/.grok/sync-targets.json` catalog.
 - Repository mirrors: tracked `.claude/skills/` plus an optional ignored
   `.grok/`, synchronized by `.agents/skills/sync-clis/launch.sh`. A fresh Git
   worktree has no `.grok/` because Git does not materialize ignored files. The
@@ -27,32 +29,32 @@ Codex plugin.
   `crates/abi-plugins/plugins/` (including `tui-plugin`); verify manifest,
   registry, and runtime-dispatch agreement with
   `.agents/skills/plugin-runtime-tester/plugins.sh`.
-- ABI Mega source: `~/dev/active/plugins/abi-mega/` (dangling since 2026-09-18: `plugins` moved to
-  `~/Archive/experimental-2026-09-18/plugins`; restoring or repointing is Donald's call, so the
-  script paths below fail until then); marketplace registration alone does not
-  prove that the current version is installed.
+- ABI Mega source: `~/dev/active/plugins/abi-mega/`, restored on 2026-09-28
+  and verified present on 2026-10-02. Recheck the source and script paths
+  before running them; marketplace registration alone does not prove that
+  the current version is installed.
 - Live Rust pin: read repo-root `rust-toolchain.toml`. Always use `./tools/cargo.sh`
   (Homebrew stable `cargo` may shadow rustup nightly).
 
 ## Two traps that have already cost a session
 
-**The home copy of this skill is not synchronized, and it drifts.** `/sync-clis`
-copies portable skills named in `catalog.portableSkills` in
-`~/.grok/sync-targets.json`, and `abi-skills` is not among them (covered by
-`tools/tests/test_sync_clis.py`, verified 2026-09-06). Nothing keeps the global
-`~/.agents/skills/abi-skills/SKILL.md`,
-`~/.claude/skills/abi-skills/SKILL.md`, or
-`~/.codex/skills/abi-skills/SKILL.md`, or the fourth copy at
-`~/.config/ollama/skills/abi-skills/SKILL.md` (found 2026-09-04, one edit
-behind, no writer names it), in step with the canonical file here. The
-Claude copy was still the pre-rewrite Zig text on 2026-08-22, and the Agents
-copy had the same stale text on 2026-08-23 — prescribing
-`.zigversion`, `~/.zvm` PATH prefixes, `./build.sh check-parity`, and fixtures
-under `src/plugins/`, none of which exist. A session invoked through the home
-skill therefore starts from instructions the repository contradicts. **Diff the
-copy you were handed against `.agents/skills/abi-skills/SKILL.md` before
-following it**, and when you correct this file, push the same text to all four
-home copies by hand, because the launcher will not.
+**This portable skill has two synchronization layers.** As verified on
+2026-10-02, `catalog.portableSkills` in `~/.grok/sync-targets.json` includes
+`abi-skills`. Its central source is `~/.grok/skills/abi-skills/SKILL.md`;
+the central driver projects that text into ABI's `.agents/skills/` and the
+declared home targets. Editing only a target can be overwritten by the
+SessionEnd sync. Read the live manifest and compare source/target bytes
+before a correction, preserve existing bytes, then correct the central
+source and review the driver's dry-run before applying. `--targets` limits
+targets, not skill names: reject unrelated pending writes rather than
+assuming a run touches only this skill.
+
+ABI's separate launcher then mirrors `.agents/skills/` into the repository's
+`.claude/skills/` and `.grok/` surfaces. The installed
+`~/.config/ollama/skills/abi-skills/SKILL.md` is outside the live target list
+as of 2026-10-02; preserve its bytes and update it explicitly when needed.
+Older pre-rewrite home copies and manual-copy advice are historical. Do not
+reintroduce `.zigversion`, `./build.sh check-parity`, or `src/plugins/`.
 
 **Do not run `sync-clis/launch.sh` from a worktree.** The launcher stamps an
 absolute `Base directory for this skill: <checkout>/.claude/skills/<name>` line
@@ -123,15 +125,20 @@ live telemetry, not durable capability claims.
 7. **Verify plugins** — run
    `.agents/skills/plugin-runtime-tester/plugins.sh`; do not infer runtime
    dispatch from registry listing alone.
-8. **Synchronize mirrors** — preview with
-   `.agents/skills/sync-clis/launch.sh --dry-run`, then run the launcher.
+8. **Synchronize in source order** — preview the central driver with
+   `python3 ~/.grok/scripts/sync-clis.py --dry-run --targets abi,agents,claude,codex`.
+   Apply only reviewed projections, then require a second run to report
+   `0 actions/changes`. Preview `.agents/skills/sync-clis/launch.sh --dry-run`
+   from this canonical checkout before running its repository mirror pass.
    The dry-run prints `would sync:` for every canonical skill whether or not
    its mirror differs (measured 2026-09-04: a full `would sync` list, zero new
    `git status` entries after the real run). Judge change by diffing
    `git status --porcelain` before and after, not by the preview list.
-9. **Install Codex skill text** — copy the corrected `SKILL.md` to the matching
-   `~/.codex/skills/<name>/SKILL.md`. Companion-resource parity is a separate
-   policy decision.
+9. **Verify installed skill text** — compare the central source with the
+   managed ABI/Agents/Claude/Codex targets and repository mirrors. Preserve
+   and explicitly update an installed Ollama copy while it remains outside
+   the manifest. Companion-resource parity follows the source projection
+   contract; destination-only support entries remain preserved.
 10. **Validate** — run `./tools/check.sh` once (it already contains fmt,
     clippy, build, tests, and docs; the older form listed it twice and named
     clippy separately) plus `.agents/skills/docs-validate/validate.sh`. Rebuild

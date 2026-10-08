@@ -251,3 +251,6 @@ mod tests {
         assert!(output.starts_with("Abbey: \n\n"));
     }
 }
+
+/// Deterministic approved training record and snapshot contracts.
+pub mod training_contracts;

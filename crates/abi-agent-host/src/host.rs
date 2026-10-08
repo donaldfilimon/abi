@@ -93,10 +93,9 @@ impl<'a> AgentHost<'a> {
         state: &mut RunState,
     ) -> Result<HostStopReason, HostError> {
         loop {
-            if cancellation.is_cancelled() {
+            if !check_boundary(cancellation, deadline)? {
                 return Ok(HostStopReason::Cancelled);
             }
-            check_deadline(deadline)?;
             admit(
                 state.provider_runs,
                 budget.max_provider_runs,
@@ -120,6 +119,9 @@ impl<'a> AgentHost<'a> {
 
             let mut calls_this_turn = 0_u64;
             for event in turn_sink.events() {
+                if !check_boundary(cancellation, deadline)? {
+                    return Ok(HostStopReason::Cancelled);
+                }
                 match event {
                     ModelEvent::Finished { .. } => {}
                     ModelEvent::ToolResult(result) => {
@@ -194,10 +196,9 @@ impl<'a> AgentHost<'a> {
         deadline: Instant,
         state: &mut RunState,
     ) -> Result<(), HostError> {
-        if cancellation.is_cancelled() {
+        if !check_boundary(cancellation, deadline)? {
             return Ok(());
         }
-        check_deadline(deadline)?;
         admit(
             state.tool_calls,
             budget.max_tool_calls,
@@ -217,8 +218,14 @@ impl<'a> AgentHost<'a> {
             budget.max_events,
         )?;
         state.tool_calls = state.tool_calls.saturating_add(1);
+        if !check_boundary(cancellation, deadline)? {
+            return Ok(());
+        }
 
         let decision = authorize_and_audit(self.policy, self.audit, call, Some(&tool.spec));
+        if !check_boundary(cancellation, deadline)? {
+            return Ok(());
+        }
         let result = match decision {
             PolicyDecision::Allow => {
                 let output = self.executor.execute(
@@ -229,7 +236,9 @@ impl<'a> AgentHost<'a> {
                         deadline,
                     },
                 );
-                check_deadline(deadline)?;
+                if !check_boundary(cancellation, deadline)? {
+                    return Ok(());
+                }
                 output_to_result(call, output, budget.max_tool_result_bytes)?
             }
             PolicyDecision::RequireConfirmation { reason } => ToolResult::with_limit(
@@ -486,6 +495,16 @@ fn check_deadline(deadline: Instant) -> Result<(), HostError> {
     }
 }
 
+// A callback can cancel the shared token before returning. Observe that before
+// admitting more work, with the same cancellation-first precedence as run entry.
+fn check_boundary(cancellation: &CancellationToken, deadline: Instant) -> Result<bool, HostError> {
+    if cancellation.is_cancelled() {
+        return Ok(false);
+    }
+    check_deadline(deadline)?;
+    Ok(true)
+}
+
 fn remaining_provider_budget(budget: HostBudget, deadline: Instant, state: &RunState) -> RunBudget {
     RunBudget::unlimited()
         .with_max_events(budget.max_events.saturating_sub(state.events))
@@ -511,5 +530,24 @@ fn runtime_stop(stop: HostStopReason) -> StopReason {
             | HostBudgetLimit::ToolRounds
             | HostBudgetLimit::ProviderRuns => abi_agent_runtime::BudgetLimit::Events,
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{HostBudgetLimit, HostError, check_boundary};
+    use abi_agent_runtime::CancellationToken;
+    use std::time::Instant;
+
+    #[test]
+    fn observed_cancellation_takes_precedence_over_expired_deadline() {
+        let deadline = Instant::now();
+        let cancellation = CancellationToken::new();
+        assert_eq!(
+            check_boundary(&cancellation, deadline),
+            Err(HostError::BudgetExceeded(HostBudgetLimit::Deadline))
+        );
+        cancellation.cancel();
+        assert_eq!(check_boundary(&cancellation, deadline), Ok(false));
     }
 }

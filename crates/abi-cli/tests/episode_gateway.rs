@@ -20,6 +20,9 @@ use tonic::transport::{Certificate, ClientTlsConfig, Endpoint, Identity};
 
 const TOKEN: &str = "episode-cli-test-token";
 
+#[path = "episode_gateway/memory_edges.rs"]
+mod memory_edges;
+
 struct Scratch(PathBuf);
 
 impl Scratch {
@@ -160,6 +163,7 @@ fn abi(arguments: &[&str]) -> Output {
 /// candidate reports no flags, and a proposal reports no edge fields at all.
 fn assert_memory_edge_output(
     run: &impl Fn(&[&str]) -> std::process::Output,
+    scratch: &Scratch,
     proposal_digest: &str,
     memory_line: &str,
 ) {
@@ -178,9 +182,11 @@ fn assert_memory_edge_output(
         "memory_forgotten",
         "open_quarantine_edge",
         "memory_edge_status",
+        "memory_edge_resolution",
     ] {
         assert!(!proposal.contains(&format!("{absent}=")), "{proposal}");
     }
+    memory_edges::assert_resolution_output(run, scratch, memory_digest);
 }
 
 fn text(bytes: &[u8]) -> String {
@@ -279,7 +285,7 @@ async fn cli_proposes_verifies_and_reports_rejections_through_a_live_gateway() {
         assert_eq!(field(&memory_line, "event_kind"), "memory_candidate");
         assert_eq!(field(&memory_line, "terminal_status"), "completed");
         assert_eq!(field(&memory_line, "previous_digest"), "none");
-        assert_memory_edge_output(&run, &digest, &memory_line);
+        assert_memory_edge_output(&run, &scratch, &digest, &memory_line);
 
         let missing = run(&["wdbx", "episode", "verify", "guild_ref", &"0".repeat(64)]);
         assert_eq!(missing.status.code(), Some(1));

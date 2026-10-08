@@ -9,6 +9,7 @@ pub mod evidence;
 pub mod learn_loop;
 pub mod query_plan;
 pub mod scorer;
+pub mod training_registry;
 pub mod types;
 
 pub use evidence::{
@@ -24,3 +25,6 @@ pub use scorer::{
     adjust_weights_for_task, sea_score, select_sea_candidates,
 };
 pub use types::{Authority, MemoryKind};
+
+/// Private content-addressed training artifacts.
+pub mod training_artifacts;

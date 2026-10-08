@@ -340,9 +340,10 @@ private func verifyTinyCoreMlInference() -> Bool {
         "abi-coreml-\(UUID().uuidString).mlmodel"
     )
     do {
-        try Data(abiTinyCoreMlModelBytes).write(
-            to: modelURL, options: [.atomic, .completeFileProtection]
-        )
+        // These are public, deterministic fixture bytes. Complete file
+        // protection can reject a macOS temporary write before compilation
+        // with EPERM; atomic publication is sufficient for this probe.
+        try Data(abiTinyCoreMlModelBytes).write(to: modelURL, options: [.atomic])
         defer { try? fileManager.removeItem(at: modelURL) }
 
         // Compile out of process. On macOS 27.2 (26B5086k) an in-process

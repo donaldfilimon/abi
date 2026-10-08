@@ -1,6 +1,6 @@
 ---
 name: sync-clis
-description: Synchronize the explicitly cataloged portable skills and runtime-native task-agent and command adapters across Grok, Claude, Codex, OpenCode, ABI, shared agents, Cursor, Hermes, OpenClaw, Factory, CoreAI, and Gemini. Use for /sync-clis, cross-CLI skill drift, agent adapter drift, or OpenCode command repair.
+description: Synchronize the explicitly cataloged portable skills and runtime-native task-agent and command adapters across Grok, Claude, Codex, OpenCode, ABI, shared agents, Cursor, Factory, CoreAI, and Gemini. Use for /sync-clis, cross-CLI skill drift, agent adapter drift, or OpenCode command repair.
 ---
 
 # /sync-clis
@@ -122,3 +122,36 @@ Then verify:
 - ABI's final diff is reviewed and its matching gate is run before closeout.
 
 - **Task-agent tool/model control lives in the central TOML, not in `~/.claude/agents/*.md` (added 2026-09-05).** The `claude-markdown` adapter in `sync-clis.py` reads two optional keys from `~/.grok/bundled/{roles,personas}/<agent>.toml`: `claude_tools = ["Read", "Grep", ...]` renders a `tools:` frontmatter line, and `claude_model = "haiku"` overrides the default `model: inherit`. Editing the synced Markdown directly is reverted on the next SessionEnd sync. Codex/OpenCode adapters ignore both keys. Insert new top-level keys in a persona file BEFORE its first `[[inputs]]` table, or `tomllib` fails and the sync aborts mid-target (agents already rendered stay written; the rest do not).
+
+## Tool maintenance and update evidence
+
+For a requested full tooling update, inventory executable paths and installation
+managers first. Use each installed CLI's documented updater and marketplace
+commands; preserve enabled/disabled state and update installed plugins only.
+Codex `plugin add` can re-enable an already installed plugin. Record disabled
+plugin IDs before refreshing installed caches, restore their prior state, and
+compare the final inventory.
+Refresh external skills through their recorded upstream installer. Never replace
+local canonical skills with an upstream copy or hand-edit vendor cache files.
+
+Complete Homebrew dependency upgrades before invoking Node-based updates: during
+an upgrade, the old Node binary can temporarily reference a removed dependency
+dylib. Retry after the Node upgrade completes; do not create compatibility dylib
+symlinks. Preserve pinned toolchains and existing version/channel choices.
+
+Before editing shared task-agent guidance, back up the current source bytes.
+Change central TOML instructions, then render native Markdown/TOML with this
+driver. Verify parseability, source parity, the sync regression suite, and a
+second complete run reporting zero changes. Native unmanaged agents require
+separate inspection; generated mirrors are not independent sources.
+
+Report update exit codes, final CLI versions, remaining outdated packages, and
+restart requirements separately. Package updates and better instructions do not
+prove a model speed or quality improvement; that claim needs a measured benchmark.
+
+## Temporarily retired targets
+
+Hermes and OpenClaw were removed at the user's request on 2026-10-08. Their
+entries are absent from the live sync manifest; do not seed their home directories
+or reinstall them unless the user asks. Their prior target configuration is
+preserved with the recoverable retirement artifacts.
