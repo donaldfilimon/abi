@@ -9,7 +9,7 @@ Canonical instructions; executable source wins over prose. `opencode.json` loads
 - Primary gate (run before commit or handoff): `./tools/check.sh` (build.sh check is compat alias).
   Exact steps (trust script): versions; py policy tests (tools/tests/test_*.py); xtask ci verify;
   py abbey_contracts.py verify + xtask abbey verify contracts/abbey (py oracle authoritative until byte-id);
-  required dependency-security policy (cargo-audit or cargo-deny); sizes; fmt --check;
+   required dependency-security policy (`ABI_DEP_SCAN_REQUIRE=1 ./tools/security/run-dep-scan.sh`, cargo-audit or cargo-deny); sizes; fmt --check;
   clippy -D warnings; build --workspace --all-targets; test --workspace < /dev/null;
   sibling WDBX abbey_contracts + v3_cross_language_commitment + v3_cross_language_episode tests;
    Darwin: abi-model-runtime --features metal test+doc (RUSTDOCFLAGS=-D); if nvcc: check --features cuda;
@@ -20,6 +20,7 @@ Canonical instructions; executable source wins over prose. `opencode.json` loads
 - Doc-only edits: py unittest (test_docs*.py or policy) + `git diff --check`; for docs/ also run (after loading abi-doc-claims-sync skill) `.agents/skills/docs-validate/validate.sh`.
 - Size gate: `tools/check_rust_sizes.sh` (and in check.sh): *.rs <=1000 lines via git ls-files; crates/abi-cli/src/main.rs <=200.
 - Build: `./tools/cargo.sh build -p abi-cli` (→ target/debug/abi), `-p abi-mcp` (→ abi-mcp).
+- End-to-end smoke (builds both binaries, exercises CLI + MCP stdio, writes `target/debug/run-abi-smoke.txt`): `./.agents/skills/run-abi/smoke.sh`.
 - xtask: `./tools/cargo.sh xtask ci verify` (alias defined in `.cargo/config.toml` as `run --manifest-path crates/xtask/Cargo.toml --`); same for `xtask abbey verify contracts/abbey`.
 - Focused: unit `./tools/cargo.sh test -p <crate> --lib -- <filter> < /dev/null`; integ `./tools/cargo.sh test -p <crate> --test <name> < /dev/null`.
 - WDBX substrate tests (from abi checkout): `./tools/cargo.sh test --manifest-path ../wdbx/Cargo.toml -p abi-wdbx --lib -- <filter> < /dev/null`.
