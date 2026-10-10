@@ -286,6 +286,35 @@ parsed.value.port;
 // dynamic
 const p = try std.json.parseFromSlice(std.json.Value, gpa, "{\"a\":[1,2]}", .{});
 p.value.object.get("a").?.array.items[1].integer;
+```
+
+Union payloads are **plain fields, not optionals**: `std.json.Value`
+(`json/dynamic.zig:20`) is `.{ integer: i64, float: f64, number_string:
+[]const u8, string: []const u8, boolean: bool, null, array: Array, object:
+ObjectMap }`. So the familiar guards are now type errors:
+
+```zig
+if (v.integer) |i| ...   // error: expected optional type, found 'i64'
+if (v.string) |s| ...    // error: expected optional type, found '[]const u8'
+```
+
+Tag-match instead, and compare before unwrapping:
+
+```zig
+switch (v) {
+    .integer => |i| ...,
+    .string => |s| ...,
+    else => {},
+}
+// or, when a field is optional:  if (v == .string) use(v.string);
+```
+
+Two related shapes that also moved: `std.json.ObjectMap` is
+`std.array_hash_map.String(Value)` (unmanaged: `var o: ObjectMap = .empty`,
+`o.put(gpa, k, v)`, `o.deinit(gpa)`), and it cannot be stringified directly —
+`std.json.Stringify` recurses into the map's inner many-pointer and fails with
+`unable to stringify type '[*]u8' without sentinel`. Emit a fixed struct, or
+format the fixed shape with `std.fmt`.
 
 // out, to any Io.Writer
 try std.json.Stringify.value(cfg, .{}, &w);                          // json.zig:94
