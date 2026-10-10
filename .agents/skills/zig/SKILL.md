@@ -5,8 +5,8 @@ description: Start here for any Zig work on this Mac. Routes to the eleven zig-*
 
 # Zig on this Mac
 
-The installed toolchain is **master**, not a release: `0.17.0-dev.2018+ab30a0b9a`
-through zvm at `/Users/donaldfilimon/.zvm/bin/zig`. Measured 2026-09-06.
+The installed toolchain is **master**, not a release: `0.18.0-dev.120+9fe22a29b`
+through zvm at `/Users/donaldfilimon/.zvm/bin/zig`. Measured 2026-10-10.
 
 ## Read this before writing a line of Zig
 
@@ -78,7 +78,14 @@ status, not the command's, which has manufactured false green claims here before
 
 ## Projects using Zig here
 
+Zig trees pin `minimum_zig_version = "0.18.0-dev.120+9fe22a29b"` (verified
+2026-10-10): `~/dev/active/baseos`, `~/dev/active/cell-lang`, `~/dev/active/Gama`,
+`~/dev/active/golive`, `~/dev/active/Quesar`, `~/dev/active/wdbx`.
 `~/dev/active/cell-lang` is the Cell language compiler; read its `AGENTS.md`
-first, and always build it with `-Dswift=false`. `~/string` is a small
-unversioned Zig package at the home root. `~/dev/archive/wdbx-zig-scaffold` is a
-historical scaffold and not the Rust WDBX substrate.
+first, and always build it with `-Dswift=false`.
+
+`-Dswift=false` is cell-lang's flag, not a universal one. `~/dev/active/Gama`'s
+current `build.zig` rejects it (`error: invalid option: "swift"`; the accepted
+options are `target`, `cpu`, `ofmt`, `dynamic-linker`, `optimize`, `mlir-opt`),
+so the older written instructions for Gama are stale. Read each project's
+`build.zig` option list before passing any `-D` flag.

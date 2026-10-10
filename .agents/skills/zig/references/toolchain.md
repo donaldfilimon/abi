@@ -85,6 +85,30 @@ home root. iCloud paths stall git and can break codesigning of test artifacts.
 `/private/tmp` is wiped on reboot, so nothing unique may live there. Verification
 snippets are disposable by design; real work belongs in a repository.
 
+## Never prune .zig-cache mid-build
+
+Deleting a cache subdirectory (`.zig-cache/o/<hash>/`, or `o/` itself) while a
+build has those entries open, or between a compile and its install step, leaves
+the manifest pointing at files that no longer exist. Every later invocation then
+fails with
+
+```
+error: failed updating file from .zig-cache/o/<hash>/<name> to zig-out/bin/<name>: FileNotFound
+error: checking cache failed: file_open FileNotFound .zig-cache/o/<hash>/test
+```
+
+and this is **not** a source defect; nothing in the tree changed. Recovery is to
+remove the whole cache and output together and rebuild from cold:
+
+```bash
+rm -rf .zig-cache zig-out   # disposable artifacts only; sources untouched
+zig build
+```
+
+`zig build test --summary all` also reports `cached` when it did not re-run a
+step, so a cached green is not fresh evidence: force it with a cold cache when
+the result matters.
+
 ## Verifying a claim about Zig
 
 ```bash
