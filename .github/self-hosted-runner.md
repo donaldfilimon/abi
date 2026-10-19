@@ -116,6 +116,11 @@ Until a runner with the `abi` label is online, the self-hosted jobs wait in the 
 
 ## Day-2 operations
 
+`codeql.yml` runs the existing Actions-language security analysis on this
+repository's runner for trusted events only. GitHub's hosted default setup is
+replaced by this advanced workflow because the account billing lock prevents
+hosted jobs from starting. Fork pull requests do not run on this machine.
+
 ```bash
 cd ~/dev/ci/runners/abi
 ./svc.sh status
