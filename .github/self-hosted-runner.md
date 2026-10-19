@@ -16,7 +16,7 @@ The donaldfilimon account's GitHub Actions billing has refused hosted jobs at di
 | Field | Value |
 |-------|--------|
 | Host labels | `self-hosted`, `macOS`, `ARM64`, `abi` |
-| Typical install dir | `~/actions-runner` |
+| Typical install dir | `~/dev/ci/runners/abi` |
 | LaunchAgent | `actions.runner.donaldfilimon-abi.<hostname>` |
 | Repo UI | [Settings → Actions → Runners](https://github.com/donaldfilimon/abi/settings/actions/runners) |
 
@@ -75,7 +75,7 @@ removes only the allocated build directory. Local builds may set
 The Pages `deploy` job additionally needs:
 
 - **GNU tar as `gtar`** (`brew install gnu-tar`). On macOS, `actions/upload-pages-artifact` archives with `gtar` so it can use `--hard-dereference`; stock macOS ships only bsdtar. The job's first check step fails with a clear error if `gtar` is missing from the runner PATH.
-- **Homebrew's bin directory on the runner PATH** (`/opt/homebrew/bin`). The runner records PATH in `~/actions-runner/.path` at configure time; edit it or re-run `./config.sh` after installing Homebrew, then restart the service.
+- **Homebrew's bin directory on the runner PATH** (`/opt/homebrew/bin`). The runner records PATH in `~/dev/ci/runners/abi/.path` at configure time; edit it or re-run `./config.sh` after installing Homebrew, then restart the service.
 - **A current runner version.** `actions/deploy-pages` runs on Node 24 and `actions/configure-pages` on Node 20; the runner ships its own Node runtimes, so keep the runner auto-updating rather than pinning an old release.
 
 No other host tooling is needed for Pages: it publishes `site/` as-is with no build step, authenticates through the job's OIDC token (`id-token: write`), and deploys through the `github-pages` environment.
@@ -83,31 +83,41 @@ No other host tooling is needed for Pages: it publishes `site/` as-is with no bu
 After changing the Rust toolchain or PATH, restart the service:
 
 ```bash
-cd ~/actions-runner
-./svc.sh stop && ./svc.sh start
-./svc.sh status
+python3 ~/dev/ci/fleet.py restart --runner abi
+python3 ~/dev/ci/fleet.py health --runner abi
 ```
 
 ## Install / reconfigure
 
-Use the helper (requires `gh` auth with `repo` scope):
+Use the helper for a **new** installation (requires `gh` auth with `repo` scope). It refuses an existing registration or service; maintenance of the current installation uses the shared fleet tool:
 
 ```bash
 ./tools/github-runner/setup-macos-arm64.sh
 ```
 
+The default is `~/dev/ci/runners/abi`; `GITHUB_RUNNER_DIR` overrides it. On this Mac, the helper uses `~/dev/ci/launchd-runner.plist.template` when present, preserving the managed crash-restart policy. It keeps registration tokens out of command arguments and creates private runner state.
+
+Current fleet operations:
+
+```bash
+python3 ~/dev/ci/fleet.py health --runner abi
+python3 ~/dev/ci/fleet.py restart --runner abi
+```
+
+Restart refuses queued/active repository runs, local workers and open workspace handles. Stop/uninstall/remove an existing registration only in a quiet interval; the helper does not replace a running runner.
+
 Or follow GitHub’s UI at  
 https://github.com/donaldfilimon/abi/settings/actions/runners/new?arch=arm64  
 (Settings → Actions → Runners → New self-hosted runner, macOS, ARM64), add the custom label `abi`, then install the service with `./svc.sh install && ./svc.sh start`.
 
-A runner is registered to exactly one repository. If this Mac also serves another repository (for example `gama` or `mlai-website-app`), give each one its own runner in its own directory, such as `~/actions-runner` for `abi` and `~/actions-runner-gama` for `gama`, each with its own custom label equal to the lowercase repository name and its own LaunchAgent. Never point one runner directory at two repositories.
+A runner is registered to exactly one repository. If this Mac also serves another repository (for example `gama` or `abbey`), give each one its own runner in its own directory, such as `~/dev/ci/runners/abi` for `abi` and `~/dev/ci/runners/gama` for `gama`, each with its own custom label equal to the lowercase repository name and its own LaunchAgent. Never point one runner directory at two repositories.
 
 Until a runner with the `abi` label is online, the self-hosted jobs wait in the queue.
 
 ## Day-2 operations
 
 ```bash
-cd ~/actions-runner
+cd ~/dev/ci/runners/abi
 ./svc.sh status
 ./svc.sh stop
 ./svc.sh start
@@ -120,7 +130,7 @@ cd ~/actions-runner
 Logs:
 
 - `~/Library/Logs/actions.runner.donaldfilimon-abi.*/`
-- `~/actions-runner/_diag/`
+- `~/dev/ci/runners/abi/_diag/`
 
 ## Local host hardening checklist
 

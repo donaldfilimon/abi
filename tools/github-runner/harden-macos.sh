@@ -3,7 +3,7 @@
 # Exit 0 if no critical failures; non-zero if something blocks safe CI use.
 set -euo pipefail
 
-INSTALL_DIR="${GITHUB_RUNNER_DIR:-${HOME}/actions-runner}"
+INSTALL_DIR="${GITHUB_RUNNER_DIR:-${HOME}/dev/ci/runners/abi}"
 REPO="${GITHUB_RUNNER_REPO:-donaldfilimon/abi}"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 

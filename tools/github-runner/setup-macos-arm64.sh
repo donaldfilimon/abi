@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Install or reconfigure the macOS arm64 GitHub Actions runner for donaldfilimon/abi.
+# Install a new macOS arm64 GitHub Actions runner for donaldfilimon/abi.
 # Requires: curl, tar, gh (repo scope), macOS arm64.
 set -euo pipefail
+umask 077
 
 REPO="${GITHUB_RUNNER_REPO:-donaldfilimon/abi}"
-INSTALL_DIR="${GITHUB_RUNNER_DIR:-${HOME}/actions-runner}"
+INSTALL_DIR="${GITHUB_RUNNER_DIR:-${HOME}/dev/ci/runners/abi}"
 RUNNER_NAME="${GITHUB_RUNNER_NAME:-$(hostname -s)-arm64}"
 LABELS="${GITHUB_RUNNER_LABELS:-self-hosted,macOS,ARM64,abi}"
 WORK_DIR="${GITHUB_RUNNER_WORK:-_work}"
@@ -25,8 +26,9 @@ fi
 mkdir -p "${INSTALL_DIR}"
 cd "${INSTALL_DIR}"
 
-if [[ -f .runner ]]; then
-  echo "==> Existing runner config in ${INSTALL_DIR}; will reconfigure with --replace"
+if [[ -f .runner || -f .service ]]; then
+  echo "error: existing runner/service in ${INSTALL_DIR}; use ~/dev/ci/fleet.py health or guarded restart, or explicitly drain/uninstall/remove before reconfiguration" >&2
+  exit 1
 else
   echo "==> Resolving latest actions/runner osx-arm64 release"
   TAG="$(gh api repos/actions/runner/releases/latest --jq .tag_name)"
@@ -48,22 +50,23 @@ echo "==> Requesting registration token for ${REPO}"
 TOKEN="$(gh api -X POST "repos/${REPO}/actions/runners/registration-token" --jq .token)"
 
 echo "==> Configuring runner name=${RUNNER_NAME} labels=${LABELS}"
-./config.sh \
+ACTIONS_RUNNER_INPUT_TOKEN="${TOKEN}" ./config.sh \
   --url "https://github.com/${REPO}" \
-  --token "${TOKEN}" \
   --unattended \
   --name "${RUNNER_NAME}" \
   --labels "${LABELS}" \
-  --work "${WORK_DIR}" \
-  --replace
+  --work "${WORK_DIR}"
+unset TOKEN
+
+chmod 700 "${INSTALL_DIR}"
+chmod 600 .runner .credentials .credentials_rsaparams .env .path
 
 if [[ "${GITHUB_RUNNER_INSTALL_SERVICE:-1}" == "1" ]]; then
   if [[ -x ./svc.sh ]]; then
-    if [[ -f .service ]]; then
-      ./svc.sh stop || true
-    else
-      ./svc.sh install
+    if [[ -z "${GITHUB_ACTIONS_RUNNER_SERVICE_TEMPLATE:-}" && -f "${HOME}/dev/ci/launchd-runner.plist.template" ]]; then
+      export GITHUB_ACTIONS_RUNNER_SERVICE_TEMPLATE="${HOME}/dev/ci/launchd-runner.plist.template"
     fi
+    ./svc.sh install
     ./svc.sh start
     ./svc.sh status || true
   else
