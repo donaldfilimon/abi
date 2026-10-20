@@ -8,8 +8,11 @@
 # always starts on :8080 only prints an info line to stderr, which we drop).
 set -uo pipefail
 
-cd "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || {
-  echo "RESULT: FAIL (run from inside the abi repo)"; exit 1; }
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd) || exit 1
+REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd) || exit 1
+cd -- "$REPO_ROOT" || exit 1
+export ABI_WDBX_PATH=:memory:
+export ABI_WDBX_PERSIST=0
 
 # Frozen MCP tool contract (see AGENTS.md / tests/golden/mcp-tools-list.json).
 EXPECTED='ai_run
@@ -28,25 +31,44 @@ plugin_run'
 LOG=$(mktemp /tmp/abi-mcp-smoke.XXXXXX 2>/dev/null || mktemp -t abi-mcp-smoke)
 trap 'rm -f "$LOG"' EXIT
 echo "[1/3] building abi-mcp ..."
-if ! ./tools/cargo.sh build -p abi-mcp >"$LOG" 2>&1; then
-  echo "RESULT: FAIL (build) — see $LOG"; exit 1
+if ! ./tools/cargo.sh build --locked --release -p abi-mcp --target-dir "$REPO_ROOT/target" >"$LOG" 2>&1; then
+  cat "$LOG" >&2
+  echo "RESULT: FAIL (build)"; exit 1
 fi
-BIN=target/debug/abi-mcp
+BIN=target/release/abi-mcp
 [ -x "$BIN" ] || { echo "RESULT: FAIL (no binary at $BIN — build succeeds silently, verify with ls)"; exit 1; }
 
 echo "[2/3] sending tools/list over stdio ..."
 REQ='{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 # `initialize` is NOT a prerequisite — a bare tools/list works. Pipe EOF -> clean exit.
-RESP="$(printf '%s\n' "$REQ" | "$BIN" 2>/dev/null)"
+if ! RESP="$(printf '%s\n' "$REQ" | ./mcp/launcher.sh stdio 2>"$LOG")"; then
+  cat "$LOG" >&2
+  echo "RESULT: FAIL (MCP process)"; exit 1
+fi
 [ -n "$RESP" ] || { echo "RESULT: FAIL (empty response on stdout)"; exit 1; }
 
 echo "[3/3] extracting tool names ..."
-if command -v jq >/dev/null 2>&1; then
-  NAMES="$(printf '%s' "$RESP" | jq -r '.result.tools[].name' 2>/dev/null)"
-else
-  # Fallback: match name *values* ("name":"x"), NOT bare "name": — the latter also
-  # hits plugin_run's inputSchema `name` property and miscounts 13 (false contract break).
-  NAMES="$(printf '%s' "$RESP" | grep -oE '"name":"[^"]+"' | sed -E 's/"name":"([^"]+)"/\1/')"
+if ! NAMES="$(printf '%s' "$RESP" | python3 -c '
+import json
+import sys
+try:
+    response = json.load(sys.stdin)
+    if (not isinstance(response, dict) or response.get("jsonrpc") != "2.0"
+            or type(response.get("id")) is not int or response["id"] != 1
+            or "error" in response):
+        raise ValueError("unexpected JSON-RPC response envelope")
+    tools = response["result"]["tools"]
+    if not isinstance(tools, list):
+        raise ValueError("tools must be an array")
+    names = [tool["name"] for tool in tools]
+    if any(not isinstance(name, str) or not name or "\n" in name for name in names):
+        raise ValueError("invalid tool name")
+    print("\n".join(names))
+except (ValueError, KeyError, TypeError) as error:
+    print("invalid tools/list response:", error, file=sys.stderr)
+    sys.exit(1)
+')"; then
+  echo "RESULT: FAIL (invalid tools/list response)"; exit 1
 fi
 
 count="$(printf '%s\n' "$NAMES" | grep -c .)"

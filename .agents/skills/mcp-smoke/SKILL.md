@@ -6,8 +6,15 @@ description: Build the abi MCP server and smoke-test its JSON-RPC tool surface �
 # mcp-smoke — assert the MCP server's 12-tool contract
 
 Driver: **`.agents/skills/mcp-smoke/smoke.sh`** (paths relative to repo root).
-Builds `abi-mcp` via `./tools/cargo.sh`, sends one JSON-RPC `tools/list` over
+Builds release `abi-mcp` via `./tools/cargo.sh`, launches it through
+`mcp/launcher.sh stdio`, sends one JSON-RPC `tools/list` over
 **stdio**, and asserts the frozen 12-tool set. Fully local — no network.
+
+The driver overrides inherited store settings with `ABI_WDBX_PATH=:memory:`
+and `ABI_WDBX_PERSIST=0`. Locked builds explicitly use this checkout's `target/`
+directory, even with an inherited `CARGO_TARGET_DIR`. Python 3 parses the
+response and checks the JSON-RPC version, request ID, success envelope and
+tool names. A failed build or server exit fails the smoke.
 
 ## Run (agent path)
 ```bash
@@ -18,7 +25,8 @@ Prints `RESULT: PASS — 12/12 frozen MCP tools present` (exit 0) or `RESULT: FA
 One-liner:
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
-  | ./target/debug/abi-mcp 2>/dev/null | jq -r '.result.tools[].name'
+  | ABI_WDBX_PATH=:memory: ABI_WDBX_PERSIST=0 ./mcp/launcher.sh stdio \
+  | jq -r '.result.tools[].name'
 ```
 
 ## Gotchas
@@ -31,7 +39,7 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | `./tools/cargo.sh build -p abi-mcp` then `./tools/check.sh` |
+| `build` FAIL | `./tools/cargo.sh build --locked --release -p abi-mcp` then `./tools/check.sh` |
 | empty response | trailing `\n` required; drop stderr |
 | got 13 tools | over-counting schema `"name"` fields |
 | tool set mismatch | reconcile `crates/abi-mcp/src/handlers.rs` with AGENTS.md frozen list |

@@ -32,6 +32,12 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
   actually executes even with an inherited `CARGO_TARGET_DIR`. Three isolated
   regressions pass after reproducing failures; real smoke passed all 18 checks
   and the final full gate exited 0. The run-abi skill documents these boundaries.
+- [x] Qualify the dedicated MCP smoke driver: use safe store settings, locked
+  release builds and the launcher; reject failed processes and mismatched
+  JSON-RPC response envelopes before checking tool names. Five isolated tests
+  pass after reproducing six failing assertions; real smoke verified the exact
+  12-tool set and the final full gate exited 0. Build diagnostics print before
+  temporary-log cleanup, and the skill uses the required launcher.
 
 ## ABI source-release hardening (2026-09-29)
 
