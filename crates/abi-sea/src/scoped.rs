@@ -42,12 +42,33 @@ pub struct ReadBinding {
 pub struct TrustedScopeStore {
     store: VersionedStore,
     binding: ReadBinding,
+    provenance:
+        std::collections::BTreeMap<abi_wdbx::RecordId, crate::composition::EvidenceProvenance>,
 }
 impl TrustedScopeStore {
     /// Trusted startup assertion, NOT ownership verification. See module contract.
     #[must_use]
     pub const fn from_owner_authorized_store(store: VersionedStore, binding: ReadBinding) -> Self {
-        Self { store, binding }
+        Self {
+            store,
+            binding,
+            provenance: std::collections::BTreeMap::new(),
+        }
+    }
+
+    /// Attach the owner's detached interpretation of immutable record identities.
+    /// These facts must come from the owner, never parsed self-assertions in text.
+    /// This in-memory projection changes no source bytes, ranking or authority.
+    #[must_use]
+    pub fn with_owner_provenance(
+        mut self,
+        provenance: std::collections::BTreeMap<
+            abi_wdbx::RecordId,
+            crate::composition::EvidenceProvenance,
+        >,
+    ) -> Self {
+        self.provenance = provenance;
+        self
     }
 
     /// Authorize and audit before touching data, stats, scoring or prompt packing.
@@ -108,10 +129,24 @@ impl TrustedScopeStore {
                 redacted: true,
             })
             .map_err(|_| RecallDenied::Audit)?;
-        if result.decision != Decision::Allow || context.cancellation.is_cancelled() {
+        if result.decision != Decision::Allow
+            || context.cancellation.is_cancelled()
+            || context.now_ms.now_ms() >= expires_at_ms
+            || context.now_ms.now_ms() >= source.source().expiration_criteria.expires_at_ms
+            || Kernel::new(&registry)
+                .evaluate_source_bound(request, context, source, Digest::default(), None)
+                .decision
+                != Decision::Allow
+        {
             return Err(RecallDenied::Authorization);
         }
-        Ok(gather_evidence(&self.store, input, limit))
+        let mut evidence = gather_evidence(&self.store, input, limit);
+        for item in &mut evidence.items {
+            if let Some(provenance) = self.provenance.get(&item.vector_id) {
+                item.provenance = provenance.clone();
+            }
+        }
+        Ok(evidence)
     }
 }
 

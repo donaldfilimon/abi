@@ -1,9 +1,9 @@
 //! Local application joins. Authority remains with the trusted caller and WDBX.
 use crate::{EvidenceContext, LearnPersistenceStatus, PersistedIds};
-use abi_wdbx::v3::episode::EpisodeStoreError;
 use abi_agent_host::{GovernedRunReport, GovernedStop, HostStopReason};
 use abi_agent_runtime::ModelRequest;
 use abi_ai::{AgentProfile, route_profile, text_embedding};
+use abi_wdbx::v3::episode::EpisodeStoreError;
 use abi_wdbx::{
     VersionedStore,
     v3::episode::{EpisodeStore, EpisodeWrite},
@@ -119,6 +119,8 @@ pub fn persist_turn(
         || audit.vetoed
         || report.governance != GovernedStop::Completed
         || report.driver.stop != HostStopReason::Completed
+        || report.driver.output.truncated()
+        || report.outcomes.len() != report.executions.len()
         || report
             .outcomes
             .iter()

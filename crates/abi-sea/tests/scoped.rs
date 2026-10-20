@@ -8,6 +8,7 @@ use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn canonical_read_gate_precedes_recall_and_fails_closed() {
     let path = std::env::temp_dir().join(format!("sea-scoped-{}", std::process::id()));
     let mut store = VersionedStore::open(StorePaths::new(&path)).unwrap();
@@ -62,6 +63,16 @@ fn canonical_read_gate_precedes_recall_and_fails_closed() {
             package_digest: source.package().digest,
         },
     );
+    let owner_provenance = abi_sea::composition::EvidenceProvenance {
+        source: Some("owned-scratch-fixture".into()),
+        version: Some("1".into()),
+        observed_at_ms: Some(90),
+        ..Default::default()
+    };
+    let owned = owned.with_owner_provenance(std::collections::BTreeMap::from([(
+        id,
+        owner_provenance.clone(),
+    )]));
     let clock = FixedClock::new(100);
     let cancel = CancellationToken::new();
     let used = BTreeSet::new();
@@ -95,6 +106,7 @@ fn canonical_read_gate_precedes_recall_and_fails_closed() {
         )
         .unwrap();
     assert_eq!(evidence.items.len(), 1);
+    assert_eq!(evidence.items[0].provenance, owner_provenance);
     assert_eq!(evidence.items[0].authority, abi_sea::Authority::Inferred);
     let turn = abi_sea::composition::prepare_turn("Aviva, hello", "scripted", &evidence);
     assert_eq!(turn.profile, abi_ai::AgentProfile::Aviva);
@@ -163,6 +175,44 @@ fn canonical_read_gate_precedes_recall_and_fails_closed() {
         ),
         Err(RecallDenied::Authorization)
     );
+    // A neighbor with an incompatible index and overwhelming private corpus
+    // cannot perturb counts, recency, errors or prompt of the startup-owned view.
+    let mut neighbor = VersionedStore::open(StorePaths::new(path.join("neighbor"))).unwrap();
+    for _ in 0..101 {
+        let id = neighbor.put_vector(&[1.0]).unwrap();
+        neighbor
+            .put(
+                &format!("completion:{id}"),
+                r#"{"text":"private hello","updated_ms":9999999999999}"#,
+            )
+            .unwrap();
+    }
+    assert_eq!(
+        owned
+            .recall(
+                &request, &context, source, &facts, 90, 200, &mut audit, "hello", 5
+            )
+            .unwrap(),
+        evidence
+    );
+    let mut arbitrary_tool = request.clone();
+    arbitrary_tool.capability_id = "local.observe".into();
+    arbitrary_tool.request_digest = arbitrary_tool.computed_digest();
+    assert_eq!(
+        owned.recall(
+            &arbitrary_tool,
+            &context,
+            source,
+            &facts,
+            90,
+            200,
+            &mut audit,
+            "hello",
+            5
+        ),
+        Err(RecallDenied::Authorization)
+    );
+    drop(neighbor);
     drop(owned);
     std::fs::remove_dir_all(path).unwrap();
 }
