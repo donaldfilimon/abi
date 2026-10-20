@@ -99,3 +99,16 @@ when kernels are not linked. WDBX secure demos are reference-grade. Audit:
    while cargo still exits 0 (2026-09-16). `tools/cargo.sh` now exports the
    same list rustup uses; the rustc warning line is the evidence, because
    macOS throttles crash reports and their count under-reports aborts.
+
+## 2026-10-20 — owner integration and source qualification
+
+- Host mocks and separately tested stores missed incompatible cancellation
+  terminals and stage 11 denial audits. Exercise the actual RuntimeStore join,
+  including reopen/replay and approval consumption, before accepting the slice.
+- macOS protected shells remove inherited DYLD fallback variables. Restore them
+  inside each Cargo invocation through tools/cargo.sh; an outer export is not
+  evidence. Inspect strip warnings even when Cargo exits0.
+- Bind every receipt to exact content/modes, compiler and feature scope. A later
+  consumer fixture or moving sibling cannot inherit an older full-gate claim.
+  Preserve intermediate failures and do not rerun unrelated producer gates when
+  only a separately qualified consumer test/reporting delta changes.

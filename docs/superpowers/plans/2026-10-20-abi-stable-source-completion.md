@@ -112,16 +112,16 @@
 **Consumes:** Task 4 canonical evaluation/lifecycle interfaces and Task 5 durable adapter.
 **Produces:** an additive GovernedHost API sharing the bounded driver and distinct governance reports.
 
-- [ ] Keep ExecutionPolicy and runtime AuditSink unchanged. Keep legacy AgentHost/report types behavior-compatible; do not reinterpret RequireConfirmation in the legacy path.
-- [ ] Add trusted context/fact-provider and governed report/options types. Startup-owned tool/package registration fixes schema, authority and effects; model fields cannot select credentials or permissions.
-- [ ] Share the existing continuation driver through internal hooks rather than copying its bounded loop. Retain existing budgets, result correlation, forged-result rejection and post-terminal behavior.
-- [ ] Implement the exact 17-stage trace from Program 2 §7. Audit every reached terminal/advancing decision with fallible bounded redacted records.
-- [ ] Return PendingApproval with an exact preview and stop before dispatch. A fresh explicit resubmission rechecks all bindings, facts, budgets, time and cancellation.
-- [ ] Acquire facts outside pure policy; stop on unavailable/stale/changed facts. Reauthorize immediately before durable preparation and check cancellation again before the recording effect.
-- [ ] Restrict this constructor to recording execution. A generic production ToolExecutor is not enabled by the new API.
-- [ ] Verify typed postconditions after the effect, record verified/failed/unverifiable/unknown outcomes, and preserve uncertain accounting until observed completion or teardown.
-- [ ] Admit compensation separately under exact scope and valid approval/preauthorization; give it its own intent/audit/postconditions/outcome. Stop on first compensation failure; never auto-compensate Interrupted/Unknown.
-- [ ] Run meaningful failure/race tests for each authority boundary, stage audit failure, deadlines, cancellation around prepare/dispatch, changed facts, lost outcome writes, postcondition failure, compensation failure and raw-content canaries.
+- [x] Keep ExecutionPolicy and runtime AuditSink unchanged. Keep legacy AgentHost/report types behavior-compatible; do not reinterpret RequireConfirmation in the legacy path.
+- [x] Add trusted context/fact-provider and governed report/options types. Startup-owned tool/package registration fixes schema, authority and effects; model fields cannot select credentials or permissions.
+- [x] Share the existing continuation driver through internal hooks rather than copying its bounded loop. Retain existing budgets, result correlation, forged-result rejection and post-terminal behavior.
+- [x] Implement the exact 17-stage trace from Program 2 §7. Audit every reached terminal/advancing decision with fallible bounded redacted records.
+- [x] Return PendingApproval with an exact preview and stop before dispatch. A fresh explicit resubmission rechecks all bindings, facts, budgets, time and cancellation.
+- [x] Acquire facts outside pure policy; stop on unavailable/stale/changed facts. Reauthorize immediately before durable preparation and check cancellation again before the recording effect.
+- [x] Restrict this constructor to recording execution. A generic production ToolExecutor is not enabled by the new API.
+- [x] Verify typed postconditions after the effect, record verified/failed/unverifiable/unknown outcomes, and preserve uncertain accounting until observed completion or teardown.
+- [x] Admit compensation separately under exact scope and valid approval/preauthorization; give it its own intent/audit/postconditions/outcome. Stop on first compensation failure; never auto-compensate Interrupted/Unknown.
+- [x] Run meaningful failure/race tests for each authority boundary, stage audit failure, deadlines, cancellation around prepare/dispatch, changed facts, lost outcome writes, postcondition failure, compensation failure and raw-content canaries.
 
 ## Task 7: Join authorized evidence and local runtime composition
 
@@ -129,16 +129,17 @@
 **Consumes:** governed host receipts, existing VersionedStore transaction and canonical episode gates.
 **Produces:** a local end-to-end recording/scratch scenario with provenance and truthful persistence results.
 
-- [ ] Read the canonical episode, WDBX north-star/multiway, September 29 completion and member-erasure specifications plus current substrate APIs before changing memory-facing code.
-- [ ] Add a principal/scoped recall entry point that filters before scoring, counts, caches, errors and prompt packing. Existing generic recall remains an explicitly local compatibility API.
-- [ ] Carry known/unknown provenance, source/version, observation time, epistemic/lifecycle/contradiction state, compatibility and outcome references. Preserve generated content as inferred and immutable signed source bytes.
-- [ ] Keep the existing eight-signal scorer, stable-ID deduplication, candidate/prompt caps and rejection exclusion; retrieved content never supplies instructions or authority.
-- [ ] Add internal persistence outcomes for disabled, open failure, committed, refused and unknown; map them explicitly onto unchanged CLI/MCP schemas.
-- [ ] Reuse atomic record_vector_pair and canonical episode proposal admission. Retention/erasure hooks call approved owner contracts; do not introduce a second deletion mechanism or exercise live erasure.
-- [ ] Trace normalization → authorized recall → persona/model selection → bounded generation → validation → proposed action → authorization → recording effect → observed result → selective persistence.
-- [ ] Test scripted provider tool proposals separately from the generated abi-bigram-v1 CPU fixture. Do not claim the tiny model can generate structured calls or useful Abbey weights.
-- [ ] Add a worker-control fixture only if this composition actually needs it; no listener/scheduler/remote worker is necessary for the selected local acceptance. Keep such deployment requirements in the external ledger.
-- [ ] Test scope isolation, malicious retrieved text, provenance, atomic writes, refusal/unknown outcomes and causal/corpus byte compatibility with owned scratch stores.
+- [x] Read the canonical episode, WDBX north-star/multiway, September 29 completion and member-erasure specifications plus current substrate APIs before changing memory-facing code.
+- [x] Add a principal/scoped recall entry point that filters before scoring, counts, caches, errors and prompt packing. Existing generic recall remains an explicitly local compatibility API.
+- [x] Carry known/unknown provenance, source/version, observation time, epistemic/lifecycle/contradiction state, compatibility and outcome references. Preserve generated content as inferred and immutable signed source bytes.
+- [x] Keep the existing eight-signal scorer, stable-ID deduplication, candidate/prompt caps and rejection exclusion; retrieved content never supplies instructions or authority.
+- [x] Add internal persistence outcomes for disabled, open failure, committed, refused and unknown; map them explicitly onto unchanged CLI/MCP schemas.
+- [x] Reuse atomic record_vector_pair and canonical episode proposal admission. Preserve signed bytes and do not create a second deletion mechanism or exercise live erasure.
+- [ ] External blocker: connect retention/erasure only after the WDBX owner supplies approved member-erasure, retention and key-custody APIs. The inspected source lacks them; no hook stub was fabricated.
+- [x] Trace normalization → authorized recall → persona/model selection → bounded generation → validation → proposed action → authorization → recording effect → observed result → selective persistence.
+- [x] Test scripted provider tool proposals separately from the generated abi-bigram-v1 CPU fixture. Do not claim the tiny model can generate structured calls or useful Abbey weights.
+- [x] Add a worker-control fixture only if this composition actually needs it; no listener/scheduler/remote worker is necessary for the selected local acceptance. Keep such deployment requirements in the external ledger.
+- [x] Test scope isolation, malicious retrieved text, provenance, atomic writes, refusal/unknown outcomes and causal/corpus byte compatibility with owned scratch stores.
 
 ## Task 8: Qualify source, artifacts, documentation and handoff
 
@@ -146,17 +147,17 @@
 **Consumes:** reviewed implementation tasks and fixed per-file source manifests.
 **Produces:** six separate acceptance conclusions and precise outstanding external packets.
 
-- [ ] Finish the pre-existing hook/architecture slice and preserve unrelated outgoing commits. Update active toolchain wording in AGENTS/CLAUDE/GEMINI, lessons, relevant skills, README and architecture prose; keep historical reports accurate.
-- [ ] Run focused hooks/docs policy/shell checks and git diff --check. Run Mintlify with an available supported Node/npx installation; if infrastructure remains absent, record it as blocked rather than passing.
-- [ ] Freeze source manifests before authoritative gates. Run ABI ./tools/check.sh with RUSTUP_TOOLCHAIN=1.99.1, ABI_WDBX_PATH=:memory: and a fresh CARGO_TARGET_DIR, with installed cargo-audit reachable and stdin EOF.
-- [ ] Run the exact WDBX candidate's own gate and paired conformance under proven 1.99.1 selection. Distinguish its clean immutable receipt from canonical dirty-source results.
-- [ ] Run Abbey's inspected full check.sh against the governed-owner changes, with proven compiler selection, isolated output, owned state and stdin EOF. Its compiler qualification is separately labeled.
-- [ ] Exercise supported feature configurations; retain Metal numerical checks, deterministic inactive fallback and CUDA unavailability disclosures. No all-features shortcut proves unsupported hardware.
-- [ ] Smoke freshly built CLI/MCP through mcp/launcher.sh with scratch stores and both required macOS libraries. Verify copied artifact help/goldens, loader paths/signatures, checksums and absence of release-strip abort warnings.
-- [ ] Obtain fresh independent full-diff review for spec compliance, compatibility, authorization, replay/recovery, privacy and truthful claims. Route fixes to owning workers and re-review them.
-- [ ] Refresh matrix and exact manifests after any repair; rerun only the checks invalidated by changes plus required final gates.
-- [ ] Report stable compilation, behavior/contracts, durability/recovery, packaged runtime, live integration and deployment separately. Leave CI/publication blocked by the explicit pause; no CI receipt is fabricated.
-- [ ] Leave reviewable diffs in the correct repositories, local run/recovery recipes, logs/checksums and a next action for every external blocker. Do not mark the full goal complete merely because the stable milestone passes.
+- [x] Finish the pre-existing hook/architecture slice and preserve unrelated outgoing commits. Update active toolchain wording in AGENTS/CLAUDE/GEMINI, lessons, relevant skills, README and architecture prose; keep historical reports accurate.
+- [x] Run focused hooks/docs policy/shell checks and git diff --check. Run Mintlify with an available supported Node/npx installation; if infrastructure remains absent, record it as blocked rather than passing.
+- [x] Freeze source manifests before authoritative gates. Run ABI ./tools/check.sh with RUSTUP_TOOLCHAIN=1.99.1, ABI_WDBX_PATH=:memory: and a fresh CARGO_TARGET_DIR, with installed cargo-audit reachable and stdin EOF.
+- [x] Run the exact WDBX candidate's own gate and paired conformance under proven 1.99.1 selection. Distinguish its clean immutable receipt from canonical dirty-source results.
+- [x] Run Abbey's inspected full check.sh against the governed-owner changes, with proven compiler selection, isolated output, owned state and stdin EOF. Its compiler qualification is separately labeled.
+- [x] Exercise supported feature configurations; retain Metal numerical checks, deterministic inactive fallback and CUDA unavailability disclosures. No all-features shortcut proves unsupported hardware.
+- [x] Smoke freshly built CLI/MCP through mcp/launcher.sh with scratch stores and both required macOS libraries. Verify copied artifact help/goldens, loader paths/signatures, checksums and absence of release-strip abort warnings.
+- [x] Obtain fresh independent full-diff review for spec compliance, compatibility, authorization, replay/recovery, privacy and truthful claims. Route fixes to owning workers and re-review them.
+- [x] Refresh matrix and exact manifests after any repair; rerun only the checks invalidated by changes plus required final gates.
+- [x] Report stable compilation, behavior/contracts, durability/recovery, packaged runtime, live integration and deployment separately. Leave CI/publication blocked by the explicit pause; no CI receipt is fabricated.
+- [x] Leave reviewable diffs in the correct repositories, local run/recovery recipes, logs/checksums and a next action for every external blocker. Do not mark the full goal complete merely because the stable milestone passes.
 
 ## Gate command contract
 
@@ -207,3 +208,19 @@ manifest, installer, CI or tools. Preserve historical files. After the integrati
 repair, also run Abbey's retained application gate with exact stable 1.99.1 as a
 candidate; compiler-pin changes require that own-source qualification and coordinated
 ownership. NYON/Quesar implementation remains with their existing owner chats.
+
+## Qualified local checkpoint
+
+The repaired fixed producer cohort passed the complete ABI gate on exact 1.99.1
+(1,055 Rust test executions, no failures/ignored) paired with exact published
+WDBX 2969d71 (own gate 647 passed). The older fixed consumer refresh passed Abbey's
+complete stable candidate gate (3,827 Rust test executions across four modes,
+no failures/ignored, no strip warnings), with source and modes unchanged. Its
+four-file delta is one test synchronization fix plus reporting; ABI/WDBX bytes
+are identical. This does not qualify later current canonical source, the Abbey
+owner's newer candidate, or compiler-pin promotion. CI/publication remain paused.
+
+Local recording implementation and qualification tasks are complete at those
+frozen identities; E2 erasure/retention remains an explicit owner blocker and the
+broader goal remains open. Full matrix, receipts, recipes and residuals:
+[local qualification report](../reports/2026-10-20-stable-source-qualification.md).

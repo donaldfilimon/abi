@@ -14,27 +14,32 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ## Continuation qualification (2026-10-20)
 
-- [ ] Stable source completion train: exact Rust 1.99.1 compiler/gate policy,
-  existing WDBX stable migration qualification, canonical capability-to-host
-  projection, owning Abbey durable lifecycle, authorized evidence joins, and
-  exact-tree source/artifact evidence. Local tests are authorized; CI remains
-  paused. Plan and matrix: docs/superpowers/plans/2026-10-20-abi-stable-source-completion.md
-  and its companion design. No publication or live execution is implied.
-- [ ] Qualify the paired immutable WDBX pin: published successor `2969d71`
-  passed its exact-source own gate (647 tests). The paired final ABI gate is
-  pending integration repairs. Original `08a69b3` failed stable rustfmt;
-  its failure and earlier dirty-source success remain separate evidence.
-- [ ] Final integration checkpoint: repair cancellation terminal and late
-  refusal audit producer/consumer mismatches with actual host + RuntimeStore
-  regressions, scoped re-review, then freeze a new three-repository snapshot.
-  The first full stable ABI gate passed before those repairs and is not final
-  acceptance. Preserve Abbey learning/TUI/desktop-lock and unrelated WDBX work.
+- [x] Qualify the selected stable source checkpoint: capability/recording host,
+  same-store Abbey lifecycle, scoped evidence and artifact join. Repaired fixed
+  ABI cohort: full gate exit 0 on 1.99.1 (1,055 Rust test executions); older fixed
+  Abbey consumer: full candidate exit 0 (3,827 executions, four modes), no stripping
+  warnings. Both manifests/modes unchanged. Later source and Abbey's newer
+  candidate remain separately owned. CI/publication/live effects remain paused.
+  Report: docs/superpowers/reports/2026-10-20-stable-source-qualification.md.
+- [x] Qualify the local immutable pairing with WDBX 2969d71: exact-source own
+  gate 647 passed plus repaired paired ABI gate. Original 08a69b3 rustfmt failure
+  and the earlier formatting-repaired dirty-source success remain separate.
+- [x] Close final producer/consumer mismatches: actual host + RuntimeStore
+  cancellation/refusal tests reproduced 5 RED, then 8 passed; host/core 96 and
+  runtime 138 passed, strict clippy and independent scoped review approved.
+  NotDispatched and genuine post-effect uncertainty persist correctly; stage 11
+  denial records preserve atomic successful admission. Replay diagnostic
+  Infrastructure(InvalidState) remains disclosed, never a replayed effect.
+- [ ] External owner packet: WDBX member-erasure/retention/key-custody contracts
+  are absent; do not fabricate a competing deletion path. Abbey owns its newer
+  stable candidate, canonical pin promotion and approval UI. CI/publication,
+  real models/training, live integration and deployment require separate scope.
 - [x] Restore the mandatory dependency scanner on this host: installed
   `cargo-audit 0.22.2` through `./tools/cargo.sh`; the required scan passed
   with the existing policy exceptions unchanged.
 - [x] Resolve the sibling compute formatting mismatch without changing behavior;
   ABI nightly workspace formatting and WDBX stable 1.99.1 formatting both pass.
-- [x] Fresh `./tools/check.sh` exited 0: required audit, size/format checks,
+- [x] Earlier nightly baseline `./tools/check.sh` exited 0: required audit, size/format checks,
   warning-denied Clippy, workspace build/tests, sibling contract tests, Metal
   tests/docs, benchmark guard, rustdoc and release CLI/MCP builds passed.
   Eight central-sync policy tests skipped because their personal driver is

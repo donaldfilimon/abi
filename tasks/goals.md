@@ -336,33 +336,32 @@ Remote CI and installed-artifact verification are separate subsequent checks.
 ## Stable ABI source completion and existing-architecture integration (2026-10-20)
 status: in progress
 
-- Donald selected exact stable Rust 1.99.1 for ABI/WDBX, preservation of existing
-  architecture, canonical capability-to-host integration, owning Abbey durable
-  lifecycle and scoped WDBX evidence joins. Full scope and acceptance matrix:
-  docs/superpowers/plans/2026-10-20-abi-stable-source-completion.md and its design.
-- Current instruction: local tests allowed; CI paused. Publication, deployment,
-  live communications, resources/training and live-store changes remain excluded.
-- The requested Abbey checkout was cloned at sibling sources/repos/abbey; its
-  existing SQLite approval/execution owner is reused rather than replaced.
-- Stable locked ABI all-target compilation passes at the toolchain slice;
-  numeric CPU qualification passes five tests. Exact WDBX 08a69b3 fails stable
-  rustfmt; the preserved formatting-repaired source passes its full gate (647
-  tests). Those are separate source identities, not an accepted immutable pin.
-- The complete changed-tree ABI/Abbey gates, governed lifecycle/restart tests,
-  evidence integration and packaged-runtime qualification remain pending.
+The selected local recording/source checkpoint is implemented and qualified;
+the broader ecosystem goal stays open for the explicit owner packets below.
+Local tests are allowed. CI, publication, live effects and real training remain
+paused or separately unapproved.
 
-### Current bounded checkpoint — final producer/consumer qualification
+- Fixed producer manifest 54274dc2bdb94876bca7538df954c1cfb0e7a77a641cb863adda747f31b2f3a7:
+  complete ABI 1.99.1 gate exit 0, 1,055 Rust test executions, no failures/ignored;
+  exact WDBX 2969d71 own gate 647 passed and paired conformance passed.
+- Older fixed consumer manifest eca2ade4d1af5bdf1ea9a7decc0de7407b742a26199fe3baac6ddf8456631381:
+  complete Abbey 1.99.1 candidate exit 0, 3,827 executions across four modes, no
+  failures/ignored or release strip warnings. Source/modes unchanged. Later
+  canonical source, Abbey's newer candidate and its pin promotion are not covered.
+- Independent final review approved the real owner integration repair after 5 RED
+  regressions and 8 GREEN scenarios; capability/host 96 and runtime 138 passed.
+  Preserve ABI's reservation on governed adapter/migrations and Abbey's separate
+  finishing files. Source ownership remains unchanged after this checkpoint.
+- Fresh copied ABI CLI/MCP, both dylibs, help/tools goldens, signatures and loader
+  paths passed. Current model evidence is a generated tiny CPU fixture and
+  scripted tools; this is not useful trained Abbey weights or live actuation.
+- Residuals: replay diagnostic classification; missing WDBX erasure/retention/key
+  APIs; Abbey pin/UI ownership; CI/publication; models/licenses/training; remote
+  deployment/platform acceptance and independent audits. No second deletion
+  mechanism, live store migration or remote service was introduced.
+- Zig inventory including ignored source: ABI 0, WDBX 0, Abbey 59 historical canceled
+  rewrite files. Active Abbey build/installer/CI use Rust. Preserve history;
+  NYON/Quesar migrations stay with their existing owners.
 
-- Ownership: ABI host/capability lifecycle plus Abbey governed adapter, next additive
-  migration and governed SEA fixture. Preserve Abbey learning/TUI/desktop-lock work
-  and WDBX completion contracts owned by their existing lanes.
-- Acceptance: real RuntimeStore cancellation/refusal regressions, scoped re-review,
-  new content-hashed snapshot, complete stable ABI gate, Abbey retained-application
-  gate, fresh CLI/MCP packaging and an explicit external-blocker report.
-- Evidence: exact published WDBX `2969d71` passed its own gate (647 tests). The
-  first complete paired stable ABI gate passed before the final integration repair;
-  it is not acceptance of changed source. CI/publication/live effects remain paused.
-- Zig inventory: ABI/WDBX contain no Zig files. Abbey's 59 retained rewrite files
-  are historical under REWRITE-DECISION-2026-10-19.md; active manifest, installer,
-  CI and checks use Rust. Preserve the canceled implementation. Qualify Abbey's
-  retained application on exact Rust 1.99.1 before changing its current compiler pin.
+Evidence, matrix, exact manifests, runner and next owners:
+docs/superpowers/reports/2026-10-20-stable-source-qualification.md.
