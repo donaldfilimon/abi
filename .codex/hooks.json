@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx -y -p @stylusnexus/skill-loop-cli@0.3.3 skill-loop-claude pre-hook"
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" && bash \"$root/.claude/hooks/skill-loop.sh\" pre-hook"
           }
         ]
       }
@@ -27,8 +27,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *.rs) tb=\"$(dirname \"$(rustup which --toolchain nightly cargo)\")\"; if [ -x \"$tb/rustfmt\" ]; then \"$tb/rustfmt\" --edition 2024 \"$f\"; fi;; esac; } 2>/dev/null || true",
-            "statusMessage": "rustfmt (nightly)"
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" && bash \"$root/.claude/hooks/format-rust.sh\"",
+            "statusMessage": "rustfmt (repository toolchain)"
           }
         ]
       },
@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx -y -p @stylusnexus/skill-loop-cli@0.3.3 skill-loop-claude post-hook"
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" && bash \"$root/.claude/hooks/skill-loop.sh\" post-hook"
           }
         ]
       }

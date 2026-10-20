@@ -5,7 +5,9 @@ Canonical instructions; executable source wins over prose. `opencode.json` loads
 
 ## Toolchain And Gates
 
-- **Never bare `cargo`** (or plain rustup run). Homebrew installs real cargo/rustc that ignores rust-toolchain.toml and Swiftly cc shim breaks links. Always `./tools/cargo.sh` (it puts nightly bin + /usr/bin cc first).
+- ABI pins **stable Rust 1.99.1**, edition 2024; `rust-version = "1.99"` is the declared floor, not evidence of a fresh 1.99.0 run. Local tests are authorized for the 2026-10-20 completion train; CI remains paused until Donald resumes it.
+
+- **Never bare `cargo`** (or plain rustup run). Homebrew installs real cargo/rustc that ignores rust-toolchain.toml and Swiftly cc shim breaks links. Always `./tools/cargo.sh` (it puts the selected toolchain bin + /usr/bin cc first).
 - Primary gate (run before commit or handoff): `./tools/check.sh` (build.sh check is compat alias).
   Exact steps (trust script): versions; py policy tests (tools/tests/test_*.py); xtask ci verify;
   py abbey_contracts.py verify + xtask abbey verify contracts/abbey (py oracle authoritative until byte-id);

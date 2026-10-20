@@ -802,3 +802,147 @@ fn a5_requires_two_distinct_admin_or_owner_principals() {
     assert_eq!(strong.receipt.decision, Decision::Allow);
     assert_eq!(dual_actuator.records().len(), 1);
 }
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn exact_preview_binds_all_authority_and_enforces_ttl_without_effects() {
+    use abi_capability::lifecycle::{AuthorizationBinding, ExactApproval};
+    let package = package();
+    let registry = CapabilityRegistry::compile([package.clone()]).unwrap();
+    let kernel = Kernel::new(&registry);
+    let grants = [grant(&package)];
+    let clock = FixedClock::new(1_000);
+    let cancellation = CancellationToken::new();
+    let used = BTreeSet::new();
+    let platform = PlatformFacts::new(
+        BTreeSet::from(["manage_channels"]),
+        4,
+        "tenant_v2",
+        "guild_v2",
+        "safety_v2",
+    );
+    let context = AuthorizationContext {
+        now_ms: &clock,
+        cancellation: &cancellation,
+        grants: &grants,
+        approval: None,
+        used_decision_ids: &used,
+        platform: &platform,
+    };
+    let request = request();
+    let pending = kernel.evaluate(&request, &context);
+    assert_eq!(pending.decision, Decision::ApprovalRequired);
+    let binding =
+        AuthorizationBinding::from_evaluation(&request, &pending, digest(20), digest(21)).unwrap();
+    let exact = ExactApproval {
+        approval: approval(ApprovalLevel::A2Manager, "manager_ref"),
+        binding: binding.clone(),
+        issued_at_ms: 900,
+    };
+    assert_eq!(
+        kernel
+            .evaluate_bound(&request, &context, digest(20), digest(21), Some(&exact))
+            .decision,
+        Decision::Allow
+    );
+    for field in [
+        "request_digest",
+        "principal_digest",
+        "scope_digest",
+        "package_digest",
+        "grant_digest",
+        "policy_digest",
+        "schema_digest",
+        "precondition_digest",
+    ] {
+        let mut value = serde_json::to_value(&exact).unwrap();
+        value["binding"][field] = serde_json::to_value(digest(99)).unwrap();
+        let changed: ExactApproval = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            kernel
+                .evaluate_bound(&request, &context, digest(20), digest(21), Some(&changed))
+                .decision,
+            Decision::ApprovalRequired,
+            "{field}"
+        );
+    }
+    let prepared =
+        abi_capability::lifecycle::PreparedExecution::after_commit(digest(30), binding.clone());
+    let mut actuator = RecordingActuator::new(["channel_state_matches"]);
+    let mut altered = request.clone();
+    altered.scope.tenant_id = "other".into();
+    assert!(
+        actuator
+            .record_prepared(&altered, &package, &prepared)
+            .is_err()
+    );
+    assert_eq!(actuator.records(), []);
+    assert!(
+        actuator
+            .record_prepared(&request, &package, &prepared)
+            .is_ok()
+    );
+    assert!(
+        actuator
+            .record_prepared(&request, &package, &prepared)
+            .is_err()
+    );
+    let mut too_long = exact.clone();
+    too_long.approval.expires_at_ms = 1_000_000;
+    assert_eq!(
+        kernel
+            .evaluate_bound(&request, &context, digest(20), digest(21), Some(&too_long))
+            .decision,
+        Decision::ApprovalRequired
+    );
+    let mut future = exact.clone();
+    future.issued_at_ms = 1_001;
+    assert!(!future.matches(&binding, 1_000));
+    assert!(!exact.matches(&binding, 1_500));
+    let mut replay = used.clone();
+    replay.insert(exact.approval.decision_id.clone());
+    let context = AuthorizationContext {
+        used_decision_ids: &replay,
+        ..context
+    };
+    assert_eq!(
+        kernel
+            .evaluate_bound(&request, &context, digest(20), digest(21), Some(&exact))
+            .reason,
+        abi_capability::ReasonCode::ApprovalReplayed
+    );
+}
+
+#[test]
+fn forged_delegating_issuer_cannot_authorize_an_exact_grant() {
+    let package = package();
+    let registry = CapabilityRegistry::compile([package.clone()]).unwrap();
+    let mut forged = grant(&package);
+    forged.issuer = principal("delegated_service", PrincipalKind::Service);
+    let grants = [forged];
+    let clock = FixedClock::new(1_000);
+    let cancellation = CancellationToken::new();
+    let used = BTreeSet::new();
+    let approval = approval(ApprovalLevel::A2Manager, "manager_ref");
+    let platform = PlatformFacts::new(
+        BTreeSet::from(["manage_channels"]),
+        4,
+        "tenant_v2",
+        "guild_v2",
+        "safety_v2",
+    );
+    let context = AuthorizationContext {
+        now_ms: &clock,
+        cancellation: &cancellation,
+        grants: &grants,
+        approval: Some(&approval),
+        used_decision_ids: &used,
+        platform: &platform,
+    };
+    assert_eq!(
+        Kernel::new(&registry)
+            .evaluate(&request(), &context)
+            .decision,
+        Decision::Deny
+    );
+}

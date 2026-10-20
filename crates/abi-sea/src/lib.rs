@@ -28,3 +28,9 @@ pub use types::{Authority, MemoryKind};
 
 /// Private content-addressed training artifacts.
 pub mod training_artifacts;
+
+/// Trusted-host principal-scoped recall.
+pub mod scoped;
+
+/// Local governed runtime and selective persistence joins.
+pub mod composition;

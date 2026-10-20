@@ -1,4 +1,4 @@
-# TODO — ABI Framework (Rust nightly)
+# TODO — ABI Framework (Rust 2024, stable 1.99.1)
 
 Current status ledger for the Rust rewrite closeout, completed hardening slices,
 and explicitly disclosed residuals. Detailed history also lives in
@@ -14,6 +14,16 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ## Continuation qualification (2026-10-20)
 
+- [ ] Stable source completion train: exact Rust 1.99.1 compiler/gate policy,
+  existing WDBX stable migration qualification, canonical capability-to-host
+  projection, owning Abbey durable lifecycle, authorized evidence joins, and
+  exact-tree source/artifact evidence. Local tests are authorized; CI remains
+  paused. Plan and matrix: docs/superpowers/plans/2026-10-20-abi-stable-source-completion.md
+  and its companion design. No publication or live execution is implied.
+- [ ] Exact immutable WDBX pin remains pending: clean 08a69b3 fails stable
+  rustfmt at abi-compute/src/cpu.rs's reduction fold. The preserved local
+  formatting diff fixes that stage but is not the published commit. Keep
+  dirty-source qualification distinct from an immutable revision receipt.
 - [x] Restore the mandatory dependency scanner on this host: installed
   `cargo-audit 0.22.2` through `./tools/cargo.sh`; the required scan passed
   with the existing policy exceptions unchanged.

@@ -1,6 +1,6 @@
 ---
 name: abi-skills
-description: Coordinate ABI codebase health, skill telemetry, bundled-plugin runtime checks, ABI Mega inventories, nightly Rust gates, and cross-CLI skill synchronization. Use for full ABI health reviews and claim-honest skill/plugin improvement cycles.
+description: Coordinate ABI codebase health, skill telemetry, bundled-plugin runtime checks, ABI Mega inventories, stable Rust 1.99.1 gates, and cross-CLI skill synchronization. Use for full ABI health reviews and claim-honest skill/plugin improvement cycles.
 ---
 
 # abi-skills — ABI codebase health and skill synchronization
@@ -34,7 +34,7 @@ Codex plugin.
   before running them; marketplace registration alone does not prove that
   the current version is installed.
 - Live Rust pin: read repo-root `rust-toolchain.toml`. Always use `./tools/cargo.sh`
-  (Homebrew stable `cargo` may shadow rustup nightly).
+  (Homebrew stable `cargo` may shadow the selected rustup toolchain).
 
 ## Two traps that have already cost a session
 
@@ -111,7 +111,7 @@ live telemetry, not durable capability claims.
    `git worktree list --porcelain`, branches, stashes, and remotes. If another
    process moves the checkout, stop and use an isolated worktree.
 2. **Select the toolchain locally** — use `./tools/cargo.sh` for all ABI gates
-   (Homebrew stable `cargo` may shadow rustup nightly).
+   (Homebrew stable `cargo` may shadow the selected rustup toolchain).
 3. **Establish a baseline** — run `./tools/check.sh` non-interactively. Build
    `abi-cli` explicitly before user-facing smoke so the executable being tested
    is current and the evidence names the binary-producing command.

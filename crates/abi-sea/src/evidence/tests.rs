@@ -321,6 +321,7 @@ fn equal_scores_are_ordered_by_stable_vector_id() {
 fn augment_prompt_caps_preamble() {
     let items: Vec<_> = (0..8)
         .map(|i| EvidenceItem {
+            provenance: crate::composition::EvidenceProvenance::default(),
             vector_id: RecordId::Legacy(i),
             profile_label: "abbey",
             authority: Authority::Inferred,
@@ -345,6 +346,7 @@ fn summarization_is_utf8_safe_and_prompt_retains_raw_query() {
 
     let ctx = EvidenceContext {
         items: vec![EvidenceItem {
+            provenance: crate::composition::EvidenceProvenance::default(),
             vector_id: RecordId::Legacy(7),
             profile_label: "abi",
             authority: Authority::Inferred,

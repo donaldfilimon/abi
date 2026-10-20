@@ -56,5 +56,5 @@ reopen-visible stats, and successful merged audit-DAG verification.
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check nightly via `./tools/cargo.sh --version`, then `./tools/check.sh`. |
+| `build` FAIL | Check the repository toolchain via `./tools/cargo.sh --version`, then `./tools/check.sh`. |
 | `merged_chain_valid=true` missing | V2 audit-DAG or recovery regression — inspect `../wdbx/crates/abi-wdbx/src/v2/` and `versioned.rs`. |

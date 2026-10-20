@@ -1,10 +1,10 @@
 # ABI Framework
 
 > **Intelligence Without Limits — local runtime.**  
-> Nightly Rust framework for agent orchestration, WDBX semantic storage,  
+> Stable Rust 1.99.1 framework for agent orchestration, WDBX semantic storage,
 > and claim-honest capability reporting. Inspectable on your machine.
 
-ABI is a **nightly Rust** framework for local AI service orchestration, semantic
+ABI is a **stable Rust 1.99.1** framework for local AI service orchestration, semantic
 vector storage, claim-honest GPU capability reporting, and runtime primitives.
 abi is the runtime/WDBX twin; Abbey is the companion that will not claim what
 the ledger cannot prove. Cloud backends are optional. Browser autonomy is not
@@ -19,7 +19,7 @@ Companion interface: [abbey](https://github.com/donaldfilimon/abbey) — Intelli
 
 ## Quick Start
 ```bash
-./tools/cargo.sh --version   # rustup nightly via tools/cargo.sh (never bare cargo)
+./tools/cargo.sh --version   # repository-selected stable toolchain via tools/cargo.sh (never bare cargo)
 ./tools/check.sh             # Primary validation gate
 ./tools/cargo.sh build -p abi-cli   # target/debug/abi
 ./tools/cargo.sh build -p abi-mcp   # target/debug/abi-mcp
@@ -77,13 +77,13 @@ Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_lea
 
 ## Current Status
 
-- ABI targets **nightly Rust** (`rust-toolchain.toml`); validate with `./tools/check.sh`.
+- ABI targets **stable Rust 1.99.1** (`rust-toolchain.toml`); validate with `./tools/check.sh`.
 - Core crates and MCP transport have contract/golden coverage; MCP stdio is primary, with an optional custom loopback HTTP compatibility listener that serves persistent MCP 2024-11-05 HTTP+SSE sessions and keeps a one-shot direct-reply `POST /message` compatibility mode (not Streamable HTTP).
 - Documentation: `CLAUDE.md`, `GEMINI.md`, and `AGENTS.md` describe the Rust lifecycle.
 - Build gate: `./tools/check.sh` runs policy tests, `./tools/cargo.sh xtask ci verify` (judo #817), Abbey corpus (Python + `./tools/cargo.sh xtask abbey verify`), size limits, fmt, clippy (`-D warnings`), workspace build/tests, and docs.
 - Local models: `abi-model-runtime` requires an exact registry model, accepting principal, external storage root, and device choice. Generated scratch fixtures prove its tiny `abi-bigram-v1` Candle path on CPU and locally exercised Metal; this is runtime-foundation evidence, not a Gemma, quality, placement, speedup, or CUDA-runtime claim.
 - Workers: `abi-worker` provides authenticated, audience-bound, bounded offline admission/control contracts with finite leases, cooperative cancellation, replay resistance, and verifiable results. It reuses the gateway mTLS configuration but does not claim a listener, scheduler, model execution, production cluster, or separate-host deployment.
-- GPU: capability table + preferred backend reporting with **honest `accelerated=false`** when native kernels are not linked; vector ops use deterministic CPU SIMD fallback. CUDA/Vulkan/ANE kernels remain non-claims.
+- GPU: capability table + preferred backend reporting with **honest `accelerated=false`** when native kernels are not linked; vector ops use deterministic CPU lane fallback. CUDA/Vulkan/ANE kernels remain non-claims.
 - Plugins: sixteen bundled plugins ship as compiled-in `mod.rs`/`stub.rs` pairs under `crates/abi-plugins/plugins/` with `assert_plugin_parity!`.
 - AI/WDBX: the sibling WDBX crates are required build dependencies. Pure `abi_ai::complete` is store-independent; the `abi complete` and `abi agent train` CLI paths and MCP `ai_complete`, `ai_train`, and `ai_learn` attempt the configured/default durable store unless persistence is disabled with `ABI_WDBX_PERSIST=0` or `ABI_WDBX_PATH=:memory:`. Top-level `abi train` does not open WDBX. Successful writes record query/response vectors, metadata, and block-chain entries. Scheduler-backed completion, training, and agent helpers expose live task/memory observability.
 - Abbey identity: Abbey is the primary empathetic-polymath profile, Aviva is the direct expert mode, and ABI is the orchestration/governance layer. The preserved Primary Declaration and the claim-honest Current/Partial/Proposed mapping live in `docs/spec/abbey-core-identity.mdx`; local profile output is deterministic template generation, not a model-quality or distributed-AI claim.

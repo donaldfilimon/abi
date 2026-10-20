@@ -8,6 +8,10 @@ repository.workspace = true
 description = "SEA (Sparse Evidence Attention): evidence-augmented completion and adaptive router learning."
 
 [dependencies]
+abi-capability = { workspace = true }
+abi-agent-runtime = { workspace = true }
+abi-agent-host = { workspace = true }
+sha2 = { workspace = true }
 abi-ai = { workspace = true }
 abi-foundation = { workspace = true }
 abi-wdbx = { workspace = true }

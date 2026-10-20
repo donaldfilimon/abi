@@ -14,7 +14,7 @@ Session-start checklist and conventions for agents working on this repo.
 ## Key Conventions
 
 ### Toolchain
-- **Nightly Rust** via `rust-toolchain.toml`.
+- **Stable Rust 1.99.1** via `rust-toolchain.toml`.
 - Homebrew stable `cargo` shadows rustup — **always** use `./tools/cargo.sh`.
 - Primary gate: `./tools/check.sh` (fmt, clippy `-D warnings`, build, test, docs).
 
@@ -71,7 +71,7 @@ when kernels are not linked. WDBX secure demos are reference-grade. Audit:
 
 ## Common Pitfalls to Avoid
 
-1. **Bare `cargo`** — always `./tools/cargo.sh` (nightly pin + link environment).
+1. **Bare `cargo`** — always `./tools/cargo.sh` (repository pin + link environment).
 2. **Opening `~/.abi/` in tests** — use scratch / in-memory env vars.
 3. **Fake-completing residuals** — CUDA/Vulkan runtime, verified ANE residency,
    production FHE/sharding, and separate-host deployment stay disclosed Partial.

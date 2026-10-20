@@ -1,11 +1,11 @@
 ---
 name: run-abi
-description: Build, launch, and drive the abi nightly-Rust project — the `abi` CLI and the `abi-mcp` JSON-RPC server. Use when asked to run, start, build, smoke-test, or screenshot abi, drive its CLI subcommands, exercise the MCP server over stdio, or confirm a change works in the real binaries (not just the test suite).
+description: Build, launch, and drive the abi stable-Rust project — the `abi` CLI and the `abi-mcp` JSON-RPC server. Use when asked to run, start, build, smoke-test, or screenshot abi, drive its CLI subcommands, exercise the MCP server over stdio, or confirm a change works in the real binaries (not just the test suite).
 ---
 
 # Run abi
 
-`abi` is a **nightly Rust** framework that builds two binaries: a CLI
+`abi` is a **stable Rust 1.99.1** framework that builds two binaries: a CLI
 (`target/debug/abi`) and an MCP server (`target/release/abi-mcp` in this smoke, JSON-RPC 2.0 over
 stdio plus an automatically attempted custom loopback HTTP listener). The MCP
 listener serves persistent MCP 2024-11-05 HTTP+SSE sessions plus a one-shot
@@ -87,6 +87,6 @@ and the FM dylib resolve together.
 
 | Symptom | Fix |
 |---|---|
-| build FAIL | `./tools/check.sh`; ensure nightly via `./tools/cargo.sh` |
+| build FAIL | `./tools/check.sh`; ensure the repository toolchain via `./tools/cargo.sh` |
 | dyld FM shim missing | build from repo so `libabi_fm_shim.dylib` sits next to `abi` |
 | MCP empty | JSON on stdout; logs on stderr — drop stderr when grepping tools |

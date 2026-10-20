@@ -51,6 +51,41 @@ impl RecordingActuator {
             .is_subset(&self.satisfied_postconditions)
     }
 
+    /// Record only under an exact committed durable admission handle.
+    /// The trusted host must separately enforce fresh source prerequisites and outcomes.
+    pub fn record_prepared(
+        &mut self,
+        request: &Request,
+        package: &CapabilityPackage,
+        prepared: &crate::lifecycle::PreparedExecution,
+    ) -> Result<Digest, crate::lifecycle::LifecycleError> {
+        let binding = prepared.binding();
+        let policy_digest = digest_json(&(
+            "abi.policy.v1",
+            &request.policy_version,
+            &request.guild_constitution_version,
+            &request.safety_policy_version,
+            request.revocation_epoch,
+        ));
+        if self
+            .records
+            .iter()
+            .any(|record| record.request_digest == request.request_digest)
+            || request.computed_digest() != request.request_digest
+            || binding.request_digest != request.request_digest
+            || binding.package_digest != package.digest
+            || package.digest != request.package_digest
+            || package.id != request.capability_id
+            || package.version != request.capability_version
+            || binding.principal_digest != digest_json(&request.principal)
+            || binding.scope_digest != digest_json(&request.scope)
+            || binding.policy_digest != policy_digest
+        {
+            return Err(crate::lifecycle::LifecycleError::InvalidState);
+        }
+        Ok(self.record(request, package))
+    }
+
     /// Record a digest-only simulated effect.
     pub(crate) fn record(&mut self, request: &Request, package: &CapabilityPackage) -> Digest {
         let scope_digest = digest_json(&request.scope);

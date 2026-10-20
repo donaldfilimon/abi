@@ -1,24 +1,32 @@
 #!/usr/bin/env bash
-# Invoke cargo on the pinned nightly toolchain.
+# Invoke cargo on the repository-selected toolchain.
 #
 # Two separate PATH hazards, both caused by Homebrew installing real rust
 # binaries under /opt/homebrew/bin rather than rustup shims:
 #
 #  1. Bare `cargo` resolves to Homebrew's stable cargo, which neither honours
-#     `rust-toolchain.toml` nor understands `+nightly`.
+#     `rust-toolchain.toml` nor understands rustup toolchain selectors.
 #
 #  2. Less obviously, `rustup run <toolchain> cargo` is NOT sufficient either.
 #     `rustup run` resolves the *named* command against the toolchain but does
 #     not put the toolchain's bin directory ahead of Homebrew on PATH. Cargo
 #     then looks `rustc` up through PATH, finds Homebrew's stable rustc, and
 #     reports the baffling "rustc 1.97.1 is not supported by ... requires
-#     rustc 1.99" — a nightly cargo driving a stable rustc.
+#     rustc 1.99" — a mismatched cargo driving a different rustc.
 #
 # Resolving the toolchain bin directory and prepending it fixes rustc, rustdoc,
 # clippy-driver and rustfmt in one move.
 set -euo pipefail
 
-TOOLCHAIN_BIN="$(dirname "$(rustup which cargo)")"
+if [[ "${1:-}" == "--abi-qualify-toolchain" ]]; then
+  # Preserve the gate's Python interpreter before /usr/bin linker precedence.
+  POLICY_PYTHON="$(command -v python3)"
+fi
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Only resolution changes directory: Cargo retains the caller's working directory.
+TOOLCHAIN_CARGO="$(cd "${REPO_ROOT}" && rustup which cargo)"
+TOOLCHAIN_BIN="$(dirname "${TOOLCHAIN_CARGO}")"
 
 # Swiftly installs a `cc`/`clang` shim that refuses to link when the repo's
 # `.swift-version` pins a toolchain that is not installed. That is fatal for
@@ -49,6 +57,21 @@ if [[ -n "${DYLD_FALLBACK_LIBRARY_PATH:-}" ]]; then
   export DYLD_FALLBACK_LIBRARY_PATH="${TOOLCHAIN_LIB}:${DYLD_FALLBACK_LIBRARY_PATH}"
 else
   export DYLD_FALLBACK_LIBRARY_PATH="${TOOLCHAIN_LIB}:${HOME}/lib:/usr/local/lib:/usr/lib"
+fi
+
+if [[ "${1:-}" == "--abi-qualify-toolchain" ]]; then
+  # Developer overrides remain available for ordinary builds; qualification is
+  # deliberately stricter and must describe the compiler Cargo will execute.
+  "${POLICY_PYTHON}" "${REPO_ROOT}/tools/toolchain_policy.py"
+  printf 'compiler: %s\n' "${TOOLCHAIN_BIN}/rustc"
+  COMPILER_VERSION="$("${TOOLCHAIN_BIN}/rustc" -vV)"
+  printf '%s\n' "${COMPILER_VERSION}"
+  if ! printf '%s\n' "${COMPILER_VERSION}" | /usr/bin/grep -qx 'release: 1.99.1'; then
+    printf 'stable qualification requires rustc release 1.99.1\n' >&2
+    exit 1
+  fi
+  "${TOOLCHAIN_BIN}/cargo" --version
+  exit 0
 fi
 
 exec "${TOOLCHAIN_BIN}/cargo" "$@"

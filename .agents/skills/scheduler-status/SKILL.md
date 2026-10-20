@@ -36,7 +36,7 @@ Prints `RESULT: PASS` (exit 0) or `RESULT: FAIL` with the missing assertion (exi
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check nightly via `./tools/cargo.sh --version`, then `./tools/check.sh`. |
+| `build` FAIL | Check the repository toolchain via `./tools/cargo.sh --version`, then `./tools/check.sh`. |
 | empty output | You captured stdout only — scheduler prints to stderr; use `2>&1`. |
 | `usage: abi scheduler status` | You used `stats`/`info`/bare `scheduler`; the CLI word is `status`. |
 | `completed=0` / `total_tasks=0` | The probe task didn't run — inspect `../wdbx/crates/abi-core/src/scheduler.rs`; use the `scheduler-memory-auditor` subagent to audit submission/completion accounting. |

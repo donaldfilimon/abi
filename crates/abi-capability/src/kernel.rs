@@ -36,8 +36,74 @@ impl<'a> Kernel<'a> {
         Self { registry }
     }
 
+    /// Evaluate exact preview approval with server TTL; durable consumption is still required.
+    #[must_use]
+    pub fn evaluate_bound(
+        &self,
+        request: &Request,
+        context: &AuthorizationContext<'_>,
+        schema_digest: crate::Digest,
+        precondition_digest: crate::Digest,
+        approval: Option<&crate::lifecycle::ExactApproval>,
+    ) -> AuthorizationEvaluation {
+        let bound_context = AuthorizationContext {
+            approval: approval.map(|a| &a.approval),
+            ..*context
+        };
+        let mut result = self.evaluate(request, &bound_context);
+        if result.decision == Decision::Allow && result.required_approval > ApprovalLevel::A0None {
+            let binding = crate::lifecycle::AuthorizationBinding::from_evaluation(
+                request,
+                &result,
+                schema_digest,
+                precondition_digest,
+            );
+            if !approval
+                .zip(binding.as_ref())
+                .is_some_and(|(a, b)| a.matches(b, context.now_ms.now_ms()))
+            {
+                result.decision = Decision::ApprovalRequired;
+                result.reason = ReasonCode::ApprovalInsufficient;
+            }
+        }
+        result
+    }
+
+    /// Evaluate an exact approval against the startup source's effective TTL policy.
+    #[must_use]
+    pub fn evaluate_source_bound(
+        &self,
+        request: &Request,
+        context: &AuthorizationContext<'_>,
+        source: &crate::source::CompiledSource,
+        precondition_digest: crate::Digest,
+        approval: Option<&crate::lifecycle::ExactApproval>,
+    ) -> AuthorizationEvaluation {
+        let mut result = self.evaluate_bound(
+            request,
+            context,
+            source.schema_digest(),
+            precondition_digest,
+            approval,
+        );
+        if source.package().digest != request.package_digest {
+            result.decision = Decision::Deny;
+            result.reason = ReasonCode::PackageDigestMismatch;
+        } else if result.decision == Decision::Allow
+            && approval.is_some_and(|a| {
+                a.approval
+                    .expires_at_ms
+                    .checked_sub(a.issued_at_ms)
+                    .is_none_or(|ttl| ttl > source.source().expiry_policy_ms)
+            })
+        {
+            result.decision = Decision::ApprovalRequired;
+            result.reason = ReasonCode::ApprovalInsufficient;
+        }
+        result
+    }
+
     /// Authorize and, only after a successful audit write, record a simulated effect.
-    #[allow(clippy::too_many_lines)]
     pub fn authorize_and_record(
         &self,
         request: &Request,
@@ -45,32 +111,60 @@ impl<'a> Kernel<'a> {
         audit: &mut dyn AuditSink,
         actuator: &mut RecordingActuator,
     ) -> Result<KernelOutcome, KernelError> {
+        let mut evaluated = self.evaluate(request, context);
+        let package = self
+            .registry
+            .get(&request.capability_id, &request.capability_version)
+            .filter(|p| p.digest == evaluated.package_digest);
+        let grant = evaluated
+            .grant_digest
+            .and_then(|digest| context.grants.iter().find(|g| digest_json(*g) == digest));
+        let record_effect = evaluated.decision == Decision::Allow
+            && package.is_some_and(|p| actuator.postconditions_hold(p));
+        if evaluated.decision == Decision::Allow && !record_effect {
+            evaluated.decision = Decision::Deny;
+            evaluated.reason = ReasonCode::PostconditionFailed;
+        }
+        Self::finish(
+            request,
+            package,
+            grant,
+            evaluated.required_approval,
+            evaluated.decision,
+            evaluated.reason,
+            evaluated.reason == ReasonCode::Cancelled,
+            record_effect,
+            audit,
+            actuator,
+        )
+    }
+
+    /// Evaluate all authority checks without audit persistence or effects.
+    #[must_use]
+    #[allow(clippy::too_many_lines)]
+    pub fn evaluate(
+        &self,
+        request: &Request,
+        context: &AuthorizationContext<'_>,
+    ) -> AuthorizationEvaluation {
         if request.computed_digest() != request.request_digest {
-            return Self::finish(
+            return evaluation(
                 request,
                 None,
                 None,
                 ApprovalLevel::A0None,
                 Decision::Deny,
                 ReasonCode::RequestDigestMismatch,
-                false,
-                false,
-                audit,
-                actuator,
             );
         }
         if context.cancellation.is_cancelled() {
-            return Self::finish(
+            return evaluation(
                 request,
                 None,
                 None,
                 ApprovalLevel::A0None,
                 Decision::Pause,
                 ReasonCode::Cancelled,
-                true,
-                false,
-                audit,
-                actuator,
             );
         }
         let Some(package) = self
@@ -82,45 +176,33 @@ impl<'a> Kernel<'a> {
             } else {
                 ReasonCode::CapabilityUnknown
             };
-            return Self::finish(
+            return evaluation(
                 request,
                 None,
                 None,
                 ApprovalLevel::A0None,
                 Decision::Deny,
                 reason,
-                false,
-                false,
-                audit,
-                actuator,
             );
         };
         if package.digest != request.package_digest {
-            return Self::finish(
+            return evaluation(
                 request,
                 Some(package),
                 None,
                 ApprovalLevel::A0None,
                 Decision::Deny,
                 ReasonCode::PackageDigestMismatch,
-                false,
-                false,
-                audit,
-                actuator,
             );
         }
         if CapabilityRegistry::is_prohibited(package) {
-            return Self::finish(
+            return evaluation(
                 request,
                 Some(package),
                 None,
                 ApprovalLevel::A5DualControl,
                 Decision::Deny,
                 ReasonCode::Prohibited,
-                false,
-                false,
-                audit,
-                actuator,
             );
         }
 
@@ -141,17 +223,13 @@ impl<'a> Kernel<'a> {
             } else {
                 ReasonCode::NoMatchingGrant
             };
-            return Self::finish(
+            return evaluation(
                 request,
                 Some(package),
                 None,
                 ApprovalLevel::A0None,
                 Decision::Deny,
                 reason,
-                false,
-                false,
-                audit,
-                actuator,
             );
         }
         let now = context.now_ms.now_ms();
@@ -178,17 +256,13 @@ impl<'a> Kernel<'a> {
                 context.platform.regime_approval_floor,
                 context.platform.safety_approval_floor,
             );
-            return Self::finish(
+            return evaluation(
                 request,
                 Some(package),
                 Some(failed_grant),
                 required,
                 Decision::Deny,
                 reason,
-                false,
-                false,
-                audit,
-                actuator,
             );
         };
         let required = required_approval(
@@ -199,17 +273,13 @@ impl<'a> Kernel<'a> {
         );
         if required > ApprovalLevel::A0None {
             let Some(approval) = context.approval else {
-                return Self::finish(
+                return evaluation(
                     request,
                     Some(package),
                     Some(grant),
                     required,
                     Decision::ApprovalRequired,
                     ReasonCode::ApprovalMissing,
-                    false,
-                    false,
-                    audit,
-                    actuator,
                 );
             };
             let reason = if context.used_decision_ids.contains(&approval.decision_id) {
@@ -242,57 +312,34 @@ impl<'a> Kernel<'a> {
                 } else {
                     Decision::Deny
                 };
-                return Self::finish(
+                return evaluation(
                     request,
                     Some(package),
                     Some(grant),
                     required,
                     decision,
                     reason,
-                    false,
-                    false,
-                    audit,
-                    actuator,
                 );
             }
         }
 
         if context.cancellation.is_cancelled() {
-            return Self::finish(
+            return evaluation(
                 request,
                 Some(package),
                 Some(grant),
                 required,
                 Decision::Pause,
                 ReasonCode::Cancelled,
-                true,
-                false,
-                audit,
-                actuator,
             );
         }
-        let postconditions_hold = actuator.postconditions_hold(package);
-        let reason = if postconditions_hold {
-            ReasonCode::Authorized
-        } else {
-            ReasonCode::PostconditionFailed
-        };
-        let decision = if postconditions_hold {
-            Decision::Allow
-        } else {
-            Decision::Deny
-        };
-        Self::finish(
+        evaluation(
             request,
             Some(package),
             Some(grant),
             required,
-            decision,
-            reason,
-            false,
-            postconditions_hold,
-            audit,
-            actuator,
+            Decision::Allow,
+            ReasonCode::Authorized,
         )
     }
 
@@ -381,7 +428,7 @@ fn grant_failure(
         || context.platform.safety_policy_version != request.safety_policy_version
     {
         Some(ReasonCode::PolicyVersionMismatch)
-    } else if package.risk > grant.risk_ceiling {
+    } else if !issuer_is_authorized(grant, package) || package.risk > grant.risk_ceiling {
         Some(ReasonCode::NoMatchingGrant)
     } else if !package
         .required_permissions
@@ -391,6 +438,19 @@ fn grant_failure(
     } else {
         None
     }
+}
+
+fn issuer_is_authorized(grant: &Grant, package: &CapabilityPackage) -> bool {
+    use crate::PrincipalKind::{GuildAdministrator, GuildOwner, OrganizationOwner};
+    let permitted = if grant.scope.guild_ref.is_none() {
+        grant.issuer.kind == OrganizationOwner
+    } else if package.risk <= RiskClass::Low {
+        matches!(grant.issuer.kind, GuildOwner | GuildAdministrator)
+    } else {
+        grant.issuer.kind == GuildOwner
+    };
+    permitted
+        && (package.reversibility != Reversibility::Irreversible || grant.issuer.kind == GuildOwner)
 }
 
 const fn reason_priority(reason: ReasonCode) -> u8 {
@@ -481,4 +541,36 @@ pub enum KernelError {
     /// Audit persistence failed before actuation.
     #[error("audit_failed:{0}")]
     Audit(#[from] AuditError),
+}
+
+/// Content-free pure authorization result. This is not durable admission.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuthorizationEvaluation {
+    /// Closed policy decision.
+    pub decision: Decision,
+    /// Closed refusal or success reason.
+    pub reason: ReasonCode,
+    /// Effective approval floor.
+    pub required_approval: ApprovalLevel,
+    /// Exact package commitment.
+    pub package_digest: crate::Digest,
+    /// Exact selected grant commitment, including issuer and lifecycle.
+    pub grant_digest: Option<crate::Digest>,
+}
+
+fn evaluation(
+    request: &Request,
+    package: Option<&CapabilityPackage>,
+    grant: Option<&Grant>,
+    required_approval: ApprovalLevel,
+    decision: Decision,
+    reason: ReasonCode,
+) -> AuthorizationEvaluation {
+    AuthorizationEvaluation {
+        decision,
+        reason,
+        required_approval,
+        package_digest: package.map_or(request.package_digest, |p| p.digest),
+        grant_digest: grant.map(digest_json),
+    }
 }

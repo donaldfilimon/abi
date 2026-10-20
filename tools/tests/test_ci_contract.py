@@ -33,14 +33,14 @@ class PublicWdbxWorkflowTests(unittest.TestCase):
 
     def test_self_hosted_toolchain_install_uses_one_component_argument(self) -> None:
         command = re.search(
-            r"rustup toolchain install nightly-2026-09-01[^\n]+",
+            r"rustup toolchain install 1.99.1[^\n]+",
             self.workflow,
         )
         self.assertIsNotNone(command)
         self.assertEqual(
             command.group(0).strip(),
             (
-                "rustup toolchain install nightly-2026-09-01 --profile minimal "
+                "rustup toolchain install 1.99.1 --profile minimal "
                 "--component rustfmt,clippy,rust-src"
             ),
         )

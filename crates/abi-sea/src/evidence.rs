@@ -36,6 +36,8 @@ const UNKNOWN_PROFILE: &str = "unknown";
 /// One recalled record. `snippet` is owned; `profile_label` is a static borrow.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EvidenceItem {
+    /// Detached owner evidence; generic metadata cannot self-assert provenance.
+    pub provenance: crate::composition::EvidenceProvenance,
     /// Vector id of the hit.
     pub vector_id: RecordId,
     /// Persona label (`abbey`/`aviva`/`abi`/`unknown`).
@@ -227,6 +229,8 @@ fn recall_eligible(
     (recalled, latest_timestamp_ms)
 }
 
+/// Local compatibility recall only: this API performs no principal authorization.
+/// Governed callers use `scoped::TrustedScopeStore` instead.
 /// Gather evidence, inferring a plan from `input`.
 #[must_use]
 pub fn gather_evidence(store: &VersionedStore, input: &str, limit: usize) -> EvidenceContext {
@@ -297,6 +301,7 @@ pub fn gather_evidence_with_plan(
         evidence_by_id.insert(
             id,
             EvidenceItem {
+                provenance: crate::composition::EvidenceProvenance::default(),
                 vector_id: id,
                 profile_label: parsed.profile_label,
                 authority,

@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > `AGENTS.md`, `AGENTS.md` wins; if either disagrees with executable source
 > (`Cargo.toml`, `tools/check.sh`, `crates/`), trust the source.
 
-ABI is a **nightly Rust** framework for local AI service orchestration, semantic
+ABI is a **stable Rust 1.99.1** framework for local AI service orchestration, semantic
 vector storage (WDBX), claim-honest GPU capability reporting, and an MCP server.
 **Intelligence Without Limits.** IWL is Abbey/ABI only; Quesar never carries this
 tagline. See `docs/brand.md`.
@@ -20,10 +20,10 @@ PR #777 and now defers to `AGENTS.md`.
 
 ## Toolchain — read this before running anything
 
-- **Nightly Rust** pinned via `rust-toolchain.toml`.
+- **Stable Rust 1.99.1** pinned via `rust-toolchain.toml`.
 - Homebrew's real `cargo`/`rustc` binaries can shadow rustup on `PATH`.
   **Never invoke bare `cargo`** — always use `./tools/cargo.sh`, which resolves
-  the rustup nightly toolchain bin dir and prepends it to `PATH`. It also pins
+  the repository-selected rustup toolchain bin dir and prepends it to `PATH`. It also pins
   `cc` to `/usr/bin/cc` ahead of Swiftly's shim, which otherwise refuses to
   link because of an unrelated `.swift-version` pin.
 

@@ -59,9 +59,9 @@ toolchain and frozen surfaces. This skill is style and process only.
   `./target/debug/abi backends`, then representative commands (`complete`,
   `wdbx`, `dashboard --once`, `plugin list`, `scheduler status`). Build gates
   alone are not the full verify bar when the human asks to test features.
-- Confirm nightly Rust via `./tools/cargo.sh --version` / `abi/rust-toolchain.toml` before trusting an ABI build.
+- Confirm stable Rust 1.99.1 via `./tools/cargo.sh --version` / `abi/rust-toolchain.toml` before trusting an ABI build.
 - Interactive dashboard/TUI: `.agents/skills/run-tui/tui.sh`. Do not put
-  Homebrew ahead of the nightly Rust on `PATH`.
+  Homebrew ahead of the stable Rust 1.99.1 on `PATH`.
 - Dual review default: when the human asks for review (`/review`, "security and
   code quality"), run both `/review-bugbot` and `/review-security`. Empty diff
   on clean `main` is a valid result, say so and stop.

@@ -34,7 +34,7 @@ cleaned up.
 ## Gotchas (battle scars)
 - ⚠️ **Always build with `./tools/cargo.sh`** (never bare Homebrew `cargo`).
   The driver needs `tmux` on PATH (`brew install tmux`); do not let brew's
-  stable cargo shadow the nightly toolchain used for the build.
+  stable cargo shadow the repository-selected toolchain used for the build.
 - **A pty is mandatory for the interactive path.** Piped stdin or `/dev/null`
   intentionally uses the one-shot fallback; use tmux when you need to prove the
   live loop paints and accepts `q`.

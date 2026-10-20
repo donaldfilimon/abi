@@ -6,7 +6,7 @@ name: CI
 # account's Actions billing is locked, so this workflow has none.
 #
 # Runner ops / security: .github/self-hosted-runner.md
-# Primary gate: ./tools/check.sh (nightly Rust via tools/cargo.sh).
+# Primary gate: ./tools/check.sh (stable Rust via tools/cargo.sh).
 
 on:
   push:
@@ -25,7 +25,8 @@ env:
   # Pinned for reproducibility, mirroring abbey's ABI_REVISION convention and
   # requirement R12 (a result must be tied to immutable code). Bump this only
   # through a reviewed change whose exact WDBX revision passes this workflow.
-  WDBX_REVISION: cf2e326786c0054ac99c48bf512647c13e2bc3b1
+  # Pending exact-candidate qualification and paired final gate; local diff only.
+  WDBX_REVISION: 08a69b3f22db61093e06527b3308b10589687022
 
 jobs:
   check:
@@ -58,7 +59,7 @@ jobs:
       - name: Ensure exact repository toolchain
         run: |
           rustup show
-          rustup toolchain install nightly-2026-09-01 --profile minimal --component rustfmt,clippy,rust-src
+          rustup toolchain install 1.99.1 --profile minimal --component rustfmt,clippy,rust-src
       - name: Allocate isolated build directory
         run: |
           target_dir="$(mktemp -d "$RUNNER_TEMP/abi-build-XXXXXX")"

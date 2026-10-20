@@ -94,7 +94,7 @@ Before applying it:
 - Never delete unmatched runtime-native skills, agents, commands, or plugins.
 - Never delete or archive `~/dev/active/plugins/abi-mega`; it is a live source.
 - ABI's repo-adapted ABI Mega skills are seed-only and are not overwritten.
-- The ABI repository is a nightly Rust workspace; do not reintroduce removed
+- The ABI repository is a stable Rust 1.99.1 workspace; do not reintroduce removed
   Zig-era paths or commands.
 - Central synchronization may intentionally dirty tracked ABI skill files when
   canonical portable content changed. Inspect the diff and run repository gates

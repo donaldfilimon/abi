@@ -23,7 +23,7 @@ Persona Router          (Current)
 WDBX Runtime
  ├─ Storage Layer       (Current — in-process + segment/WAL persistence)
  ├─ Index Layer         (Current — HNSW/SIMD + snapshot-persisted temporal/causal ranker)
- ├─ Compute Layer       (Partial — abi-compute contracts + CPU SIMD + scoped Metal runtime + CPU oracle; output-checked CoreML inference)
+ ├─ Compute Layer       (Partial — abi-compute contracts + CPU lane execution + scoped Metal runtime + CPU oracle; output-checked CoreML inference)
  ├─ Security Layer      (Partial — authenticated v2 + reference DGHV/TFHE demos)
  ├─ Cluster Layer       (Partial — exact single-host replication/repair/rebalance + authenticated RPC)
  └─ Transport Layer     (Partial — stdio/JSON-RPC + custom MCP loopback HTTP+SSE (2024-11-05) listener + REST + cluster/remote-compute RPC)

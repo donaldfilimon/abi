@@ -32,7 +32,7 @@ See references for catalog of before/after in Rust context.
 ## Additional Resources
 
 - `.agents/skills/modern-patterns/references/patterns-catalog.md`
-- `.agents/skills/modern-patterns/examples/ (prefer Rust nightly patterns)`
+- `.agents/skills/modern-patterns/examples/ (prefer stable Rust 2024 patterns)`
 
 Base directory for this skill: /Users/donaldfilimon/dev/active/abi/.agents/skills/modern-patterns
 Relative paths in this skill (e.g., references/) are relative to this base directory.

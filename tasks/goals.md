@@ -331,3 +331,22 @@ per-edge resolution projection at their source/local-test boundaries. CUDA
 compilation remains unavailable without nvcc; independent audits, actual trained
 weights, separate-host operation and live provider acceptance remain unproved.
 Remote CI and installed-artifact verification are separate subsequent checks.
+
+
+## Stable ABI source completion and existing-architecture integration (2026-10-20)
+status: in progress
+
+- Donald selected exact stable Rust 1.99.1 for ABI/WDBX, preservation of existing
+  architecture, canonical capability-to-host integration, owning Abbey durable
+  lifecycle and scoped WDBX evidence joins. Full scope and acceptance matrix:
+  docs/superpowers/plans/2026-10-20-abi-stable-source-completion.md and its design.
+- Current instruction: local tests allowed; CI paused. Publication, deployment,
+  live communications, resources/training and live-store changes remain excluded.
+- The requested Abbey checkout was cloned at sibling sources/repos/abbey; its
+  existing SQLite approval/execution owner is reused rather than replaced.
+- Stable locked ABI all-target compilation passes at the toolchain slice;
+  numeric CPU qualification passes five tests. Exact WDBX 08a69b3 fails stable
+  rustfmt; the preserved formatting-repaired source passes its full gate (647
+  tests). Those are separate source identities, not an accepted immutable pin.
+- The complete changed-tree ABI/Abbey gates, governed lifecycle/restart tests,
+  evidence integration and packaged-runtime qualification remain pending.

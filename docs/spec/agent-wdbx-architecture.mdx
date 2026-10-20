@@ -1,9 +1,15 @@
 ---
 title: "ABI Agent and WDBX Architecture"
-description: "Source-backed nightly-Rust architecture for local AI routing, SEA evidence, scheduler coordination, and durable WDBX storage."
+description: "Source-backed Rust architecture for local AI, bounded agent hosts, model and worker foundations, approved training records, and WDBX storage."
 ---
 
-ABI is a nightly-Rust workspace. The agent layer is a local control plane for
+ABI uses Rust edition 2024 with workspace `rust-version = "1.99"` in
+`Cargo.toml`; `rust-toolchain.toml` pins exact stable `1.99.1`. The package
+minimum and pinned toolchain are distinct contracts. This specification does
+not establish testing on Rust 1.99.0; exact-tree stable qualification is recorded
+separately in the completion matrix. Invoke Cargo through `./tools/cargo.sh`.
+
+ABI is a stable-Rust workspace. The agent layer is a local control plane for
 deterministic routing, template generation, optional provider calls, and
 evidence-aware completion. WDBX is the local memory plane for vectors,
 key/value metadata, linked blocks, temporal and spatial records, snapshots,
@@ -20,18 +26,27 @@ WAL recovery, and bounded search.
 
 ```mermaid
 flowchart TD
-    U[User or host] --> CLI[target/debug/abi]
-    U --> MCP[target/debug/abi-mcp]
-    CLI --> AIR[abi-ai routing and generation]
+    U[User or host] --> CLI[abi CLI]
+    U --> MCP[MCP launcher and transports]
+    CLI --> AIR[abi-ai store-independent routing and generation]
     MCP --> AIR
     CLI --> SEA[abi-sea evidence and learn loop]
-    AIR --> CORE[abi-core scheduler and memory tracker]
-    AIR --> WDBX[abi-wdbx durable store]
-    SEA --> WDBX
+    MCP --> SEA
+    CLI --> CORE[abi-core scheduler and memory tracker]
+    MCP --> CORE
+    CLI --> WDBX[abi-wdbx durable store]
     MCP --> WDBX
+    SEA --> WDBX
     WDBX --> WAL[WAL and segment checkpoints]
     WDBX --> IDX[HNSW and hybrid retrieval]
 ```
+
+`abi-ai` has no WDBX dependency: application wrappers and `abi-sea` own store
+access. The map shows completion and evidence paths. The training registry and
+the library foundations below are available for explicit host composition;
+they do not add public commands.
+Launch MCP through `./mcp/launcher.sh stdio` so binary selection and the macOS
+FoundationModels shim resolve together.
 
 Both binaries are local-first. MCP uses JSON-RPC over stdio and automatically
 attempts a custom loopback HTTP listener that serves persistent MCP 2024-11-05
@@ -47,6 +62,12 @@ claim boundaries.
 | MCP | `crates/abi-mcp/` | Frozen tool dispatch, stdio JSON-RPC, and a best-effort custom loopback HTTP compatibility listener |
 | AI | `crates/abi-ai/` | Profiles, deterministic routing, local templates, lexical constitution signal, model catalog, orchestration records |
 | SEA | `crates/abi-sea/` | Query planning, evidence scoring/selection, bounded prompt augmentation, adaptive-router persistence |
+| Agent contracts | `crates/abi-agent-runtime/` | Provider-neutral requests/events, tool descriptions, policy/audit, usage, budgets and cooperative cancellation; no inference, tool execution or persistence |
+| Agent host | `crates/abi-agent-host/` | Startup-owned schemas, validation before policy, audited execution through a supplied executor, correlated continuation and bounded runs |
+| Model registry | `crates/abi-models/` | Pinned manifests, publisher trust, principal-bound license consent, bounded hash-verified external artifact delivery; no inference |
+| Model execution | `crates/abi-model-runtime/` | Explicit authorized manifest/device selection and Candle provider; tiny `abi-bigram-v1` fixture architecture |
+| Worker control | `crates/abi-worker/` | Signed jobs/cancellation, leases, replay control, bounded results and independent job-control storage; no listener, scheduler or model executor |
+| Capability kernel | `crates/abi-capability/` | Deny-by-default request-scoped authorization, bounded fallible digest audit and local recording actuator; no production actuator |
 | Core | `../wdbx/crates/abi-core/` | One-process scheduler, task accounting, registry, and memory tracking |
 | WDBX | `../wdbx/crates/abi-wdbx/` | In-process storage, HNSW search, recovery, records, reference crypto/compression, local RPC demos |
 | Connectors | `crates/abi-connectors/` | Explicit live/local provider transports and credential boundaries |
@@ -68,7 +89,9 @@ The ordinary local path is:
 1. `QueryPlan` classifies the local retrieval task.
 2. `gather_evidence_with_plan` scores and selects bounded evidence from WDBX.
 3. `augment_prompt` prepends the selected context within its byte budget.
-4. The local completion runs and the adaptive router state is updated.
+4. The local completion runs. When adaptation is enabled, router state is
+   updated only after a passing audit without a veto; rejected completions
+   do not become learned completion evidence.
 
 No credentials are required for either local path. Live Anthropic,
 FoundationModels, and local OpenAI-compatible bridge paths cross separate
@@ -105,6 +128,66 @@ deterministic worker reports. Worker instructions and tool hints are metadata;
 they do not execute tools. Any compatibility mode that prints scheduler task
 IDs drains those tasks before the CLI exits and must not be described as a
 durable background-agent system.
+
+## Agent, model and worker foundations
+
+These are Current library boundaries supported by source and contract fixtures:
+
+- `abi-agent-host` composes a `ModelProvider`, startup-owned tool registry,
+  execution policy, audit sink and `ToolExecutor`. It validates JSON arguments
+  before authorization and audits decisions before allowed execution. Duplicate
+  calls, fabricated tool results and post-terminal events fail closed.
+  Cancellation, deadlines and budgets are cooperative; an active synchronous
+  adapter must poll to stop before returning.
+- `abi-models` verifies signed publisher manifests and artifact hashes, binds
+  consent to the principal and exact revision, and publishes external downloads
+  without clobbering an existing destination. Unsigned loaders remain explicit
+  local/test-provenance APIs. Weights, datasets and adapters stay outside source.
+- `abi-model-runtime` connects that authorization to explicit Candle devices.
+  Generated scratch fixtures exercise Tokenizers/Safetensors CPU inference and
+  locally tested Metal operations. Requested, initialized and executed device
+  evidence are distinct. The only implemented architecture is `abi-bigram-v1`;
+  Gemma and structured model-generated tool calls remain Proposed. CUDA has no
+  local compile/runtime proof without an available toolchain and hardware.
+- `abi-worker` verifies audience-bound Ed25519 jobs and cancellation requests,
+  derives principal-scoped retry identity, and bounds leases, quotas and result
+  streams. Its mandatory-mTLS configuration reuses the gateway loader. This
+  does not establish an active worker listener, remote execution, deployed
+  certificate lifecycle or production separate-host cluster. WDBX data-plane
+  membership grants no worker job-control authority.
+- `abi-capability` authorizes local recording adapters with request-scoped
+  principals, grants and approvals. Its recording actuator is fixture evidence,
+  not proof of a production filesystem, shell or network actuator.
+
+Evidence entry points are `crates/abi-agent-runtime/tests/contracts.rs`,
+`crates/abi-agent-host/tests/contracts.rs`,
+`crates/abi-model-runtime/tests/contracts.rs`,
+`crates/abi-worker/tests/contracts.rs`, `crates/abi-capability/tests/kernel.rs`
+and the corresponding crate sources.
+They establish bounded local behavior, not blanket safety or model quality.
+
+## Approved training foundation
+
+`abi-ai::training_contracts` owns store-independent approved-record admission,
+source/permission/approval bindings, deterministic snapshot identity and run/
+artifact receipts. Its Abbey, Aviva, Abi and Quesar training profile values do
+not expand the ordinary three-profile completion router.
+
+`abi-sea::training_registry` owns the private WDBX-backed registry, configured
+principal authority, evidence/qualification bindings, revocation, eligibility,
+immutable snapshots and export. Callers authenticate principals before entering
+privileged APIs; registered evidence remains a trusted attestation boundary.
+Split isolation spans retained immutable history, and training export refuses
+held-out snapshots. `training_artifacts` publishes bounded content-addressed
+artifacts under the owned private registry root; this trusts the same user
+against concurrent filesystem replacement.
+
+`crates/abi-sea/tests/training_foundation.rs` explicitly exercises synthetic
+fixtures across all four profiles. Together with training contract, registry
+and artifact tests, this supports source-level admission, recovery/refusal and
+receipt behavior. It does not prove actual trained weights, tensor changes,
+independent model quality, licensed training permission, teacher/student
+optimization or serving cutover. Those remain separate evidence requirements.
 
 ## Security and deployment boundary
 

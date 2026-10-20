@@ -49,7 +49,12 @@ impl<'de> Deserialize<'de> for Digest {
         let text = String::deserialize(deserializer)?;
         let hex = text
             .strip_prefix("sha256:")
-            .filter(|value| value.len() == 64)
+            .filter(|value| {
+                value.len() == 64
+                    && value
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            })
             .ok_or_else(|| serde::de::Error::custom("digest_shape"))?;
         let mut bytes = [0_u8; 32];
         for (index, byte) in bytes.iter_mut().enumerate() {

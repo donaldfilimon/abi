@@ -22,6 +22,7 @@
 mod budget;
 mod error;
 mod executor;
+mod governed;
 mod host;
 mod report;
 mod schema;
@@ -31,3 +32,9 @@ pub use error::HostError;
 pub use executor::{ToolExecutionContext, ToolExecutionError, ToolExecutor, ToolOutput};
 pub use host::AgentHost;
 pub use report::{HostRunReport, HostStopReason};
+
+pub use governed::{
+    ApprovalPreview, CompensationPreview, GovernedCompensationError, GovernedFactProvider,
+    GovernedFacts, GovernedHost, GovernedOptions, GovernedRegistration, GovernedRunReport,
+    GovernedStop, Postconditions, PreviewUncertainty,
+};

@@ -1,6 +1,6 @@
 ---
 name: abi-goal-orchestrator
-description: Plan and execute ABI repo work from the TODO board, roadmap/spec docs, nightly Rust constraints, and validation gates. Use when the user asks to find ABI todos/roadmaps, organize a large implementation from tasks/todo.md, or decide the next safe work slice. Distinct from the goals skill — that skill owns the persistent ledger tasks/goals.md; this skill plans from the active board and north-star specs.
+description: Plan and execute ABI repo work from the TODO board, roadmap/spec docs, stable Rust 1.99.1 constraints, and validation gates. Use when the user asks to find ABI todos/roadmaps, organize a large implementation from tasks/todo.md, or decide the next safe work slice. Distinct from the goals skill — that skill owns the persistent ledger tasks/goals.md; this skill plans from the active board and north-star specs.
 ---
 
 # ABI Goal Orchestrator

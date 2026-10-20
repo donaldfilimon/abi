@@ -9,7 +9,7 @@ Authoritative policy files:
 
 Safe repo-backed wording:
 
-- ABI is a nightly-Rust local AI orchestration framework with deterministic Abbey/Aviva/Abi profile routing.
+- ABI is a Rust 2024 local AI orchestration framework targeting stable 1.99.1 with deterministic Abbey/Aviva/Abi profile routing.
 - WDBX is an in-process vector/key-value/block store with segment checkpoints, WAL recovery, temporal/causal records, HNSW-style cosine search, and hybrid ranking where wired.
 - CLI and MCP surfaces are frozen and contract-tested.
 - MCP stdio is local IPC. Startup also attempts a custom loopback HTTP listener

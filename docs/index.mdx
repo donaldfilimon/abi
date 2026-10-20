@@ -4,7 +4,7 @@ description: "Welcome to the ABI framework documentation. This hub provides cent
 ---
 
 Welcome to the ABI multi-AI orchestration framework documentation. ABI is
-implemented in **nightly Rust** (`crates/*`); this hub points at contracts,
+implemented in **stable Rust 1.99.1** (`crates/*`); this hub points at contracts,
 architecture specs, and build guides without re-stating frozen CLI or MCP
 surfaces.
 
@@ -83,7 +83,7 @@ validation, see [Contributing to ABI Documentation](contributing).
 
 Primary gate: `./tools/check.sh` (fmt, clippy, build, workspace tests, docs).
 Compatibility entrypoint: `./build.sh check` → the same gate. Always build with
-`./tools/cargo.sh` so the nightly pin is honored.
+`./tools/cargo.sh` so the repository toolchain pin is honored.
 
 ## Instruction files
 

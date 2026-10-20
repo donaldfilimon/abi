@@ -9,6 +9,9 @@ description = "Bounded, policy-authorized tool orchestration for ABI model provi
 
 [dependencies]
 abi-agent-runtime = { workspace = true }
+abi-capability = { workspace = true }
+sha2 = { workspace = true }
+serde = { workspace = true }
 jsonschema = { workspace = true }
 serde_json = { workspace = true }
 

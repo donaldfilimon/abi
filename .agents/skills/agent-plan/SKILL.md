@@ -1,7 +1,7 @@
 ---
 name: agent-plan
 priority: high
-description: Execute ABI repo work from current TODOs, roadmap/spec docs, nightly Rust constraints, and validation gates. Use when user asks to find all ABI todos/roadmaps, compile ABI goals/specs, organize a large ABI implementation goal, or decide the next safe work slice in ~/dev/active/abi.
+description: Execute ABI repo work from current TODOs, roadmap/spec docs, stable Rust 1.99.1 constraints, and validation gates. Use when user asks to find all ABI todos/roadmaps, compile ABI goals/specs, organize a large ABI implementation goal, or decide the next safe work slice in ~/dev/active/abi.
 ---
 
 # agent-plan

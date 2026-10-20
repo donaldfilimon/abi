@@ -7,8 +7,11 @@ name = "abi-agent-host"
 version = "0.1.0"
 dependencies = [
  "abi-agent-runtime",
+ "abi-capability",
  "jsonschema",
+ "serde",
  "serde_json",
+ "sha2 0.11.0",
 ]
 
 [[package]]
@@ -31,6 +34,7 @@ name = "abi-capability"
 version = "0.1.0"
 dependencies = [
  "abi-agent-runtime",
+ "jsonschema",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -194,11 +198,15 @@ dependencies = [
 name = "abi-sea"
 version = "0.1.0"
 dependencies = [
+ "abi-agent-host",
+ "abi-agent-runtime",
  "abi-ai",
+ "abi-capability",
  "abi-foundation",
  "abi-wdbx",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
 ]
 
 [[package]]

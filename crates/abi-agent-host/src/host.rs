@@ -13,6 +13,16 @@ use abi_agent_runtime::{
 use serde_json::json;
 use std::{collections::HashSet, time::Instant};
 
+/// Internal governed boundary sharing the legacy bounded continuation driver.
+pub(crate) trait CallHook {
+    fn call(
+        &mut self,
+        call: &ToolCall,
+        context: ToolExecutionContext<'_>,
+        limit: usize,
+    ) -> Option<ToolResult>;
+}
+
 /// Startup-owned composition of provider, tools, policy, audit, and execution.
 pub struct AgentHost<'a> {
     provider: &'a dyn ModelProvider,
@@ -52,6 +62,17 @@ impl<'a> AgentHost<'a> {
         cancellation: &CancellationToken,
         budget: HostBudget,
     ) -> Result<HostRunReport, HostError> {
+        self.run_with_hook(request, sink, cancellation, budget, &mut None)
+    }
+
+    pub(crate) fn run_with_hook(
+        &self,
+        request: &ModelRequest,
+        sink: &mut dyn EventSink,
+        cancellation: &CancellationToken,
+        budget: HostBudget,
+        hook: &mut Option<&mut dyn CallHook>,
+    ) -> Result<HostRunReport, HostError> {
         let started = Instant::now();
         let deadline = started
             .checked_add(budget.max_duration)
@@ -65,6 +86,7 @@ impl<'a> AgentHost<'a> {
             budget,
             deadline,
             &mut state,
+            hook,
         );
 
         match result {
@@ -83,6 +105,7 @@ impl<'a> AgentHost<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn drive(
         &self,
         request: &mut ModelRequest,
@@ -91,6 +114,7 @@ impl<'a> AgentHost<'a> {
         budget: HostBudget,
         deadline: Instant,
         state: &mut RunState,
+        hook: &mut Option<&mut dyn CallHook>,
     ) -> Result<HostStopReason, HostError> {
         loop {
             if !check_boundary(cancellation, deadline)? {
@@ -139,7 +163,7 @@ impl<'a> AgentHost<'a> {
                             state.tool_rounds = state.tool_rounds.saturating_add(1);
                         }
                         calls_this_turn = calls_this_turn.saturating_add(1);
-                        self.handle_call(
+                        if !self.handle_call(
                             call,
                             request,
                             sink,
@@ -147,7 +171,10 @@ impl<'a> AgentHost<'a> {
                             budget,
                             deadline,
                             state,
-                        )?;
+                            hook,
+                        )? {
+                            return Ok(HostStopReason::Cancelled);
+                        }
                     }
                     ModelEvent::TextDelta { text } => {
                         let next = state.output_bytes.saturating_add(text.len());
@@ -195,9 +222,10 @@ impl<'a> AgentHost<'a> {
         budget: HostBudget,
         deadline: Instant,
         state: &mut RunState,
-    ) -> Result<(), HostError> {
+        hook: &mut Option<&mut dyn CallHook>,
+    ) -> Result<bool, HostError> {
         if !check_boundary(cancellation, deadline)? {
-            return Ok(());
+            return Ok(true);
         }
         admit(
             state.tool_calls,
@@ -209,7 +237,12 @@ impl<'a> AgentHost<'a> {
                 call_id: call.id.clone(),
             });
         }
-        let tool = self.schemas.validate(call)?;
+        // Governed hook performs its own staged schema admission.
+        let tool = if hook.is_none() {
+            Some(self.schemas.validate(call)?)
+        } else {
+            None
+        };
         admit_many(state.events, budget.max_events, 2, HostBudgetLimit::Events)?;
         emit_bounded(
             sink,
@@ -219,40 +252,55 @@ impl<'a> AgentHost<'a> {
         )?;
         state.tool_calls = state.tool_calls.saturating_add(1);
         if !check_boundary(cancellation, deadline)? {
-            return Ok(());
+            return Ok(true);
         }
 
-        let decision = authorize_and_audit(self.policy, self.audit, call, Some(&tool.spec));
-        if !check_boundary(cancellation, deadline)? {
-            return Ok(());
-        }
-        let result = match decision {
-            PolicyDecision::Allow => {
-                let output = self.executor.execute(
-                    call,
-                    &tool.spec,
-                    ToolExecutionContext {
-                        cancellation,
-                        deadline,
-                    },
-                );
-                if !check_boundary(cancellation, deadline)? {
-                    return Ok(());
-                }
-                output_to_result(call, output, budget.max_tool_result_bytes)?
+        let result = if let Some(hook) = hook.as_deref_mut() {
+            let Some(result) = hook.call(
+                call,
+                ToolExecutionContext {
+                    cancellation,
+                    deadline,
+                },
+                budget.max_tool_result_bytes,
+            ) else {
+                return Ok(false);
+            };
+            result
+        } else {
+            let tool = tool.expect("legacy call validated");
+            let decision = authorize_and_audit(self.policy, self.audit, call, Some(&tool.spec));
+            if !check_boundary(cancellation, deadline)? {
+                return Ok(true);
             }
-            PolicyDecision::RequireConfirmation { reason } => ToolResult::with_limit(
-                call.id.clone(),
-                ToolStatus::Denied,
-                &format!("confirmation required: {reason}"),
-                budget.max_tool_result_bytes,
-            ),
-            PolicyDecision::Deny { reason } => ToolResult::with_limit(
-                call.id.clone(),
-                ToolStatus::Denied,
-                &reason,
-                budget.max_tool_result_bytes,
-            ),
+            match decision {
+                PolicyDecision::Allow => {
+                    let output = self.executor.execute(
+                        call,
+                        &tool.spec,
+                        ToolExecutionContext {
+                            cancellation,
+                            deadline,
+                        },
+                    );
+                    if !check_boundary(cancellation, deadline)? {
+                        return Ok(true);
+                    }
+                    output_to_result(call, output, budget.max_tool_result_bytes)?
+                }
+                PolicyDecision::RequireConfirmation { reason } => ToolResult::with_limit(
+                    call.id.clone(),
+                    ToolStatus::Denied,
+                    &format!("confirmation required: {reason}"),
+                    budget.max_tool_result_bytes,
+                ),
+                PolicyDecision::Deny { reason } => ToolResult::with_limit(
+                    call.id.clone(),
+                    ToolStatus::Denied,
+                    &reason,
+                    budget.max_tool_result_bytes,
+                ),
+            }
         };
         emit_bounded(
             sink,
@@ -264,7 +312,7 @@ impl<'a> AgentHost<'a> {
             .clone()
             .with_message(tool_result_message(call, &result));
         state.tool_results.push(result);
-        Ok(())
+        Ok(true)
     }
 }
 

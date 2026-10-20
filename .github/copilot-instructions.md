@@ -5,7 +5,7 @@ short editor-facing reminder.
 
 ## Runtime and toolchain
 
-- ABI is a nightly-Rust workspace under `crates/*`.
+- ABI is a stable Rust 1.99.1 workspace under `crates/*`.
 - Always use `./tools/cargo.sh`. A Homebrew stable Cargo shadows rustup on
   this machine.
 - Primary gate after edits: `./tools/check.sh`.
