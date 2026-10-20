@@ -1,5 +1,8 @@
 # Golden fixtures — captured from the Zig implementation
 
+These captures are historical. The live ABI gate is the Rust workspace under
+`crates/`. Do not regenerate these goldens from a Zig binary.
+
 These files were produced by the **Zig** `abi` and `abi-mcp` binaries while
 `./build.sh check` was still green, at commit `919dad8` on branch
 `rust-rewrite`, with Zig `0.17.0-dev.1442+972627084` (matching `.zigversion`).
