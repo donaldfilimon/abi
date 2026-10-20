@@ -50,7 +50,7 @@ $ABI complete --neural "hello"  # in-process char-LM demo (not a production LLM)
 # arm64 macOS + Apple Intelligence ready:
 # $ABI complete --live --model apple-fm --confirm "hello"
 $ABI complete --model llama/phi3 "hello"  # local OpenAI-compat bridge (falls back offline)
-# $ABI complete --learn "..."  # self-learning persistence+adaptation+recall (requires store); see specimen-studio usability verification for local proposal UX cross-ref
+# $ABI complete --learn "..."  # SEA persistence+adaptation+recall (requires store). Specimen Studio's Agent desk does not call this or write this store.
 $ABI agent plan "stage a safe WDBX refactor"
 $ABI agent train all
 $ABI wdbx query "$(mktemp -d)/store"   # store stats as JSON (no `wdbx stats` command)
