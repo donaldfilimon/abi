@@ -6,11 +6,19 @@ description: Build, launch, and drive the abi nightly-Rust project — the `abi`
 # Run abi
 
 `abi` is a **nightly Rust** framework that builds two binaries: a CLI
-(`target/debug/abi`) and an MCP server (`target/debug/abi-mcp`, JSON-RPC 2.0 over
+(`target/debug/abi`) and an MCP server (`target/release/abi-mcp` in this smoke, JSON-RPC 2.0 over
 stdio plus an automatically attempted custom loopback HTTP listener). The MCP
 listener serves persistent MCP 2024-11-05 HTTP+SSE sessions plus a one-shot
 direct-reply `POST /message` mode; it is not Streamable HTTP. The driver
 builds and exercises the real binaries end-to-end.
+
+The driver overrides inherited store settings with `ABI_WDBX_PATH=:memory:`
+and `ABI_WDBX_PERSIST=0`. Its explicit-path WDBX round trip uses a scratch
+store under `target/debug/`. A failed build stops before binary execution.
+MCP runs through `mcp/launcher.sh stdio`; the driver rebuilds release MCP
+because the launcher prefers that profile.
+Builds explicitly select this checkout's `target/` directory, overriding an
+inherited `CARGO_TARGET_DIR` so they refresh the binaries the driver executes.
 
 **Paths below are relative to the repo root.** The driver lives at
 `.agents/skills/run-abi/smoke.sh` and resolves the repo root from its own location.
@@ -38,8 +46,8 @@ SMOKE OK
 ## Build
 
 ```bash
-./tools/cargo.sh build -p abi-cli   # -> target/debug/abi
-./tools/cargo.sh build -p abi-mcp   # -> target/debug/abi-mcp
+./tools/cargo.sh build --locked -p abi-cli   # -> target/debug/abi
+./tools/cargo.sh build --locked --release -p abi-mcp   # launcher-preferred profile
 ```
 
 On arm64 macOS, building with the default `foundationmodels` feature also
@@ -51,7 +59,7 @@ produces `target/debug/libabi_fm_shim.dylib` next to the binaries.
 ./target/debug/abi help
 ./target/debug/abi backends
 ./target/debug/abi scheduler status
-./target/debug/abi complete "summarize scheduler status"
+ABI_WDBX_PATH=:memory: ./target/debug/abi complete "summarize scheduler status"
 ./target/debug/abi plugin list
 ```
 
@@ -61,11 +69,11 @@ produces `target/debug/libabi_fm_shim.dylib` next to the binaries.
 printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-  | ./target/debug/abi-mcp 2>/dev/null
+  | ABI_WDBX_PATH=:memory: ABI_WDBX_PERSIST=0 ./mcp/launcher.sh stdio
 ```
 
-Exactly **12** frozen tools. Prefer `mcp/launcher.sh` when `@loader_path` for
-the FM dylib matters.
+Exactly **12** frozen tools. Always use `mcp/launcher.sh` so binary selection
+and the FM dylib resolve together.
 
 ## Gotchas
 

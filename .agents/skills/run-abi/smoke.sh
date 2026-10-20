@@ -14,9 +14,14 @@ REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 cd "$REPO_ROOT"
 
 ABI="$REPO_ROOT/target/debug/abi"
-ABI_MCP="$REPO_ROOT/target/debug/abi-mcp"
+ABI_MCP="$REPO_ROOT/target/release/abi-mcp"
 STORE="$REPO_ROOT/target/debug/smoke-memory.jsonl"
 TRANSCRIPT="$REPO_ROOT/target/debug/run-abi-smoke.txt"
+
+# Never inherit a caller's live store. Explicit-path WDBX commands below still
+# exercise their scratch store; ordinary completion and MCP stay in memory.
+export ABI_WDBX_PATH=:memory:
+export ABI_WDBX_PERSIST=0
 
 fail=0
 pass=0
@@ -53,8 +58,14 @@ log "repo: $REPO_ROOT"
 log "rustc: $(rustup which rustc 2>/dev/null || echo MISSING)"
 
 # --- Build ---------------------------------------------------------------
-run "build cli"  "-" -- ./tools/cargo.sh build -p abi-cli
-run "build mcp"  "-" -- ./tools/cargo.sh build -p abi-mcp
+run "build cli"  "-" -- ./tools/cargo.sh build --locked -p abi-cli --target-dir "$REPO_ROOT/target"
+# The launcher prefers release: rebuild that exact profile before exercising it.
+run "build mcp"  "-" -- ./tools/cargo.sh build --locked --release -p abi-mcp --target-dir "$REPO_ROOT/target"
+
+if [ "$fail" -ne 0 ]; then
+    log "FATAL: build failed; refusing to exercise stale binaries"
+    exit 1
+fi
 
 if [ ! -x "$ABI" ] || [ ! -x "$ABI_MCP" ]; then
     log "FATAL: binaries not produced (abi=$ABI abi-mcp=$ABI_MCP)"
@@ -85,7 +96,7 @@ MCP_OUT=$(printf '%s\n' \
   '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"scheduler_info","arguments":{}}}' \
   '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"gpu_status","arguments":{}}}' \
   '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"plugin_list","arguments":{}}}' \
-  | "$ABI_MCP" 2>>"$TRANSCRIPT")
+  | "$REPO_ROOT/mcp/launcher.sh" stdio 2>>"$TRANSCRIPT")
 mcp_rc=$?
 printf '%s\n' "$MCP_OUT" | tee -a "$TRANSCRIPT"
 log "[exit=$mcp_rc]"

@@ -12,6 +12,27 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ---
 
+## Continuation qualification (2026-10-20)
+
+- [x] Restore the mandatory dependency scanner on this host: installed
+  `cargo-audit 0.22.2` through `./tools/cargo.sh`; the required scan passed
+  with the existing policy exceptions unchanged.
+- [x] Resolve the sibling compute formatting mismatch without changing behavior;
+  ABI nightly workspace formatting and WDBX stable 1.99.1 formatting both pass.
+- [x] Fresh `./tools/check.sh` exited 0: required audit, size/format checks,
+  warning-denied Clippy, workspace build/tests, sibling contract tests, Metal
+  tests/docs, benchmark guard, rustdoc and release CLI/MCP builds passed.
+  Eight central-sync policy tests skipped because their personal driver is
+  absent; CUDA compilation was unavailable without `nvcc`. Local WDBX is at
+  `08a69b3`, ahead of ABI's `cf2e326` CI pin; this does not qualify a pin update
+  or an exact-commit CI receipt. Pending hook and architecture edits preserved.
+- [x] Qualify the CLI/MCP smoke harness: override inherited live-store settings,
+  use the MCP launcher with a freshly built release binary, and stop on build
+  failure before stale binaries can run. Build into the directory the harness
+  actually executes even with an inherited `CARGO_TARGET_DIR`. Three isolated
+  regressions pass after reproducing failures; real smoke passed all 18 checks
+  and the final full gate exited 0. The run-abi skill documents these boundaries.
+
 ## ABI source-release hardening (2026-09-29)
 
 - [x] Regress and fix gateway credential diagnostics and error teardown, malformed provider-turn admission, and release-gate build identity.
