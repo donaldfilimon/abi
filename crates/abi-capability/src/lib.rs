@@ -18,7 +18,8 @@ pub use audit::{AuditError, AuditRecord, AuditSink, BoundedMemoryAuditSink};
 pub use change::{ChangeApproval, ChangeSet, CompensationClass};
 pub use credential::TenantCredentialResolver;
 pub use kernel::{
-    AuthorizationContext, AuthorizationEvaluation, Kernel, KernelError, KernelOutcome,
+    AuthorizationContext, AuthorizationEvaluation, CompensationEvaluation, Kernel, KernelError,
+    KernelOutcome,
 };
 pub use recording::{RecordedEffect, RecordingActuator};
 pub use registry::{CapabilityRegistry, RegistryError};

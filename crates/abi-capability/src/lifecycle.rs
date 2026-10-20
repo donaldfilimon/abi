@@ -29,6 +29,9 @@ pub struct AuthorizationBinding {
     pub schema_digest: Digest,
     /// Fresh precondition and pre-state commitment.
     pub precondition_digest: Digest,
+    /// Exact failed original when this authorization is for compensation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compensation_origin: Option<CompensationBinding>,
     /// Effective approval floor.
     pub required_approval: ApprovalLevel,
 }
@@ -62,6 +65,7 @@ impl AuthorizationBinding {
             )),
             schema_digest,
             precondition_digest,
+            compensation_origin: None,
             required_approval: evaluation.required_approval,
         })
     }
@@ -200,6 +204,9 @@ pub enum OutcomeState {
     Succeeded,
     /// Known failed postconditions or adapter result.
     Failed,
+    /// Durable admission completed, but dispatch was conclusively declined.
+    /// This is not a failed effect and never authorizes compensation.
+    NotDispatched,
     /// Postconditions cannot be verified; this is not success.
     Unverifiable,
     /// Interrupted or ambiguous effect, never automatically replayed.
@@ -222,6 +229,38 @@ pub struct TerminalOutcome {
     pub result_digest: Option<Digest>,
     /// Closed reason.
     pub reason: LifecycleReason,
+}
+
+impl TerminalOutcome {
+    /// Canonical terminal contract shared by producers and durable owners.
+    /// Unknown effects may retain genuine observed evidence without claiming success;
+    /// recovery interruptions and known no-dispatch cancellation cannot invent evidence.
+    #[must_use]
+    pub fn is_valid_terminal(&self) -> bool {
+        self.version == 1
+            && (self.reason != LifecycleReason::CancelledBeforeDispatch
+                || self.state == OutcomeState::NotDispatched)
+            && match self.state {
+                OutcomeState::Succeeded => {
+                    self.result_digest.is_some()
+                        && self.reason == LifecycleReason::Authorization(ReasonCode::Authorized)
+                }
+                OutcomeState::Failed
+                | OutcomeState::Unverifiable
+                | OutcomeState::Compensated
+                | OutcomeState::CompensationFailed => self.result_digest.is_some(),
+                OutcomeState::NotDispatched => {
+                    self.result_digest.is_none()
+                        && self.reason == LifecycleReason::CancelledBeforeDispatch
+                }
+                OutcomeState::Uncertain => match self.reason {
+                    LifecycleReason::Interrupted => self.result_digest.is_none(),
+                    LifecycleReason::OutcomeUnknown => true,
+                    _ => false,
+                },
+                _ => false,
+            }
+    }
 }
 
 /// Fixed-size bounded audit for one of the 17 stages.
@@ -302,4 +341,24 @@ pub enum LifecycleReason {
     CompensationFailed,
     /// Durable infrastructure unavailable.
     StorageUnavailable,
+}
+
+/// Immutable link from an inverse authorization to its original durable admission.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct CompensationBinding {
+    /// Exact original ledger execution identity.
+    pub original_execution_id: Digest,
+    /// Commitment of the complete original authorization, including any origin.
+    pub original_binding_digest: Digest,
+}
+impl CompensationBinding {
+    /// Construct the exact link; the owning store must verify the original failed state.
+    #[must_use]
+    pub fn from_prepared(original: &PreparedExecution) -> Self {
+        Self {
+            original_execution_id: original.execution_id(),
+            original_binding_digest: digest_json(original.binding()),
+        }
+    }
 }

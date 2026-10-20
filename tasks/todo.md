@@ -20,10 +20,15 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
   exact-tree source/artifact evidence. Local tests are authorized; CI remains
   paused. Plan and matrix: docs/superpowers/plans/2026-10-20-abi-stable-source-completion.md
   and its companion design. No publication or live execution is implied.
-- [ ] Exact immutable WDBX pin remains pending: clean 08a69b3 fails stable
-  rustfmt at abi-compute/src/cpu.rs's reduction fold. The preserved local
-  formatting diff fixes that stage but is not the published commit. Keep
-  dirty-source qualification distinct from an immutable revision receipt.
+- [ ] Qualify the paired immutable WDBX pin: published successor `2969d71`
+  passed its exact-source own gate (647 tests). The paired final ABI gate is
+  pending integration repairs. Original `08a69b3` failed stable rustfmt;
+  its failure and earlier dirty-source success remain separate evidence.
+- [ ] Final integration checkpoint: repair cancellation terminal and late
+  refusal audit producer/consumer mismatches with actual host + RuntimeStore
+  regressions, scoped re-review, then freeze a new three-repository snapshot.
+  The first full stable ABI gate passed before those repairs and is not final
+  acceptance. Preserve Abbey learning/TUI/desktop-lock and unrelated WDBX work.
 - [x] Restore the mandatory dependency scanner on this host: installed
   `cargo-audit 0.22.2` through `./tools/cargo.sh`; the required scan passed
   with the existing policy exceptions unchanged.

@@ -26,7 +26,7 @@ env:
   # requirement R12 (a result must be tied to immutable code). Bump this only
   # through a reviewed change whose exact WDBX revision passes this workflow.
   # Pending exact-candidate qualification and paired final gate; local diff only.
-  WDBX_REVISION: 08a69b3f22db61093e06527b3308b10589687022
+  WDBX_REVISION: 2969d71a2c3a81a060dcfc6cf53b4617f13c8b94
 
 jobs:
   check:

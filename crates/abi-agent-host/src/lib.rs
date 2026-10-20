@@ -23,6 +23,9 @@ mod budget;
 mod error;
 mod executor;
 mod governed;
+mod governed_authorization;
+mod governed_failure;
+mod governed_postconditions;
 mod host;
 mod report;
 mod schema;
@@ -38,3 +41,7 @@ pub use governed::{
     GovernedFacts, GovernedHost, GovernedOptions, GovernedRegistration, GovernedRunReport,
     GovernedStop, Postconditions, PreviewUncertainty,
 };
+
+pub use governed_failure::{GovernedDriverFailureKind, GovernedRunFailure};
+
+pub use governed_postconditions::{ObservationSource, PostconditionObservation};

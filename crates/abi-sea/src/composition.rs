@@ -121,10 +121,15 @@ pub fn persist_turn(
         || report.driver.stop != HostStopReason::Completed
         || report.driver.output.truncated()
         || report.outcomes.len() != report.executions.len()
-        || report
-            .outcomes
-            .iter()
-            .any(|o| o.state != abi_capability::lifecycle::OutcomeState::Succeeded)
+        || report.outcomes.iter().any(|o| {
+            o.version != 1
+                || o.state != abi_capability::lifecycle::OutcomeState::Succeeded
+                || o.result_digest.is_none()
+                || o.reason
+                    != abi_capability::lifecycle::LifecycleReason::Authorization(
+                        abi_capability::ReasonCode::Authorized,
+                    )
+        })
     {
         return (PersistenceOutcome::Refused, None);
     }

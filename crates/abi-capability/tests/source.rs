@@ -387,3 +387,243 @@ fn canonical_source_evaluation_enforces_package_and_narrowed_approval_ttl() {
         );
     }
 }
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn compensation_inherits_floor_and_binds_exact_original_unless_declared_preauthorized() {
+    use abi_agent_runtime::CancellationToken;
+    use abi_capability::lifecycle::{AuthorizationBinding, ExactApproval, PreparedExecution};
+    use abi_capability::{
+        Approval, ApprovalState, AuthorizationContext, AuthorizationEvaluation, Decision,
+        FixedClock, Grant, Kernel, PlatformFacts, Principal, PrincipalKind, ReasonCode, Request,
+        Reversibility,
+    };
+    for preauthorized in [false, true] {
+        let mut forward = source();
+        forward.id = "local.forward".into();
+        forward.resource_scope.guild_ref = Some("guild".into());
+        forward.reversibility = Reversibility::Reversible;
+        forward.risk_class = RiskClass::High;
+        forward.compensation = Some(CompensationSpec {
+            capability_id: "local.inverse".into(),
+            version: "1.0.0".into(),
+            pre_state: BTreeSet::from(["state".into()]),
+            preauthorized,
+        });
+        forward.rollback = RollbackSpec::ReverseOrderStopOnFailure;
+        let mut inverse = forward.clone();
+        inverse.id = "local.inverse".into();
+        inverse.compensation = None;
+        inverse.reversibility = Reversibility::ReversibleWithLoss;
+        inverse.risk_class = RiskClass::Low;
+        inverse.approval_policy = ApprovalLevel::A0None;
+        inverse.confirmation_policy = ApprovalLevel::A0None;
+        let sources = SourceRegistry::compile([forward.clone(), inverse.clone()]).unwrap();
+        let forward = sources.get(&forward.id, &forward.version).unwrap();
+        let inverse = sources.get(&inverse.id, &inverse.version).unwrap();
+        let registry = sources.capability_registry().unwrap();
+        let kernel = Kernel::new(&registry);
+        let actor = Principal::new("actor", PrincipalKind::HumanSubject).unwrap();
+        let owner = Principal::new("owner", PrincipalKind::GuildOwner).unwrap();
+        let request_for = |source: &CompiledSource| {
+            Request::new(
+                "attempt",
+                "call",
+                actor.clone(),
+                source.source().resource_scope.clone(),
+                &source.package().id,
+                &source.package().version,
+                source.package().digest,
+                Digest::from_bytes([9; 32]),
+                "policy",
+                "guild",
+                "safety",
+                1,
+            )
+            .unwrap()
+        };
+        let request = request_for(inverse);
+        let original_request = request_for(forward);
+        let original_evaluation = AuthorizationEvaluation {
+            decision: Decision::Allow,
+            reason: ReasonCode::Authorized,
+            required_approval: ApprovalLevel::A4Owner,
+            package_digest: forward.package().digest,
+            grant_digest: Some(Digest::from_bytes([7; 32])),
+        };
+        let original_binding = AuthorizationBinding::from_evaluation(
+            &original_request,
+            &original_evaluation,
+            forward.schema_digest(),
+            Digest::from_bytes([6; 32]),
+        )
+        .unwrap();
+        let original =
+            PreparedExecution::after_commit(Digest::from_bytes([5; 32]), original_binding);
+        let grants = [Grant::active(
+            "grant",
+            owner.clone(),
+            actor,
+            request.scope.clone(),
+            inverse.package(),
+            0,
+            10000,
+            ApprovalLevel::A0None,
+            1,
+            "policy",
+            "guild",
+            "safety",
+        )
+        .unwrap()];
+        let clock = FixedClock::new(100);
+        let cancellation = CancellationToken::new();
+        let used = BTreeSet::new();
+        let platform = PlatformFacts::new(BTreeSet::new(), 1, "policy", "guild", "safety");
+        let context = AuthorizationContext {
+            now_ms: &clock,
+            cancellation: &cancellation,
+            grants: &grants,
+            approval: None,
+            used_decision_ids: &used,
+            platform: &platform,
+        };
+        let precondition = Digest::from_bytes([8; 32]);
+        let pending = kernel.evaluate_compensation_source_bound(
+            &request,
+            &context,
+            inverse,
+            forward,
+            &original,
+            precondition,
+            None,
+        );
+        assert_eq!(
+            pending.evaluation.decision,
+            if preauthorized {
+                Decision::Allow
+            } else {
+                Decision::ApprovalRequired
+            }
+        );
+        assert_eq!(
+            pending.evaluation.required_approval,
+            if preauthorized {
+                ApprovalLevel::A0None
+            } else {
+                ApprovalLevel::A4Owner
+            }
+        );
+        let binding = pending.binding.unwrap();
+        assert_eq!(
+            binding
+                .compensation_origin
+                .as_ref()
+                .unwrap()
+                .original_execution_id,
+            original.execution_id()
+        );
+        let mut exact = ExactApproval {
+            approval: Approval {
+                decision_id: "decision".into(),
+                call_id: "call".into(),
+                call_digest: request.request_digest,
+                package_digest: request.package_digest,
+                grant_id: "grant".into(),
+                approver: owner,
+                coapprover: None,
+                level: ApprovalLevel::A4Owner,
+                expires_at_ms: 500,
+                state: ApprovalState::Approved,
+            },
+            binding,
+            issued_at_ms: 0,
+        };
+        assert_eq!(
+            kernel
+                .evaluate_compensation_source_bound(
+                    &request,
+                    &context,
+                    inverse,
+                    forward,
+                    &original,
+                    precondition,
+                    Some(&exact)
+                )
+                .evaluation
+                .decision,
+            Decision::Allow
+        );
+        let other_origin = PreparedExecution::after_commit(
+            Digest::from_bytes([4; 32]),
+            original.binding().clone(),
+        );
+        assert_eq!(
+            kernel
+                .evaluate_compensation_source_bound(
+                    &request,
+                    &context,
+                    inverse,
+                    forward,
+                    &other_origin,
+                    precondition,
+                    Some(&exact)
+                )
+                .evaluation
+                .decision,
+            Decision::ApprovalRequired
+        );
+        let mut changed_binding = original.binding().clone();
+        changed_binding.precondition_digest = Digest::from_bytes([3; 32]);
+        let changed_original =
+            PreparedExecution::after_commit(original.execution_id(), changed_binding);
+        assert_eq!(
+            kernel
+                .evaluate_compensation_source_bound(
+                    &request,
+                    &context,
+                    inverse,
+                    forward,
+                    &changed_original,
+                    precondition,
+                    Some(&exact)
+                )
+                .evaluation
+                .decision,
+            Decision::ApprovalRequired
+        );
+        exact.approval.level = ApprovalLevel::A2Manager;
+        exact.approval.approver.kind = PrincipalKind::GuildManager;
+        if !preauthorized {
+            assert_eq!(
+                kernel
+                    .evaluate_compensation_source_bound(
+                        &request,
+                        &context,
+                        inverse,
+                        forward,
+                        &original,
+                        precondition,
+                        Some(&exact)
+                    )
+                    .evaluation
+                    .decision,
+                Decision::ApprovalRequired
+            );
+        }
+        assert_eq!(
+            kernel
+                .evaluate_compensation_source_bound(
+                    &request,
+                    &context,
+                    forward,
+                    inverse,
+                    &original,
+                    precondition,
+                    None
+                )
+                .evaluation
+                .decision,
+            Decision::Deny
+        );
+    }
+}

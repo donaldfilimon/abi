@@ -103,6 +103,76 @@ impl<'a> Kernel<'a> {
         result
     }
 
+    /// Evaluate a declared inverse with the original authority floor and exact origin.
+    /// Fresh source prerequisites and durable original-state checks remain required.
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub fn evaluate_compensation_source_bound(
+        &self,
+        request: &Request,
+        context: &AuthorizationContext<'_>,
+        inverse: &crate::source::CompiledSource,
+        forward: &crate::source::CompiledSource,
+        original: &crate::lifecycle::PreparedExecution,
+        precondition_digest: crate::Digest,
+        approval: Option<&crate::lifecycle::ExactApproval>,
+    ) -> CompensationEvaluation {
+        use crate::lifecycle::{AuthorizationBinding, CompensationBinding};
+        let declaration = forward.source().compensation.as_ref();
+        let linked = declaration.is_some_and(|c| {
+            c.capability_id == inverse.package().id && c.version == inverse.package().version
+        }) && original.binding().package_digest == forward.package().digest
+            && original.binding().schema_digest == forward.schema_digest()
+            && original.binding().scope_digest == digest_json(&forward.source().resource_scope)
+            && original.binding().scope_digest == digest_json(&request.scope)
+            && inverse.source().resource_scope == forward.source().resource_scope
+            && inverse.package().digest == request.package_digest
+            && inverse.package().risk <= forward.package().risk
+            && forward.package().risk != RiskClass::Prohibited;
+        let mut platform = context.platform.clone();
+        if !declaration.is_some_and(|c| c.preauthorized) {
+            platform.safety_approval_floor = platform
+                .safety_approval_floor
+                .max(original.binding().required_approval);
+        }
+        let bound_context = AuthorizationContext {
+            platform: &platform,
+            approval: approval.map(|a| &a.approval),
+            ..*context
+        };
+        let mut result = self.evaluate(request, &bound_context);
+        if !linked {
+            result.decision = Decision::Deny;
+            result.reason = ReasonCode::PackageDigestMismatch;
+        }
+        let mut binding = AuthorizationBinding::from_evaluation(
+            request,
+            &result,
+            inverse.schema_digest(),
+            precondition_digest,
+        );
+        if let Some(binding) = &mut binding {
+            binding.compensation_origin = Some(CompensationBinding::from_prepared(original));
+        }
+        if result.decision == Decision::Allow
+            && (result.required_approval > ApprovalLevel::A0None || approval.is_some())
+            && !approval.zip(binding.as_ref()).is_some_and(|(a, b)| {
+                a.matches(b, context.now_ms.now_ms())
+                    && a.approval
+                        .expires_at_ms
+                        .checked_sub(a.issued_at_ms)
+                        .is_some_and(|ttl| ttl <= inverse.source().expiry_policy_ms)
+            })
+        {
+            result.decision = Decision::ApprovalRequired;
+            result.reason = ReasonCode::ApprovalInsufficient;
+        }
+        CompensationEvaluation {
+            evaluation: result,
+            binding,
+        }
+    }
+
     /// Authorize and, only after a successful audit write, record a simulated effect.
     pub fn authorize_and_record(
         &self,
@@ -573,4 +643,13 @@ fn evaluation(
         package_digest: package.map_or(request.package_digest, |p| p.digest),
         grant_digest: grant.map(digest_json),
     }
+}
+
+/// Canonical inverse decision with its exact origin-bound preview, when available.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompensationEvaluation {
+    /// Pure authority result, never durable admission.
+    pub evaluation: AuthorizationEvaluation,
+    /// Exact preview for pending or allowed inverse calls.
+    pub binding: Option<crate::lifecycle::AuthorizationBinding>,
 }

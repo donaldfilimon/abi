@@ -15,6 +15,7 @@ use std::{collections::HashSet, time::Instant};
 
 /// Internal governed boundary sharing the legacy bounded continuation driver.
 pub(crate) trait CallHook {
+    fn rejected(&mut self, error: &HostError);
     fn call(
         &mut self,
         call: &ToolCall,
@@ -76,7 +77,12 @@ impl<'a> AgentHost<'a> {
         let started = Instant::now();
         let deadline = started
             .checked_add(budget.max_duration)
-            .ok_or(HostError::BudgetExceeded(HostBudgetLimit::Deadline))?;
+            .ok_or(HostError::BudgetExceeded(HostBudgetLimit::Deadline))
+            .inspect_err(|error| {
+                if let Some(hook) = hook.as_deref_mut() {
+                    hook.rejected(error);
+                }
+            })?;
         let mut state = RunState::new(budget.max_output_bytes);
         let mut continuation = rebuild_request(request, self.schemas.specs());
         let result = self.drive(
@@ -97,6 +103,9 @@ impl<'a> AgentHost<'a> {
                 Ok(state.report(stop, started.elapsed()))
             }
             Err(error) => {
+                if let Some(hook) = hook.as_deref_mut() {
+                    hook.rejected(&error);
+                }
                 sink.emit(&ModelEvent::Finished {
                     stop: StopReason::Failed,
                 });

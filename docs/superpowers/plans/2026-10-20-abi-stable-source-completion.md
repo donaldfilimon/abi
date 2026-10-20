@@ -95,16 +95,16 @@
 **Consumes:** Task 4 lifecycle contract, current RuntimeStore schema 7 and existing approval/execution transaction semantics.
 **Produces:** a recording-only adapter and additive migration backed by the same SQLite authority.
 
-- [ ] Re-read Abbey instructions, migration ordering and current transaction/recovery tests. Do not resume its canceled Zig rewrite or change its compiler pin without its own qualification.
-- [ ] Add migration 8 (or the actual next number after revalidation), using FK-bound governance extensions to existing approval/execution rows and append-only events. Keep migrations 1–7 and legacy methods intact.
-- [ ] Refactor transaction-local helpers so governed preparation atomically validates/consumes the exact approval and commits intent, full binding digests and pre-effect audit in the same immediate transaction.
-- [ ] Support no-human-approval A0 only under a current exact grant, through the governed admission method; absence of approval never substitutes for a missing grant.
-- [ ] Enforce concurrent single-use consumption with two independent connections and actual transactions; duplicate acknowledgement never returns a dispatch-capable second handle.
-- [ ] Record richer governed outcomes without weakening old SQL checks. Unknown effects retain an Interrupted base state and explicit unknown reason. Unverifiable postconditions never become verified success.
-- [ ] Make corrupt, future-schema, unreadable and inconsistent state fail startup/admission. Never create fresh replay history as a fallback.
-- [ ] Exercise child-process crashes after prepare and after possible recording effect, restart/reopen, replay refusal and fresh-call recovery using owner-only scratch state.
-- [ ] Retain the existing approval TTL ceiling, bounded raw-free audit and cancellation semantics. Do not migrate a user database or enable federation execution methods.
-- [ ] Run focused Abbey tests through a proven pinned-toolchain environment with stdin EOF. Reserve its full check.sh for the final paired source snapshot.
+- [x] Re-read Abbey instructions, migration ordering and current transaction/recovery tests. Do not resume its canceled Zig rewrite or change its compiler pin without its own qualification.
+- [x] Add migration 8 (or the actual next number after revalidation), using FK-bound governance extensions to existing approval/execution rows and append-only events. Keep migrations 1–7 and legacy methods intact.
+- [x] Refactor transaction-local helpers so governed preparation atomically validates/consumes the exact approval and commits intent, full binding digests and pre-effect audit in the same immediate transaction.
+- [x] Support no-human-approval A0 only under a current exact grant, through the governed admission method; absence of approval never substitutes for a missing grant.
+- [x] Enforce concurrent single-use consumption with two independent connections and actual transactions; duplicate acknowledgement never returns a dispatch-capable second handle.
+- [x] Record richer governed outcomes without weakening old SQL checks. Unknown effects retain an Interrupted base state and explicit unknown reason. Unverifiable postconditions never become verified success.
+- [x] Make corrupt, future-schema, unreadable and inconsistent state fail startup/admission. Never create fresh replay history as a fallback.
+- [x] Exercise child-process crashes after prepare and after possible recording effect, restart/reopen, replay refusal and fresh-call recovery using owner-only scratch state.
+- [x] Retain the existing approval TTL ceiling, bounded raw-free audit and cancellation semantics. Do not migrate a user database or enable federation execution methods.
+- [x] Run focused Abbey tests through a proven pinned-toolchain environment with stdin EOF. Reserve its full check.sh for the final paired source snapshot.
 
 ## Task 6: Add the governed recording host
 
@@ -176,3 +176,34 @@ WDBX has no tools/cargo.sh: invoke its bash tools/check.sh with the selected
 1.99.1 toolchain bin and /usr/bin first, preserving the required loader path.
 Abbey owns its separate check.sh and feature matrix. CI source changes remain
 unexecuted remotely.
+
+## Final integration checkpoint (2026-10-20)
+
+The independently reviewed local slice includes capability compilation, the recording host,
+Abbey's same-store lifecycle owner, dedicated-store authorized recall and selective inferred
+persistence. CI, publication, live providers, real training and deployment remain paused or
+separate. Preserve Abbey's learning/TUI/desktop-lock lane and WDBX's unrelated completion work.
+
+The final whole-diff review found two producer/consumer mismatches hidden by separate mocks:
+cancellation terminal records and late refusal audit records. One integration repair wave owns
+`crates/abi-agent-host/`, the minimal shared `abi-capability` lifecycle contract, and Abbey's
+`src/runtime/store/governed*`, next additive migration and `tests/governed_sea.rs`.
+Acceptance requires reproduced failures and actual host + RuntimeStore tests for known
+no-dispatch cancellation, post-effect uncertainty, final-facts refusal and owner admission
+refusal, including durable audit, reopen and replay. A known no-dispatch terminal must never
+authorize compensation. Successful stage-11 preparation remains atomic with approval consumption.
+
+Dependency order: repair and scoped re-review → content-hashed three-repository snapshot →
+complete ABI stable gate paired with published WDBX `2969d71a2c3a81a060dcfc6cf53b4617f13c8b94`
+→ Abbey's own pinned-toolchain gate → fresh copied CLI/MCP artifacts → final task/evidence report.
+The exact WDBX successor passed its own gate (647 tests); the original `08a69b3` formatting
+failure remains recorded. The first complete ABI stable snapshot gate passed, but it predates
+these integration repairs and cannot qualify their final source.
+
+The renewed cross-repository Rust requirement adds an inventory checkpoint: ABI and
+WDBX have no Zig source/build files; Abbey retains 59 canceled-rewrite files under
+its October 19 preservation decision, with no active Zig invocation in its current
+manifest, installer, CI or tools. Preserve historical files. After the integration
+repair, also run Abbey's retained application gate with exact stable 1.99.1 as a
+candidate; compiler-pin changes require that own-source qualification and coordinated
+ownership. NYON/Quesar implementation remains with their existing owner chats.

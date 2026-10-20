@@ -1,10 +1,10 @@
 # Goals
 
-> **Current path note (2026-08-27):** the operational checkout is
-> `/Users/donaldfilimon/dev/active/abi`. The substrate crates
+> **Current path note (2026-10-20):** the operational checkout is
+> `/Users/donald/sources/repos/abi`. The substrate crates
 > `abi-foundation`, `abi-core`, `abi-telemetry`, `abi-compute`, and `abi-wdbx`
 > now live in the required sibling `../wdbx/crates/`. Older `~/abi`,
-> `/Users/donaldfilimon/abi`, and ABI-local substrate paths below are retained
+> `/Users/donaldfilimon/abi`, `/Users/donaldfilimon/dev/active/abi`, and ABI-local substrate paths below are retained
 > only as dated historical evidence; do not use them as current commands.
 
 ## Finish all completable tasks/todo.md hardening
@@ -350,3 +350,19 @@ status: in progress
   tests). Those are separate source identities, not an accepted immutable pin.
 - The complete changed-tree ABI/Abbey gates, governed lifecycle/restart tests,
   evidence integration and packaged-runtime qualification remain pending.
+
+### Current bounded checkpoint — final producer/consumer qualification
+
+- Ownership: ABI host/capability lifecycle plus Abbey governed adapter, next additive
+  migration and governed SEA fixture. Preserve Abbey learning/TUI/desktop-lock work
+  and WDBX completion contracts owned by their existing lanes.
+- Acceptance: real RuntimeStore cancellation/refusal regressions, scoped re-review,
+  new content-hashed snapshot, complete stable ABI gate, Abbey retained-application
+  gate, fresh CLI/MCP packaging and an explicit external-blocker report.
+- Evidence: exact published WDBX `2969d71` passed its own gate (647 tests). The
+  first complete paired stable ABI gate passed before the final integration repair;
+  it is not acceptance of changed source. CI/publication/live effects remain paused.
+- Zig inventory: ABI/WDBX contain no Zig files. Abbey's 59 retained rewrite files
+  are historical under REWRITE-DECISION-2026-10-19.md; active manifest, installer,
+  CI and checks use Rust. Preserve the canceled implementation. Qualify Abbey's
+  retained application on exact Rust 1.99.1 before changing its current compiler pin.

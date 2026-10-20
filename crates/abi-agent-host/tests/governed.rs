@@ -19,7 +19,7 @@ fn source() -> PackageSource {
         "preconditions":["fresh"],"invariants":["scoped"],"deadline_ms":1000,"rate_class":"bounded",
         "budgets":{"max_input_bytes":512,"max_output_bytes":512,"max_events":4,"max_calls":1},
         "confirmation_policy":"A0None","delegation_policy":"Forbidden","expiry_policy_ms":1000,"revocation_policy":"RecheckBeforeEffect","approval_policy":"A0None",
-        "idempotency":"NaturallyIdempotent","compensation":null,"rollback":"None","postconditions":[],
+        "idempotency":"NaturallyIdempotent","compensation":null,"rollback":"None","postconditions":["observed"],
         "adapter_bindings":[{"adapter_id":"recording","api_version":"1"}],
         "receipt_requirements":{"redacted":true,"require_postcondition_evidence":true},
         "fixtures":{"deterministic":Digest::from_bytes([3;32]),"adversarial":Digest::from_bytes([4;32]),"failure":Digest::from_bytes([5;32])},
@@ -56,18 +56,37 @@ impl GovernedFactProvider for Facts {
         }
         Ok(value)
     }
-    fn postconditions(&mut self, _: &Request, _: &BTreeSet<String>) -> Postconditions {
-        self.post
+    fn postconditions(
+        &mut self,
+        request: &Request,
+        required: &BTreeSet<String>,
+    ) -> Result<Vec<PostconditionObservation>, LifecycleError> {
+        Ok(required
+            .iter()
+            .map(|predicate| PostconditionObservation {
+                predicate: predicate.clone(),
+                request_digest: request.request_digest,
+                observed_at_ms: 90,
+                expires_at_ms: 200,
+                evidence_digest: Some(Digest::from_bytes([7; 32])),
+                source: ObservationSource::RecordingFixture,
+                status: self.post,
+            })
+            .collect())
     }
 }
 #[derive(Default)]
 struct Ledger {
     stages: Vec<StageAudit>,
+    prepares: Vec<PrepareRequest>,
     fail_stage: Option<u8>,
     fail_finish: bool,
     intents: usize,
     execution_ids: Vec<Digest>,
+    compensated_origins: Vec<Digest>,
+    invalidate_original_on_prepare: bool,
     outcome: Option<TerminalOutcome>,
+    outcomes_by_id: std::collections::HashMap<Digest, TerminalOutcome>,
     cancel_prepare: Option<CancellationToken>,
     cancel_stage: Option<(u8, CancellationToken)>,
 }
@@ -86,7 +105,27 @@ impl DurableLifecycle for Ledger {
     }
     fn prepare(&mut self, request: &PrepareRequest) -> Result<PrepareOutcome, LifecycleError> {
         assert!(request.is_valid());
+        self.prepares.push(request.clone());
         if self.execution_ids.contains(&request.execution_id) {
+            return Ok(PrepareOutcome::Uncertain);
+        }
+        if let Some(origin) = &request.binding.compensation_origin
+            && self.invalidate_original_on_prepare
+        {
+            self.outcomes_by_id
+                .get_mut(&origin.original_execution_id)
+                .unwrap()
+                .state = OutcomeState::Uncertain;
+        }
+        if let Some(origin) = &request.binding.compensation_origin
+            && (self
+                .compensated_origins
+                .contains(&origin.original_execution_id)
+                || !self
+                    .outcomes_by_id
+                    .get(&origin.original_execution_id)
+                    .is_some_and(|o| o.state == OutcomeState::Failed))
+        {
             return Ok(PrepareOutcome::Uncertain);
         }
         let stage = StageAudit {
@@ -98,6 +137,9 @@ impl DurableLifecycle for Ledger {
             reason: LifecycleReason::Authorization(ReasonCode::Authorized),
         };
         self.append_stage(&stage)?;
+        if let Some(origin) = &request.binding.compensation_origin {
+            self.compensated_origins.push(origin.original_execution_id);
+        }
         self.intents += 1;
         self.execution_ids.push(request.execution_id);
         if let Some(token) = &self.cancel_prepare {
@@ -110,17 +152,19 @@ impl DurableLifecycle for Ledger {
     }
     fn finish(
         &mut self,
-        _: &PreparedExecution,
+        prepared: &PreparedExecution,
         outcome: &TerminalOutcome,
     ) -> Result<(), LifecycleError> {
         if self.fail_finish {
             return Err(LifecycleError::Unavailable);
         }
         self.outcome = Some(outcome.clone());
+        self.outcomes_by_id
+            .insert(prepared.execution_id(), outcome.clone());
         Ok(())
     }
-    fn lookup(&mut self, _: Digest) -> Result<Option<TerminalOutcome>, LifecycleError> {
-        Ok(self.outcome.clone())
+    fn lookup(&mut self, id: Digest) -> Result<Option<TerminalOutcome>, LifecycleError> {
+        Ok(self.outcomes_by_id.get(&id).cloned())
     }
 }
 fn run(
@@ -150,13 +194,96 @@ fn run_approved(
     input: &str,
     approval: Option<ExactApproval>,
 ) -> (GovernedRunReport, RecordingActuator, usize) {
-    let mut src = source();
+    let provider = Provider(AtomicUsize::new(0), input.into());
+    let (report, actuator) = run_provider_fixture(
+        floor,
+        ledger,
+        change,
+        post,
+        mutate,
+        approval,
+        &provider,
+        HostBudget::default(),
+    );
+    (report.unwrap(), actuator, provider.0.load(Ordering::SeqCst))
+}
+#[allow(clippy::too_many_arguments)]
+fn run_provider_fixture(
+    floor: ApprovalLevel,
+    ledger: &mut Ledger,
+    change: bool,
+    post: Postconditions,
+    mutate: impl FnOnce(&mut Facts),
+    approval: Option<ExactApproval>,
+    provider: &dyn ModelProvider,
+    budget: HostBudget,
+) -> (
+    Result<GovernedRunReport, Box<GovernedRunFailure>>,
+    RecordingActuator,
+) {
+    run_identity_fixture(
+        floor,
+        ledger,
+        change,
+        post,
+        mutate,
+        approval,
+        provider,
+        budget,
+        ("attempt", "actor", "tenant"),
+    )
+}
+#[allow(clippy::too_many_arguments)]
+fn run_identity_fixture(
+    floor: ApprovalLevel,
+    ledger: &mut Ledger,
+    change: bool,
+    post: Postconditions,
+    mutate: impl FnOnce(&mut Facts),
+    approval: Option<ExactApproval>,
+    provider: &dyn ModelProvider,
+    budget: HostBudget,
+    identity: (&str, &str, &str),
+) -> (
+    Result<GovernedRunReport, Box<GovernedRunFailure>>,
+    RecordingActuator,
+) {
+    run_source_fixture(
+        floor,
+        ledger,
+        change,
+        post,
+        mutate,
+        approval,
+        provider,
+        budget,
+        identity,
+        source(),
+    )
+}
+#[allow(clippy::too_many_arguments)]
+fn run_source_fixture(
+    floor: ApprovalLevel,
+    ledger: &mut Ledger,
+    change: bool,
+    post: Postconditions,
+    mutate: impl FnOnce(&mut Facts),
+    approval: Option<ExactApproval>,
+    provider: &dyn ModelProvider,
+    budget: HostBudget,
+    identity: (&str, &str, &str),
+    mut src: PackageSource,
+) -> (
+    Result<GovernedRunReport, Box<GovernedRunFailure>>,
+    RecordingActuator,
+) {
     src.approval_policy = floor;
+    src.resource_scope.tenant_id = identity.2.into();
     let sources = SourceRegistry::compile([src]).unwrap();
     let compiled = sources.get("local.observe", "1.0.0").unwrap();
-    let principal = Principal::new("actor", PrincipalKind::Service).unwrap();
+    let principal = Principal::new(identity.1, PrincipalKind::Service).unwrap();
     let request = Request::new(
-        "attempt",
+        identity.0,
         "call",
         principal.clone(),
         compiled.source().resource_scope.clone(),
@@ -205,9 +332,8 @@ fn run_approved(
         post,
     };
     mutate(&mut facts);
-    let provider = Provider(AtomicUsize::new(0), input.into());
     let host = GovernedHost::new(
-        &provider,
+        provider,
         &sources,
         vec![GovernedRegistration {
             tool_name: "observe".into(),
@@ -221,26 +347,24 @@ fn run_approved(
         .clone()
         .or_else(|| ledger.cancel_stage.as_ref().map(|(_, token)| token.clone()))
         .unwrap_or_default();
-    let mut actuator = RecordingActuator::new(Vec::<String>::new());
-    let report = host
-        .run(
-            &ModelRequest::new("fixture"),
-            &mut CollectingSink::default(),
-            &token,
-            GovernedOptions {
-                clock: &clock,
-                host_budget: HostBudget::default(),
-                approval,
-                idempotency_key: None,
-                requested_deadline_ms: 1000,
-                requested_budgets: compiled.source().budgets.clone(),
-            },
-            &mut facts,
-            ledger,
-            &mut actuator,
-        )
-        .unwrap();
-    (report, actuator, provider.0.load(Ordering::SeqCst))
+    let mut actuator = RecordingActuator::new(["observed"]);
+    let report = host.run(
+        &ModelRequest::new("fixture"),
+        &mut CollectingSink::default(),
+        &token,
+        GovernedOptions {
+            clock: &clock,
+            host_budget: budget,
+            approval,
+            idempotency_key: None,
+            requested_deadline_ms: 1000,
+            requested_budgets: compiled.source().budgets.clone(),
+        },
+        &mut facts,
+        ledger,
+        &mut actuator,
+    );
+    (report, actuator)
 }
 #[test]
 fn all_seventeen_stages_and_correlated_continuation() {
@@ -447,7 +571,12 @@ fn explicit_resubmission_rechecks_exact_preview_roles_and_ttl() {
         issued_at_ms: 90,
         approval: Approval {
             decision_id: "decision".into(),
-            call_id: "call".into(),
+            call_id: pending
+                .pending_approval
+                .as_ref()
+                .unwrap()
+                .call_reference
+                .clone(),
             call_digest: binding.request_digest,
             package_digest: binding.package_digest,
             grant_id: "grant".into(),
@@ -508,194 +637,6 @@ fn explicit_resubmission_rechecks_exact_preview_roles_and_ttl() {
     }
 }
 
-struct CompensationProvider(AtomicUsize);
-impl ModelProvider for CompensationProvider {
-    fn id(&self) -> &'static str {
-        "compensation"
-    }
-    fn run(&self, _: &ModelRequest, run: &mut RunContext<'_>) -> Result<(), RuntimeError> {
-        match self.0.fetch_add(1, Ordering::SeqCst) {
-            0 => {
-                run.emit(&ModelEvent::ToolCall(ToolCall::new(
-                    "original", "observe", "{}",
-                )));
-            }
-            1 => {
-                run.emit(&ModelEvent::ToolCall(ToolCall::new(
-                    "inverse", "inverse", "{}",
-                )));
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-}
-#[test]
-fn compensation_has_separate_intent_and_stops_on_first_failure() {
-    compensation_case(Postconditions::Failed);
-    compensation_case(Postconditions::Verified);
-}
-#[allow(clippy::too_many_lines)] // Full original/inverse fixture keeps authority boundaries visible.
-fn compensation_case(post: Postconditions) {
-    let mut original = source();
-    original.compensation = Some(CompensationSpec {
-        capability_id: "local.inverse".into(),
-        version: "1.0.0".into(),
-        pre_state: BTreeSet::from(["captured".into()]),
-        preauthorized: false,
-    });
-    original.rollback = RollbackSpec::ReverseOrderStopOnFailure;
-    let mut inverse = source();
-    inverse.id = "local.inverse".into();
-    let sources = SourceRegistry::compile([original, inverse]).unwrap();
-    let principal = Principal::new("actor", PrincipalKind::Service).unwrap();
-    let mut registrations = Vec::new();
-    let mut grants = Vec::new();
-    for (tool, id) in [("observe", "local.observe"), ("inverse", "local.inverse")] {
-        let compiled = sources.get(id, "1.0.0").unwrap();
-        let request = Request::new(
-            "attempt",
-            "template",
-            principal.clone(),
-            compiled.source().resource_scope.clone(),
-            id,
-            "1.0.0",
-            compiled.package().digest,
-            Digest::default(),
-            "p",
-            "g",
-            "s",
-            0,
-        )
-        .unwrap();
-        grants.push(
-            Grant::active(
-                tool,
-                Principal::new("owner", PrincipalKind::OrganizationOwner).unwrap(),
-                principal.clone(),
-                request.scope.clone(),
-                compiled.package(),
-                0,
-                2000,
-                ApprovalLevel::A0None,
-                0,
-                "p",
-                "g",
-                "s",
-            )
-            .unwrap(),
-        );
-        registrations.push(GovernedRegistration {
-            tool_name: tool.into(),
-            request,
-        });
-    }
-    let mut facts = Facts {
-        value: GovernedFacts {
-            platform: PlatformFacts::new(BTreeSet::new(), 0, "p", "g", "s"),
-            grants,
-            used_decision_ids: BTreeSet::new(),
-            predicates: BTreeSet::from(["fresh".into(), "scoped".into()]),
-            captured_pre_state: Some(Digest::from_bytes([6; 32])),
-            observed_at_ms: 90,
-            expires_at_ms: 200,
-            permitted_data_classes: BTreeSet::from([DataClass::Operational]),
-            residency: ResidencyPolicy::LocalOnly,
-            retention: RetentionClass::Session,
-            safety_allows: true,
-            rate_allows: true,
-        },
-        reads: 0,
-        change: false,
-        post: Postconditions::Failed,
-    };
-    let provider = CompensationProvider(AtomicUsize::new(0));
-    let host = GovernedHost::new(&provider, &sources, registrations).unwrap();
-    let clock = FixedClock::new(100);
-    let options = || GovernedOptions {
-        clock: &clock,
-        host_budget: HostBudget::default(),
-        approval: None,
-        idempotency_key: None,
-        requested_deadline_ms: 1000,
-        requested_budgets: source().budgets,
-    };
-    let mut ledger = Ledger::default();
-    let mut actuator = RecordingActuator::new(Vec::<String>::new());
-    let token = CancellationToken::new();
-    let mut sink = CollectingSink::default();
-    let model = ModelRequest::new("fixture");
-    let first = host
-        .run(
-            &model,
-            &mut sink,
-            &token,
-            options(),
-            &mut facts,
-            &mut ledger,
-            &mut actuator,
-        )
-        .unwrap();
-    assert_eq!(first.outcomes[0].state, OutcomeState::Failed);
-    assert_eq!(ledger.intents, 1);
-    facts.post = post;
-    let compensated = host
-        .run_compensation(
-            "observe",
-            &first.executions[0],
-            &model,
-            &mut sink,
-            &token,
-            options(),
-            &mut facts,
-            &mut ledger,
-            &mut actuator,
-        )
-        .unwrap();
-    assert_eq!(
-        compensated.outcomes[0].state,
-        if post == Postconditions::Verified {
-            OutcomeState::Compensated
-        } else {
-            OutcomeState::CompensationFailed
-        }
-    );
-    assert_eq!(ledger.intents, 2);
-    assert_eq!(actuator.records().len(), 2);
-    assert_eq!(
-        provider.0.load(Ordering::SeqCst),
-        if post == Postconditions::Verified {
-            3
-        } else {
-            2
-        }
-    );
-    // Unknown original outcomes cannot authorize any inverse attempt.
-    ledger.outcome.as_mut().unwrap().state = OutcomeState::Uncertain;
-    assert!(matches!(
-        host.run_compensation(
-            "observe",
-            &first.executions[0],
-            &model,
-            &mut sink,
-            &token,
-            options(),
-            &mut facts,
-            &mut ledger,
-            &mut actuator
-        ),
-        Err(GovernedCompensationError::InvalidOriginal)
-    ));
-    assert_eq!(
-        provider.0.load(Ordering::SeqCst),
-        if post == Postconditions::Verified {
-            3
-        } else {
-            2
-        }
-    );
-}
-
 #[test]
 fn audit_callback_cancellation_before_prepare_and_dispatch_never_records() {
     for stage in [10, 11, 12] {
@@ -713,4 +654,272 @@ fn audit_callback_cancellation_before_prepare_and_dispatch_never_records() {
         assert_eq!(runs, 1);
         assert_eq!(ledger.intents, usize::from(stage > 10));
     }
+}
+
+struct FailAfterEffect(AtomicUsize, bool);
+impl ModelProvider for FailAfterEffect {
+    fn id(&self) -> &'static str {
+        "failure-after-effect"
+    }
+    fn run(&self, _: &ModelRequest, run: &mut RunContext<'_>) -> Result<(), RuntimeError> {
+        if self.0.fetch_add(1, Ordering::SeqCst) == 0 {
+            run.emit(&ModelEvent::ToolCall(ToolCall::new(
+                "call", "observe", "{}",
+            )));
+            return Ok(());
+        }
+        if self.1 {
+            run.emit(&ModelEvent::ToolResult(ToolResult::with_limit(
+                "fake",
+                ToolStatus::Ok,
+                "PRIVATE_CANARY",
+                100,
+            )));
+            Ok(())
+        } else {
+            Err(RuntimeError::ScriptExhausted { scripted: 0 })
+        }
+    }
+}
+#[test]
+fn later_driver_failure_retains_prepared_accounting() {
+    for (forged, limited) in [(false, false), (true, false), (false, true)] {
+        let provider = FailAfterEffect(AtomicUsize::new(0), forged);
+        let mut budget = HostBudget::default();
+        if limited {
+            budget.max_provider_runs = 1;
+        }
+        let mut ledger = Ledger::default();
+        let (result, actuator) = run_provider_fixture(
+            ApprovalLevel::A0None,
+            &mut ledger,
+            false,
+            Postconditions::Verified,
+            |_| {},
+            None,
+            &provider,
+            budget,
+        );
+        assert_eq!(actuator.records().len(), 1);
+        let failure = result.unwrap_err();
+        assert_eq!(failure.executions.len(), 1);
+        assert_eq!(failure.outcomes[0].state, OutcomeState::Succeeded);
+        assert_eq!(
+            failure.kind,
+            if limited {
+                GovernedDriverFailureKind::Budget(HostBudgetLimit::ProviderRuns)
+            } else if forged {
+                GovernedDriverFailureKind::Protocol
+            } else {
+                GovernedDriverFailureKind::Provider
+            }
+        );
+        assert!(!format!("{failure:?}").contains("PRIVATE_CANARY"));
+    }
+}
+
+#[path = "governed/compensation.rs"]
+mod compensation;
+
+#[test]
+fn durable_identity_uses_trusted_operation_not_model_call_id_alone() {
+    let mut ledger = Ledger::default();
+    for identity in [
+        ("attempt", "actor", "tenant"),
+        ("attempt2", "actor", "tenant"),
+        ("attempt", "actor2", "tenant"),
+        ("attempt", "actor", "tenant2"),
+    ] {
+        let provider = Provider(AtomicUsize::new(0), "{}".into());
+        let (result, actuator) = run_identity_fixture(
+            ApprovalLevel::A0None,
+            &mut ledger,
+            false,
+            Postconditions::Verified,
+            |_| {},
+            None,
+            &provider,
+            HostBudget::default(),
+            identity,
+        );
+        assert_eq!(result.unwrap().governance, GovernedStop::Completed);
+        assert_eq!(actuator.records().len(), 1);
+    }
+    let provider = Provider(AtomicUsize::new(0), "{}".into());
+    let (result, actuator) = run_identity_fixture(
+        ApprovalLevel::A0None,
+        &mut ledger,
+        false,
+        Postconditions::Verified,
+        |_| {},
+        None,
+        &provider,
+        HostBudget::default(),
+        ("attempt", "actor", "tenant"),
+    );
+    assert_eq!(result.unwrap().governance, GovernedStop::Uncertain);
+    assert_eq!(actuator.records(), []);
+}
+struct CanaryIdProvider(AtomicUsize);
+impl ModelProvider for CanaryIdProvider {
+    fn id(&self) -> &'static str {
+        "canary-id"
+    }
+    fn run(&self, _: &ModelRequest, run: &mut RunContext<'_>) -> Result<(), RuntimeError> {
+        if self.0.fetch_add(1, Ordering::SeqCst) == 0 {
+            run.emit(&ModelEvent::ToolCall(ToolCall::new(
+                "model_call_canary",
+                "observe",
+                "{}",
+            )));
+        }
+        Ok(())
+    }
+}
+#[test]
+fn model_call_id_canary_stays_only_in_provider_correlation() {
+    let mut ledger = Ledger::default();
+    let provider = CanaryIdProvider(AtomicUsize::new(0));
+    let (result, actuator) = run_provider_fixture(
+        ApprovalLevel::A0None,
+        &mut ledger,
+        false,
+        Postconditions::Verified,
+        |_| {},
+        None,
+        &provider,
+        HostBudget::default(),
+    );
+    let report = result.unwrap();
+    assert_eq!(report.driver.tool_results[0].call_id, "model_call_canary");
+    assert!(
+        !serde_json::to_string(&ledger.prepares)
+            .unwrap()
+            .contains("model_call_canary")
+    );
+    assert!(
+        !serde_json::to_string(&ledger.stages)
+            .unwrap()
+            .contains("model_call_canary")
+    );
+    assert!(
+        !serde_json::to_string(actuator.records())
+            .unwrap()
+            .contains("model_call_canary")
+    );
+    assert!(
+        !format!(
+            "{:?}{:?}{:?}",
+            report.executions, report.outcomes, report.pending_approval
+        )
+        .contains("model_call_canary")
+    );
+}
+
+struct ForgedFirst;
+impl ModelProvider for ForgedFirst {
+    fn id(&self) -> &'static str {
+        "forged-first"
+    }
+    fn run(&self, _: &ModelRequest, run: &mut RunContext<'_>) -> Result<(), RuntimeError> {
+        run.emit(&ModelEvent::ToolResult(ToolResult::with_limit(
+            "RAW_REJECTED_ID",
+            ToolStatus::Ok,
+            "RAW_RESULT",
+            100,
+        )));
+        Ok(())
+    }
+}
+#[test]
+fn prehook_protocol_refusal_has_fallible_redacted_terminal_audit() {
+    let mut ledger = Ledger::default();
+    let (result, actuator) = run_provider_fixture(
+        ApprovalLevel::A0None,
+        &mut ledger,
+        false,
+        Postconditions::Verified,
+        |_| {},
+        None,
+        &ForgedFirst,
+        HostBudget::default(),
+    );
+    assert!(result.is_err());
+    assert_eq!(actuator.records(), []);
+    assert_eq!(ledger.stages.len(), 1);
+    assert_eq!(ledger.stages[0].stage, 0);
+    assert_eq!(ledger.stages[0].decision, Decision::Deny);
+    assert!(
+        !serde_json::to_string(&ledger.stages)
+            .unwrap()
+            .contains("RAW_")
+    );
+}
+#[test]
+fn rejected_driver_and_failed_audit_remain_separate_closed_errors() {
+    let mut ledger = Ledger {
+        fail_stage: Some(0),
+        ..Ledger::default()
+    };
+    let (result, _) = run_provider_fixture(
+        ApprovalLevel::A0None,
+        &mut ledger,
+        false,
+        Postconditions::Verified,
+        |_| {},
+        None,
+        &ForgedFirst,
+        HostBudget::default(),
+    );
+    let failure = result.unwrap_err();
+    assert_eq!(failure.kind, GovernedDriverFailureKind::Protocol);
+    assert_eq!(failure.audit_error, Some(LifecycleError::Capacity));
+    assert!(!format!("{failure:?}").contains("RAW_"));
+}
+
+#[test]
+fn recording_output_schema_failure_is_distinct_from_predicate_failure() {
+    let mut src = source();
+    src.output_schema = json!({"type":"string"});
+    let mut ledger = Ledger::default();
+    let provider = Provider(AtomicUsize::new(0), "{}".into());
+    let (result, actuator) = run_source_fixture(
+        ApprovalLevel::A0None,
+        &mut ledger,
+        false,
+        Postconditions::Verified,
+        |_| {},
+        None,
+        &provider,
+        HostBudget::default(),
+        ("attempt", "actor", "tenant"),
+        src,
+    );
+    let report = result.unwrap();
+    assert_eq!(actuator.records().len(), 1);
+    assert_eq!(report.outcomes[0].state, OutcomeState::Failed);
+    assert_eq!(report.outcomes[0].reason, LifecycleReason::AdapterFailure);
+}
+#[test]
+fn driver_budget_stop_before_hook_is_also_audited() {
+    let mut ledger = Ledger::default();
+    let provider = Provider(AtomicUsize::new(0), "{}".into());
+    let budget = HostBudget {
+        max_output_tokens: 0,
+        ..HostBudget::default()
+    };
+    let (result, actuator) = run_provider_fixture(
+        ApprovalLevel::A0None,
+        &mut ledger,
+        false,
+        Postconditions::Verified,
+        |_| {},
+        None,
+        &provider,
+        budget,
+    );
+    let report = result.unwrap();
+    assert_ne!(report.governance, GovernedStop::Completed);
+    assert_eq!(actuator.records(), []);
+    assert_eq!(ledger.stages.len(), 1);
 }

@@ -1,6 +1,7 @@
 //! Recording-only governance over the shared bounded host driver.
 #![allow(missing_docs)]
-use crate::{AgentHost, HostBudget, HostError, HostRunReport, ToolExecutionContext};
+use crate::governed_authorization::{CompensationContext, evaluate};
+use crate::{AgentHost, GovernedRunFailure, HostBudget, HostRunReport, ToolExecutionContext};
 use abi_agent_runtime::{
     CancellationToken, DenyAllPolicy, EventSink, ModelProvider, ModelRequest, ToolCall,
     ToolRegistry, ToolResult, ToolSpec, ToolStatus,
@@ -46,7 +47,7 @@ pub struct GovernedFacts {
     pub rate_allows: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum Postconditions {
     Verified,
     Failed,
@@ -56,7 +57,11 @@ pub enum Postconditions {
 /// Caller-owned trusted platform bridge; errors are closed and content-free.
 pub trait GovernedFactProvider {
     fn observe(&mut self, request: &Request) -> Result<GovernedFacts, LifecycleError>;
-    fn postconditions(&mut self, request: &Request, required: &BTreeSet<String>) -> Postconditions;
+    fn postconditions(
+        &mut self,
+        request: &Request,
+        required: &BTreeSet<String>,
+    ) -> Result<Vec<crate::PostconditionObservation>, LifecycleError>;
 }
 
 pub struct GovernedOptions<'a> {
@@ -93,7 +98,7 @@ pub struct GovernedRunReport {
 pub enum GovernedCompensationError {
     InvalidOriginal,
     Lifecycle(LifecycleError),
-    Driver(HostError),
+    Driver(Box<GovernedRunFailure>),
 }
 
 /// Structured inspection data derived only from the startup-compiled source.
@@ -101,6 +106,7 @@ pub enum GovernedCompensationError {
 pub struct ApprovalPreview {
     pub binding: AuthorizationBinding,
     pub tool: String,
+    pub call_reference: String,
     pub capability: String,
     pub version: String,
     pub parameter_digest: Digest,
@@ -188,7 +194,7 @@ impl<'a> GovernedHost<'a> {
         facts: &mut dyn GovernedFactProvider,
         ledger: &mut dyn DurableLifecycle,
         actuator: &mut RecordingActuator,
-    ) -> Result<GovernedRunReport, HostError> {
+    ) -> Result<GovernedRunReport, Box<GovernedRunFailure>> {
         self.run_mode(
             request,
             sink,
@@ -197,7 +203,7 @@ impl<'a> GovernedHost<'a> {
             facts,
             ledger,
             actuator,
-            false,
+            None,
         )
     }
 
@@ -211,8 +217,8 @@ impl<'a> GovernedHost<'a> {
         facts: &mut dyn GovernedFactProvider,
         ledger: &mut dyn DurableLifecycle,
         actuator: &mut RecordingActuator,
-        compensation: bool,
-    ) -> Result<GovernedRunReport, HostError> {
+        compensation: Option<CompensationContext<'_>>,
+    ) -> Result<GovernedRunReport, Box<GovernedRunFailure>> {
         let registry = Specs(self.specs.clone());
         let legacy = AgentHost::new(
             self.provider,
@@ -220,7 +226,8 @@ impl<'a> GovernedHost<'a> {
             &DenyAllPolicy,
             &NoAudit,
             &NoExecutor,
-        )?;
+        )
+        .map_err(|error| Box::new(GovernedRunFailure::from_driver(&error)))?;
         let mut hook = Governance {
             host: self,
             options: &options,
@@ -231,6 +238,7 @@ impl<'a> GovernedHost<'a> {
             outcomes: Vec::new(),
             executions: Vec::new(),
             pending_approval: None,
+            audit_error: None,
             calls: 0,
             compensation,
         };
@@ -248,9 +256,29 @@ impl<'a> GovernedHost<'a> {
             .max_tool_result_bytes
             .min(options.requested_budgets.max_output_bytes as usize);
         let driver =
-            legacy.run_with_hook(request, sink, cancellation, budget, &mut Some(&mut hook))?;
+            match legacy.run_with_hook(request, sink, cancellation, budget, &mut Some(&mut hook)) {
+                Ok(driver) => driver,
+                Err(error) => {
+                    let mut failure = GovernedRunFailure::from_driver(&error);
+                    failure.audit_error = hook.audit_error;
+                    failure.executions = hook.executions;
+                    failure.outcomes = hook.outcomes;
+                    failure.pending_approval = hook.pending_approval;
+                    return Err(Box::new(failure));
+                }
+            };
         if hook.stop == GovernedStop::Completed && !driver.is_complete() {
-            hook.stop = GovernedStop::DriverStopped(driver.stop);
+            let error = match driver.stop {
+                crate::HostStopReason::BudgetExhausted(limit) => {
+                    crate::HostError::BudgetExceeded(limit)
+                }
+                _ => crate::HostError::BudgetExceeded(crate::HostBudgetLimit::Deadline),
+            };
+            crate::host::CallHook::rejected(&mut hook, &error);
+            hook.stop = hook.audit_error.map_or(
+                GovernedStop::DriverStopped(driver.stop),
+                GovernedStop::Infrastructure,
+            );
         }
         Ok(GovernedRunReport {
             driver,
@@ -325,7 +353,10 @@ impl<'a> GovernedHost<'a> {
                 facts,
                 ledger,
                 actuator,
-                true,
+                Some(CompensationContext {
+                    forward: source,
+                    original,
+                }),
             )
             .map_err(GovernedCompensationError::Driver)
     }
@@ -341,11 +372,30 @@ struct Governance<'a, 'b> {
     outcomes: Vec<TerminalOutcome>,
     executions: Vec<PreparedExecution>,
     pending_approval: Option<ApprovalPreview>,
+    audit_error: Option<LifecycleError>,
     calls: u32,
-    compensation: bool,
+    compensation: Option<CompensationContext<'a>>,
 }
 
 impl crate::host::CallHook for Governance<'_, '_> {
+    fn rejected(&mut self, error: &crate::HostError) {
+        let identity = commitment(&(
+            "abi.host.rejected-run.v1",
+            self.host
+                .registrations
+                .iter()
+                .map(|(tool, registration)| (tool, &registration.request))
+                .collect::<Vec<_>>(),
+        ));
+        let reason = match error {
+            crate::HostError::Provider(_) => LifecycleReason::StorageUnavailable,
+            crate::HostError::BudgetExceeded(_) => LifecycleReason::CancelledBeforeDispatch,
+            _ => LifecycleReason::Authorization(ReasonCode::RequestDigestMismatch),
+        };
+        self.audit_error = self
+            .stage(identity, 0, Digest::default(), Decision::Deny, reason)
+            .err();
+    }
     fn call(
         &mut self,
         call: &ToolCall,
@@ -394,9 +444,35 @@ impl Governance<'_, '_> {
         stage: u8,
         reason: LifecycleReason,
     ) -> Result<bool, LifecycleError> {
-        self.stage(id, stage, Digest::default(), Decision::Deny, reason)?;
+        self.refuse_bound(id, stage, Digest::default(), reason)
+    }
+    fn refuse_bound(
+        &mut self,
+        id: Digest,
+        stage: u8,
+        binding: Digest,
+        reason: LifecycleReason,
+    ) -> Result<bool, LifecycleError> {
+        self.stage(id, stage, binding, Decision::Deny, reason)?;
         self.stop = GovernedStop::Refused(reason);
         Ok(false)
+    }
+    fn decline_prepared(&mut self, prepared: &PreparedExecution) -> Result<bool, LifecycleError> {
+        let reason = LifecycleReason::CancelledBeforeDispatch;
+        let outcome = TerminalOutcome {
+            version: 1,
+            state: OutcomeState::NotDispatched,
+            result_digest: None,
+            reason,
+        };
+        self.ledger.finish(prepared, &outcome)?;
+        self.outcomes.push(outcome);
+        self.refuse_bound(
+            prepared.execution_id(),
+            12,
+            commitment(prepared.binding()),
+            reason,
+        )
     }
     fn fresh(&self, facts: &GovernedFacts) -> bool {
         let now = self.options.clock.now_ms();
@@ -409,7 +485,21 @@ impl Governance<'_, '_> {
         call: &ToolCall,
         context: ToolExecutionContext<'_>,
     ) -> Result<bool, LifecycleError> {
-        let id = commitment(&("abi.host.execution.v1", &call.id, &call.name));
+        let id = self.host.registrations.get(&call.name).map_or_else(
+            || commitment(&("abi.host.rejected-call.v1", &call.id, &call.name)),
+            |registration| {
+                commitment(&(
+                    "abi.host.execution.v2",
+                    &registration.request.attempt_id,
+                    &registration.request.principal,
+                    &registration.request.scope,
+                    &registration.request.capability_id,
+                    &registration.request.capability_version,
+                    &call.id,
+                    &call.name,
+                ))
+            },
+        );
         let authorized = LifecycleReason::Authorization(ReasonCode::Authorized);
         let invalid = LifecycleReason::Authorization(ReasonCode::RequestDigestMismatch);
         let denied = LifecycleReason::Authorization(ReasonCode::NoMatchingGrant);
@@ -438,7 +528,7 @@ impl Governance<'_, '_> {
         let template = &registration.request;
         let request = Request::new(
             &template.attempt_id,
-            &call.id,
+            id.to_string().trim_start_matches("sha256:").to_owned(),
             template.principal.clone(),
             template.scope.clone(),
             &template.capability_id,
@@ -489,7 +579,8 @@ impl Governance<'_, '_> {
             self.options.requested_deadline_ms,
             self.options.idempotency_key,
         ));
-        let evaluation = kernel.evaluate_source_bound(
+        let evaluated = evaluate(
+            &kernel,
             &request,
             &AuthorizationContext {
                 now_ms: self.options.clock,
@@ -502,20 +593,16 @@ impl Governance<'_, '_> {
             source,
             precondition_digest,
             self.options.approval.as_ref(),
+            self.compensation.as_ref(),
         );
+        let evaluation = evaluated.evaluation;
         if !matches!(
             evaluation.decision,
             Decision::Allow | Decision::ApprovalRequired
         ) {
             return self.refuse(id, 5, LifecycleReason::Authorization(evaluation.reason));
         }
-        let binding = AuthorizationBinding::from_evaluation(
-            &request,
-            &evaluation,
-            source.schema_digest(),
-            precondition_digest,
-        )
-        .ok_or(LifecycleError::InvalidState)?;
+        let binding = evaluated.binding.ok_or(LifecycleError::InvalidState)?;
         let binding_digest = commitment(&binding);
         self.stage(id, 5, binding_digest, Decision::Allow, authorized)?;
         if !facts.safety_allows {
@@ -579,6 +666,7 @@ impl Governance<'_, '_> {
         let preview = ApprovalPreview {
             binding: binding.clone(),
             tool: call.name.clone(),
+            call_reference: request.call_id.clone(),
             capability: source.source().id.clone(),
             version: source.source().version.clone(),
             parameter_digest: request.parameter_digest,
@@ -620,7 +708,8 @@ impl Governance<'_, '_> {
         let mut comparable = refreshed.clone();
         comparable.observed_at_ms = facts.observed_at_ms;
         comparable.expires_at_ms = facts.expires_at_ms;
-        let reevaluated = kernel.evaluate_source_bound(
+        let reevaluated = evaluate(
+            &kernel,
             &request,
             &AuthorizationContext {
                 now_ms: self.options.clock,
@@ -633,7 +722,9 @@ impl Governance<'_, '_> {
             source,
             precondition_digest,
             self.options.approval.as_ref(),
-        );
+            self.compensation.as_ref(),
+        )
+        .evaluation;
         let refreshed_prerequisites = SourceFacts {
             now_ms: self.options.clock.now_ms(),
             predicates: &refreshed.predicates,
@@ -653,18 +744,26 @@ impl Governance<'_, '_> {
         }
         self.stage(id, 10, binding_digest, Decision::Allow, authorized)?;
         if context.should_stop() {
-            return self.refuse(id, 11, cancelled);
+            return self.refuse_bound(id, 11, binding_digest, cancelled);
         }
         // The audit callback itself is a cooperative boundary. Refresh once more
         // after it returns so expiry/revocation cannot cross the intent write.
         let latest = match self.facts.observe(&request) {
             Ok(value) if self.fresh(&value) => value,
-            _ => return self.refuse(id, 11, LifecycleReason::StorageUnavailable),
+            _ => {
+                return self.refuse_bound(
+                    id,
+                    11,
+                    binding_digest,
+                    LifecycleReason::StorageUnavailable,
+                );
+            }
         };
         let mut latest_comparable = latest.clone();
         latest_comparable.observed_at_ms = facts.observed_at_ms;
         latest_comparable.expires_at_ms = facts.expires_at_ms;
-        let final_evaluation = kernel.evaluate_source_bound(
+        let final_evaluation = evaluate(
+            &kernel,
             &request,
             &AuthorizationContext {
                 now_ms: self.options.clock,
@@ -677,18 +776,20 @@ impl Governance<'_, '_> {
             source,
             precondition_digest,
             self.options.approval.as_ref(),
-        );
+            self.compensation.as_ref(),
+        )
+        .evaluation;
         if latest_comparable != facts
             || final_evaluation != evaluation
             || self.options.clock.now_ms() >= source.source().expiration_criteria.expires_at_ms
         {
-            return self.refuse(id, 11, denied);
+            return self.refuse_bound(id, 11, binding_digest, denied);
         }
         if context.should_stop() {
-            return self.refuse(id, 11, cancelled);
+            return self.refuse_bound(id, 11, binding_digest, cancelled);
         }
         let prepare = PrepareRequest {
-            call_id: call.id.clone(),
+            call_id: request.call_id.clone(),
             tool_id: call.name.clone(),
             execution_id: id,
             binding,
@@ -703,7 +804,12 @@ impl Governance<'_, '_> {
                 return Ok(false);
             }
             PrepareOutcome::Refused(reason) => {
-                return self.refuse(id, 11, LifecycleReason::Authorization(reason));
+                return self.refuse_bound(
+                    id,
+                    11,
+                    binding_digest,
+                    LifecycleReason::Authorization(reason),
+                );
             }
             PrepareOutcome::Uncertain => {
                 self.stop = GovernedStop::Uncertain;
@@ -713,15 +819,7 @@ impl Governance<'_, '_> {
         self.executions.push(prepared.clone());
         self.stop = GovernedStop::Uncertain;
         if context.should_stop() {
-            let outcome = TerminalOutcome {
-                version: 1,
-                state: OutcomeState::Failed,
-                result_digest: None,
-                reason: cancelled,
-            };
-            self.ledger.finish(&prepared, &outcome)?;
-            self.outcomes.push(outcome);
-            return self.refuse(id, 12, cancelled);
+            return self.decline_prepared(&prepared);
         }
         // Fallible pre-effect stage audit must succeed before recording.
         if let Err(error) = self.stage(id, 12, binding_digest, Decision::Allow, authorized) {
@@ -729,26 +827,42 @@ impl Governance<'_, '_> {
             return Err(error);
         }
         if context.should_stop() {
-            self.stop = GovernedStop::Uncertain;
-            return Ok(false);
+            return self.decline_prepared(&prepared);
         }
         let digest = self
             .actuator
             .record_prepared(&request, source.package(), &prepared)?;
-        let postconditions = match self.facts.observe(&request) {
+        let observations = match self.facts.observe(&request) {
             Ok(observed) if self.fresh(&observed) => self
                 .facts
                 .postconditions(&request, &source.source().postconditions),
-            _ => Postconditions::Unverifiable,
+            _ => Err(LifecycleError::Unavailable),
         };
+        let postconditions =
+            observations
+                .as_ref()
+                .map_or(Postconditions::Unverifiable, |observations| {
+                    crate::governed_postconditions::verify(
+                        &source.source().postconditions,
+                        observations,
+                        request.request_digest,
+                        self.options.clock.now_ms(),
+                    )
+                });
+        let result_commitment = commitment(&(
+            "abi.host.observed-result.v1",
+            digest,
+            observations.as_ref().ok().filter(|values| {
+                values.len() <= 32 && values.iter().all(|value| value.predicate.len() <= 64)
+            }),
+        ));
         let (state, reason) = if context.should_stop() {
             (OutcomeState::Uncertain, LifecycleReason::OutcomeUnknown)
+        } else if !source.validates_output(&serde_json::Value::Bool(true)) {
+            (OutcomeState::Failed, LifecycleReason::AdapterFailure)
         } else {
             match postconditions {
-                Postconditions::Verified
-                    if source.validates_output(&serde_json::Value::Bool(true))
-                        && self.actuator.postconditions_hold(source.package()) =>
-                {
+                Postconditions::Verified if self.actuator.postconditions_hold(source.package()) => {
                     (OutcomeState::Succeeded, authorized)
                 }
                 Postconditions::Verified | Postconditions::Failed => {
@@ -760,7 +874,7 @@ impl Governance<'_, '_> {
                 ),
             }
         };
-        let (state, reason) = if self.compensation {
+        let (state, reason) = if self.compensation.is_some() {
             match state {
                 OutcomeState::Succeeded => (OutcomeState::Compensated, reason),
                 OutcomeState::Failed => (
@@ -778,7 +892,7 @@ impl Governance<'_, '_> {
         let outcome = TerminalOutcome {
             version: 1,
             state,
-            result_digest: Some(digest),
+            result_digest: Some(result_commitment),
             reason,
         };
         self.ledger.finish(&prepared, &outcome)?;

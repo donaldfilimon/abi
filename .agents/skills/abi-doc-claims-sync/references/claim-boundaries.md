@@ -2,10 +2,10 @@
 
 Authoritative policy files:
 
-- `/Users/donaldfilimon/dev/active/abi/docs/contracts/external-claims-audit.mdx`
-- `/Users/donaldfilimon/dev/active/abi/docs/contracts/public-api.mdx`
-- `/Users/donaldfilimon/dev/active/abi/docs/spec/wdbx-north-star.mdx`
-- `/Users/donaldfilimon/dev/active/abi/abi-threat-model.md`
+- `docs/contracts/external-claims-audit.mdx`
+- `docs/contracts/public-api.mdx`
+- `docs/spec/wdbx-north-star.mdx`
+- `abi-threat-model.md`
 
 Safe repo-backed wording:
 
@@ -42,5 +42,5 @@ Instruction-file sync checklist:
 - WDBX grammar including `db compact`, `cluster local-demo [nodes] [--json]`, `cluster serve <port> [node] [host]`, `secure dghv-bootstrap|tfhe`, and `api serve [port]`.
 - MCP 12-tool names and transport details.
 - Feature flags and FoundationModels gating.
-- Nightly-Rust idioms and `./tools/cargo.sh` vs bare `cargo` caveat.
-- `./build.sh check`, `full-check`, docs validation, parity, and cross-smoke guidance.
+- Stable-Rust/toolchain-neutral idioms and `./tools/cargo.sh` vs bare `cargo` caveat.
+- `./tools/check.sh` (primary gate), `./build.sh check` compatibility alias, docs validation, parity, and cross-smoke guidance.
