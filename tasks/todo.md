@@ -364,3 +364,20 @@ per-edge resolution projection at their source/local-test boundaries. CUDA
 compilation remains unavailable without nvcc; independent audits, actual trained
 weights, separate-host operation and live provider acceptance remain unproved.
 Remote CI and installed-artifact verification are separate subsequent checks.
+
+## 2026-10-20 self-learning CLI hardening
+
+- [x] Regress and reject `complete --learn` requests that would silently dispatch
+  live transport or a local-bridge model instead of learning. Keep the existing
+  command catalog and normal local-learning path unchanged.
+- [x] Require the learning smoke to prove persistence, router adaptation and
+  cross-process evidence recall. Use unique scratch stores, override inherited
+  persistence, lock builds to the executed target, and reject misleading markers
+  inside generated response text. Eight isolated script regressions and the real
+  two-process smoke pass (second-pass evidence_count=1).
+- [x] Complete the final primary gate: `PATH="$HOME/.cargo/bin:$PATH"
+  ./tools/check.sh` exited 0 (1,085 Rust executions, no failures/ignored;
+  181 Python tests, 8 existing skips). CUDA compilation remains unavailable
+  without nvcc; the sibling WDBX unused-import warning is unchanged. Integrate
+  only this slice on canonical main, preserving existing host/runtime/gateway/
+  ledger work. No remote action or model weight training is included.

@@ -6,15 +6,16 @@ description: Build the abi CLI and exercise the SEA (Sparse Evidence Attention) 
 # sea-learn-loop — exercise the SEA self-learning completion
 
 Driver: **`.agents/skills/sea-learn-loop/learn.sh`** (paths relative to repo root).
-CLI check — evidence is the `RESULT:` line + the `learn=…` status line.
+CLI check — evidence is the `RESULT:` line and both passes' metadata lines.
 
 SEA is always available in the Rust workspace. The default run exercises the
-real SEA path; `evidence_count=0 adapted=false` can still be valid when the
-store has no matching evidence. `--sea` is accepted for compatibility and does
-not change the build path.
+real SEA path. The first pass starts with no evidence; the second must recall
+the first pass's persisted record after reopening the scratch store. Both must
+report successful persistence and adaptation. `--sea` is accepted for
+compatibility and does not change the build path.
 
 ## Prerequisites
-- Nightly Rust via `./tools/cargo.sh` (never bare Homebrew `cargo`).
+- Pinned stable Rust 1.99.1 via `./tools/cargo.sh` (never bare Homebrew `cargo`).
 
 ## Run (agent path)
 ```bash
@@ -22,21 +23,29 @@ not change the build path.
 .agents/skills/sea-learn-loop/learn.sh "my custom prompt"    # custom input
 .agents/skills/sea-learn-loop/learn.sh --sea                 # accepted; no-op on build path
 ```
-It builds the CLI, points `ABI_WDBX_PATH` at a scratch store under
-`target/skill-scratch/` (never the live `~/.abi/`), runs
-`abi complete --learn "<input>"`, and asserts the markers `learn=true`,
-`requested_model=`, `provider=local`, `generation_engine=persona-template`, and
-`evidence_count=` (plus a soft `persisted=true` check). Prints
-`RESULT: PASS — SEA learn loop ran.` (exit 0) or a FAIL count.
+It builds the locked CLI into the same target directory it executes, creates a
+unique scratch store under `target/skill-scratch/` (never the live `~/.abi/`),
+overrides inherited persistence settings and runs
+`abi complete --learn -- "<input>"` in two separate processes. It requires
+`learn=true`, local generation provenance, `persisted=true`, `adapted=true`,
+and nonzero second-pass `evidence_count` on the metadata line, not inside the
+generated response. Its own scratch directory is removed on exit; other runs'
+stores are untouched. Prints
+`RESULT: PASS — SEA learning persisted, adapted and recalled across processes.`
+(exit 0) or `RESULT: FAIL` (nonzero). Audit-vetoed prompts intentionally fail
+this acceptance smoke because they must not learn.
 
 ## Gotchas
-- **`evidence_count=0` is not necessarily a failure** — with SEA on, the scratch
-  store may simply have no matching evidence yet.
+- **First-pass `evidence_count=0` is expected** in a new scratch store, but a
+  zero second-pass count fails the cross-process recall check.
 - The requested-model line shows the catalog default (`claude-fable-5`) while
   `provider=local` and `generation_engine=persona-template` establish that
   `--learn` is not a live API call; no credentials are needed.
 - First build may compile the workspace; later `./tools/cargo.sh build -p abi-cli` runs
   are incremental.
+- `--learn` is local persona-template learning, not live-provider or bridge
+  inference. Combining it with `--live` or a local-bridge model is rejected;
+  this does not train language-model weights.
 
 ## Troubleshooting
 | Symptom | Fix |

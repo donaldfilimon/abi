@@ -632,6 +632,18 @@ fn parse_complete_args(args: &[String]) -> Result<CompleteRequest, Outcome> {
             2,
         ));
     }
+    if learn && live {
+        return Err(Outcome::stderr(
+            "error: --learn cannot combine with --live\n".into(),
+            2,
+        ));
+    }
+    if learn && is_local_bridge_model(&model) {
+        return Err(Outcome::stderr(
+            "error: --learn does not support local-bridge models\n".into(),
+            2,
+        ));
+    }
     Ok(CompleteRequest {
         learn,
         neural,
@@ -971,3 +983,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "complete/learning_tests.rs"]
+mod learning_tests;
