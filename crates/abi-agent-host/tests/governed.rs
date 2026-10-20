@@ -91,6 +91,9 @@ struct Ledger {
     cancel_stage: Option<(u8, CancellationToken)>,
 }
 impl DurableLifecycle for Ledger {
+    fn refuse_replay(&mut self, id: Digest) -> Result<bool, LifecycleError> {
+        Ok(self.execution_ids.contains(&id))
+    }
     fn append_stage(&mut self, record: &StageAudit) -> Result<(), LifecycleError> {
         if self.fail_stage == Some(record.stage) {
             return Err(LifecycleError::Capacity);
@@ -757,7 +760,10 @@ fn durable_identity_uses_trusted_operation_not_model_call_id_alone() {
         HostBudget::default(),
         ("attempt", "actor", "tenant"),
     );
-    assert_eq!(result.unwrap().governance, GovernedStop::Uncertain);
+    assert_eq!(
+        result.unwrap().governance,
+        GovernedStop::Refused(LifecycleReason::Authorization(ReasonCode::ApprovalReplayed))
+    );
     assert_eq!(actuator.records(), []);
 }
 struct CanaryIdProvider(AtomicUsize);

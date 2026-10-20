@@ -500,6 +500,11 @@ impl Governance<'_, '_> {
                 ))
             },
         );
+        if self.ledger.refuse_replay(id)? {
+            self.stop =
+                GovernedStop::Refused(LifecycleReason::Authorization(ReasonCode::ApprovalReplayed));
+            return Ok(false);
+        }
         let authorized = LifecycleReason::Authorization(ReasonCode::Authorized);
         let invalid = LifecycleReason::Authorization(ReasonCode::RequestDigestMismatch);
         let denied = LifecycleReason::Authorization(ReasonCode::NoMatchingGrant);

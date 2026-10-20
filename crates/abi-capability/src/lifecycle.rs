@@ -296,6 +296,8 @@ pub enum LifecycleError {
 
 /// Owning durable ledger interface. Observational audit cannot implement admission.
 pub trait DurableLifecycle {
+    /// Atomically record a replay denial using the stored binding; false means no intent exists.
+    fn refuse_replay(&mut self, execution_id: Digest) -> Result<bool, LifecycleError>;
     /// Fallible bounded stage append; validate version/stage before persistence.
     fn append_stage(&mut self, record: &StageAudit) -> Result<(), LifecycleError>;
     /// Atomically validate exact approval, consume it, reserve unique intent, append stage11,
