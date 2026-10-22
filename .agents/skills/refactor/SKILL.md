@@ -7,7 +7,7 @@ description: Plan, execute, and validate a codebase modernization or refactor wi
 
 One skill, three phases (merged from the former `refactor-strategy`, `refactor-implementation` and `refactor-validation` skills on 2026-09-21). Run the host gate before and after.
 
-**Host gate** means the repository's own full gate, named in its `AGENTS.md`/`CLAUDE.md`. In abi (`~/dev/active/abi`) that is `./tools/check.sh` (it drives `./tools/cargo.sh`; never invoke bare `cargo` there); hand-run `cargo test` there needs `< /dev/null`. A bare `cargo test` is not a gate: in a `default-members` workspace it can run zero tests and pass.
+**Host gate** means the repository's own full gate, named in its `AGENTS.md`/`CLAUDE.md`. In abi (`/Users/donald/sources/repos/abi`) that is `./tools/check.sh` (it drives `./tools/cargo.sh`; never invoke bare `cargo` there); hand-run `cargo test` there needs `< /dev/null`. A bare `cargo test` is not a gate: in a `default-members` workspace it can run zero tests and pass.
 
 ## Phase 1: strategy
 

@@ -21,7 +21,7 @@ Safe execution steps for clean-slate modernization. Pair with the validation pha
 
 - Prefer parallel files (`foo_v2.rs` / extracted helper) over in-place rewrites of hot contracts.
 - Keep pure helpers extracted first; push IO/effects to edges.
-- For Rust nightly: prefer explicit `Result`, avoid silent `unwrap`/`expect` on persistence and inference paths, keep clippy `-D warnings` clean.
+- For Rust: prefer explicit `Result`, avoid silent `unwrap`/`expect` on persistence and inference paths, keep clippy `-D warnings` clean.
 
 ### 3. Gate after each batch
 

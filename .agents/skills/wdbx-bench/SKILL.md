@@ -4,11 +4,12 @@ description: Build the abi CLI and benchmark the WDBX vector store (in-process i
 ---
 
 > **WDBX moved out of this repository on 2026-08-22.** It now lives in the
-> sibling repo `~/dev/active/wdbx` together with `abi-compute`,
+> sibling repo `../wdbx` together with `abi-compute`,
 > `abi-foundation`, `abi-core`, and `abi-telemetry`; `abi` consumes them by
 > relative path. Source paths below therefore read `../wdbx/crates/...`. Run
-> WDBX-only tests from that repo (`cargo test --workspace`), and `abi`'s gate
-> (`./tools/check.sh`) from here.
+> WDBX-only tests from that repo (`./tools/cargo.sh test --locked
+> --manifest-path ../wdbx/Cargo.toml --workspace < /dev/null`, run from the abi
+> checkout), and `abi`'s gate (`./tools/check.sh`) from here.
 >
 > Under the Abbey System Constitution
 > (`docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`) WDBX is the
@@ -19,11 +20,11 @@ description: Build the abi CLI and benchmark the WDBX vector store (in-process i
 > features that do exist.
 >
 > Note for this skill specifically: `bench.sh --suite` runs
-> `./tools/cargo.sh test -p abi-wdbx --lib` **from the abi repo**, and that still
-> works after the move — abi-wdbx remains in abi's resolve graph as a path
-> dependency, so `-p` selection succeeds (verified 2026-08-22: 284 tests, exit 0).
-> It is not a workspace member any more, so `--workspace` from abi will not
-> include it.
+> `./tools/cargo.sh test -p abi-wdbx --lib < /dev/null` **from the abi repo**, and
+> that still works after the move — abi-wdbx remains in abi's resolve graph as a
+> path dependency, so `-p` selection succeeds (verified 2026-08-22: 284 tests,
+> exit 0). It is not a workspace member any more, so `--workspace` from abi will
+> not include it.
 
 # wdbx-bench — benchmark the WDBX vector store
 
@@ -34,12 +35,12 @@ These are **local, in-memory** measurements — not a published throughput claim
 (the CLI says so itself). Numbers vary by machine and are noisy at low counts.
 
 ## Prerequisites
-- Nightly Rust via `./tools/cargo.sh` (never bare Homebrew `cargo`).
+- Stable Rust 1.99.1 via `./tools/cargo.sh` (never bare Homebrew `cargo`).
 
 ## Run (agent path)
 ```bash
 .agents/skills/wdbx-bench/bench.sh 50        # build CLI, run `abi wdbx benchmark 50`
-.agents/skills/wdbx-bench/bench.sh 50 --suite  # also run `./tools/cargo.sh test -p abi-wdbx --lib`
+.agents/skills/wdbx-bench/bench.sh 50 --suite  # also run `./tools/cargo.sh test -p abi-wdbx --lib < /dev/null`
 ```
 It builds the CLI, runs `abi wdbx benchmark <count>`, and asserts the markers
 `benchmark (local, in-memory`, `inserts:`, `searches:`. Prints
@@ -50,7 +51,7 @@ It builds the CLI, runs `abi wdbx benchmark <count>`, and asserts the markers
   the GPU path is the vectorized CPU fallback unless native kernels are linked
   (`abi backends` shows `accelerated=false` on this machine).
 - Low counts are high-variance — use ≥50 for a stable-ish p50; the suite
-  (`--suite`) runs `./tools/cargo.sh test -p abi-wdbx --lib`.
+  (`--suite`) runs `./tools/cargo.sh test -p abi-wdbx --lib < /dev/null`.
 - `bench.sh <non-number>` → usage, exit 2.
 
 ## Troubleshooting

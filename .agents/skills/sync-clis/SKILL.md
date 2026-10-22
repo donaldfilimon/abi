@@ -68,7 +68,7 @@ all requested targets were included.
 Run after the central pass:
 
 ```bash
-~/dev/active/abi/.agents/skills/sync-clis/launch.sh [--dry-run]
+/Users/donald/sources/repos/abi/.agents/skills/sync-clis/launch.sh [--dry-run]
 ```
 
 This mechanism mirrors ABI's repository-authoritative skills into its
@@ -77,7 +77,7 @@ this in-repository mirror step.
 
 Before applying it:
 
-1. Inspect `git -C ~/dev/active/abi status --short --branch`.
+1. Inspect `git -C /Users/donald/sources/repos/abi status --short --branch`.
 2. Preserve unrelated dirty work.
 3. Run the launcher's dry-run and review every named write.
 4. Apply.
@@ -108,7 +108,7 @@ python3 -c 'from pathlib import Path; compile(Path.home().joinpath(".grok/script
 python3 -m json.tool ~/.grok/sync-targets.json >/dev/null
 python3 ~/.grok/scripts/sync-clis.py --dry-run --verbose
 ~/.grok/skills/sync-clis/launch.sh
-~/dev/active/abi/.agents/skills/sync-clis/launch.sh
+/Users/donald/sources/repos/abi/.agents/skills/sync-clis/launch.sh
 ~/.grok/skills/sync-clis/launch.sh
 ```
 

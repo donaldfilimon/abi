@@ -39,7 +39,7 @@ SMOKE OK
 
 ## Prerequisites
 
-- Nightly Rust via `rust-toolchain.toml`. **Always** use `./tools/cargo.sh`
+- Stable Rust 1.99.1 via `rust-toolchain.toml`. **Always** use `./tools/cargo.sh`
   (never bare Homebrew `cargo`).
 - Primary gate: `./tools/check.sh`.
 

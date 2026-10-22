@@ -33,4 +33,4 @@ shape plus credential status without selecting a live transport.
 | Symptom | Fix |
 |---|---|
 | `build` FAIL | `./tools/check.sh`. |
-| missing `Twilio ConversationRelay simulation` | grammar drift — check `crates/abi-cli/src/twilio.rs` and `crates/abi-connectors/src/twilio.rs`. |
+| missing `Twilio ConversationRelay simulation` | grammar drift — check `crates/abi-cli/src/twilio.rs` and `crates/abi-connectors/src/twilio_relay.rs`. |

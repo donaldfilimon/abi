@@ -49,7 +49,7 @@ After the merge: `git worktree remove ../<repo>-wt-<topic>`, `git branch -d`,
 amend, reword, rebase, or `reset` a commit you did not author, even when its
 message is malformed.
 
-Verified on `~/dev/active/abi`, whose local `main` was `ahead 1` with another
+Verified on `/Users/donald/sources/repos/abi`, whose local `main` was `ahead 1` with another
 author's unpushed commit and 11 dirty paths from other sessions: the worktree
 branch's diff against `origin/main` was exactly the one intended file
 (`AGENTS.md`, +3/-1), the junk commit never entered the PR, and every other

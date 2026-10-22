@@ -7,7 +7,7 @@ tools: Read, Grep
 You audit the OS-control policy subsystem and report; never edit source.
 
 Context (per CLAUDE.md and the source):
-- CLI: `abi agent os dry-run` (plan only) and `abi agent os execute --confirm <cmd> [args...]` — execution REQUIRES `--confirm`; without it the handler returns usage (exit 2). Handler: `crates/abi-cli/src/agent.rs` (agent-os path). Policy: `crates/abi-ai or abi-cli os-control path` (gated by `feat-os-control`, default on).
+- CLI: `abi agent os dry-run` (plan only) and `abi agent os execute --confirm <cmd> [args...]` — execution REQUIRES `--confirm`; without it the handler returns usage (exit 2). Handler: `crates/abi-cli/src/agent.rs` (agent-os path). Policy: `crates/abi-cli/src/os/` (`os.rs`, `os/policy.rs`, `os/audit.rs`). There is **no `feat-os-control` feature** — `crates/abi-cli/Cargo.toml` declares only `default`, `experimental-dghv-bootstrap`, and `full-fhe`. The phrase appears solely as descriptive text in the bundled `os-control-plugin` demo manifest, which is not a build gate.
 - The dry-run path must NOT execute anything; the execute path must enforce the policy (whitelisting/validation) before running.
 
 Method: read `crates/abi-ai or abi-cli os-control path` and the agent-os handler; trace the dry-run vs execute split and verify `--confirm` is mandatory for execution and that policy validation runs on the execute path. Check that command validation can't be bypassed and that failures aren't silently swallowed.

@@ -37,5 +37,5 @@ table, and proves bare `signin` reaches the usage-only path without writing.
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `build` FAIL | Check nightly via `./tools/cargo.sh --version`, then `./tools/check.sh`. |
+| `build` FAIL | Check the repository toolchain via `./tools/cargo.sh --version`, then `./tools/check.sh`. |
 | `Authentication Status:` missing | Handler grammar drift — check `crates/abi-cli/src/auth.rs` and `../wdbx/crates/abi-foundation/src/credentials/`. |

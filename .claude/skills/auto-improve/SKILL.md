@@ -10,7 +10,7 @@ only the steps its gate allows.** Neither command edits code, skills, or prompts
 
 ## abi — `abi improve [--apply] [--model <id>] <input>`
 
-Run from `~/dev/active/abi`. It wraps the SEA learn loop (`abi-sea` `run_learn_loop`).
+Run from `/Users/donald/sources/repos/abi`. It wraps the SEA learn loop (`abi-sea` `run_learn_loop`).
 
 - **Dry run** runs the loop with `persist` and `adapt_router` off. It recalls
   evidence and reports `task=`, `profile=`, `evidence_count=`, `audit_passed=`,

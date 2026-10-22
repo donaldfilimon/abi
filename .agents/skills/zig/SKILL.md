@@ -80,7 +80,7 @@ status, not the command's, which has manufactured false green claims here before
 
 Zig trees pin `minimum_zig_version = "0.18.0-dev.120+9fe22a29b"` (verified
 2026-10-10): `~/dev/active/baseos`, `~/dev/active/cell-lang`, `~/dev/active/Gama`,
-`~/dev/active/golive`, `~/dev/active/Quesar`, `~/dev/active/wdbx`.
+`~/dev/active/golive`, `~/dev/active/Quesar`.
 `~/dev/active/cell-lang` is the Cell language compiler; read its `AGENTS.md`
 first, and always build it with `-Dswift=false`.
 

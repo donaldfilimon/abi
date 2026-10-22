@@ -65,7 +65,7 @@ For multi-worker execution use `multi` or `spawn`. For claim-honest browser plan
 | Component | Source | Role |
 |-----------|--------|------|
 | Orchestration | `crates/abi-ai/src/orchestration.rs` | `parseWorkerSpecs`, `defaultTrioSpecs`, `runCustomMultiAgentWithScheduler`, `submitAgentsBackground`, `planBrowserOrchestration` |
-| AI module | `crates/abi-ai/src/mod.rs` | `runMultiAgentWithScheduler` (fixed trio entrypoint), `runAgent` / `submitAgentTask`, re-exports |
+| AI module | `crates/abi-ai/src/lib.rs` | `runMultiAgentWithScheduler` (fixed trio entrypoint), `runAgent` / `submitAgentTask`, re-exports |
 | Scheduler | `../wdbx/crates/abi-core/src/scheduler.rs` | Local task coordination, memory tracker integration (unconditional core — not a feature flag) |
 | Router | `crates/abi-ai/src/router.rs` | Abbey/Aviva/Abi profile selection |
 | Constitution | `crates/abi-ai/src/constitution.rs` | 6-principle response audit |

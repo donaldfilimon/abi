@@ -27,7 +27,7 @@ and there's **no** `errno 19`/`tcgetattr`/panic. Sends `q` (the quit key —
 To eyeball it yourself: `tmux capture-pane -pt <session>` shows the System pane
 (GPU backend, accelerated, native-linked) and the Plugins pane (16 registered).
 
-Historical verification: **PASS** on nightly Rust via `./tools/cargo.sh` —
+Historical verification: **PASS** on stable Rust via `./tools/cargo.sh` —
 dashboard box + System + Plugins panes render under the pty; `q` quits; session
 cleaned up.
 

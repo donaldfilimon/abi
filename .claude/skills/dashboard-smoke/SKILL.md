@@ -48,5 +48,5 @@ One-liner by hand:
 | looks like a crash (errno/tcgetattr) | Regression in the non-TTY fallback; inspect `crates/abi-cli` dashboard/TUI code. |
 | a panel missing | Inspect dashboard render in `crates/abi-cli`; panels must still be System / Plugins / WDBX Storage / Scheduler / Memory. |
 
-Historical verification: **PASS** on nightly Rust via `./tools/cargo.sh` — one-shot
+Historical verification: **PASS** on stable Rust via `./tools/cargo.sh` — one-shot
 render of all 5 panels, exit 0.

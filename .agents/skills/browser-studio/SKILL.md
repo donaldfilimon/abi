@@ -23,7 +23,7 @@ Honest boundaries:
   APIs** in the page. The server only embeds a supplied transcript and/or PCM.
 - Navigation planning stays on `abi agent browser <task>` and still reports
   `embedded_browser=false` / `delegation_hint=external-mcp-playwright`.
-- The 13-command CLI and 12-tool MCP catalogs are unchanged.
+- The 14-command CLI and 12-tool MCP catalogs are unchanged.
 
 ## Run
 

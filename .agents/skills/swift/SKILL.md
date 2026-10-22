@@ -25,7 +25,7 @@ it does not replace them.
 
 ## When not to use
 
-- Rust / `~/dev/active/abi` work: use ABI project skills instead.
+- Rust / `/Users/donald/sources/repos/abi` work: use ABI project skills instead.
 - Pure Swift language or concurrency Q&A with no toolchain or repository context.
 
 ## Hard toolchain rules

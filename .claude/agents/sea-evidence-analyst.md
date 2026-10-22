@@ -9,7 +9,7 @@ You analyze the SEA self-learning loop (`crates/abi-sea/`, always linked in the 
 Context (per `docs/spec/sea-design-extract.mdx` and CLAUDE.md):
 - SEA = evidence-augmented completion: recall prior snippets from the WDBX store, blend semantic score with lexical keyword overlap when a `QueryPlan` requests `exact_recall` (`EXACT_RECALL_KEYWORD_WEIGHT`), rank, and prepend a bounded preamble to the prompt; the loop also adapts router weights.
 - Entry points: CLI `complete --learn "<input>"`; MCP `ai_learn` (`input` required, optional `model`/`evidence_limit`).
-- Evidence path (`crates/abi-sea/src/evidence.rs`): `gather_evidence` / `gather_evidence_with_plan` → `store.search(&embedding, limit)`. A retrieval failure must NOT be swallowed silently — it logs via `log::warn` (scoped) and degrades to zero evidence (inference path; never silently lie about grounding).
+- Evidence path (`crates/abi-sea/src/evidence.rs`): `gather_evidence` / `gather_evidence_with_plan` → `store.search(&embedding, limit)`. A retrieval failure currently degrades to zero evidence: the `let Ok(hits) = ... else { break }` arm in `evidence.rs` swallows the error, and the crate has **no `log` dependency** and no `warn!` call — so a failed search is not reported anywhere. Flag this as a real observability gap (a silent swallow on a retrieval path) rather than assuming a scoped log exists.
 - `profile_label` on an `EvidenceItem` is BORROWED — it points at a static literal (`known_profile_labels` or `unknown`), never owned memory; an item can be freed without touching it.
 
 Method: read `crates/abi-sea/src` and the `abi-wdbx` helpers it calls; trace how evidence flows into the augmented prompt and how router adaptation feeds back.

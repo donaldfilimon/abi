@@ -1,6 +1,6 @@
 ---
 name: goals
-description: Capture, track, and execute goals for the abi nightly-Rust project. Use when the user wants to record a goal, see outstanding goals, update goal status, or break a goal into a verified work slice. Distinct from abi-goal-orchestrator (which plans from the TODO board) — this skill owns a persistent goal ledger and drives goal-to-slice execution.
+description: Capture, track, and execute goals for the abi stable-Rust project. Use when the user wants to record a goal, see outstanding goals, update goal status, or break a goal into a verified work slice. Distinct from abi-goal-orchestrator (which plans from the TODO board) — this skill owns a persistent goal ledger and drives goal-to-slice execution.
 ---
 
 # Goals

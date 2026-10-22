@@ -6,7 +6,7 @@ __TIMEOUT_BIN=""
 if command -v timeout  >/dev/null 2>&1; then __TIMEOUT_BIN="timeout";  fi
 if [[ -z "$__TIMEOUT_BIN" ]] && command -v gtimeout >/dev/null 2>&1; then __TIMEOUT_BIN="gtimeout"; fi
 __run() {
-cd /Users/donald/abi && ./build.sh check
+cd /Users/donald/sources/repos/abi && ./build.sh check
 }
 if [[ -n "$__TIMEOUT_BIN" ]]; then
   $__TIMEOUT_BIN 600s bash -c "$(declare -f __run); __run"

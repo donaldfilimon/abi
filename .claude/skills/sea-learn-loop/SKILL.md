@@ -41,6 +41,16 @@ this acceptance smoke because they must not learn.
 - The requested-model line shows the catalog default (`claude-fable-5`) while
   `provider=local` and `generation_engine=persona-template` establish that
   `--learn` is not a live API call; no credentials are needed.
+- Every metadata field rides that one first line, including
+  `learn=true evidence_count=N adapted=B self_learn_cycle=... recall_ready=...`.
+  `self_learn_cycle` reports what actually happened
+  (`persistence+adaptation+recall` only when the learning write committed,
+  `adaptation-only` when it was skipped or disabled, `adaptation-only+write-unknown`
+  when the outcome is unknown) — never a completed cycle that the adjacent
+  `persisted=` and `wdbx_status=` fields contradict. Do not move the learn
+  fields onto their own line: the smoke reads only the first line, which is
+  the boundary that stops markers repeated in generated response text from
+  satisfying a persistence check.
 - First build may compile the workspace; later `./tools/cargo.sh build -p abi-cli` runs
   are incremental.
 - `--learn` is local persona-template learning, not live-provider or bridge

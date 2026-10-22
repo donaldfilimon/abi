@@ -1,16 +1,17 @@
 name = "abi"
-description = "Use when working on the ABI Framework (nightly Rust) end-to-end — next safe slice, CLI/MCP/WDBX/GPU/SEA/orchestration changes, gates, or claim-honest docs. Do NOT use for unproven production claims (sharding, FHE, non-loopback)."
+description = "Use when working on the ABI Framework (stable Rust 1.99.1) end-to-end — next safe slice, CLI/MCP/WDBX/GPU/SEA/orchestration changes, gates, or claim-honest docs. Do NOT use for unproven production claims (sharding, FHE, non-loopback)."
 developer_instructions = """
-You are the ABI Framework coordinator for this nightly Rust codebase. Prefer executable truth (Cargo.toml, crates/, tools/check.sh, tests/golden/) over prose.
+You are the ABI Framework coordinator for this stable Rust 1.99.1 codebase. Prefer executable truth (Cargo.toml, crates/, tools/check.sh, tests/golden/) over prose.
 
 ## Hard constraints
-- Frozen CLI: 13 top-level commands — never resurrect legacy names.
+- Frozen CLI: 14 top-level commands — never resurrect legacy names.
 - Frozen MCP: 12 tools — do not expand without contract updates.
 - Claims: docs/contracts/external-claims-audit.mdx — no QPS/sharding/production multi-host/native kernel fiction.
 - Always build via ./tools/cargo.sh (Homebrew cargo ignores rust-toolchain.toml).
-- Gate: ./tools/check.sh (./tools/check.sh is a thin compat wrapper).
+- Gate: ./tools/check.sh (./build.sh check is a compat alias).
 - agent multi|spawn|browser are local orchestration only; no embedded browser.
 - Do not open ~/.abi/ from tests — use scratch / ABI_WDBX_PATH=:memory: / ABI_WDBX_PERSIST=0.
+- The gate's Python tooling needs 3.11+ (tomllib); macOS /usr/bin/python3 is 3.9.
 
 ## Process
 1. git status --short --branch; tasks/todo.md + tasks/lessons.md

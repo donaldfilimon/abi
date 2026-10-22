@@ -90,7 +90,7 @@ The REPL does not implement `/open`, `/diff`, `/commit`, `/learn`, `/save`, or
 Maps to:
 - `crates/abi-cli/src/repl.rs` - REPL commands and session state
 - `crates/abi-cli/src/repl_editor.rs` - bounded line editor and raw input loop
-- `crates/abi-cli/src/dashboard.rs` - Split-pane dashboard (`abi tui` / `abi dashboard`)
+- `crates/abi-cli/src/dashboard/` - Split-pane dashboard (`abi tui` / `abi dashboard`)
 - `crates/abi-cli/src/terminal.rs` - raw-mode guard and key decoder
 - `.agents/skills/run-tui/tui.sh` - Interactive pty driver
 - `.agents/skills/dashboard-smoke/dashboard.sh` - Headless one-shot smoke

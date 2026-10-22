@@ -5,7 +5,7 @@
 #
 # Usage:
 #   .agents/skills/wdbx-bench/bench.sh [count]     # default count=50
-#   .agents/skills/wdbx-bench/bench.sh --suite     # also run `cargo test -p abi-wdbx`
+#   .agents/skills/wdbx-bench/bench.sh --suite     # also run `./tools/cargo.sh test -p abi-wdbx --lib < /dev/null`
 set -uo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -41,7 +41,7 @@ done
 
 if [ "$SUITE" -eq 1 ]; then
     say "./tools/cargo.sh test -p abi-wdbx --lib"
-    if ./tools/cargo.sh test -p abi-wdbx --lib; then echo "[ok] suite"; else echo "[FAIL] suite"; fail=$((fail+1)); fi
+    if ./tools/cargo.sh test -p abi-wdbx --lib < /dev/null; then echo "[ok] suite"; else echo "[FAIL] suite"; fail=$((fail+1)); fi
 fi
 
 say "summary"

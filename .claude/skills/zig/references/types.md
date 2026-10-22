@@ -21,6 +21,14 @@ Related skills: `zig-comptime` for generic functions and comptime evaluation, `z
 These contradict widely repeated older Zig idioms. Each was verified by compiling
 against the installed toolchain.
 
+0. **`-%` and `+%` WRAP; `-|` and `+|` SATURATE.** The memory-safe forms every
+   tutorial reaches for no longer saturate on master. Verified on
+   `0.18.0-dev.120+9fe22a29b`: `100 -% 500` compiles and evaluates to
+   `18446744073709551216`, not `0`. The saturating pair is `-|` / `+|` (the
+   shipped `doc/langref.html` says "`+|` and `-|` perform saturating
+   arithmetic"). A counter expecting `0` after over-subtraction instead reports
+   a value near `maxInt`, which reads like an unrelated memory bug.
+
 1. **`std.builtin` is deprecated and is now an alias of `std.lang`.**
    `lib/std/std.zig:71` reads `pub const builtin = lang;` with the comment
    `Deprecated; use lang.`, and `lib/std/std.zig:72` is `pub const lang = @import("lang.zig")`.

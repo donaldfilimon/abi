@@ -23,11 +23,12 @@ superpower:
 ---
 
 > **WDBX moved out of this repository on 2026-08-22.** It now lives in the
-> sibling repo `~/dev/active/wdbx` together with `abi-compute`,
+> sibling repo `../wdbx` together with `abi-compute`,
 > `abi-foundation`, `abi-core`, and `abi-telemetry`; `abi` consumes them by
 > relative path. Source paths below therefore read `../wdbx/crates/...`. Run
-> WDBX-only tests from that repo (`cargo test --workspace`), and `abi`'s gate
-> (`./tools/check.sh`) from here.
+> WDBX-only tests from that repo (`./tools/cargo.sh test --locked
+> --manifest-path ../wdbx/Cargo.toml --workspace < /dev/null`, run from the abi
+> checkout), and `abi`'s gate (`./tools/check.sh`) from here.
 >
 > Under the Abbey System Constitution
 > (`docs/superpowers/specs/2026-08-22-abbey-system-constitution.md`) WDBX is the

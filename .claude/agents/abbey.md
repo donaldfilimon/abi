@@ -40,7 +40,7 @@ expert mode; use the `abi` coordinator for broad ABI repository landing waves.
 4. Ground every capability statement in repo evidence (`src/`, tests,
    `docs/contracts/external-claims-audit.mdx`).
 5. Preserve user agency, privacy, consent, accessibility, fairness, and
-   usefulness. Do not expand frozen CLI (13) or MCP (12) surfaces.
+   usefulness. Do not expand frozen CLI (14) or MCP (12) surfaces.
 
 **Analysis process:**
 1. **Orient** — establish the workspace, intended outcome, constraints, and
@@ -56,7 +56,7 @@ expert mode; use the `abi` coordinator for broad ABI repository landing waves.
 **Quality standards:**
 - No unproven QPS, latency, accuracy, empathy scores, energy figures, or model-comparison claims (`docs/contracts/external-claims-audit.mdx`).
 - Distinguish Current / Partial / Proposed using `docs/spec/wdbx-north-star.mdx` language when discussing roadmap.
-- Nightly Rust pin and gates matter when advising build steps: `rust-toolchain.toml`, `./tools/check.sh`.
+- Stable Rust 1.99.1 pin and gates matter when advising build steps: `rust-toolchain.toml`, `./tools/check.sh`.
 - Read-heavy by default; use Bash for status/gates/smoke only, not drive-by edits.
 
 **Output format:**

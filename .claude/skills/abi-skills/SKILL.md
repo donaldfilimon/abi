@@ -1,6 +1,6 @@
 ---
 name: abi-skills
-description: Coordinate ABI codebase health, skill telemetry, bundled-plugin runtime checks, ABI Mega inventories, nightly Rust gates, and cross-CLI skill synchronization. Use for full ABI health reviews and claim-honest skill/plugin improvement cycles.
+description: Coordinate ABI codebase health, skill telemetry, bundled-plugin runtime checks, ABI Mega inventories, stable Rust 1.99.1 gates, and cross-CLI skill synchronization. Use for full ABI health reviews and claim-honest skill/plugin improvement cycles.
 ---
 
 # abi-skills — ABI codebase health and skill synchronization
@@ -12,7 +12,7 @@ Codex plugin.
 ## Sources of truth
 
 - Repository instructions: `AGENTS.md`, then `tasks/lessons.md` and `tasks/todo.md`.
-- Nightly pin: `rust-toolchain.toml` and `.github/workflows/ci.yml` must agree.
+- Stable 1.99.1 pin: `rust-toolchain.toml` and `.github/workflows/ci.yml` must agree.
 - Repository-specific skills: `.agents/skills/`. This portable `abi-skills`
   text is synchronized there from `~/.grok/skills/abi-skills/SKILL.md` under
   the live `~/.grok/sync-targets.json` catalog.
@@ -34,7 +34,7 @@ Codex plugin.
   before running them; marketplace registration alone does not prove that
   the current version is installed.
 - Live Rust pin: read repo-root `rust-toolchain.toml`. Always use `./tools/cargo.sh`
-  (Homebrew stable `cargo` may shadow rustup nightly).
+  (Homebrew stable `cargo` may shadow the selected rustup toolchain).
 
 ## Two traps that have already cost a session
 
@@ -59,17 +59,19 @@ reintroduce `.zigversion`, `./build.sh check-parity`, or `src/plugins/`.
 **Do not run `sync-clis/launch.sh` from a worktree.** The launcher stamps an
 absolute `Base directory for this skill: <checkout>/.claude/skills/<name>` line
 into each mirrored `SKILL.md`, so the mirror content depends on which checkout
-produced it. Run from `~/dev/active/abi-wt-.../` it rewrites those lines to the
+produced it. Run from a worktree it rewrites those lines to the
 worktree path (measured 2026-08-22: 5 files — `codebase-analysis`,
 `modern-patterns`, and the three `refactor-*` skills), and committing that
 points every mirror at a directory that disappears when the worktree is removed.
 Sync from the main checkout, or revert any file whose only diff is that line.
 
-**An `abi` worktree must be created as a `~/dev/active/` sibling.** `Cargo.toml`
-reaches the substrate through relative paths (`../wdbx/crates/…`), so a worktree
-placed anywhere else resolves them to nothing and cargo fails with `no matching
-package named abi-compute` — an error that names the consumer and reads as a
-broken repository. `~/dev/active/abi-wt-<topic>-<date>/` satisfies it. For the
+**An `abi` worktree must be created as a sibling of the canonical checkout.**
+`Cargo.toml` reaches the substrate through relative paths (`../wdbx/crates/…`),
+so a worktree placed anywhere else resolves them to nothing and cargo fails
+with `no matching package named abi-compute` — an error that names the
+consumer and reads as a broken repository. The canonical checkout is
+`/Users/donald/sources/repos/abi`, so
+`/Users/donald/sources/repos/abi-wt-<topic>-<date>/` satisfies it. For the
 same reason, `git fetch && git status` in `abi`, `abbey`, and `wdbx` before
 believing any cargo error in any of them: a stale sibling breaks the other two,
 and the default build hides it because both deps are optional.
@@ -111,7 +113,7 @@ live telemetry, not durable capability claims.
    `git worktree list --porcelain`, branches, stashes, and remotes. If another
    process moves the checkout, stop and use an isolated worktree.
 2. **Select the toolchain locally** — use `./tools/cargo.sh` for all ABI gates
-   (Homebrew stable `cargo` may shadow rustup nightly).
+   (Homebrew stable `cargo` may shadow the selected rustup toolchain).
 3. **Establish a baseline** — run `./tools/check.sh` non-interactively. Build
    `abi-cli` explicitly before user-facing smoke so the executable being tested
    is current and the evidence names the binary-producing command.

@@ -13,6 +13,6 @@ case "$file" in
   *) file="$PWD/$file" ;;
 esac
 cd -- "$root" || exit 1
-# rustup resolves rust-toolchain.toml here; do not select the floating nightly.
+# rustup resolves rust-toolchain.toml here; do not select a different toolchain.
 formatter="$(rustup which rustfmt)" || exit 1
 exec "$formatter" --edition 2024 "$file"
