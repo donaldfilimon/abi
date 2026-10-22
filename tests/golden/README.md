@@ -14,7 +14,7 @@ directory that gets deleted breaks `zig build check`, and it stays broken until
 the last one goes. From that moment there is no running Zig implementation to
 compare against.
 
-Capturing the frozen surfaces *first* turns "the Rust CLI has 13 commands with
+Capturing the frozen surfaces *first* turns "the Rust CLI has 14 commands with
 the right names" — which source-reading can establish — into "the Rust CLI emits
 byte-identical help output", which it cannot.
 
@@ -94,6 +94,14 @@ it cross-checks `abi-connectors`' `payload::openai_local_response`.
 - `wdbx-stats.txt` — `abi wdbx` subcommand listing (the bare `stats` form prints
   usage; the real numbers come from `db verify` and the `wdbx_stats` MCP tool).
 - `backends.txt` — `abi backends`, including its ANSI colour codes.
+  **Superseded — not a current oracle.** This is a Zig-era capture (it reports
+  `Zig 0.17.0-dev…`), it is not referenced by any Rust test, and it is not a
+  live contract: it prints `accelerated=yes` and "Metal GPU acceleration
+  active" unconditionally, whereas the current Rust implementation reports
+  `accelerated=false` unless native kernels are linked and initialized. Do not
+  regenerate it from a Zig binary (the Zig tree is gone) and do not cite it as
+  evidence of current backend behaviour. The live Rust assertions live in
+  `crates/abi-cli/src/backends.rs` and `crates/abi-cli/tests/process.rs`.
 
 ### Cross-implementation agreement
 

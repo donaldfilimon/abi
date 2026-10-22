@@ -1,7 +1,7 @@
 # Changelog
 
 All notable ABI Framework changes are recorded here. The executable source of
-truth is the nightly-Rust workspace under `crates/`; readiness is gated by
+truth is the stable-Rust 1.99.1 workspace under `crates/`; readiness is gated by
 `./tools/check.sh` (`./build.sh check` is a compatibility entrypoint).
 
 ## Unreleased
@@ -36,11 +36,39 @@ truth is the nightly-Rust workspace under `crates/`; readiness is gated by
 
 ### Changed
 
+- fix(gate): make `./tools/check.sh` portable to a stripped `PATH`. The gate's
+  Python tooling needs 3.11+ (`tomllib`), but macOS still ships
+  `/usr/bin/python3` at 3.9, which could resolve first and kill the gate with
+  `ModuleNotFoundError: No module named 'tomllib'`. `tools/check.sh` and
+  `tools/cargo.sh` now resolve a capable interpreter themselves (versioned
+  `python3.X` first, then `python3`/`python`; `ABI_PYTHON` overrides) and fail
+  closed with an actionable message instead of a traceback. Separately, the
+  **required** dependency scanner (`cargo-audit`/`cargo-deny`) lives in
+  `~/.cargo/bin`, so `tools/security/run-dep-scan.sh` and `tools/cargo.sh` add
+  it to `PATH` — the required scan now actually RUNS instead of failing closed
+  on an unexported `PATH`. The full gate passes under a deliberately stripped
+  `PATH`, and a new regression pins the fail-closed diagnostic.
+- fix(cli): `abi backends` reported "Rust nightly" while `rust-toolchain.toml`
+  pins stable 1.99.1 — the shipped banner contradicted the pinned toolchain and
+  the external-claims audit. It now reports "Rust stable 1.99.1"; the banner's
+  unit and process tests were updated together.
+- fix(ci): `tools/github-runner/harden-macos.sh` asserted a floating `nightly`
+  toolchain, so a correctly provisioned host failed the hardening check. It now
+  reads the pinned channel from `rust-toolchain.toml`.
+- docs: reconcile the frozen-surface and transport claims with executable
+  source. The CLI is 14 commands (`improve` included), not 13; the loopback
+  HTTP listener ships persistent MCP 2024-11-05 HTTP+SSE sessions (contract-
+  tested against stdio bytes), so the site's "not a persistent SSE channel"
+  wording was false; `docs/contracts/public-api.mdx` was missing the
+  `abi wdbx episode` subcommand; and `docs/README.md` referenced a
+  `docs-validate` CI job that no workflow defines. `abi-model-runtime`'s
+  `runtime_verified` now states that it carries the `abi-compute` meaning
+  ("verified on the runtime that ran"), not the `abi-gpu` CPU-oracle-parity bar.
 - test(cli): prove in-process and child-process completion tests persist only to
   isolated WDBX stores, never the operator's `~/.abi/` store.
 - docs: move completed Zig refactor/cutover plans to the archive and refresh
   current architecture, persona, SEA, cluster, and contribution pages for the
-  nightly-Rust workspace.
+  stable-Rust 1.99.1 workspace.
 
 ## Pre-Rust rewrite archive
 
@@ -245,5 +273,5 @@ historical release provenance and are not current build or source guidance.
 
 - Use `./build.sh check` as the baseline gate for source changes.
 - Use `zig build check-parity` after public feature API changes.
-- Use `./build.sh full-check` for release/readiness checks (`check` + integration tests + benchmarks + dashboard smoke + `agent tui` line-mode smoke).
+- *(Zig-era note; the Rust rewrite replaced this line.)* `./build.sh full-check` was then the release/readiness gate (`check` + integration tests + benchmarks + dashboard smoke + `agent tui` line-mode smoke). Today `build.sh` maps `check` and `full-check` to the same `./tools/check.sh`, so `full-check` is an alias with no extra steps.
 - Public docs intentionally avoid unproven external claims for distributed sharding, AES/RBAC, Swift/Python/TensorFlow implementations, Kubernetes/H100 deployments, regulatory certifications, QPS/latency/accuracy, energy use, and comparative model benchmarks.

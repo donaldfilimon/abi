@@ -10,6 +10,8 @@ It is **not** stranded branch work and does **not** ship inside `abi` releases.
 > `~/Archive/experimental-2026-09-18/plugins` on 2026-09-18 (restore-only), and `~/.grok/sync-targets.json`
 > `central.abiMega` still points at the old path, so the commands below fail and `/sync-clis` skips or
 > fails abi-mega. Restoring `plugins` or repointing the key is Donald's call; do not point it at `~/Archive`.
+> This covers the **plugin** paths only. The **ABI repository** argument to those scripts was a separate
+> dead path and now points at the canonical checkout, `/Users/donald/sources/repos/abi`.
 
 - Plugin: `/Users/donaldfilimon/dev/active/plugins/abi-mega` (live dependency for `/sync-clis`; do not archive)
 - Sync registry: `/Users/donaldfilimon/.grok/sync-targets.json` (`central.abiMega`)
@@ -18,13 +20,13 @@ It is **not** stranded branch work and does **not** ship inside `abi` releases.
 The plugin is an operator-local Codex artifact. It does not replace repository
 source, tests, or docs. When the plugin and repo disagree, trust `Cargo.toml`,
 `crates/`, `tools/check.sh`, golden/contract tests, and the current
-Markdown sources in this repo. ABI now uses nightly Rust; always invoke Cargo
+Markdown sources in this repo. ABI now uses stable Rust 1.99.1; always invoke Cargo
 through `./tools/cargo.sh`.
 
 ## Included Skills
 
 - `abi-goal-orchestrator`: turns `tasks/todo.md`, roadmap/spec docs, and
-  nightly-Rust repo rules into executable implementation slices.
+  stable-Rust repo rules into executable implementation slices.
 - `abi-doc-claims-sync`: keeps README/docs/instruction claims aligned with
   executable behavior and `docs/contracts/external-claims-audit.mdx`.
 - `abi-surface-validator`: runs focused ABI CLI, MCP, WDBX, TUI, and docs gates.
@@ -55,7 +57,7 @@ validation guidance:
 
 ```bash
 /Users/donaldfilimon/dev/active/plugins/abi-mega/skills/abi-goal-orchestrator/scripts/refresh-inventory.sh \
-  /Users/donaldfilimon/dev/active/abi \
+  /Users/donald/sources/repos/abi \
   /Users/donaldfilimon/dev/active/plugins/abi-mega/assets/abi-current-inventory.md
 ```
 
@@ -63,14 +65,14 @@ Run the plugin's focused ABI gates:
 
 ```bash
 /Users/donaldfilimon/dev/active/plugins/abi-mega/skills/abi-surface-validator/scripts/run-fast-gates.sh \
-  /Users/donaldfilimon/dev/active/abi
+  /Users/donald/sources/repos/abi
 ```
 
 Audit Markdown and old plan files:
 
 ```bash
 /Users/donaldfilimon/dev/active/plugins/abi-mega/skills/abi-markdown-auditor/scripts/scan-markdown.sh \
-  /Users/donaldfilimon/dev/active/abi \
+  /Users/donald/sources/repos/abi \
   /Users/donaldfilimon/dev/active/plugins/abi-mega/assets/abi-markdown-audit.md
 ```
 

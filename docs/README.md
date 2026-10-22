@@ -7,8 +7,9 @@ Pages tree. Separately, the project landing page and benchmark dashboard are
 deployed from `site/` by the artifact-based
 [GitHub Pages workflow](../.github/workflows/benchmarks-gh-pages.yml); that
 workflow does not write a deployment branch.
-GitHub Actions validates the Mintlify site on every push/PR (`docs-validate`
-job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
+GitHub Actions does **not** validate the Mintlify site — `ci.yml` defines only
+the `check` job, and there is no `docs-validate` job. Mintlify validation is a
+local pre-push step (see [Local validation](#local-validation)).
 
 ## Tree
 

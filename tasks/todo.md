@@ -14,6 +14,74 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 ## Continuation qualification (2026-10-20)
 
+- [x] WDBX ledger-hardening consumer regressions: storage accounting,
+  compensation admission and writer-lock recovery remain in sibling WDBX.
+  Both gateway transport regressions pass against that source; the signed
+  Abbey SEA composition regression also passes. Baseline full ABI gate
+  stopped at its required dependency scanner (neither scanner was on PATH).
+  The installed `~/.cargo/bin/cargo-audit` was then located; the full gate
+  passed with that directory on PATH, without installation or policy bypass.
+  Immutable CI pins remain unchanged.
+- [x] Complete local ledger-hardening gate runs: retain the
+  initial scanner-PATH failure and tool timeouts. WDBX's pinned-rustup full gate
+  and ABI's full gate passed after the REST overload correction. Abbey's earlier
+  gate stopped on concurrent TUI formatting; the later run passed that check
+  but failed the daemon memory-capability process test. A fresh isolated Cargo
+  target subsequently passed the complete four-mode Abbey gate. Feature-skew
+  scratch reproduction is not proof of the historical failure's cause.
+- [ ] Freeze and qualify the final immutable ledger-hardening cohort before CI
+  pin changes: unrelated Abbey legacy-migration test work changed during local
+  qualification. The successful local commands do not establish a published
+  exact-revision pairing; CI and publication remain separate.
+
+- [x] Repair buffered tool admission after provider budget exhaustion: two
+  actual failing token regressions now pass; final usage, explicit token/event
+  stops, cumulative usage, retained text and governed no-intent controls cover
+  the shared driver. Independent scoped review approved the repair.
+- [x] Repair runtime terminal cancellation/deadline observation: three failing
+  regressions now pass without changing sticky stops or exact event/token
+  admission semantics. Final host/runtime suites: 128 passed, none ignored;
+  package format and warning-denied Clippy pass.
+- [ ] Complete broad current-source qualification after the sibling owner
+  handoff. The later complete ABI gate exited 0 with 1,082 Rust executions,
+  none failed/ignored, and 173 Python cases (8 skipped). Preserve earlier
+  scanner-PATH, sibling formatting and repaired host-lint failures as separate
+  receipts. CUDA compilation is unavailable without nvcc; WDBX emitted an
+  unused-import warning. This green run does not qualify an immutable changing
+  three-repository cohort, publication or later owner source changes.
+- [x] Keep UTF-8 bounded capture a true stream prefix: two unit regressions and
+  one public runtime regression failed before the fix and now pass. Once a
+  character is dropped, later chunks count as dropped instead of filling the
+  gap. Chunk-boundary equivalence and unchanged streamed events are covered;
+  runtime tests and warning-denied Clippy pass; independent review approved.
+- [x] Mitigate governed authority expiry across prepare/stage-12 callbacks.
+  Guards check the exact admitted grant, source, latest facts and supplied
+  approval at one trusted timestamp; intentionally cancel undispatched work
+  with the existing `NotDispatched / CancelledBeforeDispatch` terminal. Nine
+  actual RED regressions plus a passing control became ten GREEN tests;
+  independent review approved. Consumed approval and caller cancellation remain
+  unchanged. Existing real Abbey governed integration tests passed (9), and a
+  separate scratch expiry fixture passed (5 tests, 8 scenarios) with the actual
+  RuntimeStore, reopen, replay refusal and compensation rejection. No shared
+  lifecycle or Abbey source edits were required. Broader fresh revocation/
+  permission revalidation still needs same-intent consumed-approval semantics
+  from the durable owner; the expiry guard is not atomic authority/effect proof.
+
+- [x] Current-source continuation: reviewed durable replay refusal is local ABI
+  commit `7b9519b`; real host/store tests and full declared-pair gate passed.
+  Abbey atomic PID fixture repair passed ten runs and review; the existing stable
+  migration is on canonical main with combined root (3,831 Rust executions) and
+  separate desktop gates passing on unchanged captured sources.
+- [x] Qualify refreshed canonical ABI dependencies with current WDBX: full stable
+  gate passed (1,055 Rust executions), code/lock bytes stable; copied release
+  artifacts and hook/docs checks passed.
+- [x] Record Abbey owner exact-pin root/desktop qualification: 3,831/49 Rust
+  executions, 98/18 Python cases, unchanged candidate; installer rollback passed.
+- [ ] Qualify later owner decoder/route-log edits after their source handoff;
+  these postdate the accepted ABI and Abbey cohorts.
+  CI remains paused; no commits/pushes; publication remains separate.
+  Evidence: docs/verification/2026-10-20-current-canonical-qualification.md.
+
 - [x] Qualify the selected stable source checkpoint: capability/recording host,
   same-store Abbey lifecycle, scoped evidence and artifact join. Repaired fixed
   ABI cohort: full gate exit 0 on 1.99.1 (1,055 Rust test executions); older fixed
@@ -136,7 +204,15 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 
 | Item | Status | Acceptance boundary |
 | ---- | ------ | ------------------- |
+| Make the gate portable to a hostile `PATH` | ✅ | The gate's Python tooling needs 3.11+ (`tomllib`); macOS `/usr/bin/python3` is 3.9 and could resolve first, killing the gate with a `ModuleNotFoundError` traceback. `tools/check.sh` and `tools/cargo.sh` now resolve a capable interpreter themselves (versioned `python3.X` first, then `python3`/`python`; `ABI_PYTHON` overrides) and fail closed with an actionable message. The required dependency scanner lives in `~/.cargo/bin`, so `tools/security/run-dep-scan.sh` and `tools/cargo.sh` add it to `PATH` — the required scan now actually RUNS instead of failing closed on an unexported PATH. The full gate passes under a deliberately stripped `PATH="/usr/bin:/bin:/opt/homebrew/bin"`. A new regression pins the fail-closed diagnostic. Note: Python 3.12+ `unittest` exits 5 when discovery finds no tests (3.9 exited 0), so the gate fixture now carries a real test. |
+| Keep the runner-hardening checklist from aborting early | ✅ | `tools/github-runner/harden-macos.sh` read the pinned channel out of `rust-toolchain.toml` with a bare `sed` pipe: under `set -euo pipefail` a missing/unreadable manifest aborted the whole checklist before its diagnostic, and the Disk step's `df` on a missing install dir aborted it again — so the script never printed its `RESULT:` summary. Both now degrade to a diagnostic/warn instead of aborting, and the script completes its checklist. Two regressions cover it: the pinned channel is read from a fixture manifest (and a floating `nightly` is never selected), and an unreadable manifest still reports and summarises. |
+| Close the Python-probe fail-open in the gate | ✅ | The interpreter probe tested only "exit 0", which any program ignoring its `-c` argument satisfies (`/bin/echo`, `/bin/true`, a broken shim). `ABI_PYTHON=/bin/echo` therefore made the gate's Python policy tests and the Abbey Python oracle no-ops while the gate still reported "all green", and it disabled the compiler-substitution policy in `tools/cargo.sh` — the check that exists precisely to reject a substituted `RUSTC`. The probe now uses a distinguishing status (`sys.exit(3 if capable else 4)`, accept only 3) and the versioned-interpreter filter is pure bash, so a stripped `PATH` cannot silently drop every candidate. Verified by mutation: with the weak probe the gate wrongly exits 0 and the new regression fails; with the fix it exits non-zero. A second regression pins that a non-interpreter is rejected. The `HOME`-guarded scanner PATH and a self-contained test PATH (the old one was coupled to the host's `/usr/bin` Python layout) are also fixed. |
+| Report the self-learning cycle that actually happened | ✅ | `abi complete --learn` printed `self_learn_cycle=persistence+adaptation+recall+evidence` unconditionally, including when the learning write was audit-rejected, disabled, or of unknown outcome — contradicting the `persisted=` and `wdbx_status=` fields on the same output. The field now derives from the persistence status: `persistence+adaptation+recall` only when committed, `adaptation-only` when skipped or disabled, `adaptation-only+write-unknown` when the outcome is unknown. A regression covers both the committed and skipped shapes. The metadata block moved to `crates/abi-cli/src/complete/report.rs` to stay inside the 1,000-line size gate (`complete.rs` 1011 → 945). Every metadata field stays on the first output line: the checked-in SEA smoke reads only that line, so it is the anti-spoofing boundary against markers repeated in generated response text. |
+| Reconcile the agent-mirror trees with the real source layout | ✅ | The `.codex/agents/*.toml` tree was missed by the earlier pass and disagreed with its `.claude/agents/*.md` counterparts: six auditors still pointed at pre-move ABI-local substrate paths (`crates/abi-wdbx/`, `crates/abi-core/`, `crates/abi-foundation/`), one at `crates/sea/` plus a removed `feat-sea` gate, one at the deleted `crates/abi-cli/src/dashboard.rs`, and one claimed `CLI (13)`. Every affected agent is a read-only auditor that would have reported "source not found" on exactly the surface it exists to check. Corrected against the `.claude` counterparts. Three claims in the `.claude` tree were also false and were corrected there: a `log::warn` in `abi-sea` that does not exist (the crate has no `log` dependency and silently breaks to zero evidence — now flagged as a real observability gap), a `feat-os-control` build gate that does not exist, and the deleted `dashboard.rs` path. |
+| Realign shipped output and docs with the pinned toolchain | ✅ | The CLI's own `abi backends` banner printed "Rust nightly" and a test pinned it, contradicting `rust-toolchain.toml` (`channel = "1.99.1"`) and the external-claims audit. It now prints "Rust stable 1.99.1"; the banner's unit and process tests were updated together. The same stale nightly claim was removed from the marketing site, `README.md`, `walkthrough.md`, `CLAUDE.md`, `CHANGELOG.md`, `abi-threat-model.md`, `ABI-MEGA-PLUGIN.md`, the runner docs, the agent/skill mirrors, and `build.sh -l`. `tools/github-runner/harden-macos.sh` no longer asserts a floating `nightly` toolchain — it reads the pinned channel from `rust-toolchain.toml`, so a correct host no longer fails the hardening check. |
+| Reconcile frozen-surface and transport claims with source | ✅ | The frozen CLI is 14 commands (`improve` included), not 13 — corrected in the ledgers, site, analysis notes, golden README, and agent files. `docs/contracts/public-api.mdx` was missing the `abi wdbx episode` subcommand entirely. The site and `docs/README.md` had drifted: the site claimed the loopback listener was "not a persistent MCP SSE channel" while `crates/abi-mcp/src/{http,sse}.rs` ships persistent 2024-11-05 HTTP+SSE sessions contract-tested against stdio bytes, and `docs/README.md` claimed a `docs-validate` CI job that no workflow defines. `abi-model-runtime`'s `runtime_verified` now states in its message and in the claims audit that it carries the `abi-compute` meaning ("verified on the runtime that ran"), not the `abi-gpu` CPU-oracle-parity bar. `docs/spec/wdbx-north-star.mdx` no longer claims a `std::simd` path that the sibling removed in favour of stable lane-unrolling, and the Windows ACL row no longer says "compile-only" now that PR #794 runtime-verified it. |
 | Central sync-clis regression coverage | ✅ | Eight isolated integration tests cover an unchanged second run, dry-run/apply agreement, support-entry repair and preservation, and native Codex/Claude/OpenCode agent destinations. Discovered by `./tools/check.sh`; missing personal driver/manifest installations explicitly skip. Current central source and runtime configuration are unchanged. |
+| Keep the required dependency scan green against a yanked release | ✅ | The in-flight bulk dependency bump landed `tokio` on 1.54.0, which crates.io has yanked, so `cargo-audit` failed the required scan with `Warning: yanked` — the gate step that must RUN now failed on a release nobody can install. `tokio` is pinned back to the non-yanked 1.53.1 (a semver-compatible patch release; every requirement still resolves) and the required scan passes. The remaining 50 bumps are untouched. |
 | Generate Bash/Zsh/Fish completions from live metadata | ✅ | Production generator uses `usage::COMMANDS`/`SHORTCUTS`; captured scripts remain independent byte-exact oracles and live byte comparisons pass. PowerShell and a new top-level flag remain frozen-surface changes, not implicit cleanup. |
 | Wire the SEA eight-signal scorer into evidence recall | ✅ | Stable-ID deduplication, all current signals, task weights, deterministic budgets, 100-candidate public/defense-in-depth cap, indexed timestamps, provenance, raw routing input, prompt-byte cap, and scratch-store persona regression are covered. |
 | Keep audit-rejected completions out of SEA learning | ✅ | The shared learn loop saves weights and completion evidence only after a passing, non-vetoed audit. SEA recall excludes explicit audit rejections while retaining their durable records; scratch-store write and recall/recency regressions, SEA unit tests, and accepted/vetoed CLI smokes pass. |
@@ -178,7 +254,7 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 | Local model execution | ✅ | `abi-model-runtime` connects exact principal-bound `abi-models` resolution to `abi-agent-runtime::ModelProvider` through Tokenizers, Safetensors, Candle, and `abi-compute` evidence. Callers select an exact model and device; no default, model/device substitution, or fallback exists. Generated scratch fixtures prove deterministic CPU inference and locally exercised Metal initialization plus native tensor operations. Model, tokenizer, raw-prompt, context, generation, runtime-event, and cancellation bounds apply before their respective allocations or emissions. Load and inference reports keep requested, initialized, executed, fallback, mixed-path, and runtime-verification evidence separate. The first architecture is only the tiny `abi-bigram-v1` offline fixture; Gemma, tool-call generation, model data, CUDA runtime execution, placement profiling, and performance remain unclaimed. Evidence: 14 default external contracts, 14 Metal-feature contracts on macOS, warning-denied clippy, and warning-denied private-item rustdoc. CUDA source is feature-gated through Candle but local compilation is unavailable without `nvcc`. |
 | Authenticated worker plane | ✅ | `abi-worker` adds typed worker identity/capability, signed audience-bound job and cancellation envelopes, manager-derived principal-scoped idempotency digests, finite leases/deadlines, cooperative cancellation, bounded ordered result chunks, independently verifiable result digests, quotas, replay resistance, health, and append-only job-control reconstruction. Transport configuration reuses the gateway's owner-protected mandatory-mTLS loader while job-control storage remains independent of WDBX data-plane authority. Evidence: 1 unit + 25 external contract tests, warning-denied clippy, warning-denied private-item rustdoc, and the complete workspace gate. This foundation does **not** provide a network listener, scheduler, model executor, production certificate lifecycle, production cluster, or separate-host proof. |
 
-> This train is additive. It must not change ABI's frozen 13-command CLI or
+> This train is additive. It must not change ABI's frozen 14-command CLI or
 > 12-tool MCP catalogs. Model weights, datasets, and generated adapters stay
 > outside this repository.
 
@@ -220,7 +296,7 @@ See `docs/superpowers/archive/plans/2026-07-31-rust-647-followups.md`.
 | Scratch-path hardening for the os-control audit tests | ✅ | 2026-08-01: the two tests built their scratch dir from `{pid}-{thread_id:?}`; both now use `abi_foundation::temp_path::temp_file_path()` (PID + per-process counter), which cannot collide with anything this process made earlier. Hygiene, kept on its own merits. |
 | CI flake: `os::audit`/`os` scratch-store `WriterBusy` | ✅ | Fixed by the writer-lock retry in [#772](https://github.com/donaldfilimon/abi/pull/772), **not** by the row above. Measured head-to-head, same harness (`os::` at `--test-threads 8`, 40 runs each): scratch-path hardening alone still failed **3/40**; the writer-lock retry alone and both together failed **0/40**. The "leftover dir from a panicked run / `ThreadId` reuse" theory is not reachable — a dead process cannot hold an `flock` (the kernel releases it at exit) and `scratch_store` already called `remove_dir_all` first. The real holder is live and transient: a `fork` duplicates the lock's fd into the child until `exec` closes it via O_CLOEXEC, which is why renaming the path cannot help. |
 
-**Disclosed, not fixed:** the same ad hoc `temp_dir().join(format!("..{pid}-{thread:?}"))` scratch-path pattern (not `temp_file_path`) also appears in `nn.rs`, `complete.rs`, `wdbx_simulate.rs`, `wdbx/mod.rs`, and `abi-wdbx/src/retrieval.rs`. None have been observed to flake; left untouched per "smallest verified slice" rather than swept into a broad rename.
+**Disclosed, not fixed:** the same ad hoc `temp_dir().join(format!("..{pid}-{thread:?}"))` scratch-path pattern (not `temp_file_path`) also appears in `nn.rs`, `complete.rs`, `wdbx_simulate.rs`, `wdbx/mod.rs`, and the sibling `../wdbx/crates/abi-wdbx/src/retrieval.rs`. None have been observed to flake; left untouched per "smallest verified slice" rather than swept into a broad rename.
 
 ---
 
@@ -381,3 +457,27 @@ Remote CI and installed-artifact verification are separate subsequent checks.
   without nvcc; the sibling WDBX unused-import warning is unchanged. Integrate
   only this slice on canonical main, preserving existing host/runtime/gateway/
   ledger work. No remote action or model weight training is included.
+
+- [x] (subagent follow-up) Small high-value self-learn CLI enhancements on main:
+  - Removed silent `Ok(None)` fallback inside `run_learn` for `complete --learn`
+    (now emits clear "requires a persistent WDBX store" error, exit 1, exactly like
+    `improve`; prevents non-learning dispatch while preserving local complete path).
+  - Learn fields now ride the FIRST metadata line with the rest of the metadata
+    (`requested_model=... persisted=... learn=true evidence_count=N adapted=B
+    self_learn_cycle=... recall_ready=...`). A dedicated learn-only first line was
+    tried and reverted: the checked-in SEA smoke inspects only the first output
+    line, so the split hid `provider=local`/`persisted=` from it and failed a
+    healthy run with "missing metadata: provider=local". The first line is the
+    anti-spoofing boundary — the generated response text may repeat arbitrary
+    markers, so a later line must never be able to satisfy a persistence check.
+    `learning_tests.rs::learn_markers_all_share_the_first_output_line` pins the
+    shape the smoke depends on.
+  - Additional test coverage: new `learning_without_persistent_store_emits_clear_error`
+    in `learning_tests.rs`; extended `rejected_learning...` asserts for the learn=
+    /evidence/adapted fields.
+  - Verified: recent USAGE notes for --learn/improve (internal error strings + help),
+    `cargo check -p abi-cli`, clippy clean on abi-cli, focused `test -p abi-cli`
+    complete:: + improve (18/18 complete incl new, 7 improve), golden help, sample
+    runs (evidence recall on 2nd pass, clear errors).
+  - Only edited abi-cli self-learn paths; unrelated dirty files preserved; stayed on
+    canonical main (no branch). Updated this ledger.

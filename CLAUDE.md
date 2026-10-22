@@ -26,11 +26,21 @@ PR #777 and now defers to `AGENTS.md`.
   the repository-selected rustup toolchain bin dir and prepends it to `PATH`. It also pins
   `cc` to `/usr/bin/cc` ahead of Swiftly's shim, which otherwise refuses to
   link because of an unrelated `.swift-version` pin.
+- The gate's **Python tooling needs 3.11+** (`tomllib`). macOS ships
+  `/usr/bin/python3` at 3.9 and `/usr/bin` precedes Homebrew on the default
+  PATH, so a bare `python3` can resolve to an interpreter that dies with
+  `ModuleNotFoundError: No module named 'tomllib'`. `check.sh` and `cargo.sh`
+  resolve a capable interpreter themselves (override with `ABI_PYTHON`) and
+  fail closed with an actionable message. When you invoke the Python steps by
+  hand, use an interpreter you have verified as 3.11+.
 
 ## Commands
 
-For documentation-only edits, use the scoped checks in `AGENTS.md`; the full
-gate below is for code changes.
+For documentation-only edits, use the scoped checks rather than the full gate:
+`python3 -m unittest discover -s tools/tests -p 'test_docs*.py'` (plus the
+policy suites) and `git diff --check`; for `docs/` changes also run
+`.agents/skills/docs-validate/validate.sh` after loading the
+`abi-doc-claims-sync` skill. The full gate below is for code changes.
 
 | Command | What it does |
 |---|---|
@@ -45,13 +55,14 @@ gate below is for code changes.
 | `./tools/cargo.sh test --workspace` | Full test suite (also run by `check.sh`) |
 | `./tools/cargo.sh test --manifest-path ../wdbx/Cargo.toml -p abi-wdbx --lib -- <filter>` | Test the **sibling substrate** from this checkout. No cargo command here reaches `../wdbx` without `--manifest-path`: `--workspace` stops at ABI's own members even though the path deps resolve. |
 | `./tools/cargo.sh fmt --all` | Apply rustfmt |
-| `python3 -m unittest discover -s tools/tests -p 'test_*.py'` | The repository policy tests that open `check.sh` (seven suites: abbey_contracts, ci_contract, docs_policy, docs_templates, pages_contract, site_contract, sync_clis) |
+| `python3 -m unittest discover -s tools/tests -p 'test_*.py'` | The repository policy tests that open `check.sh` (14 suites: abbey_contracts, ci_contract, docs_policy, docs_templates, hooks, mcp_smoke, pages_contract, release_gate, run_abi_smoke, runner_setup, sea_learn_smoke, site_contract, sync_clis, toolchain). `check.sh` runs the same discovery over `test_*.py`, so all 14 are mandatory. Needs Python 3.11+ — use the interpreter `check.sh` picks, or set `ABI_PYTHON`. |
 | `python3 tools/abbey_contracts.py verify contracts/abbey` | The authoritative Python oracle for the Abbey corpus; `xtask abbey verify` must match it |
 | `bash ./tools/check_rust_sizes.sh` | File-size gate on its own |
 | `RUSTDOCFLAGS="-D warnings" ./tools/cargo.sh doc --workspace --no-deps` | The doc gate on its own — a common late-stage failure |
 | `./build.sh cli` / `mcp` / `fmt`; `./build.sh test < /dev/null` | Remaining `build.sh` aliases besides `check`/`full-check`; the test alias needs EOF on stdin |
-| `./tools/cargo.sh clippy --workspace --all-targets -- -D warnings` | Lint, matching the gate exactly |
+| `./tools/cargo.sh clippy --locked --workspace --all-targets -- -D warnings` | Lint, matching the gate exactly |
 | `./mcp/launcher.sh` | Launch the MCP server; prefers `target/release/abi-mcp` then `target/debug/abi-mcp`; run from repo root (or via the launcher) so `@loader_path` resolves `libabi_fm_shim.dylib` on arm64 macOS; set `ABI_MCP_AUTO_BUILD=1` to build on demand |
+| `./.agents/skills/run-abi/smoke.sh` | End-to-end smoke: builds both binaries, exercises the CLI and MCP stdio, writes `target/debug/run-abi-smoke.txt` |
 
 **Run any `cargo test` here with `< /dev/null`.** `abi auth signin` reads a
 secret from stdin when `ABI_AUTH_TOKEN` is unset and stdin is not a TTY, and
@@ -59,6 +70,11 @@ secret from stdin when `ABI_AUTH_TOKEN` is unset and stdin is not a TTY, and
 path in-process — so it blocks forever on an inherited stdin that stays open
 (a pipe, or a terminal). `tools/check.sh` redirects for you; a bare
 `./tools/cargo.sh test --workspace` typed by hand does not.
+
+**CI is currently paused.** For the 2026-10-20 completion train, `AGENTS.md`
+records that local tests are authorized and CI remains paused until Donald
+resumes it. Do not treat an absent CI run as a failure, and do not change code
+to satisfy a job that is not scheduled — the local gate is the evidence.
 
 There is no separate lint-only or build-only CI (the only other workflow is
 `benchmarks-gh-pages.yml`, which publishes `site/` to Pages on push from the
@@ -106,11 +122,31 @@ $ABI scheduler status
 $ABI dashboard --once --plain            # --json / --list-panes / --pane <n> are the scriptable forms
 $ABI complete "summarize ABI scheduler status"
 $ABI agent plan "stage a safe WDBX refactor"
-$ABI wdbx query "$(mktemp -d)/store"   # store stats as JSON; `wdbx stats` is not a command (README's walkthrough still says it is; README is the stale one)
+$ABI wdbx query "$(mktemp -d)/store"   # store stats as JSON; `wdbx stats` is not a command
 ```
 
 The `complete` / `agent` lines above touch the store, so prefix them with
 `ABI_WDBX_PATH=:memory:` unless you actually mean to write to `~/.abi/`.
+
+### macOS build hazards (arm64)
+
+- **Never rewrite a `target/<profile>/*.dylib` in place.** A build that
+  `fs::copy`s or `cp`s over an existing dylib truncates the same inode; a
+  long-lived `abi-mcp stdio` that still has it mapped keeps the old code
+  directory, and every later exec of `abi`/`abi-mcp` dies
+  `SIGKILL (Code Signature Invalid)` while `codesign -vv` reports the file as
+  valid. Repair a broken tree with `cp X X.new && mv -f X.new X`, not a
+  rebuild. Build scripts copy to `.tmp` and `rename`.
+- **Exec'ing the toolchain's `cargo` directly drops rustup's
+  `DYLD_FALLBACK_LIBRARY_PATH`.** rustc on Apple targets strips release
+  binaries with `lib/rustlib/<host>/bin/rust-objcopy`, whose
+  `@rpath/libLLVM.dylib` resolves only through the fallback path the rustup
+  proxy injects. Without it, every release link prints
+  `stripping debug info with rust-objcopy failed: signal: 6 (SIGABRT)`, ships
+  the binary unstripped, and writes a dyld crash report — while cargo still
+  exits 0. `tools/cargo.sh` exports the same list rustup uses; the rustc
+  warning line is the evidence, because macOS throttles crash reports and
+  their count under-reports aborts.
 
 ## Architecture
 
@@ -259,7 +295,9 @@ Bearer tokens here are loopback-only hardening, not a TLS substitute.
 
 `~/.abi/` is the **user's live WDBX store** — real data, not a fixture. Tests
 must never open that path. Use a scratch `DurableStore` path, or set
-`ABI_WDBX_PATH=:memory:` / `ABI_WDBX_PERSIST=0`. Before committing any change
+`ABI_WDBX_PATH=:memory:` / `ABI_WDBX_PERSIST=0`. For a scratch file path,
+prefer `abi_foundation::temp_path::temp_file_path()` over hand-rolled temp
+paths. Before committing any change
 that touches store I/O, re-verify content digests rather than assuming the
 existing golden fixtures still cover the new path.
 
@@ -282,12 +320,16 @@ Measure before trusting any of this — it goes stale as work lands
 
 `tools/check_rust_sizes.sh` rejects Rust files (tracked or untracked, tests
 included) over 1,000 lines and rejects `crates/abi-cli/src/main.rs` over 200.
-On 2026-09-23 two files sat inside the 900–1000 band:
-`crates/abi-wdbx-gateway/tests/episodes.rs` (983, the closest to the limit, so
-new episode-gate tests belong in a new test file) and
-`crates/abi-cli/src/complete.rs` (904); `crates/abi-cli/src/wdbx_simulate.rs`
-(the bounded multiway rewriting engine behind `abi wdbx simulate`) was 827. Run the
-command above rather than trusting a written-down count. The sibling `../wdbx`
+As of 2026-10-21 five files sat inside the 900–1000 band:
+`crates/abi-agent-host/src/governed.rs` (970, the closest to the limit),
+`crates/abi-agent-host/tests/contracts.rs` (955),
+`crates/abi-mcp/src/http.rs` (951), `crates/abi-capability/tests/privacy_replay.rs`
+(948), and `crates/abi-cli/src/complete.rs` (945). `crates/abi-agent-host/tests/governed.rs`
+(936) is close behind, and `crates/abi-wdbx-gateway/tests/episodes.rs` — the file
+that was at 983 on 2026-09-23 — is down to 832, so new episode-gate tests
+belong in a new test file. `crates/abi-cli/src/wdbx_simulate.rs` (the bounded
+multiway rewriting engine behind `abi wdbx simulate`) is 827. Run the command
+above rather than trusting a written-down count. The sibling `../wdbx`
 tree has its own band-dwellers under `abi-wdbx/src/`
 (`{hnsw,multiway,v2/lifecycle,v3/episode/store}.rs`), but that checkout is not
 always present, and `check_rust_sizes.sh` scans only `crates/` — so the sibling

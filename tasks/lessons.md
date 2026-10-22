@@ -99,6 +99,51 @@ when kernels are not linked. WDBX secure demos are reference-grade. Audit:
    while cargo still exits 0 (2026-09-16). `tools/cargo.sh` now exports the
    same list rustup uses; the rustc warning line is the evidence, because
    macOS throttles crash reports and their count under-reports aborts.
+9. **The gate's Python tooling needs 3.11+** — `tools/ci_contract.py`,
+   `tools/toolchain_policy.py`, and several `tools/tests/*` import `tomllib`
+   (3.11+). macOS still ships `/usr/bin/python3` at 3.9, and a bare `python3`
+   can resolve to it, which killed the gate with
+   `ModuleNotFoundError: No module named 'tomllib'`. `tools/check.sh` and
+   `tools/cargo.sh` now resolve a capable interpreter explicitly (versioned
+   `python3.X` first, then `python3`/`python`; override with `ABI_PYTHON`) and
+   fail closed with an actionable message instead of a traceback. Note the
+   related unittest change: Python 3.12+ exits **5** when discovery finds no
+   tests, where 3.9 exited 0 — a fixture with an empty `tools/tests` therefore
+   fails the gate on a modern interpreter.
+10. **The required dependency scanner is not on the default PATH** —
+    `cargo-audit`/`cargo-deny` live in `~/.cargo/bin`, so
+    `ABI_DEP_SCAN_REQUIRE=1 ./tools/security/run-dep-scan.sh` failed closed
+    with "no dependency scanner ran" on any host that did not export it. The
+    scanner script and `tools/cargo.sh` now add `~/.cargo/bin` to PATH
+    themselves, so the required scan no longer depends on the caller's
+    environment. A SKIP is not evidence: the scan must actually RUN.
+11. **`set -euo pipefail` turns a check into an abort** — a "read a value and
+    report it" step written as `VAR="$(cmd | head -1)"` kills the whole script
+    when `cmd` fails, *before* the intended diagnostic branch, and the script
+    never reaches its summary. `tools/github-runner/harden-macos.sh` had this
+    twice (missing `rust-toolchain.toml`; `df` on a missing install dir). In a
+    checklist-style script, compute the value with `|| true` and let the
+    explicit branch report the problem — otherwise a missing file reads as a
+    silent crash instead of a diagnostic. The same trap applies to
+    `$(compgen ... | grep ...)`: a `grep` that matches nothing is fine inside
+    a process substitution (its status is not propagated), but a bare
+    `$(grep ...)` in an assignment is not.
+12. **A capability probe must use a DISTINGUISHING exit status, not "exit 0"** —
+    `if "$candidate" -c '...'; then` accepts *any* program that ignores its
+    argument and exits 0 (`/bin/echo`, `/bin/true`, a broken pyenv/asdf shim).
+    When that candidate is the interpreter a check depends on, the check
+    silently becomes a no-op: `ABI_PYTHON=/bin/echo` made the gate's Python
+    policy tests and the Abbey Python oracle do nothing while the gate still
+    reported "all green", and it disabled the compiler-substitution policy in
+    `tools/cargo.sh` (which exists precisely to reject a substituted `RUSTC`).
+    Use a unique status (`sys.exit(3 if capable else 4)`) and accept only
+    that. Mutate the probe to the weak form and confirm the regression
+    actually fails — a green test against a weak probe is not evidence.
+13. **Never probe by mutating a repo file in place** — a probe that copies
+    `tools/cargo.sh` aside and restores it with `cp` at the end will leave the
+    repo holding the probe if the shell is killed before the restore (a
+    timeout, an interrupt). Copy the file, mutate the copy, and run the copy;
+    or restore in a `trap`.
 
 ## 2026-10-20 — owner integration and source qualification
 
@@ -112,3 +157,22 @@ when kernels are not linked. WDBX secure demos are reference-grade. Audit:
   consumer fixture or moving sibling cannot inherit an older full-gate claim.
   Preserve intermediate failures and do not rerun unrelated producer gates when
   only a separately qualified consumer test/reporting delta changes.
+
+## 2026-10-22 — metadata line contract and unguarded `$HOME`
+
+- **The first output line of a CLI command is a contract, not a layout choice.**
+  The checked-in SEA smoke reads only `out`'s first line, deliberately: the
+  generated response text is free to repeat arbitrary markers, so a later line
+  could otherwise make a failed learning write look healthy. Splitting the
+  learn fields onto their own first line looked like tidier output and broke a
+  healthy run with "missing metadata: provider=local". A Rust unit test that
+  stubs the CLI cannot catch this class of drift — the real smoke (and its
+  `.claude` mirror) must run, and the unit test should pin the exact first-line
+  shape the script depends on. When a frozen surface changes, check every
+  consumer of the bytes, not just the crate that emits them.
+- **Under `set -u`, every `$HOME` dereference needs a guard.** `tools/cargo.sh`
+  runs before every build and gate step, so an unguarded `${HOME}` aborts the
+  whole toolchain in a minimal container or an `env -i` job. Both dereferences
+  (the `~/.cargo/bin` scanner entry and rustup's `~/lib` dyld fallback) now
+  come from one guarded `HOME_ROOT`; `tools/security/run-dep-scan.sh` already
+  used `${HOME:-}` for the same reason.

@@ -5,8 +5,8 @@ Working and historical planning docs for agent workflows. **Not** listed in
 
 | Path | Role |
 | ---- | ---- |
-| `plans/` | Active / Rust-era implementation plans (created on demand; currently empty) |
-| `specs/` | Design drafts pending review or landing (created on demand; currently empty) |
+| `plans/` | Active / Rust-era implementation plans (created on demand) |
+| `specs/` | Design drafts pending review or landing (created on demand) |
 | [`archive/`](archive/) | Superseded plans/specs — historical only (includes completed Zig-era waves and the reimagine-era architecture spec) |
 
 Published layout and claim boundaries: [Docs layout](../README.md). Active board:

@@ -1,6 +1,6 @@
 # ABI Threat Model
 
-Status: current for the nightly-Rust workspace. This document is security
+Status: current for the stable-Rust 1.99.1 workspace. This document is security
 guidance, not a certification or production-hardening claim.
 
 Source of truth: `Cargo.toml`, `crates/`, `tests/golden/`,

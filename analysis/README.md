@@ -35,7 +35,7 @@ surviving index and record of conclusions.
 - **Reimagine-era specs (2026-07-08 … 2026-07-16)**: the BUSINESS_RULES
   (~60 BR-* rules), DATA_OBJECTS, MCP_INTEGRATION, and AI_NATIVE_SPEC files
   reconstructed contracts from the Zig source. Their durable outcomes — the
-  frozen 13-command CLI / 12-tool MCP surfaces, claim-honesty boundaries, and
+  frozen 14-command CLI / 12-tool MCP surfaces, claim-honesty boundaries, and
   P0/drop decisions — live on in `docs/contracts/*.mdx`,
   `docs/spec/*.mdx`, `AGENTS.md`, and the golden fixtures under
   `tests/golden/`; the per-line Zig citations are obsolete.

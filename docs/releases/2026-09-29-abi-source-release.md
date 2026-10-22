@@ -68,11 +68,17 @@ attempt used that flag and failed two persistence tests; the corrected baseline
 passed 906 Rust tests, with zero ignored. Its benchmark ran the old default
 target, which is the reproduced gate defect fixed here.
 
-The workflow pins WDBX to `9fee98ff5ccb92fa86a2ed44f93abd65e7e181ae`.
-The local sibling had later unrelated commits, but its consumed crates,
-manifests, lockfile, contract corpus, and episode oracle matched that pin.
-CI checks out the exact revision. The Rust pin is `nightly-2026-09-01`;
-the observed compiler is `rustc 1.100.0-nightly (0dfb098f3 2026-08-31)`.
+At that release, the workflow pinned WDBX to
+`9fee98ff5ccb92fa86a2ed44f93abd65e7e181ae`. The local sibling had later
+unrelated commits, but its consumed crates, manifests, lockfile, contract
+corpus, and episode oracle matched that pin. CI checked out the exact
+revision. The Rust pin was `nightly-2026-09-01`; the observed compiler was
+`rustc 1.100.0-nightly (0dfb098f3 2026-08-31)`.
+
+**Superseded since 2026-09-29.** The current workflow pins
+`WDBX_REVISION: 2969d71a2c3a81a060dcfc6cf53b4617f13c8b94` and the current
+`rust-toolchain.toml` pins stable `1.99.1`. The paragraph above is scoped to
+the 2026-09-29 release and does not describe the current workflow.
 
 The dependency policy retains only `RUSTSEC-2025-0141` and `RUSTSEC-2024-0436`,
 the previously reviewed unmaintained `bincode` and `paste` exceptions in optional

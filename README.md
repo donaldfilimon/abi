@@ -25,6 +25,12 @@ Companion interface: [abbey](https://github.com/donaldfilimon/abbey) — Intelli
 ./tools/cargo.sh build -p abi-mcp   # target/debug/abi-mcp
 ```
 
+**Prerequisite:** the sibling `wdbx` repository must be checked out as a
+directory named `../wdbx` next to this one. `Cargo.toml` path-depends on
+`../wdbx/crates/{abi-compute,abi-foundation,abi-core,abi-telemetry,abi-wdbx}`,
+so without that sibling Cargo fails at manifest resolution for the whole
+workspace — every command above, including `./tools/check.sh`.
+
 Compatibility: `./build.sh check` → `./tools/check.sh`. The Zig tree has been
 removed; see `RUST-REWRITE-PLAN.md` for the port history.
 
@@ -81,7 +87,7 @@ Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_lea
 - ABI targets **stable Rust 1.99.1** (`rust-toolchain.toml`); validate with `./tools/check.sh`.
 - Core crates and MCP transport have contract/golden coverage; MCP stdio is primary, with an optional custom loopback HTTP compatibility listener that serves persistent MCP 2024-11-05 HTTP+SSE sessions and keeps a one-shot direct-reply `POST /message` compatibility mode (not Streamable HTTP).
 - Documentation: `CLAUDE.md`, `GEMINI.md`, and `AGENTS.md` describe the Rust lifecycle.
-- Build gate: `./tools/check.sh` runs policy tests, `./tools/cargo.sh xtask ci verify` (judo #817), Abbey corpus (Python + `./tools/cargo.sh xtask abbey verify`), size limits, fmt, clippy (`-D warnings`), workspace build/tests, and docs.
+- Build gate: `./tools/check.sh` runs policy tests, `./tools/cargo.sh xtask ci verify` (judo #817), Abbey corpus (Python + `./tools/cargo.sh xtask abbey verify`), the **required dependency-security scan** (`ABI_DEP_SCAN_REQUIRE=1 ./tools/security/run-dep-scan.sh` — it fails the gate if no scanner runs), size limits, fmt, clippy (`-D warnings`), workspace build/tests, the **sibling WDBX contract conformance tests** (`--manifest-path ../wdbx/Cargo.toml`), local Metal tests/docs, the benchmark regression guard, rustdoc, and release `abi-cli`/`abi-mcp` builds.
 - Local models: `abi-model-runtime` requires an exact registry model, accepting principal, external storage root, and device choice. Generated scratch fixtures prove its tiny `abi-bigram-v1` Candle path on CPU and locally exercised Metal; this is runtime-foundation evidence, not a Gemma, quality, placement, speedup, or CUDA-runtime claim.
 - Workers: `abi-worker` provides authenticated, audience-bound, bounded offline admission/control contracts with finite leases, cooperative cancellation, replay resistance, and verifiable results. It reuses the gateway mTLS configuration but does not claim a listener, scheduler, model execution, production cluster, or separate-host deployment.
 - GPU: capability table + preferred backend reporting with **honest `accelerated=false`** when native kernels are not linked; vector ops use deterministic CPU lane fallback. CUDA/Vulkan/ANE kernels remain non-claims.

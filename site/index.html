@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ABI Framework — Intelligence Without Limits</title>
-<meta name="description" content="Intelligence Without Limits. Local AI orchestration with inspectable memory — nightly Rust runtime, WDBX, and claim-honest capability reporting.">
+<meta name="description" content="Intelligence Without Limits. Local AI orchestration with inspectable memory — stable Rust 1.99.1 runtime, WDBX, and claim-honest capability reporting.">
 <meta name="color-scheme" content="dark light">
 <meta property="og:title" content="ABI Framework — Intelligence Without Limits">
 <meta property="og:description" content="Local AI orchestration with inspectable memory. Runtime and WDBX under the Abbey/ABI umbrella — not a Quesar surface.">
@@ -29,7 +29,7 @@
     <a class="brand" href="./">
       <span class="mark" aria-hidden="true">AB</span>
       <span>ABI Framework</span>
-      <span class="tag">nightly Rust</span>
+      <span class="tag">stable Rust 1.99.1</span>
     </a>
     <nav class="site-nav" aria-label="Primary">
       <a href="#capabilities">Capabilities</a>
@@ -80,7 +80,7 @@
         <div class="card">
           <h3>CLI <span class="pill pill-current">Current</span></h3>
           <p>
-            Thirteen contract-tested commands behind the <code>abi</code> binary, with golden
+            Fourteen contract-tested commands behind the <code>abi</code> binary, with golden
             fixtures pinning the frozen surface. <code>abi help --json</code> emits typed
             command metadata and shell completions for automation.
           </p>
@@ -100,9 +100,12 @@
           <h3>MCP server <span class="pill pill-current">Current</span></h3>
           <p>
             Twelve contract-covered tools over stdio JSON-RPC with a 64&nbsp;KB frame cap.
-            A custom loopback HTTP compatibility listener is attempted at startup; its
-            <code>/sse</code> response only advertises <code>/message</code> and is not a
-            persistent, spec-conforming MCP HTTP+SSE channel. A bind failure leaves stdio serving.
+            A custom loopback HTTP compatibility listener is attempted at startup: it serves
+            persistent MCP 2024-11-05 HTTP+SSE sessions (<code>GET /sse</code>, then
+            <code>POST /message?sessionId=&lt;id&gt;</code>), contract-tested against the
+            stdio bytes, alongside a one-shot direct-reply <code>POST /message</code> mode. It
+            is not Streamable HTTP (2025-03-26) and is not a production non-loopback exposure.
+            A bind failure leaves stdio serving.
           </p>
         </div>
 
@@ -171,9 +174,10 @@
       <div class="section-head">
         <h2>Quick start</h2>
         <p>
-          ABI targets nightly Rust pinned by <code>rust-toolchain.toml</code>. Always go
-          through <code>./tools/cargo.sh</code> — a stable <code>cargo</code> on
-          <code>PATH</code> will shadow the pinned toolchain.
+          ABI targets stable Rust 1.99.1 pinned by <code>rust-toolchain.toml</code>. Always go
+          through <code>./tools/cargo.sh</code> — a Homebrew-installed <code>cargo</code> on
+          <code>PATH</code> ignores <code>rust-toolchain.toml</code> and will shadow the pinned
+          toolchain.
         </p>
       </div>
 
@@ -190,7 +194,7 @@ git clone https://github.com/donaldfilimon/wdbx
 git clone https://github.com/donaldfilimon/abi
 cd abi
 
-<span class="cmt"># nightly toolchain via the wrapper, never bare cargo</span>
+<span class="cmt"># stable toolchain via the wrapper, never bare cargo</span>
 ./tools/cargo.sh --version
 
 <span class="cmt"># the primary gate: fmt, clippy -D warnings, build, tests, docs</span>
@@ -241,7 +245,9 @@ $ABI wdbx compute info</code></pre>
 ./mcp/launcher.sh
 
 <span class="cmt"># optional custom loopback HTTP compatibility listener:</span>
-<span class="cmt">#   GET /sse advertises POST /message; it is not persistent MCP SSE</span>
+<span class="cmt">#   persistent MCP 2024-11-05 HTTP+SSE session:</span>
+<span class="cmt">#   GET /sse, then POST /message?sessionId=&lt;id&gt;</span>
+<span class="cmt">#   (not Streamable HTTP; loopback only)</span>
 <span class="cmt">#   ABI_MCP_HTTP_PORT   (default 8080)</span>
 <span class="cmt">#   ABI_MCP_HTTP_TOKEN  (bearer auth)</span></code></pre>
           </div>

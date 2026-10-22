@@ -38,7 +38,7 @@ Hardening applied here:
      `head.repo.full_name == github.repository` (same-repo PR only).
 2. **Fork PRs** get no CI job; build a fork's branch locally with `./tools/check.sh` before merging it. The Pages workflow has no `pull_request` trigger, so its self-hosted `deploy` job is gated to `push` and `workflow_dispatch` only.
 3. **Least-privilege token** — workflow `permissions: contents: read`; the Pages workflow adds only `pages: write` and `id-token: write`, which deployment requires. Every checkout uses `persist-credentials: false`.
-4. **Nightly Rust via rustup** — self-hosted jobs install/ensure `nightly` with `rustfmt`/`clippy`/`rust-src` and build only through `./tools/cargo.sh` / `./tools/check.sh` (Homebrew’s stable `cargo` shadows rustup and must not be used bare).
+4. **Stable Rust 1.99.1 via rustup** — self-hosted jobs install/ensure `1.99.1` with `rustfmt`/`clippy`/`rust-src` and build only through `./tools/cargo.sh` / `./tools/check.sh` (Homebrew’s stable `cargo` shadows rustup and must not be used bare).
 
 Still recommended on the host and in GitHub settings:
 
@@ -54,7 +54,7 @@ Making the repository **private** remains the strongest fix; this project stays 
 
 ## Toolchain on the runner host
 
-CI expects a rustup **nightly** toolchain matching [`rust-toolchain.toml`](../rust-toolchain.toml), plus the usual macOS SDK:
+CI expects a rustup **stable 1.99.1** toolchain matching [`rust-toolchain.toml`](../rust-toolchain.toml), plus the usual macOS SDK:
 
 ```bash
 rustup show

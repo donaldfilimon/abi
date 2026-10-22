@@ -51,7 +51,7 @@ status: done
 - Mega-goal (claim-honest): green `main` gate, Rust-only tree, frozen surfaces, honest residual catalog — never fake-complete stubs/ANE/sharding/FHE.
 - **Rust rewrite on `main` (2026-07-30):** PR #756 → `34c35d5`; gate is `./tools/check.sh` (nightly). Zig tree removed.
 - **Hygiene closeout:** critical agent skills/smoke drivers (`goals`, `run-abi`, `mcp-smoke`, `complete-base`, `nn-demo`) teach Rust gates; `nn` demo JSON checkpoint (`--out` / `--checkpoint`).
-- **Definition of done met:** default branch Rust-only; `./tools/check.sh` green; 13 CLI + 12 MCP live; store safety + claim discipline documented; residuals permanently labeled Partial on `tasks/todo.md`.
+- **Definition of done met:** default branch Rust-only; `./tools/check.sh` green; 14 CLI + 12 MCP live; store safety + claim discipline documented; residuals permanently labeled Partial on `tasks/todo.md`.
 - Permanent product Partial (new goals if pursued): full ggml/llama.cpp, broader native CUDA/Vulkan execution, Windows runtime CI, production separate-host cluster deployment, and native cluster TLS termination. The incremental sampler and Discord/Twilio rustls paths subsequently shipped and are no longer residuals.
 
 ## Fix run-abi smoke test failure
@@ -108,9 +108,9 @@ without a proxy).
 1. **Default branch is Rust-only** — `main` has 0 tracked `*.zig` / `build.zig*`;
    primary gate is `./tools/check.sh` (nightly via `./tools/cargo.sh`, never bare
    Homebrew `cargo`).
-2. **Frozen surfaces ship** — 13 CLI commands (`help`, `complete`, `train`,
+2. **Frozen surfaces ship** — 14 CLI commands (`help`, `complete`, `train`,
    `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, `dashboard`, `wdbx`,
-   `scheduler`, `nn`) and 12 MCP tools (`ai_run`, `ai_complete`, `ai_learn`,
+   `scheduler`, `nn`, `improve`) and 12 MCP tools (`ai_run`, `ai_complete`, `ai_learn`,
    `ai_train`, `wdbx_query`, `scheduler_stats`, `scheduler_info`,
    `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, `plugin_run`)
    work on real binaries with contract/golden coverage.
@@ -138,7 +138,7 @@ without a proxy).
 | **0 — Workspace + gate** | Cargo nightly workspace, `tools/cargo.sh` / `tools/check.sh`, golden fixtures | ✅ |
 | **1 — Foundation / core / connectors / WDBX** | Pure crates + durable store + demos, claim-honest | ✅ |
 | **2 — AI / SEA / NN / GPU detect / plugins / MCP** | Personas, learn loop, char-LM demo, 12 tools stdio | ✅ |
-| **3 — Full CLI + TUI/dashboard** | All 13 commands; one-shot + raw-mode dashboard; agent line-mode | ✅ |
+| **3 — Full CLI + TUI/dashboard** | All 14 commands; one-shot + raw-mode dashboard; agent line-mode | ✅ |
 | **4 — Deferred ports** | Soul, Twilio local, Discord offline, local_bridge, MCP HTTP/SSE, FM Swift shim | ✅ |
 | **5 — Zig teardown** | One-shot delete; 0 tracked Zig; `./build.sh` → check.sh | ✅ |
 | **6 — Docs + board** | Plan COMPLETE banner; README/todo Rust-first | ✅ (board + plan); long-form history scrub optional |
@@ -336,6 +336,44 @@ Remote CI and installed-artifact verification are separate subsequent checks.
 ## Stable ABI source completion and existing-architecture integration (2026-10-20)
 status: in progress
 
+- **2026-10-20 07:48 EDT, prefix and expiry hardening:** fixed UTF-8 capture
+  chunk-boundary corruption (3 actual RED regressions) and prevented recording
+  after admitted authority expires during prepare/final audit (9 RED plus 1
+  passing control). Both repairs passed focused suites and independent review.
+  The narrow expiry path intentionally cancels undispatched work under the
+  existing terminal contract; the earlier need for a new expiry terminal does
+  not block this mitigation. Existing real Abbey join tests passed (9); a
+  separately generated scratch expiry join passed (5 tests, 8 scenarios),
+  including actual RuntimeStore reopen, consumed approval/replay preservation
+  and compensation rejection, without changing Abbey source. Full ABI gate
+  exited 0: 1,082 Rust executions, none failed/ignored; 173 Python cases, 8
+  skipped; CUDA unavailable without nvcc and a sibling unused-import warning
+  disclosed. Logs in the approved opencode temporary directory:
+  `abi-improve-final-gate.log`, `abi-owner-governed-join-final.log` and
+  `abi-expiry-real-owner.log`; fixture source/lock/input hashes are under
+  `abi-expiry-owner-proof/`. Next: stable owner source handoff for exact-cohort
+  qualification, and coordinated fresh post-admission revocation semantics.
+  No CI, publication, shared lifecycle change, live effect or whole-product
+  completion is claimed by the green local run.
+- **2026-10-20 07:22 EDT, admission repairs:** blocked buffered tool work after
+  known provider budget exhaustion and corrected runtime final cancellation/
+  deadline reporting. Actual RED/GREEN regressions and independent scoped
+  review support these repairs; final host/runtime tests 128 passed, none
+  ignored; final standalone workspace tests 1,038 passed, none ignored, with
+  package format and warning-denied Clippy passing. Latest full
+  gate stopped on dirty sibling `v3_episode_store.rs` formatting after policy,
+  contracts, audit and sizes passed; it is not green. Logs:
+  `/private/var/folders/c_/thtfn_7d1p9378rxsp4pwz6c0000gn/T/opencode/abi-admission-tests-final.log`
+  and `abi-completion-final-gate-repaired.log` in the same directory. Next:
+  sibling-owner source handoff and full gate; owner agreement on post-admission
+  authority-expiry no-dispatch terminals and consumed-approval revalidation.
+- **2026-10-20, broad completion continuation:** independent general/explore
+  reviews and workspace tests started; existing source/lockfile/report changes
+  preserved. Required dependency audit passed with the installed scanner on PATH;
+  full gate stopped at dirty sibling WDBX decoder-test formatting. Next: repair
+  verified ABI-owned defects and coordinate the sibling gate blocker; do not
+  claim whole-product completion or publish while external boundaries remain.
+
 The selected local recording/source checkpoint is implemented and qualified;
 the broader ecosystem goal stays open for the explicit owner packets below.
 Local tests are allowed. CI, publication, live effects and real training remain
@@ -365,3 +403,17 @@ paused or separately unapproved.
 
 Evidence, matrix, exact manifests, runner and next owners:
 docs/superpowers/reports/2026-10-20-stable-source-qualification.md.
+
+### Current-source continuation (2026-10-20)
+
+Replay refusal now has a durable owner audit and explicit host reason; local
+ABI checkpoint `7b9519b` passed the full gate with declared WDBX2969 and copied
+artifact checks. Abbey's existing stable migration reached canonical main; its
+combined root passed 3,831 Rust executions and separate desktop passed with
+unchanged captured source fingerprints, including the reviewed replay/PID fixes.
+Refreshed canonical ABI full gate and copied release artifacts now pass with
+current WDBX and unchanged code/lock bytes (1,055 Rust executions). Separate
+Abbey exact-pin root/desktop gates passed, including installer rollback. Later
+owner decoder/route-log edits remain outside these cohorts. CI stays paused;
+no commits or pushes; publication remains separate.
+Report: docs/verification/2026-10-20-current-canonical-qualification.md.

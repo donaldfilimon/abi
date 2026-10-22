@@ -85,6 +85,8 @@ here is inferred from documentation prose alone unless labeled as such.
 | `dev/active/AbbeyBot` | Swift 6.4, macOS 27, Xcode toolchain for desktop | Swift, not Rust |
 
 `../wdbx/crates/abi-compute/src/lib.rs:1` is `#![feature(portable_simd)]`.
+As of 2026-10-20, the sibling path crate is stable Rust 1.99.1 and does not
+use the feature gate.
 `abi/Cargo.toml:15` declares `abi-compute = { path = "../wdbx/crates/abi-compute" }`
 and `abi/Cargo.toml:27` declares `abi-wdbx = { path = "../wdbx/crates/abi-wdbx" }`.
 

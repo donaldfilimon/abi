@@ -15,7 +15,7 @@ short editor-facing reminder.
 
 ## Contracts
 
-- Frozen CLI surface: 13 top-level commands, defined in
+- Frozen CLI surface: 14 top-level commands, defined in
   `crates/abi-cli/src/usage.rs` and pinned by golden tests.
 - Frozen MCP surface: 12 tools, implemented under `crates/abi-mcp/` and
   pinned by contract tests.
