@@ -6,6 +6,7 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
+import sys
 import tempfile
 import textwrap
 import unittest
@@ -74,6 +75,15 @@ class LockedReleaseGateTests(unittest.TestCase):
             root = Path(directory)
             (root / "tools/tests").mkdir(parents=True)
             shutil.copy2(ROOT / "tools/check.sh", root / "tools/check.sh")
+            # Python 3.12+ unittest exits 5 when discovery finds no tests, so
+            # the fixture carries one real test to prove the policy-test step
+            # actually executes rather than silently passing on an empty dir.
+            (root / "tools/tests/test_fixture_policy.py").write_text(
+                "import unittest\n\n\n"
+                "class FixturePolicyTests(unittest.TestCase):\n"
+                "    def test_policy_step_runs(self) -> None:\n"
+                "        self.assertTrue(True)\n"
+            )
             executable(root / "tools/cargo.sh", """
 printf '%s\\n' "$*" >> "$GATE_COMMANDS"
 case "$1" in
@@ -93,7 +103,10 @@ echo audit-required >> "$GATE_COMMANDS"
             executable(root / "bin/rustc", "echo fixture-rustc\n")
             executable(root / "bin/uname", "echo Linux\n")
             commands = root / "commands.txt"
-            env = {**os.environ, "PATH": f"{root / 'bin'}:/usr/bin:/bin",
+            # The gate requires a Python 3.11+ interpreter (tomllib). This
+            # fixture exercises gate wiring, not interpreter selection, so the
+            # running interpreter's directory is put on the minimal PATH.
+            env = {**os.environ, "PATH": f"{root / 'bin'}:{Path(sys.executable).parent}:/usr/bin:/bin",
                    "GATE_COMMANDS": str(commands), "GATE_RUSTC": str(root / "bin/rustc")}
             result = subprocess.run(
                 ["bash", "tools/check.sh"], cwd=root, env=env,
@@ -107,6 +120,79 @@ echo audit-required >> "$GATE_COMMANDS"
                                 "--test abbey_contracts" in line and
                                 "--test v3_cross_language_commitment" in line and
                                 "--test v3_cross_language_episode" in line for line in calls))
+
+    def test_gate_requires_a_capable_python_interpreter_and_says_so(self) -> None:
+        # The Python policy tooling needs 3.11+ (tomllib). macOS still ships
+        # /usr/bin/python3 at 3.9, and a bare `python3` can resolve to it. The
+        # gate must fail closed with an actionable diagnostic rather than
+        # dying inside the interpreter with a ModuleNotFoundError traceback.
+        with tempfile.TemporaryDirectory(prefix="abi-gate-python-") as directory:
+            root = Path(directory)
+            (root / "tools").mkdir(parents=True)
+            shutil.copy2(ROOT / "tools/check.sh", root / "tools/check.sh")
+            # A python3 that satisfies `python3 --version` but cannot import
+            # tomllib, standing in for the macOS system interpreter.
+            stale = root / "bin" / "python3"
+            stale.parent.mkdir(parents=True)
+            stale.write_text(
+                "#!/bin/sh\n"
+                "if [ \"$1\" = '-c' ]; then exit 1; fi\n"
+                "echo 'Python 3.9.6'\n"
+            )
+            stale.chmod(0o755)
+            # The PATH is self-contained: the resolver discovers versioned
+            # interpreters by scanning PATH, so including /usr/bin would let a
+            # host-supplied python3.X satisfy the resolver and make this test
+            # fail for an unrelated reason. Only the required shell utilities
+            # are linked in.
+            for tool in ("bash", "dirname", "grep", "sort", "sed", "cat"):
+                source = shutil.which(tool)
+                if source is not None:
+                    (root / "bin" / tool).symlink_to(source)
+            env = {**os.environ, "PATH": f"{root / 'bin'}"}
+            result = subprocess.run(
+                ["bash", "tools/check.sh"], cwd=root, env=env,
+                text=True, capture_output=True, timeout=30,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Python 3.11+", result.stderr)
+            self.assertIn("ABI_PYTHON", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_gate_rejects_a_non_interpreter_as_the_python_oracle(self) -> None:
+        # The probe must use a distinguishing exit status, not "exit 0": a
+        # program that ignores its `-c` argument and exits 0 would otherwise
+        # be accepted, silently turning the policy tests and the Abbey Python
+        # oracle into no-ops while the gate still reported green.
+        with tempfile.TemporaryDirectory(prefix="abi-gate-python-") as directory:
+            root = Path(directory)
+            (root / "tools/tests").mkdir(parents=True)
+            shutil.copy2(ROOT / "tools/check.sh", root / "tools/check.sh")
+            (root / "tools/tests/test_fixture_policy.py").write_text(
+                "import unittest\n\n\n"
+                "class FixturePolicyTests(unittest.TestCase):\n"
+                "    def test_policy_step_runs(self) -> None:\n"
+                "        self.assertTrue(True)\n"
+            )
+            (root / "tools/abbey_contracts.py").write_text("")
+            executable(root / "tools/cargo.sh", "exit 0\n")
+            executable(root / "tools/check_rust_sizes.sh", "exit 0\n")
+            executable(root / "tools/bench_regress.sh", "exit 0\n")
+            executable(root / "tools/security/run-dep-scan.sh", "exit 0\n")
+            # A stand-in that ignores `-c` and exits 0, like /bin/echo.
+            executable(root / "bin/python3", "exit 0\n")
+            for tool in ("bash", "dirname", "grep", "sort", "sed", "cat"):
+                source = shutil.which(tool)
+                if source is not None:
+                    (root / "bin" / tool).symlink_to(source)
+            env = {**os.environ, "PATH": f"{root / 'bin'}"}
+            result = subprocess.run(
+                ["bash", "tools/check.sh"], cwd=root, env=env,
+                text=True, capture_output=True, timeout=30,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Python 3.11+", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
 
 
 class IsolatedCiTargetTests(unittest.TestCase):

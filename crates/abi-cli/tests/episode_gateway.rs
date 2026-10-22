@@ -71,6 +71,9 @@ fn policy_json() -> Vec<u8> {
                 token_budget: 1_000,
                 storage_budget_bytes: 1 << 20,
                 current_consent_epoch: None,
+                retention_ttl_ms: None,
+                retention_windows: None,
+                authorized_principals: None,
             },
         )]),
     })

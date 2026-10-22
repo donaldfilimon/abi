@@ -19,7 +19,8 @@ pub const MAX_CAPTURED_BYTES: usize = 64 * 1024;
 /// character boundary.
 ///
 /// Truncation never splits a `char`: the last partially-fitting character is
-/// dropped whole and counted in [`CapturedText::dropped_bytes`].
+/// dropped whole and counted in [`CapturedText::dropped_bytes`]. Once truncated,
+/// later chunks are only counted, so retained text remains a stream prefix.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CapturedText {
     text: String,
@@ -70,6 +71,10 @@ impl CapturedText {
     ///
     /// Bytes that do not fit are counted, not stored.
     pub fn push_str(&mut self, chunk: &str) {
+        if self.truncated() {
+            self.dropped_bytes = self.dropped_bytes.saturating_add(to_u64(chunk.len()));
+            return;
+        }
         let remaining = self.limit.saturating_sub(self.text.len());
         if chunk.len() <= remaining {
             self.text.push_str(chunk);
@@ -166,6 +171,35 @@ mod tests {
         assert_eq!(captured.text(), "abc");
         assert_eq!(captured.dropped_bytes(), 4);
         assert!(captured.truncated());
+    }
+
+    #[test]
+    fn a_partial_character_gap_is_not_filled_by_later_chunks() {
+        let mut captured = CapturedText::with_limit(2);
+        captured.push_str("aé");
+        captured.push_str("");
+        captured.push_str("b");
+        assert_eq!(captured.text(), "a", "capture must remain a stream prefix");
+        assert_eq!(captured.dropped_bytes(), 3);
+    }
+
+    #[test]
+    fn captured_prefix_does_not_depend_on_stream_chunk_boundaries() {
+        let input = "aé🙂b中c";
+        for limit in 0..=input.len() + 1 {
+            let expected = CapturedText::capture_with_limit(input, limit);
+            for split in (0..=input.len()).filter(|&i| input.is_char_boundary(i)) {
+                let mut chunked = CapturedText::with_limit(limit);
+                chunked.push_str(&input[..split]);
+                chunked.push_str(&input[split..]);
+                assert_eq!(chunked, expected, "limit={limit}, split={split}");
+            }
+            let mut chunked = CapturedText::with_limit(limit);
+            for ch in input.chars() {
+                chunked.push_str(ch.encode_utf8(&mut [0; 4]));
+            }
+            assert_eq!(chunked, expected, "character chunks, limit={limit}");
+        }
     }
 
     #[test]

@@ -93,7 +93,7 @@ fn main() {
 /// `target/<profile>` for an `OUT_DIR`, located by structure rather than depth.
 ///
 /// Counting a fixed number of ancestors breaks silently when cargo changes the
-/// layout under `build/`: 1.99.0-nightly nests `build/<pkg>/<hash>/out` where
+/// layout under `build/`: cargo 1.99 nests `build/<pkg>/<hash>/out` where
 /// older releases used `build/<pkg>-<hash>/out`, so a hard-coded `nth(3)`
 /// resolves to `target/<profile>/build` and the dylib lands one directory away
 /// from where `@loader_path` looks. `target/<profile>` is always the parent of

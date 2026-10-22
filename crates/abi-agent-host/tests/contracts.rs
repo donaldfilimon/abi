@@ -1,5 +1,8 @@
 //! External contracts for bounded host orchestration.
 
+#[path = "contracts/token_admission.rs"]
+mod token_admission;
+
 use abi_agent_host::{
     AgentHost, HostBudget, HostBudgetLimit, HostError, HostRunReport, HostStopReason,
     ToolExecutionContext, ToolExecutionError, ToolExecutor, ToolOutput,

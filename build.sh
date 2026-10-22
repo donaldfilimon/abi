@@ -16,7 +16,11 @@ case "$cmd" in
     exec "$ROOT/tools/cargo.sh" build -p abi-mcp "$@"
     ;;
   test)
-    exec "$ROOT/tools/cargo.sh" test --workspace "$@"
+    # Tests must run with stdin at EOF: `abi auth signin` reads a secret from
+    # stdin when ABI_AUTH_TOKEN is unset and stdin is not a TTY, so the
+    # no-token path test blocks forever on an inherited open stdin. Redirect
+    # here so this alias cannot hang the same way tools/check.sh does.
+    exec "$ROOT/tools/cargo.sh" test --workspace "$@" < /dev/null
     ;;
   fmt)
     exec "$ROOT/tools/cargo.sh" fmt --all "$@"
@@ -25,12 +29,12 @@ case "$cmd" in
     cat <<'EOF'
 Rust rewrite entrypoints:
   ./tools/check.sh          primary gate (fmt, clippy, build, test, docs)
-  ./tools/cargo.sh …        rustup nightly cargo wrapper
+  ./tools/cargo.sh …        rustup stable-1.99.1 cargo wrapper
   ./build.sh check          → ./tools/check.sh
-  ./build.sh cli            → cargo build -p abi-cli
-  ./build.sh mcp            → cargo build -p abi-mcp
-  ./build.sh test           → cargo test --workspace
-  ./build.sh fmt            → cargo fmt --all
+  ./build.sh cli            → ./tools/cargo.sh build -p abi-cli
+  ./build.sh mcp            → ./tools/cargo.sh build -p abi-mcp
+  ./build.sh test           → ./tools/cargo.sh test --workspace  (stdin is EOF)
+  ./build.sh fmt            → ./tools/cargo.sh fmt --all
 EOF
     ;;
   *)

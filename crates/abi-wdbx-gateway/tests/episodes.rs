@@ -18,6 +18,9 @@ use uuid::Uuid;
 
 const TOKEN: &str = "gateway-test-token";
 
+#[path = "episodes/ledger_hardening.rs"]
+mod ledger_hardening;
+
 struct Scratch {
     root: PathBuf,
     token: PathBuf,
@@ -76,6 +79,9 @@ fn episode_policy(learning_enabled: bool) -> abi_wdbx::v3::episode::StorePolicy 
                 token_budget: 1_000,
                 storage_budget_bytes: 1 << 20,
                 current_consent_epoch: Some(7),
+                retention_ttl_ms: None,
+                retention_windows: None,
+                authorized_principals: None,
             },
         )]),
     }

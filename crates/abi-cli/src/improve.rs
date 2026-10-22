@@ -14,7 +14,7 @@ use abi_wdbx::VersionedStore;
 use crate::app::Outcome;
 use crate::util;
 
-const USAGE: &str = "usage: abi improve [--apply] [--model <id>] <input>";
+const USAGE: &str = "usage: abi improve [--apply] [--model <id>] <input>  (self-learn preview/apply over SEA; --apply persists only on audit pass)";
 const DEFAULT_MODEL: &str = "abi-local";
 
 #[derive(Debug, PartialEq, Eq)]

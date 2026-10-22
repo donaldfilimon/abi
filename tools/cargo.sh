@@ -20,7 +20,42 @@ set -euo pipefail
 
 if [[ "${1:-}" == "--abi-qualify-toolchain" ]]; then
   # Preserve the gate's Python interpreter before /usr/bin linker precedence.
-  POLICY_PYTHON="$(command -v python3)"
+  # It must be 3.11+: the policy script imports tomllib, which macOS' system
+  # /usr/bin/python3 (3.9) does not ship. Probe versioned interpreters
+  # generically so a host carrying only e.g. python3.15 still qualifies.
+  #
+  # The probe must use a DISTINGUISHING exit status, not "exit 0": a program
+  # that ignores its `-c` argument and exits 0 (echo, true, a broken shim)
+  # would otherwise be accepted as an interpreter, and the policy script would
+  # never run — silently disabling the compiler-substitution check this
+  # qualification exists to enforce. Exit 3 means "a real 3.11+ interpreter".
+  POLICY_PYTHON=""
+  candidates=()
+  [[ -n "${ABI_PYTHON:-}" ]] && candidates+=("${ABI_PYTHON}")
+  while IFS= read -r versioned; do
+    # Pure-bash filter: no external grep/sort, so a stripped PATH cannot
+    # silently drop every candidate and misreport a capable interpreter as
+    # missing.
+    [[ "$versioned" =~ ^python3\.[0-9]+$ ]] && candidates+=("$versioned")
+  done < <(compgen -c 'python3.' 2>/dev/null)
+  candidates+=(python3 python)
+  for candidate in "${candidates[@]}"; do
+    [[ -n "$candidate" ]] || continue
+    resolved="$(command -v "$candidate" 2>/dev/null || true)"
+    [[ -n "$resolved" ]] || continue
+    probe_status=0
+    "$resolved" -c 'import sys, tomllib; sys.exit(3 if sys.version_info >= (3, 11) else 4)' \
+      >/dev/null 2>&1 || probe_status=$?
+    if [[ "$probe_status" -eq 3 ]]; then
+      POLICY_PYTHON="$resolved"
+      break
+    fi
+  done
+  if [[ -z "$POLICY_PYTHON" ]]; then
+    printf 'stable qualification requires a Python 3.11+ interpreter (tomllib)\n' >&2
+    printf 'install one, or set ABI_PYTHON=/path/to/python3.11+\n' >&2
+    exit 1
+  fi
 fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -34,7 +69,23 @@ TOOLCHAIN_BIN="$(dirname "${TOOLCHAIN_CARGO}")"
 # Swift), because rustc looks up `cc` on PATH rather than only honouring $CC.
 # Put the repository-selected toolchain and /usr/bin ahead of Swiftly so the system
 # compiler is the one that links.
-export PATH="${TOOLCHAIN_BIN}:/usr/bin:${PATH}"
+# `$HOME` is dereferenced twice below: the required dependency scanner
+# (cargo-audit/cargo-deny) lives in `~/.cargo/bin`, and rustup's dyld fallback
+# list includes `~/lib`. `set -u` is active, so an unset HOME must not abort
+# the wrapper before any work happens (a minimal container or an `env -i` job
+# has no HOME). Derive both entries from a guarded HOME and skip them when it
+# is missing, exactly as the sibling `tools/security/run-dep-scan.sh` does.
+HOME_ROOT="${HOME:-}"
+if [[ -z "${HOME_ROOT}" || "${HOME_ROOT}" == "/" ]]; then
+  HOME_ROOT=""
+fi
+CARGO_USER_BIN=""
+HOME_LIB=""
+if [[ -n "${HOME_ROOT}" ]]; then
+  CARGO_USER_BIN="${HOME_ROOT}/.cargo/bin"
+  HOME_LIB="${HOME_ROOT}/lib"
+fi
+export PATH="${TOOLCHAIN_BIN}:/usr/bin${CARGO_USER_BIN:+:${CARGO_USER_BIN}}:${PATH}"
 if [[ -z "${CC:-}" && -x /usr/bin/cc ]]; then
   export CC=/usr/bin/cc
 fi
@@ -56,7 +107,7 @@ TOOLCHAIN_LIB="${TOOLCHAIN_BIN%/bin}/lib"
 if [[ -n "${DYLD_FALLBACK_LIBRARY_PATH:-}" ]]; then
   export DYLD_FALLBACK_LIBRARY_PATH="${TOOLCHAIN_LIB}:${DYLD_FALLBACK_LIBRARY_PATH}"
 else
-  export DYLD_FALLBACK_LIBRARY_PATH="${TOOLCHAIN_LIB}:${HOME}/lib:/usr/local/lib:/usr/lib"
+  export DYLD_FALLBACK_LIBRARY_PATH="${TOOLCHAIN_LIB}${HOME_LIB:+:${HOME_LIB}}:/usr/local/lib:/usr/lib"
 fi
 
 if [[ "${1:-}" == "--abi-qualify-toolchain" ]]; then

@@ -8,7 +8,7 @@ use crate::{
     event::{EventSink, ModelEvent, StopReason},
     provider::ModelProvider,
     request::ModelRequest,
-    usage::{RunBudget, Usage},
+    usage::{BudgetLimit, RunBudget, Usage},
 };
 use std::time::Instant;
 
@@ -200,9 +200,25 @@ impl<'a> RunContext<'a> {
     }
 
     /// End the run, delivering the terminal [`ModelEvent::Finished`].
+    ///
+    /// Observe cancellation and elapsed time after the provider's final step,
+    /// preserving any stop already observed. Event and output-token ceilings
+    /// remain admission checks at checkpoints, not completion checks.
     #[must_use]
     pub fn finish(self) -> RunReport {
-        let stop = self.stop.unwrap_or(StopReason::Completed);
+        let stop = self.stop.unwrap_or_else(|| {
+            if self.cancel.is_cancelled() {
+                StopReason::Cancelled
+            } else if self
+                .budget
+                .max_duration
+                .is_some_and(|max| self.started.elapsed() >= max)
+            {
+                StopReason::BudgetExhausted(BudgetLimit::Duration)
+            } else {
+                StopReason::Completed
+            }
+        });
         self.close(stop)
     }
 
@@ -263,6 +279,121 @@ mod tests {
         testing::ScriptedProvider,
         usage::{BudgetLimit, RunBudget},
     };
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn finish_observes_cancellation_from_the_final_sink_callback() {
+        struct CancellingSink<'a> {
+            cancel: &'a CancellationToken,
+            events: CollectingSink,
+        }
+        impl crate::event::EventSink for CancellingSink<'_> {
+            fn emit(&mut self, event: &ModelEvent) {
+                self.events.emit(event);
+                if event.as_text().is_some() {
+                    self.cancel.cancel();
+                }
+            }
+        }
+        let cancel = CancellationToken::new();
+        let mut sink = CancellingSink {
+            cancel: &cancel,
+            events: CollectingSink::new(),
+        };
+        let mut run = RunContext::new(&mut sink, &cancel, RunBudget::unlimited());
+        assert_eq!(run.emit(&ModelEvent::text("last")), Flow::Continue);
+        let report = run.finish();
+        assert_eq!(report.stop, StopReason::Cancelled);
+        assert_eq!(report.events, 1);
+        assert_eq!(report.text(), "last");
+        assert_eq!(
+            sink.events.events().last(),
+            Some(&ModelEvent::Finished {
+                stop: StopReason::Cancelled
+            })
+        );
+    }
+
+    #[test]
+    fn finish_observes_cancellation_after_silent_work() {
+        let mut sink = CollectingSink::new();
+        let cancel = CancellationToken::new();
+        let run = RunContext::new(&mut sink, &cancel, RunBudget::unlimited());
+        cancel.cancel();
+        let report = run.finish();
+        assert_eq!(report.stop, StopReason::Cancelled);
+        assert_eq!(report.events, 0);
+        assert_eq!(sink.kinds(), vec!["finished"]);
+    }
+
+    #[test]
+    fn finish_observes_elapsed_deadline_without_another_event() {
+        for emit_final_event in [false, true] {
+            let mut sink = CollectingSink::new();
+            let cancel = CancellationToken::new();
+            let mut run = RunContext::new(
+                &mut sink,
+                &cancel,
+                RunBudget::unlimited().with_max_duration(Duration::from_secs(60)),
+            );
+            if emit_final_event {
+                assert_eq!(run.emit(&ModelEvent::text("last")), Flow::Continue);
+            }
+            // Model time spent in silent provider work or the final callback,
+            // without a scheduling-dependent sleep.
+            run.started = Instant::now()
+                .checked_sub(Duration::from_secs(120))
+                .expect("test clock supports a two-minute offset");
+            let report = run.finish();
+            assert_eq!(
+                report.stop,
+                StopReason::BudgetExhausted(BudgetLimit::Duration)
+            );
+            assert_eq!(report.events, u64::from(emit_final_event));
+            assert_eq!(
+                sink.events().last(),
+                Some(&ModelEvent::Finished { stop: report.stop })
+            );
+        }
+    }
+
+    #[test]
+    fn finish_preserves_a_latched_budget_stop_over_later_cancellation() {
+        let mut sink = CollectingSink::new();
+        let cancel = CancellationToken::new();
+        let mut run = RunContext::new(
+            &mut sink,
+            &cancel,
+            RunBudget::unlimited().with_max_events(0),
+        );
+        assert_eq!(run.checkpoint(), Flow::Stop);
+        cancel.cancel();
+        assert_eq!(
+            run.finish().stop,
+            StopReason::BudgetExhausted(BudgetLimit::Events)
+        );
+    }
+
+    #[test]
+    fn finish_does_not_apply_next_event_or_token_admission_limits() {
+        for tokens in [2, 3] {
+            let mut sink = CollectingSink::new();
+            let cancel = CancellationToken::new();
+            let mut run = RunContext::new(
+                &mut sink,
+                &cancel,
+                RunBudget::unlimited()
+                    .with_max_events(1)
+                    .with_max_output_tokens(2),
+            );
+            assert_eq!(run.emit(&ModelEvent::text("last")), Flow::Continue);
+            run.record_output_tokens(tokens);
+            let report = run.finish();
+            assert_eq!(report.stop, StopReason::Completed);
+            assert_eq!(report.events, 1);
+            assert_eq!(report.usage.output_tokens, tokens);
+        }
+    }
 
     #[test]
     fn emit_delivers_and_counts() {

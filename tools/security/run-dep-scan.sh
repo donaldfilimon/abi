@@ -4,6 +4,19 @@ set -eu
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$repo_root"
 
+# cargo-audit/cargo-deny are commonly installed under ~/.cargo/bin, which may
+# not be on PATH in CI or non-interactive shells. Add it so the scanner is found
+# without requiring a separate PATH export. `set -u` is active, so an unset
+# HOME must not abort the script before the designed SKIP/FAIL diagnostic.
+cargo_bin="${HOME:-}/.cargo/bin"
+if [ -n "${HOME:-}" ] && [ "$HOME" != "/" ]; then
+    case ":${PATH}:" in
+        *":${cargo_bin}:"*) ;;
+        *) PATH="${cargo_bin}:${PATH}" ;;
+    esac
+    export PATH
+fi
+
 if command -v cargo-audit >/dev/null 2>&1; then
     echo "dependency-scan: RUN cargo-audit ($(cargo-audit --version))"
     echo "dependency-scan: scoped exceptions RUSTSEC-2025-0141,RUSTSEC-2024-0436 (optional pinned TFHE-rs transitives)"

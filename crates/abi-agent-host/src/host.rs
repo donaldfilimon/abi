@@ -149,6 +149,11 @@ impl<'a> AgentHost<'a> {
             turn_sink.finish()?;
             validate_terminal_sequence(turn_sink.events())?;
             state.usage = state.usage.merged(provider_report.usage);
+            let provider_stop = provider_admission_stop(
+                provider_report.stop,
+                state.usage.output_tokens,
+                budget.max_output_tokens,
+            );
 
             let mut calls_this_turn = 0_u64;
             for event in turn_sink.events() {
@@ -163,6 +168,12 @@ impl<'a> AgentHost<'a> {
                         });
                     }
                     ModelEvent::ToolCall(call) => {
+                        // A completed turn's usage/stop is known before buffered
+                        // calls are admitted. Retain prior text, but never
+                        // authorize or execute new work after that boundary.
+                        if let Some(stop) = provider_stop {
+                            return Ok(stop);
+                        }
                         if calls_this_turn == 0 {
                             admit(
                                 state.tool_rounds,
@@ -200,20 +211,11 @@ impl<'a> AgentHost<'a> {
                 }
             }
 
-            if cancellation.is_cancelled() || provider_report.stop == StopReason::Cancelled {
+            if cancellation.is_cancelled() {
                 return Ok(HostStopReason::Cancelled);
             }
-            if let StopReason::BudgetExhausted(limit) = provider_report.stop {
-                return Ok(HostStopReason::BudgetExhausted(match limit {
-                    abi_agent_runtime::BudgetLimit::Events => HostBudgetLimit::Events,
-                    abi_agent_runtime::BudgetLimit::OutputTokens => HostBudgetLimit::OutputTokens,
-                    abi_agent_runtime::BudgetLimit::Duration => HostBudgetLimit::Deadline,
-                }));
-            }
-            if state.usage.output_tokens >= budget.max_output_tokens {
-                return Ok(HostStopReason::BudgetExhausted(
-                    HostBudgetLimit::OutputTokens,
-                ));
+            if let Some(stop) = provider_stop {
+                return Ok(stop);
             }
             if calls_this_turn == 0 {
                 return Ok(HostStopReason::Completed);
@@ -571,6 +573,25 @@ fn remaining_provider_budget(budget: HostBudget, deadline: Instant, state: &RunS
                 .saturating_sub(state.usage.output_tokens),
         )
         .with_max_duration(deadline.saturating_duration_since(Instant::now()))
+}
+
+fn provider_admission_stop(
+    stop: StopReason,
+    output_tokens: u64,
+    max_output_tokens: u64,
+) -> Option<HostStopReason> {
+    match stop {
+        StopReason::Cancelled => Some(HostStopReason::Cancelled),
+        StopReason::BudgetExhausted(limit) => Some(HostStopReason::BudgetExhausted(match limit {
+            abi_agent_runtime::BudgetLimit::Events => HostBudgetLimit::Events,
+            abi_agent_runtime::BudgetLimit::OutputTokens => HostBudgetLimit::OutputTokens,
+            abi_agent_runtime::BudgetLimit::Duration => HostBudgetLimit::Deadline,
+        })),
+        _ if output_tokens >= max_output_tokens => Some(HostStopReason::BudgetExhausted(
+            HostBudgetLimit::OutputTokens,
+        )),
+        _ => None,
+    }
 }
 
 fn runtime_stop(stop: HostStopReason) -> StopReason {

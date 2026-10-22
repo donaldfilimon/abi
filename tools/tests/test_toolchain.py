@@ -42,6 +42,7 @@ else:
     print(json.dumps(dict(cwd=os.getcwd(), args=sys.argv[1:],
         tools={t: shutil.which(t) for t in ['rustc','rustdoc','rustfmt','clippy-driver']},
         cc=os.environ.get('CC'), cxx=os.environ.get('CXX'),
+        path=os.environ.get('PATH', ''),
         dyld=os.environ['DYLD_FALLBACK_LIBRARY_PATH'], override=os.environ.get('RUSTUP_TOOLCHAIN'))))
 ''')
         for tool in ('rustc', 'rustdoc', 'rustfmt', 'clippy-driver'):
@@ -70,10 +71,34 @@ else:
         return subprocess.run(command, cwd=self.root,
                               env=self.env | env, text=True, capture_output=True)
 
+    def test_missing_home_does_not_abort_the_wrapper(self):
+        # A minimal container or an `env -i` job has no HOME. The wrapper runs
+        # under `set -u`, so an unguarded `${HOME}` would abort it before any
+        # work ("HOME: unbound variable") and take every build/gate entrypoint
+        # with it. The `~/.cargo/bin` scanner entry and rustup's `~/lib` dyld
+        # fallback are both skipped instead.
+        for label, home in (('unset', None), ('empty', '')):
+            with self.subTest(home=label):
+                env = {k: v for k, v in self.env.items() if k != 'HOME'}
+                if home is not None:
+                    env['HOME'] = home
+                result = subprocess.run(
+                    [str(self.repo / 'tools/cargo.sh'), 'check', '--locked'],
+                    cwd=self.root, env=env, text=True, capture_output=True)
+                self.assertNotIn('unbound variable', result.stderr)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                observed = json.loads(result.stdout)
+                # The scanner entry is skipped, not fabricated from an empty HOME.
+                self.assertNotIn('.cargo/bin', observed['path'])
+                self.assertNotIn('//lib', observed['dyld'])
+
     def test_outside_repository_uses_matching_tools_and_preserves_cwd(self):
         result = self.run_wrapper('check', '--locked')
         self.assertEqual(result.returncode, 0, result.stderr)
         observed = json.loads(result.stdout)
+        # The required dependency scanner lives in ~/.cargo/bin; the wrapper
+        # must put it on PATH for the gate to find it.
+        self.assertIn(f'{Path.home()}/.cargo/bin', observed['path'])
         self.assertEqual(observed['cwd'], str(self.root))
         self.assertEqual(observed['args'], ['check', '--locked'])
         self.assertEqual(set(observed['tools'].values()), {str(self.bin / t) for t in observed['tools']})

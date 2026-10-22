@@ -155,6 +155,13 @@ fn initialize_cuda() -> Result<InitializedDevice, ModelRuntimeError> {
 }
 
 /// Capability evidence after at least one native tensor operation succeeded.
+///
+/// `runtime_verified` here means what `abi_compute` defines it to mean:
+/// execution was verified on the runtime that actually ran. It does **not**
+/// assert CPU-oracle parity — unlike the `abi-gpu` accelerator path, this
+/// crate performs no CPU-versus-device comparison. The message states that
+/// scope so a reader of the shared five-state ladder cannot mistake this
+/// evidence for the stronger accelerator-compute bar.
 pub(crate) fn executed_state(path: ExecutionPath) -> CapabilityState {
     CapabilityState::new(
         path.backend(),
@@ -164,7 +171,8 @@ pub(crate) fn executed_state(path: ExecutionPath) -> CapabilityState {
             .with_initialized(true)
             .with_executed(true)
             .with_runtime_verified(true),
-        "Candle tensor operations executed and returned a verified typed result",
+        "Candle tensor operations executed on this runtime and returned a typed result; \
+         no CPU-oracle parity comparison was performed",
     )
     .expect("executed device evidence satisfies ABI invariants")
 }

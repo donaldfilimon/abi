@@ -109,7 +109,7 @@ fn build_mode() -> &'static str {
 #[allow(clippy::too_many_lines)]
 fn report() -> String {
     let mut output = format!(
-        "ABI Framework  {}\nRust nightly (workspace min 1.99)  {}  {}  {}\n\nFeatures:\n",
+        "ABI Framework  {}\nRust stable 1.99.1 (workspace min 1.99)  {}  {}  {}\n\nFeatures:\n",
         env!("CARGO_PKG_VERSION"),
         build_mode(),
         abi_foundation::system::platform(),
@@ -239,7 +239,7 @@ mod tests {
         let output = run(&[]);
         assert_eq!(output.exit_code, 0);
         assert_eq!(output.stdout, "");
-        assert!(output.stderr.contains("Rust nightly"));
+        assert!(output.stderr.contains("Rust stable 1.99.1"));
         assert!(output.stderr.contains("wdbx               \u{1b}[32m✓"));
         assert!(output.stderr.contains("gpu                \u{1b}[32m✓"));
         assert!(output.stderr.contains("shaders            \u{1b}[32m✓"));

@@ -23,13 +23,22 @@ else
   ok "architecture arm64"
 fi
 
-echo "==> Rust nightly toolchain"
-if ! command -v rustup >/dev/null 2>&1; then
-  fail "rustup not on PATH (CI installs/uses nightly via rustup)"
-elif ! rustup run nightly rustc --version >/dev/null 2>&1; then
-  fail "nightly toolchain missing — run: rustup toolchain install nightly --profile minimal && rustup component add --toolchain nightly rustfmt clippy rust-src"
+echo "==> Rust toolchain"
+# Check the toolchain the repository actually pins, not a floating channel.
+# CI installs the exact channel from rust-toolchain.toml, so the host must
+# have that one available or the gate cannot run.
+# `|| true` keeps a missing/unreadable file on the diagnostic path instead of
+# aborting the whole checklist under `set -e` before the other checks run.
+TOOLCHAIN_CHANNEL="$(sed -n 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' \
+  "${REPO_ROOT}/rust-toolchain.toml" 2>/dev/null | head -1 || true)"
+if [[ -z "$TOOLCHAIN_CHANNEL" ]]; then
+  fail "cannot read the pinned channel from rust-toolchain.toml"
+elif ! command -v rustup >/dev/null 2>&1; then
+  fail "rustup not on PATH (CI installs/uses ${TOOLCHAIN_CHANNEL} via rustup)"
+elif ! rustup run "$TOOLCHAIN_CHANNEL" rustc --version >/dev/null 2>&1; then
+  fail "${TOOLCHAIN_CHANNEL} toolchain missing — run: rustup toolchain install ${TOOLCHAIN_CHANNEL} --profile minimal && rustup component add --toolchain ${TOOLCHAIN_CHANNEL} rustfmt clippy rust-src"
 else
-  ok "$(rustup run nightly rustc --version 2>/dev/null | head -1)"
+  ok "$(rustup run "$TOOLCHAIN_CHANNEL" rustc --version 2>/dev/null | head -1)"
 fi
 if [[ ! -x "${REPO_ROOT}/tools/cargo.sh" ]]; then
   fail "tools/cargo.sh missing or not executable"
@@ -73,13 +82,24 @@ else
 fi
 
 echo "==> Disk"
-# Need headroom for Cargo/target caches + check
-avail_kb="$(df -k "${INSTALL_DIR:-${HOME}}" | awk 'NR==2 {print $4}')"
-avail_gb=$((avail_kb / 1024 / 1024))
-if (( avail_gb < 15 )); then
-  fail "only ~${avail_gb}GiB free; recommend ≥15GiB for check + Cargo target/"
+# Need headroom for Cargo/target caches + check. A missing install dir makes
+# `df` fail; under `set -e` that aborted the whole checklist before the
+# summary, so measure the nearest existing ancestor instead.
+DISK_PATH="${INSTALL_DIR:-${HOME}}"
+while [[ -n "$DISK_PATH" && ! -d "$DISK_PATH" ]]; do
+  DISK_PATH="$(dirname "$DISK_PATH")"
+  [[ "$DISK_PATH" == "/" || "$DISK_PATH" == "." ]] && break
+done
+avail_kb="$(df -k "$DISK_PATH" 2>/dev/null | awk 'NR==2 {print $4}')"
+if [[ -z "$avail_kb" ]]; then
+  warn "could not measure free space for ${INSTALL_DIR:-${HOME}}"
 else
-  ok "~${avail_gb}GiB free"
+  avail_gb=$((avail_kb / 1024 / 1024))
+  if (( avail_gb < 15 )); then
+    fail "only ~${avail_gb}GiB free; recommend ≥15GiB for check + Cargo target/"
+  else
+    ok "~${avail_gb}GiB free"
+  fi
 fi
 
 echo "==> GitHub visibility reminder"

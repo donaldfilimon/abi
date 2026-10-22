@@ -1,4 +1,9 @@
 //! Fail-closed recording governance regressions.
+#[path = "governed/authority_expiry.rs"]
+mod authority_expiry;
+#[path = "governed/token_admission.rs"]
+mod token_admission;
+
 use abi_agent_host::*;
 use abi_agent_runtime::*;
 use abi_capability::{lifecycle::*, source::*, *};

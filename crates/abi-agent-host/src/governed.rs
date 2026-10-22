@@ -1,5 +1,7 @@
 //! Recording-only governance over the shared bounded host driver.
 #![allow(missing_docs)]
+#[path = "governed_authority_expiry.rs"]
+mod authority_expiry;
 use crate::governed_authorization::{CompensationContext, evaluate};
 use crate::{AgentHost, GovernedRunFailure, HostBudget, HostRunReport, ToolExecutionContext};
 use abi_agent_runtime::{
@@ -823,7 +825,17 @@ impl Governance<'_, '_> {
         };
         self.executions.push(prepared.clone());
         self.stop = GovernedStop::Uncertain;
-        if context.should_stop() {
+        // Intentionally cancel undispatched work whose admitted authority aged out.
+        // This does not cancel the caller's shared token or re-consume approval.
+        if context.should_stop()
+            || !authority_expiry::valid_at(
+                self.options.clock.now_ms(),
+                &latest,
+                source,
+                &prepared,
+                self.options.approval.as_ref(),
+            )
+        {
             return self.decline_prepared(&prepared);
         }
         // Fallible pre-effect stage audit must succeed before recording.
@@ -831,7 +843,15 @@ impl Governance<'_, '_> {
             self.stop = GovernedStop::Uncertain;
             return Err(error);
         }
-        if context.should_stop() {
+        if context.should_stop()
+            || !authority_expiry::valid_at(
+                self.options.clock.now_ms(),
+                &latest,
+                source,
+                &prepared,
+                self.options.approval.as_ref(),
+            )
+        {
             return self.decline_prepared(&prepared);
         }
         let digest = self

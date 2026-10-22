@@ -21,82 +21,17 @@ use abi_connectors::{
 };
 use abi_foundation::credentials::{self, CredentialField};
 use abi_sea::{LearnLoopConfig, LearnPersistenceStatus, run_learn_loop};
-use abi_wdbx::RecordId;
 
 use crate::app::Outcome;
 use crate::util;
 
 mod neural;
+mod report;
 
 use neural::run_neural;
+use report::{MetaReport, render_local};
 
-const USAGE: &str = "usage: abi complete [--live] [--stream] [--learn] [--neural] [--soul <file>] [--soul-alpha <0..1>] [--model <id>] [--confirm] [--] <input>";
-
-/// Fields for the one-line-per-field completion metadata block.
-struct MetaReport<'a> {
-    requested_model: &'a str,
-    profile: &'a str,
-    audit_passed: bool,
-    escore: f32,
-    audit_vetoed: bool,
-    persisted: bool,
-    learn: Option<(usize, bool)>,
-    kv: usize,
-    vectors: usize,
-    blocks: usize,
-    query_id: Option<RecordId>,
-    response_id: Option<RecordId>,
-    block_hex: Option<&'a str>,
-    wdbx_status: Option<&'a str>,
-    output: &'a str,
-}
-
-fn render_local(report: &MetaReport<'_>) -> String {
-    let mut out = String::new();
-    if let Some((evidence_count, adapted)) = report.learn {
-        let _ = writeln!(
-            out,
-            "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={} learn=true evidence_count={evidence_count} adapted={adapted}",
-            report.requested_model,
-            report.profile,
-            report.audit_passed,
-            report.escore,
-            report.audit_vetoed,
-            report.persisted,
-        );
-    } else {
-        let _ = writeln!(
-            out,
-            "requested_model={} provider=local transport=in-process generation_engine=persona-template policy_scope=lexical-signal profile={} audit_passed={} audit_escore={:.3} audit_vetoed={} persisted={}",
-            report.requested_model,
-            report.profile,
-            report.audit_passed,
-            report.escore,
-            report.audit_vetoed,
-            report.persisted,
-        );
-    }
-    let _ = writeln!(
-        out,
-        "wdbx kv_entries={} vectors={} blocks={}",
-        report.kv, report.vectors, report.blocks
-    );
-    if let Some(qid) = report.query_id {
-        let _ = writeln!(out, "query_vector_id={qid}");
-        let _ = writeln!(out, "metadata_key=completion:{qid}");
-    }
-    if let Some(rid) = report.response_id {
-        let _ = writeln!(out, "response_vector_id={rid}");
-    }
-    if let Some(hex) = report.block_hex {
-        let _ = writeln!(out, "block_id={hex}");
-    }
-    if let Some(status) = report.wdbx_status {
-        let _ = writeln!(out, "wdbx_status={status}");
-    }
-    let _ = writeln!(out, "{}", report.output);
-    out
-}
+const USAGE: &str = "usage: abi complete [--live] [--stream] [--learn] [--neural] [--soul <file>] [--soul-alpha <0..1>] [--model <id>] [--confirm] [--] <input>  (use --learn for self-learning persistence+adaptation+recall verification)";
 
 fn run_local(input: &str, model: &str) -> Outcome {
     let Ok(result) = complete(input, model) else {
@@ -182,7 +117,12 @@ fn run_local(input: &str, model: &str) -> Outcome {
 fn run_learn(input: &str, model: &str) -> Outcome {
     let mut store = match util::open_store_result() {
         Ok(Some(store)) => store,
-        Ok(None) => return run_local(input, model),
+        Ok(None) => {
+            return Outcome::stderr(
+                "error: --learn requires a persistent WDBX store (set ABI_WDBX_PATH)\n".into(),
+                1,
+            );
+        }
         Err(_) => return Outcome::stderr("error: WDBX store open failed\n".into(), 1),
     };
     let before = store.stats();
@@ -205,7 +145,17 @@ fn run_learn(input: &str, model: &str) -> Outcome {
         escore: result.audit.escore,
         audit_vetoed: result.audit.vetoed,
         persisted,
-        learn: Some((learned.evidence_count, learned.adapted)),
+        learn: Some((
+            learned.evidence_count,
+            learned.adapted,
+            match learned.persistence_status {
+                LearnPersistenceStatus::Committed => "persistence+adaptation+recall",
+                LearnPersistenceStatus::AuditRejected | LearnPersistenceStatus::Disabled => {
+                    "adaptation-only"
+                }
+                LearnPersistenceStatus::OutcomeUnknown => "adaptation-only+write-unknown",
+            },
+        )),
         kv: after.kv_entries.saturating_sub(before.kv_entries),
         vectors: after.vectors.saturating_sub(before.vectors),
         blocks: after.blocks.saturating_sub(before.blocks),
@@ -770,6 +720,10 @@ mod tests {
                 .stdout
                 .contains("wdbx_status=audit rejected; learning write skipped")
         );
+        // Additional coverage for self-learn recall/adaptation reporting (even on veto path).
+        assert!(vetoed.stdout.contains("learn=true"));
+        assert!(vetoed.stdout.contains("evidence_count="));
+        assert!(vetoed.stdout.contains("adapted="));
         assert!(failed.stdout.contains("persisted=false"));
         assert!(
             failed
@@ -817,11 +771,13 @@ mod tests {
                 .stdout
                 .contains("no persistent WDBX path configured")
         );
-        assert_eq!(disabled_learn.exit_code, 0);
+        // --learn now errors with a clear message (no silent fallback to local complete).
+        // This is a high-value clarity improvement for the self-learning path.
+        assert_eq!(disabled_learn.exit_code, 1);
         assert!(
             disabled_learn
-                .stdout
-                .contains("no persistent WDBX path configured")
+                .stderr
+                .contains("requires a persistent WDBX store")
         );
     }
 

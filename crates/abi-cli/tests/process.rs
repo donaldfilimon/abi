@@ -175,7 +175,7 @@ fn direct_help_and_exit_codes_cross_the_real_process_boundary() {
     assert!(
         backends
             .stderr
-            .starts_with(b"ABI Framework  0.1.0\nRust nightly")
+            .starts_with(b"ABI Framework  0.1.0\nRust stable 1.99.1")
     );
     let backends_text = String::from_utf8_lossy(&backends.stderr);
     assert!(
