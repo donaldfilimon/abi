@@ -11,7 +11,6 @@ Merged from the former `context-state-reporter` and `context-resetter` skills on
 
 *Use when:* Show current agent context state including history, file mentions, and session data. Maps to `/context` slash command in abi agent tui.
 
-
 Reports the current state of the agent REPL context.
 
 ### Usage
@@ -43,7 +42,6 @@ Direct mapping to `abi agent tui` REPL `/context` command.
 ## Context Resetter
 
 *Use when:* Reset agent context - clear history, file mentions, and transient state. Maps to `/reset` slash command in abi agent tui.
-
 
 Clears all transient agent context state for a fresh start.
 
