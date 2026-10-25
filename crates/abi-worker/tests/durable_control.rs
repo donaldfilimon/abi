@@ -7,7 +7,7 @@ mod support;
 use abi_foundation::temp_path::temp_file_path;
 use abi_worker::{
     Admission, FileControlStore, FileControlStoreLimits, JobControlStore, JobStatus, ResultChunk,
-    WorkerLimits, WorkerManager,
+    WorkerError, WorkerLimits, WorkerManager,
 };
 use std::path::{Path, PathBuf};
 use support::{NOW, capability, envelope, identity, trust};
@@ -126,8 +126,14 @@ fn existing_history_is_exclusive_and_never_reset() {
     assert!(!path.path().exists());
     let store = FileControlStore::create(path.path(), limits).unwrap();
     let before = std::fs::read(path.path()).unwrap();
-    assert!(FileControlStore::create(path.path(), limits).is_err());
-    assert!(FileControlStore::open(path.path(), limits).is_err());
+    assert!(matches!(
+        FileControlStore::create(path.path(), limits),
+        Err(WorkerError::ControlStore(message)) if message == "cannot open private regular history"
+    ));
+    assert!(matches!(
+        FileControlStore::open(path.path(), limits),
+        Err(WorkerError::ControlStore(message)) if message == "history is busy"
+    ));
     assert_eq!(std::fs::read(path.path()).unwrap(), before);
     drop(store);
     assert!(FileControlStore::open(path.path(), limits).is_ok());
