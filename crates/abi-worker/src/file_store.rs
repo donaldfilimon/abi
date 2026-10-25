@@ -11,6 +11,10 @@ use std::fs::File;
 use std::io::{Read as _, Seek as _, SeekFrom, Write as _};
 use std::path::Path;
 
+mod lock;
+
+use lock::acquire_history_lock;
+
 const HEADER: &[u8] = b"ABI-WORKER-LOG\x01\n";
 const FRAME_OVERHEAD: u64 = 4 + 32;
 
@@ -104,7 +108,7 @@ impl FileControlStore {
     pub fn create(path: &Path, limits: FileControlStoreLimits) -> Result<Self, WorkerError> {
         limits.validate()?;
         let mut file = private_file(path, true)?;
-        file.try_lock().map_err(|_| failure("history is busy"))?;
+        acquire_history_lock(&file)?;
         file.write_all(HEADER)
             .and_then(|()| file.sync_all())
             .map_err(|_| failure("cannot sync new history"))?;
@@ -124,7 +128,7 @@ impl FileControlStore {
     pub fn open(path: &Path, limits: FileControlStoreLimits) -> Result<Self, WorkerError> {
         limits.validate()?;
         let mut file = private_file(path, false)?;
-        file.try_lock().map_err(|_| failure("history is busy"))?;
+        acquire_history_lock(&file)?;
         let bytes = file
             .metadata()
             .map_err(|_| failure("cannot inspect history"))?
