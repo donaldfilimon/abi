@@ -26,6 +26,11 @@ fn acquire_history_lock_with(
                     return Err(failure("history is busy"));
                 }
                 wait(RETRY_STEP);
+                // A delayed wake can outlive the budget even if the owner
+                // released meanwhile. Refuse before another lock attempt.
+                if elapsed() >= RETRY_BUDGET {
+                    return Err(failure("history is busy"));
+                }
             }
             Err(TryLockError::Error(_)) => return Err(failure("cannot lock history")),
         }
@@ -107,6 +112,46 @@ mod tests {
         probe.try_lock().unwrap();
     }
 
+    fn assert_late_release_refused(wake_after: Duration) {
+        let history = History::new();
+        let mut owner = Some(history.open());
+        owner.as_ref().unwrap().try_lock().unwrap();
+        let contender = history.open();
+        let elapsed = Cell::new(Duration::ZERO);
+        let attempts = Cell::new(0);
+        let waits = Cell::new(0);
+        let result = acquire_history_lock_with(
+            || {
+                attempts.set(attempts.get() + 1);
+                contender.try_lock()
+            },
+            || elapsed.get(),
+            |step| {
+                assert_eq!(step, Duration::from_millis(1));
+                waits.set(waits.get() + 1);
+                assert_eq!(waits.get(), 1);
+                drop(owner.take().unwrap());
+                elapsed.set(wake_after);
+            },
+        );
+        assert_eq!(result, Err(failure("history is busy")));
+        assert_eq!(attempts.get(), 1, "expired admission must not try again");
+        assert_eq!(waits.get(), 1);
+        // The expired contender stays alive but must never have taken the lock.
+        history.open().try_lock().unwrap();
+        history.assert_unchanged();
+    }
+
+    #[test]
+    fn owner_released_at_deadline_is_not_acquired_by_expired_retry() {
+        assert_late_release_refused(Duration::from_millis(250));
+    }
+
+    #[test]
+    fn owner_released_beyond_deadline_is_not_acquired_by_expired_retry() {
+        assert_late_release_refused(Duration::from_millis(500));
+    }
+
     #[test]
     fn persistent_owner_refuses_at_250ms_without_mutation_or_stealing_lock() {
         let history = History::new();
@@ -119,7 +164,7 @@ mod tests {
         let result = acquire_history_lock_with(
             || {
                 attempts.set(attempts.get() + 1);
-                assert!(attempts.get() <= 251, "acquisition must be bounded");
+                assert!(attempts.get() <= 250, "acquisition must be bounded");
                 contender.try_lock()
             },
             || elapsed.get(),
@@ -131,7 +176,7 @@ mod tests {
         );
         assert_eq!(result, Err(failure("history is busy")));
         assert_eq!(elapsed.get(), Duration::from_millis(250));
-        assert_eq!(attempts.get(), 251);
+        assert_eq!(attempts.get(), 250);
         assert_eq!(waits.get(), 250);
         assert!(matches!(
             contender.try_lock(),
@@ -189,7 +234,7 @@ mod tests {
         );
         assert_eq!(result, Err(failure("history is busy")));
         assert_eq!(elapsed.get(), Duration::from_millis(250));
-        assert_eq!(attempts.get(), 4);
+        assert_eq!(attempts.get(), 3);
         assert!(wake_times.next().is_none());
         history.assert_unchanged();
     }
