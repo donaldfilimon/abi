@@ -1,0 +1,40 @@
+[package]
+name = "abi-control-plane"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Account and private-node enrollment authority for ABI research services."
+
+[dependencies]
+axum = { workspace = true }
+abi-worker = { workspace = true }
+abi-agent-runtime = { workspace = true }
+abi-agent-host = { workspace = true }
+abi-capability = { workspace = true }
+hpke = { version = "0.13", default-features = false, features = ["alloc", "x25519"] }
+rand = "0.9"
+base64 = "0.22"
+ed25519-dalek = { workspace = true }
+oauth2 = "5.0"
+jsonwebtoken = { version = "11.1", default-features = false, features = ["aws_lc_rs"] }
+rusqlite = { version = "0.40.1", features = ["bundled"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+nix = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+
+[lints]
+workspace = true

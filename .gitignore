@@ -368,3 +368,7 @@ legacy/
 
 # Rust build artifacts
 /target/
+
+# Account/enrollment setup and encrypted worker protocol
+!/crates/abi-control-plane/README.md
+!/crates/abi-control-plane/RELAY.md

@@ -1,4 +1,35 @@
-# AGENTS.md - abi
+# Repository Guidelines
+
+## Project Structure & Module Organization
+
+`crates/` owns the Rust workspace; crate-local `src/` and `tests/` hold implementation and integration tests. `tests/golden/`, `contracts/`, and `proto/` define shared surfaces. `tools/` owns gates; `docs/` and `tasks/` hold contracts and ledgers. The adjacent `../wdbx` source is required.
+
+## Build, Test, and Development Commands
+
+`./tools/check.sh` is the full gate. Build with `./tools/cargo.sh build
+--locked --workspace`; focus tests with `./tools/cargo.sh test --locked -p
+abi-cli --test golden < /dev/null`. Use `./mcp/launcher.sh stdio` for MCP.
+Follow the retained gate details below for doc-only checks and safe CLI smokes.
+
+## Coding Style & Naming Conventions
+
+Use rustfmt for Rust (four-space indentation), `snake_case` modules/functions, and
+`PascalCase` types. Follow local lint settings and preserve public contracts.
+Keep documentation paths relative to the project. Do not reformat unrelated code.
+
+## Testing Guidelines
+
+Rust uses `#[test]` unit tests and package integration suites; retain existing independent oracles and golden fixtures. Name tests after observable behavior and cover affected failure paths.
+Use isolated fixtures rather than live data. Report executed checks and skips;
+compilation alone does not establish runtime or platform qualification.
+
+## Commit & Pull Request Guidelines
+
+Use short imperative subjects; recent history also uses `docs:`, `fix:`, and `chore:` prefixes. Keep commits focused. PRs should describe the behavior and rationale, link relevant issues or
+plans, and list actual checks and remaining platform gaps. Include screenshots
+for visual changes. Preserve unrelated edits and existing generated-file rules.
+
+## Maintained Project Instructions
 
 Canonical agent instructions. Executable source wins over prose (`Cargo.toml`, `tools/check.sh`, `crates/`). `GEMINI.md` redirects here; `CLAUDE.md` is the expanded redirect; `.github/copilot-instructions.md` is the editor reminder. Deeper rules, crate roles, and the env table: `CLAUDE.md`. `opencode.json` loads `tasks/lessons.md`, `tasks/todo.md`, and `tasks/goals.md` alongside this file.
 
@@ -41,9 +72,9 @@ Canonical agent instructions. Executable source wins over prose (`Cargo.toml`, `
 
 ## Workspace and boundaries
 
-- All live code under `crates/*` (17 members): `abi-agent-host`, `abi-agent-runtime`, `abi-ai`, `abi-capability`, `abi-cli`, `abi-connectors`, `abi-contracts`, `abi-gpu`, `abi-mcp`, `abi-model-runtime`, `abi-models`, `abi-nn`, `abi-plugins`, `abi-sea`, `abi-wdbx-gateway`, `abi-worker`, `xtask` (unpublished runner). No Zig (retired; see `RUST-REWRITE-PLAN.md` history only).
+- All live code under `crates/*` (18 members): `abi-agent-host`, `abi-agent-runtime`, `abi-ai`, `abi-capability`, `abi-cli`, `abi-connectors`, `abi-control-plane`, `abi-contracts`, `abi-gpu`, `abi-mcp`, `abi-model-runtime`, `abi-models`, `abi-nn`, `abi-plugins`, `abi-sea`, `abi-wdbx-gateway`, `abi-worker`, `xtask` (unpublished runner). No Zig (retired; see `RUST-REWRITE-PLAN.md` history only).
 - Sibling substrate (required, adjacent `../wdbx/crates/`): `abi-compute`, `abi-core`, `abi-foundation`, `abi-telemetry`, `abi-wdbx`. Cargo resolution/identity require the layout; do not vendor or git-dep. CI pins `WDBX_REVISION` in `.github/workflows/ci.yml` (`2969d71a2c3a81a060dcfc6cf53b4617f13c8b94`); update the pin only after that exact rev passes the gate.
-- No separate daemon binary; the scheduler runs in-process (`abi scheduler ...`).
+- The scheduler runs in-process (`abi scheduler ...`). `abi-control-plane` is a separate account/enrollment and encrypted relay service with its own bounded tenant queue; it does not run the CLI scheduler. See `crates/abi-control-plane/README.md`.
 - `abi-ai` core is store-agnostic/deterministic (I/O only in `file_context` etc.); WDBX bits belong in sea/CLI/MCP/wdbx crates.
 - Launch MCP only via the launcher.
 - `ABI_*` env vars + test hooks live in `../wdbx/crates/abi-foundation/src/env.rs`; use provided overrides/locks in tests, never raw env mutation.

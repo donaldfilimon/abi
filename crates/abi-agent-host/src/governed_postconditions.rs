@@ -1,14 +1,16 @@
-//! Bounded, request-bound observations for every compiled recording postcondition.
+//! Bounded, request-bound observations for every compiled postcondition.
 use crate::Postconditions;
 use abi_capability::Digest;
 use serde::Serialize;
 use std::collections::BTreeSet;
 
-/// The supported observation source for this recording-only integration.
+/// Provenance of an observation supplied by the startup-owned trusted fact provider.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum ObservationSource {
     /// Injected deterministic recording fixture, not a live platform assertion.
     RecordingFixture,
+    /// A startup-owned local adapter observed the actual resulting resource.
+    TrustedLocalAdapter,
 }
 
 /// One individually named, fresh, request-bound postcondition observation.

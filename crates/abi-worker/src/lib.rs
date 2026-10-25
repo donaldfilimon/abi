@@ -9,13 +9,16 @@
 //!
 //! [`WorkerTransportSecurity`] reuses the WDBX gateway's owner-protected TLS
 //! and mandatory-client-certificate loader. This crate does not implement a
-//! second certificate parser, a network listener, scheduling, model execution,
-//! or WDBX data replication. Job control is an independent [`JobControlStore`]
-//! boundary; WDBX remains a separate data plane.
+//! second certificate parser, a network listener, scheduling, model artifacts,
+//! or WDBX data replication. [`WorkerManager::infer`] executes a startup-bound
+//! provider after fresh admission with bounded cooperative output. Job control
+//! is an independent [`JobControlStore`] boundary; WDBX is a separate data plane.
 
 mod canonical;
 mod crypto;
 mod error;
+mod file_store;
+mod inference;
 mod manager;
 mod store;
 mod transport;
@@ -24,7 +27,9 @@ mod types;
 pub use abi_agent_runtime::CancellationToken;
 pub use crypto::CoordinatorTrustStore;
 pub use error::WorkerError;
-pub use manager::{Admission, WorkerManager};
+pub use file_store::{FileControlStore, FileControlStoreLimits};
+pub use inference::InferenceOutcome;
+pub use manager::{Admission, RecordedExecution, WorkerManager};
 pub use store::{ControlEvent, JobControlStore, MemoryControlStore};
 pub use transport::WorkerTransportSecurity;
 pub use types::{

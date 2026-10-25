@@ -34,6 +34,23 @@ workspace — every command above, including `./tools/check.sh`.
 Compatibility: `./build.sh check` → `./tools/check.sh`. The Zig tree has been
 removed; see `RUST-REWRITE-PLAN.md` for the port history.
 
+## Account and node enrollment research service
+
+`abi-control-plane` adds a separate Rust account authority and browser client:
+verified OIDC login, tenant-scoped metadata, locally confirmed node pairing,
+signed application credentials, revocation/deletion, and an encrypted outbound
+inference relay with per-account admission quotas. See the
+[setup and protocol guide](crates/abi-control-plane/README.md). This is locally
+tested research infrastructure. Two enrolled tenants execute isolated local
+probe jobs over TCP. Opted-in durable jobs retain exact encrypted output on
+the user node and replay it after local worker/service restart under current
+authority, with verified client imports and no recovery inference. See the
+[recovery workflow and limits](crates/abi-control-plane/RELAY.md). Public operation,
+separate-host/power-loss qualification, useful trained weights, general governed
+platform adapters and cross-platform acceptance remain open. The governed-tool
+continuation adds durable local Abbey approvals and a scratch-file execution
+assembly; see [its contract and remaining acceptance](docs/spec/durable-governed-tools.md). The CLI/MCP catalogs are unchanged.
+
 ## Cross-compilation
 
 Cross targets are available via standard Rust `cargo` target triples once the
@@ -89,7 +106,7 @@ Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_lea
 - Documentation: `CLAUDE.md`, `GEMINI.md`, and `AGENTS.md` describe the Rust lifecycle.
 - Build gate: `./tools/check.sh` runs policy tests, `./tools/cargo.sh xtask ci verify` (judo #817), Abbey corpus (Python + `./tools/cargo.sh xtask abbey verify`), the **required dependency-security scan** (`ABI_DEP_SCAN_REQUIRE=1 ./tools/security/run-dep-scan.sh` — it fails the gate if no scanner runs), size limits, fmt, clippy (`-D warnings`), workspace build/tests, the **sibling WDBX contract conformance tests** (`--manifest-path ../wdbx/Cargo.toml`), local Metal tests/docs, the benchmark regression guard, rustdoc, and release `abi-cli`/`abi-mcp` builds.
 - Local models: `abi-model-runtime` requires an exact registry model, accepting principal, external storage root, and device choice. Generated scratch fixtures prove its tiny `abi-bigram-v1` Candle path on CPU and locally exercised Metal; this is runtime-foundation evidence, not a Gemma, quality, placement, speedup, or CUDA-runtime claim.
-- Workers: `abi-worker` provides authenticated, audience-bound, bounded offline admission/control contracts with finite leases, cooperative cancellation, replay resistance, and verifiable results. It reuses the gateway mTLS configuration but does not claim a listener, scheduler, model execution, production cluster, or separate-host deployment.
+- Workers: `abi-worker` provides authenticated, audience-bound admission with finite leases, replay resistance, private Unix control history, and bounded in-process inference through an explicitly supplied provider. Exact retries reuse recorded leases/results. Provider binding is a startup responsibility and cancellation is cooperative. It reuses gateway mTLS configuration; listeners, scheduling, original trained weights and separate-host production operation remain unproved. Windows private-log ACL validation refuses explicitly.
 - GPU: capability table + preferred backend reporting with **honest `accelerated=false`** when native kernels are not linked; vector ops use deterministic CPU lane fallback. CUDA/Vulkan/ANE kernels remain non-claims.
 - Plugins: sixteen bundled plugins ship as compiled-in `mod.rs`/`stub.rs` pairs under `crates/abi-plugins/plugins/` with `assert_plugin_parity!`.
 - AI/WDBX: the sibling WDBX crates are required build dependencies. Pure `abi_ai::complete` is store-independent; the `abi complete` and `abi agent train` CLI paths and MCP `ai_complete`, `ai_train`, and `ai_learn` attempt the configured/default durable store unless persistence is disabled with `ABI_WDBX_PERSIST=0` or `ABI_WDBX_PATH=:memory:`. Top-level `abi train` does not open WDBX. Successful writes record query/response vectors, metadata, and block-chain entries. Scheduler-backed completion, training, and agent helpers expose live task/memory observability.

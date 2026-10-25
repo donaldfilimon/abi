@@ -150,8 +150,8 @@ The `complete` / `agent` lines above touch the store, so prefix them with
 
 ## Architecture
 
-The ABI workspace has **17 local crates** under `crates/*`, verified 2026-09-03
-with `cargo metadata` (the 17th is `xtask`, judo #817). Five more packages are sibling path dependencies under
+The ABI workspace has **18 local crates** under `crates/*` (including the 2026-10-22
+`abi-control-plane` account/enrollment service and unpublished `xtask`). Five more packages are sibling path dependencies under
 `../wdbx/crates/`: `abi-compute`, `abi-core`, `abi-foundation`,
 `abi-telemetry`, and `abi-wdbx`. They are not ABI-local workspace members.
 Keep `abi` and `wdbx` adjacent and verify the live metadata rather than trusting
@@ -183,6 +183,7 @@ thin LTO. Every crate inherits these with `[lints] workspace = true`.
 | `abi-model-runtime` | Explicit local model loading and evidenced Candle execution. Depends on `abi-agent-runtime`, `abi-compute`, `abi-models`. |
 | `abi-gpu` | Claim-honest GPU/accelerator backend detection. Depends on `abi-compute` and `abi-foundation` only (not `abi-wdbx`); default features are `metal-kernels` + `coreml-ane`, with `cuda-adapter`/`vulkan-adapter` as opt-in capability-only rows. Metal preferred on macOS; the `metal-kernels` feature is **on by default**, but `accelerated=true` additionally requires the Metal DOT pipeline to actually link and initialize at runtime — otherwise deterministic CPU SIMD fallback with `accelerated=false`. Also hosts claim-honest shaders/MLIR/mobile report surfaces. |
 | `abi-sea` | SEA (Sparse Evidence Attention) self-learning loop: recalls prior WDBX records relevant to an input, prepends them as context, runs adaptive completion, updates persona-router weights. |
+| `abi-control-plane` | Separate Rust account/enrollment service, browser client and encrypted outbound inference relay. Verified OIDC, locally signed pairing/X25519 keys, fresh dispatch permits, tenant quotas and metadata-only durable scheduling. User nodes reuse durable worker execution. Loopback listener behind an HTTPS proxy; no governed tool effects or public deployment. See `crates/abi-control-plane/README.md`. |
 | `abi-worker` | Authenticated, bounded worker-control contracts and admission. Depends on `abi-agent-runtime`, `abi-wdbx-gateway`. |
 | `abi-cli` (bin `abi`) | Command metadata, help rendering, process dispatch. Depends on the local workspace and sibling substrate packages, and (since 2026-09-06) on `abi-wdbx-gateway`, `tokio`, and `tonic` for `abi wdbx episode propose|verify`, the gRPC client of the episode gate; that pulls the gateway's server dependencies into the `abi` binary. The help surface is a stable, golden-tested contract boundary. |
 | `abi-mcp` (bin `abi-mcp`) | JSON-RPC MCP server: the frozen 12-tool stdio surface (primary, 64 KB frame cap); startup also attempts a custom loopback HTTP listener, and bind failure leaves stdio running. That listener serves persistent MCP 2024-11-05 HTTP+SSE sessions (`GET /sse`, then `POST /message?sessionId=<id>` → `202` + an SSE `message` event; `src/sse.rs`, at most 16 sessions) and keeps the one-shot direct-reply `POST /message` compat mode. It is not Streamable HTTP (2025-03-26). |

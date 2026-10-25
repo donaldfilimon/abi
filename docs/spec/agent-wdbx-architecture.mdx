@@ -66,7 +66,8 @@ claim boundaries.
 | Agent host | `crates/abi-agent-host/` | Startup-owned schemas, validation before policy, audited execution through a supplied executor, correlated continuation and bounded runs |
 | Model registry | `crates/abi-models/` | Pinned manifests, publisher trust, principal-bound license consent, bounded hash-verified external artifact delivery; no inference |
 | Model execution | `crates/abi-model-runtime/` | Explicit authorized manifest/device selection and Candle provider; tiny `abi-bigram-v1` fixture architecture |
-| Worker control | `crates/abi-worker/` | Signed jobs/cancellation, leases, replay control, bounded results and independent job-control storage; no listener, scheduler or model executor |
+| Enrolled tenant relay | `crates/abi-control-plane/` | Metadata-only durable admission and scheduling, HPKE ciphertext-only in-memory relay, outbound node polling, fresh signed dispatch permits and isolated deterministic inference acceptance over local TCP. Separate-host partitions, public operation and governed tools remain open |
+| Worker control | `crates/abi-worker/` | Signed jobs/cancellation, leases, replay control, private Unix control history and bounded in-process inference through a startup-bound provider; no listener, scheduler or separate-host proof |
 | Capability kernel | `crates/abi-capability/` | Deny-by-default request-scoped authorization, bounded fallible digest audit and local recording actuator; no production actuator |
 | Core | `../wdbx/crates/abi-core/` | One-process scheduler, task accounting, registry, and memory tracking |
 | WDBX | `../wdbx/crates/abi-wdbx/` | In-process storage, HNSW search, recovery, records, reference crypto/compression, local RPC demos |
@@ -151,8 +152,11 @@ These are Current library boundaries supported by source and contract fixtures:
   local compile/runtime proof without an available toolchain and hardware.
 - `abi-worker` verifies audience-bound Ed25519 jobs and cancellation requests,
   derives principal-scoped retry identity, and bounds leases, quotas and result
-  streams. Its mandatory-mTLS configuration reuses the gateway loader. This
-  does not establish an active worker listener, remote execution, deployed
+  streams. Its mandatory-mTLS configuration reuses the gateway loader. It
+  includes private Unix durable replay and cooperative bounded inference;
+  exact retries do not dispatch again. Provider revision binding is owned by
+  startup configuration, and Windows private-log ACL validation refuses.
+  This does not establish an active worker listener, remote execution, deployed
   certificate lifecycle or production separate-host cluster. WDBX data-plane
   membership grants no worker job-control authority.
 - `abi-capability` authorizes local recording adapters with request-scoped
