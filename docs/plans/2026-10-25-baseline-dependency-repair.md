@@ -26,7 +26,7 @@
 - [ ] Read AGENTS and applicable dependency/claims instructions. Read the advisory and root gate baseline evidence supplied by the controller.
 - [ ] Update precisely with `./tools/cargo.sh update -p tokio --precise 1.54.1`. Inspect lockfile diff; only Tokio and strictly necessary dependency resolution may change. No broad dependency upgrade.
 - [ ] Run the required dependency scan and confirm this advisory no longer fails. A network/advisory database error is not a passing scan.
-- [ ] Run `./tools/check.sh < /dev/null` with isolated `CARGO_TARGET_DIR`, `ABI_WDBX_PATH=:memory:` and `ABI_WDBX_PERSIST=0`. Preserve any subsequent failure with its exit/stage instead of changing unrelated source or claiming full green.
+- [ ] Run `./tools/check.sh < /dev/null` with isolated `CARGO_TARGET_DIR`, `ABI_WDBX_PATH=:memory:` and `ABI_WDBX_PERSIST` unset. Persistence-specific tests own isolated scratch stores; globally disabling persistence would invalidate their audit assertions. Use `env -u ABI_WDBX_PERSIST` for this gate. Preserve any subsequent failure with its exit/stage instead of changing unrelated source or claiming full green.
 - [ ] Check the final lockfile identity and `git diff --check`, self-review, commit owned changes and report exact commands/results. No test is needed that merely asserts the lockfile version; the real scanner/build/gate is the behavioral validation.
 
 **Rollback:** Revert the task commit to restore the old reproducible lockfile; the previously observed security gate failure then remains. No live service or store is touched.
