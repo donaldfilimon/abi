@@ -358,3 +358,14 @@ must be merged back into this checkout's default branch, the worktree
 removed, and the branch deleted, before pushing and before the task is
 called done. Full policy: `~/.claude/CLAUDE.md` (*Git discipline*).
 <!-- /machine-git-policy -->
+
+## Local main readiness (2026-10-25)
+
+Follow [docs/superpowers/plans/2026-10-25-local-main-readiness.md](docs/superpowers/plans/2026-10-25-local-main-readiness.md) for this user-approved local integration task.
+Use one manual task branch/worktree per independent task; preserve existing
+dirty, untracked, ignored and unpushed work and app-managed worktree lifecycles.
+Merge owned changes into local `main` only after writer release, recovery custody
+and the documented repository gates pass on the candidate revision. Keep failed
+or skipped gates explicit. This task's hold takes precedence over older guidance
+requiring immediate merge or worktree deletion. Leave owner-held work in place;
+remote publication and deployment require separate scope.
