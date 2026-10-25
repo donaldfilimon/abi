@@ -1,101 +1,255 @@
 # ABI Framework
 
-> **Intelligence Without Limits — local runtime.**  
-> Stable Rust 1.99.1 framework for agent orchestration, WDBX semantic storage,
-> and claim-honest capability reporting. Inspectable on your machine.
+> **Intelligence Without Limits — local runtime.**
+> Rust 2024 orchestration, routing, and governance with explicit capability evidence.
 
-ABI is a **stable Rust 1.99.1** framework for local AI service orchestration, semantic
-vector storage, claim-honest GPU capability reporting, and runtime primitives.
-abi is the runtime/WDBX twin; Abbey is the companion that will not claim what
-the ledger cannot prove. Cloud backends are optional. Browser autonomy is not
-Current. See [docs/brand.md](docs/brand.md).
+ABI is the local AI runtime and integration framework behind the existing Abbey
+and WDBX ecosystem. It provides deterministic profile routing, agent and tool
+contracts, provider connectors, model-artifact foundations, and a CLI/MCP
+interface. The repository targets **stable Rust 1.99.1**.
 
-Project site: <https://donaldfilimon.github.io/abi/> — deployed from `site/`
-through the GitHub Pages Actions workflow when that source changes on `main`
-(see `site/README.md`); its benchmark dashboard renders synthetic sample data,
-not measurements.
+In the **LYLX by The Donald Company** architecture, ABI's role is **dynamic
+moderation, routing, context selection, and authorized execution**. That design
+direction does not imply that every moderation, model, or distributed feature
+is already implemented in this repository.
 
-Companion interface: [abbey](https://github.com/donaldfilimon/abbey) — Intelligence Without Limits with a claims ledger.
+[Quick start](#quick-start) · [Architecture](#architecture-and-project-roles) ·
+[Local walkthrough](#local-walkthrough) · [MCP](#mcp) ·
+[Current status](#current-status) · [Documentation](#documentation)
 
-## Quick Start
-```bash
-./tools/cargo.sh --version   # repository-selected stable toolchain via tools/cargo.sh (never bare cargo)
-./tools/check.sh             # Primary validation gate
-./tools/cargo.sh build -p abi-cli   # target/debug/abi
-./tools/cargo.sh build -p abi-mcp   # target/debug/abi-mcp
+Project site: <https://donaldfilimon.github.io/abi/>. It is built from `site/`
+through the GitHub Pages workflow when that source changes on `main`; its
+benchmark dashboard uses **synthetic sample data, not measurements**. See
+[the site README](site/README.md) and [brand guidance](docs/brand.md).
+
+## Architecture and project roles
+
+| Component | Responsibility | Boundary |
+| --- | --- | --- |
+| **LYLX** | New, ground-up intelligence platform by The Donald Company. | A distinct implementation program, not a silent rename or replacement of this repository. |
+| **Quesar** | Designated largest shared foundation model in the LYLX family. | Model manifests, checkpoints, training runs, and evaluations must establish actual capabilities. |
+| **Abbey / Aviva** | Consolidated Quesar personality direction: primary collaborator and candid expert mode. | Existing deterministic profiles and application integrations do not establish trained or consolidated Quesar weights. |
+| **ABI** | Dynamic moderation/routing and execution governance. | Current executable behavior is defined by this repository's source, contracts, and tests. |
+| **WDBX 3D** | Neural memory/storage direction, including spatial, semantic, graph, and provenance structures. | The existing sibling store has its own implemented features and conformance limits. |
+
+```text
+User / Abbey / CLI / MCP
+           |
+     ABI routing and governed host composition
+           |                    |
+     Model/provider         WDBX memory
+           |
+     Tool proposal -> validation -> authorization -> permitted execution
 ```
 
-**Prerequisite:** the sibling `wdbx` repository must be checked out as a
-directory named `../wdbx` next to this one. `Cargo.toml` path-depends on
-`../wdbx/crates/{abi-compute,abi-foundation,abi-core,abi-telemetry,abi-wdbx}`,
-so without that sibling Cargo fails at manifest resolution for the whole
-workspace — every command above, including `./tools/check.sh`.
+The diagram shows responsibility boundaries, not a claim that every command
+uses a fully integrated production agent host. `abi-ai` remains store-independent;
+CLI/MCP wrappers and `abi-sea` own memory integration. The local scheduler is
+single-process, and worker-control contracts do not by themselves provide
+remote execution.
 
-Compatibility: `./build.sh check` → `./tools/check.sh`. The Zig tree has been
-removed; see `RUST-REWRITE-PLAN.md` for the port history.
+The existing Abbey/Aviva/Abi profile names remain compatibility contracts.
+Aviva's requested expressive latitude changes style, not permissions, privacy,
+or the standard of evidence. Model output and retrieved text cannot grant
+execution authority.
+
+Related repositories: [Abbey](https://github.com/donaldfilimon/abbey) ·
+[WDBX](https://github.com/donaldfilimon/wdbx) ·
+[quesar.cloud website](https://github.com/donaldfilimon/quesar.cloud).
+The website is not the Quesar model checkpoint. LYLX's ground-up direction
+preserves these repositories and their historical data as references; it does
+not authorize replacing their source or storage formats.
+
+## Quick Start
+
+### Prerequisites
+
+ABI requires the sibling WDBX checkout, not just this repository:
+
+```text
+workspace/
+  abi/
+  wdbx/
+```
+
+`Cargo.toml` references
+`../wdbx/crates/{abi-compute,abi-foundation,abi-core,abi-telemetry,abi-wdbx}`.
+Missing or incompatible sibling sources prevent workspace resolution. For
+qualification, use the exact `WDBX_REVISION` recorded in
+[the CI workflow](.github/workflows/ci.yml), rather than assuming both repositories'
+latest commits are compatible.
+
+The full gate also needs Python 3.11+ and an available dependency-security
+scanner. Follow [AGENTS.md](AGENTS.md) for the complete requirements. Use the
+Cargo wrapper: a separately installed Cargo can ignore the pinned toolchain or
+select incompatible linker tools.
+
+```bash
+./tools/cargo.sh --version
+./tools/cargo.sh build --locked -p abi-cli
+./tools/cargo.sh build --locked -p abi-mcp
+./tools/check.sh
+```
+
+`./tools/check.sh` is the primary validation gate, not a statement that the
+current checkout has passed. `./build.sh check` is its compatibility alias.
+The retired Zig port is documented in [RUST-REWRITE-PLAN.md](RUST-REWRITE-PLAN.md);
+it is history, not the active toolchain.
 
 ## Cross-compilation
 
-Cross targets are available via standard Rust `cargo` target triples once the
-corresponding toolchains are installed (`rustup target add …`). Prefer
-`./tools/cargo.sh build -p abi-cli --target <triple>` for smoke builds.
+Install the intended Rust target and use
+`./tools/cargo.sh build --locked -p abi-cli --target <triple>` for a smoke build.
+Target compilation, live OS execution, accelerator operation, and production
+qualification are separate results. Do not infer all-platform runtime support
+from a successful cross-build or a CI configuration.
 
 ## Local Walkthrough
 
-Build the CLI, then exercise the local surfaces without live network credentials:
+The following Bash walkthrough uses an in-memory store so it does not change
+an operator's existing `~/.abi/wdbx` data:
 
 ```bash
-./tools/cargo.sh build -p abi-cli
+./tools/cargo.sh build --locked -p abi-cli
 ABI=./target/debug/abi
-$ABI backends
-$ABI scheduler status
-$ABI dashboard --once --plain   # one-shot operational snapshot
-$ABI complete "summarize ABI scheduler status"
-$ABI complete --model fable-5 "summarize ABI scheduler status"
-$ABI complete --neural "hello"  # in-process char-LM demo (not a production LLM)
-# arm64 macOS + Apple Intelligence ready:
-# $ABI complete --live --model apple-fm --confirm "hello"
-$ABI complete --model llama/phi3 "hello"  # local OpenAI-compat bridge (falls back offline)
-# $ABI complete --learn "..."  # SEA persistence+adaptation+recall (requires store). Specimen Studio's Agent desk does not call this or write this store.
-$ABI agent plan "stage a safe WDBX refactor"
-$ABI agent train all
-$ABI wdbx query "$(mktemp -d)/store"   # store stats as JSON (no `wdbx stats` command)
-$ABI wdbx compute info
-$ABI wdbx secure demo
-$ABI wdbx cluster status
+(
+  export ABI_WDBX_PATH=:memory:
+  "$ABI" backends
+  "$ABI" scheduler status
+  "$ABI" dashboard --once --plain
+  "$ABI" complete "summarize ABI scheduler status"
+  "$ABI" complete --neural "hello"  # char-LM demonstration, not a production LLM
+  "$ABI" agent plan "stage a safe WDBX refactor"
+  "$ABI" wdbx compute info
+)
 ```
 
-`abi scheduler status` runs a one-shot scheduler probe and reports task/memory counters. `abi help --json [command] [subcommand]` emits typed command/subcommand plus shortcut and completion-shell metadata for automation, and `abi help --completion <bash|zsh|fish>` emits metadata-driven shell completions. `abi dashboard` / `abi tui` renders the operational diagnostics snapshot; `abi --tui` is the same dashboard shortcut. With non-TTY stdin or `--once` it exits after one frame; on a real TTY it enters raw-mode refresh until `q`/Esc. Use `--pane <pane>`, `--plain`/`--no-color`, `--compact`, `--once`, `--interval <ms>` (100-60000), `--json`, and `--list-panes` to choose the initial pane, log-safe styling, selected-pane-only rendering, forced one-shot rendering, refresh cadence, a machine-readable snapshot, or pane metadata; JSON snapshots include layout metadata (`compact`, color, visible panes, pane titles/hotkeys). `abi agent plan`, `train`, `multi`, and `spawn` use the local scheduler-backed AI helper surface; `abi agent tui` is the interactive REPL with `/status` session telemetry and validated printable model ids. `abi agent browser` emits a reviewed local plan and local planner output only—ABI does not embed or launch a browser, and real navigation remains an external MCP integration step. The `abi complete` and `abi agent train` CLI paths, plus MCP `ai_complete`, `ai_train`, and `ai_learn`, attempt the configured WDBX store, or `$HOME/.abi/wdbx` by default; operators opt out with `ABI_WDBX_PERSIST=0` or `ABI_WDBX_PATH=:memory:`. Skipped, unavailable, or failed persistence is reported rather than fabricated. The separate top-level `abi train` command only inspects the requested training configuration and does not open WDBX. `wdbx query <path> [text] [persona]` does store-stats, hybrid semantic search, or persona-isolated retrieval; `cluster serve`/`compute info`/`secure demo` expose the networked consensus RPC, accelerator selection, and security demos honestly as single-host / reference-scoped surfaces (see `docs/spec/wdbx-north-star.mdx` for the Current/Partial/Proposed mapping). Cluster RPC supports shared-secret frames via `ABI_WDBX_CLUSTER_TOKEN` and an optional node allowlist via `ABI_WDBX_CLUSTER_PEERS`; non-loopback binds refuse to start without the token. `complete --model <id>` records the catalog-canonical id (aliases such as `fable-5` -> `claude-fable-5`; unrecognized ids print a stderr warning and pass through); `complete --live` serves anthropic-provider models over the explicit live transport and therefore needs stored credentials (`ABI_AUTH_TOKEN=… abi auth signin anthropic`).
+Select a disposable explicit store before testing persistence. Production-facing
+completion commands otherwise attempt the configured store or `$HOME/.abi/wdbx`.
+Use `ABI_WDBX_PERSIST=0` or `ABI_WDBX_PATH=:memory:` to opt out. Skipped,
+unavailable, and failed persistence must be reported, not replaced with a
+fabricated successful write.
 
-For MCP smoke testing, build the server and call the same contract tools through an MCP client:
+### Useful commands and their scope
+
+| Command | What it does / does not prove |
+| --- | --- |
+| `abi help --json [command] [subcommand]` | Typed command metadata for automation. |
+| `abi help --completion <bash|zsh|fish>` | Metadata-driven shell completions. |
+| `abi scheduler status` | A one-shot scheduler probe and task/memory counters, not durable background jobs. |
+| `abi dashboard` / `abi tui` / `abi --tui` | Operational diagnostics. Non-TTY input or `--once` exits after one frame. |
+| `abi agent plan`, `train`, `multi`, `spawn` | Local scheduler-backed helpers; names do not establish trained production weights or remote agents. |
+| `abi agent tui` | Interactive REPL with `/status` telemetry and validated model IDs. |
+| `abi agent browser` | Reviewed local plan and planner output; no embedded browser or automatic navigation. |
+| `abi wdbx query <path> [text] [persona]` | Store statistics, hybrid retrieval, or persona-isolated retrieval. There is no `abi wdbx stats` command. |
+| `abi wdbx secure demo` | Reference-scoped demonstration, not production cryptographic certification. |
+| `abi wdbx cluster status` | Cluster-related local diagnostics, not production separate-host proof. |
+
+Dashboard options include `--pane`, `--plain` / `--no-color`, `--compact`,
+`--once`, `--interval` (100–60000 ms), `--json`, and `--list-panes`.
+A real terminal enters refresh mode until `q` or Escape.
+
+`abi complete --learn` adds SEA evidence retrieval, persistence, and routing
+adaptation; it is not equivalent to foundation-model weight training. Specimen
+Studio's Agent desk does not call this path or write this store. The separate
+top-level `abi train` command inspects its requested configuration and does not
+open WDBX.
+
+### Explicit providers
 
 ```bash
-./tools/cargo.sh build -p abi-mcp
-# Prefer mcp/launcher.sh (or run from repo root) so @loader_path resolves
-# libabi_fm_shim.dylib next to the binary on arm64 macOS.
-./mcp/launcher.sh
-# stdio is primary; optional custom loopback HTTP compatibility listener on
-# ABI_MCP_HTTP_PORT (default 8080), with optional ABI_MCP_HTTP_TOKEN bearer auth.
-# GET /sse opens a persistent MCP 2024-11-05 HTTP+SSE session; POST /message
-# without a sessionId keeps the one-shot direct-reply compatibility mode.
+# Local OpenAI-compatible bridge; unavailable bridges can fall back offline:
+ABI_WDBX_PATH=:memory: ./target/debug/abi complete --model llama/phi3 "hello"
+
+# Supported arm64 macOS host with Apple Intelligence ready:
+# ABI_WDBX_PATH=:memory: ./target/debug/abi complete --live --model apple-fm --confirm "hello"
 ```
 
-Contract-covered MCP tool names are `ai_run`, `ai_complete`, `ai_train`, `ai_learn`, `wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`, `plugin_list`, `wdbx_stats`, and `plugin_run`. `wdbx_query` returns a local hybrid-ranked match from the configured WDBX store; `connector_test` uses deterministic local connector paths and does not perform live network dispatch.
+Model aliases are canonicalized; unknown IDs warn and pass through. Live
+Anthropic-provider requests require the explicit live transport and configured
+credentials. The selected route, actual provider, and any fallback must remain
+visible. Never commit credentials to examples or logs.
+
+## MCP
+
+Build the server and use its launcher so binary and macOS FoundationModels
+shim selection remain consistent:
+
+```bash
+./tools/cargo.sh build --locked -p abi-mcp
+ABI_WDBX_PATH=:memory: ./mcp/launcher.sh stdio
+```
+
+Stdio JSON-RPC is the primary contract. The server also attempts a custom
+loopback HTTP compatibility listener on `ABI_MCP_HTTP_PORT` (default 8080),
+with optional `ABI_MCP_HTTP_TOKEN` bearer enforcement. `GET /sse` opens an MCP
+2024-11-05 HTTP+SSE session; `POST /message` without a session ID retains the
+one-shot compatibility response. **This is not Streamable HTTP.** A loopback
+listener and optional token do not establish production network exposure.
+
+The frozen tools are `ai_run`, `ai_complete`, `ai_train`, `ai_learn`,
+`wdbx_query`, `scheduler_stats`, `scheduler_info`, `connector_test`, `gpu_status`,
+`plugin_list`, `wdbx_stats`, and `plugin_run`. `connector_test` uses deterministic
+local paths, not live network dispatch. See the
+[public API contract](docs/contracts/public-api.mdx) for schemas and boundaries.
 
 ## Current Status
 
-- ABI targets **stable Rust 1.99.1** (`rust-toolchain.toml`); validate with `./tools/check.sh`.
-- Core crates and MCP transport have contract/golden coverage; MCP stdio is primary, with an optional custom loopback HTTP compatibility listener that serves persistent MCP 2024-11-05 HTTP+SSE sessions and keeps a one-shot direct-reply `POST /message` compatibility mode (not Streamable HTTP).
-- Documentation: `CLAUDE.md`, `GEMINI.md`, and `AGENTS.md` describe the Rust lifecycle.
-- Build gate: `./tools/check.sh` runs policy tests, `./tools/cargo.sh xtask ci verify` (judo #817), Abbey corpus (Python + `./tools/cargo.sh xtask abbey verify`), the **required dependency-security scan** (`ABI_DEP_SCAN_REQUIRE=1 ./tools/security/run-dep-scan.sh` — it fails the gate if no scanner runs), size limits, fmt, clippy (`-D warnings`), workspace build/tests, the **sibling WDBX contract conformance tests** (`--manifest-path ../wdbx/Cargo.toml`), local Metal tests/docs, the benchmark regression guard, rustdoc, and release `abi-cli`/`abi-mcp` builds.
-- Local models: `abi-model-runtime` requires an exact registry model, accepting principal, external storage root, and device choice. Generated scratch fixtures prove its tiny `abi-bigram-v1` Candle path on CPU and locally exercised Metal; this is runtime-foundation evidence, not a Gemma, quality, placement, speedup, or CUDA-runtime claim.
-- Workers: `abi-worker` provides authenticated, audience-bound, bounded offline admission/control contracts with finite leases, cooperative cancellation, replay resistance, and verifiable results. It reuses the gateway mTLS configuration but does not claim a listener, scheduler, model execution, production cluster, or separate-host deployment.
-- GPU: capability table + preferred backend reporting with **honest `accelerated=false`** when native kernels are not linked; vector ops use deterministic CPU lane fallback. CUDA/Vulkan/ANE kernels remain non-claims.
-- Plugins: sixteen bundled plugins ship as compiled-in `mod.rs`/`stub.rs` pairs under `crates/abi-plugins/plugins/` with `assert_plugin_parity!`.
-- AI/WDBX: the sibling WDBX crates are required build dependencies. Pure `abi_ai::complete` is store-independent; the `abi complete` and `abi agent train` CLI paths and MCP `ai_complete`, `ai_train`, and `ai_learn` attempt the configured/default durable store unless persistence is disabled with `ABI_WDBX_PERSIST=0` or `ABI_WDBX_PATH=:memory:`. Top-level `abi train` does not open WDBX. Successful writes record query/response vectors, metadata, and block-chain entries. Scheduler-backed completion, training, and agent helpers expose live task/memory observability.
-- Abbey identity: Abbey is the primary empathetic-polymath profile, Aviva is the direct expert mode, and ABI is the orchestration/governance layer. The preserved Primary Declaration and the claim-honest Current/Partial/Proposed mapping live in `docs/spec/abbey-core-identity.mdx`; local profile output is deterministic template generation, not a model-quality or distributed-AI claim.
-- WDBX: contract coverage in the required sibling workspace verifies ordered vector search results, block metadata round-tripping, segment/WAL recovery and compaction, temporal graph snapshot restore, and MCP hybrid ranking. Runtime persistence can be skipped or unavailable without fabricating a successful write.
-- Connectors: Discord validates printable non-whitespace credentials, numeric snowflake-like IDs, and message size; Twilio validates account SID/auth-token shape, base URL, timeout, explicit `.live` transport, TwiML/form escaping, and ConversationRelay payload aliases before local/live dispatch.
-- External collateral should not cite distributed sharding, AES/RBAC, Python/TensorFlow stacks, Kubernetes/H100 deployments, regulatory certifications, QPS/latency/accuracy, energy-efficiency, or model-benchmark claims unless a repo test, benchmark artifact, or documented source file proves them. The Apple `FoundationModels` Swift shim is an on-device bridge only (not a general Swift product stack). See [docs/contracts/external-claims-audit.mdx](docs/contracts/external-claims-audit.mdx).
+The [architecture specification](docs/spec/agent-wdbx-architecture.mdx) and
+[external claims audit](docs/contracts/external-claims-audit.mdx) distinguish
+implemented behavior, partial capabilities, and proposals.
 
-See [docs/index.mdx](docs/index.mdx) for architecture, public API contracts, onboarding, and development guides, and [CHANGELOG.md](CHANGELOG.md) for release-note style modernization highlights.
+| Area | Repository-supported boundary |
+| --- | --- |
+| Runtime and contracts | Rust 2024 / 1.99.1, local scheduling, CLI/MCP golden and contract tests. |
+| Agent host | Validated requests, explicit policy/audit composition, bounded runs, and cooperative cancellation. |
+| Capability kernel | Deny-by-default request-scoped authorization and recording fixtures; not a general production shell/filesystem actuator. |
+| Model runtime | Exact authorized manifests and explicit devices; the tiny `abi-bigram-v1` fixture is infrastructure evidence, not a production Quesar or Gemma checkpoint. |
+| Training foundation | Approved-record, eligibility, revocation, snapshot, and receipt contracts. These do not establish actual trained weights or model quality. |
+| Workers | Signed audience-bound admission/control, finite leases, cancellation, replay resistance, and bounded results; no implied deployed worker listener or multi-host scheduler. |
+| GPU/compute | Evidence-scoped native paths and deterministic CPU fallback; preserve `accelerated=false` when acceleration is unavailable. Detection does not establish speedup or ANE residency. |
+| Plugins | Sixteen compiled-in `mod.rs`/`stub.rs` pairs with parity checks. |
+| Memory | Required sibling WDBX provides persistence, recovery, vectors, blocks, temporal/spatial records, and bounded retrieval; refer to its current contracts for exact scope. |
+| Connectors | Explicit local/live transports and validated credential/request shapes. Live-service results require separate evidence. |
+
+Pure `abi_ai::complete` remains store-independent. CLI `complete` and `agent
+train`, and MCP `ai_complete`, `ai_train`, and `ai_learn`, attempt configured or
+default persistence unless disabled. Successful writes record query/response
+vectors, metadata, and linked blocks; a failed store write is not success.
+
+Do not promote production multi-host sharding, universal encryption/RBAC,
+regulatory certification, CUDA/Vulkan execution, model benchmarks, energy
+savings, or throughput/latency claims without supporting artifacts. The
+FoundationModels Swift shim is an on-device bridge, not a general Swift app
+stack. Website films and synthetic dashboards are not benchmarks.
+
+## Verification and contribution
+
+Read [AGENTS.md](AGENTS.md) before changing the project. The full gate includes
+policy tests, Rust/Python Abbey contract checks, a required dependency-security
+scan, size limits, formatting, Clippy, builds/tests, sibling WDBX conformance,
+applicable Metal checks, benchmark regression checks, rustdoc, and release
+binaries. A skipped scanner or unavailable hardware test is not passing evidence.
+
+For documentation-only changes, the repository guidance names:
+
+```bash
+python3 -m unittest discover -s tools/tests -p 'test_docs*.py'
+git diff --check
+```
+
+Run the applicable policy suites as well; changes under `docs/` additionally
+use the documented docs-validation workflow. Keep existing CI pauses and
+operator decisions intact. Tests and smoke runs must never open live user
+stores. Documentation edits do not qualify a new compiler, model, platform,
+network service, or deployment.
+
+## Documentation
+
+- [Documentation index](docs/index.mdx)
+- [Agent and WDBX architecture](docs/spec/agent-wdbx-architecture.mdx)
+- [Abbey identity and operating contract](docs/spec/abbey-core-identity.mdx)
+- [WDBX north-star and status mapping](docs/spec/wdbx-north-star.mdx)
+- [Public API contract](docs/contracts/public-api.mdx)
+- [External claims audit](docs/contracts/external-claims-audit.mdx)
+- [Repository instructions](AGENTS.md), [expanded guidance](CLAUDE.md), and [changelog](CHANGELOG.md)
