@@ -441,6 +441,7 @@ mod tests {
     impl Drop for IsolatedStore {
         fn drop(&mut self) {
             abi_foundation::env::clear_override(abi_foundation::env::WDBX_PATH);
+            abi_foundation::env::clear_override(abi_foundation::env::WDBX_PERSIST);
             let _ = std::fs::remove_dir_all(&self.path);
         }
     }
@@ -454,6 +455,7 @@ mod tests {
             abi_foundation::env::WDBX_PATH,
             &isolated.path.display().to_string(),
         );
+        abi_foundation::env::set_override(abi_foundation::env::WDBX_PERSIST, "1");
         body(&isolated.path)
     }
 
@@ -618,7 +620,12 @@ mod tests {
             outcome
         });
         assert_eq!(complete.exit_code, 0);
-        assert!(complete.stdout.contains("persisted=true"));
+        assert!(
+            complete.stdout.contains("persisted=true"),
+            "{}{}",
+            complete.stdout,
+            complete.stderr
+        );
         assert!(complete.stdout.contains("profile="));
         assert!(
             complete.stdout.contains("Abbey:")

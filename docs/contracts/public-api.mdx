@@ -28,7 +28,7 @@ There is no monolithic root crate re-exporting every namespace; consumers depend
 
 `abi-model-runtime` publishes `LocalModelProvider`, `DevicePreference`, `LoadReport`, and `InferenceReport`. Loading requires the exact model ID, accepting principal, external storage root, and device choice; there is no global model/device default and no silent substitution or fallback. Its first implemented architecture is the generated-test-only `abi-bigram-v1` transition fixture, which proves real Tokenizers, Safetensors, Candle CPU, and locally exercised Metal execution without placing model artifacts in the repository. The `cuda` feature wires Candle's CUDA backend for toolkit-equipped builds, but compilation and runtime execution are not claimed on hosts without `nvcc`. Gemma and structured tool-call generation are not part of this surface yet.
 
-`abi-worker` publishes typed identities, capabilities, signed job/cancellation envelopes, leases, ordered result chunks, verifiable result digests, health reports, a bounded `WorkerManager`, an append-only `JobControlStore`, and gateway-derived mandatory-mTLS server configuration. The manager derives idempotency from validated principal/audience/namespace-bound canonical requests; it never accepts a caller-provided idempotency digest. A running executor receives ABI's cooperative `CancellationToken`, but execution and scheduling remain outside this crate. The crate has no listener, production certificate lifecycle, WDBX membership or replication authority, model executor, or separate-host deployment claim.
+`abi-worker` publishes typed identities, capabilities, signed job/cancellation envelopes, leases, ordered result chunks, verifiable result digests, health reports, a bounded `WorkerManager`, an append-only `JobControlStore`, and gateway-derived mandatory-mTLS server configuration. The manager derives idempotency from validated principal/audience/namespace-bound canonical requests; it never accepts a caller-provided idempotency digest. The additive `FileControlStore` provides private Unix append-only history with explicit create/reopen, exclusive locking, bounded records and synced writes; unsupported private-file ACL platforms refuse. Checksums detect corruption but do not prevent malicious owner rollback. `WorkerManager::infer` accepts signed `model.infer` / `infer` requests with strict `prompt` and positive `tokens` fields, runs an explicitly supplied startup-bound provider only after fresh admission, and commits bounded results before success. Existing leases return `InferenceOutcome::InProgress`; committed retries return `Cached` without executing again. Provider model identity is the admitted capability revision and must be bound correctly by startup configuration. Cooperative token/event/time and byte/chunk limits are enforced; provider tool requests fail without tool dispatch. Late completion remains unresolved. The crate has no listener, scheduler, production certificate lifecycle, WDBX membership or replication authority, original trained weights, or separate-host deployment claim.
 
 ## Feature gates and plugin parity
 
@@ -190,3 +190,80 @@ For source changes:
 Thin compatibility entrypoint: `./build.sh check` → `./tools/check.sh`.
 
 For public feature/plugin API changes, rely on compile-time `Plugin` trait + `assert_plugin_parity!` in `abi-plugins` and the workspace test/golden suite under `./tools/check.sh`.
+
+## Enrolled tenant relay
+
+The separate `abi-control-plane` service implements `/v1/jobs`, owner-scoped
+job lookup/cancellation and `/v1/relay/node` outbound authenticated node
+requests. HTTP bodies carry only scoped metadata and HPKE ciphertext. Fresh
+node requests bind the exact action; signed five-second permits cross the
+durable dispatch boundary before user-hosted inference. The worker rechecks
+permit freshness after durable admission, before invoking a provider. See
+`crates/abi-control-plane/RELAY.md` for limits, restart/uncertainty semantics
+and the local two-tenant TCP acceptance. That inference acceptance does not
+qualify public deployment, general platform tools, a trained model or OS sandbox.
+The separate governed-tool continuation is described below.
+
+The enrolled-worker relay also accepts signed `Stream` and `Stopped` node actions.
+Incremental frames use the `abi.relay-stream.v1` domain, independently encrypt and
+sign the exact job/sequence, and enforce a strict 16-frame bound. Owning-account
+job snapshots include transient encrypted frames before terminal completion.
+The streaming native worker provides bounded backpressure and concurrent
+cooperative cancellation inspection. Dispatched cancellation is durably
+`cancel_requested`, retaining active quota until signed worker acknowledgement
+records `cancelled`; restart/deadline/worker-loss uncertainty remains unresolved.
+This is locally tested snapshot polling; OS process preemption remains outside
+this implementation. Existing CLI/MCP catalogs are unchanged.
+
+Durable delivery is additive: `POST /v2/jobs` accepts `DurableSubmission` with an
+immutable signed delivery policy; `GET /v2/jobs/{id}/delivery?after=N` returns a
+bounded owning-account encrypted page; `POST /v2/jobs/{id}/delivery/ack` records
+an explicit owning-client verified receipt. Browser writes retain exact
+Origin/session/CSRF checks. `NodeAction::Recovery` uses the existing action-bound
+node proof and the `abi.relay-recovery.v1` inspect/publish protocol. Replay grants
+bind current epoch, scope, policy, cancellation and exact packet digests, expire
+within 30 seconds, and never grant execution. Existing v1 job/dispatch/HPKE
+contexts stay compatible and v1 jobs remain ephemeral.
+
+`FileRelayOutbox` stores exact encrypted artifacts on user infrastructure under
+private exclusive access and FULL-sync transactions: 64 MiB physical database,
+1 MiB reserved encoded artifacts per job, 256 retained identities, 16 deltas plus
+one terminal. Fixed retention defaults to 24 hours and allows 60 seconds through
+seven days through the library. Current account/node credentials must remain
+valid independently; the one-hour enrollment credential is not automatically
+renewed. Acknowledgements do not delete ciphertext early. Expiry purges transport
+artifacts while retaining identity/outcome tombstones, rather than allowing a new
+execution of the old job.
+
+`WorkerManager::recorded` is read-only historical lookup; `recover_interrupted`
+can mark only replayed prior-process admission unresolved. `DurableRelayRuntime`
+reconciles control history and outbox before polling; recovery has no provider
+parameter and never resumes generation. `VerifiedDeliveryStore` verifies
+signatures/AEAD, exact scope, contiguous prefix and terminal commitments before
+atomically saving encrypted packets and cursor. Native `prepare-durable`,
+`import` and `open-durable` helpers retain reply keys locally; browser upload
+accepts strict sealed wrappers and explicit receipt artifacts. Rendering stdout
+is replayable, not an exactly-once external effect.
+
+Real local process-kill/TCP-response-loss fixtures and SQLite VFS failure tests
+exercise this recovery slice. Source/gate evidence is recorded in the ecosystem
+execution ledger. Separate-host operation, storage power loss, Windows/Linux
+runtime acceptance, public deployment and independent assessment remain open.
+
+## Governed tool proposal continuation
+
+The additive `tool.execute` enrollment capability admits only durable v2 encrypted
+proposals. Model inference's v1 formats and the frozen CLI/MCP catalogs remain
+unchanged. `ToolJob` names a startup-registered tool and tool-set revision plus
+JSON parameters; it cannot supply grants, identity or an executor. The browser
+routes the sealed durable wrapper and has no approval-decision authority.
+
+`GovernedHost::run_live` is a separate explicit startup-owned adapter boundary.
+It shares schema, budget and durable lifecycle checks with recording governance,
+then reobserves current authority after approval consumption and pre-effect audit.
+The local relay bridge supports A1Actor only; unsupported approval levels refuse.
+Abbey owns complete private previews, authenticated local decisions and atomic
+approval consumption with intent. Uncertain effects and interrupted admissions
+remain unresolved, with no automatic repeat. Current scope and remaining native,
+platform and process acceptance are in the
+[governed-tool contract](../spec/durable-governed-tools.md).

@@ -10,3 +10,9 @@ policy and sibling WDBX conformance tests, and builds release binaries.
 
 ABI pins stable Rust 1.99.1 (edition 2024); the declared Rust floor remains 1.99.
 For the 2026-10-20 completion train, local tests are allowed and CI remains paused.
+
+The workspace includes the separate `abi-control-plane` account/enrollment
+service (18 local crates). The scheduler remains in-process; this service
+does not add CLI/MCP commands. Its encrypted outbound relay enforces a separate
+bounded tenant queue and fresh dispatch permits; plaintext remains on user
+clients/nodes, with metadata-only control-plane persistence. See its crate README.

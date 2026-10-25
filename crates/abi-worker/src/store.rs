@@ -36,6 +36,15 @@ pub enum ControlEvent {
         /// Exact terminal result.
         result: JobResult,
     },
+    /// A prior-process admission was abandoned without a known outcome.
+    Unresolved {
+        /// Original job identity.
+        job_id: Uuid,
+        /// Original canonical request identity.
+        request_digest: ResultDigest,
+        /// Time exclusive startup recovery observed the interruption.
+        observed_at_unix_ms: i64,
+    },
     /// A signed cancellation terminally stopped an admitted job.
     Cancelled {
         /// Job identity.

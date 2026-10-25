@@ -41,9 +41,9 @@ Canonical agent instructions. Executable source wins over prose (`Cargo.toml`, `
 
 ## Workspace and boundaries
 
-- All live code under `crates/*` (17 members): `abi-agent-host`, `abi-agent-runtime`, `abi-ai`, `abi-capability`, `abi-cli`, `abi-connectors`, `abi-contracts`, `abi-gpu`, `abi-mcp`, `abi-model-runtime`, `abi-models`, `abi-nn`, `abi-plugins`, `abi-sea`, `abi-wdbx-gateway`, `abi-worker`, `xtask` (unpublished runner). No Zig (retired; see `RUST-REWRITE-PLAN.md` history only).
+- All live code under `crates/*` (18 members): `abi-agent-host`, `abi-agent-runtime`, `abi-ai`, `abi-capability`, `abi-cli`, `abi-connectors`, `abi-control-plane`, `abi-contracts`, `abi-gpu`, `abi-mcp`, `abi-model-runtime`, `abi-models`, `abi-nn`, `abi-plugins`, `abi-sea`, `abi-wdbx-gateway`, `abi-worker`, `xtask` (unpublished runner). No Zig (retired; see `RUST-REWRITE-PLAN.md` history only).
 - Sibling substrate (required, adjacent `../wdbx/crates/`): `abi-compute`, `abi-core`, `abi-foundation`, `abi-telemetry`, `abi-wdbx`. Cargo resolution/identity require the layout; do not vendor or git-dep. CI pins `WDBX_REVISION` in `.github/workflows/ci.yml` (`2969d71a2c3a81a060dcfc6cf53b4617f13c8b94`); update the pin only after that exact rev passes the gate.
-- No separate daemon binary; the scheduler runs in-process (`abi scheduler ...`).
+- The scheduler runs in-process (`abi scheduler ...`). `abi-control-plane` is a separate account/enrollment and encrypted relay service with its own bounded tenant queue; it does not run the CLI scheduler. See `crates/abi-control-plane/README.md`.
 - `abi-ai` core is store-agnostic/deterministic (I/O only in `file_context` etc.); WDBX bits belong in sea/CLI/MCP/wdbx crates.
 - Launch MCP only via the launcher.
 - `ABI_*` env vars + test hooks live in `../wdbx/crates/abi-foundation/src/env.rs`; use provided overrides/locks in tests, never raw env mutation.

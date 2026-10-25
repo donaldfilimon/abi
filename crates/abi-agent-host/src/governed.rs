@@ -1,7 +1,11 @@
-//! Recording-only governance over the shared bounded host driver.
+//! Durable governance over the shared bounded host driver.
 #![allow(missing_docs)]
 #[path = "governed_authority_expiry.rs"]
 mod authority_expiry;
+#[path = "governed_compensation.rs"]
+mod compensation;
+#[path = "governed_dispatch.rs"]
+mod dispatch;
 use crate::governed_authorization::{CompensationContext, evaluate};
 use crate::{AgentHost, GovernedRunFailure, HostBudget, HostRunReport, ToolExecutionContext};
 use abi_agent_runtime::{
@@ -21,6 +25,7 @@ use abi_capability::{
         SourceRegistry,
     },
 };
+pub use dispatch::GovernedLiveExecutor;
 use serde::Serialize;
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -107,6 +112,8 @@ pub enum GovernedCompensationError {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ApprovalPreview {
     pub binding: AuthorizationBinding,
+    pub parameters: serde_json::Value,
+    pub request: Request,
     pub tool: String,
     pub call_reference: String,
     pub capability: String,
@@ -132,9 +139,11 @@ pub struct CompensationPreview {
 pub enum PreviewUncertainty {
     /// Only a simulated recording is possible; live platform effects are unverified.
     RecordingOnly,
+    /// A startup-bound live adapter may produce effects with uncertain outcomes.
+    LiveAdapter,
 }
 
-/// Constructor exposes only a concrete recording actuator, never a generic live executor.
+/// Startup-owned compiled tool registrations with explicit recording or live dispatch.
 pub struct GovernedHost<'a> {
     provider: &'a dyn ModelProvider,
     sources: &'a SourceRegistry,
@@ -204,7 +213,31 @@ impl<'a> GovernedHost<'a> {
             options,
             facts,
             ledger,
-            actuator,
+            dispatch::Dispatch::Recording(actuator),
+            None,
+        )
+    }
+
+    /// Execute only through a trusted adapter explicitly supplied by startup.
+    #[allow(clippy::too_many_arguments)]
+    pub fn run_live(
+        &self,
+        request: &ModelRequest,
+        sink: &mut dyn EventSink,
+        cancellation: &CancellationToken,
+        options: GovernedOptions<'_>,
+        facts: &mut dyn GovernedFactProvider,
+        ledger: &mut dyn DurableLifecycle,
+        executor: &mut dyn GovernedLiveExecutor,
+    ) -> Result<GovernedRunReport, Box<GovernedRunFailure>> {
+        self.run_mode(
+            request,
+            sink,
+            cancellation,
+            options,
+            facts,
+            ledger,
+            dispatch::Dispatch::Live(executor),
             None,
         )
     }
@@ -218,7 +251,7 @@ impl<'a> GovernedHost<'a> {
         options: GovernedOptions<'_>,
         facts: &mut dyn GovernedFactProvider,
         ledger: &mut dyn DurableLifecycle,
-        actuator: &mut RecordingActuator,
+        mut dispatch: dispatch::Dispatch<'_>,
         compensation: Option<CompensationContext<'_>>,
     ) -> Result<GovernedRunReport, Box<GovernedRunFailure>> {
         let registry = Specs(self.specs.clone());
@@ -235,7 +268,7 @@ impl<'a> GovernedHost<'a> {
             options: &options,
             facts,
             ledger,
-            actuator,
+            dispatch: dispatch.reborrow(),
             stop: GovernedStop::Completed,
             outcomes: Vec::new(),
             executions: Vec::new(),
@@ -243,6 +276,7 @@ impl<'a> GovernedHost<'a> {
             audit_error: None,
             calls: 0,
             compensation,
+            result: None,
         };
         let mut budget = options.host_budget;
         budget.max_duration = budget.max_duration.min(std::time::Duration::from_millis(
@@ -290,78 +324,6 @@ impl<'a> GovernedHost<'a> {
             pending_approval: hook.pending_approval,
         })
     }
-    /// Explicit compensation submission. Only a known failed original intent admits
-    /// its declared inverse, with the inverse's own fresh grant/approval and scope.
-    #[allow(clippy::too_many_arguments)]
-    pub fn run_compensation(
-        &self,
-        original_tool: &str,
-        original: &PreparedExecution,
-        request: &ModelRequest,
-        sink: &mut dyn EventSink,
-        cancellation: &CancellationToken,
-        options: GovernedOptions<'_>,
-        facts: &mut dyn GovernedFactProvider,
-        ledger: &mut dyn DurableLifecycle,
-        actuator: &mut RecordingActuator,
-    ) -> Result<GovernedRunReport, GovernedCompensationError> {
-        let refuse = || GovernedCompensationError::InvalidOriginal;
-        let registration = self.registrations.get(original_tool).ok_or_else(refuse)?;
-        let source = self
-            .sources
-            .get(
-                &registration.request.capability_id,
-                &registration.request.capability_version,
-            )
-            .ok_or_else(refuse)?;
-        if original.binding().package_digest != source.package().digest
-            || original.binding().scope_digest != commitment(&registration.request.scope)
-            || !matches!(
-                ledger
-                    .lookup(original.execution_id())
-                    .map_err(GovernedCompensationError::Lifecycle)?,
-                Some(TerminalOutcome {
-                    state: OutcomeState::Failed,
-                    ..
-                })
-            )
-        {
-            return Err(refuse());
-        }
-        let inverse = source.source().compensation.as_ref().ok_or_else(refuse)?;
-        let registrations: Vec<_> = self
-            .registrations
-            .values()
-            .filter(|candidate| {
-                candidate.request.capability_id == inverse.capability_id
-                    && candidate.request.capability_version == inverse.version
-                    && candidate.request.scope == registration.request.scope
-            })
-            .cloned()
-            .collect();
-        if registrations.is_empty() {
-            return Err(refuse());
-        }
-        // Never inherit the original approval. Canonical matching requires a new
-        // exact inverse preview (or its own A0 grant), and a unique call identity.
-        let inverse_host = Self::new(self.provider, self.sources, registrations)
-            .map_err(GovernedCompensationError::Lifecycle)?;
-        inverse_host
-            .run_mode(
-                request,
-                sink,
-                cancellation,
-                options,
-                facts,
-                ledger,
-                actuator,
-                Some(CompensationContext {
-                    forward: source,
-                    original,
-                }),
-            )
-            .map_err(GovernedCompensationError::Driver)
-    }
 }
 
 struct Governance<'a, 'b> {
@@ -369,7 +331,8 @@ struct Governance<'a, 'b> {
     options: &'a GovernedOptions<'a>,
     facts: &'a mut dyn GovernedFactProvider,
     ledger: &'a mut dyn DurableLifecycle,
-    actuator: &'a mut RecordingActuator,
+    dispatch: dispatch::Dispatch<'a>,
+    result: Option<crate::ToolOutput>,
     stop: GovernedStop,
     outcomes: Vec<TerminalOutcome>,
     executions: Vec<PreparedExecution>,
@@ -408,7 +371,9 @@ impl crate::host::CallHook for Governance<'_, '_> {
             Ok(true) => Some(ToolResult::with_limit(
                 call.id.clone(),
                 ToolStatus::Ok,
-                "recorded",
+                self.result
+                    .as_ref()
+                    .map_or("recorded", crate::ToolOutput::payload),
                 limit,
             )),
             Ok(false) => None,
@@ -620,10 +585,7 @@ impl Governance<'_, '_> {
         if !facts.rate_allows || self.calls > self.options.requested_budgets.max_calls {
             return self.refuse(id, 7, denied);
         }
-        let adapter = AdapterBinding {
-            adapter_id: "recording".into(),
-            api_version: "1".into(),
-        };
+        let adapter = self.dispatch.binding();
         let prerequisites = SourceFacts {
             input: &input,
             predicates: &facts.predicates,
@@ -672,6 +634,8 @@ impl Governance<'_, '_> {
             .min(grant_expiry);
         let preview = ApprovalPreview {
             binding: binding.clone(),
+            parameters: input.clone(),
+            request: request.clone(),
             tool: call.name.clone(),
             call_reference: request.call_id.clone(),
             capability: source.source().id.clone(),
@@ -693,7 +657,7 @@ impl Governance<'_, '_> {
                 }),
             rollback: source.source().rollback,
             expires_at_ms,
-            uncertainty: PreviewUncertainty::RecordingOnly,
+            uncertainty: self.dispatch.uncertainty(),
         };
         self.stage(
             id,
@@ -838,6 +802,13 @@ impl Governance<'_, '_> {
         {
             return self.decline_prepared(&prepared);
         }
+        if self.dispatch.is_live()
+            && !self.live_authority_valid(
+                &request, source, &facts, &prepared, &kernel, &input, &adapter, context,
+            )
+        {
+            return self.decline_prepared(&prepared);
+        }
         // Fallible pre-effect stage audit must succeed before recording.
         if let Err(error) = self.stage(id, 12, binding_digest, Decision::Allow, authorized) {
             self.stop = GovernedStop::Uncertain;
@@ -854,9 +825,24 @@ impl Governance<'_, '_> {
         {
             return self.decline_prepared(&prepared);
         }
-        let digest = self
-            .actuator
-            .record_prepared(&request, source.package(), &prepared)?;
+        if self.dispatch.is_live()
+            && !self.live_authority_valid(
+                &request, source, &facts, &prepared, &kernel, &input, &adapter, context,
+            )
+        {
+            return self.decline_prepared(&prepared);
+        }
+        let (digest, output, adapter_postconditions) = self
+            .dispatch
+            .execute(call, &request, source, &prepared, context)?;
+        let output_valid = output.as_ref().is_none_or(|value| {
+            value.status() == ToolStatus::Ok
+                && value.payload().len() <= self.options.requested_budgets.max_output_bytes as usize
+                && value.payload().len() <= self.options.host_budget.max_tool_result_bytes
+                && serde_json::from_str(value.payload())
+                    .is_ok_and(|json| source.validates_output(&json))
+        });
+        self.result = output;
         let observations = match self.facts.observe(&request) {
             Ok(observed) if self.fresh(&observed) => self
                 .facts
@@ -883,11 +869,13 @@ impl Governance<'_, '_> {
         ));
         let (state, reason) = if context.should_stop() {
             (OutcomeState::Uncertain, LifecycleReason::OutcomeUnknown)
-        } else if !source.validates_output(&serde_json::Value::Bool(true)) {
+        } else if !output_valid
+            || (self.result.is_none() && !source.validates_output(&serde_json::Value::Bool(true)))
+        {
             (OutcomeState::Failed, LifecycleReason::AdapterFailure)
         } else {
             match postconditions {
-                Postconditions::Verified if self.actuator.postconditions_hold(source.package()) => {
+                Postconditions::Verified if adapter_postconditions => {
                     (OutcomeState::Succeeded, authorized)
                 }
                 Postconditions::Verified | Postconditions::Failed => {

@@ -10,6 +10,9 @@ use crate::{
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
+mod recorded;
+pub use recorded::RecordedExecution;
+
 /// Outcome of submitting a verified job.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Admission {
@@ -34,6 +37,7 @@ struct JobEntry {
     max_stream_chunks: u32,
     cancellation: CancellationToken,
     state: JobState,
+    replayed: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -41,6 +45,7 @@ enum JobState {
     Active,
     Completed(JobResult),
     Cancelled,
+    Unresolved,
 }
 
 /// Startup-owned authenticated worker manager over independent control storage.
@@ -57,6 +62,10 @@ pub struct WorkerManager<S> {
 }
 
 impl<S: JobControlStore> WorkerManager<S> {
+    pub(crate) const fn execution_limits(&self) -> WorkerLimits {
+        self.limits
+    }
+
     /// Validate startup authority and replay the independent control log.
     pub fn new(
         identity: WorkerIdentity,
@@ -104,6 +113,9 @@ impl<S: JobControlStore> WorkerManager<S> {
         for event in events {
             manager.replay(event)?;
             manager.event_count += 1;
+        }
+        for entry in manager.jobs.values_mut() {
+            entry.replayed = true;
         }
         manager.validate_replayed_capacity()?;
         Ok(manager)
@@ -262,9 +274,9 @@ impl<S: JobControlStore> WorkerManager<S> {
         match &entry.state {
             JobState::Active => {}
             JobState::Cancelled => return Ok(()),
-            JobState::Completed(_) => {
+            JobState::Unresolved | JobState::Completed(_) => {
                 return Err(WorkerError::State(
-                    "completed jobs cannot be retroactively cancelled".into(),
+                    "terminal jobs cannot be retroactively cancelled".into(),
                 ));
             }
         }
@@ -286,11 +298,13 @@ impl<S: JobControlStore> WorkerManager<S> {
         let mut active_jobs = 0;
         let mut completed_jobs = 0;
         let mut cancelled_jobs = 0;
+        let mut unresolved_jobs = 0;
         for entry in self.jobs.values() {
             match entry.state {
                 JobState::Active => active_jobs += 1,
                 JobState::Completed(_) => completed_jobs += 1,
                 JobState::Cancelled => cancelled_jobs += 1,
+                JobState::Unresolved => unresolved_jobs += 1,
             }
         }
         HealthReport {
@@ -300,6 +314,7 @@ impl<S: JobControlStore> WorkerManager<S> {
             active_jobs,
             completed_jobs,
             cancelled_jobs,
+            unresolved_jobs,
             observed_at_unix_ms: now_unix_ms,
         }
     }
@@ -394,8 +409,8 @@ impl<S: JobControlStore> WorkerManager<S> {
             }
             return match &entry.state {
                 JobState::Completed(result) => Ok(Some(Admission::Cached(result.clone()))),
-                JobState::Cancelled => Err(WorkerError::State(
-                    "cancelled job cannot be resubmitted".into(),
+                JobState::Cancelled | JobState::Unresolved => Err(WorkerError::State(
+                    "cancelled or unresolved job cannot be resubmitted".into(),
                 )),
                 JobState::Active if now <= entry.lease.expires_at_unix_ms => {
                     Ok(Some(Admission::ExistingLease(entry.lease.clone())))
@@ -506,8 +521,12 @@ impl<S: JobControlStore> WorkerManager<S> {
             .any(|count| *count > self.limits.active_jobs_per_principal)
             || capabilities.iter().any(|(capability, count)| {
                 *count
-                    > usize::try_from(self.capabilities[*capability].max_concurrency)
-                        .unwrap_or(usize::MAX)
+                    > self
+                        .capabilities
+                        .get(*capability)
+                        .map_or(usize::MAX, |configured| {
+                            usize::try_from(configured.max_concurrency).unwrap_or(usize::MAX)
+                        })
             })
         {
             return Err(WorkerError::Quota(
@@ -519,6 +538,11 @@ impl<S: JobControlStore> WorkerManager<S> {
 
     fn replay(&mut self, event: ControlEvent) -> Result<(), WorkerError> {
         match event {
+            ControlEvent::Unresolved {
+                job_id,
+                request_digest,
+                ..
+            } => self.apply_unresolved(job_id, &request_digest),
             admitted @ ControlEvent::Admitted { .. } => self.apply_admission(admitted),
             ControlEvent::Completed { result } => self.apply_completion(&result),
             ControlEvent::Cancelled {
@@ -561,7 +585,6 @@ impl<S: JobControlStore> WorkerManager<S> {
             || self.jobs.contains_key(&job_id)
             || self.nonces.contains_key(&nonce)
             || self.digests.contains_key(&request_digest)
-            || !self.capabilities.contains_key(&capability)
             || max_result_bytes == 0
             || max_result_bytes > self.limits.result_bytes
             || max_stream_chunks == 0
@@ -587,6 +610,7 @@ impl<S: JobControlStore> WorkerManager<S> {
                 max_stream_chunks,
                 cancellation: CancellationToken::new(),
                 state: JobState::Active,
+                replayed: false,
             },
         );
         Ok(())
@@ -644,9 +668,9 @@ impl<S: JobControlStore> WorkerManager<S> {
                 entry.state = JobState::Cancelled;
             }
             JobState::Cancelled => entry.cancellation.cancel(),
-            JobState::Completed(_) => {
+            JobState::Unresolved | JobState::Completed(_) => {
                 return Err(WorkerError::ControlStore(
-                    "cancellation history follows completion".into(),
+                    "cancellation history follows a terminal outcome".into(),
                 ));
             }
         }

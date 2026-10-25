@@ -1,5 +1,38 @@
 # Goals
 
+## Complete ABI approved implementation (2026-10-23)
+
+Status: in progress. Execute the approved complete-ABI plan in
+`docs/superpowers/plans/2026-10-23-complete-abi.md`. Authoritative requirement
+coverage and qualification boundaries:
+`docs/verification/2026-10-23-completion-matrix.md` (C01–C44).
+Older "done" entries below qualify their historical source slices only; they
+do not close the original-model, platform, privacy, public-service or independent
+assessment requirements. Preserve current owner changes and authorization limits.
+
+## ABI production ecosystem (2026-10-22)
+
+Status: in progress. Approved implementation specification:
+`docs/superpowers/plans/2026-10-22-abi-production-ecosystem.md`.
+Execution evidence and remaining owner/acceptance gaps:
+`docs/verification/2026-10-22-production-ecosystem.md`.
+Implemented local recovery continuation (final gate/receipt tracked separately):
+`docs/superpowers/plans/2026-10-22-encrypted-relay-recovery.md`, with the delivery
+and reconnect contract in `docs/spec/encrypted-relay-recovery.md`.
+Current governed-tool continuation remains in progress:
+`docs/superpowers/plans/2026-10-22-durable-governed-tools.md` and
+`docs/spec/durable-governed-tools.md`. Local Abbey approvals, a startup-bound live
+host and durable tool relay admission are implemented. Actual native TCP/PTY
+approval/denial, owner isolation, prepare/post-effect crash recovery and restart
+redelivery pass, along with final ABI/WDBX/Abbey root/desktop gates. Concrete
+platform adapters and broader network-loss/cross-platform acceptance remain
+required by the original objective.
+Local durable worker history, bounded provider execution, and the Rust
+account/enrollment service, browser client and encrypted tenant inference
+relay with encrypted incremental results, cooperative cancellation, private
+durable output replay and verified client imports are incremental deliverables; public service, original trained weights, cross-platform runtime,
+live integrations and deployment remain separate acceptance requirements.
+
 > **Current path note (2026-10-20):** the operational checkout is
 > `/Users/donald/sources/repos/abi`. The substrate crates
 > `abi-foundation`, `abi-core`, `abi-telemetry`, `abi-compute`, and `abi-wdbx`
