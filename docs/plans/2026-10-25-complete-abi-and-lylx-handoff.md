@@ -33,17 +33,22 @@ a blanket cross-platform completion claim.
 
 ### Observed baseline
 
-- Planning began at `69910bf` with substantial existing work. A later read found
-  clean local `main` at `89f950e9a851e9ced6f5361f6f3d82a87c3d35e3`, one commit
-  ahead and one behind the locally known `origin/main`. That checkpoint was
-  created outside this planning task; remote freshness and publication are unverified.
+- Planning began at `69910bf` with substantial existing work. The current local
+  `main` baseline is `ff40bdd61fa36bdc1fd08e36ebb84eba0cc508ae`, fast-forwarded on
+  2026-10-25 from the earlier `89f950e` checkpoint with the Tokio pin, worker
+  journal-lock fixes and their plans. It is eight commits ahead of and one behind
+  the locally known `origin/main` (`42f1446` is not merged); remote freshness and
+  publication are unverified.
 - The isolated planning `./tools/check.sh` attempt exited 1 at the required audit.
   Its 186 Python policy tests passed with eight skips, the CI contract passed,
   and both Abbey oracles verified 113 artifacts. Later gate stages did not run.
-- The lockfile still selects Tokio 1.53.1. The scanner rejects it under
-  RUSTSEC-2026-0386; the fetched advisory identifies 1.53.3 or later as patched
-  on this release line. This is the first executable blocker, not a reason to
-  expand audit exceptions. The planning attempt is not a frozen-source receipt.
+- That planning attempt failed because the lockfile then selected Tokio 1.53.1,
+  rejected under RUSTSEC-2026-0386 (patched at 1.53.3 or later). The repair is
+  done: `c2f6507` pins Tokio 1.54.1, because 1.54.0 is yanked and rejected under
+  RUSTSEC-2026-0384 (patched at 1.54.1 or later). `./tools/check.sh` at `3482f10`
+  then exited 0 with the required scanner run and only the two existing scoped
+  exceptions. Audit exceptions were not expanded. The planning attempt is not a
+  frozen-source receipt.
 - Durable worker/outbox recovery and a closed Unix `pwd` adapter have existing
   source and historical local evidence. The real Abbey durable-owner join,
   general adapters, privacy lifecycle and operational acceptance remain open.
@@ -72,9 +77,11 @@ handoff; do not create competing approval or deletion authorities inside ABI.
 
 - Preserve the existing checkpoint and reconcile the local/remote documentation
   divergence without discarding either history. Record the resulting source set.
-- Update the affected lockfile to patched Tokio on the compatible release line,
-  starting with 1.53.3; inspect transitive changes and any current advisories.
-  Coordinate consumer lockfiles with their owners. Keep existing audit policy.
+- Done at `c2f6507`: the lockfile pins patched Tokio 1.54.1. Never move Tokio
+  below 1.54.1; 1.53.3 clears RUSTSEC-2026-0386 but would be a downgrade, and
+  1.54.0 is rejected under RUSTSEC-2026-0384. Inspect transitive changes and
+  current advisories on any later update. Coordinate consumer lockfiles with
+  their owners. Keep existing audit policy.
 - Run ABI's complete gate, WDBX's own gate and Abbey root/desktop gates on stable
   inputs. Resolve consumer lock/source mismatches before promoting any WDBX pin.
 - Reconcile C01–C44 into one execution ledger with owner, dependency, status,
@@ -272,8 +279,8 @@ An unavailable external input blocks its gate, not unrelated local source work.
 
 ## 3. Stage B — migrate qualified ABI capabilities into LYLX
 
-Use the [company consolidation register](../../../../docs/consolidation/register.json)
-and LYLX's existing requirements/claims registers. Stage B begins from the Stage A
+Use the company consolidation register (`docs/consolidation/register.json` in the
+company umbrella repository, outside this checkout) and LYLX's existing requirements/claims registers. Stage B begins from the Stage A
 source/artifact handoff; preserve already implemented LYLX work and compare it
 before adding another port. This stage closes the ABI migration obligations, not
 every independent LYLX product or Quesar training requirement.
@@ -352,8 +359,13 @@ build and native-test environments; designated live connector accounts and OIDC;
 signing identities; separate hosts; assessment access; CI/publication/deployment
 authorization. Work to prepare each input stays concrete and reviewable.
 
-The first implementation slice is A1: preserve and reconcile the source set,
-repair the denied Tokio dependency, rerun the required audit and complete ABI
-gate, then record exact consumer compatibility. The next functional slice is
-A3's real Abbey durable-owner/process join after A2 recovery requalification.
+A1's Tokio repair is done: Tokio 1.54.1 is pinned and the required audit and
+complete ABI gate passed at `3482f10`. That gate read the live sibling WDBX
+`550451b` with uncommitted changes, not the CI pin `2969d71`, so it is not bound
+to a stable source set. The next A1 item is to bind the consumed source set:
+reconcile local `main` with `origin/main` without discarding either history, run
+ABI's gate, WDBX's own gate and the Abbey root/desktop gates against clean, recorded
+sibling revisions, then reconcile C01–C44 into one execution ledger. The next
+functional slice is A3's real Abbey durable-owner/process join after A2 recovery
+requalification.
 This plan itself does not close any C01–C44 or LYLX qualification row.

@@ -15,6 +15,11 @@ Planning supplement (2026-10-25):
 Donald selected both stages and full-product scope. C01–C44 retain their existing
 qualification statuses; the supplement records execution order and planning defaults.
 
+Correction (2026-10-25): the supplement's Tokio statements were stale. Baseline
+`main` is `ff40bdd`, which already pins Tokio 1.54.1; Tokio must not move below
+1.54.1 (RUSTSEC-2026-0386 and RUSTSEC-2026-0384). The plan now marks the Tokio repair
+done and names binding the consumed source set as the next A1 item. Closes no C01–C44 row.
+
 ## ABI production ecosystem (2026-10-22)
 
 Status: in progress. Approved implementation specification:
