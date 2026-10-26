@@ -76,6 +76,31 @@ Public operation and original-model resource authorization remain separate.
   external account effects, CI resumption or deployment is inferred from approval
   to implement source. Mistaking local tests for those requirements would falsely
   qualify an untested release.
+- Divergence reconciliation (2026-10-25): local `main` (through `ef6a496`) merged
+  the locally known `origin/main` `42f1446` (README architecture/evidence rewrite)
+  as merge commit `f65d5e5`, preserving both histories; no force-push, no rebase.
+  The rewrite dropped the literal `abi agent train` behavior name that
+  `tools/tests/test_docs_policy.py` requires in `README.md`, so
+  commit `2113824` restored the exact persistence-behavior naming without
+  resurrecting the replaced bullet layout.
+- Post-merge gate (2026-10-25, ABI `main` `2113824`):
+  `PATH="$HOME/.cargo/bin:$PATH" ./tools/check.sh < /dev/null` exit 0,
+  `check: all green` — 186 Python policy tests OK (8 documented skips),
+  1,241 Rust test executions passed with 0 failed and 0 ignored across the
+  workspace and required sibling conformance suites, `cargo-audit` 0.22.2 ran
+  with only the two existing scoped exceptions (RUSTSEC-2025-0141,
+  RUSTSEC-2024-0436), warning-denied Clippy, size limits, formatting,
+  workspace build/tests, sibling WDBX v3 cross-language conformance, local
+  Metal tests and docs, same-system benchmark regression (`benchmark
+  regression gate: PASS`), rustdoc, and release `abi-cli`/`abi-mcp` builds.
+  CUDA source checks remain unavailable (no `nvcc` on this host). Log:
+  `abi-finish-main-gate2.log` in the opencode temporary directory.
+- Binding status unchanged for external inputs: the gate consumed the live
+  sibling WDBX at `550451b` carrying another owner's staged/uncommitted changes,
+  not the CI pin `2969d71`; WDBX's own gate and the Abbey root/desktop gates
+  remain their owners' actions. This receipt is local source evidence for C02's
+  current baseline, not a frozen cohort receipt; C42 stays external, and no
+  C01–C44 row closes.
 
 ## Current implementation and review
 

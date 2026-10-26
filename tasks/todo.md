@@ -9,6 +9,13 @@
 - Correction (2026-10-25): the supplement no longer says the lockfile selects Tokio
   1.53.1 or targets 1.53.3. Baseline `main` `ff40bdd` pins 1.54.1, the floor; the
   next A1 item is binding the consumed WDBX/Abbey source set, then one C01–C44 ledger.
+- [x] (2026-10-25, A1 partial) Merge origin/main `42f1446` into local `main`
+  without discarding either history (`f65d5e5`) and repair the README so the
+  doc policy holds (`2113824`); full gate exit 0 at `2113824` with the receipt
+  recorded in `docs/verification/2026-10-23-completion-matrix.md`. Remaining A1
+  item unchanged: WDBX at `550451b` still carries another owner's staged
+  changes, so the sibling consumed set and the Abbey root/desktop gates stay
+  unbound; publishing `main` remains the owner's call.
 - [ ] Complete milestones 1–11 of
   `docs/superpowers/plans/2026-10-23-complete-abi.md` against the authoritative
   C01–C44 matrix in `docs/verification/2026-10-23-completion-matrix.md`.

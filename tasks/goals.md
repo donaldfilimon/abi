@@ -20,6 +20,15 @@ Correction (2026-10-25): the supplement's Tokio statements were stale. Baseline
 1.54.1 (RUSTSEC-2026-0386 and RUSTSEC-2026-0384). The plan now marks the Tokio repair
 done and names binding the consumed source set as the next A1 item. Closes no C01–C44 row.
 
+Divergence reconciliation (2026-10-25): A1's local/remote reconciliation is done —
+`origin/main` `42f1446` merged into local `main` as `f65d5e5` (merge commit, both
+histories preserved); `2113824` restored the doc-policy-required literal
+`abi agent train` naming that the upstream README rewrite had dropped. The
+post-merge `./tools/check.sh` gate exited 0 at `2113824` (receipt in the C01–C44
+matrix execution record). The consumed WDBX/Abbey sibling set is still unbound:
+WDBX runs at `550451b` with another owner's in-flight changes and WDBX/Abbey gates
+remain separate owners' actions, so C42 stays external. Closes no C01–C44 row.
+
 ## ABI production ecosystem (2026-10-22)
 
 Status: in progress. Approved implementation specification:
