@@ -229,10 +229,11 @@ implemented behavior, partial capabilities, and proposals.
 | Memory | Required sibling WDBX provides persistence, recovery, vectors, blocks, temporal/spatial records, and bounded retrieval; refer to its current contracts for exact scope. |
 | Connectors | Explicit local/live transports and validated credential/request shapes. Live-service results require separate evidence. |
 
-Pure `abi_ai::complete` remains store-independent. CLI `complete` and `agent
-train`, and MCP `ai_complete`, `ai_train`, and `ai_learn`, attempt configured or
-default persistence unless disabled. Successful writes record query/response
-vectors, metadata, and linked blocks; a failed store write is not success.
+Pure `abi_ai::complete` remains store-independent. CLI `abi complete` and
+`abi agent train`, and MCP `ai_complete`, `ai_train`, and `ai_learn`, attempt
+configured or default persistence unless disabled. Successful writes record
+query/response vectors, metadata, and linked blocks; a failed store write is
+not success.
 
 Do not promote production multi-host sharding, universal encryption/RBAC,
 regulatory certification, CUDA/Vulkan execution, model benchmarks, energy
