@@ -25,9 +25,14 @@ Divergence reconciliation (2026-10-25): A1's local/remote reconciliation is done
 histories preserved); `2113824` restored the doc-policy-required literal
 `abi agent train` naming that the upstream README rewrite had dropped. The
 post-merge `./tools/check.sh` gate exited 0 at `2113824` (receipt in the C01–C44
-matrix execution record). The consumed WDBX/Abbey sibling set is still unbound:
-WDBX runs at `550451b` with another owner's in-flight changes and WDBX/Abbey gates
-remain separate owners' actions, so C42 stays external. Closes no C01–C44 row.
+matrix execution record).
+
+Consumed source-set binding (2026-10-26): the sibling WDBX owner's in-flight
+changes are landed; WDBX is clean at `96c4b13` and a fresh complete ABI gate at
+`aaf2929` exited 0 against it, so the ABI-side A1 gate is now bound to a recorded
+clean sibling revision. WDBX's own gate, the Abbey root/desktop gates and pin
+promotion/publication remain separate owners' actions, so C42 stays external.
+Closes no C01–C44 row.
 
 ## ABI production ecosystem (2026-10-22)
 

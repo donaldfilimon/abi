@@ -101,6 +101,26 @@ Public operation and original-model resource authorization remain separate.
   remain their owners' actions. This receipt is local source evidence for C02's
   current baseline, not a frozen cohort receipt; C42 stays external, and no
   C01–C44 row closes.
+- Consumed source-set binding (2026-10-26, ABI `main` `aaf2929`): the sibling
+  WDBX owner's staged changes are landed; WDBX now sits clean at
+  `96c4b131faed45eadcaef215a31af53776282f81` (ahead 8 of its own origin, no
+  dirty/untracked source). A fresh complete `./tools/check.sh < /dev/null`
+  exited 0, `check: all green`, against that clean sibling — 186 Python policy
+  tests OK (8 documented skips), 1,241 Rust test executions passed with
+  0 failed and 0 ignored (including the pinned sibling WDBX abbey contract and
+  v3 cross-language commitment/episode conformance targets), `cargo-audit`
+  0.22.2 ran with only the two existing scoped exceptions, warning-denied
+  Clippy, size/format checks, Metal tests and docs, benchmark regression
+  `(benchmark regression gate: PASS)`, rustdoc and release `abi-cli`/`abi-mcp`
+  builds. CUDA source checks remain unavailable (no `nvcc`). The sibling emits
+  its known `simulator::AdmissionSimulator` unused-import warning in WDBX-side
+  compilation, disclosed and outside ABI's warning-denied scope. Log:
+  `abi-gate.log` in the opencode temporary directory. Still external: WDBX's
+  own full gate and the Abbey root/desktop gates against this recorded revision
+  (separate owner repositories), pin promotion to `96c4b13` in CI (requires the
+  exact published revision to pass first; publication is the owner's call; CI
+  pin stays `2969d71`), and publication of ABI `main` itself. C42 stays
+  external, and no C01–C44 row closes.
 
 ## Current implementation and review
 
