@@ -2,6 +2,10 @@
 
 ## Approved complete-ABI execution (2026-10-23)
 
+- Planning supplement (2026-10-25):
+  [complete ABI, then qualify its LYLX migration](../docs/plans/2026-10-25-complete-abi-and-lylx-handoff.md).
+  Retains C01–C44 and separates local delivery, operational release and replacement
+  qualification; no implementation milestone is closed by writing the plan.
 - [ ] Complete milestones 1–11 of
   `docs/superpowers/plans/2026-10-23-complete-abi.md` against the authoritative
   C01–C44 matrix in `docs/verification/2026-10-23-completion-matrix.md`.

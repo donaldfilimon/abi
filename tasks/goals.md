@@ -10,6 +10,11 @@ Older "done" entries below qualify their historical source slices only; they
 do not close the original-model, platform, privacy, public-service or independent
 assessment requirements. Preserve current owner changes and authorization limits.
 
+Planning supplement (2026-10-25):
+[complete ABI, then qualify its LYLX migration](../docs/plans/2026-10-25-complete-abi-and-lylx-handoff.md).
+Donald selected both stages and full-product scope. C01–C44 retain their existing
+qualification statuses; the supplement records execution order and planning defaults.
+
 ## ABI production ecosystem (2026-10-22)
 
 Status: in progress. Approved implementation specification:
