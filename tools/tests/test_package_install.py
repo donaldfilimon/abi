@@ -84,13 +84,13 @@ def run(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedPr
 # the installer right after the rename took effect. SIGKILL bypasses the
 # installer's EXIT trap, as a power loss or `kill -9` would.
 MV_SHIM = """#!/bin/sh
-count_file="$ABI_TEST_MV_DIR/count"
+count_file="$MV_SHIM_DIR/count"
 count=$(cat "$count_file" 2>/dev/null || echo 0)
 count=$((count + 1))
 echo "$count" >"$count_file"
 /bin/mv "$@"
 status=$?
-if [ "$count" -eq "$ABI_TEST_MV_KILL_AT" ]; then
+if [ "$count" -eq "$MV_SHIM_KILL_AT" ]; then
   kill -KILL "$PPID"
 fi
 exit "$status"
@@ -202,8 +202,8 @@ class PackageInstallTests(unittest.TestCase):
         shim.chmod(0o755)
         env = dict(os.environ)
         env["PATH"] = f"{shim_dir}:{env.get('PATH', '/usr/bin:/bin')}"
-        env["ABI_TEST_MV_DIR"] = str(shim_dir)
-        env["ABI_TEST_MV_KILL_AT"] = str(kill_at)
+        env["MV_SHIM_DIR"] = str(shim_dir)
+        env["MV_SHIM_KILL_AT"] = str(kill_at)
         return env
 
     def test_upgrade_killed_at_each_rename_converges_on_rerun(self) -> None:
