@@ -312,7 +312,9 @@ existing golden fixtures still cover the new path.
 - Follow the canonical-checkout policy below, not a default topic-branch flow.
 - Session-start reads: `tasks/lessons.md`, then `tasks/todo.md` for current
   priorities. Read `tasks/goals.md` when goal work is in scope; the
-  `goal-ledger` skill owns the ledger.
+  `goal-ledger` skill owns the ledger. The current C01–C44 state is in
+  `docs/verification/2026-10-27-c01-c44-execution-ledger.md`, and the active
+  finish plan is `docs/plans/2026-10-27-finish-abi.md`.
 
 ## Code quality hotspots
 
@@ -321,12 +323,12 @@ Measure before trusting any of this — it goes stale as work lands
 
 `tools/check_rust_sizes.sh` rejects Rust files (tracked or untracked, tests
 included) over 1,000 lines and rejects `crates/abi-cli/src/main.rs` over 200.
-As of 2026-10-21 five files sat inside the 900–1000 band:
-`crates/abi-agent-host/src/governed.rs` (970, the closest to the limit),
+As of 2026-10-27 six files sat inside the 900–1000 band:
+`crates/abi-agent-host/src/governed.rs` (958, the closest to the limit),
 `crates/abi-agent-host/tests/contracts.rs` (955),
 `crates/abi-mcp/src/http.rs` (951), `crates/abi-capability/tests/privacy_replay.rs`
-(948), and `crates/abi-cli/src/complete.rs` (945). `crates/abi-agent-host/tests/governed.rs`
-(936) is close behind, and `crates/abi-wdbx-gateway/tests/episodes.rs` — the file
+(948), `crates/abi-cli/src/complete.rs` (945) and
+`crates/abi-agent-host/tests/governed.rs` (941). `crates/abi-wdbx-gateway/tests/episodes.rs` — the file
 that was at 983 on 2026-09-23 — is down to 832, so new episode-gate tests
 belong in a new test file. `crates/abi-cli/src/wdbx_simulate.rs` (the bounded
 multiway rewriting engine behind `abi wdbx simulate`) is 827. Run the command
