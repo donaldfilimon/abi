@@ -5,6 +5,7 @@ use abi_agent_runtime::{CancellationToken, ToolCall};
 use abi_capability::{lifecycle::*, source::*, *};
 use abi_worker::{FileControlStore, FileControlStoreLimits};
 use std::{collections::BTreeSet, path::PathBuf};
+mod cancel_recheck;
 mod support;
 use serde_json::json;
 use support::Local;

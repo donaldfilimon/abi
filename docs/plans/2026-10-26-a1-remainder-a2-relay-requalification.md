@@ -432,6 +432,11 @@ Assertions:
 - Calibration, `approved(None)`: the outcome is `Recorded(r)` with `r.status == JobStatus::Succeeded`, effects == 1, and `k = calls ≥ 1`.
 - Cancelled, `approved(Some(k))`, cancelling inside the last refresh before the effect: effects == 0; the outcome is `Err(_)`, `Ok(Unresolved)` or `Ok(Recorded(r))` with `r.status != Succeeded`; and the retry is not `Recorded` with status `Succeeded`, with effects still 0.
 
+> **Ruling (2026-10-27):** cancel point moved to last pre-adapter refresh; call-8 cancel is post-effect by design — cost if wrong: one reworked test.
+> Refresh k (call 8 of 8 in the approved call) is the post-effect observation (`abi-agent-host` `governed.rs`, after `dispatch.execute`). Cancelling there correctly yields effects == 1 and `Unresolved`.
+> The corrected test does two things. First, it locates the last pre-adapter refresh at runtime: the `facts.observe` in the second `live_authority_valid` after stage 12, which is the last refresh before the effect file exists. It asserts effects == 0 and a non-success outcome there. Second, it pins the post-effect cancel: effects == 1, `Ok(Unresolved)`, and no successful retry.
+> Step 3 is withdrawn. Applying it did not change the post-effect case and regressed an earlier cancel point. The corrected test passes on unchanged source as a characterization test.
+
 - [ ] **Step 2: Run it**
 
 Run: `./tools/cargo.sh test --locked -p abi-control-plane --lib -- governed_tools::cancel_recheck < /dev/null`

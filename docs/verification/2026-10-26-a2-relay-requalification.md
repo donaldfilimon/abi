@@ -134,6 +134,17 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
     should be found structurally from the `abi-agent-host` stage order, not hardcoded
     as k − 1.
 
+- Task 6 redo (coordinator ruling, 2026-10-27). The cancel point moved to the last
+  pre-adapter refresh. In `abi-agent-host`'s `governed.rs`, that is the
+  `facts.observe` in the second `live_authority_valid` after stage 12, immediately
+  before `dispatch.execute`. The test finds it at runtime as the last refresh before
+  the effect file exists, and asserts that the post-effect refresh immediately
+  follows it.
+  - `./tools/cargo.sh test --locked -p abi-control-plane --lib -- governed_tools::cancel_recheck < /dev/null`
+    gives `1 passed` on unchanged source. This is a characterization test: no
+    `tools.rs` change, and Step 3 is withdrawn. The plan's Task 6 text carries the
+    `Ruling:` note.
+
 ## Added regression tests (Tasks 4–7)
 
 | A2 bullet | Existing tests | New test (Task) | Result |
@@ -141,5 +152,5 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
 | Recheck after callback: certificate expiry | — | `node_certificate_expiring_during_authority_recheck_never_dispatches` (Task 4, `crates/abi-control-plane/src/relay/tests/dispatch_recheck.rs`) | RED→GREEN |
 | Recheck after callback: worker authority refusal | `authority_callback_consuming_lease_never_dispatches_or_readmits` | `authority_refusal_leaves_admission_unresolved_and_never_dispatches` (Task 5, `crates/abi-worker/tests/authority_recheck.rs`) | characterization PASS |
 | Recheck after callback: cancellation inside authority callback | `pre_cancelled_observed_inference_never_calls_provider` | `cancellation_during_authority_callback_never_dispatches_and_records_failure` (Task 5, `crates/abi-worker/tests/authority_recheck.rs`) | characterization PASS |
-| Governed cancellation inside final authority refresh | `governed_tool_tenant_mutation_and_fresh_revocation_refuse_effects` | `governed_cancellation_during_final_authority_refresh_never_reaches_adapter` (Task 6, not committed) | STOPPED: plan calibration error (refresh k is post-effect); pre-effect refreshes 2–7 refuse with 0 effects on unchanged source; Step 3 not applied |
+| Governed cancellation inside final authority refresh | `governed_tool_tenant_mutation_and_fresh_revocation_refuse_effects` | `governed_cancellation_during_final_authority_refresh_never_reaches_adapter` (Task 6, `crates/abi-control-plane/src/service/tests/governed_tools/cancel_recheck.rs`) | characterization PASS (after ruling): last pre-adapter refresh cancel → effects 0, non-success; post-effect refresh cancel → effects 1, `Unresolved` |
 | Outbox terminal-persistence failure | outbox-side gap | `terminal_outbox_failure_reopens_with_one_terminal_and_refuses_fresh_dispatch` (Task 7) | NOT RUN (A2 stopped at Task 6) |
