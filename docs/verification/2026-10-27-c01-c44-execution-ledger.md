@@ -16,6 +16,8 @@ Bound source set (from the A1 receipt,
 [`2026-10-27-a1-gate-receipt.md`](2026-10-27-a1-gate-receipt.md)): ABI
 `1dd7f0bf73c644b75d4b65b9ce2574bef1872cf3`, WDBX
 `9d386ddbe57c9e8423dc4755f231e1387a0cd1f7` (both from clean shared clones).
+Latest bound gate: ABI `b8ca1ec` + WDBX `52a2143` (clean shared clones), exit 0 —
+[`2026-10-27-finish-gate-receipt.md`](2026-10-27-finish-gate-receipt.md).
 
 Rules:
 
@@ -33,7 +35,7 @@ training stack is built in legacy ABI.
 | ID | Requirement | Status | Evidence path | Owner | Next action | Local/External |
 | --- | --- | --- | --- | --- | --- | --- |
 | C01 | Exact cohort and requirement coverage | U | `docs/verification/2026-10-27-a1-gate-receipt.md` | ABI verification | A1: rebind exact source set once owner gates exist | Local |
-| C02 | Canonical full gate | Q local baseline | `docs/verification/2026-10-27-a1-gate-receipt.md` | ABI tools/check.sh | A1: rerun bound gate on each source change; quiet-host run for load-sensitive tests | Local |
+| C02 | Canonical full gate | Q local baseline | `docs/verification/2026-10-27-a1-gate-receipt.md`; `docs/verification/2026-10-27-finish-gate-receipt.md` | ABI tools/check.sh | A1: rerun bound gate on each source change; quiet-host run for load-sensitive tests | Local |
 | C03 | Durable bounded worker control history | Q local Unix | `crates/abi-worker/src/file_store/fault_tests.rs`; `crates/abi-worker/tests/durable_control.rs`; `crates/abi-worker/tests/terminal_durability.rs`; `docs/verification/2026-10-26-a2-relay-requalification.md`; `docs/verification/2026-10-27-a2-gate-receipt.md` | ABI abi-worker/file_store | Done for A2 (2026-10-27); limits: no power-loss, separate-host, public or Windows/Linux proof | Local |
 | C04 | Authenticated worker admission and inference | Q local Mac | `crates/abi-worker/tests/authority_recheck.rs`; `crates/abi-worker/tests/inference.rs`; `crates/abi-worker/tests/contracts.rs`; `docs/verification/2026-10-26-a2-relay-requalification.md`; `docs/verification/2026-10-27-a2-gate-receipt.md` | ABI abi-worker | Done for A2 (2026-10-27); limits: no power-loss, separate-host, public or Windows/Linux proof | Local |
 | C05 | Outbound encrypted transport and stream | Q local Mac | `crates/abi-control-plane/src/service/tests/relay.rs`; `crates/abi-control-plane/src/relay/tests/streaming.rs`; `crates/abi-control-plane/src/service/tests/durable.rs`; `docs/verification/2026-10-26-a2-relay-requalification.md`; `docs/verification/2026-10-27-a2-gate-receipt.md` | ABI abi-control-plane | Done for A2 (2026-10-27); limits: no power-loss, separate-host, public or Windows/Linux proof | Local |
@@ -83,5 +85,5 @@ A1's exit criterion ("ABI's gate, WDBX's own gate and Abbey root/desktop
 gates") stays unmet until both receipts below exist. Neither is executed from
 this repository.
 
-- [ ] WDBX owner: own full gate at `9d386ddbe57c9e8423dc4755f231e1387a0cd1f7` — receipt path pending
-- [ ] Abbey owner: root and desktop gates against WDBX `9d386dd` and Abbey `0ad2fef80f0c1ec38dd1367882541e6a2cdec661` (observed, 12 dirty entries) — receipt path pending
+- [ ] WDBX owner: own full gate at `52a2143179e1ec0bdbf23576d0399a64128713a7` (latest ABI-consumed revision; A1 bound `9d386dd`) — receipt path pending
+- [ ] Abbey owner: root and desktop gates against WDBX `52a2143` and Abbey `0ad2fef80f0c1ec38dd1367882541e6a2cdec661` (observed, 12 dirty entries) — receipt path pending
