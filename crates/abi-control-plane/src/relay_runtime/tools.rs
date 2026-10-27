@@ -112,16 +112,20 @@ struct FreshFacts<'a> {
     submission_digest: String,
     key: [u8; 32],
     clock: &'a dyn Clock,
+    certificate: crate::NodeCertificate,
 }
 impl GovernedFactProvider for FreshFacts<'_> {
     fn observe(&mut self, request: &Request) -> std::result::Result<GovernedFacts, LifecycleError> {
         let permit = (self.refresh)().map_err(|_| LifecycleError::Unavailable)?;
+        let seconds =
+            i64::try_from(self.clock.now_ms() / 1000).map_err(|_| LifecycleError::InvalidState)?;
+        // Both the refreshed permit and the local node credential must hold at this time.
         permit
-            .verify(
-                &self.key,
-                i64::try_from(self.clock.now_ms() / 1000)
-                    .map_err(|_| LifecycleError::InvalidState)?,
-            )
+            .verify(&self.key, seconds)
+            .and_then(|()| {
+                self.certificate
+                    .verify(&self.key, &self.binding.audience, seconds)
+            })
             .map_err(|_| LifecycleError::Unavailable)?;
         if permit.binding != *self.binding || permit.submission_digest != self.submission_digest {
             return Err(LifecycleError::InvalidState);
@@ -184,6 +188,7 @@ impl<S: JobControlStore> DurableRelayRuntime<S> {
             submission_digest,
             key: self.runtime.authority_key,
             clock: context.clock,
+            certificate: self.runtime.certificate.clone(),
         };
         let preview = run(
             &job,

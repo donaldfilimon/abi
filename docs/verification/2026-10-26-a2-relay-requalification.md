@@ -167,6 +167,19 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
 
   This test needs a quiet-host rerun before it can count as evidence.
 
+- Task 7b (review I1, defect on the governed tools path, added by ruling).
+  `./tools/cargo.sh test --locked -p abi-control-plane --lib -- governed_tools < /dev/null`
+  - RED: `4 passed; 1 failed`. With the trusted clock at exactly the certificate
+    expiry and a refreshed permit still valid, the adapter ran (effects 1,
+    `Recorded(Succeeded)`).
+  - Fix: `FreshFacts::observe` (`crates/abi-control-plane/src/relay_runtime/tools.rs`)
+    now requires the node certificate as well as the permit to verify at the same
+    second.
+  - GREEN: `5 passed`.
+  - Clippy, fmt and the size check exit 0.
+  - The known revocation limit (permit TTL of 5 s or less) now also applies to the
+    tools path, with local certificate expiry rechecked before each effect.
+
 ## Added regression tests (Tasks 4–7)
 
 | A2 bullet | Existing tests | New test (Task) | Result |
@@ -176,3 +189,4 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
 | Recheck after callback: cancellation inside authority callback | `pre_cancelled_observed_inference_never_calls_provider` | `cancellation_during_authority_callback_never_dispatches_and_records_failure` (Task 5, `crates/abi-worker/tests/authority_recheck.rs`) | characterization PASS |
 | Governed cancellation inside final authority refresh | `governed_tool_tenant_mutation_and_fresh_revocation_refuse_effects` | `governed_cancellation_during_final_authority_refresh_never_reaches_adapter` (Task 6, `crates/abi-control-plane/src/service/tests/governed_tools/cancel_recheck.rs`) | characterization PASS (after ruling): last pre-adapter refresh cancel → effects 0, non-success; post-effect refresh cancel → effects 1, `Unresolved` |
 | Outbox terminal-persistence failure | outbox-side gap | `terminal_outbox_failure_reopens_with_one_terminal_and_refuses_fresh_dispatch` (Task 7, `crates/abi-control-plane/src/service/tests/direct_recovery_guard.rs`) | characterization PASS (Full, PartialWrite, Sync) |
+| Recheck before tool effect: node certificate expiry (review I1) | `governed_tool_tenant_mutation_and_fresh_revocation_refuse_effects` | `node_certificate_expiring_after_approval_never_reaches_tool_adapter` (Task 7b, `crates/abi-control-plane/src/service/tests/governed_tools/cert_recheck.rs`) | RED→GREEN |

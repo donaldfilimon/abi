@@ -519,6 +519,26 @@ git commit -m "test(relay): pin outbox terminal-persistence failure recovery wit
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
+### Task 7b: Governed tool path rechecks node certificate before each effect (C06/C08 — defect, added by ruling)
+
+> **Ruling (2026-10-27):** added from independent review I1; same defect class as Task 4 on the tools path — cost if wrong: one extra recheck per effect.
+
+`execute_governed` (`crates/abi-control-plane/src/relay_runtime/tools.rs`) verified the node certificate once, in `validate_tool`, before preview and local approval. Each pre-effect `FreshFacts::observe` verified only the refreshed `DispatchPermit`. A permit issued just before certificate expiry stays valid for up to 5 s, so an approved tool effect could run with an expired node credential.
+
+**Files:**
+- Create: `crates/abi-control-plane/src/service/tests/governed_tools/cert_recheck.rs`
+- Modify: `crates/abi-control-plane/src/service/tests/governed_tools.rs`. Add `case_timed` (choose the submission time from the certificate) and `refresh_at` (permit issue time); `case_for` and `refresh` delegate.
+- Modify: `crates/abi-control-plane/src/relay_runtime/tools.rs`. `FreshFacts` carries the node certificate, and `observe` requires both the permit and the certificate to verify at the same trusted second.
+
+**Test:** `node_certificate_expiring_after_approval_never_reaches_tool_adapter`. The job is submitted at `E − 2`, where `E` is the certificate expiry. The local approval is decided at `E − 0.4 s`, and refreshed permits are issued at `E − 1` (valid to `E + 4`).
+- Calibration: with no expiry, the effect runs once.
+- The clock moves to `E` inside refresh 1: effects 0 and `Err`.
+- The clock moves to `E` inside the last pre-adapter refresh: effects 0 and a non-success outcome.
+
+RED was observed first: effects 1 and `Recorded(Succeeded)`.
+
+**Minor M1 (separate commit):** recheck the inference authority at the worker's dispatch-time clock read, not only at the read before the callback. It has its own failing test.
+
 ### Task 8: A2 exit — bound gate on the changed source and ledger update
 
 **Files:**

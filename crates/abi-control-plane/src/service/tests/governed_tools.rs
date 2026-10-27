@@ -6,6 +6,7 @@ use abi_capability::{lifecycle::*, source::*, *};
 use abi_worker::{FileControlStore, FileControlStoreLimits};
 use std::{collections::BTreeSet, path::PathBuf};
 mod cancel_recheck;
+mod cert_recheck;
 mod support;
 use serde_json::json;
 use support::Local;
@@ -217,8 +218,15 @@ fn case(f: &Fixture) -> Case {
     case_for(f, None)
 }
 fn case_for(f: &Fixture, owner: Option<crate::Account>) -> Case {
+    case_timed(f, owner, |_| now().unwrap())
+}
+fn case_timed(
+    f: &Fixture,
+    owner: Option<crate::Account>,
+    at: impl FnOnce(&crate::NodeCertificate) -> i64,
+) -> Case {
     let (account, cert, key, encryption) = enroll_tool(f, owner);
-    let seconds = now().unwrap();
+    let seconds = at(&cert);
     let mut authority = f.authority.lock().unwrap();
     let binding = crate::JobBinding {
         protocol: "abi.relay-job.v1".into(),
@@ -294,12 +302,18 @@ fn case_for(f: &Fixture, owner: Option<crate::Account>) -> Case {
     }
 }
 fn refresh(f: &Fixture, c: &Case) -> impl FnMut() -> crate::Result<crate::DispatchPermit> + use<> {
+    refresh_at(f, c, c.dispatch.submission.binding.submitted_at)
+}
+fn refresh_at(
+    f: &Fixture,
+    c: &Case,
+    time: i64,
+) -> impl FnMut() -> crate::Result<crate::DispatchPermit> + use<> {
     let authority = f.authority.clone();
     let relay = f.relay.clone();
     let cert = c.cert.clone();
     let key = c.key.clone();
     let id = c.dispatch.submission.binding.job_id.clone();
-    let time = c.dispatch.submission.binding.submitted_at;
     move || {
         let request = crate::NodeMessage::sign(
             &cert,
