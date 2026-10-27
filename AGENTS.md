@@ -66,7 +66,7 @@ Canonical agent instructions. Executable source wins over prose (`Cargo.toml`, `
 - Feature flags: `abi-model-runtime --features metal|cuda`; `abi-gpu` (default `metal-kernels`+`coreml-ane`; opt-in `cuda-adapter`,`vulkan-adapter`); `abi-connectors` (default `live`+`foundationmodels`); `abi-cli --features full-fhe|experimental-dghv-bootstrap`.
 - Always run cargo test with `< /dev/null` (auth signin reads stdin and hangs on an open pipe/TTY).
 - Store-safe smoke: `ABI_WDBX_PATH=:memory: ./tools/cargo.sh run -p abi-cli -- complete "..."`.
-- Launch MCP only via `./mcp/launcher.sh [stdio]` (repo root or script); `ABI_MCP_AUTO_BUILD=1` builds if absent. Binaries: `target/{debug,release}/abi` and `target/{debug,release}/abi-mcp`.
+- Launch MCP only via `./mcp/launcher.sh [stdio]` (repo root or script); `ABI_MCP_AUTO_BUILD=1` builds if absent. Binaries: `target/{debug,release}/abi`, `target/{debug,release}/abi-mcp` and `target/{debug,release}/abi-control-plane`.
 - Rebuild the embedding test target after editing frozen surfaces or goldens (e.g. `-p abi-cli --test golden`).
 - dylib rewrite hazard: never `cp`/`fs::copy` over an existing `target/<profile>/*.dylib` in place; repair with `cp X X.new && mv -f X.new X`.
 - Direct toolchain `cargo` drops `DYLD_FALLBACK_LIBRARY_PATH` (rust-objcopy SIGABRT); use the wrapper.
@@ -75,7 +75,7 @@ Canonical agent instructions. Executable source wins over prose (`Cargo.toml`, `
 
 - All live code under `crates/*` (18 members): `abi-agent-host`, `abi-agent-runtime`, `abi-ai`, `abi-capability`, `abi-cli`, `abi-connectors`, `abi-control-plane`, `abi-contracts`, `abi-gpu`, `abi-mcp`, `abi-model-runtime`, `abi-models`, `abi-nn`, `abi-plugins`, `abi-sea`, `abi-wdbx-gateway`, `abi-worker`, `xtask` (unpublished runner). No Zig (retired; see `RUST-REWRITE-PLAN.md` history only).
 - Sibling substrate (required, adjacent `../wdbx/crates/`): `abi-compute`, `abi-core`, `abi-foundation`, `abi-telemetry`, `abi-wdbx`. Cargo resolution/identity require the layout; do not vendor or git-dep. CI pins `WDBX_REVISION` in `.github/workflows/ci.yml` (`2969d71a2c3a81a060dcfc6cf53b4617f13c8b94`); update the pin only after that exact rev passes the gate.
-- The scheduler runs in-process (`abi scheduler ...`). `abi-control-plane` is a separate account/enrollment and encrypted relay service with its own bounded tenant queue; it does not run the CLI scheduler. See `crates/abi-control-plane/README.md`.
+- The scheduler runs in-process (`abi scheduler ...`). `abi-control-plane` is a separate account/enrollment and encrypted relay service with its own bounded tenant queue; it does not run the CLI scheduler. Operator surfaces: content-free `GET /healthz`, token-gated `GET /v1/operator/metrics`, offline `abi-control-plane metrics DATABASE ORIGIN`, and `crates/abi-control-plane/RUNBOOKS.md` (each procedure names its drill test). See `crates/abi-control-plane/README.md`.
 - `abi-ai` core is store-agnostic/deterministic (I/O only in `file_context` etc.); WDBX bits belong in sea/CLI/MCP/wdbx crates.
 - Launch MCP only via the launcher.
 - `ABI_*` env vars + test hooks live in `../wdbx/crates/abi-foundation/src/env.rs`; use provided overrides/locks in tests, never raw env mutation.
