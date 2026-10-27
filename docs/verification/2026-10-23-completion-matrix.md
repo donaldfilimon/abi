@@ -122,6 +122,16 @@ Public operation and original-model resource authorization remain separate.
   pin stays `2969d71`), and publication of ABI `main` itself. C42 stays
   external, and no C01–C44 row closes.
 
+- Bound A1 gate and C01–C44 ledger (2026-10-27, ABI `1dd7f0b`, WDBX `9d386dd`
+  from clean shared clones): `./tools/check.sh` exit 0, `check: all green`,
+  1,248 Rust executions with 0 failed and 0 ignored, 186 Python policy tests OK
+  (8 skips), `cargo-audit` ran, benchmark regression PASS. Receipt:
+  [`2026-10-27-a1-gate-receipt.md`](2026-10-27-a1-gate-receipt.md). Per-row
+  evidence, owner, next action and local/external split:
+  [`2026-10-27-c01-c44-execution-ledger.md`](2026-10-27-c01-c44-execution-ledger.md).
+  Scope ruling (Donald): the Rust training stack (C23–C28) is owned by LYLX. No
+  row status changed. WDBX's own gate and the Abbey gates remain owner-held.
+
 ## Current implementation and review
 
 - Worker inference now rechecks trusted time after the authority callback and

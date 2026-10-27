@@ -21,6 +21,12 @@
   C01–C44 matrix execution record. Remaining A1 items stay external: WDBX's
   own gate and the Abbey root/desktop gates are separate owners' actions, and
   pin promotion/publication is the owner's call (CI pin stays `2969d71`).
+- [x] (2026-10-27, A1/A2 evidence) Bound gate on ABI `1dd7f0b` + WDBX `9d386dd`
+  (clean shared clones): exit 0, 1,248 Rust / 186 Python OK. Receipt
+  `docs/verification/2026-10-27-a1-gate-receipt.md`; 44-row ledger
+  `docs/verification/2026-10-27-c01-c44-execution-ledger.md`. Training stack
+  (C23–C28) handed to LYLX (Donald). Finish plan for C38/C39/C11/C10/C32:
+  `docs/plans/2026-10-27-finish-abi.md`.
 - [ ] Complete milestones 1–11 of
   `docs/superpowers/plans/2026-10-23-complete-abi.md` against the authoritative
   C01–C44 matrix in `docs/verification/2026-10-23-completion-matrix.md`.
