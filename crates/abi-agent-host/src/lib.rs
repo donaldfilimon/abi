@@ -25,6 +25,7 @@ mod executor;
 mod governed;
 mod governed_authorization;
 mod governed_failure;
+pub mod governed_message;
 mod governed_postconditions;
 mod host;
 pub mod local_approval;

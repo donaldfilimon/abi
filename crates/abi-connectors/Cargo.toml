@@ -9,6 +9,7 @@ description = "External-service connectors for the ABI framework: OpenAI, Anthro
 
 [dependencies]
 abi-foundation = { workspace = true }
+abi-agent-host = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 base64 = "0.22"

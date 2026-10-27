@@ -76,6 +76,7 @@ version = "0.1.0"
 name = "abi-connectors"
 version = "0.1.0"
 dependencies = [
+ "abi-agent-host",
  "abi-foundation",
  "base64 0.22.1",
  "http",
