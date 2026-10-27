@@ -55,7 +55,7 @@ policy suites) and `git diff --check`; for `docs/` changes also run
 | `./tools/cargo.sh test --workspace` | Full test suite (also run by `check.sh`) |
 | `./tools/cargo.sh test --manifest-path ../wdbx/Cargo.toml -p abi-wdbx --lib -- <filter>` | Test the **sibling substrate** from this checkout. No cargo command here reaches `../wdbx` without `--manifest-path`: `--workspace` stops at ABI's own members even though the path deps resolve. |
 | `./tools/cargo.sh fmt --all` | Apply rustfmt |
-| `python3 -m unittest discover -s tools/tests -p 'test_*.py'` | The repository policy tests that open `check.sh` (14 suites: abbey_contracts, ci_contract, docs_policy, docs_templates, hooks, mcp_smoke, pages_contract, release_gate, run_abi_smoke, runner_setup, sea_learn_smoke, site_contract, sync_clis, toolchain). `check.sh` runs the same discovery over `test_*.py`, so all 14 are mandatory. Needs Python 3.11+ — use the interpreter `check.sh` picks, or set `ABI_PYTHON`. |
+| `python3 -m unittest discover -s tools/tests -p 'test_*.py'` | The repository policy tests that open `check.sh` (15 suites: abbey_contracts, ci_contract, docs_policy, docs_templates, hooks, mcp_smoke, package_install, pages_contract, release_gate, run_abi_smoke, runner_setup, sea_learn_smoke, site_contract, sync_clis, toolchain). `check.sh` runs the same discovery over `test_*.py`, so all 15 are mandatory. Needs Python 3.11+ — use the interpreter `check.sh` picks, or set `ABI_PYTHON`. |
 | `python3 tools/abbey_contracts.py verify contracts/abbey` | The authoritative Python oracle for the Abbey corpus; `xtask abbey verify` must match it |
 | `bash ./tools/check_rust_sizes.sh` | File-size gate on its own |
 | `RUSTDOCFLAGS="-D warnings" ./tools/cargo.sh doc --workspace --no-deps` | The doc gate on its own — a common late-stage failure |
@@ -63,6 +63,8 @@ policy suites) and `git diff --check`; for `docs/` changes also run
 | `./tools/cargo.sh clippy --locked --workspace --all-targets -- -D warnings` | Lint, matching the gate exactly |
 | `./mcp/launcher.sh` | Launch the MCP server; prefers `target/release/abi-mcp` then `target/debug/abi-mcp`; run from repo root (or via the launcher) so `@loader_path` resolves `libabi_fm_shim.dylib` on arm64 macOS; set `ABI_MCP_AUTO_BUILD=1` to build on demand |
 | `./.agents/skills/run-abi/smoke.sh` | End-to-end smoke: builds both binaries, exercises the CLI and MCP stdio, writes `target/debug/run-abi-smoke.txt` |
+| `sh tools/package/build_macos.sh OUT_DIR` | Unsigned Apple-silicon package: refuses tracked changes, builds `abi`, `abi-mcp` and `abi-control-plane` (`--locked --release`), stages `abi-<version>-<rev>-aarch64-apple-darwin/{bin/,MANIFEST.json}` (the `@loader_path` dylibs ship in `bin/` beside the binaries) plus `.tar.gz` and `.sha256`. Not signed or notarized. |
+| `sh tools/package/install.sh install\|rollback\|remove\|status PREFIX [ARCHIVE]` | Verifies the archive `.sha256` and every manifest hash, installs to `PREFIX/versions/<id>`, repoints `PREFIX/current` atomically and keeps `PREFIX/previous`; `rollback` swaps them; `remove PREFIX --yes` deletes only `versions/`, `current`, `previous`. Tested by `tools/tests/test_package_install.py`. |
 
 **Run any `cargo test` here with `< /dev/null`.** `abi auth signin` reads a
 secret from stdin when `ABI_AUTH_TOKEN` is unset and stdin is not a TTY, and
