@@ -1,6 +1,8 @@
 //! Durable tenant authority for public accounts and user-owned node enrollment.
 
 mod authority;
+mod metrics;
+pub use metrics::OperatorMetrics;
 mod enrollment;
 mod oidc;
 mod private;

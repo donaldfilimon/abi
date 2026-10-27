@@ -229,4 +229,6 @@ fn count(tx: &Transaction<'_>, table: &str) -> Result<i64> {
     Ok(tx.query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))?)
 }
 #[cfg(all(test, unix))]
+mod metrics_tests;
+#[cfg(all(test, unix))]
 mod tests;
