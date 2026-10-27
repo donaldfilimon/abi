@@ -20,8 +20,8 @@ Public operation and original-model resource authorization remain separate.
 | C02 | Canonical full gate | ABI tools/check.sh | Q local baseline | Planning run exit 0; `/tmp/abi-plan-baseline-20261023.log`; not a frozen cohort receipt |
 | C03 | Durable bounded worker control history | ABI abi-worker/file_store | Q local Unix | Short/zero writes, sync failure, poison, reopen, corruption, lock and record-budget tests; no power-loss proof |
 | C04 | Authenticated worker admission and inference | ABI abi-worker | Q local Mac | Signed scope, deadlines, quotas, pre-dispatch cancel, observed chunks and cached retries; no trained model implied |
-| C05 | Outbound encrypted transport and stream | ABI abi-control-plane | U | Two isolated tenants, ordered encrypted deltas, explicit cancel acknowledgment |
-| C06 | Reconnect and response-loss recovery | ABI worker/control-plane | U | Real process kills and lost TCP ACKs retain packet bytes and provider/effect counts |
+| C05 | Outbound encrypted transport and stream | ABI abi-control-plane | Q local Mac | Two isolated tenants, ordered encrypted deltas, explicit cancel acknowledgment |
+| C06 | Reconnect and response-loss recovery | ABI worker/control-plane | Q local Mac | Real process kills and lost TCP ACKs retain packet bytes and provider/effect counts |
 | C07 | Durable exact local approval/lifecycle | Abbey owner + ABI governed host | U | Real RuntimeStore join, consumed approvals, denial audits, restart and zero repeat |
 | C08 | Governed process supervisor | ABI abi-agent-host/platform_process | Q local Mac adapter | Pinned pwd, bounded supervisor, receipt, host A1/replay and full gate pass; durable-owner integration stays C07 U |
 | C09 | Governed files | ABI adapter + Abbey lifecycle | U | Pinned scratch resource, exact effect and trusted postcondition; general adapter coverage pending |
@@ -131,6 +131,11 @@ Public operation and original-model resource authorization remain separate.
   [`2026-10-27-c01-c44-execution-ledger.md`](2026-10-27-c01-c44-execution-ledger.md).
   Scope ruling (Donald): the Rust training stack (C23–C28) is owned by LYLX. No
   row status changed. WDBX's own gate and the Abbey gates remain owner-held.
+
+- A2 exit (2026-10-27): C05 and C06 move `U` → `Q local Mac` per
+  [`2026-10-27-a2-gate-receipt.md`](2026-10-27-a2-gate-receipt.md). Every A2-mapped
+  test passed in the bound gate on ABI `1dd7f0b` + WDBX `9d386dd`. Still no
+  power-loss, separate-host, public or Windows/Linux runtime proof.
 
 ## Current implementation and review
 
