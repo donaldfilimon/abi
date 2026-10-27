@@ -98,6 +98,15 @@ fn fixture() -> Fixture {
     }
 }
 fn submission(f: &Fixture, account: &Account, node: &NodeCertificate) -> Submission {
+    submission_at(f, account, node, 100, 200)
+}
+fn submission_at(
+    f: &Fixture,
+    account: &Account,
+    node: &NodeCertificate,
+    submitted_at: i64,
+    expires_at: i64,
+) -> Submission {
     let binding = JobBinding {
         protocol: "abi.relay-job.v1".into(),
         audience: "https://abi.example".into(),
@@ -106,8 +115,8 @@ fn submission(f: &Fixture, account: &Account, node: &NodeCertificate) -> Submiss
         tenant_id: account.tenant_id.clone(),
         node_id: node.node_id.clone(),
         capability: "model.infer".into(),
-        expires_at: 200,
-        submitted_at: 100,
+        expires_at,
+        submitted_at,
         max_result_bytes: 16384,
         reply_key: if account.account_id == f.alice.account_id {
             f.reply.public_key()
@@ -530,5 +539,6 @@ fn completed_ciphertext_retry_does_not_charge_the_memory_quota_twice() {
 
 mod streaming;
 
+mod dispatch_recheck;
 mod recovery;
 mod tools;

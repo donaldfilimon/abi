@@ -80,7 +80,28 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
 `.work/a2/a2-control-plane-fairness-rerun.log`,
 `.work/a2/a2-control-plane-fairness-rerun2.log`, `.work/a2/a2-node.log`.
 
+## Task run notes
+
+- Task 4 (defect, C04/C06): RED with `./tools/cargo.sh test --locked -p abi-control-plane --lib -- relay::tests::dispatch_recheck < /dev/null`
+  failed at the first `assert!(runtime.execute(..).is_err())`. A temporary
+  diagnostic, not committed, showed `execute` returned `Ok(Some(_))` with the provider
+  called once. With identical clock ticks, the only change is the authority closure
+  in `RelayRuntime::infer_dispatch`. It now requires both the permit and the node
+  certificate to verify at the callback time. GREEN: `1 passed`. Full
+  `-p abi-control-plane --lib`: 84 passed, 3 failed (87 tests, one more than Task 3's 86).
+  - `twenty_retained_manifests_do_not_starve_fresh_poll_and_epoch_reset_is_bounded`
+    is the open timeout recorded above.
+  - `native_five_second_proofs_expire_before_the_existing_live_proof_budget_deadlocks`
+    (`Denied` at `reconnect_fairness.rs:219`) failed under parallel load and
+    passed when rerun alone (`--exact`, 1 passed).
+  - `reconnect_process_kills_do_not_resume_prepared_admitted_or_partial_generation`
+    (`reconnect_process.rs:743`) failed under parallel load and also passed when
+    rerun alone (`--exact`, 1 passed).
+  - The load average was about 145. Clippy `-p abi-control-plane --all-targets -D warnings`,
+    `fmt --all -- --check` and `tools/check_rust_sizes.sh` all exit 0.
+
 ## Added regression tests (Tasks 4–7)
 
 | A2 bullet | Existing tests | New test (Task) | Result |
 | --- | --- | --- | --- |
+| Recheck after callback: certificate expiry | — | `node_certificate_expiring_during_authority_recheck_never_dispatches` (Task 4, `crates/abi-control-plane/src/relay/tests/dispatch_recheck.rs`) | RED→GREEN |

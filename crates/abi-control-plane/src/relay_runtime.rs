@@ -214,11 +214,16 @@ impl<S: JobControlStore> RelayRuntime<S> {
                 provider,
                 || clock() * 1000,
                 |time| {
+                    let seconds = time / 1000;
                     permit
-                        .verify(&self.authority_key, time / 1000)
+                        .verify(&self.authority_key, seconds)
+                        .and_then(|()| {
+                            self.certificate
+                                .verify(&self.authority_key, &b.audience, seconds)
+                        })
                         .map_err(|_| {
                             abi_worker::WorkerError::Authentication(
-                                "dispatch permit expired".into(),
+                                "dispatch permit or node certificate no longer valid".into(),
                             )
                         })
                 },
