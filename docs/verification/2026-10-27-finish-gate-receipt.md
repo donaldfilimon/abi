@@ -46,7 +46,7 @@ PATH="$HOME/.cargo/bin:$PATH" CARGO_TARGET_DIR="$PWD/../target" env -u ABI_WDBX_
 | --- | --- | --- |
 | C38 | `crates/abi-control-plane/src/metrics.rs`, `src/operator_http.rs`, `src/authority/metrics_tests.rs`, `src/service/tests/operator.rs` | alerting/export, audit retention, staging operation |
 | C39 | `crates/abi-control-plane/RUNBOOKS.md`, `src/service/tests/runbook_drills.rs` | staging/separate-host execution; key rotation does not exist (runbook documents re-init + re-pair) |
-| C11 | `crates/abi-agent-host/src/governed_message.rs`, `tests/governed_message.rs`, `tests/adapter_receipts.rs`, `crates/abi-connectors/src/governed_sender.rs` | live Discord/Twilio accounts (E); Abbey lifecycle join; evidence is provider acceptance, not delivery |
+| C11 | `crates/abi-agent-host/src/governed_message.rs`, `tests/governed_message.rs`, `tests/governed/adapter_receipts.rs`, `crates/abi-connectors/src/governed_sender.rs` | live Discord/Twilio accounts (E); Abbey lifecycle join; evidence is provider acceptance, not delivery |
 | C10 | `crates/abi-agent-host/src/governed_desktop.rs`, `src/governed_desktop/macos.rs`, `tests/governed_desktop.rs` | only application activation exists; capture/click/text are missing; macOS privacy-permission detection; non-macOS stub never compiled |
 | C32 | `tools/package/build_macos.sh`, `tools/package/install.sh`, `tools/tests/test_package_install.py` | signing/notarization, Linux/Windows packages, installed full journey (C33) |
 
