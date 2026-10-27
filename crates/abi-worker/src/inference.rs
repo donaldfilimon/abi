@@ -51,6 +51,8 @@ impl<S: JobControlStore> WorkerManager<S> {
     /// Execute with a fresh authority guard after durable admission and before provider dispatch.
     /// A refusal leaves the durable admission unresolved; retry never repeats execution.
     /// Cached results and existing leases do not invoke the guard or provider.
+    /// The guard runs at the pre-dispatch read and again at the dispatch-time read;
+    /// the second invocation must not block.
     pub fn infer_with_authority(
         &mut self,
         envelope: &JobEnvelope,
@@ -101,6 +103,9 @@ impl<S: JobControlStore> WorkerManager<S> {
                 "lease expired or clock regressed during authority check".into(),
             ));
         }
+        // Recheck authority at the exact read that authorizes dispatch, so a
+        // credential expiring between the callback and dispatch never runs.
+        authority(dispatch_at)?;
         let limits = self.execution_limits();
         // Caller cancellation is cooperative and failure-terminal in local history.
         // It never fabricates a signed worker cancellation record.

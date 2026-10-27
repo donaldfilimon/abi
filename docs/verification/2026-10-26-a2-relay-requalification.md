@@ -180,6 +180,22 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
   - The known revocation limit (permit TTL of 5 s or less) now also applies to the
     tools path, with local certificate expiry rechecked before each effect.
 
+- Task 7b M1 (review M1).
+  `./tools/cargo.sh test --locked -p abi-control-plane --lib -- relay::tests::dispatch_recheck < /dev/null`
+  - RED: `1 passed; 1 failed`. With `started_at` = 3699 (certificate valid) and
+    `dispatch_at` = 3700 (certificate expired), the provider ran.
+  - Fix: `WorkerManager::infer_observed` (`crates/abi-worker/src/inference.rs`) now
+    calls the authority guard again with the dispatch-time read, after the lease
+    check and before the provider. The second call must not block; the relay's
+    closure does not.
+  - GREEN: `2 passed`. `abi-worker` suites all pass (77).
+  - Clippy, fmt and the size check exit 0.
+- M2 (clamp permit expiry to certificate expiry) not applied. It is not a one-line
+  change: the `owned_node` result must be bound. It would also stop permits from
+  outliving the certificate, which removes the scenario the Task 4, M1 and 7b
+  regression tests pin. Task 4 asserts that permit expiry exceeds certificate
+  expiry. Left as an open defence-in-depth option.
+
 ## Added regression tests (Tasks 4–7)
 
 | A2 bullet | Existing tests | New test (Task) | Result |
@@ -190,3 +206,4 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
 | Governed cancellation inside final authority refresh | `governed_tool_tenant_mutation_and_fresh_revocation_refuse_effects` | `governed_cancellation_during_final_authority_refresh_never_reaches_adapter` (Task 6, `crates/abi-control-plane/src/service/tests/governed_tools/cancel_recheck.rs`) | characterization PASS (after ruling): last pre-adapter refresh cancel → effects 0, non-success; post-effect refresh cancel → effects 1, `Unresolved` |
 | Outbox terminal-persistence failure | outbox-side gap | `terminal_outbox_failure_reopens_with_one_terminal_and_refuses_fresh_dispatch` (Task 7, `crates/abi-control-plane/src/service/tests/direct_recovery_guard.rs`) | characterization PASS (Full, PartialWrite, Sync) |
 | Recheck before tool effect: node certificate expiry (review I1) | `governed_tool_tenant_mutation_and_fresh_revocation_refuse_effects` | `node_certificate_expiring_after_approval_never_reaches_tool_adapter` (Task 7b, `crates/abi-control-plane/src/service/tests/governed_tools/cert_recheck.rs`) | RED→GREEN |
+| Recheck at dispatch-time read (review M1) | `node_certificate_expiring_during_authority_recheck_never_dispatches` | `node_certificate_expiring_between_authority_callback_and_dispatch_never_dispatches` (Task 7b M1, `crates/abi-control-plane/src/relay/tests/dispatch_recheck.rs`) | RED→GREEN |
