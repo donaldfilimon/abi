@@ -145,6 +145,28 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
     `tools.rs` change, and Step 3 is withdrawn. The plan's Task 6 text carries the
     `Ruling:` note.
 
+- Task 7 (characterization, C06). Run:
+  `./tools/cargo.sh test --locked -p abi-control-plane --lib -- direct_recovery_guard < /dev/null`.
+  It gives `2 passed; 0 failed` on the first run, with no source change, for all three
+  faults (`Full`, `PartialWrite`, `Sync`) on the terminal append in `finish_local`.
+  The test checks four things for each fault:
+  - the poisoned handle refuses a fresh dispatch;
+  - reopen and reconciliation seal exactly one terminal with outcome `Completed`;
+  - a second reopen keeps the same packet IDs;
+  - the provider ran exactly once.
+
+  Clippy, fmt and the size check all exit 0. The file is 238 lines.
+- Load-blocked (coordinator ruling: the timeout is unchanged and C06 is not moved):
+  `twenty_retained_manifests_do_not_starve_fresh_poll_and_epoch_reset_is_bounded`
+  hit its 15 s timeout (`Elapsed(())`) in 5 of 5 runs.
+  - Task 3 full lib run and two isolated reruns: load average about 145–187 (one
+    reading 186.69 / 178.80 / 157.73 during the run; reruns 152.74 and 154.60).
+  - Task 4 full lib run: about 148.
+  - Final full lib run after Tasks 4–7: `88 passed; 1 failed` of 89. Load averages
+    132.59 / 132.77 / 147.57 at start and 127.79 / 131.30 / 146.00 at end.
+
+  This test needs a quiet-host rerun before it can count as evidence.
+
 ## Added regression tests (Tasks 4–7)
 
 | A2 bullet | Existing tests | New test (Task) | Result |
@@ -153,4 +175,4 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
 | Recheck after callback: worker authority refusal | `authority_callback_consuming_lease_never_dispatches_or_readmits` | `authority_refusal_leaves_admission_unresolved_and_never_dispatches` (Task 5, `crates/abi-worker/tests/authority_recheck.rs`) | characterization PASS |
 | Recheck after callback: cancellation inside authority callback | `pre_cancelled_observed_inference_never_calls_provider` | `cancellation_during_authority_callback_never_dispatches_and_records_failure` (Task 5, `crates/abi-worker/tests/authority_recheck.rs`) | characterization PASS |
 | Governed cancellation inside final authority refresh | `governed_tool_tenant_mutation_and_fresh_revocation_refuse_effects` | `governed_cancellation_during_final_authority_refresh_never_reaches_adapter` (Task 6, `crates/abi-control-plane/src/service/tests/governed_tools/cancel_recheck.rs`) | characterization PASS (after ruling): last pre-adapter refresh cancel → effects 0, non-success; post-effect refresh cancel → effects 1, `Unresolved` |
-| Outbox terminal-persistence failure | outbox-side gap | `terminal_outbox_failure_reopens_with_one_terminal_and_refuses_fresh_dispatch` (Task 7) | NOT RUN (A2 stopped at Task 6) |
+| Outbox terminal-persistence failure | outbox-side gap | `terminal_outbox_failure_reopens_with_one_terminal_and_refuses_fresh_dispatch` (Task 7, `crates/abi-control-plane/src/service/tests/direct_recovery_guard.rs`) | characterization PASS (Full, PartialWrite, Sync) |
