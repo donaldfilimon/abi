@@ -7,9 +7,17 @@
 //! including a refusal, consumes the executor; an uncertain send is never
 //! retried, and the governed lifecycle records it as unresolved.
 //!
-//! This adapter performs delivery only. Provider read-back (postcondition
-//! evidence that a message exists) and live-account acceptance are separate.
-use crate::{GovernedLiveExecutor, ToolExecutionContext, ToolExecutionError, ToolOutput};
+//! The only postcondition is `message.provider_accepted`: the provider returned
+//! a well-formed message id for this request. The executor records that receipt,
+//! and the decorator from [`GovernedMessageExecutor::observation_handle`] answers
+//! the postcondition from it, never from an upstream claim. It is not delivery:
+//! provider read-back (that the message exists and reached the recipient) and
+//! live-account acceptance are separate.
+pub use crate::adapter_receipt::{ReceiptFacts, ReceiptObservationHandle};
+use crate::{
+    GovernedLiveExecutor, ToolExecutionContext, ToolExecutionError, ToolOutput,
+    adapter_receipt::Receipts,
+};
 use abi_agent_runtime::ToolCall;
 use abi_capability::{
     ApprovalLevel, Clock, Digest, Request, Reversibility, SideEffect,
@@ -26,6 +34,7 @@ const SOURCE_ID: &str = "abi.message.send";
 const SOURCE_VERSION: &str = "1.0.0";
 const MAX_FIELD_BYTES: usize = 2048;
 const MAX_PROVIDER_ID_BYTES: usize = 128;
+const POSTCONDITION: &str = "message.provider_accepted";
 
 /// Delivery channel a message is approved for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -103,6 +112,7 @@ pub struct GovernedMessageExecutor<S: MessageSender> {
     package: Digest,
     schema: Digest,
     clock: Arc<dyn Clock>,
+    receipts: Arc<Receipts>,
     attempted: bool,
     sends: u32,
 }
@@ -137,11 +147,19 @@ impl<S: MessageSender> GovernedMessageExecutor<S> {
             || src.budgets.max_calls != 1
             || (src.budgets.max_input_bytes as usize) < payload_budget
             || (src.budgets.max_output_bytes as usize) < MAX_PROVIDER_ID_BYTES + 32
-            || src.postconditions.is_empty()
+            || src.postconditions.len() != 1
+            || !src.postconditions.contains(POSTCONDITION)
             || !src.receipt_requirements.require_postcondition_evidence
         {
             return Err(error("message_source_mismatch"));
         }
+        let receipts = Receipts::new(
+            POSTCONDITION,
+            src.clone(),
+            source.package().digest,
+            commitment(&approved.input_value()),
+            Arc::clone(&clock),
+        );
         Ok(Self {
             approved,
             sender,
@@ -149,9 +167,17 @@ impl<S: MessageSender> GovernedMessageExecutor<S> {
             package: source.package().digest,
             schema: source.schema_digest(),
             clock,
+            receipts,
             attempted: false,
             sends: 0,
         })
+    }
+
+    /// Handle whose decorator answers `message.provider_accepted` from this
+    /// executor's own provider receipt, and from nothing else.
+    #[must_use]
+    pub fn observation_handle(&self) -> ReceiptObservationHandle {
+        self.receipts.handle()
     }
 
     /// How many times the sender has been invoked (0 or 1).
@@ -237,6 +263,7 @@ impl<S: MessageSender> GovernedLiveExecutor for GovernedMessageExecutor<S> {
         if self.attempted {
             return Err(error("message_already_attempted"));
         }
+        self.receipts.clear();
         if !self.bound(call, request, source, prepared) || context.should_stop() {
             return Err(error("message_binding_refused"));
         }
@@ -264,6 +291,17 @@ impl<S: MessageSender> GovernedLiveExecutor for GovernedMessageExecutor<S> {
         if payload.len() > self.source.budgets.max_output_bytes as usize {
             return Err(error("message_receipt_unverified"));
         }
+        self.receipts.record(
+            request.request_digest,
+            commitment(&(
+                "abi.message.receipt.v1",
+                request.request_digest,
+                prepared.execution_id(),
+                self.source.resource_scope.resource_digest,
+                &receipt.provider_id,
+                self.clock.now_ms(),
+            )),
+        );
         Ok(ToolOutput::ok(payload))
     }
 }

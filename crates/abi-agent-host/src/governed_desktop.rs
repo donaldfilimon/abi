@@ -9,10 +9,18 @@
 //! reading the frontmost application again (at most 20 polls, 100 ms apart).
 //! An unverified activation is reported as a failure and never retried.
 //!
+//! Only that verification produces postcondition evidence: the executor
+//! records a receipt, and the decorator from [`GovernedDesktopExecutor::observation_handle`]
+//! answers `desktop.frontmost_matches` from it, never from an upstream claim.
+//!
 //! This adapter activates applications only. Screen capture, pointer and text
 //! input are not part of it, and a local pass is not signed-distribution or
 //! other-platform evidence.
-use crate::{GovernedLiveExecutor, ToolExecutionContext, ToolExecutionError, ToolOutput};
+pub use crate::adapter_receipt::{ReceiptFacts, ReceiptObservationHandle};
+use crate::{
+    GovernedLiveExecutor, ToolExecutionContext, ToolExecutionError, ToolOutput,
+    adapter_receipt::Receipts,
+};
 use abi_agent_runtime::ToolCall;
 use abi_capability::{
     ApprovalLevel, Clock, Digest, Request, SideEffect,
@@ -97,6 +105,7 @@ pub struct GovernedDesktopExecutor<B: DesktopBackend> {
     package: Digest,
     schema: Digest,
     clock: Arc<dyn Clock>,
+    receipts: Arc<Receipts>,
     attempted: bool,
     activations: u32,
 }
@@ -137,6 +146,13 @@ impl<B: DesktopBackend> GovernedDesktopExecutor<B> {
         {
             return Err(error("desktop_source_mismatch"));
         }
+        let receipts = Receipts::new(
+            POSTCONDITION,
+            src.clone(),
+            source.package().digest,
+            commitment(&input_value(&approved_bundle_id)),
+            Arc::clone(&clock),
+        );
         Ok(Self {
             approved: approved_bundle_id,
             backend,
@@ -144,9 +160,17 @@ impl<B: DesktopBackend> GovernedDesktopExecutor<B> {
             package: source.package().digest,
             schema: source.schema_digest(),
             clock,
+            receipts,
             attempted: false,
             activations: 0,
         })
+    }
+
+    /// Handle whose decorator answers `desktop.frontmost_matches` from this
+    /// executor's own verified observation, and from nothing else.
+    #[must_use]
+    pub fn observation_handle(&self) -> ReceiptObservationHandle {
+        self.receipts.handle()
     }
 
     /// How many times the backend has been asked to activate (0 or 1).
@@ -221,12 +245,13 @@ impl<B: DesktopBackend> GovernedDesktopExecutor<B> {
             && !context.should_stop()
     }
 
-    /// Poll the frontmost application until it is the approved bundle.
-    fn verify_frontmost(&mut self, context: ToolExecutionContext<'_>) -> bool {
+    /// Poll the frontmost application until it is the approved bundle; the
+    /// number of the matching poll, or `None` when it never matched.
+    fn verify_frontmost(&mut self, context: ToolExecutionContext<'_>) -> Option<u32> {
         for poll in 0..MAX_POLLS {
             if poll > 0 {
                 if context.should_stop() {
-                    return false;
+                    return None;
                 }
                 thread::sleep(POLL_INTERVAL);
             }
@@ -235,10 +260,10 @@ impl<B: DesktopBackend> GovernedDesktopExecutor<B> {
                 .frontmost_bundle_id()
                 .is_ok_and(|front| front == self.approved)
             {
-                return true;
+                return Some(poll);
             }
         }
-        false
+        None
     }
 }
 
@@ -257,6 +282,7 @@ impl<B: DesktopBackend> GovernedLiveExecutor for GovernedDesktopExecutor<B> {
         if self.attempted {
             return Err(error("desktop_already_attempted"));
         }
+        self.receipts.clear();
         if !self.bound(call, request, source, prepared) || context.should_stop() {
             return Err(error("desktop_binding_refused"));
         }
@@ -278,13 +304,25 @@ impl<B: DesktopBackend> GovernedLiveExecutor for GovernedDesktopExecutor<B> {
                 backend_error(failure)
             }
         })?;
-        if !self.verify_frontmost(context) {
+        let Some(poll) = self.verify_frontmost(context) else {
             return Err(error("desktop_frontmost_unverified"));
-        }
+        };
         let payload = output(&self.approved);
         if payload.len() > self.source.budgets.max_output_bytes as usize {
             return Err(error("desktop_output_limit"));
         }
+        self.receipts.record(
+            request.request_digest,
+            commitment(&(
+                "abi.desktop.receipt.v1",
+                request.request_digest,
+                prepared.execution_id(),
+                self.source.resource_scope.resource_digest,
+                &self.approved,
+                poll,
+                self.clock.now_ms(),
+            )),
+        );
         Ok(ToolOutput::ok(payload))
     }
 }

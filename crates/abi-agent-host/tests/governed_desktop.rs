@@ -2,17 +2,21 @@
 //! before activation, single-shot activation and frontmost verification
 //! against a fake backend. The macOS native test is `#[ignore]` (run by hand).
 use abi_agent_host::{
-    GovernedLiveExecutor, ToolExecutionContext,
+    GovernedFactProvider, GovernedFacts, GovernedLiveExecutor, ObservationSource,
+    PostconditionObservation, Postconditions, ToolExecutionContext,
     governed_desktop::{DesktopBackend, DesktopError, GovernedDesktopExecutor},
 };
 use abi_agent_runtime::{CancellationToken, ToolCall};
 use abi_capability::{
-    ApprovalLevel, Clock, Digest, Principal, PrincipalKind, Request,
-    lifecycle::{AuthorizationBinding, PreparedExecution},
-    source::{CompiledSource, PackageSource, SourceRegistry},
+    ApprovalLevel, Clock, Digest, PlatformFacts, Principal, PrincipalKind, Request,
+    lifecycle::{AuthorizationBinding, LifecycleError, PreparedExecution},
+    source::{
+        CompiledSource, DataClass, PackageSource, ResidencyPolicy, RetentionClass, SourceRegistry,
+    },
 };
 use sha2::{Digest as _, Sha256};
 use std::{
+    collections::BTreeSet,
     sync::{
         Arc, Mutex,
         atomic::{AtomicU64, Ordering},
@@ -255,6 +259,125 @@ fn frontmost_mismatch_after_activation_is_uncertain_not_retried() {
     assert_eq!(again.message(), "desktop_already_attempted");
     assert_eq!(log.lock().unwrap().activations.len(), 1);
     assert_eq!(exec.activations(), 1);
+}
+
+/// Permissive upstream: claims every postcondition verified with fixed evidence.
+struct Permissive;
+const UPSTREAM_EVIDENCE: Digest = Digest::from_bytes([7; 32]);
+impl GovernedFactProvider for Permissive {
+    fn observe(&mut self, _: &Request) -> Result<GovernedFacts, LifecycleError> {
+        Ok(GovernedFacts {
+            platform: PlatformFacts::new(BTreeSet::from(["desktop.activate"]), 0, "p", "g", "s"),
+            grants: vec![],
+            used_decision_ids: BTreeSet::new(),
+            predicates: BTreeSet::from(["desktop.approved".into(), "desktop.exact".into()]),
+            captured_pre_state: None,
+            observed_at_ms: 90,
+            expires_at_ms: 500,
+            permitted_data_classes: BTreeSet::from([DataClass::Operational]),
+            residency: ResidencyPolicy::LocalOnly,
+            retention: RetentionClass::Session,
+            safety_allows: true,
+            rate_allows: true,
+        })
+    }
+    fn postconditions(
+        &mut self,
+        request: &Request,
+        required: &BTreeSet<String>,
+    ) -> Result<Vec<PostconditionObservation>, LifecycleError> {
+        Ok(required
+            .iter()
+            .map(|predicate| PostconditionObservation {
+                predicate: predicate.clone(),
+                request_digest: request.request_digest,
+                observed_at_ms: 90,
+                expires_at_ms: 500,
+                evidence_digest: Some(UPSTREAM_EVIDENCE),
+                source: ObservationSource::TrustedLocalAdapter,
+                status: Postconditions::Verified,
+            })
+            .collect())
+    }
+}
+fn frontmost_required() -> BTreeSet<String> {
+    BTreeSet::from(["desktop.frontmost_matches".into()])
+}
+
+#[test]
+fn frontmost_postcondition_evidence_comes_only_from_the_executor_receipt() {
+    let registry = compile(FINDER);
+    let compiled = registry.get("abi.desktop.activate", "1.0.0").unwrap();
+    let (mut exec, _log) = executor(compiled, Ok("com.example.editor"), FINDER);
+    let mut facts = exec.observation_handle().decorate(Permissive);
+    let parts = execution(compiled, &input(FINDER));
+    let request = &parts.0;
+    // Upstream claims are never inherited: no receipt yet, no evidence.
+    assert!(
+        facts
+            .postconditions(request, &frontmost_required())
+            .is_err()
+    );
+    assert!(facts.observe(request).is_ok());
+    run(&mut exec, compiled, &parts).unwrap();
+    // Only the exact owned predicate set is answered.
+    let wider = BTreeSet::from(["desktop.frontmost_matches".into(), "other".into()]);
+    assert!(facts.postconditions(request, &wider).is_err());
+    // The wrong-set attempt consumed the receipt: evidence is single-use.
+    assert!(
+        facts
+            .postconditions(request, &frontmost_required())
+            .is_err()
+    );
+}
+
+#[test]
+fn verified_activation_yields_one_single_use_adapter_observation() {
+    let registry = compile(FINDER);
+    let compiled = registry.get("abi.desktop.activate", "1.0.0").unwrap();
+    let (mut exec, _log) = executor(compiled, Ok("com.example.editor"), FINDER);
+    let mut facts = exec.observation_handle().decorate(Permissive);
+    let parts = execution(compiled, &input(FINDER));
+    let request = &parts.0;
+    run(&mut exec, compiled, &parts).unwrap();
+    let observed = facts
+        .postconditions(request, &frontmost_required())
+        .unwrap();
+    assert_eq!(observed.len(), 1);
+    let only = &observed[0];
+    assert_eq!(only.predicate, "desktop.frontmost_matches");
+    assert_eq!(only.request_digest, request.request_digest);
+    assert_eq!(only.status, Postconditions::Verified);
+    assert_eq!(only.source, ObservationSource::TrustedLocalAdapter);
+    assert!(
+        only.evidence_digest
+            .is_some_and(|d| d != UPSTREAM_EVIDENCE && d != Digest::default())
+    );
+    assert!((only.observed_at_ms..only.expires_at_ms).contains(&100));
+    assert!(
+        facts
+            .postconditions(request, &frontmost_required())
+            .is_err()
+    );
+    // A request for a different approval is refused outright.
+    let other = execution(compiled, &input("com.apple.Terminal"));
+    assert!(facts.observe(&other.0).is_err());
+}
+
+#[test]
+fn lost_focus_has_no_evidence_even_when_upstream_claims_verified() {
+    let registry = compile(FINDER);
+    let compiled = registry.get("abi.desktop.activate", "1.0.0").unwrap();
+    let (mut exec, _log) = executor(compiled, Ok("com.example.editor"), "com.example.editor");
+    let mut facts = exec.observation_handle().decorate(Permissive);
+    let parts = execution(compiled, &input(FINDER));
+    let failed = run(&mut exec, compiled, &parts).unwrap_err();
+    assert_eq!(failed.message(), "desktop_frontmost_unverified");
+    assert!(
+        facts
+            .postconditions(&parts.0, &frontmost_required())
+            .is_err()
+    );
 }
 
 /// Activates Finder on this Mac through `MacDesktop`. Changes the frontmost

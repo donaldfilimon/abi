@@ -4,16 +4,22 @@
 #   install.sh install  PREFIX ARCHIVE   verify ARCHIVE.sha256 and every MANIFEST.json
 #                                        hash, then make it PREFIX/current
 #   install.sh rollback PREFIX           swap PREFIX/current and PREFIX/previous
-#   install.sh remove   PREFIX --yes     delete versions/, current and previous only
+#   install.sh remove   PREFIX --yes     delete versions/, current and previous only,
+#                                        and only when every one of them is ABI's
 #   install.sh status   PREFIX           print the current and previous versions
 #
 # Layout: PREFIX/versions/<id>/{bin/,MANIFEST.json}, with PREFIX/current and
 # PREFIX/previous as relative symlinks (versions/<id>), so the prefix can move.
 # A version is extracted into PREFIX/versions/.staging-<id>, verified there,
-# and renamed into place before `current` is repointed. `current` is replaced
-# atomically (a new symlink renamed over the old one with `mv -h`), so an
-# interrupted upgrade leaves the previous complete version current. Leftover
-# .staging-* directories are removed at the start of the next install.
+# and renamed into place. `previous` is then pointed at the old current
+# version, and only after that is `current` pointed at the new one. Each link
+# is replaced atomically (a new symlink renamed over the old one with `mv -h`),
+# so an interruption at any point leaves `current` on a complete version.
+# Rerunning the same install converges: when versions/<id> already exists and
+# is not current, the archive is verified again and must carry a byte-identical
+# MANIFEST.json, and the existing copy (itself re-verified) is made current.
+# The same path makes any installed version current again, not only `previous`.
+# Leftover .staging-* directories are removed at the start of the next install.
 #
 # MANIFEST.json is parsed line by line, without a JSON library: each "files"
 # entry is exactly `    "relpath": "<64 hex sha256>"` on its own line, the
@@ -166,21 +172,35 @@ do_install() {
     [ -e "$leftover" ] || continue
     rm -rf "$leftover"
   done
-  [ ! -e "$prefix/versions/$id" ] || die "$id is already installed (use rollback or remove)"
+  old=$(link_target "$prefix/current")
+  [ "$old" != "versions/$id" ] || die "$id is already installed and current (use rollback or remove)"
 
   staging="$prefix/versions/.staging-$id"
   mkdir "$staging"
   tar -xzf "$archive" -C "$staging" --strip-components 1 --no-same-owner
   verify_manifest "$staging" "$id"
-  mv "$staging" "$prefix/versions/$id"
-  staging=""
+  if [ -e "$prefix/versions/$id" ] || [ -L "$prefix/versions/$id" ]; then
+    # Installed before (an interrupted install, or an older version): reuse it
+    # only when it is the same package and still verifies.
+    [ -d "$prefix/versions/$id" ] && [ ! -L "$prefix/versions/$id" ] || die "versions/$id is not a directory"
+    cmp -s "$staging/MANIFEST.json" "$prefix/versions/$id/MANIFEST.json" || die "versions/$id holds a different package than $archive"
+    verify_manifest "$prefix/versions/$id" "$id"
+    rm -rf "$staging"
+    staging=""
+    action=activated
+  else
+    mv "$staging" "$prefix/versions/$id"
+    staging=""
+    action=installed
+  fi
 
-  old=$(link_target "$prefix/current")
-  repoint current "versions/$id"
+  # previous first, then current: an interruption between the two leaves the
+  # old version current, and rerunning this install completes the switch.
   if [ -n "$old" ]; then
     repoint previous "$old"
   fi
-  printf 'installed %s\n' "$id"
+  repoint current "versions/$id"
+  printf '%s %s\n' "$action" "$id"
 }
 
 do_rollback() {
@@ -197,10 +217,47 @@ do_rollback() {
   printf 'rolled back to %s\n' "${previous##*/}"
 }
 
+# True when versions/<entry> is one this installer created: a leftover
+# .staging-<id>, or a directory <id> whose MANIFEST.json names package abi.
+owned_entry() {
+  path="$prefix/versions/$1"
+  [ -d "$path" ] && [ ! -L "$path" ] || return 1
+  case $1 in
+    .staging-*) valid_id "${1#.staging-}" ;;
+    *) valid_id "$1" && [ -f "$path/MANIFEST.json" ] && grep -qx '  "name": "abi",' "$path/MANIFEST.json" ;;
+  esac
+}
+
 do_remove() {
   [ $# -eq 3 ] && [ "$3" = "--yes" ] || die "remove deletes $prefix/versions, current and previous; rerun with --yes"
-  rm -rf "$prefix/versions"
+  # Check everything before deleting anything: refuse a prefix ABI does not own.
+  if [ -e "$prefix/versions" ] || [ -L "$prefix/versions" ]; then
+    [ -d "$prefix/versions" ] && [ ! -L "$prefix/versions" ] || die "refusing: $prefix/versions is not an ABI versions directory"
+    for entry in "$prefix"/versions/* "$prefix"/versions/.[!.]* "$prefix"/versions/..?*; do
+      [ -e "$entry" ] || [ -L "$entry" ] || continue
+      owned_entry "${entry##*/}" || die "refusing: $entry was not installed by install.sh"
+    done
+  fi
+  for link in current previous; do
+    if [ -L "$prefix/$link" ]; then
+      target=$(readlink "$prefix/$link")
+      case $target in
+        versions/*) valid_id "${target#versions/}" || die "refusing: $prefix/$link points outside versions/: $target" ;;
+        *) die "refusing: $prefix/$link points outside versions/: $target" ;;
+      esac
+    elif [ -e "$prefix/$link" ]; then
+      die "refusing: $prefix/$link is not an ABI symlink"
+    fi
+  done
+
   rm -f "$prefix/current" "$prefix/previous"
+  if [ -d "$prefix/versions" ]; then
+    for entry in "$prefix"/versions/* "$prefix"/versions/.[!.]* "$prefix"/versions/..?*; do
+      [ -e "$entry" ] || continue
+      rm -rf "$entry"
+    done
+    rmdir "$prefix/versions"
+  fi
   printf 'removed abi from %s\n' "$prefix"
 }
 

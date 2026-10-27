@@ -1,7 +1,8 @@
 //! Governed Discord/Twilio message executor: exact approval binding and
 //! single-shot sending against a counting fake sender (no network).
 use abi_agent_host::{
-    GovernedLiveExecutor, ToolExecutionContext,
+    GovernedFactProvider, GovernedFacts, GovernedLiveExecutor, ObservationSource,
+    PostconditionObservation, Postconditions, ToolExecutionContext,
     governed_message::{
         ApprovedMessage, GovernedMessageExecutor, MessageChannel, MessageReceipt, MessageSender,
         SendError,
@@ -9,12 +10,15 @@ use abi_agent_host::{
 };
 use abi_agent_runtime::{CancellationToken, ToolCall};
 use abi_capability::{
-    ApprovalLevel, Clock, Digest, Principal, PrincipalKind, Request,
-    lifecycle::{AuthorizationBinding, PreparedExecution},
-    source::{CompiledSource, PackageSource, SourceRegistry},
+    ApprovalLevel, Clock, Digest, PlatformFacts, Principal, PrincipalKind, Request,
+    lifecycle::{AuthorizationBinding, LifecycleError, PreparedExecution},
+    source::{
+        CompiledSource, DataClass, PackageSource, ResidencyPolicy, RetentionClass, SourceRegistry,
+    },
 };
 use sha2::{Digest as _, Sha256};
 use std::{
+    collections::BTreeSet,
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering},
@@ -270,5 +274,135 @@ fn expired_source_or_stop_refuses_before_send() {
         assert!(refused.is_err(), "{case}");
         assert_eq!(sends.load(Ordering::SeqCst), 0, "{case}");
         assert_eq!(exec.sends(), 0, "{case}");
+    }
+}
+
+/// Permissive upstream: claims every postcondition verified with fixed evidence.
+struct Permissive;
+const UPSTREAM_EVIDENCE: Digest = Digest::from_bytes([7; 32]);
+impl GovernedFactProvider for Permissive {
+    fn observe(&mut self, _: &Request) -> Result<GovernedFacts, LifecycleError> {
+        Ok(GovernedFacts {
+            platform: PlatformFacts::new(BTreeSet::from(["message.send"]), 0, "p", "g", "s"),
+            grants: vec![],
+            used_decision_ids: BTreeSet::new(),
+            predicates: BTreeSet::from(["message.approved".into(), "message.exact".into()]),
+            captured_pre_state: None,
+            observed_at_ms: 90,
+            expires_at_ms: 500,
+            permitted_data_classes: BTreeSet::from([DataClass::Personal]),
+            residency: ResidencyPolicy::TenantRegion,
+            retention: RetentionClass::Session,
+            safety_allows: true,
+            rate_allows: true,
+        })
+    }
+    fn postconditions(
+        &mut self,
+        request: &Request,
+        required: &BTreeSet<String>,
+    ) -> Result<Vec<PostconditionObservation>, LifecycleError> {
+        Ok(required
+            .iter()
+            .map(|predicate| PostconditionObservation {
+                predicate: predicate.clone(),
+                request_digest: request.request_digest,
+                observed_at_ms: 90,
+                expires_at_ms: 500,
+                evidence_digest: Some(UPSTREAM_EVIDENCE),
+                source: ObservationSource::TrustedLocalAdapter,
+                status: Postconditions::Verified,
+            })
+            .collect())
+    }
+}
+fn accepted_required() -> BTreeSet<String> {
+    BTreeSet::from(["message.provider_accepted".into()])
+}
+
+#[test]
+fn provider_receipt_is_the_only_postcondition_evidence() {
+    let message = approved();
+    let registry = compile(&message);
+    let compiled = registry.get("abi.message.send", "1.0.0").unwrap();
+    let (mut exec, _sends) = executor(compiled, Ok("1100"), 100);
+    let mut facts = exec.observation_handle().decorate(Permissive);
+    let parts = execution(compiled, &message.input_value());
+    let request = &parts.0;
+    // Upstream claims are never inherited: no receipt yet, no evidence.
+    assert!(facts.postconditions(request, &accepted_required()).is_err());
+    assert!(facts.observe(request).is_ok());
+    run(&mut exec, compiled, &parts, &CancellationToken::new()).unwrap();
+    let observed = facts.postconditions(request, &accepted_required()).unwrap();
+    assert_eq!(observed.len(), 1);
+    let only = &observed[0];
+    assert_eq!(only.predicate, "message.provider_accepted");
+    assert_eq!(only.request_digest, request.request_digest);
+    assert_eq!(only.status, Postconditions::Verified);
+    assert_eq!(only.source, ObservationSource::TrustedLocalAdapter);
+    assert!(
+        only.evidence_digest
+            .is_some_and(|d| d != UPSTREAM_EVIDENCE && d != Digest::default())
+    );
+    assert!((only.observed_at_ms..only.expires_at_ms).contains(&100));
+    // Single use.
+    assert!(facts.postconditions(request, &accepted_required()).is_err());
+    // A request for a different approval is refused outright.
+    let mut other = message.clone();
+    other.body = "something else".into();
+    assert!(
+        facts
+            .observe(&execution(compiled, &other.input_value()).0)
+            .is_err()
+    );
+}
+
+#[test]
+fn failed_send_has_no_evidence_even_when_upstream_claims_verified() {
+    let message = approved();
+    let registry = compile(&message);
+    let compiled = registry.get("abi.message.send", "1.0.0").unwrap();
+    for outcome in [
+        Err(SendError::Uncertain("message_send_uncertain")),
+        Err(SendError::Refused("message_send_refused")),
+        Ok(""),
+    ] {
+        let (mut exec, _sends) = executor(compiled, outcome, 100);
+        let mut facts = exec.observation_handle().decorate(Permissive);
+        let parts = execution(compiled, &message.input_value());
+        assert!(run(&mut exec, compiled, &parts, &CancellationToken::new()).is_err());
+        assert!(
+            facts
+                .postconditions(&parts.0, &accepted_required())
+                .is_err(),
+            "{outcome:?}"
+        );
+    }
+}
+
+#[test]
+fn source_must_declare_exactly_the_provider_accepted_postcondition() {
+    let message = approved();
+    for postconditions in [
+        BTreeSet::from(["message.delivered".to_string()]),
+        BTreeSet::from([
+            "message.provider_accepted".to_string(),
+            "message.delivered".to_string(),
+        ]),
+    ] {
+        let mut src = source(&message);
+        src.postconditions = postconditions.clone();
+        let registry = SourceRegistry::compile([src]).unwrap();
+        let compiled = registry.get("abi.message.send", "1.0.0").unwrap();
+        let bound = GovernedMessageExecutor::bind(
+            compiled,
+            message.clone(),
+            FakeSender {
+                sends: Arc::new(AtomicU64::new(0)),
+                outcome: Ok("never"),
+            },
+            Arc::new(TestClock(AtomicU64::new(100))),
+        );
+        assert!(bound.is_err(), "{postconditions:?}");
     }
 }

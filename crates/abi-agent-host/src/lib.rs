@@ -19,6 +19,7 @@
 //! subsequent event, tool execution, or provider continuation is admitted
 //! after the boundary is observed.
 
+pub mod adapter_receipt;
 mod budget;
 mod error;
 mod executor;
