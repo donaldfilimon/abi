@@ -1,0 +1,20 @@
+{
+  "id":"abi.desktop.activate", "version":"1.0.0",
+  "input_schema":{"type":"object","properties":{"bundle_id":{"type":"string"}},"required":["bundle_id"],"additionalProperties":false},
+  "output_schema":{"type":"object","properties":{"bundle_id":{"type":"string"},"frontmost":{"const":true}},"required":["bundle_id","frontmost"],"additionalProperties":false},
+  "error_schema":{"type":"null"}, "streaming":"None", "cancellation":"Cooperative",
+  "required_platform_permissions":["desktop.activate"],
+  "resource_scope":{"organization_id":"org","deployment_id":"deploy","tenant_id":"tenant","platform":"local","guild_ref":null,"resource_digest":"sha256:0000000000000000000000000000000000000000000000000000000000000000","subject_digest":"sha256:0202020202020202020202020202020202020202020202020202020202020202"},
+  "side_effect":"PlatformWrite", "reversibility":"ReversibleWithLoss", "risk_class":"Low",
+  "data_classes":["Operational"], "residency":"LocalOnly", "retention":"Session",
+  "preconditions":["desktop.approved"], "invariants":["desktop.exact"], "deadline_ms":5000, "rate_class":"bounded",
+  "budgets":{"max_input_bytes":512,"max_output_bytes":512,"max_events":4,"max_calls":1},
+  "confirmation_policy":"A1Actor", "delegation_policy":"Forbidden", "expiry_policy_ms":1000,
+  "revocation_policy":"RecheckBeforeEffect", "approval_policy":"A1Actor", "idempotency":"NaturallyIdempotent",
+  "compensation":null, "rollback":"None", "postconditions":["desktop.frontmost_matches"],
+  "adapter_bindings":[{"adapter_id":"abi.desktop","api_version":"1"}],
+  "receipt_requirements":{"redacted":true,"require_postcondition_evidence":true},
+  "fixtures":{"deterministic":"sha256:0303030303030303030303030303030303030303030303030303030303030303","adversarial":"sha256:0404040404040404040404040404040404040404040404040404040404040404","failure":"sha256:0505050505050505050505050505050505050505050505050505050505050505"},
+  "promotion_thresholds":{"minimum_passed":1,"maximum_failed":0},
+  "expiration_criteria":{"expires_at_ms":10000,"disable_on_schema_drift":true,"disable_on_missing_evidence":true}
+}

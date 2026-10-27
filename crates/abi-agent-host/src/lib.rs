@@ -24,6 +24,7 @@ mod error;
 mod executor;
 mod governed;
 mod governed_authorization;
+pub mod governed_desktop;
 mod governed_failure;
 pub mod governed_message;
 mod governed_postconditions;
