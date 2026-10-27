@@ -89,6 +89,10 @@ The metrics never contain account, tenant, issuer, subject, session, node or job
 identifiers, tokens, digests or payloads. Alerting, export and audit retention
 remain operator work (C38 is not qualified for staging or public operation).
 
+Operator procedures (revocation, authority replacement, backup and restore,
+upgrade and rollback, shutdown, health and metrics) and their local drills are
+in [RUNBOOKS.md](RUNBOOKS.md).
+
 ## Protocol v1
 
 All requests and responses are bounded metadata JSON. Unknown mutation fields
