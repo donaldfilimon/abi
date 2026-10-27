@@ -561,6 +561,8 @@ pub struct HealthReport {
     pub completed_jobs: usize,
     /// Cancelled jobs retained for replay protection.
     pub cancelled_jobs: usize,
+    /// Interrupted prior-process jobs retained as non-executable tombstones.
+    pub unresolved_jobs: usize,
     /// Report generation time.
     pub observed_at_unix_ms: i64,
 }

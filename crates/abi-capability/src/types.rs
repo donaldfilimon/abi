@@ -333,6 +333,39 @@ pub struct CapabilityPackage {
 }
 
 impl CapabilityPackage {
+    /// Internal compiled sources may use namespaced fact labels. Keep the
+    /// frozen public constructor's identifier grammar unchanged.
+    pub(crate) fn from_source(
+        source: &crate::source::PackageSource,
+        digest: Digest,
+    ) -> Result<Self, TypeError> {
+        if source.required_platform_permissions.len() > 32 || source.postconditions.len() > 32 {
+            return Err(TypeError::InvalidField);
+        }
+        // Validate all existing constraints, permitting only dots in addition
+        // to the existing label alphabet. Retain the exact original labels;
+        // never normalize the authorization identity itself.
+        let mut package = Self::new(
+            &source.id,
+            &source.version,
+            digest,
+            source.side_effect,
+            source.reversibility,
+            source.risk_class,
+            source.confirmation_policy.max(source.approval_policy),
+            source
+                .required_platform_permissions
+                .iter()
+                .map(|v| v.replace('.', "_")),
+            source.postconditions.iter().map(|v| v.replace('.', "_")),
+        )?;
+        package
+            .required_permissions
+            .clone_from(&source.required_platform_permissions);
+        package.postconditions.clone_from(&source.postconditions);
+        Ok(package)
+    }
+
     /// Construct and validate a recording-compatible package.
     #[allow(clippy::too_many_arguments)]
     pub fn new<I, P>(

@@ -1,6 +1,13 @@
 //! Fail-closed recording governance regressions.
+#[path = "governed/adapter_receipts.rs"]
+mod adapter_receipts;
 #[path = "governed/authority_expiry.rs"]
 mod authority_expiry;
+#[path = "governed/live.rs"]
+mod live;
+#[cfg(unix)]
+#[path = "governed/process.rs"]
+mod process;
 #[path = "governed/token_admission.rs"]
 mod token_admission;
 

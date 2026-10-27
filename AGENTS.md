@@ -1,4 +1,35 @@
-# AGENTS.md - abi
+# Repository Guidelines
+
+## Project Structure & Module Organization
+
+`crates/` owns the Rust workspace; crate-local `src/` and `tests/` hold implementation and integration tests. `tests/golden/`, `contracts/`, and `proto/` define shared surfaces. `tools/` owns gates; `docs/` and `tasks/` hold contracts and ledgers. The adjacent `../wdbx` source is required.
+
+## Build, Test, and Development Commands
+
+`./tools/check.sh` is the full gate. Build with `./tools/cargo.sh build
+--locked --workspace`; focus tests with `./tools/cargo.sh test --locked -p
+abi-cli --test golden < /dev/null`. Use `./mcp/launcher.sh stdio` for MCP.
+Follow the retained gate details below for doc-only checks and safe CLI smokes.
+
+## Coding Style & Naming Conventions
+
+Use rustfmt for Rust (four-space indentation), `snake_case` modules/functions, and
+`PascalCase` types. Follow local lint settings and preserve public contracts.
+Keep documentation paths relative to the project. Do not reformat unrelated code.
+
+## Testing Guidelines
+
+Rust uses `#[test]` unit tests and package integration suites; retain existing independent oracles and golden fixtures. Name tests after observable behavior and cover affected failure paths.
+Use isolated fixtures rather than live data. Report executed checks and skips;
+compilation alone does not establish runtime or platform qualification.
+
+## Commit & Pull Request Guidelines
+
+Use short imperative subjects; recent history also uses `docs:`, `fix:`, and `chore:` prefixes. Keep commits focused. PRs should describe the behavior and rationale, link relevant issues or
+plans, and list actual checks and remaining platform gaps. Include screenshots
+for visual changes. Preserve unrelated edits and existing generated-file rules.
+
+## Maintained Project Instructions
 
 Canonical agent instructions. Executable source wins over prose (`Cargo.toml`, `tools/check.sh`, `crates/`). `GEMINI.md` redirects here; `CLAUDE.md` is the expanded redirect; `.github/copilot-instructions.md` is the editor reminder. Deeper rules, crate roles, and the env table: `CLAUDE.md`. `opencode.json` loads `tasks/lessons.md`, `tasks/todo.md`, and `tasks/goals.md` alongside this file.
 
@@ -28,22 +59,23 @@ Canonical agent instructions. Executable source wins over prose (`Cargo.toml`, `
 - Doc-only edits: `python3 -m unittest discover -s tools/tests -p 'test_docs*.py'` (plus policy suites) + `git diff --check`; for `docs/` also run `.agents/skills/docs-validate/validate.sh` after loading `abi-doc-claims-sync`.
 - Size gate: `tools/check_rust_sizes.sh` (git-tracked + untracked, non-ignored `.rs`). Near-limit files (e.g. `complete.rs` ~945 lines) must be split into modules; do not trim the gate.
 - Smoke: `./.agents/skills/run-abi/smoke.sh` (builds both binaries, exercises CLI + MCP stdio, writes `target/debug/run-abi-smoke.txt`).
+- Package (unsigned, Apple silicon): `sh tools/package/build_macos.sh OUT_DIR` (clean tracked tree; locked release build of `abi`/`abi-mcp`/`abi-control-plane`; `@loader_path` dylibs in `bin/`; `.tar.gz` + `.sha256` + `MANIFEST.json`), then `sh tools/package/install.sh install|rollback|remove|status PREFIX [ARCHIVE]` (`remove` needs `--yes`). Policy suite: `tools/tests/test_package_install.py`. Signing, notarization and Linux/Windows packages are external.
 - xtask: `./tools/cargo.sh xtask ci verify`; `./tools/cargo.sh xtask abbey verify contracts/abbey`; vendor via `./tools/cargo.sh xtask abbey vendor --source ... --destination ... --source-revision ...`.
 - Focused tests: unit `./tools/cargo.sh test -p <crate> --lib -- <filter> < /dev/null`; integ `./tools/cargo.sh test -p <crate> --test <name> [<filter>] < /dev/null` (e.g. `-p abi-cli --test golden`).
 - WDBX substrate: `./tools/cargo.sh test --manifest-path ../wdbx/Cargo.toml -p abi-wdbx --lib -- <filter> < /dev/null`.
 - Feature flags: `abi-model-runtime --features metal|cuda`; `abi-gpu` (default `metal-kernels`+`coreml-ane`; opt-in `cuda-adapter`,`vulkan-adapter`); `abi-connectors` (default `live`+`foundationmodels`); `abi-cli --features full-fhe|experimental-dghv-bootstrap`.
 - Always run cargo test with `< /dev/null` (auth signin reads stdin and hangs on an open pipe/TTY).
 - Store-safe smoke: `ABI_WDBX_PATH=:memory: ./tools/cargo.sh run -p abi-cli -- complete "..."`.
-- Launch MCP only via `./mcp/launcher.sh [stdio]` (repo root or script); `ABI_MCP_AUTO_BUILD=1` builds if absent. Binaries: `target/{debug,release}/abi` and `target/{debug,release}/abi-mcp`.
+- Launch MCP only via `./mcp/launcher.sh [stdio]` (repo root or script); `ABI_MCP_AUTO_BUILD=1` builds if absent. Binaries: `target/{debug,release}/abi`, `target/{debug,release}/abi-mcp` and `target/{debug,release}/abi-control-plane`.
 - Rebuild the embedding test target after editing frozen surfaces or goldens (e.g. `-p abi-cli --test golden`).
 - dylib rewrite hazard: never `cp`/`fs::copy` over an existing `target/<profile>/*.dylib` in place; repair with `cp X X.new && mv -f X.new X`.
 - Direct toolchain `cargo` drops `DYLD_FALLBACK_LIBRARY_PATH` (rust-objcopy SIGABRT); use the wrapper.
 
 ## Workspace and boundaries
 
-- All live code under `crates/*` (17 members): `abi-agent-host`, `abi-agent-runtime`, `abi-ai`, `abi-capability`, `abi-cli`, `abi-connectors`, `abi-contracts`, `abi-gpu`, `abi-mcp`, `abi-model-runtime`, `abi-models`, `abi-nn`, `abi-plugins`, `abi-sea`, `abi-wdbx-gateway`, `abi-worker`, `xtask` (unpublished runner). No Zig (retired; see `RUST-REWRITE-PLAN.md` history only).
+- All live code under `crates/*` (18 members): `abi-agent-host`, `abi-agent-runtime`, `abi-ai`, `abi-capability`, `abi-cli`, `abi-connectors`, `abi-control-plane`, `abi-contracts`, `abi-gpu`, `abi-mcp`, `abi-model-runtime`, `abi-models`, `abi-nn`, `abi-plugins`, `abi-sea`, `abi-wdbx-gateway`, `abi-worker`, `xtask` (unpublished runner). No Zig (retired; see `RUST-REWRITE-PLAN.md` history only).
 - Sibling substrate (required, adjacent `../wdbx/crates/`): `abi-compute`, `abi-core`, `abi-foundation`, `abi-telemetry`, `abi-wdbx`. Cargo resolution/identity require the layout; do not vendor or git-dep. CI pins `WDBX_REVISION` in `.github/workflows/ci.yml` (`2969d71a2c3a81a060dcfc6cf53b4617f13c8b94`); update the pin only after that exact rev passes the gate.
-- No separate daemon binary; the scheduler runs in-process (`abi scheduler ...`).
+- The scheduler runs in-process (`abi scheduler ...`). `abi-control-plane` is a separate account/enrollment and encrypted relay service with its own bounded tenant queue; it does not run the CLI scheduler. Operator surfaces: content-free `GET /healthz`, token-gated `GET /v1/operator/metrics`, offline `abi-control-plane metrics DATABASE ORIGIN`, and `crates/abi-control-plane/RUNBOOKS.md` (each procedure names its drill test). See `crates/abi-control-plane/README.md`.
 - `abi-ai` core is store-agnostic/deterministic (I/O only in `file_context` etc.); WDBX bits belong in sea/CLI/MCP/wdbx crates.
 - Launch MCP only via the launcher.
 - `ABI_*` env vars + test hooks live in `../wdbx/crates/abi-foundation/src/env.rs`; use provided overrides/locks in tests, never raw env mutation.

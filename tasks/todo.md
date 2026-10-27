@@ -1,5 +1,51 @@
 # TODO — ABI Framework (Rust 2024, stable 1.99.1)
 
+## Approved complete-ABI execution (2026-10-23)
+
+- Planning supplement (2026-10-25):
+  [complete ABI, then qualify its LYLX migration](../docs/plans/2026-10-25-complete-abi-and-lylx-handoff.md).
+  Retains C01–C44 and separates local delivery, operational release and replacement
+  qualification; no implementation milestone is closed by writing the plan.
+- Correction (2026-10-25): the supplement no longer says the lockfile selects Tokio
+  1.53.1 or targets 1.53.3. Baseline `main` `ff40bdd` pins 1.54.1, the floor; the
+  next A1 item is binding the consumed WDBX/Abbey source set, then one C01–C44 ledger.
+- [x] (2026-10-25, A1 partial) Merge origin/main `42f1446` into local `main`
+  without discarding either history (`f65d5e5`) and repair the README so the
+  doc policy holds (`2113824`); full gate exit 0 at `2113824` with the receipt
+  recorded in `docs/verification/2026-10-23-completion-matrix.md`.
+- [x] (2026-10-26, A1) Bind the consumed source set: the sibling WDBX owner's
+  staged changes landed upstream, so WDBX sits clean at `96c4b13`; a fresh
+  complete `./tools/check.sh < /dev/null` at ABI `main` `aaf2929` exited 0
+  against it (1,241 Rust executions, 186 Python policy tests OK with 8 skips,
+  `cargo-audit` scan run, benchmark regression PASS) and the receipt is in the
+  C01–C44 matrix execution record. Remaining A1 items stay external: WDBX's
+  own gate and the Abbey root/desktop gates are separate owners' actions, and
+  pin promotion/publication is the owner's call (CI pin stays `2969d71`).
+- [x] (2026-10-27, A1/A2 evidence) Bound gate on ABI `1dd7f0b` + WDBX `9d386dd`
+  (clean shared clones): exit 0, 1,248 Rust / 186 Python OK. Receipt
+  `docs/verification/2026-10-27-a1-gate-receipt.md`; 44-row ledger
+  `docs/verification/2026-10-27-c01-c44-execution-ledger.md`. Training stack
+  (C23–C28) handed to LYLX (Donald). Finish plan for C38/C39/C11/C10/C32:
+  `docs/plans/2026-10-27-finish-abi.md`.
+- [x] (2026-10-27, finish-ABI) C38 metrics/health, C39 runbooks with drills,
+  C11 governed Discord/Twilio executor, C10 governed macOS app activation and
+  C32 unsigned Mac package/installer, all moved `M` → `U`. C05/C06 moved to
+  `Q local Mac` (A2 exit). Receipts: `docs/verification/2026-10-27-{a1,a2,finish}-gate-receipt.md`.
+- [ ] Complete milestones 1–11 of
+  `docs/superpowers/plans/2026-10-23-complete-abi.md` against the authoritative
+  C01–C44 matrix in `docs/verification/2026-10-23-completion-matrix.md`.
+- [x] Collect planning baseline process exit 0 and capture initial ABI/WDBX/Abbey
+  hashes, file modes, revisions and locked package/default-feature metadata under
+  `/Users/donald/.codex/verification/abi-completion-20261023/`.
+  The unfrozen planning baseline is not final cohort qualification.
+- [x] Local worker persistence fault acceptance and fresh post-authority
+  dispatch-time guard; interrupted admissions retain no fresh authority.
+- [x] Implement local worker authority-time repair, real-file fault acceptance
+  and closed governed Unix pwd adapter with OS receipts. Focused suites/review
+  pass; full ABI gate is exit 0 (1,234 Rust executions) and copied Mac CLI/MCP
+  candidate acceptance passes. Real Abbey durable-owner integration and the
+  remaining ecosystem milestones stay open. Mac is the immediate runtime target.
+
 Current status ledger for the Rust rewrite closeout, completed hardening slices,
 and explicitly disclosed residuals. Detailed history also lives in
 `RUST-REWRITE-PLAN.md`, `git log`, and `CHANGELOG.md`. Claims gate:
@@ -13,6 +59,72 @@ Status legend: `✅ Done` · `🟡 In progress` · `⚪ Not started` · `🔴 Bl
 ---
 
 ## Continuation qualification (2026-10-20)
+
+- [ ] Governed process adapter (2026-10-23): design/buildability review complete;
+  implementation begins after the current Abbey qualification source handoff.
+  Closed startup-pinned cwd observation, bounded Unix supervisor and real OS
+  postcondition evidence are planned. General platform/messaging and other OS
+  runtime acceptance remain open. Plan:
+  `docs/superpowers/plans/2026-10-23-governed-process.md`.
+
+- [x] 2026-10-23 governed completed-history reopen acceptance: the real private
+  worker log and encrypted outbox reopen, then return recorded completion with
+  unavailable local approval state and refusing fresh safety facts. Packet and
+  manifest bytes, file contents/mtime and exactly-one adapter count stay unchanged;
+  no approval file is created. Control-plane library: 83 passed, zero ignored
+  (`/tmp/abi-governed-reopen-suite-20261023.log`). Final whole gate is tracked
+  separately; the twelve-point local interruption continuation is recorded below.
+  General platform, separate-host and power-loss acceptance remain open.
+
+Production ecosystem implementation (approved 2026-10-22) is tracked in
+`docs/verification/2026-10-22-production-ecosystem.md`, with the full release boundary in
+`docs/superpowers/plans/2026-10-22-abi-production-ecosystem.md`.
+
+- [ ] Durable Abbey approvals and governed tenant tools (2026-10-22): local
+  approval/lifecycle ownership, explicit live host boundary and encrypted tool
+  relay admission are implemented. Native TCP/PTY approval/denial, restart replay,
+  owner isolation and prepare/post-effect crash acceptance pass; final ABI, WDBX
+  and prior Abbey root/desktop gates pass. The twelve-point local scratch
+  interruption/duplicate-delivery acceptance is implemented and independently
+  reviewed, including parent SIGKILL before/after consumer import commit and
+  confirmed TCP publication/ACK response loss. Final ABI gate: 1,212 Rust
+  executions, zero failures/ignored; source identities stayed unchanged. Receipt:
+  `/Users/donald/.codex/verification/abi-continuation-20261023/abi-consumer-final-receipt.json`.
+  Updated Abbey cohort qualification is coordinated separately. Concrete adapters
+  beyond scratch files, separate-host partitions, power loss and cross-platform
+  acceptance remain open. See `docs/spec/durable-governed-tools.md` and
+  `docs/superpowers/plans/2026-10-22-durable-governed-tools.md`. This is a
+  continuation of the full ecosystem objective, not its completion.
+
+- [x] Durable encrypted output redelivery and worker reconnect recovery local
+  source slice: private synced outbox, read-only recorded-outcome recovery,
+  replay-only current-authority grants, transient buffer restoration and atomic
+  verified client imports. Actual process-kill/TCP-response-loss fixtures retain
+  exact ciphertext and provider counts; package suites and Clippy pass. Final
+  whole-workspace gate/source receipt is recorded separately in
+  `docs/verification/2026-10-22-production-ecosystem.md`. Contract and implementation
+  plan: `docs/spec/encrypted-relay-recovery.md` and
+  `docs/superpowers/plans/2026-10-22-encrypted-relay-recovery.md`. Public/separate-host,
+  power-loss and Windows/Linux runtime acceptance remain open.
+
+- [x] Encrypted enrolled-tenant inference relay: signed X25519 enrollment,
+  metadata-only durable queue, bounded transient HPKE ciphertext, 2/10 quota
+  defaults, fresh action-bound outbound node proofs/dispatch permits, durable
+  user-node execution and two-tenant TCP acceptance. Browser accepts sealed
+  job files; native client owns prompt/result decryption. Local probe only;
+  governed tools, separate hosts and public operation remain open.
+- [x] Encrypted incremental results and cooperative worker cancellation: ordered
+  node-signed HPKE frames, bounded backpressure, metadata-only browser watching,
+  local prefix verification, durable cancel-request/worker-stop distinction,
+  racing-frame reconciliation and two-tenant TCP acceptance. Durable redelivery
+  is implemented in the continuation above; noncooperative process termination
+  and separate-host qualification remain open.
+
+- [x] Local public-account/enrollment foundation: separate Rust service and
+  browser client, verified OIDC/PKCE, durable tenants/sessions, exact locally
+  signed pairing, application credentials, revocation/deletion and replay tests.
+  See `crates/abi-control-plane/README.md`; Task 2 now has local encrypted two-tenant job acceptance; public-provider
+  and separate-host qualification remain open.
 
 - [x] WDBX ledger-hardening consumer regressions: storage accounting,
   compensation admission and writer-lock recovery remain in sibling WDBX.

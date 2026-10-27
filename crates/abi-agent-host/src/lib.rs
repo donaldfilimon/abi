@@ -19,14 +19,19 @@
 //! subsequent event, tool execution, or provider continuation is admitted
 //! after the boundary is observed.
 
+pub mod adapter_receipt;
 mod budget;
 mod error;
 mod executor;
 mod governed;
 mod governed_authorization;
+pub mod governed_desktop;
 mod governed_failure;
+pub mod governed_message;
 mod governed_postconditions;
 mod host;
+pub mod local_approval;
+pub mod platform_process;
 mod report;
 mod schema;
 
@@ -38,8 +43,8 @@ pub use report::{HostRunReport, HostStopReason};
 
 pub use governed::{
     ApprovalPreview, CompensationPreview, GovernedCompensationError, GovernedFactProvider,
-    GovernedFacts, GovernedHost, GovernedOptions, GovernedRegistration, GovernedRunReport,
-    GovernedStop, Postconditions, PreviewUncertainty,
+    GovernedFacts, GovernedHost, GovernedLiveExecutor, GovernedOptions, GovernedRegistration,
+    GovernedRunReport, GovernedStop, Postconditions, PreviewUncertainty,
 };
 
 pub use governed_failure::{GovernedDriverFailureKind, GovernedRunFailure};

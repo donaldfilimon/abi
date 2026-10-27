@@ -96,6 +96,23 @@ current checkout has passed. `./build.sh check` is its compatibility alias.
 The retired Zig port is documented in [RUST-REWRITE-PLAN.md](RUST-REWRITE-PLAN.md);
 it is history, not the active toolchain.
 
+## Account and node enrollment research service
+
+`abi-control-plane` adds a separate Rust account authority and browser client:
+verified OIDC login, tenant-scoped metadata, locally confirmed node pairing,
+signed application credentials, revocation/deletion, and an encrypted outbound
+inference relay with per-account admission quotas. See the
+[setup and protocol guide](crates/abi-control-plane/README.md). This is locally
+tested research infrastructure. Two enrolled tenants execute isolated local
+probe jobs over TCP. Opted-in durable jobs retain exact encrypted output on
+the user node and replay it after local worker/service restart under current
+authority, with verified client imports and no recovery inference. See the
+[recovery workflow and limits](crates/abi-control-plane/RELAY.md). Public operation,
+separate-host/power-loss qualification, useful trained weights, general governed
+platform adapters and cross-platform acceptance remain open. The governed-tool
+continuation adds durable local Abbey approvals and a scratch-file execution
+assembly; see [its contract and remaining acceptance](docs/spec/durable-governed-tools.md). The CLI/MCP catalogs are unchanged.
+
 ## Cross-compilation
 
 Install the intended Rust target and use
@@ -206,16 +223,17 @@ implemented behavior, partial capabilities, and proposals.
 | Capability kernel | Deny-by-default request-scoped authorization and recording fixtures; not a general production shell/filesystem actuator. |
 | Model runtime | Exact authorized manifests and explicit devices; the tiny `abi-bigram-v1` fixture is infrastructure evidence, not a production Quesar or Gemma checkpoint. |
 | Training foundation | Approved-record, eligibility, revocation, snapshot, and receipt contracts. These do not establish actual trained weights or model quality. |
-| Workers | Signed audience-bound admission/control, finite leases, cancellation, replay resistance, and bounded results; no implied deployed worker listener or multi-host scheduler. |
+| Workers | Signed audience-bound admission/control with finite leases, cooperative cancellation, replay resistance, private Unix control history, and bounded in-process inference through an explicitly supplied provider at startup; listeners, scheduling, original trained weights, and separate-host production operation remain unproved, and Windows private-log ACL validation refuses explicitly. |
 | GPU/compute | Evidence-scoped native paths and deterministic CPU fallback; preserve `accelerated=false` when acceleration is unavailable. Detection does not establish speedup or ANE residency. |
 | Plugins | Sixteen compiled-in `mod.rs`/`stub.rs` pairs with parity checks. |
 | Memory | Required sibling WDBX provides persistence, recovery, vectors, blocks, temporal/spatial records, and bounded retrieval; refer to its current contracts for exact scope. |
 | Connectors | Explicit local/live transports and validated credential/request shapes. Live-service results require separate evidence. |
 
-Pure `abi_ai::complete` remains store-independent. CLI `complete` and `agent
-train`, and MCP `ai_complete`, `ai_train`, and `ai_learn`, attempt configured or
-default persistence unless disabled. Successful writes record query/response
-vectors, metadata, and linked blocks; a failed store write is not success.
+Pure `abi_ai::complete` remains store-independent. CLI `abi complete` and
+`abi agent train`, and MCP `ai_complete`, `ai_train`, and `ai_learn`, attempt
+configured or default persistence unless disabled. Successful writes record
+query/response vectors, metadata, and linked blocks; a failed store write is
+not success.
 
 Do not promote production multi-host sharding, universal encryption/RBAC,
 regulatory certification, CUDA/Vulkan execution, model benchmarks, energy

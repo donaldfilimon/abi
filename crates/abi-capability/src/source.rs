@@ -228,18 +228,8 @@ impl SourceRegistry {
             }
             let schema_digest = digest_json(&("abi.source.schemas.v1", schemas));
             let digest = digest_json(&("abi.source.package.v1", &source));
-            let package = CapabilityPackage::new(
-                &source.id,
-                &source.version,
-                digest,
-                source.side_effect,
-                source.reversibility,
-                source.risk_class,
-                source.confirmation_policy.max(source.approval_policy),
-                &source.required_platform_permissions,
-                &source.postconditions,
-            )
-            .map_err(|_| SourceError::Invalid)?;
+            let package = CapabilityPackage::from_source(&source, digest)
+                .map_err(|_| SourceError::Invalid)?;
             let key = (source.id.clone(), source.version.clone());
             let validators = compiled.try_into().map_err(|_| SourceError::Schema)?;
             if packages

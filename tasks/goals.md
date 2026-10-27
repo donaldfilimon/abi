@@ -1,5 +1,62 @@
 # Goals
 
+## Complete ABI approved implementation (2026-10-23)
+
+Status: in progress. Execute the approved complete-ABI plan in
+`docs/superpowers/plans/2026-10-23-complete-abi.md`. Authoritative requirement
+coverage and qualification boundaries:
+`docs/verification/2026-10-23-completion-matrix.md` (C01–C44).
+Older "done" entries below qualify their historical source slices only; they
+do not close the original-model, platform, privacy, public-service or independent
+assessment requirements. Preserve current owner changes and authorization limits.
+
+Planning supplement (2026-10-25):
+[complete ABI, then qualify its LYLX migration](../docs/plans/2026-10-25-complete-abi-and-lylx-handoff.md).
+Donald selected both stages and full-product scope. C01–C44 retain their existing
+qualification statuses; the supplement records execution order and planning defaults.
+
+Correction (2026-10-25): the supplement's Tokio statements were stale. Baseline
+`main` is `ff40bdd`, which already pins Tokio 1.54.1; Tokio must not move below
+1.54.1 (RUSTSEC-2026-0386 and RUSTSEC-2026-0384). The plan now marks the Tokio repair
+done and names binding the consumed source set as the next A1 item. Closes no C01–C44 row.
+
+Divergence reconciliation (2026-10-25): A1's local/remote reconciliation is done —
+`origin/main` `42f1446` merged into local `main` as `f65d5e5` (merge commit, both
+histories preserved); `2113824` restored the doc-policy-required literal
+`abi agent train` naming that the upstream README rewrite had dropped. The
+post-merge `./tools/check.sh` gate exited 0 at `2113824` (receipt in the C01–C44
+matrix execution record).
+
+Consumed source-set binding (2026-10-26): the sibling WDBX owner's in-flight
+changes are landed; WDBX is clean at `96c4b13` and a fresh complete ABI gate at
+`aaf2929` exited 0 against it, so the ABI-side A1 gate is now bound to a recorded
+clean sibling revision. WDBX's own gate, the Abbey root/desktop gates and pin
+promotion/publication remain separate owners' actions, so C42 stays external.
+Closes no C01–C44 row.
+
+## ABI production ecosystem (2026-10-22)
+
+Status: in progress. Approved implementation specification:
+`docs/superpowers/plans/2026-10-22-abi-production-ecosystem.md`.
+Execution evidence and remaining owner/acceptance gaps:
+`docs/verification/2026-10-22-production-ecosystem.md`.
+Implemented local recovery continuation (final gate/receipt tracked separately):
+`docs/superpowers/plans/2026-10-22-encrypted-relay-recovery.md`, with the delivery
+and reconnect contract in `docs/spec/encrypted-relay-recovery.md`.
+Current governed-tool continuation remains in progress:
+`docs/superpowers/plans/2026-10-22-durable-governed-tools.md` and
+`docs/spec/durable-governed-tools.md`. Local Abbey approvals, a startup-bound live
+host and durable tool relay admission are implemented. Actual native TCP/PTY
+approval/denial, owner isolation, prepare/post-effect crash recovery and restart
+redelivery pass, along with final ABI/WDBX/Abbey root/desktop gates. Concrete
+platform adapters and broader network-loss/cross-platform acceptance remain
+required by the original objective.
+Local durable worker history, bounded provider execution, and the Rust
+account/enrollment service, browser client and encrypted tenant inference
+relay with encrypted incremental results, cooperative cancellation, private
+durable output replay and verified client imports are incremental deliverables; public service, original trained weights, cross-platform runtime,
+live integrations and deployment remain separate acceptance requirements.
+
 > **Current path note (2026-10-20):** the operational checkout is
 > `/Users/donald/sources/repos/abi`. The substrate crates
 > `abi-foundation`, `abi-core`, `abi-telemetry`, `abi-compute`, and `abi-wdbx`

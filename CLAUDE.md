@@ -55,7 +55,7 @@ policy suites) and `git diff --check`; for `docs/` changes also run
 | `./tools/cargo.sh test --workspace` | Full test suite (also run by `check.sh`) |
 | `./tools/cargo.sh test --manifest-path ../wdbx/Cargo.toml -p abi-wdbx --lib -- <filter>` | Test the **sibling substrate** from this checkout. No cargo command here reaches `../wdbx` without `--manifest-path`: `--workspace` stops at ABI's own members even though the path deps resolve. |
 | `./tools/cargo.sh fmt --all` | Apply rustfmt |
-| `python3 -m unittest discover -s tools/tests -p 'test_*.py'` | The repository policy tests that open `check.sh` (14 suites: abbey_contracts, ci_contract, docs_policy, docs_templates, hooks, mcp_smoke, pages_contract, release_gate, run_abi_smoke, runner_setup, sea_learn_smoke, site_contract, sync_clis, toolchain). `check.sh` runs the same discovery over `test_*.py`, so all 14 are mandatory. Needs Python 3.11+ — use the interpreter `check.sh` picks, or set `ABI_PYTHON`. |
+| `python3 -m unittest discover -s tools/tests -p 'test_*.py'` | The repository policy tests that open `check.sh` (15 suites: abbey_contracts, ci_contract, docs_policy, docs_templates, hooks, mcp_smoke, package_install, pages_contract, release_gate, run_abi_smoke, runner_setup, sea_learn_smoke, site_contract, sync_clis, toolchain). `check.sh` runs the same discovery over `test_*.py`, so all 15 are mandatory. Needs Python 3.11+ — use the interpreter `check.sh` picks, or set `ABI_PYTHON`. |
 | `python3 tools/abbey_contracts.py verify contracts/abbey` | The authoritative Python oracle for the Abbey corpus; `xtask abbey verify` must match it |
 | `bash ./tools/check_rust_sizes.sh` | File-size gate on its own |
 | `RUSTDOCFLAGS="-D warnings" ./tools/cargo.sh doc --workspace --no-deps` | The doc gate on its own — a common late-stage failure |
@@ -63,6 +63,8 @@ policy suites) and `git diff --check`; for `docs/` changes also run
 | `./tools/cargo.sh clippy --locked --workspace --all-targets -- -D warnings` | Lint, matching the gate exactly |
 | `./mcp/launcher.sh` | Launch the MCP server; prefers `target/release/abi-mcp` then `target/debug/abi-mcp`; run from repo root (or via the launcher) so `@loader_path` resolves `libabi_fm_shim.dylib` on arm64 macOS; set `ABI_MCP_AUTO_BUILD=1` to build on demand |
 | `./.agents/skills/run-abi/smoke.sh` | End-to-end smoke: builds both binaries, exercises the CLI and MCP stdio, writes `target/debug/run-abi-smoke.txt` |
+| `sh tools/package/build_macos.sh OUT_DIR` | Unsigned Apple-silicon package: refuses tracked changes, builds `abi`, `abi-mcp` and `abi-control-plane` (`--locked --release`), stages `abi-<version>-<rev>-aarch64-apple-darwin/{bin/,MANIFEST.json}` (the `@loader_path` dylibs ship in `bin/` beside the binaries) plus `.tar.gz` and `.sha256`. Not signed or notarized. |
+| `sh tools/package/install.sh install\|rollback\|remove\|status PREFIX [ARCHIVE]` | Verifies the archive `.sha256` and every manifest hash, installs to `PREFIX/versions/<id>`, points `PREFIX/previous` at the old version and then `PREFIX/current` at the new one, each atomically; rerunning an interrupted install, or installing an already-installed non-current version, re-verifies it and makes it current; `rollback` swaps them; `remove PREFIX --yes` refuses unless `versions/`, `current` and `previous` are all the installer's own, then deletes only those. Tested by `tools/tests/test_package_install.py`. |
 
 **Run any `cargo test` here with `< /dev/null`.** `abi auth signin` reads a
 secret from stdin when `ABI_AUTH_TOKEN` is unset and stdin is not a TTY, and
@@ -150,8 +152,8 @@ The `complete` / `agent` lines above touch the store, so prefix them with
 
 ## Architecture
 
-The ABI workspace has **17 local crates** under `crates/*`, verified 2026-09-03
-with `cargo metadata` (the 17th is `xtask`, judo #817). Five more packages are sibling path dependencies under
+The ABI workspace has **18 local crates** under `crates/*` (including the 2026-10-22
+`abi-control-plane` account/enrollment service and unpublished `xtask`). Five more packages are sibling path dependencies under
 `../wdbx/crates/`: `abi-compute`, `abi-core`, `abi-foundation`,
 `abi-telemetry`, and `abi-wdbx`. They are not ABI-local workspace members.
 Keep `abi` and `wdbx` adjacent and verify the live metadata rather than trusting
@@ -175,14 +177,15 @@ thin LTO. Every crate inherits these with `[lints] workspace = true`.
 | `abi-capability` | Deny-by-default capability authorization against bounded recording adapters. Depends on `abi-agent-runtime`; it contains no production actuator. |
 | `abi-models` | Hash-verified model manifest registry, license-acceptance ledger, and resumable download plumbing. Depends on `abi-foundation`. |
 | `abi-contracts` | Independent, bounded verifier for the language-neutral Abbey contract corpus. External schema resolution is disabled. |
-| `abi-connectors` | External-service connectors (OpenAI, Anthropic, Grok, Discord, Twilio) built around a `Transport` trait. Every connector has a local and a live transport — see "The local/live split" below. |
+| `abi-connectors` | External-service connectors (OpenAI, Anthropic, Grok, Discord, Twilio) built around a `Transport` trait. Every connector has a local and a live transport — see "The local/live split" below. Depends on `abi-foundation` and (since 2026-10-27) `abi-agent-host`: `governed_sender.rs` implements the governed `MessageSender` over `send_message_live`. |
 | `abi-ai` | Store-independent persona identity, routing (Abbey/Aviva/Abi), generation, governance, and model catalog. The `ai_run` routing core is deterministic; the crate is not I/O-free: `file_context` and `training::inspect_dataset` read external state. Keep WDBX retrieval/persistence in the integration layers. |
 | `abi-plugins` | The 16 bundled plugins plus the plugin manager. Each plugin ships as a compiled-in `mod.rs`/`stub.rs` pair under `crates/abi-plugins/plugins/`, checked with `assert_plugin_parity!`. `abi plugin run` and the MCP `plugin_run` tool dispatch through the same `PluginManager` over the same `BUNDLED` table. |
-| `abi-agent-host` | Bounded, policy-authorized tool orchestration for model providers. Depends on `abi-agent-runtime`. This is the crate closest to constitutional invariant A3: authorization is not a generative decision. |
+| `abi-agent-host` | Bounded, policy-authorized tool orchestration for model providers. Depends on `abi-agent-runtime` and `abi-capability`. Live adapters implement `GovernedLiveExecutor`: `platform_process` (pinned Unix pwd), `governed_message` (Discord/Twilio send, single attempt, no retry after an ambiguous result) and `governed_desktop` (macOS application activation). Each one supplies its postcondition evidence through a receipt-backed fact decorator (`adapter_receipt`). This is the crate closest to constitutional invariant A3: authorization is not a generative decision. |
 | `abi-wdbx-gateway` | Authenticated bounded gRPC and WebSocket gateway for WDBX v2. Depends on `abi-wdbx`. Its RPC surface is the eight WDBX v2 methods (`PutVector`/`Search`/`PutKv`/`GetKv`/`ResolveConflict`/`Stats`/`MembershipChange`/`WatchMutations`) plus, since 2026-09-05, the CSAPS write gate over the v3 episode store: `ProposeEpisodeWrite` and `VerifyEpisode`, live only when `--episode-policy` names a JSON `StorePolicy` (otherwise `FAILED_PRECONDITION`). Since 2026-09-16, `--episode-signing-key` (owner-only raw 32-byte Ed25519 secret; requires `--episode-policy`; refused if it equals the membership ledger's own key) makes the ledger Ed25519-sign every appended episode; unset, episodes stay unsigned. A ledger holding signed records cannot be reopened by a pre-signing build. `VerifyEpisode` (and `abi wdbx episode verify`) reports `signature_status` (`unsigned`/`valid`/`invalid`/`unknown_key`, checked only against the gateway's own key) and the claimed `signer_key_id`. Since 2026-09-16 it also reports memory-edge state (wdbx `9788ae7`, constitution entries 86/87): `memory_forgotten`, `open_quarantine_edge`, and `open_contradictions` for a memory candidate, and `memory_edge_status` (`open`/`closed`) for a quarantine or contradiction edge; flagged records are still found, never hidden. Its in-repo gRPC client is `abi-cli` (`crates/abi-cli/src/wdbx/episode.rs`, behind `abi wdbx episode propose|verify`); `abi-worker` only imports its `Limits`/`TlsFiles`. |
 | `abi-model-runtime` | Explicit local model loading and evidenced Candle execution. Depends on `abi-agent-runtime`, `abi-compute`, `abi-models`. |
 | `abi-gpu` | Claim-honest GPU/accelerator backend detection. Depends on `abi-compute` and `abi-foundation` only (not `abi-wdbx`); default features are `metal-kernels` + `coreml-ane`, with `cuda-adapter`/`vulkan-adapter` as opt-in capability-only rows. Metal preferred on macOS; the `metal-kernels` feature is **on by default**, but `accelerated=true` additionally requires the Metal DOT pipeline to actually link and initialize at runtime — otherwise deterministic CPU SIMD fallback with `accelerated=false`. Also hosts claim-honest shaders/MLIR/mobile report surfaces. |
 | `abi-sea` | SEA (Sparse Evidence Attention) self-learning loop: recalls prior WDBX records relevant to an input, prepends them as context, runs adaptive completion, updates persona-router weights. |
+| `abi-control-plane` | Separate Rust account/enrollment service, browser client and encrypted outbound inference relay. Verified OIDC, locally signed pairing/X25519 keys, fresh dispatch permits, tenant quotas and metadata-only durable scheduling. User nodes reuse durable worker execution. Relays durable governed-tool proposals to user nodes. Content-free `GET /healthz`, token-gated `GET /v1/operator/metrics` (404 unless `operator_token_sha256` is configured) and offline `abi-control-plane metrics DATABASE ORIGIN`; operator procedures and their drill tests are in `RUNBOOKS.md`. Loopback listener behind an HTTPS proxy; no public deployment. See `crates/abi-control-plane/README.md`. |
 | `abi-worker` | Authenticated, bounded worker-control contracts and admission. Depends on `abi-agent-runtime`, `abi-wdbx-gateway`. |
 | `abi-cli` (bin `abi`) | Command metadata, help rendering, process dispatch. Depends on the local workspace and sibling substrate packages, and (since 2026-09-06) on `abi-wdbx-gateway`, `tokio`, and `tonic` for `abi wdbx episode propose|verify`, the gRPC client of the episode gate; that pulls the gateway's server dependencies into the `abi` binary. The help surface is a stable, golden-tested contract boundary. |
 | `abi-mcp` (bin `abi-mcp`) | JSON-RPC MCP server: the frozen 12-tool stdio surface (primary, 64 KB frame cap); startup also attempts a custom loopback HTTP listener, and bind failure leaves stdio running. That listener serves persistent MCP 2024-11-05 HTTP+SSE sessions (`GET /sse`, then `POST /message?sessionId=<id>` → `202` + an SSE `message` event; `src/sse.rs`, at most 16 sessions) and keeps the one-shot direct-reply `POST /message` compat mode. It is not Streamable HTTP (2025-03-26). |
@@ -311,7 +314,9 @@ existing golden fixtures still cover the new path.
 - Follow the canonical-checkout policy below, not a default topic-branch flow.
 - Session-start reads: `tasks/lessons.md`, then `tasks/todo.md` for current
   priorities. Read `tasks/goals.md` when goal work is in scope; the
-  `goal-ledger` skill owns the ledger.
+  `goal-ledger` skill owns the ledger. The current C01–C44 state is in
+  `docs/verification/2026-10-27-c01-c44-execution-ledger.md`, and the active
+  finish plan is `docs/plans/2026-10-27-finish-abi.md`.
 
 ## Code quality hotspots
 
@@ -320,12 +325,12 @@ Measure before trusting any of this — it goes stale as work lands
 
 `tools/check_rust_sizes.sh` rejects Rust files (tracked or untracked, tests
 included) over 1,000 lines and rejects `crates/abi-cli/src/main.rs` over 200.
-As of 2026-10-21 five files sat inside the 900–1000 band:
-`crates/abi-agent-host/src/governed.rs` (970, the closest to the limit),
+As of 2026-10-27 six files sat inside the 900–1000 band:
+`crates/abi-agent-host/src/governed.rs` (958, the closest to the limit),
 `crates/abi-agent-host/tests/contracts.rs` (955),
 `crates/abi-mcp/src/http.rs` (951), `crates/abi-capability/tests/privacy_replay.rs`
-(948), and `crates/abi-cli/src/complete.rs` (945). `crates/abi-agent-host/tests/governed.rs`
-(936) is close behind, and `crates/abi-wdbx-gateway/tests/episodes.rs` — the file
+(948), `crates/abi-cli/src/complete.rs` (945) and
+`crates/abi-agent-host/tests/governed.rs` (941). `crates/abi-wdbx-gateway/tests/episodes.rs` — the file
 that was at 983 on 2026-09-23 — is down to 832, so new episode-gate tests
 belong in a new test file. `crates/abi-cli/src/wdbx_simulate.rs` (the bounded
 multiway rewriting engine behind `abi wdbx simulate`) is 827. Run the command

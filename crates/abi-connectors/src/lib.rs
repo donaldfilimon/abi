@@ -48,6 +48,7 @@ pub mod discord_gateway;
 pub mod discord_routing;
 pub mod discord_ws;
 pub mod fm;
+pub mod governed_sender;
 pub mod local_bridge;
 pub mod payload;
 pub mod providers;

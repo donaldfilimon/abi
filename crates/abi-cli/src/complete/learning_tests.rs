@@ -58,11 +58,20 @@ fn local_learning_keeps_explicit_persona_and_separator_input() {
 /// Covers the recall/adaptation intent and improves error UX.
 #[test]
 fn learning_without_persistent_store_emits_clear_error() {
-    // In the test build there is deliberately no default store; run() for --learn
-    // will hit the Ok(None) path and must not dispatch local.
+    // Store overrides are process-wide. Hold the shared lock so this read
+    // cannot open another test's scratch store while that test is writing.
+    let _guard = abi_foundation::env::lock_for_test();
+    abi_foundation::env::set_override(abi_foundation::env::WDBX_PATH, "");
+    abi_foundation::env::set_override(abi_foundation::env::WDBX_PERSIST, "0");
     let outcome = run(&["--learn".into(), "recall test input".into()]);
+    abi_foundation::env::clear_override(abi_foundation::env::WDBX_PATH);
+    abi_foundation::env::clear_override(abi_foundation::env::WDBX_PERSIST);
     assert_eq!(outcome.exit_code, 1);
-    assert!(outcome.stderr.contains("requires a persistent WDBX store"));
+    assert!(
+        outcome.stderr.contains("requires a persistent WDBX store"),
+        "{}",
+        outcome.stderr
+    );
     // Ensure we did not fall back to ordinary completion output.
     assert!(!outcome.stdout.contains("requested_model="));
 }
