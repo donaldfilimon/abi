@@ -37,6 +37,9 @@ async fn fixture() -> Fixture {
     fixture_with_origin("http://127.0.0.1:3000".into()).await
 }
 async fn fixture_with_origin(origin: String) -> Fixture {
+    fixture_with_operator(origin, None).await
+}
+async fn fixture_with_operator(origin: String, operator: Option<[u8; 32]>) -> Fixture {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let issuer = Issuer {
         redirect_origin: origin.clone(),
@@ -84,6 +87,10 @@ async fn fixture_with_origin(origin: String) -> Fixture {
         authority: authority.clone(),
         oidc: Arc::new(oidc),
         relay: relay.clone(),
+        operator: Arc::new(crate::operator_http::Operator {
+            digest: operator,
+            ..Default::default()
+        }),
     });
     Fixture {
         dir,
@@ -641,3 +648,5 @@ mod reconnect_fairness;
 mod direct_recovery_guard;
 
 mod governed_tools;
+
+mod operator;

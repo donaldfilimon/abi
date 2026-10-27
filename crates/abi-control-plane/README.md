@@ -67,6 +67,28 @@ An interrupted/expired example leaves its private directory for inspection;
 use a new directory for another attempt. Production recovery/key custody is
 separate work.
 
+## Health and operator metrics
+
+- `GET /healthz` returns `{"status":"ok"}` when the authority database answers,
+  and `503 {"status":"unavailable"}` otherwise. The response has no counts and no
+  identifiers.
+- `GET /v1/operator/metrics` is off (`404`) unless the configuration sets
+  `"operator_token_sha256"` to the 64-digit hex SHA-256 of an operator bearer
+  token, for example from
+  `printf %s "$TOKEN" | shasum -a 256`. Requests without
+  `Authorization: Bearer <token>`, or with the wrong token, get `401`. The
+  `200` body holds only fixed keys and integers: accounts, active sessions,
+  active/revoked nodes, pending pairings, relay jobs by state, audit events by
+  kind over the last 24 hours, and `auth_denied_total`, a process-local count of
+  `401` responses since start. Job states and audit kinds outside the closed
+  internal lists count as `other`.
+- `abi-control-plane metrics DATABASE ORIGIN` prints the same snapshot offline,
+  without `auth_denied_total`.
+
+The metrics never contain account, tenant, issuer, subject, session, node or job
+identifiers, tokens, digests or payloads. Alerting, export and audit retention
+remain operator work (C38 is not qualified for staging or public operation).
+
 ## Protocol v1
 
 All requests and responses are bounded metadata JSON. Unknown mutation fields

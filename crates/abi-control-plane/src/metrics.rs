@@ -45,15 +45,15 @@ pub struct OperatorMetrics {
     pub pairings_pending: u64,
     /// Relay jobs by state.
     pub jobs: BTreeMap<&'static str, u64>,
-    /// Audit window the event counts cover, in milliseconds before `now`.
-    pub audit_window_ms: i64,
+    /// Audit window the event counts cover, in seconds before `now`.
+    pub audit_window_secs: i64,
     /// Audit events by kind within the window.
     pub audit_events: BTreeMap<&'static str, u64>,
 }
 
 impl Authority {
     /// Read-only aggregate snapshot for operators. Contains no private content.
-    pub fn operator_metrics(&self, now: i64, window_ms: i64) -> Result<OperatorMetrics> {
+    pub fn operator_metrics(&self, now: i64, window_secs: i64) -> Result<OperatorMetrics> {
         let count = |sql: &str, p: &[&dyn rusqlite::ToSql]| -> Result<u64> {
             let n: i64 = self.db.query_row(sql, p, |r| r.get(0))?;
             Ok(u64::try_from(n).unwrap_or(0))
@@ -87,11 +87,11 @@ impl Authority {
                 &[&now],
             )?,
             jobs,
-            audit_window_ms: window_ms,
+            audit_window_secs: window_secs,
             audit_events: grouped(
                 &self.db,
                 "SELECT kind,count(*) FROM audit WHERE timestamp>?1 GROUP BY kind",
-                params![now.saturating_sub(window_ms)],
+                params![now.saturating_sub(window_secs)],
                 &AUDIT_KINDS,
             )?,
         })

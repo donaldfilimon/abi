@@ -10,7 +10,12 @@ struct Config {
     oidc: OidcConfig,
     #[serde(default)]
     relay_limits: abi_control_plane::RelayLimits,
+    /// Hex SHA-256 of the operator bearer token; absent disables `/v1/operator/metrics`.
+    #[serde(default)]
+    operator_token_sha256: Option<String>,
 }
+/// Metrics window for the offline `metrics` command: one day of audit events.
+const METRICS_WINDOW_SECS: i64 = 86_400;
 #[tokio::main]
 async fn main() {
     if run().await.is_err() {
@@ -32,10 +37,16 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             if !config.listen.ip().is_loopback() {
                 return Err("listener must be loopback behind a TLS reverse proxy".into());
             }
-            let app = abi_control_plane::router_with_limits(
+            let operator = config
+                .operator_token_sha256
+                .as_deref()
+                .map(parse_digest)
+                .transpose()?;
+            let app = abi_control_plane::router_with_operator(
                 &config.database,
                 config.oidc,
                 config.relay_limits,
+                operator,
             )
             .await?;
             let listener = tokio::net::TcpListener::bind(config.listen).await?;
@@ -46,11 +57,34 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                 })
                 .await?;
         }
+        [command, path, audience] if command == "metrics" => {
+            let authority = Authority::open(std::path::Path::new(path), false, audience)?;
+            let now = i64::try_from(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)?
+                    .as_secs(),
+            )?;
+            let metrics = authority.operator_metrics(now, METRICS_WINDOW_SECS)?;
+            println!("{}", serde_json::to_string_pretty(&metrics)?);
+        }
         _ => {
-            return Err("usage: abi-control-plane init DATABASE ORIGIN | serve CONFIG.json".into());
+            return Err(
+                "usage: abi-control-plane init DATABASE ORIGIN | serve CONFIG.json | metrics DATABASE ORIGIN"
+                    .into(),
+            );
         }
     }
     Ok(())
+}
+fn parse_digest(hex: &str) -> Result<[u8; 32], Box<dyn std::error::Error>> {
+    if hex.len() != 64 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err("operator_token_sha256 must be 64 hex digits".into());
+    }
+    let mut out = [0_u8; 32];
+    for (i, byte) in out.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16)?;
+    }
+    Ok(out)
 }
 #[cfg(unix)]
 fn read_config(path: &str) -> std::io::Result<Vec<u8>> {

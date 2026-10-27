@@ -19,6 +19,7 @@ pub(crate) struct App {
     pub(crate) authority: Arc<Mutex<Authority>>,
     pub(crate) oidc: Arc<Oidc>,
     pub(crate) relay: Arc<Mutex<crate::Relay>>,
+    pub(crate) operator: Arc<crate::operator_http::Operator>,
 }
 /// Build account/enrollment APIs, browser client and encrypted tenant relay.
 /// The listener must be loopback behind an HTTPS reverse proxy outside local development.
@@ -31,6 +32,15 @@ pub async fn router_with_limits(
     config: OidcConfig,
     limits: crate::RelayLimits,
 ) -> Result<Router> {
+    router_with_operator(path, config, limits, None).await
+}
+/// Build with an optional operator token SHA-256 digest; without it the metrics route is 404.
+pub async fn router_with_operator(
+    path: &FilePath,
+    config: OidcConfig,
+    limits: crate::RelayLimits,
+    operator_token_sha256: Option<[u8; 32]>,
+) -> Result<Router> {
     let oidc = Oidc::discover(config).await?;
     let mut authority = Authority::open(path, false, &oidc.config.origin)?;
     let relay = crate::Relay::open(&mut authority, limits, now()?)?;
@@ -38,6 +48,10 @@ pub async fn router_with_limits(
         authority: Arc::new(Mutex::new(authority)),
         oidc: Arc::new(oidc),
         relay: Arc::new(Mutex::new(relay)),
+        operator: Arc::new(crate::operator_http::Operator {
+            digest: operator_token_sha256,
+            ..Default::default()
+        }),
     }))
 }
 fn routes(app: App) -> Router {
@@ -57,7 +71,12 @@ fn routes(app: App) -> Router {
         .route("/v1/nodes/{id}/revoke", post(revoke))
         .route("/v1/nodes/authenticate", post(authenticate))
         .merge(crate::relay_http::routes())
+        .merge(crate::operator_http::routes())
         .layer(DefaultBodyLimit::max(16 * 1024))
+        .layer(axum::middleware::from_fn_with_state(
+            app.clone(),
+            crate::operator_http::count_denied,
+        ))
         .layer(axum::middleware::from_fn(security_headers))
         .with_state(app)
 }

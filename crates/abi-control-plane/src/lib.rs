@@ -9,7 +9,8 @@ mod private;
 mod service;
 mod types;
 pub use oidc::OidcConfig;
-pub use service::{router, router_with_limits};
+pub use service::{router, router_with_limits, router_with_operator};
+mod operator_http;
 
 pub use authority::*;
 pub use types::*;

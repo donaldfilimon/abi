@@ -118,5 +118,5 @@ fn expired_sessions_and_old_audit_are_excluded() {
     assert_eq!(m.sessions_active, 0);
     assert!(m.audit_events.is_empty());
     assert!(m.jobs.is_empty());
-    assert_eq!(m.audit_window_ms, 1_000);
+    assert_eq!(m.audit_window_secs, 1_000);
 }

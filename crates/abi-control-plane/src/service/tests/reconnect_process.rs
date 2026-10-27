@@ -194,6 +194,7 @@ async fn authority_app(c: &ChildConfig, config: OidcConfig) -> Router {
         authority: Arc::new(Mutex::new(authority)),
         oidc: Arc::new(oidc),
         relay: Arc::new(Mutex::new(relay)),
+        operator: Arc::default(),
     })
 }
 
