@@ -100,6 +100,40 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
   - The load average was about 145. Clippy `-p abi-control-plane --all-targets -D warnings`,
     `fmt --all -- --check` and `tools/check_rust_sizes.sh` all exit 0.
 
+- Task 5 (characterization, C04): `./tools/cargo.sh test --locked -p abi-worker --test authority_recheck < /dev/null`
+  gives `2 passed; 0 failed` on the first run, with no source change. To satisfy
+  clippy `assert_is_empty`, `assert!(chunks.is_empty())` is written as
+  `assert_eq!(chunks.len(), 0)`; the assertion is equivalent.
+- Task 6 (C06/C08 boundary): **stopped; plan calibration error, not a recorded defect.**
+  - Run: `./tools/cargo.sh test --locked -p abi-control-plane --lib -- governed_tools::cancel_recheck < /dev/null`.
+    Calibration passed (`Recorded(Succeeded)`, effects 1, k = 8 refreshes in the
+    approved call). The cancelled run then failed with `effects == 1` and outcome
+    `Ok(Unresolved)`.
+  - Step 3 (`FreshFacts.cancel` refusing after the permit verifies) was applied and
+    the test re-run. It still failed the same way.
+  - A temporary diagnostic (not committed) cancelled inside each refresh 1..9 on the
+    unchanged source. Refreshes 2–7 run before the adapter. Cancelling in any of them
+    leaves effects at 0. The cancelled call returns `Recorded(_)`. Its status was
+    observed as `Failed` for points 3–7 in the run with the fix applied; the run on
+    unchanged source recorded effects only. Refresh 8 (= k)
+    runs **after** the adapter effect. Cancelling there leaves effects at 1 and
+    returns `Unresolved`, which is the correct fail-closed outcome. Cancelling at 9
+    never fires, so the call completes as `Succeeded`.
+  - The plan's mechanism ("cancel in refresh k") lands after the effect, so it does
+    not test the pre-effect window. On unchanged source, cancellation raised in any
+    pre-effect refresh does not reach the adapter.
+  - With the Step 3 change applied, cancel point 2 regressed: effects 1 via a
+    fresh-token retry, where the unchanged source gives 0. Refreshes 3–8 were
+    unchanged.
+  - Step 3 was therefore reverted and is not committed. The attempted test was not
+    committed either (local copy `.work/a2/cancel_recheck.rs.attempted`; diagnostics
+    `.work/a2/task6-diag.log` with the fix and `.work/a2/task6-diag-nofix.log`
+    without it).
+  - A2 stops here, before Task 7, until the plan is corrected. The proposed correction
+    is to cancel inside the last refresh before the adapter invocation. That refresh
+    should be found structurally from the `abi-agent-host` stage order, not hardcoded
+    as k − 1.
+
 ## Added regression tests (Tasks 4–7)
 
 | A2 bullet | Existing tests | New test (Task) | Result |
@@ -107,3 +141,5 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
 | Recheck after callback: certificate expiry | — | `node_certificate_expiring_during_authority_recheck_never_dispatches` (Task 4, `crates/abi-control-plane/src/relay/tests/dispatch_recheck.rs`) | RED→GREEN |
 | Recheck after callback: worker authority refusal | `authority_callback_consuming_lease_never_dispatches_or_readmits` | `authority_refusal_leaves_admission_unresolved_and_never_dispatches` (Task 5, `crates/abi-worker/tests/authority_recheck.rs`) | characterization PASS |
 | Recheck after callback: cancellation inside authority callback | `pre_cancelled_observed_inference_never_calls_provider` | `cancellation_during_authority_callback_never_dispatches_and_records_failure` (Task 5, `crates/abi-worker/tests/authority_recheck.rs`) | characterization PASS |
+| Governed cancellation inside final authority refresh | `governed_tool_tenant_mutation_and_fresh_revocation_refuse_effects` | `governed_cancellation_during_final_authority_refresh_never_reaches_adapter` (Task 6, not committed) | STOPPED: plan calibration error (refresh k is post-effect); pre-effect refreshes 2–7 refuse with 0 effects on unchanged source; Step 3 not applied |
+| Outbox terminal-persistence failure | outbox-side gap | `terminal_outbox_failure_reopens_with_one_terminal_and_refuses_fresh_dispatch` (Task 7) | NOT RUN (A2 stopped at Task 6) |
