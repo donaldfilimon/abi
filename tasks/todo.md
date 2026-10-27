@@ -27,6 +27,10 @@
   `docs/verification/2026-10-27-c01-c44-execution-ledger.md`. Training stack
   (C23–C28) handed to LYLX (Donald). Finish plan for C38/C39/C11/C10/C32:
   `docs/plans/2026-10-27-finish-abi.md`.
+- [x] (2026-10-27, finish-ABI) C38 metrics/health, C39 runbooks with drills,
+  C11 governed Discord/Twilio executor, C10 governed macOS app activation and
+  C32 unsigned Mac package/installer, all moved `M` → `U`. C05/C06 moved to
+  `Q local Mac` (A2 exit). Receipts: `docs/verification/2026-10-27-{a1,a2,finish}-gate-receipt.md`.
 - [ ] Complete milestones 1–11 of
   `docs/superpowers/plans/2026-10-23-complete-abi.md` against the authoritative
   C01–C44 matrix in `docs/verification/2026-10-23-completion-matrix.md`.

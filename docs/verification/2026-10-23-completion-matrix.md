@@ -25,8 +25,8 @@ Public operation and original-model resource authorization remain separate.
 | C07 | Durable exact local approval/lifecycle | Abbey owner + ABI governed host | U | Real RuntimeStore join, consumed approvals, denial audits, restart and zero repeat |
 | C08 | Governed process supervisor | ABI abi-agent-host/platform_process | Q local Mac adapter | Pinned pwd, bounded supervisor, receipt, host A1/replay and full gate pass; durable-owner integration stays C07 U |
 | C09 | Governed files | ABI adapter + Abbey lifecycle | U | Pinned scratch resource, exact effect and trusted postcondition; general adapter coverage pending |
-| C10 | Governed desktop | ABI platform adapters | M | Finite operations, native permission checks and real platform refusal/approval/recovery |
-| C11 | Governed Discord/Twilio | ABI connectors + Abbey lifecycle | M | Exact recipient approval, durable uncertain delivery, no blind retry; live account E |
+| C10 | Governed desktop | ABI platform adapters | U | Finite operations, native permission checks and real platform refusal/approval/recovery |
+| C11 | Governed Discord/Twilio | ABI connectors + Abbey lifecycle | U | Exact recipient approval, durable uncertain delivery, no blind retry; live account E |
 | C12 | Consented OpenAI/Anthropic/Grok | ABI connectors | U | Explicit transmission consent, cancellation, bounded diagnostics; live account E |
 | C13 | Platform credential custody | WDBX foundation + ABI adapters | U | Actual macOS/Linux/Windows backend runtime; credentials never enter public service |
 | C14 | Scope retrieval before ranking/prompt | ABI SEA/CLI/MCP + WDBX | U | Cross-tenant and revoked access cannot enter ranked results or provider request |
@@ -47,14 +47,14 @@ Public operation and original-model resource authorization remain separate.
 | C29 | 100M/300M/1B pilot measurements | ABI training | E | Approved resource envelope, hardware/tokens/loss/cost/energy/throughput receipts |
 | C30 | Original trained weights and quality | ABI training/evaluation | E | Real selected weights, frozen-suite scores/limits and user-hosted conversations |
 | C31 | Model promotion/rollback identities | ABI models/runtime | U | Bind dataset/config/tokenizer/checkpoint/evaluation/executable digests |
-| C32 | Signed macOS/Linux/Windows packages | ABI distribution | M | Package identities, native libraries, install/upgrade/interruption/rollback/removal |
+| C32 | Signed macOS/Linux/Windows packages | ABI distribution | U | Package identities, native libraries, install/upgrade/interruption/rollback/removal |
 | C33 | Immediate Mac full journey | ABI + Abbey/WDBX | U | Current Mac installed package signup/pair/model/converse/recall/approve/refuse/restart; Linux/Windows builds only in current scope |
 | C34 | Supported Mac Metal acceptance | ABI runtime/GPU | U | Executed paths and stated verification scope; no inferred CUDA/Vulkan/ANE qualification |
 | C35 | Frozen CLI/MCP/protocol compatibility | ABI CLI/MCP/contracts | Q local Mac CLI/MCP | Full contract gate and copied package verify help bytes and MCP 12 via launcher; public service compatibility remains separate |
 | C36 | Real separate-host partitions/recovery | ABI/WDBX/Abbey | E | Physical separate hosts, loss/reconnect/revocation, zero unauthorized/replayed effects |
 | C37 | Control-plane and memory backup/restore | ABI control-plane; WDBX owner | U | Restore preserves revocation/deletion/execution history and key boundaries |
-| C38 | Content-free operational metrics | ABI service | M | Health/queue/auth failures/job outcomes/resources without private content |
-| C39 | Tested operator runbooks | ABI operations | M | Key rotation/compromise/revocation/recovery/upgrades/shutdown drills |
+| C38 | Content-free operational metrics | ABI service | U | Health/queue/auth failures/job outcomes/resources without private content |
+| C39 | Tested operator runbooks | ABI operations | U | Key rotation/compromise/revocation/recovery/upgrades/shutdown drills |
 | C40 | Independent assessment/public testing | External assessor + ABI fixes | E | Actual assessment, resolved blockers and explicit residual findings |
 | C41 | Portable single-region staging/public service | ABI operations | E | Deployment credentials/authorization; staging journey then public rollout |
 | C42 | Exact-source final gates and dependency pin | ABI/WDBX/Abbey owners | E | All three gates incl. Abbey desktop; exact WDBX pin qualified before promotion |
@@ -136,6 +136,12 @@ Public operation and original-model resource authorization remain separate.
   [`2026-10-27-a2-gate-receipt.md`](2026-10-27-a2-gate-receipt.md). Every A2-mapped
   test passed in the bound gate on ABI `1dd7f0b` + WDBX `9d386dd`. Still no
   power-loss, separate-host, public or Windows/Linux runtime proof.
+
+- Finish-ABI slices (2026-10-27, ABI `b8ca1ec`, WDBX `52a2143`): C38, C39,
+  C11, C10 and C32 move `M` → `U`. The receipt is
+  [`2026-10-27-finish-gate-receipt.md`](2026-10-27-finish-gate-receipt.md). Gate
+  exit 0: 1,281 Rust tests (1 ignored by design), 200 Python. Live accounts,
+  signing, Linux/Windows, staging and separate hosts remain external.
 
 ## Current implementation and review
 
