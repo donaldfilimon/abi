@@ -196,6 +196,20 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
   regression tests pin. Task 4 asserts that permit expiry exceeds certificate
   expiry. Left as an open defence-in-depth option.
 
+- Task 7b suite runs (`-p abi-control-plane`, load average about 115–127).
+  - Run 1 (`./tools/cargo.sh test --locked -p abi-control-plane < /dev/null`):
+    `89 passed; 2 failed` of 91. The failures are the load-blocked
+    `twenty_retained_manifests…` timeout and
+    `native_five_second_proofs…` (`Denied` at `:219`, passed `--exact`).
+  - Run 2 (`--bins --tests --examples --benches`): `89 passed; 2 failed`. The
+    failures are the same timeout and `cert_recheck` calibration returning
+    `Ok(Unresolved)`. The governed run has a 1000 ms wall-clock budget
+    (`max_duration` from `deadline_ms`, `relay_runtime/tools.rs`), and the approved
+    call can exceed it under load. The test passed 3 of 3 runs `--exact`.
+  - Doc-tests: 0 tests, ok.
+  - The governed tests (`cert_recheck`, `cancel_recheck`, existing ones) share
+    this load sensitivity. Quiet-host gate evidence is still required.
+
 ## Added regression tests (Tasks 4–7)
 
 | A2 bullet | Existing tests | New test (Task) | Result |
