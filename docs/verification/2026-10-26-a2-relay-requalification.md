@@ -105,3 +105,5 @@ Logs (ignored, local): `.work/a2/a2-worker.log`, `.work/a2/a2-control-plane.log`
 | A2 bullet | Existing tests | New test (Task) | Result |
 | --- | --- | --- | --- |
 | Recheck after callback: certificate expiry | — | `node_certificate_expiring_during_authority_recheck_never_dispatches` (Task 4, `crates/abi-control-plane/src/relay/tests/dispatch_recheck.rs`) | RED→GREEN |
+| Recheck after callback: worker authority refusal | `authority_callback_consuming_lease_never_dispatches_or_readmits` | `authority_refusal_leaves_admission_unresolved_and_never_dispatches` (Task 5, `crates/abi-worker/tests/authority_recheck.rs`) | characterization PASS |
+| Recheck after callback: cancellation inside authority callback | `pre_cancelled_observed_inference_never_calls_provider` | `cancellation_during_authority_callback_never_dispatches_and_records_failure` (Task 5, `crates/abi-worker/tests/authority_recheck.rs`) | characterization PASS |
