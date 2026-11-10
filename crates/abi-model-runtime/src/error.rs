@@ -165,6 +165,22 @@ pub enum ModelRuntimeError {
         /// Parser or validation detail.
         detail: String,
     },
+    /// A generated tool call could not be parsed or named an unoffered tool.
+    #[error("model '{model}' produced an unusable tool call: {detail}")]
+    MalformedToolCall {
+        /// Selected model.
+        model: String,
+        /// Parser or validation detail.
+        detail: String,
+    },
+    /// An offered tool or a tool-result message could not be rendered.
+    #[error("model '{model}' cannot render a tool: {detail}")]
+    InvalidTool {
+        /// Selected model.
+        model: String,
+        /// Validation detail.
+        detail: String,
+    },
     /// The conversation carried a role the architecture cannot render.
     #[error("model '{model}' cannot render a '{role}' message")]
     UnsupportedRole {

@@ -1,6 +1,8 @@
 //! End-to-end loopback tests over deterministic runtime test providers.
 
-use abi_agent_runtime::{EchoProvider, ModelProvider, RunBudget, RuntimeError, ScriptedProvider};
+use abi_agent_runtime::{
+    EchoProvider, ModelProvider, RunBudget, RuntimeError, ScriptedProvider, ToolCall,
+};
 use abi_model_serve::{ServeConfig, Server};
 use serde_json::Value;
 use std::io::{Read, Write};
@@ -209,6 +211,76 @@ fn tools_are_refused_with_a_stable_code() {
     assert_eq!(status, 400);
     assert_eq!(json(&body)["error"]["code"], "tools_unsupported");
     assert_eq!(json(&body)["error"]["type"], "invalid_request_error");
+}
+
+fn calling() -> Arc<dyn ModelProvider> {
+    Arc::new(
+        ScriptedProvider::new("scripted")
+            .with_tool_call(ToolCall::new("call_1", "recall", r#"{"query":"tea"}"#))
+            .with_tool_call(ToolCall::new("call_2", "list_facts", "{}")),
+    )
+}
+
+fn tooled(stream: bool) -> String {
+    format!(
+        r#"{{"model":"{MODEL}","stream":{stream},"tools":[{{"type":"function","function":{{"name":"recall"}}}},{{"type":"function","function":{{"name":"list_facts"}}}}],"messages":[{{"role":"user","content":"hi"}}]}}"#
+    )
+}
+
+#[test]
+fn generated_tool_calls_are_returned_buffered_with_their_finish_reason() {
+    let server = Running::start(calling(), ServeConfig::new(MODEL).with_tools(true));
+
+    let (status, body) = server.post(&tooled(false), None);
+    let document = json(&body);
+    let message = &document["choices"][0]["message"];
+
+    assert_eq!(status, 200);
+    assert!(message["content"].is_null());
+    assert_eq!(message["tool_calls"].as_array().map(Vec::len), Some(2));
+    assert_eq!(message["tool_calls"][0]["id"], "call_1");
+    assert_eq!(message["tool_calls"][0]["type"], "function");
+    assert_eq!(message["tool_calls"][0]["function"]["name"], "recall");
+    assert_eq!(
+        message["tool_calls"][0]["function"]["arguments"],
+        r#"{"query":"tea"}"#
+    );
+    assert!(message["tool_calls"][0].get("index").is_none());
+    assert_eq!(document["choices"][0]["finish_reason"], "tool_calls");
+}
+
+#[test]
+fn generated_tool_calls_are_streamed_as_indexed_deltas() {
+    let server = Running::start(calling(), ServeConfig::new(MODEL).with_tools(true));
+
+    let (status, body) = server.post(&tooled(true), None);
+    let events = events(&body);
+
+    assert_eq!(status, 200);
+    assert_eq!(events.len(), 5);
+    let first = &json(events[1])["choices"][0]["delta"]["tool_calls"][0];
+    let second = &json(events[2])["choices"][0]["delta"]["tool_calls"][0];
+    assert_eq!(first["index"], 0);
+    assert_eq!(first["function"]["name"], "recall");
+    assert_eq!(second["index"], 1);
+    assert_eq!(second["id"], "call_2");
+    assert_eq!(json(events[3])["choices"][0]["finish_reason"], "tool_calls");
+    assert_eq!(events[4], "[DONE]");
+}
+
+#[test]
+fn a_tool_round_trip_is_accepted_when_tools_are_enabled() {
+    let server = Running::start(scripted(), ServeConfig::new(MODEL).with_tools(true));
+
+    let (status, body) = server.post(
+        &format!(
+            r#"{{"model":"{MODEL}","tools":[{{"type":"function","function":{{"name":"recall"}}}}],"messages":[{{"role":"user","content":"hi"}},{{"role":"assistant","content":null,"tool_calls":[{{"id":"c1","type":"function","function":{{"name":"recall","arguments":"{{}}"}}}}]}},{{"role":"tool","tool_call_id":"c1","content":"likes tea"}}]}}"#
+        ),
+        None,
+    );
+
+    assert_eq!(status, 200);
+    assert_eq!(json(&body)["choices"][0]["finish_reason"], "stop");
 }
 
 #[test]

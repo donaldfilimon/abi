@@ -3,8 +3,11 @@
 
 use crate::device::{executed_state, initialize};
 use crate::gemma::{GEMMA3_TEXT_ARCHITECTURE, GemmaEngine, GemmaSession, MAX_CONFIG_BYTES};
+use crate::gemma4::{GEMMA4_TEXT_ARCHITECTURE, Gemma4Engine, Gemma4Session};
 use crate::{DevicePreference, ExecutionPath, InferenceReport, LoadReport, ModelRuntimeError};
-use abi_agent_runtime::{Flow, ModelEvent, ModelProvider, ModelRequest, RunContext, RuntimeError};
+use abi_agent_runtime::{
+    Flow, ModelEvent, ModelProvider, ModelRequest, RunContext, RuntimeError, ToolCall,
+};
 use abi_models::{
     AcceptanceLedger, ArtifactKind, ModelManifest, ModelRegistry, StorageRoot, TensorFormat,
     verify_artifact,
@@ -29,6 +32,22 @@ enum Engine {
     Bigram { transition: Tensor, eos_token: u32 },
     /// Gemma 3 text decoder.
     Gemma(Box<GemmaEngine>),
+    /// Gemma 4 text decoder with the tool grammar.
+    Gemma4(Box<Gemma4Engine>),
+}
+
+/// What one generated token means for the caller-visible stream.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Step {
+    /// The model ended its turn; the token is not part of the output.
+    Stop,
+    /// Answer text.
+    Text(u32),
+    /// Generated and fed back, but never shown: control tokens, a thought
+    /// channel, or the inside of a tool call.
+    Hidden(u32),
+    /// The token closed a complete tool call.
+    Call(u32, ToolCall),
 }
 
 struct Loaded {
@@ -177,6 +196,15 @@ impl LocalModelProvider {
         })
     }
 
+    /// Whether the loaded architecture and tokenizer can take tool definitions.
+    #[must_use]
+    pub fn supports_tools(&self) -> bool {
+        match &self.engine {
+            Engine::Bigram { .. } | Engine::Gemma(_) => false,
+            Engine::Gemma4(engine) => engine.supports_tools(),
+        }
+    }
+
     /// Immutable evidence captured when this provider loaded.
     #[must_use]
     pub const fn load_report(&self) -> &LoadReport {
@@ -210,7 +238,7 @@ impl LocalModelProvider {
                 model: self.model_id.clone(),
             });
         }
-        if !request.tools().is_empty() {
+        if !request.tools().is_empty() && !self.supports_tools() {
             return Err(ModelRuntimeError::UnsupportedTools {
                 model: self.model_id.clone(),
             });
@@ -221,7 +249,7 @@ impl LocalModelProvider {
         }
         let (prompt_ids, generation_limit) = self.prepare(request, run)?;
         let (generated_tokens, native_operations) =
-            self.generate(&prompt_ids, generation_limit, run)?;
+            self.generate(request, &prompt_ids, generation_limit, run)?;
         let capability = if native_operations == 0 {
             self.load_report.capability
         } else {
@@ -264,6 +292,9 @@ impl LocalModelProvider {
             Engine::Gemma(engine) => {
                 engine.encode_chat(&self.model_id, &self.tokenizer, request)?
             }
+            Engine::Gemma4(engine) => {
+                engine.encode_chat(&self.model_id, &self.tokenizer, request)?
+            }
         };
         if prompt_ids.is_empty() {
             return Err(self.tokenizer_error("prompt encoded to zero tokens"));
@@ -290,6 +321,7 @@ impl LocalModelProvider {
 
     fn generate(
         &self,
+        request: &ModelRequest,
         prompt_ids: &[u32],
         limit: u64,
         run: &mut RunContext<'_>,
@@ -312,7 +344,11 @@ impl LocalModelProvider {
                         .to_scalar::<u32>()
                         .map_err(|error| self.candle_error(error))?;
                     native_operations = native_operations.saturating_add(1);
-                    Ok((next != *eos_token).then_some(next))
+                    Ok(if next == *eos_token {
+                        Step::Stop
+                    } else {
+                        Step::Text(next)
+                    })
                 })?
             }
             Engine::Gemma(engine) => {
@@ -325,7 +361,19 @@ impl LocalModelProvider {
                     .map_err(|error| self.candle_error(error))?;
                     native_operations =
                         native_operations.saturating_add(GemmaSession::OPERATIONS_PER_STEP);
-                    Ok(next)
+                    Ok(next.map_or(Step::Stop, Step::Text))
+                })?
+            }
+            Engine::Gemma4(engine) => {
+                let mut session = engine.session(&self.model_id, &self.tokenizer, request)?;
+                self.stream(limit, run, |previous| {
+                    let step = match previous {
+                        None => session.advance(prompt_ids),
+                        Some(token) => session.advance(&[token]),
+                    }?;
+                    native_operations =
+                        native_operations.saturating_add(Gemma4Session::OPERATIONS_PER_STEP);
+                    Ok(step)
                 })?
             }
         };
@@ -333,36 +381,53 @@ impl LocalModelProvider {
     }
 
     /// Shared emission loop. `step` receives the previously generated token
-    /// (`None` on the first call) and returns the next one, or `None` when the
-    /// model stops on its own.
+    /// (`None` on the first call) and classifies the next one. Every generated
+    /// token counts against `limit` and the output-token usage, shown or not.
     fn stream(
         &self,
         limit: u64,
         run: &mut RunContext<'_>,
-        mut step: impl FnMut(Option<u32>) -> Result<Option<u32>, ModelRuntimeError>,
+        mut step: impl FnMut(Option<u32>) -> Result<Step, ModelRuntimeError>,
     ) -> Result<usize, ModelRuntimeError> {
-        let mut generated: Vec<u32> = Vec::new();
+        let mut previous = None;
+        let mut generated = 0usize;
+        let mut shown: Vec<u32> = Vec::new();
         let mut decoded = String::new();
         for _ in 0..limit {
-            let Some(next) = step(generated.last().copied())? else {
-                break;
+            let event = match step(previous)? {
+                Step::Stop => break,
+                Step::Hidden(token) => {
+                    previous = Some(token);
+                    None
+                }
+                Step::Call(token, call) => {
+                    previous = Some(token);
+                    Some(ModelEvent::ToolCall(call))
+                }
+                Step::Text(token) => {
+                    previous = Some(token);
+                    shown.push(token);
+                    let next_decoded = self
+                        .tokenizer
+                        .decode(&shown, true)
+                        .map_err(|error| self.tokenizer_error(error))?;
+                    let delta = next_decoded.strip_prefix(&decoded).ok_or_else(|| {
+                        self.tokenizer_error("incremental decode changed emitted text")
+                    })?;
+                    let event = ModelEvent::text(delta);
+                    decoded = next_decoded;
+                    Some(event)
+                }
             };
-            generated.push(next);
-            let next_decoded = self
-                .tokenizer
-                .decode(&generated, true)
-                .map_err(|error| self.tokenizer_error(error))?;
-            let delta = next_decoded
-                .strip_prefix(&decoded)
-                .ok_or_else(|| self.tokenizer_error("incremental decode changed emitted text"))?;
-            if run.emit(&ModelEvent::text(delta)) == Flow::Stop {
-                generated.pop();
+            if let Some(event) = event
+                && run.emit(&event) == Flow::Stop
+            {
                 break;
             }
+            generated += 1;
             run.record_output_tokens(1);
-            decoded = next_decoded;
         }
-        Ok(generated.len())
+        Ok(generated)
     }
 
     fn tokenizer_error(&self, error: impl std::fmt::Display) -> ModelRuntimeError {
@@ -426,7 +491,7 @@ fn verify_model_artifacts(
 ) -> Result<ArtifactSummary, ModelRuntimeError> {
     let gemma = match manifest.architecture.as_str() {
         FIXTURE_BIGRAM_ARCHITECTURE => false,
-        GEMMA3_TEXT_ARCHITECTURE => true,
+        GEMMA3_TEXT_ARCHITECTURE | GEMMA4_TEXT_ARCHITECTURE => true,
         _ => {
             return Err(ModelRuntimeError::UnsupportedArchitecture {
                 model: manifest.id.clone(),
@@ -514,6 +579,23 @@ fn load_engine(
             detail: error.to_string(),
         }
     })?;
+    if let Some(config_path) = &artifacts.config_path
+        && manifest.architecture == GEMMA4_TEXT_ARCHITECTURE
+    {
+        let loaded = Gemma4Engine::load(
+            manifest,
+            config_path,
+            &artifacts.weights_paths,
+            &tokenizer,
+            device,
+        )?;
+        return Ok(Loaded {
+            tokenizer,
+            engine: Engine::Gemma4(Box::new(loaded.engine)),
+            tensor_count: loaded.tensor_count,
+            parameter_count: loaded.parameter_count,
+        });
+    }
     if let Some(config_path) = &artifacts.config_path {
         let loaded = GemmaEngine::load(
             manifest,

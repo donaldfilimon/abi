@@ -35,6 +35,8 @@ pub struct ServeConfig {
     pub io_timeout: Duration,
     /// Budget applied to every generation.
     pub budget: RunBudget,
+    /// Whether the loaded model takes tool definitions.
+    pub tools: bool,
 }
 
 impl ServeConfig {
@@ -47,7 +49,15 @@ impl ServeConfig {
             max_body_bytes: DEFAULT_MAX_BODY_BYTES,
             io_timeout: Duration::from_secs(30),
             budget: RunBudget::unlimited(),
+            tools: false,
         }
+    }
+
+    /// Accept tool definitions and report generated tool calls.
+    #[must_use]
+    pub const fn with_tools(mut self, tools: bool) -> Self {
+        self.tools = tools;
+        self
     }
 
     /// Require `Authorization: Bearer <token>` on `/v1/*`.
@@ -231,7 +241,7 @@ impl Server {
         stream: &mut TcpStream,
         created: u64,
     ) -> Result<(), Reply> {
-        let chat = protocol::parse_chat(&request.body)?;
+        let chat = protocol::parse_chat(&request.body, self.config.tools)?;
         let model = chat.request.model();
         // Exact selection only: a different name is never served by this model.
         if model != self.config.model_id {
@@ -259,11 +269,20 @@ impl Server {
                 self.config.budget,
             )
             .map_err(|error| provider_failure(&error))?;
+            let calls: Vec<_> = sink
+                .events()
+                .iter()
+                .filter_map(|event| match event {
+                    ModelEvent::ToolCall(call) => Some(call),
+                    _ => None,
+                })
+                .collect();
             let body = protocol::completion_body(
                 &id,
                 created,
                 model,
                 &sink.text(),
+                &calls,
                 report.stop,
                 &report.usage,
             );
@@ -287,6 +306,7 @@ impl Server {
             id: &id,
             created,
             model,
+            calls: 0,
         };
         let outcome = run_provider(
             self.provider.as_ref(),
@@ -295,9 +315,11 @@ impl Server {
             &cancel,
             self.config.budget,
         );
+        let made_calls = sink.calls > 0;
         match outcome {
             Ok(report) => {
-                let finish = Some((report.stop, &report.usage));
+                let reason = protocol::finish_reason(report.stop, made_calls);
+                let finish = Some((reason, &report.usage));
                 let last = protocol::chunk_body(&id, created, model, &json!({}), finish);
                 http::write_sse_event(stream, &last)?;
                 http::write_sse_event(stream, "[DONE]")?;
@@ -310,21 +332,28 @@ impl Server {
     }
 }
 
-/// Forwards text deltas as chunks; a failed write cancels the generation.
+/// Forwards text deltas and tool calls as chunks; a failed write cancels the
+/// generation.
 struct SseSink<'a> {
     stream: &'a mut TcpStream,
     cancel: &'a CancellationToken,
     id: &'a str,
     created: u64,
     model: &'a str,
+    calls: usize,
 }
 
 impl EventSink for SseSink<'_> {
     fn emit(&mut self, event: &ModelEvent) {
-        let Some(text) = event.as_text() else {
-            return;
+        let delta = match event {
+            ModelEvent::TextDelta { text } => json!({ "content": text }),
+            ModelEvent::ToolCall(call) => {
+                let entry = protocol::tool_call_value(call, Some(self.calls));
+                self.calls += 1;
+                json!({ "tool_calls": [entry] })
+            }
+            _ => return,
         };
-        let delta = json!({ "content": text });
         let chunk = protocol::chunk_body(self.id, self.created, self.model, &delta, None);
         if http::write_sse_event(self.stream, &chunk).is_err() {
             self.cancel.cancel();

@@ -113,6 +113,7 @@ fn run(arguments: &Arguments) -> Result<(), String> {
         load,
     )
     .map_err(|e| e.to_string())?;
+    let tools = provider.supports_tools();
     let report = provider.load_report();
     eprintln!(
         "loaded model={} revision={} device={} tensors={} parameters={} artifact_bytes={}",
@@ -124,7 +125,9 @@ fn run(arguments: &Arguments) -> Result<(), String> {
         report.artifact_bytes
     );
 
-    let mut config = ServeConfig::new(&arguments.model).with_budget(RunBudget::unlimited());
+    let mut config = ServeConfig::new(&arguments.model)
+        .with_budget(RunBudget::unlimited())
+        .with_tools(tools);
     let authenticated = match abi_foundation::env::get(TOKEN_VAR) {
         Some(token) => {
             config = config.with_bearer_token(token);
@@ -135,7 +138,7 @@ fn run(arguments: &Arguments) -> Result<(), String> {
     let server =
         Server::bind(arguments.port, Arc::new(provider), config).map_err(|e| e.to_string())?;
     let address = server.local_addr().map_err(|e| e.to_string())?;
-    eprintln!("serving http://{address}/v1/chat/completions auth={authenticated}");
+    eprintln!("serving http://{address}/v1/chat/completions auth={authenticated} tools={tools}");
 
     let stop = Arc::new(AtomicBool::new(false));
     let handler_stop = Arc::clone(&stop);

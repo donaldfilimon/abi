@@ -5,6 +5,8 @@
 
 #[path = "../../abi-model-runtime/tests/support/gemma.rs"]
 mod scratch;
+#[path = "../../abi-model-runtime/tests/support/gemma4.rs"]
+mod scratch4;
 
 use abi_model_serve::{ServeConfig, Server};
 use scratch::{MODEL_ID, OUTPUT_TOKENS, fixture};
@@ -14,9 +16,9 @@ use std::net::TcpStream;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-fn post(address: std::net::SocketAddr, stream: bool) -> String {
+fn post(address: std::net::SocketAddr, model: &str, system: &str, stream: bool) -> String {
     let body = format!(
-        r#"{{"model":"{MODEL_ID}","stream":{stream},"messages":[{{"role":"system","content":"be terse"}},{{"role":"user","content":"hello world"}}]}}"#
+        r#"{{"model":"{model}","stream":{stream},"messages":[{{"role":"system","content":"{system}"}},{{"role":"user","content":"hello world"}}]}}"#
     );
     let mut connection = TcpStream::connect(address).expect("connect");
     write!(
@@ -37,22 +39,50 @@ fn post(address: std::net::SocketAddr, stream: bool) -> String {
         .to_owned()
 }
 
-#[test]
-fn a_loaded_gemma_decoder_answers_buffered_and_streamed_requests_identically() {
-    let fixture = fixture();
-    let provider = fixture.load().expect("scratch Gemma loads");
-    let server =
-        Server::bind(0, Arc::new(provider), ServeConfig::new(MODEL_ID)).expect("bind loopback");
+/// Serve `provider`, then read one buffered and one streamed completion.
+fn both_modes(
+    provider: abi_model_runtime::LocalModelProvider,
+    model: &str,
+    system: &str,
+) -> (Value, String) {
+    let tools = provider.supports_tools();
+    let config = ServeConfig::new(model).with_tools(tools);
+    let server = Server::bind(0, Arc::new(provider), config).expect("bind loopback");
     let address = server.local_addr().expect("bound address");
     let stop = Arc::new(AtomicBool::new(false));
     let thread_stop = Arc::clone(&stop);
     let thread = std::thread::spawn(move || server.serve(&thread_stop).expect("serve loop"));
 
-    let buffered: Value = serde_json::from_str(&post(address, false)).expect("completion JSON");
-    let streamed_body = post(address, true);
+    let buffered = serde_json::from_str(&post(address, model, system, false)).expect("JSON");
+    let streamed = post(address, model, system, true);
 
     stop.store(true, Ordering::SeqCst);
     thread.join().expect("server joins");
+    (buffered, streamed)
+}
+
+/// Concatenate the content deltas of a `[DONE]`-terminated stream.
+fn streamed_text(body: &str) -> String {
+    let events: Vec<&str> = body
+        .split("\n\n")
+        .filter_map(|event| event.strip_prefix("data: "))
+        .collect();
+    assert_eq!(events.last(), Some(&"[DONE]"));
+    events[..events.len() - 1]
+        .iter()
+        .map(|event| serde_json::from_str::<Value>(event).expect("chunk JSON"))
+        .filter_map(|chunk| {
+            chunk["choices"][0]["delta"]["content"]
+                .as_str()
+                .map(str::to_owned)
+        })
+        .collect()
+}
+
+#[test]
+fn a_loaded_gemma_decoder_answers_buffered_and_streamed_requests_identically() {
+    let provider = fixture().load().expect("scratch Gemma loads");
+    let (buffered, streamed) = both_modes(provider, MODEL_ID, "be terse");
 
     let text = buffered["choices"][0]["message"]["content"]
         .as_str()
@@ -64,21 +94,21 @@ fn a_loaded_gemma_decoder_answers_buffered_and_streamed_requests_identically() {
     assert_eq!(buffered["usage"]["prompt_tokens"], 10);
     assert!(generated <= u64::from(OUTPUT_TOKENS));
     assert_eq!(buffered["choices"][0]["finish_reason"], "stop");
-
-    let events: Vec<&str> = streamed_body
-        .split("\n\n")
-        .filter_map(|event| event.strip_prefix("data: "))
-        .collect();
-    assert_eq!(events.last(), Some(&"[DONE]"));
-    let streamed_text: String = events[..events.len() - 1]
-        .iter()
-        .map(|event| serde_json::from_str::<Value>(event).expect("chunk JSON"))
-        .filter_map(|chunk| {
-            chunk["choices"][0]["delta"]["content"]
-                .as_str()
-                .map(str::to_owned)
-        })
-        .collect();
     // Greedy selection over a reset cache: both modes must agree exactly.
-    assert_eq!(streamed_text, text);
+    assert_eq!(streamed_text(&streamed), text);
+}
+
+#[test]
+fn a_loaded_gemma4_decoder_answers_buffered_and_streamed_requests_identically() {
+    let provider = scratch4::fixture().load().expect("scratch Gemma 4 loads");
+    assert!(provider.supports_tools());
+    let (buffered, streamed) = both_modes(provider, scratch4::MODEL_ID, "terse");
+
+    let text = buffered["choices"][0]["message"]["content"]
+        .as_str()
+        .expect("assistant text");
+    // <bos>, a real system turn, the user turn, the open model turn.
+    assert_eq!(buffered["usage"]["prompt_tokens"], 12);
+    assert_eq!(buffered["choices"][0]["finish_reason"], "stop");
+    assert_eq!(streamed_text(&streamed), text);
 }

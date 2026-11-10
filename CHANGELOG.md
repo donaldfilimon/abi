@@ -18,8 +18,19 @@ truth is the stable-Rust 1.99.1 workspace under `crates/`; readiness is gated by
 - feat(models): add `abi-model-serve`, a loopback `OpenAI`-compatible
   chat-completions server (buffered JSON and SSE) over one explicitly loaded
   provider. It serves only the exact loaded model, one request at a time, and
-  refuses tools, `n>1`, and non-text content with `400`. Separate binary; the
-  frozen 14-command `abi` CLI is unchanged.
+  refuses `n>1` and non-text content with `400`. Separate binary; the frozen
+  14-command `abi` CLI is unchanged.
+- feat(models): add the `gemma4-text-v1` architecture and tool calling.
+  `abi-model-runtime` loads Candle's Gemma 4 text decoder from the
+  `model.language_model.*` tensors of a checkpoint, renders Gemma 4 turns and
+  tool declarations, surfaces generated calls as `ModelEvent::ToolCall`, and
+  renders tool results from the agent host's JSON envelope. `abi-model-serve`
+  maps `OpenAI` `tools`, `tool_calls`, and `tool` messages onto that when the
+  loaded model takes tools, and refuses them with `400` otherwise. Tested on a
+  random scratch decoder and on token sequences only: no published weights were
+  run, no real generated tool call was observed, and the prompt format follows
+  Google's published pages without comparison against a checkpoint's own chat
+  template.
 
 - feat(abi-mcp): the loopback HTTP listener serves persistent MCP 2024-11-05
   HTTP+SSE sessions. `GET /sse` announces `/message?sessionId=<id>` (random v4

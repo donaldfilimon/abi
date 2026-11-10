@@ -7,7 +7,10 @@
 //! server-sent events). Requests are handled one at a time: one loaded model
 //! runs one generation.
 //!
-//! Tool definitions, multiple choices, and non-text content parts are refused
+//! Tool definitions are accepted only when the loaded model takes them;
+//! generated calls come back as `tool_calls`, and `tool` messages are passed to
+//! the provider in the agent host's JSON envelope. Unsupported tools, forced
+//! `tool_choice`, multiple choices, and non-text content parts are refused
 //! with an `OpenAI`-shaped `400` instead of being ignored. An optional bearer
 //! token is loopback hardening, not a TLS substitute.
 
