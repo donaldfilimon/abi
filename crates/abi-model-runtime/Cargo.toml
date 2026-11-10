@@ -9,8 +9,8 @@ description = "Explicit local model loading and evidenced Candle execution for A
 
 [features]
 default = []
-metal = ["candle-core/metal"]
-cuda = ["candle-core/cuda"]
+metal = ["candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
+cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 
 [dependencies]
 abi-agent-runtime = { workspace = true }
@@ -20,13 +20,15 @@ abi-models = { workspace = true }
 # Use the immutable reviewed revision until a fixed release is available:
 # https://github.com/huggingface/candle/pull/4041
 candle-core = { git = "https://github.com/huggingface/candle.git", rev = "70f72e9cfdbfc570846ca363ead2135394af3e9a", version = "0.11", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle.git", rev = "70f72e9cfdbfc570846ca363ead2135394af3e9a", version = "0.11", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle.git", rev = "70f72e9cfdbfc570846ca363ead2135394af3e9a", version = "0.11", default-features = false }
 safetensors = "0.8"
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokenizers = { version = "0.22.2", default-features = false, features = ["fancy-regex"] }
 
 [dev-dependencies]
 abi-foundation = { workspace = true }
-serde_json = { workspace = true }
 
 [lints]
 workspace = true

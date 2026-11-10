@@ -8,6 +8,19 @@ truth is the stable-Rust 1.99.1 workspace under `crates/`; readiness is gated by
 
 ### Added
 
+- feat(models): `abi-model-runtime` gains the `gemma3-text-v1` architecture:
+  Candle's Gemma 3 text decoder built from one verified config artifact and one
+  or more safetensors shards, fixed Gemma turn rendering with control-token ids
+  stripped from caller content, and greedy selection over a per-run cache. The
+  contract tests use a randomly initialized scratch decoder on CPU; no published
+  Gemma weights, Metal or CUDA execution, or output quality has been run or is
+  claimed. Tools, sampling, images, and audio stay unsupported.
+- feat(models): add `abi-model-serve`, a loopback `OpenAI`-compatible
+  chat-completions server (buffered JSON and SSE) over one explicitly loaded
+  provider. It serves only the exact loaded model, one request at a time, and
+  refuses tools, `n>1`, and non-text content with `400`. Separate binary; the
+  frozen 14-command `abi` CLI is unchanged.
+
 - feat(abi-mcp): the loopback HTTP listener serves persistent MCP 2024-11-05
   HTTP+SSE sessions. `GET /sse` announces `/message?sessionId=<id>` (random v4
   UUID) and stays open on its own thread; POSTs there answer `202` and publish

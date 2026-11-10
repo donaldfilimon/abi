@@ -1,0 +1,34 @@
+[package]
+name = "abi-model-serve"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Loopback OpenAI-compatible chat-completions server over one explicitly loaded ABI model provider."
+
+[[bin]]
+name = "abi-model-serve"
+path = "src/main.rs"
+
+[dependencies]
+abi-agent-runtime = { workspace = true }
+abi-foundation = { workspace = true }
+abi-model-runtime = { path = "../abi-model-runtime" }
+abi-models = { workspace = true }
+ctrlc = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+candle-core = { git = "https://github.com/huggingface/candle.git", rev = "70f72e9cfdbfc570846ca363ead2135394af3e9a", version = "0.11", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle.git", rev = "70f72e9cfdbfc570846ca363ead2135394af3e9a", version = "0.11", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle.git", rev = "70f72e9cfdbfc570846ca363ead2135394af3e9a", version = "0.11", default-features = false }
+tokenizers = { version = "0.22.2", default-features = false, features = ["fancy-regex"] }
+
+[features]
+default = []
+metal = ["abi-model-runtime/metal"]
+cuda = ["abi-model-runtime/cuda"]
+
+[lints]
+workspace = true

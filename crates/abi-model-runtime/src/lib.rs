@@ -5,11 +5,17 @@
 //! exact model identifier and a [`DevicePreference`]; there is no global model,
 //! device default, or silent substitution.
 //!
-//! The first supported architecture, [`FIXTURE_BIGRAM_ARCHITECTURE`], is a
-//! deliberately tiny transition-logit model used to prove the complete
-//! safetensors/tokenizer/device/provider path without committing model data to
-//! this repository. Gemma and other production architectures remain separate
-//! future adapters and must not be inferred from this foundation.
+//! [`FIXTURE_BIGRAM_ARCHITECTURE`] is a deliberately tiny transition-logit
+//! model used to prove the complete safetensors/tokenizer/device/provider path
+//! without committing model data to this repository.
+//!
+//! [`GEMMA3_TEXT_ARCHITECTURE`] drives Candle's Gemma 3 text decoder from a
+//! verified config artifact and safetensors shards, with fixed Gemma turn
+//! rendering and greedy selection. Its tests run a randomly initialized
+//! scratch decoder: they prove the load, cache, budget, and evidence path, not
+//! output quality, and no published Gemma weights have been run through it.
+//! Tools, sampling, images, and audio are unsupported. Other architectures
+//! remain separate future adapters and must not be inferred from this one.
 //!
 //! CPU execution is always compiled. Metal and CUDA are target features:
 //! compilation alone is reported separately from successful initialization and
@@ -18,11 +24,13 @@
 
 mod device;
 mod error;
+mod gemma;
 mod provider;
 mod report;
 
 pub use device::{DevicePreference, ExecutionPath};
 pub use error::ModelRuntimeError;
+pub use gemma::{GEMMA3_TEXT_ARCHITECTURE, MAX_CONFIG_BYTES};
 pub use provider::{
     DEFAULT_MAX_GENERATED_TOKENS, DEFAULT_MAX_MODEL_BYTES, DEFAULT_MAX_PROMPT_BYTES,
     DEFAULT_MAX_TOKENIZER_BYTES, FIXTURE_BIGRAM_ARCHITECTURE, LoadConfig, LocalModelProvider,
