@@ -100,8 +100,13 @@ fn a_loaded_gemma_decoder_answers_buffered_and_streamed_requests_identically() {
 
 #[test]
 fn a_loaded_gemma4_decoder_answers_buffered_and_streamed_requests_identically() {
-    let provider = scratch4::fixture().load().expect("scratch Gemma 4 loads");
+    let fixture = scratch4::fixture();
+    let provider = fixture.load().expect("scratch Gemma 4 loads");
     assert!(provider.supports_tools());
+    assert_eq!(
+        provider.load_report().tensor_count,
+        fixture.language_model.0
+    );
     let (buffered, streamed) = both_modes(provider, scratch4::MODEL_ID, "terse");
 
     let text = buffered["choices"][0]["message"]["content"]

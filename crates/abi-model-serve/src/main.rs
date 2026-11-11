@@ -2,7 +2,7 @@
 //! on loopback through the `OpenAI` chat-completions protocol.
 
 use abi_agent_runtime::RunBudget;
-use abi_model_runtime::{DevicePreference, LoadConfig, LocalModelProvider};
+use abi_model_runtime::{DevicePreference, LoadConfig, LocalModelProvider, WeightPrecision};
 use abi_model_serve::{DEFAULT_PORT, ServeConfig, Server};
 use abi_models::{AcceptanceLedger, ModelRegistry, StorageRoot};
 use std::path::PathBuf;
@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// Bearer token for `/v1/*`, read through the ABI environment registry.
 const TOKEN_VAR: &str = "ABI_MODEL_SERVE_TOKEN";
 
-const USAGE: &str = "usage: abi-model-serve --model <id> --principal <principal> --manifests <dir> --ledger <file> --device <cpu|metal|cuda> [--port <port>] [--max-output-tokens <n>]
+const USAGE: &str = "usage: abi-model-serve --model <id> --principal <principal> --manifests <dir> --ledger <file> --device <cpu|metal|cuda> [--precision <f32|f16>] [--port <port>] [--max-output-tokens <n>]
 
 Serve one exact local model on 127.0.0.1 through the OpenAI chat-completions
 protocol (GET /health, GET /v1/models, POST /v1/chat/completions).
@@ -23,6 +23,9 @@ protocol (GET /health, GET /v1/models, POST /v1/chat/completions).
   --manifests   Directory of model manifest *.json files.
   --ledger      License-acceptance ledger file.
   --device      Exact device. There is no automatic selection or CPU fallback.
+  --precision   Weight precision for Gemma decoders (default f32). f16 halves
+                weight memory; whether the chosen device runs every decoder
+                operation at f16 is only known by running it.
   --port        Loopback port (default 8090).
   --max-output-tokens
                 Hard generation ceiling per request (default 256).
@@ -38,6 +41,7 @@ struct Arguments {
     manifests: PathBuf,
     ledger: PathBuf,
     device: DevicePreference,
+    precision: WeightPrecision,
     port: u16,
     max_output_tokens: Option<u32>,
 }
@@ -48,6 +52,7 @@ fn parse(arguments: &[String]) -> Result<Arguments, String> {
     let mut manifests = None;
     let mut ledger = None;
     let mut device = None;
+    let mut precision = WeightPrecision::Single;
     let mut port = DEFAULT_PORT;
     let mut max_output_tokens = None;
     let mut rest = arguments.iter();
@@ -67,6 +72,13 @@ fn parse(arguments: &[String]) -> Result<Arguments, String> {
                     "cuda" => DevicePreference::Cuda,
                     other => return Err(format!("unknown device '{other}'")),
                 });
+            }
+            "--precision" => {
+                precision = match value.as_str() {
+                    "f32" => WeightPrecision::Single,
+                    "f16" => WeightPrecision::Half,
+                    other => return Err(format!("unknown precision '{other}'")),
+                };
             }
             "--port" => {
                 port = value
@@ -91,6 +103,7 @@ fn parse(arguments: &[String]) -> Result<Arguments, String> {
         manifests: manifests.ok_or("--manifests is required")?,
         ledger: ledger.ok_or("--ledger is required")?,
         device: device.ok_or("--device is required")?,
+        precision,
         port,
         max_output_tokens,
     })
@@ -100,7 +113,7 @@ fn run(arguments: &Arguments) -> Result<(), String> {
     let registry = ModelRegistry::from_dir(&arguments.manifests).map_err(|e| e.to_string())?;
     let ledger = AcceptanceLedger::load(&arguments.ledger).map_err(|e| e.to_string())?;
     let storage = StorageRoot::resolve().map_err(|e| e.to_string())?;
-    let mut load = LoadConfig::new(arguments.device);
+    let mut load = LoadConfig::new(arguments.device).with_weight_precision(arguments.precision);
     if let Some(tokens) = arguments.max_output_tokens {
         load = load.with_max_generated_tokens(tokens);
     }
@@ -114,6 +127,7 @@ fn run(arguments: &Arguments) -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
     let tools = provider.supports_tools();
+    let reasoning = provider.supports_reasoning();
     let report = provider.load_report();
     eprintln!(
         "loaded model={} revision={} device={} tensors={} parameters={} artifact_bytes={}",
@@ -127,7 +141,8 @@ fn run(arguments: &Arguments) -> Result<(), String> {
 
     let mut config = ServeConfig::new(&arguments.model)
         .with_budget(RunBudget::unlimited())
-        .with_tools(tools);
+        .with_tools(tools)
+        .with_reasoning(reasoning);
     let authenticated = match abi_foundation::env::get(TOKEN_VAR) {
         Some(token) => {
             config = config.with_bearer_token(token);
@@ -138,7 +153,10 @@ fn run(arguments: &Arguments) -> Result<(), String> {
     let server =
         Server::bind(arguments.port, Arc::new(provider), config).map_err(|e| e.to_string())?;
     let address = server.local_addr().map_err(|e| e.to_string())?;
-    eprintln!("serving http://{address}/v1/chat/completions auth={authenticated} tools={tools}");
+    eprintln!(
+        "serving http://{address}/v1/chat/completions auth={authenticated} tools={tools} reasoning={reasoning} precision={}",
+        arguments.precision.as_str()
+    );
 
     let stop = Arc::new(AtomicBool::new(false));
     let handler_stop = Arc::clone(&stop);

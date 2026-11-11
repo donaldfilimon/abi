@@ -6,7 +6,7 @@ use crate::gemma::{GEMMA3_TEXT_ARCHITECTURE, GemmaEngine, GemmaSession, MAX_CONF
 use crate::gemma4::{GEMMA4_TEXT_ARCHITECTURE, Gemma4Engine, Gemma4Session};
 use crate::{DevicePreference, ExecutionPath, InferenceReport, LoadReport, ModelRuntimeError};
 use abi_agent_runtime::{
-    Flow, ModelEvent, ModelProvider, ModelRequest, RunContext, RuntimeError, ToolCall,
+    Flow, ModelEvent, ModelProvider, ModelRequest, RunContext, RuntimeError, ToolCall, ToolChoice,
 };
 use abi_models::{
     AcceptanceLedger, ArtifactKind, ModelManifest, ModelRegistry, StorageRoot, TensorFormat,
@@ -43,9 +43,11 @@ pub(crate) enum Step {
     Stop,
     /// Answer text.
     Text(u32),
-    /// Generated and fed back, but never shown: control tokens, a thought
-    /// channel, or the inside of a tool call.
+    /// Generated and fed back, but never shown: control tokens, an
+    /// unrequested thought channel, or the inside of a tool call.
     Hidden(u32),
+    /// Requested reasoning from the thought channel.
+    Reasoning(u32),
     /// The token closed a complete tool call.
     Call(u32, ToolCall),
 }
@@ -85,6 +87,37 @@ pub struct LoadConfig {
     pub max_prompt_bytes: usize,
     /// Hard provider generation ceiling.
     pub max_generated_tokens: u32,
+    /// Precision the floating-point weights are held in.
+    pub weight_precision: WeightPrecision,
+}
+
+/// Precision the floating-point weights are converted to at load.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum WeightPrecision {
+    /// 32-bit floats.
+    #[default]
+    Single,
+    /// 16-bit floats: half the weight memory. Whether a device executes every
+    /// decoder operation at this precision is only known by running it.
+    Half,
+}
+
+impl WeightPrecision {
+    const fn dtype(self) -> DType {
+        match self {
+            Self::Single => DType::F32,
+            Self::Half => DType::F16,
+        }
+    }
+
+    /// Stable lowercase label.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Single => "f32",
+            Self::Half => "f16",
+        }
+    }
 }
 
 impl LoadConfig {
@@ -97,7 +130,16 @@ impl LoadConfig {
             max_tokenizer_bytes: DEFAULT_MAX_TOKENIZER_BYTES,
             max_prompt_bytes: DEFAULT_MAX_PROMPT_BYTES,
             max_generated_tokens: DEFAULT_MAX_GENERATED_TOKENS,
+            weight_precision: WeightPrecision::Single,
         }
+    }
+
+    /// Hold the Gemma decoder weights at `precision`. The fixture
+    /// architecture ignores this.
+    #[must_use]
+    pub const fn with_weight_precision(mut self, precision: WeightPrecision) -> Self {
+        self.weight_precision = precision;
+        self
     }
 
     /// Override the maximum aggregate artifact bytes.
@@ -170,7 +212,12 @@ impl LocalModelProvider {
         let manifest = usable.manifest();
         let artifacts = verify_model_artifacts(manifest, storage, config)?;
         let initialized = initialize(config.device)?;
-        let loaded = load_engine(manifest, &artifacts, &initialized.device)?;
+        let loaded = load_engine(
+            manifest,
+            &artifacts,
+            &initialized.device,
+            config.weight_precision.dtype(),
+        )?;
         let load_report = LoadReport {
             model_id: manifest.id.clone(),
             revision: manifest.revision.as_str().to_owned(),
@@ -205,6 +252,15 @@ impl LocalModelProvider {
         }
     }
 
+    /// Whether the loaded model can be asked to reason and report it.
+    #[must_use]
+    pub fn supports_reasoning(&self) -> bool {
+        match &self.engine {
+            Engine::Bigram { .. } | Engine::Gemma(_) => false,
+            Engine::Gemma4(engine) => engine.supports_reasoning(),
+        }
+    }
+
     /// Immutable evidence captured when this provider loaded.
     #[must_use]
     pub const fn load_report(&self) -> &LoadReport {
@@ -235,6 +291,16 @@ impl LocalModelProvider {
         }
         if request.messages().is_empty() {
             return Err(ModelRuntimeError::EmptyRequest {
+                model: self.model_id.clone(),
+            });
+        }
+        if request.reasoning() && !self.supports_reasoning() {
+            return Err(ModelRuntimeError::UnsupportedReasoning {
+                model: self.model_id.clone(),
+            });
+        }
+        if *request.tool_choice() != ToolChoice::Auto && !self.supports_tools() {
+            return Err(ModelRuntimeError::UnsupportedToolChoice {
                 model: self.model_id.clone(),
             });
         }
@@ -393,6 +459,8 @@ impl LocalModelProvider {
         let mut generated = 0usize;
         let mut shown: Vec<u32> = Vec::new();
         let mut decoded = String::new();
+        let mut thought: Vec<u32> = Vec::new();
+        let mut thought_shown = String::new();
         for _ in 0..limit {
             let event = match step(previous)? {
                 Step::Stop => break,
@@ -403,6 +471,25 @@ impl LocalModelProvider {
                 Step::Call(token, call) => {
                     previous = Some(token);
                     Some(ModelEvent::ToolCall(call))
+                }
+                Step::Reasoning(token) => {
+                    previous = Some(token);
+                    thought.push(token);
+                    let text = self
+                        .tokenizer
+                        .decode(&thought, true)
+                        .map_err(|error| self.tokenizer_error(error))?;
+                    let visible = reasoning_body(&text);
+                    let delta = visible.strip_prefix(&thought_shown).ok_or_else(|| {
+                        self.tokenizer_error("incremental decode changed emitted reasoning")
+                    })?;
+                    if delta.is_empty() {
+                        None
+                    } else {
+                        let event = ModelEvent::reasoning(delta);
+                        visible.clone_into(&mut thought_shown);
+                        Some(event)
+                    }
                 }
                 Step::Text(token) => {
                     previous = Some(token);
@@ -568,10 +655,23 @@ fn verify_model_artifacts(
     })
 }
 
+/// The thought channel opens with a `thought` label line; reasoning is what
+/// follows it. While only part of the label has arrived, nothing is shown.
+pub(crate) fn reasoning_body(decoded: &str) -> &str {
+    const LABEL: &str = "thought";
+    let text = decoded.trim_start();
+    match text.strip_prefix(LABEL) {
+        Some(rest) => rest.trim_start(),
+        None if LABEL.starts_with(text) => "",
+        None => text,
+    }
+}
+
 fn load_engine(
     manifest: &ModelManifest,
     artifacts: &ArtifactSummary,
     device: &Device,
+    precision: DType,
 ) -> Result<Loaded, ModelRuntimeError> {
     let tokenizer = Tokenizer::from_file(&artifacts.tokenizer_path).map_err(|error| {
         ModelRuntimeError::Tokenizer {
@@ -588,6 +688,7 @@ fn load_engine(
             &artifacts.weights_paths,
             &tokenizer,
             device,
+            precision,
         )?;
         return Ok(Loaded {
             tokenizer,
@@ -603,6 +704,7 @@ fn load_engine(
             &artifacts.weights_paths,
             &tokenizer,
             device,
+            precision,
         )?;
         return Ok(Loaded {
             tokenizer,

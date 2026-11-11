@@ -165,6 +165,18 @@ pub enum ModelRuntimeError {
         /// Parser or validation detail.
         detail: String,
     },
+    /// The request asked for reasoning the loaded model cannot report.
+    #[error("model '{model}' does not support requested reasoning")]
+    UnsupportedReasoning {
+        /// Selected model.
+        model: String,
+    },
+    /// The request forced a tool choice the loaded model cannot honor.
+    #[error("model '{model}' does not support a forced tool choice")]
+    UnsupportedToolChoice {
+        /// Selected model.
+        model: String,
+    },
     /// A generated tool call could not be parsed or named an unoffered tool.
     #[error("model '{model}' produced an unusable tool call: {detail}")]
     MalformedToolCall {

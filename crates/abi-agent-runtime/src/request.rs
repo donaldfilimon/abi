@@ -61,6 +61,18 @@ impl Message {
     }
 }
 
+/// How the model may use the offered tools.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum ToolChoice {
+    /// The model decides whether to call a tool.
+    #[default]
+    Auto,
+    /// The model must call one of the offered tools.
+    Required,
+    /// The model must call the named offered tool.
+    Named(String),
+}
+
 /// Everything a provider needs to start one run.
 ///
 /// The `model` field is an opaque identifier. This crate keeps no model
@@ -75,6 +87,8 @@ pub struct ModelRequest {
     system: Option<String>,
     messages: Vec<Message>,
     tools: Vec<ToolSpec>,
+    tool_choice: ToolChoice,
+    reasoning: bool,
     max_output_tokens: Option<u64>,
 }
 
@@ -115,6 +129,22 @@ impl ModelRequest {
         self
     }
 
+    /// Constrain how the model may use the offered tools. A provider that
+    /// cannot honor a forced choice must refuse the request.
+    #[must_use]
+    pub fn with_tool_choice(mut self, choice: ToolChoice) -> Self {
+        self.tool_choice = choice;
+        self
+    }
+
+    /// Ask the provider to reason before answering and to report that
+    /// reasoning as [`crate::ModelEvent::ReasoningDelta`] events.
+    #[must_use]
+    pub fn with_reasoning(mut self, reasoning: bool) -> Self {
+        self.reasoning = reasoning;
+        self
+    }
+
     /// Request a ceiling on generated tokens.
     ///
     /// This is a hint forwarded to the provider. It is not enforced here —
@@ -149,6 +179,18 @@ impl ModelRequest {
     #[must_use]
     pub fn tools(&self) -> &[ToolSpec] {
         &self.tools
+    }
+
+    /// How the model may use the offered tools.
+    #[must_use]
+    pub fn tool_choice(&self) -> &ToolChoice {
+        &self.tool_choice
+    }
+
+    /// Whether the caller asked for reported reasoning.
+    #[must_use]
+    pub fn reasoning(&self) -> bool {
+        self.reasoning
     }
 
     /// Requested output-token hint, if one was set.

@@ -8,9 +8,9 @@ mod scratch;
 
 use abi_agent_runtime::{
     CancellationToken, CollectingSink, Message, ModelRequest, Role, RunBudget, RunReport,
-    RuntimeError, StopReason, ToolSpec, run_provider,
+    RuntimeError, StopReason, ToolChoice, ToolSpec, run_provider,
 };
-use abi_model_runtime::{ExecutionPath, LocalModelProvider, ModelRuntimeError};
+use abi_model_runtime::{ExecutionPath, LocalModelProvider, ModelRuntimeError, WeightPrecision};
 use scratch::{MODEL_ID, OUTPUT_TOKENS, config, fixture, fixture_with, vocabulary_len};
 use serde_json::json;
 
@@ -178,4 +178,101 @@ fn inconsistent_configs_and_foreign_checkpoints_fail_closed() {
         .load()
         .expect_err("weights that contradict the config are refused");
     assert!(matches!(error, ModelRuntimeError::Candle { .. }), "{error}");
+}
+
+#[test]
+fn only_language_model_tensors_are_read_from_a_checkpoint() {
+    let fixture = fixture();
+    let provider = fixture.load().expect("scratch Gemma 4 loads");
+    let report = provider.load_report();
+
+    // The shards also hold a 16-parameter vision-tower tensor. It is hashed
+    // with its file but never read into the decoder.
+    assert_eq!(
+        (report.tensor_count, report.parameter_count),
+        fixture.language_model
+    );
+}
+
+#[test]
+fn half_precision_weights_load_and_generate_on_the_cpu() {
+    let fixture = fixture();
+    let single = fixture.load().expect("f32 load");
+    let half = fixture.load_at(WeightPrecision::Half).expect("f16 load");
+    let request = ModelRequest::new(MODEL_ID).with_user("hello world");
+
+    let (report, _) = run(&half, &request).expect("f16 inference");
+
+    assert_eq!(report.stop, StopReason::Completed);
+    assert_eq!(report.usage.input_tokens, 8);
+    assert_eq!(
+        half.load_report().parameter_count,
+        single.load_report().parameter_count
+    );
+}
+
+#[test]
+fn reasoning_adds_the_thinking_switch_and_needs_its_tokens() {
+    let fixture = fixture();
+    let provider = fixture.load().expect("scratch Gemma 4 loads");
+    assert!(provider.supports_reasoning());
+    let plain = ModelRequest::new(MODEL_ID).with_user("hello");
+
+    let without = run(&provider, &plain).expect("plain").0.usage.input_tokens;
+    let with = run(&provider, &plain.clone().with_reasoning(true))
+        .expect("reasoning")
+        .0
+        .usage
+        .input_tokens;
+    // <|turn> system <|think|> <turn|>
+    assert_eq!(with, without + 4);
+
+    let bare = fixture_with(&config(), 1, false);
+    let provider = bare.load().expect("loads without the thinking switch");
+    assert!(!provider.supports_reasoning());
+    let error = run(&provider, &plain.with_reasoning(true)).expect_err("reasoning is refused");
+    assert!(
+        error
+            .to_string()
+            .contains("does not support requested reasoning")
+    );
+}
+
+#[test]
+fn a_forced_tool_choice_extends_the_prompt_and_needs_the_tool_grammar() {
+    let fixture = fixture();
+    let provider = fixture.load().expect("scratch Gemma 4 loads");
+    let offered = ModelRequest::new(MODEL_ID)
+        .with_user("hello")
+        .with_tool(recall())
+        .with_max_output_tokens(0);
+
+    let auto = run(&provider, &offered).expect("auto").0.usage.input_tokens;
+    let forced = run(
+        &provider,
+        &offered
+            .clone()
+            .with_tool_choice(ToolChoice::Named("recall".to_owned())),
+    )
+    .expect("forced")
+    .0
+    .usage
+    .input_tokens;
+    // <|tool_call> plus the opened call text.
+    assert!(forced > auto);
+
+    let bare = fixture_with(&config(), 1, false);
+    let provider = bare.load().expect("loads without tool tokens");
+    let error = run(
+        &provider,
+        &ModelRequest::new(MODEL_ID)
+            .with_user("hello")
+            .with_tool_choice(ToolChoice::Required),
+    )
+    .expect_err("forced choice is refused");
+    assert!(
+        error
+            .to_string()
+            .contains("does not support a forced tool choice")
+    );
 }

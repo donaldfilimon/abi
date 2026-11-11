@@ -1,7 +1,7 @@
 //! End-to-end loopback tests over deterministic runtime test providers.
 
 use abi_agent_runtime::{
-    EchoProvider, ModelProvider, RunBudget, RuntimeError, ScriptedProvider, ToolCall,
+    EchoProvider, ModelEvent, ModelProvider, RunBudget, RuntimeError, ScriptedProvider, ToolCall,
 };
 use abi_model_serve::{ServeConfig, Server};
 use serde_json::Value;
@@ -281,6 +281,88 @@ fn a_tool_round_trip_is_accepted_when_tools_are_enabled() {
 
     assert_eq!(status, 200);
     assert_eq!(json(&body)["choices"][0]["finish_reason"], "stop");
+}
+
+fn reasoning() -> Arc<dyn ModelProvider> {
+    Arc::new(
+        ScriptedProvider::new("scripted")
+            .with_event(ModelEvent::reasoning("check the "))
+            .with_event(ModelEvent::reasoning("units"))
+            .with_text("42"),
+    )
+}
+
+fn reasoned(stream: bool) -> String {
+    format!(
+        r#"{{"model":"{MODEL}","stream":{stream},"reasoning_effort":"low","messages":[{{"role":"user","content":"hi"}}]}}"#
+    )
+}
+
+#[test]
+fn reasoning_is_reported_apart_from_the_answer_in_both_modes() {
+    let server = Running::start(reasoning(), ServeConfig::new(MODEL).with_reasoning(true));
+
+    let (status, body) = server.post(&reasoned(false), None);
+    let message = &json(&body)["choices"][0]["message"];
+    assert_eq!(status, 200);
+    assert_eq!(message["content"], "42");
+    assert_eq!(message["reasoning_content"], "check the units");
+
+    let (status, body) = server.post(&reasoned(true), None);
+    let events = events(&body);
+    assert_eq!(status, 200);
+    assert_eq!(
+        json(events[1])["choices"][0]["delta"]["reasoning_content"],
+        "check the "
+    );
+    assert_eq!(
+        json(events[2])["choices"][0]["delta"]["reasoning_content"],
+        "units"
+    );
+    assert_eq!(json(events[3])["choices"][0]["delta"]["content"], "42");
+    assert!(
+        json(events[3])["choices"][0]["delta"]
+            .get("reasoning_content")
+            .is_none()
+    );
+}
+
+#[test]
+fn reasoning_and_forced_tool_choice_are_refused_without_the_capability() {
+    let server = Running::start(scripted(), ServeConfig::new(MODEL));
+
+    let (status, body) = server.post(&reasoned(false), None);
+    assert_eq!(status, 400);
+    assert_eq!(json(&body)["error"]["code"], "reasoning_unsupported");
+
+    // An answer without reasoning carries no reasoning field at all.
+    let (_, body) = server.post(&chat(false), None);
+    assert!(
+        json(&body)["choices"][0]["message"]
+            .get("reasoning_content")
+            .is_none()
+    );
+
+    let forced =
+        tooled(false).replacen(r#""messages""#, r#""tool_choice":"required","messages""#, 1);
+    let (status, body) = server.post(&forced, None);
+    assert_eq!(status, 400);
+    assert_eq!(json(&body)["error"]["code"], "tools_unsupported");
+}
+
+#[test]
+fn a_forced_tool_choice_is_accepted_when_tools_are_enabled() {
+    let server = Running::start(calling(), ServeConfig::new(MODEL).with_tools(true));
+    let forced = tooled(false).replacen(
+        r#""messages""#,
+        r#""tool_choice":{"type":"function","function":{"name":"recall"}},"messages""#,
+        1,
+    );
+
+    let (status, body) = server.post(&forced, None);
+
+    assert_eq!(status, 200);
+    assert_eq!(json(&body)["choices"][0]["finish_reason"], "tool_calls");
 }
 
 #[test]

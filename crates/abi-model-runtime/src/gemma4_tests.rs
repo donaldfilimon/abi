@@ -1,9 +1,9 @@
 //! Prompt-rendering and output-grammar tests that need no decoder.
 
-use super::{OutputFilter, Tokens, ToolTokens, render_chat};
+use super::{Mode, OutputFilter, Tokens, ToolTokens, render_chat};
 use crate::gemma4_format::spell;
-use crate::provider::Step;
-use abi_agent_runtime::{Message, ModelRequest, Role, ToolSpec};
+use crate::provider::{Step, reasoning_body};
+use abi_agent_runtime::{Message, ModelRequest, Role, ToolChoice, ToolSpec};
 use serde_json::json;
 
 const EOS: u32 = 1;
@@ -31,6 +31,7 @@ fn tokens() -> Tokens {
             quote: QUOTE,
         }),
         channel: Some((CHANNEL_OPEN, CHANNEL_CLOSE)),
+        think: Some(13),
     }
 }
 
@@ -38,6 +39,7 @@ fn filter(offered: &[&str]) -> OutputFilter {
     OutputFilter::new(
         tokens(),
         offered.iter().map(|name| (*name).to_owned()).collect(),
+        false,
     )
 }
 
@@ -170,7 +172,7 @@ fn a_tokenizer_without_tool_tokens_treats_those_ids_as_text() {
         ..tokens()
     };
     plain.eos = EOS;
-    let mut filter = OutputFilter::new(plain, Vec::new());
+    let mut filter = OutputFilter::new(plain, Vec::new(), false);
     assert_eq!(
         run(&mut filter, &[CALL_START, CHANNEL_OPEN, RESPONSE_START], ""),
         Ok(vec![
@@ -319,4 +321,106 @@ fn unrenderable_tools_and_results_are_refused() {
             .with_message(Message::new(Role::Tool, content));
         assert!(render_chat("m", &request).is_err(), "{content}");
     }
+}
+
+#[test]
+fn a_requested_thought_channel_is_reported_as_reasoning() {
+    let mut filter = OutputFilter::new(tokens(), Vec::new(), true);
+    assert_eq!(
+        run(
+            &mut filter,
+            &[CHANNEL_OPEN, 100, QUOTE, 101, CHANNEL_CLOSE, 102, TURN_END],
+            ""
+        ),
+        Ok(vec![
+            Step::Hidden(CHANNEL_OPEN),
+            Step::Reasoning(100),
+            // Control tokens inside the channel are never reported.
+            Step::Hidden(QUOTE),
+            Step::Reasoning(101),
+            Step::Hidden(CHANNEL_CLOSE),
+            Step::Text(102),
+            Step::Stop,
+        ])
+    );
+}
+
+#[test]
+fn a_forced_call_starts_inside_the_call_the_prompt_opened() {
+    let mut filter = filter(&["recall"]);
+    filter.mode = Mode::Call(vec![200, 201]);
+    let steps = run(&mut filter, &[100, CALL_END, 102], "call:recall{}").expect("forced call");
+    assert_eq!(steps[0], Step::Hidden(100));
+    assert!(matches!(&steps[1], Step::Call(CALL_END, call) if call.name == "recall"));
+    assert_eq!(steps[2], Step::Text(102));
+}
+
+#[test]
+fn reasoning_puts_the_thinking_switch_first_in_the_system_turn() {
+    assert_eq!(
+        rendered(
+            &ModelRequest::new("m")
+                .with_system("Be terse.")
+                .with_user("Hello.")
+                .with_reasoning(true)
+        ),
+        "<bos><|turn>system\n<|think|>Be terse.<turn|>\n<|turn>user\nHello.<turn|>\n<|turn>model\n"
+    );
+    // The switch creates a system turn when there is no system text.
+    assert_eq!(
+        rendered(
+            &ModelRequest::new("m")
+                .with_user("Hello.")
+                .with_reasoning(true)
+        ),
+        "<bos><|turn>system\n<|think|><turn|>\n<|turn>user\nHello.<turn|>\n<|turn>model\n"
+    );
+}
+
+#[test]
+fn a_forced_tool_choice_opens_the_call_in_the_prompt() {
+    let base = ModelRequest::new("m")
+        .with_user("Recall.")
+        .with_tool(ToolSpec::new("recall"))
+        .with_tool(ToolSpec::new("list_facts"));
+
+    let required = rendered(&base.clone().with_tool_choice(ToolChoice::Required));
+    assert!(required.ends_with("<|turn>model\n<|tool_call>call:"));
+
+    let named = rendered(
+        &base
+            .clone()
+            .with_tool_choice(ToolChoice::Named("list_facts".to_owned())),
+    );
+    assert!(named.ends_with("<|turn>model\n<|tool_call>call:list_facts{"));
+
+    let unoffered = base.with_tool_choice(ToolChoice::Named("purge".to_owned()));
+    assert!(
+        render_chat("m", &unoffered)
+            .expect_err("unoffered")
+            .to_string()
+            .contains("was not offered")
+    );
+    let none = ModelRequest::new("m")
+        .with_user("x")
+        .with_tool_choice(ToolChoice::Required);
+    assert!(
+        render_chat("m", &none)
+            .expect_err("no tools")
+            .to_string()
+            .contains("no tools were offered")
+    );
+}
+
+#[test]
+fn the_thought_label_is_stripped_from_reported_reasoning() {
+    // Nothing is shown while the label is still arriving.
+    assert_eq!(reasoning_body(""), "");
+    assert_eq!(reasoning_body("tho"), "");
+    assert_eq!(reasoning_body("thought"), "");
+    assert_eq!(reasoning_body("thought\n"), "");
+    assert_eq!(reasoning_body("thought\nFirst, check"), "First, check");
+    assert_eq!(reasoning_body(" thought\n\nFirst"), "First");
+    // A channel that does not start with the label is reported as it is.
+    assert_eq!(reasoning_body("analysis: check"), "analysis: check");
 }

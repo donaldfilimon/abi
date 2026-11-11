@@ -6,6 +6,7 @@
 
 use abi_model_runtime::{
     DevicePreference, GEMMA4_TEXT_ARCHITECTURE, LoadConfig, LocalModelProvider, ModelRuntimeError,
+    WeightPrecision,
 };
 use abi_models::{AcceptanceLedger, ModelManifest, ModelRegistry, StorageRoot, hash_file};
 use candle_core::{DType, Device};
@@ -24,7 +25,7 @@ pub const CONTEXT_TOKENS: u32 = 96;
 pub const OUTPUT_TOKENS: u32 = 6;
 
 /// Control tokens registered as special, in vocabulary order.
-pub const CONTROL: [&str; 13] = [
+pub const CONTROL: [&str; 14] = [
     "<bos>",
     "<eos>",
     "<|turn>",
@@ -38,6 +39,7 @@ pub const CONTROL: [&str; 13] = [
     "<|\"|>",
     "<|channel>",
     "<channel|>",
+    "<|think|>",
 ];
 
 pub const WORDS: [&str; 8] = [
@@ -71,17 +73,27 @@ pub struct Fixture {
     registry: ModelRegistry,
     ledger: AcceptanceLedger,
     storage: StorageRoot,
+    /// Tensors and parameters the decoder itself owns, excluding the extra
+    /// vision-tower tensor written beside them.
+    pub language_model: (usize, usize),
 }
 
 impl Fixture {
     pub fn load(&self) -> Result<LocalModelProvider, ModelRuntimeError> {
+        self.load_at(WeightPrecision::Single)
+    }
+
+    pub fn load_at(
+        &self,
+        precision: WeightPrecision,
+    ) -> Result<LocalModelProvider, ModelRuntimeError> {
         LocalModelProvider::load(
             &self.registry,
             &self.ledger,
             &self.storage,
             MODEL_ID,
             PRINCIPAL,
-            LoadConfig::new(DevicePreference::Cpu),
+            LoadConfig::new(DevicePreference::Cpu).with_weight_precision(precision),
         )
     }
 }
@@ -104,12 +116,15 @@ pub fn config() -> Value {
     })
 }
 
-/// `tools` selects whether the tool-grammar tokens exist in the tokenizer.
+/// `tools` selects whether the tool-grammar tokens and the thinking switch
+/// exist in the tokenizer.
 fn write_tokenizer(path: &Path, tools: bool) {
     let control: Vec<&str> = CONTROL
         .iter()
         .copied()
-        .filter(|token| tools || !token.contains("tool") && *token != "<|\"|>")
+        .filter(|token| {
+            tools || !token.contains("tool") && *token != "<|\"|>" && *token != "<|think|>"
+        })
         .collect();
     let vocabulary = control
         .iter()
@@ -138,7 +153,11 @@ fn write_tokenizer(path: &Path, tools: bool) {
 }
 
 /// Write randomly initialized decoder weights split across `shards` files.
-fn write_weights(directory: &Path, config: &Value, shards: usize) -> Vec<PathBuf> {
+fn write_weights(
+    directory: &Path,
+    config: &Value,
+    shards: usize,
+) -> (Vec<PathBuf>, (usize, usize)) {
     let parsed: Gemma4TextConfig = serde_json::from_value(config.clone()).expect("scratch config");
     let variables = VarMap::new();
     let builder = VarBuilder::from_varmap(&variables, DType::F32, &Device::Cpu);
@@ -150,9 +169,17 @@ fn write_weights(directory: &Path, config: &Value, shards: usize) -> Vec<PathBuf
         .iter()
         .map(|(name, variable)| (name.clone(), variable.as_tensor().clone()))
         .collect();
+    let owned = (
+        tensors.len(),
+        tensors.iter().map(|(_, tensor)| tensor.elem_count()).sum(),
+    );
+    // A published checkpoint also carries vision and audio towers. They sort
+    // after the language model, so they land in the last shard.
+    let foreign = candle_core::Tensor::zeros((4, 4), DType::F32, &Device::Cpu).expect("tensor");
+    tensors.push(("model.vision_tower.patch_embedding".to_owned(), foreign));
     tensors.sort_by(|left, right| left.0.cmp(&right.0));
     let per_shard = tensors.len().div_ceil(shards);
-    tensors
+    let paths = tensors
         .chunks(per_shard)
         .enumerate()
         .map(|(index, chunk)| {
@@ -161,7 +188,8 @@ fn write_weights(directory: &Path, config: &Value, shards: usize) -> Vec<PathBuf
             candle_core::safetensors::save(&shard, &path).expect("save shard");
             path
         })
-        .collect()
+        .collect();
+    (paths, owned)
 }
 
 fn artifact(path: &Path, kind: &str) -> Value {
@@ -184,7 +212,7 @@ pub fn fixture_with(config: &Value, shards: usize, tools: bool) -> Fixture {
     std::fs::create_dir_all(&source).expect("source directory");
     let tokenizer = source.join("tokenizer.json");
     write_tokenizer(&tokenizer, tools);
-    let mut files = write_weights(&source, &self::config(), shards);
+    let (mut files, language_model) = write_weights(&source, &self::config(), shards);
     let mut artifacts: Vec<Value> = files.iter().map(|path| artifact(path, "weights")).collect();
     artifacts.push(artifact(&tokenizer, "tokenizer"));
     files.push(tokenizer);
@@ -227,6 +255,7 @@ pub fn fixture_with(config: &Value, shards: usize, tools: bool) -> Fixture {
         .accept(&manifest, PRINCIPAL)
         .expect("accept fixture license");
     Fixture {
+        language_model,
         _scratch: scratch,
         registry,
         ledger,

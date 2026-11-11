@@ -52,6 +52,8 @@ pub(crate) enum Control {
     ResponseEnd,
     /// `<|"|>`
     Quote,
+    /// `<|think|>`
+    Think,
 }
 
 fn structure(pieces: &mut Vec<Piece>, text: &str) {
@@ -338,6 +340,7 @@ pub(crate) fn spell(pieces: &[Piece]) -> String {
             Piece::Control(Control::ResponseStart) => "<|tool_response>".to_owned(),
             Piece::Control(Control::ResponseEnd) => "<tool_response|>".to_owned(),
             Piece::Control(Control::Quote) => QUOTE_TEXT.to_owned(),
+            Piece::Control(Control::Think) => "<|think|>".to_owned(),
             Piece::Structure(text) | Piece::Text(text) => text.clone(),
         })
         .collect()

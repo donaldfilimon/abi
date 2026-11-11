@@ -1,7 +1,7 @@
 //! Loopback listener: authentication, routing, and provider dispatch.
 
 use crate::http::{self, HttpError, Request};
-use crate::protocol::{self, ProtocolError};
+use crate::protocol::{self, Capabilities, ProtocolError, Turn};
 use abi_agent_runtime::{
     CancellationToken, CollectingSink, EventSink, ModelEvent, ModelProvider, RunBudget,
     run_provider,
@@ -37,6 +37,8 @@ pub struct ServeConfig {
     pub budget: RunBudget,
     /// Whether the loaded model takes tool definitions.
     pub tools: bool,
+    /// Whether the loaded model can be asked to reason.
+    pub reasoning: bool,
 }
 
 impl ServeConfig {
@@ -50,7 +52,15 @@ impl ServeConfig {
             io_timeout: Duration::from_secs(30),
             budget: RunBudget::unlimited(),
             tools: false,
+            reasoning: false,
         }
+    }
+
+    /// Accept `reasoning_effort` and report reasoning as `reasoning_content`.
+    #[must_use]
+    pub const fn with_reasoning(mut self, reasoning: bool) -> Self {
+        self.reasoning = reasoning;
+        self
     }
 
     /// Accept tool definitions and report generated tool calls.
@@ -241,7 +251,11 @@ impl Server {
         stream: &mut TcpStream,
         created: u64,
     ) -> Result<(), Reply> {
-        let chat = protocol::parse_chat(&request.body, self.config.tools)?;
+        let capabilities = Capabilities {
+            tools: self.config.tools,
+            reasoning: self.config.reasoning,
+        };
+        let chat = protocol::parse_chat(&request.body, capabilities)?;
         let model = chat.request.model();
         // Exact selection only: a different name is never served by this model.
         if model != self.config.model_id {
@@ -277,12 +291,23 @@ impl Server {
                     _ => None,
                 })
                 .collect();
+            let reasoning: String = sink
+                .events()
+                .iter()
+                .filter_map(|event| match event {
+                    ModelEvent::ReasoningDelta { text } => Some(text.as_str()),
+                    _ => None,
+                })
+                .collect();
             let body = protocol::completion_body(
                 &id,
                 created,
                 model,
-                &sink.text(),
-                &calls,
+                &Turn {
+                    text: &sink.text(),
+                    reasoning: &reasoning,
+                    calls: &calls,
+                },
                 report.stop,
                 &report.usage,
             );
@@ -347,6 +372,7 @@ impl EventSink for SseSink<'_> {
     fn emit(&mut self, event: &ModelEvent) {
         let delta = match event {
             ModelEvent::TextDelta { text } => json!({ "content": text }),
+            ModelEvent::ReasoningDelta { text } => json!({ "reasoning_content": text }),
             ModelEvent::ToolCall(call) => {
                 let entry = protocol::tool_call_value(call, Some(self.calls));
                 self.calls += 1;

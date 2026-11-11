@@ -6,13 +6,12 @@
 //! control token id found inside caller-supplied content is dropped so content
 //! cannot open or close a turn.
 
-use crate::ModelRuntimeError;
+use crate::{ModelRuntimeError, shards};
 use abi_agent_runtime::{ModelRequest, Role};
 use abi_models::ModelManifest;
 use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::gemma3;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 use tokenizers::Tokenizer;
@@ -81,6 +80,7 @@ impl GemmaEngine {
         weights_paths: &[PathBuf],
         tokenizer: &Tokenizer,
         device: &Device,
+        precision: DType,
     ) -> Result<GemmaLoad, ModelRuntimeError> {
         let config = read_config(manifest, config_path)?;
         let vocabulary = tokenizer.get_vocab_size(true);
@@ -99,8 +99,9 @@ impl GemmaEngine {
             start_of_turn: required_token(manifest, tokenizer, START_OF_TURN)?,
             end_of_turn: required_token(manifest, tokenizer, END_OF_TURN)?,
         };
-        let (tensors, tensor_count, parameter_count) = read_shards(manifest, weights_paths)?;
-        let builder = VarBuilder::from_tensors(tensors, DType::F32, device);
+        let shards = shards::read(manifest, weights_paths, None, precision)?;
+        let (tensor_count, parameter_count) = (shards.tensor_count, shards.parameter_count);
+        let builder = VarBuilder::from_tensors(shards.tensors, precision, device);
         let model = gemma3::Model::new(false, &config, builder)
             .map_err(|error| candle_error(manifest, &error))?;
         Ok(GemmaLoad {
@@ -239,32 +240,6 @@ fn read_config(manifest: &ModelManifest, path: &Path) -> Result<gemma3::Config, 
         None => document,
     };
     serde_json::from_value(text).map_err(|error| config_error(manifest, error))
-}
-
-fn read_shards(
-    manifest: &ModelManifest,
-    paths: &[PathBuf],
-) -> Result<(HashMap<String, Tensor>, usize, usize), ModelRuntimeError> {
-    let mut tensors = HashMap::new();
-    let mut parameter_count = 0usize;
-    for path in paths {
-        let bytes = std::fs::read(path).map_err(|source| ModelRuntimeError::io(path, source))?;
-        // Shards stay on the CPU here; the builder moves each tensor to the
-        // selected device as the decoder requests it.
-        let shard = candle_core::safetensors::load_buffer(&bytes, &Device::Cpu)
-            .map_err(|error| candle_error(manifest, &error))?;
-        for (name, tensor) in shard {
-            parameter_count = parameter_count.saturating_add(tensor.elem_count());
-            if tensors.insert(name.clone(), tensor).is_some() {
-                return Err(ModelRuntimeError::Safetensors {
-                    model: manifest.id.clone(),
-                    detail: format!("tensor '{name}' appears in more than one shard"),
-                });
-            }
-        }
-    }
-    let tensor_count = tensors.len();
-    Ok((tensors, tensor_count, parameter_count))
 }
 
 fn required_token(

@@ -1,6 +1,8 @@
 //! Pure `OpenAI` chat-completions request parsing and response rendering.
 
-use abi_agent_runtime::{Message, ModelRequest, Role, StopReason, ToolCall, ToolSpec, Usage};
+use abi_agent_runtime::{
+    Message, ModelRequest, Role, StopReason, ToolCall, ToolChoice, ToolSpec, Usage,
+};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 
@@ -11,6 +13,15 @@ pub struct ChatRequest {
     pub request: ModelRequest,
     /// Whether the caller asked for server-sent events.
     pub stream: bool,
+}
+
+/// What the loaded model can take beyond plain text.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Capabilities {
+    /// Tool definitions, forced tool choice, and tool results.
+    pub tools: bool,
+    /// Requested reasoning, reported separately from the answer.
+    pub reasoning: bool,
 }
 
 /// A refusal rendered as an `OpenAI`-shaped error object.
@@ -75,9 +86,8 @@ impl ProtocolError {
 }
 
 /// Parse a chat-completions body. Anything the server cannot honor is refused
-/// instead of being dropped. `tools_supported` says whether the loaded model
-/// takes tool definitions.
-pub fn parse_chat(body: &[u8], tools_supported: bool) -> Result<ChatRequest, ProtocolError> {
+/// instead of being dropped. `capabilities` says what the loaded model takes.
+pub fn parse_chat(body: &[u8], capabilities: Capabilities) -> Result<ChatRequest, ProtocolError> {
     let document: Value = serde_json::from_slice(body)
         .map_err(|error| ProtocolError::invalid("invalid_json", error.to_string()))?;
     let Some(object) = document.as_object() else {
@@ -91,11 +101,18 @@ pub fn parse_chat(body: &[u8], tools_supported: bool) -> Result<ChatRequest, Pro
         .and_then(Value::as_str)
         .filter(|model| !model.is_empty())
         .ok_or_else(|| ProtocolError::invalid("model_required", "'model' must be a string"))?;
-    let tools = parse_tools(object.get("tools"), object.get("tool_choice"))?;
-    if !tools.is_empty() && !tools_supported {
+    let (tools, choice) = parse_tools(object.get("tools"), object.get("tool_choice"))?;
+    if !tools.is_empty() && !capabilities.tools {
         return Err(ProtocolError::invalid(
             "tools_unsupported",
             "the loaded model does not support tool definitions",
+        ));
+    }
+    let reasoning = parse_reasoning(object.get("reasoning_effort"))?;
+    if reasoning && !capabilities.reasoning {
+        return Err(ProtocolError::invalid(
+            "reasoning_unsupported",
+            "the loaded model does not support requested reasoning",
         ));
     }
     if object
@@ -129,6 +146,7 @@ pub fn parse_chat(body: &[u8], tools_supported: bool) -> Result<ChatRequest, Pro
     for tool in tools {
         request = request.with_tool(tool);
     }
+    request = request.with_tool_choice(choice).with_reasoning(reasoning);
     for key in ["max_completion_tokens", "max_tokens"] {
         match object.get(key) {
             None | Some(Value::Null) => {}
@@ -205,13 +223,56 @@ fn conversation(model: &str, messages: &[Value]) -> Result<ModelRequest, Protoco
     Ok(request)
 }
 
-/// Tool definitions, unless `tool_choice` turns them off.
+/// `reasoning_effort`: absent or `none` is off; any named effort is on. The
+/// loaded models have one thinking switch, so the levels are not distinguished.
+fn parse_reasoning(effort: Option<&Value>) -> Result<bool, ProtocolError> {
+    match effort.map(|effort| effort.as_str()) {
+        None | Some(Some("none")) => Ok(false),
+        Some(Some("minimal" | "low" | "medium" | "high")) => Ok(true),
+        Some(_) => Err(ProtocolError::invalid(
+            "invalid_reasoning_effort",
+            "'reasoning_effort' must be none, minimal, low, medium, or high",
+        )),
+    }
+}
+
+/// How `tool_choice` reads: `None` means the caller turned tools off.
+fn parse_choice(choice: Option<&Value>) -> Result<Option<ToolChoice>, ProtocolError> {
+    let unsupported = || {
+        ProtocolError::invalid(
+            "invalid_tool_choice",
+            "'tool_choice' must be auto, none, required, or a named function",
+        )
+    };
+    match choice {
+        None | Some(Value::Null) => Ok(Some(ToolChoice::Auto)),
+        Some(Value::String(choice)) => match choice.as_str() {
+            "auto" => Ok(Some(ToolChoice::Auto)),
+            "required" => Ok(Some(ToolChoice::Required)),
+            "none" => Ok(None),
+            _ => Err(unsupported()),
+        },
+        Some(choice) => choice
+            .get("function")
+            .filter(|_| choice.get("type").and_then(Value::as_str) == Some("function"))
+            .and_then(|function| function.get("name"))
+            .and_then(Value::as_str)
+            .filter(|name| !name.is_empty())
+            .map(|name| Some(ToolChoice::Named(name.to_owned())))
+            .ok_or_else(unsupported),
+    }
+}
+
+/// Tool definitions and how the model may use them. `tool_choice: "none"`
+/// drops the definitions.
 fn parse_tools(
     tools: Option<&Value>,
     choice: Option<&Value>,
-) -> Result<Vec<ToolSpec>, ProtocolError> {
+) -> Result<(Vec<ToolSpec>, ToolChoice), ProtocolError> {
+    let choice = parse_choice(choice)?;
+    let none = Vec::new();
     let entries = match tools {
-        None | Some(Value::Null) => return Ok(Vec::new()),
+        None | Some(Value::Null) => &none,
         Some(Value::Array(entries)) => entries,
         Some(_) => {
             return Err(ProtocolError::invalid(
@@ -220,17 +281,16 @@ fn parse_tools(
             ));
         }
     };
-    match choice.map(|choice| choice.as_str()) {
-        None | Some(Some("auto")) => {}
-        Some(Some("none")) => return Ok(Vec::new()),
-        Some(_) => {
-            return Err(ProtocolError::invalid(
-                "tool_choice_unsupported",
-                "'tool_choice' must be 'auto' or 'none'",
-            ));
-        }
+    let Some(choice) = choice else {
+        return Ok((Vec::new(), ToolChoice::Auto));
+    };
+    if choice != ToolChoice::Auto && entries.is_empty() {
+        return Err(ProtocolError::invalid(
+            "invalid_tool_choice",
+            "a forced 'tool_choice' needs 'tools'",
+        ));
     }
-    entries
+    let specs = entries
         .iter()
         .enumerate()
         .map(|(index, entry)| {
@@ -262,7 +322,16 @@ fn parse_tools(
             }
             Ok(spec)
         })
-        .collect()
+        .collect::<Result<Vec<_>, ProtocolError>>()?;
+    if let ToolChoice::Named(name) = &choice
+        && !specs.iter().any(|spec| &spec.name == name)
+    {
+        return Err(ProtocolError::invalid(
+            "invalid_tool_choice",
+            format!("'tool_choice' names '{name}', which is not in 'tools'"),
+        ));
+    }
+    Ok((specs, choice))
 }
 
 /// Record an assistant message's tool calls. Returns whether it made any.
@@ -362,17 +431,31 @@ pub(crate) fn tool_call_value(call: &ToolCall, index: Option<usize>) -> Value {
     entry
 }
 
+/// Everything one finished assistant turn produced.
+pub(crate) struct Turn<'a> {
+    pub(crate) text: &'a str,
+    pub(crate) reasoning: &'a str,
+    pub(crate) calls: &'a [&'a ToolCall],
+}
+
 /// The buffered `chat.completion` document.
 pub(crate) fn completion_body(
     id: &str,
     created: u64,
     model: &str,
-    text: &str,
-    calls: &[&ToolCall],
+    turn: &Turn<'_>,
     stop: StopReason,
     usage: &Usage,
 ) -> String {
+    let Turn {
+        text,
+        reasoning,
+        calls,
+    } = *turn;
     let mut message = json!({ "role": "assistant", "content": text });
+    if !reasoning.is_empty() {
+        message["reasoning_content"] = json!(reasoning);
+    }
     if !calls.is_empty() {
         if text.is_empty() {
             message["content"] = Value::Null;
@@ -434,11 +517,17 @@ pub(crate) fn models_body(model: &str, created: u64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{finish_reason, parse_chat};
+    use super::{Capabilities, finish_reason, parse_chat};
+    use abi_agent_runtime::ToolChoice;
+
+    const ALL: Capabilities = Capabilities {
+        tools: true,
+        reasoning: true,
+    };
     use abi_agent_runtime::{BudgetLimit, Role, StopReason};
 
     fn code(body: &str) -> &'static str {
-        parse_chat(body.as_bytes(), true)
+        parse_chat(body.as_bytes(), ALL)
             .expect_err("request is refused")
             .code
     }
@@ -452,7 +541,7 @@ mod tests {
                 {"role":"assistant","content":"hi"},
                 {"role":"developer","content":"later rule"},
                 {"role":"user","content":"again"}]}"#,
-            false,
+            Capabilities::default(),
         )
         .expect("valid request");
         assert!(parsed.stream);
@@ -471,7 +560,7 @@ mod tests {
         let parsed = parse_chat(
             br#"{"model":"m","max_tokens":9,"max_completion_tokens":3,"n":1,"tools":[],
                 "messages":[{"role":"user","content":"x"}]}"#,
-            false,
+            Capabilities::default(),
         )
         .expect("valid request");
         assert!(!parsed.stream);
@@ -498,9 +587,27 @@ mod tests {
         );
         assert_eq!(
             code(&format!(
-                r#"{{"model":"m","tools":[{{"type":"function","function":{{"name":"t"}}}}],"tool_choice":"required",{user}}}"#
+                r#"{{"model":"m","tool_choice":"required",{user}}}"#
             )),
-            "tool_choice_unsupported"
+            "invalid_tool_choice"
+        );
+        assert_eq!(
+            code(&format!(
+                r#"{{"model":"m","tools":[{{"type":"function","function":{{"name":"t"}}}}],"tool_choice":{{"type":"function","function":{{"name":"other"}}}},{user}}}"#
+            )),
+            "invalid_tool_choice"
+        );
+        assert_eq!(
+            code(&format!(
+                r#"{{"model":"m","tool_choice":"sometimes",{user}}}"#
+            )),
+            "invalid_tool_choice"
+        );
+        assert_eq!(
+            code(&format!(
+                r#"{{"model":"m","reasoning_effort":"max",{user}}}"#
+            )),
+            "invalid_reasoning_effort"
         );
         assert_eq!(
             code(r#"{"model":"m","messages":[{"role":"tool","tool_call_id":"c9","content":"x"}]}"#),
@@ -549,7 +656,7 @@ mod tests {
 
     #[test]
     fn tools_and_a_tool_round_trip_become_specs_and_host_envelopes() {
-        let parsed = parse_chat(TOOLED.as_bytes(), true).expect("valid tooled request");
+        let parsed = parse_chat(TOOLED.as_bytes(), ALL).expect("valid tooled request");
         let tools = parsed.request.tools();
         assert_eq!(tools.len(), 1);
         assert_eq!(tools[0].name, "recall");
@@ -572,14 +679,45 @@ mod tests {
     #[test]
     fn tools_are_refused_only_when_the_model_cannot_take_them() {
         assert_eq!(
-            parse_chat(TOOLED.as_bytes(), false)
+            parse_chat(TOOLED.as_bytes(), Capabilities::default())
                 .expect_err("unsupported")
                 .code,
             "tools_unsupported"
         );
         let silenced = TOOLED.replacen(r#""messages""#, r#""tool_choice":"none","messages""#, 1);
-        let parsed = parse_chat(silenced.as_bytes(), false).expect("tool_choice none drops tools");
+        let parsed = parse_chat(silenced.as_bytes(), Capabilities::default())
+            .expect("tool_choice none drops tools");
         assert_eq!(parsed.request.tools(), []);
+    }
+
+    #[test]
+    fn tool_choice_and_reasoning_effort_reach_the_provider_request() {
+        let tools = r#""tools":[{"type":"function","function":{"name":"recall"}}],"messages":[{"role":"user","content":"x"}]"#;
+        let parse = |extra: &str| {
+            parse_chat(format!(r#"{{"model":"m",{extra}{tools}}}"#).as_bytes(), ALL)
+                .expect("valid request")
+                .request
+        };
+        assert_eq!(*parse("").tool_choice(), ToolChoice::Auto);
+        assert!(!parse("").reasoning());
+        assert_eq!(
+            *parse(r#""tool_choice":"required","#).tool_choice(),
+            ToolChoice::Required
+        );
+        assert_eq!(
+            *parse(r#""tool_choice":{"type":"function","function":{"name":"recall"}},"#)
+                .tool_choice(),
+            ToolChoice::Named("recall".to_owned())
+        );
+        assert!(parse(r#""reasoning_effort":"low","#).reasoning());
+        assert!(!parse(r#""reasoning_effort":"none","#).reasoning());
+
+        let refused = parse_chat(
+            br#"{"model":"m","reasoning_effort":"high","messages":[{"role":"user","content":"x"}]}"#,
+            Capabilities::default(),
+        )
+        .expect_err("reasoning needs the capability");
+        assert_eq!(refused.code, "reasoning_unsupported");
     }
 
     #[test]

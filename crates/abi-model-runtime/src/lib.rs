@@ -40,6 +40,7 @@ mod gemma4;
 mod gemma4_format;
 mod provider;
 mod report;
+mod shards;
 
 pub use device::{DevicePreference, ExecutionPath};
 pub use error::ModelRuntimeError;
@@ -48,5 +49,6 @@ pub use gemma4::GEMMA4_TEXT_ARCHITECTURE;
 pub use provider::{
     DEFAULT_MAX_GENERATED_TOKENS, DEFAULT_MAX_MODEL_BYTES, DEFAULT_MAX_PROMPT_BYTES,
     DEFAULT_MAX_TOKENIZER_BYTES, FIXTURE_BIGRAM_ARCHITECTURE, LoadConfig, LocalModelProvider,
+    WeightPrecision,
 };
 pub use report::{InferenceReport, LoadReport};

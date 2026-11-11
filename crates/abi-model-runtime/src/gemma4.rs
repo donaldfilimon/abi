@@ -2,23 +2,25 @@
 //! tool-declaration, tool-call, and tool-response grammar.
 //!
 //! Only the language model is loaded; vision and audio tensors in a published
-//! checkpoint are skipped. Thinking is never requested, and any thought
-//! channel the model opens is consumed without being shown.
+//! checkpoint are never read. A request that asks for reasoning puts the
+//! thinking switch at the start of the system turn and reports the thought
+//! channel as reasoning; otherwise a thought channel the model opens is
+//! consumed without being shown. A forced tool choice opens the call in the
+//! prompt, so the model can only continue it.
 //!
-//! NOTE(SDK): Google's template is reported to append an empty thought channel
-//! to the generation prompt when thinking is off. Its exact text was not
-//! verified, so this adapter ends the prompt at the open model turn instead.
+//! NOTE(SDK): Google's page shows an empty thought channel as an optional
+//! stabilizer for larger models when thinking is off. This adapter does not
+//! add it and ends the prompt at the open model turn.
 
-use crate::ModelRuntimeError;
 use crate::gemma4_format::{self as format, Control, Piece};
 use crate::provider::Step;
-use abi_agent_runtime::{ModelRequest, Role, ToolCall};
+use crate::{ModelRuntimeError, shards};
+use abi_agent_runtime::{ModelRequest, Role, ToolCall, ToolChoice};
 use abi_models::ModelManifest;
 use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::gemma4::{Gemma4TextConfig, text::TextModel};
 use serde_json::Value;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 use tokenizers::Tokenizer;
@@ -38,6 +40,7 @@ struct Tokens {
     turn_end: u32,
     tools: Option<ToolTokens>,
     channel: Option<(u32, u32)>,
+    think: Option<u32>,
 }
 
 /// The seven tokens the tool grammar needs. Tools are offered only when the
@@ -82,6 +85,7 @@ impl Tokens {
             turn_end: required("<turn|>")?,
             tools,
             channel: optional("<|channel>").zip(optional("<channel|>")),
+            think: optional("<|think|>"),
         })
     }
 
@@ -101,7 +105,9 @@ impl Tokens {
         let channel = self
             .channel
             .is_some_and(|(open, close)| token == open || token == close);
-        tool || channel || [self.bos, self.eos, self.turn_start, self.turn_end].contains(&token)
+        tool || channel
+            || self.think == Some(token)
+            || [self.bos, self.eos, self.turn_start, self.turn_end].contains(&token)
     }
 
     fn control(self, control: Control) -> Option<u32> {
@@ -116,6 +122,7 @@ impl Tokens {
             Control::ResponseStart => self.tools?.response_start,
             Control::ResponseEnd => self.tools?.response_end,
             Control::Quote => self.tools?.quote,
+            Control::Think => self.think?,
         })
     }
 }
@@ -142,6 +149,7 @@ impl Gemma4Engine {
         weights_paths: &[PathBuf],
         tokenizer: &Tokenizer,
         device: &Device,
+        precision: DType,
     ) -> Result<Gemma4Load, ModelRuntimeError> {
         let config = read_config(manifest, config_path)?;
         let vocabulary = tokenizer.get_vocab_size(true);
@@ -165,9 +173,14 @@ impl Gemma4Engine {
             ));
         }
         let tokens = Tokens::resolve(manifest, tokenizer)?;
-        let (tensors, tensor_count, parameter_count) =
-            read_language_model(manifest, weights_paths)?;
-        let builder = VarBuilder::from_tensors(tensors, DType::F32, device)
+        let shards = shards::read(
+            manifest,
+            weights_paths,
+            Some(LANGUAGE_MODEL_PREFIX),
+            precision,
+        )?;
+        let (tensor_count, parameter_count) = (shards.tensor_count, shards.parameter_count);
+        let builder = VarBuilder::from_tensors(shards.tensors, precision, device)
             .pp("model")
             .pp("language_model");
         let model =
@@ -188,6 +201,11 @@ impl Gemma4Engine {
         self.tokens.tools.is_some()
     }
 
+    /// Whether the tokenizer carries the thinking switch and thought channel.
+    pub(crate) const fn supports_reasoning(&self) -> bool {
+        self.tokens.think.is_some() && self.tokens.channel.is_some()
+    }
+
     /// Render and tokenize the conversation, ending in an open model turn.
     pub(crate) fn encode_chat(
         &self,
@@ -201,8 +219,14 @@ impl Gemma4Engine {
             match piece {
                 Piece::Control(control) => {
                     ids.push(self.tokens.control(*control).ok_or_else(|| {
-                        ModelRuntimeError::UnsupportedTools {
-                            model: model_id.to_owned(),
+                        if *control == Control::Think {
+                            ModelRuntimeError::UnsupportedReasoning {
+                                model: model_id.to_owned(),
+                            }
+                        } else {
+                            ModelRuntimeError::UnsupportedTools {
+                                model: model_id.to_owned(),
+                            }
                         }
                     })?);
                 }
@@ -231,18 +255,24 @@ impl Gemma4Engine {
                 model: model_id.to_owned(),
             })?;
         model.clear_kv_cache();
+        let mut filter = OutputFilter::new(
+            self.tokens,
+            request
+                .tools()
+                .iter()
+                .map(|tool| tool.name.clone())
+                .collect(),
+            request.reasoning(),
+        );
+        if let Some(prefix) = forced_call_prefix(model_id, request)? {
+            // The prompt already opened this call, so generation starts inside it.
+            filter.mode = Mode::Call(encode(model_id, tokenizer, &prefix)?);
+        }
         Ok(Gemma4Session {
             model,
             device: &self.device,
             position: 0,
-            filter: OutputFilter::new(
-                self.tokens,
-                request
-                    .tools()
-                    .iter()
-                    .map(|tool| tool.name.clone())
-                    .collect(),
-            ),
+            filter,
             model_id,
             tokenizer,
         })
@@ -312,15 +342,18 @@ struct OutputFilter {
     offered: Vec<String>,
     mode: Mode,
     calls: usize,
+    /// Whether thought-channel tokens are reported instead of hidden.
+    reasoning: bool,
 }
 
 impl OutputFilter {
-    const fn new(tokens: Tokens, offered: Vec<String>) -> Self {
+    const fn new(tokens: Tokens, offered: Vec<String>, reasoning: bool) -> Self {
         Self {
             tokens,
             offered,
             mode: Mode::Answer,
             calls: 0,
+            reasoning,
         }
     }
 
@@ -361,8 +394,13 @@ impl OutputFilter {
             Mode::Channel => {
                 if tokens.channel.is_some_and(|(_, close)| token == close) {
                     self.mode = Mode::Answer;
+                    return Ok(Step::Hidden(token));
                 }
-                Ok(Step::Hidden(token))
+                Ok(if self.reasoning && !tokens.is_control(token) {
+                    Step::Reasoning(token)
+                } else {
+                    Step::Hidden(token)
+                })
             }
             Mode::Answer => {
                 if tokens.channel.is_some_and(|(open, _)| token == open) {
@@ -406,9 +444,12 @@ fn render_chat(model_id: &str, request: &ModelRequest) -> Result<Vec<Piece>, Mod
             .iter()
             .map(|message| message.content.as_str()),
     );
-    if !system.is_empty() || !request.tools().is_empty() {
+    if !system.is_empty() || !request.tools().is_empty() || request.reasoning() {
         pieces.push(Piece::Control(Control::TurnStart));
         pieces.push(Piece::Structure("system\n".to_owned()));
+        if request.reasoning() {
+            pieces.push(Piece::Control(Control::Think));
+        }
         pieces.push(Piece::Text(system.join("\n\n").trim().to_owned()));
         for tool in request.tools() {
             if !format::valid_tool_name(&tool.name) {
@@ -478,7 +519,37 @@ fn render_chat(model_id: &str, request: &ModelRequest) -> Result<Vec<Piece>, Mod
         pieces.push(Piece::Control(Control::TurnStart));
         pieces.push(Piece::Structure("model\n".to_owned()));
     }
+    if let Some(prefix) = forced_call_prefix(model_id, request)? {
+        pieces.push(Piece::Control(Control::CallStart));
+        pieces.push(Piece::Structure(prefix));
+    }
     Ok(pieces)
+}
+
+/// The call text a forced tool choice writes into the open model turn, so the
+/// model can only continue a call: `call:` for any tool, `call:NAME{` for one.
+fn forced_call_prefix(
+    model_id: &str,
+    request: &ModelRequest,
+) -> Result<Option<String>, ModelRuntimeError> {
+    let invalid = |detail: String| ModelRuntimeError::InvalidTool {
+        model: model_id.to_owned(),
+        detail,
+    };
+    match request.tool_choice() {
+        ToolChoice::Auto => Ok(None),
+        ToolChoice::Required if request.tools().is_empty() => Err(invalid(
+            "a tool call is required but no tools were offered".to_owned(),
+        )),
+        ToolChoice::Required => Ok(Some("call:".to_owned())),
+        ToolChoice::Named(name) => {
+            if request.tools().iter().any(|tool| &tool.name == name) {
+                Ok(Some(format!("call:{name}{{")))
+            } else {
+                Err(invalid(format!("required tool '{name}' was not offered")))
+            }
+        }
+    }
 }
 
 fn tool_result(
@@ -560,40 +631,6 @@ fn read_config(
         None => document,
     };
     serde_json::from_value(text).map_err(|error| config_error(manifest, error))
-}
-
-/// Read only the language-model tensors from every shard.
-fn read_language_model(
-    manifest: &ModelManifest,
-    paths: &[PathBuf],
-) -> Result<(HashMap<String, Tensor>, usize, usize), ModelRuntimeError> {
-    let mut tensors = HashMap::new();
-    let mut parameter_count = 0usize;
-    for path in paths {
-        let bytes = std::fs::read(path).map_err(|source| ModelRuntimeError::io(path, source))?;
-        let shard = candle_core::safetensors::load_buffer(&bytes, &Device::Cpu)
-            .map_err(|error| candle_error(manifest, &error))?;
-        for (name, tensor) in shard {
-            if !name.starts_with(LANGUAGE_MODEL_PREFIX) {
-                continue;
-            }
-            parameter_count = parameter_count.saturating_add(tensor.elem_count());
-            if tensors.insert(name.clone(), tensor).is_some() {
-                return Err(ModelRuntimeError::Safetensors {
-                    model: manifest.id.clone(),
-                    detail: format!("tensor '{name}' appears in more than one shard"),
-                });
-            }
-        }
-    }
-    if tensors.is_empty() {
-        return Err(ModelRuntimeError::Safetensors {
-            model: manifest.id.clone(),
-            detail: format!("no tensor is named under '{LANGUAGE_MODEL_PREFIX}'"),
-        });
-    }
-    let tensor_count = tensors.len();
-    Ok((tensors, tensor_count, parameter_count))
 }
 
 fn config_error(manifest: &ModelManifest, detail: impl std::fmt::Display) -> ModelRuntimeError {
