@@ -63,6 +63,12 @@ pub enum ModelEvent {
         /// Chunk text, carried verbatim.
         text: String,
     },
+    /// A fragment of the model's reasoning, emitted only when the request asked
+    /// for it. It is never part of the assistant text.
+    ReasoningDelta {
+        /// The fragment.
+        text: String,
+    },
     /// The model asked for a tool invocation.
     ToolCall(ToolCall),
     /// The host reported the outcome of an invocation.
@@ -81,6 +87,12 @@ impl ModelEvent {
         Self::TextDelta { text: text.into() }
     }
 
+    /// Build a [`ModelEvent::ReasoningDelta`].
+    #[must_use]
+    pub fn reasoning(text: impl Into<String>) -> Self {
+        Self::ReasoningDelta { text: text.into() }
+    }
+
     /// Build a [`ModelEvent::Started`].
     #[must_use]
     pub fn started(model: impl Into<String>) -> Self {
@@ -95,6 +107,7 @@ impl ModelEvent {
         match self {
             Self::Started { .. } => "started",
             Self::TextDelta { .. } => "text_delta",
+            Self::ReasoningDelta { .. } => "reasoning_delta",
             Self::ToolCall(_) => "tool_call",
             Self::ToolResult(_) => "tool_result",
             Self::Finished { .. } => "finished",

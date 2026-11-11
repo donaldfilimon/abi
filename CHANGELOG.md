@@ -8,6 +8,44 @@ truth is the stable-Rust 1.99.1 workspace under `crates/`; readiness is gated by
 
 ### Added
 
+- feat(models): finish the Gemma serving path. `abi-agent-runtime` gains
+  `ToolChoice`, `ModelRequest::with_tool_choice`/`with_reasoning`, and
+  `ModelEvent::ReasoningDelta` (additive; `ModelEvent` was already
+  non-exhaustive). `abi-model-runtime` reads safetensors shards tensor by
+  tensor from their headers instead of buffering whole files, skips tensors
+  outside the wanted prefix without reading them, and can hold Gemma weights at
+  f16 (`LoadConfig::with_weight_precision`). The Gemma 4 adapter honors a forced
+  tool choice by opening the call in the prompt and, on request, enables
+  thinking and reports the thought channel as reasoning. `abi-model-serve`
+  accepts `tool_choice` `required` and named functions, `reasoning_effort`, and
+  `--precision f32|f16`, and returns reasoning as `reasoning_content`. Tested on
+  random scratch decoders, token sequences, and scripted providers only: f16 ran
+  on CPU, not Metal or CUDA; no published weights, real generated tool call, or
+  real thought channel has been observed.
+- feat(models): `abi-model-runtime` gains the `gemma3-text-v1` architecture:
+  Candle's Gemma 3 text decoder built from one verified config artifact and one
+  or more safetensors shards, fixed Gemma turn rendering with control-token ids
+  stripped from caller content, and greedy selection over a per-run cache. The
+  contract tests use a randomly initialized scratch decoder on CPU; no published
+  Gemma weights, Metal or CUDA execution, or output quality has been run or is
+  claimed. Tools, sampling, images, and audio stay unsupported.
+- feat(models): add `abi-model-serve`, a loopback `OpenAI`-compatible
+  chat-completions server (buffered JSON and SSE) over one explicitly loaded
+  provider. It serves only the exact loaded model, one request at a time, and
+  refuses `n>1` and non-text content with `400`. Separate binary; the frozen
+  14-command `abi` CLI is unchanged.
+- feat(models): add the `gemma4-text-v1` architecture and tool calling.
+  `abi-model-runtime` loads Candle's Gemma 4 text decoder from the
+  `model.language_model.*` tensors of a checkpoint, renders Gemma 4 turns and
+  tool declarations, surfaces generated calls as `ModelEvent::ToolCall`, and
+  renders tool results from the agent host's JSON envelope. `abi-model-serve`
+  maps `OpenAI` `tools`, `tool_calls`, and `tool` messages onto that when the
+  loaded model takes tools, and refuses them with `400` otherwise. Tested on a
+  random scratch decoder and on token sequences only: no published weights were
+  run, no real generated tool call was observed, and the prompt format follows
+  Google's published pages without comparison against a checkpoint's own chat
+  template.
+
 - feat(abi-mcp): the loopback HTTP listener serves persistent MCP 2024-11-05
   HTTP+SSE sessions. `GET /sse` announces `/message?sessionId=<id>` (random v4
   UUID) and stays open on its own thread; POSTs there answer `202` and publish

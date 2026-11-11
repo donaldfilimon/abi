@@ -1,10 +1,16 @@
-//! Candle-backed local provider and the first deterministic fixture architecture.
+//! Candle-backed local provider: the deterministic fixture architecture and
+//! the Gemma 3 text adapter share one load, budget, and evidence path.
 
 use crate::device::{executed_state, initialize};
+use crate::gemma::{GEMMA3_TEXT_ARCHITECTURE, GemmaEngine, GemmaSession, MAX_CONFIG_BYTES};
+use crate::gemma4::{GEMMA4_TEXT_ARCHITECTURE, Gemma4Engine, Gemma4Session};
 use crate::{DevicePreference, ExecutionPath, InferenceReport, LoadReport, ModelRuntimeError};
-use abi_agent_runtime::{Flow, ModelEvent, ModelProvider, ModelRequest, RunContext, RuntimeError};
+use abi_agent_runtime::{
+    Flow, ModelEvent, ModelProvider, ModelRequest, RunContext, RuntimeError, ToolCall, ToolChoice,
+};
 use abi_models::{
-    AcceptanceLedger, ModelManifest, ModelRegistry, StorageRoot, TensorFormat, verify_artifact,
+    AcceptanceLedger, ArtifactKind, ModelManifest, ModelRegistry, StorageRoot, TensorFormat,
+    verify_artifact,
 };
 use candle_core::{DType, Device, Tensor};
 use safetensors::SafeTensors;
@@ -14,15 +20,41 @@ use std::time::Instant;
 use tokenizers::Tokenizer;
 
 struct ArtifactSummary {
-    weights_path: std::path::PathBuf,
+    weights_paths: Vec<std::path::PathBuf>,
+    config_path: Option<std::path::PathBuf>,
     tokenizer_path: std::path::PathBuf,
     artifact_bytes: u64,
 }
 
-struct LoadedFixture {
+/// The architecture-specific half of a loaded model.
+enum Engine {
+    /// Transition-logit fixture: one tensor, one row lookup per token.
+    Bigram { transition: Tensor, eos_token: u32 },
+    /// Gemma 3 text decoder.
+    Gemma(Box<GemmaEngine>),
+    /// Gemma 4 text decoder with the tool grammar.
+    Gemma4(Box<Gemma4Engine>),
+}
+
+/// What one generated token means for the caller-visible stream.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Step {
+    /// The model ended its turn; the token is not part of the output.
+    Stop,
+    /// Answer text.
+    Text(u32),
+    /// Generated and fed back, but never shown: control tokens, an
+    /// unrequested thought channel, or the inside of a tool call.
+    Hidden(u32),
+    /// Requested reasoning from the thought channel.
+    Reasoning(u32),
+    /// The token closed a complete tool call.
+    Call(u32, ToolCall),
+}
+
+struct Loaded {
     tokenizer: Tokenizer,
-    transition: Tensor,
-    eos_token: u32,
+    engine: Engine,
     tensor_count: usize,
     parameter_count: usize,
 }
@@ -55,6 +87,37 @@ pub struct LoadConfig {
     pub max_prompt_bytes: usize,
     /// Hard provider generation ceiling.
     pub max_generated_tokens: u32,
+    /// Precision the floating-point weights are held in.
+    pub weight_precision: WeightPrecision,
+}
+
+/// Precision the floating-point weights are converted to at load.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum WeightPrecision {
+    /// 32-bit floats.
+    #[default]
+    Single,
+    /// 16-bit floats: half the weight memory. Whether a device executes every
+    /// decoder operation at this precision is only known by running it.
+    Half,
+}
+
+impl WeightPrecision {
+    const fn dtype(self) -> DType {
+        match self {
+            Self::Single => DType::F32,
+            Self::Half => DType::F16,
+        }
+    }
+
+    /// Stable lowercase label.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Single => "f32",
+            Self::Half => "f16",
+        }
+    }
 }
 
 impl LoadConfig {
@@ -67,7 +130,16 @@ impl LoadConfig {
             max_tokenizer_bytes: DEFAULT_MAX_TOKENIZER_BYTES,
             max_prompt_bytes: DEFAULT_MAX_PROMPT_BYTES,
             max_generated_tokens: DEFAULT_MAX_GENERATED_TOKENS,
+            weight_precision: WeightPrecision::Single,
         }
+    }
+
+    /// Hold the Gemma decoder weights at `precision`. The fixture
+    /// architecture ignores this.
+    #[must_use]
+    pub const fn with_weight_precision(mut self, precision: WeightPrecision) -> Self {
+        self.weight_precision = precision;
+        self
     }
 
     /// Override the maximum aggregate artifact bytes.
@@ -105,8 +177,7 @@ pub struct LocalModelProvider {
     requested_device: DevicePreference,
     executed_path: ExecutionPath,
     tokenizer: Tokenizer,
-    transition: Tensor,
-    eos_token: u32,
+    engine: Engine,
     context_tokens: u32,
     manifest_output_tokens: u32,
     max_generated_tokens: u32,
@@ -141,7 +212,12 @@ impl LocalModelProvider {
         let manifest = usable.manifest();
         let artifacts = verify_model_artifacts(manifest, storage, config)?;
         let initialized = initialize(config.device)?;
-        let loaded = load_fixture(manifest, &artifacts, &initialized.device)?;
+        let loaded = load_engine(
+            manifest,
+            &artifacts,
+            &initialized.device,
+            config.weight_precision.dtype(),
+        )?;
         let load_report = LoadReport {
             model_id: manifest.id.clone(),
             revision: manifest.revision.as_str().to_owned(),
@@ -157,8 +233,7 @@ impl LocalModelProvider {
             requested_device: config.device,
             executed_path: initialized.path,
             tokenizer: loaded.tokenizer,
-            transition: loaded.transition,
-            eos_token: loaded.eos_token,
+            engine: loaded.engine,
             context_tokens: manifest.context.max_context_tokens,
             manifest_output_tokens: manifest.context.max_output_tokens,
             max_generated_tokens: config.max_generated_tokens,
@@ -166,6 +241,24 @@ impl LocalModelProvider {
             load_report,
             last_inference: Mutex::new(None),
         })
+    }
+
+    /// Whether the loaded architecture and tokenizer can take tool definitions.
+    #[must_use]
+    pub fn supports_tools(&self) -> bool {
+        match &self.engine {
+            Engine::Bigram { .. } | Engine::Gemma(_) => false,
+            Engine::Gemma4(engine) => engine.supports_tools(),
+        }
+    }
+
+    /// Whether the loaded model can be asked to reason and report it.
+    #[must_use]
+    pub fn supports_reasoning(&self) -> bool {
+        match &self.engine {
+            Engine::Bigram { .. } | Engine::Gemma(_) => false,
+            Engine::Gemma4(engine) => engine.supports_reasoning(),
+        }
     }
 
     /// Immutable evidence captured when this provider loaded.
@@ -184,7 +277,7 @@ impl LocalModelProvider {
             })
     }
 
-    /// Drive the fixture architecture and retain execution evidence.
+    /// Drive the loaded architecture and retain execution evidence.
     fn infer(
         &self,
         request: &ModelRequest,
@@ -201,7 +294,17 @@ impl LocalModelProvider {
                 model: self.model_id.clone(),
             });
         }
-        if !request.tools().is_empty() {
+        if request.reasoning() && !self.supports_reasoning() {
+            return Err(ModelRuntimeError::UnsupportedReasoning {
+                model: self.model_id.clone(),
+            });
+        }
+        if *request.tool_choice() != ToolChoice::Auto && !self.supports_tools() {
+            return Err(ModelRuntimeError::UnsupportedToolChoice {
+                model: self.model_id.clone(),
+            });
+        }
+        if !request.tools().is_empty() && !self.supports_tools() {
             return Err(ModelRuntimeError::UnsupportedTools {
                 model: self.model_id.clone(),
             });
@@ -212,7 +315,7 @@ impl LocalModelProvider {
         }
         let (prompt_ids, generation_limit) = self.prepare(request, run)?;
         let (generated_tokens, native_operations) =
-            self.generate(prompt_ids.last().copied(), generation_limit, run)?;
+            self.generate(request, &prompt_ids, generation_limit, run)?;
         let capability = if native_operations == 0 {
             self.load_report.capability
         } else {
@@ -244,11 +347,21 @@ impl LocalModelProvider {
         request: &ModelRequest,
         run: &mut RunContext<'_>,
     ) -> Result<(Vec<u32>, u64), ModelRuntimeError> {
-        let encoding = self
-            .tokenizer
-            .encode(self.render_prompt(request)?, false)
-            .map_err(|error| self.tokenizer_error(error))?;
-        let prompt_ids = encoding.get_ids().to_vec();
+        let rendered = self.render_prompt(request)?;
+        let prompt_ids = match &self.engine {
+            Engine::Bigram { .. } => self
+                .tokenizer
+                .encode(rendered, false)
+                .map_err(|error| self.tokenizer_error(error))?
+                .get_ids()
+                .to_vec(),
+            Engine::Gemma(engine) => {
+                engine.encode_chat(&self.model_id, &self.tokenizer, request)?
+            }
+            Engine::Gemma4(engine) => {
+                engine.encode_chat(&self.model_id, &self.tokenizer, request)?
+            }
+        };
         if prompt_ids.is_empty() {
             return Err(self.tokenizer_error("prompt encoded to zero tokens"));
         }
@@ -274,46 +387,134 @@ impl LocalModelProvider {
 
     fn generate(
         &self,
-        start: Option<u32>,
+        request: &ModelRequest,
+        prompt_ids: &[u32],
         limit: u64,
         run: &mut RunContext<'_>,
     ) -> Result<(usize, u64), ModelRuntimeError> {
-        let mut current =
-            usize::try_from(start.expect("prepared prompt is non-empty")).unwrap_or(usize::MAX);
-        let mut generated = Vec::new();
-        let mut decoded = String::new();
         let mut native_operations = 0u64;
+        let generated = match &self.engine {
+            Engine::Bigram {
+                transition,
+                eos_token,
+            } => {
+                let start = prompt_ids.last().copied();
+                self.stream(limit, run, |previous| {
+                    let current = previous.or(start).expect("prepared prompt is non-empty");
+                    let row = transition
+                        .get(usize::try_from(current).unwrap_or(usize::MAX))
+                        .and_then(|row| row.argmax(0))
+                        .map_err(|error| self.candle_error(error))?;
+                    native_operations = native_operations.saturating_add(2);
+                    let next = row
+                        .to_scalar::<u32>()
+                        .map_err(|error| self.candle_error(error))?;
+                    native_operations = native_operations.saturating_add(1);
+                    Ok(if next == *eos_token {
+                        Step::Stop
+                    } else {
+                        Step::Text(next)
+                    })
+                })?
+            }
+            Engine::Gemma(engine) => {
+                let mut session = engine.session(&self.model_id)?;
+                self.stream(limit, run, |previous| {
+                    let next = match previous {
+                        None => session.advance(prompt_ids),
+                        Some(token) => session.advance(&[token]),
+                    }
+                    .map_err(|error| self.candle_error(error))?;
+                    native_operations =
+                        native_operations.saturating_add(GemmaSession::OPERATIONS_PER_STEP);
+                    Ok(next.map_or(Step::Stop, Step::Text))
+                })?
+            }
+            Engine::Gemma4(engine) => {
+                let mut session = engine.session(&self.model_id, &self.tokenizer, request)?;
+                self.stream(limit, run, |previous| {
+                    let step = match previous {
+                        None => session.advance(prompt_ids),
+                        Some(token) => session.advance(&[token]),
+                    }?;
+                    native_operations =
+                        native_operations.saturating_add(Gemma4Session::OPERATIONS_PER_STEP);
+                    Ok(step)
+                })?
+            }
+        };
+        Ok((generated, native_operations))
+    }
+
+    /// Shared emission loop. `step` receives the previously generated token
+    /// (`None` on the first call) and classifies the next one. Every generated
+    /// token counts against `limit` and the output-token usage, shown or not.
+    fn stream(
+        &self,
+        limit: u64,
+        run: &mut RunContext<'_>,
+        mut step: impl FnMut(Option<u32>) -> Result<Step, ModelRuntimeError>,
+    ) -> Result<usize, ModelRuntimeError> {
+        let mut previous = None;
+        let mut generated = 0usize;
+        let mut shown: Vec<u32> = Vec::new();
+        let mut decoded = String::new();
+        let mut thought: Vec<u32> = Vec::new();
+        let mut thought_shown = String::new();
         for _ in 0..limit {
-            let row = self
-                .transition
-                .get(current)
-                .and_then(|row| row.argmax(0))
-                .map_err(|error| self.candle_error(error))?;
-            native_operations = native_operations.saturating_add(2);
-            let next = row
-                .to_scalar::<u32>()
-                .map_err(|error| self.candle_error(error))?;
-            native_operations = native_operations.saturating_add(1);
-            if next == self.eos_token {
+            let event = match step(previous)? {
+                Step::Stop => break,
+                Step::Hidden(token) => {
+                    previous = Some(token);
+                    None
+                }
+                Step::Call(token, call) => {
+                    previous = Some(token);
+                    Some(ModelEvent::ToolCall(call))
+                }
+                Step::Reasoning(token) => {
+                    previous = Some(token);
+                    thought.push(token);
+                    let text = self
+                        .tokenizer
+                        .decode(&thought, true)
+                        .map_err(|error| self.tokenizer_error(error))?;
+                    let visible = reasoning_body(&text);
+                    let delta = visible.strip_prefix(&thought_shown).ok_or_else(|| {
+                        self.tokenizer_error("incremental decode changed emitted reasoning")
+                    })?;
+                    if delta.is_empty() {
+                        None
+                    } else {
+                        let event = ModelEvent::reasoning(delta);
+                        visible.clone_into(&mut thought_shown);
+                        Some(event)
+                    }
+                }
+                Step::Text(token) => {
+                    previous = Some(token);
+                    shown.push(token);
+                    let next_decoded = self
+                        .tokenizer
+                        .decode(&shown, true)
+                        .map_err(|error| self.tokenizer_error(error))?;
+                    let delta = next_decoded.strip_prefix(&decoded).ok_or_else(|| {
+                        self.tokenizer_error("incremental decode changed emitted text")
+                    })?;
+                    let event = ModelEvent::text(delta);
+                    decoded = next_decoded;
+                    Some(event)
+                }
+            };
+            if let Some(event) = event
+                && run.emit(&event) == Flow::Stop
+            {
                 break;
             }
-            generated.push(next);
-            let next_decoded = self
-                .tokenizer
-                .decode(&generated, true)
-                .map_err(|error| self.tokenizer_error(error))?;
-            let delta = next_decoded
-                .strip_prefix(&decoded)
-                .ok_or_else(|| self.tokenizer_error("incremental decode changed emitted text"))?;
-            if run.emit(&ModelEvent::text(delta)) == Flow::Stop {
-                generated.pop();
-                break;
-            }
+            generated += 1;
             run.record_output_tokens(1);
-            decoded = next_decoded;
-            current = usize::try_from(next).unwrap_or(usize::MAX);
         }
-        Ok((generated.len(), native_operations))
+        Ok(generated)
     }
 
     fn tokenizer_error(&self, error: impl std::fmt::Display) -> ModelRuntimeError {
@@ -375,12 +576,16 @@ fn verify_model_artifacts(
     storage: &StorageRoot,
     config: LoadConfig,
 ) -> Result<ArtifactSummary, ModelRuntimeError> {
-    if manifest.architecture != FIXTURE_BIGRAM_ARCHITECTURE {
-        return Err(ModelRuntimeError::UnsupportedArchitecture {
-            model: manifest.id.clone(),
-            architecture: manifest.architecture.clone(),
-        });
-    }
+    let gemma = match manifest.architecture.as_str() {
+        FIXTURE_BIGRAM_ARCHITECTURE => false,
+        GEMMA3_TEXT_ARCHITECTURE | GEMMA4_TEXT_ARCHITECTURE => true,
+        _ => {
+            return Err(ModelRuntimeError::UnsupportedArchitecture {
+                model: manifest.id.clone(),
+                architecture: manifest.architecture.clone(),
+            });
+        }
+    };
     if manifest.tensor_format != TensorFormat::Safetensors {
         return Err(ModelRuntimeError::UnsupportedTensorFormat {
             model: manifest.id.clone(),
@@ -408,34 +613,107 @@ fn verify_model_artifacts(
         });
     }
     let weights: Vec<_> = manifest.weights().collect();
-    if weights.len() != 1 {
+    // The fixture is one tensor file; Gemma publications ship ordered shards.
+    if weights.is_empty() || (!gemma && weights.len() != 1) {
         return Err(ModelRuntimeError::WeightArtifactCount {
             model: manifest.id.clone(),
             actual: weights.len(),
+        });
+    }
+    let configs: Vec<_> = manifest
+        .artifacts
+        .iter()
+        .filter(|artifact| artifact.kind == ArtifactKind::Config)
+        .collect();
+    if gemma && configs.len() != 1 {
+        return Err(ModelRuntimeError::ConfigArtifactCount {
+            model: manifest.id.clone(),
+            actual: configs.len(),
+        });
+    }
+    if let Some(config) = configs
+        .first()
+        .filter(|config| config.size_bytes > MAX_CONFIG_BYTES)
+    {
+        return Err(ModelRuntimeError::ConfigTooLarge {
+            model: manifest.id.clone(),
+            actual: config.size_bytes,
+            maximum: MAX_CONFIG_BYTES,
         });
     }
     for artifact in &manifest.artifacts {
         verify_artifact(&storage.artifact_path(manifest, artifact), artifact)?;
     }
     Ok(ArtifactSummary {
-        weights_path: storage.artifact_path(manifest, weights[0]),
+        weights_paths: weights
+            .iter()
+            .map(|artifact| storage.artifact_path(manifest, artifact))
+            .collect(),
+        config_path: gemma.then(|| storage.artifact_path(manifest, configs[0])),
         tokenizer_path: storage.artifact_path(manifest, tokenizer),
         artifact_bytes,
     })
 }
 
-fn load_fixture(
+/// The thought channel opens with a `thought` label line; reasoning is what
+/// follows it. While only part of the label has arrived, nothing is shown.
+pub(crate) fn reasoning_body(decoded: &str) -> &str {
+    const LABEL: &str = "thought";
+    let text = decoded.trim_start();
+    match text.strip_prefix(LABEL) {
+        Some(rest) => rest.trim_start(),
+        None if LABEL.starts_with(text) => "",
+        None => text,
+    }
+}
+
+fn load_engine(
     manifest: &ModelManifest,
     artifacts: &ArtifactSummary,
     device: &Device,
-) -> Result<LoadedFixture, ModelRuntimeError> {
+    precision: DType,
+) -> Result<Loaded, ModelRuntimeError> {
     let tokenizer = Tokenizer::from_file(&artifacts.tokenizer_path).map_err(|error| {
         ModelRuntimeError::Tokenizer {
             model: manifest.id.clone(),
             detail: error.to_string(),
         }
     })?;
-    let weights_bytes = read(&artifacts.weights_path)?;
+    if let Some(config_path) = &artifacts.config_path
+        && manifest.architecture == GEMMA4_TEXT_ARCHITECTURE
+    {
+        let loaded = Gemma4Engine::load(
+            manifest,
+            config_path,
+            &artifacts.weights_paths,
+            &tokenizer,
+            device,
+            precision,
+        )?;
+        return Ok(Loaded {
+            tokenizer,
+            engine: Engine::Gemma4(Box::new(loaded.engine)),
+            tensor_count: loaded.tensor_count,
+            parameter_count: loaded.parameter_count,
+        });
+    }
+    if let Some(config_path) = &artifacts.config_path {
+        let loaded = GemmaEngine::load(
+            manifest,
+            config_path,
+            &artifacts.weights_paths,
+            &tokenizer,
+            device,
+            precision,
+        )?;
+        return Ok(Loaded {
+            tokenizer,
+            engine: Engine::Gemma(Box::new(loaded.engine)),
+            tensor_count: loaded.tensor_count,
+            parameter_count: loaded.parameter_count,
+        });
+    }
+    let weights_bytes = read(&artifacts.weights_paths[0])?;
     let safetensors = SafeTensors::deserialize(&weights_bytes).map_err(|error| {
         ModelRuntimeError::Safetensors {
             model: manifest.id.clone(),
@@ -462,10 +740,12 @@ fn load_fixture(
             model: manifest.id.clone(),
             detail: "required <eos> token is absent".to_owned(),
         })?;
-    Ok(LoadedFixture {
+    Ok(Loaded {
+        engine: Engine::Bigram {
+            transition: transition.clone(),
+            eos_token,
+        },
         tokenizer,
-        transition: transition.clone(),
-        eos_token,
         tensor_count: safetensors.len(),
         parameter_count: transition.elem_count(),
     })

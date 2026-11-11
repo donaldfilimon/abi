@@ -91,7 +91,7 @@ pub use policy::{
     NullAuditSink, PolicyDecision, authorize_and_audit,
 };
 pub use provider::ModelProvider;
-pub use request::{Message, ModelRequest, Role};
+pub use request::{Message, ModelRequest, Role, ToolChoice};
 pub use run::{Flow, RunContext, RunReport, run_provider};
 pub use testing::{ECHO_PROVIDER_ID, EchoProvider, ScriptedProvider};
 pub use tool::{

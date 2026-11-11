@@ -187,9 +187,27 @@ dependencies = [
  "abi-foundation",
  "abi-models",
  "candle-core",
+ "candle-nn",
+ "candle-transformers",
  "safetensors",
  "serde_json",
  "thiserror 2.0.21",
+ "tokenizers 0.22.2",
+]
+
+[[package]]
+name = "abi-model-serve"
+version = "0.1.0"
+dependencies = [
+ "abi-agent-runtime",
+ "abi-foundation",
+ "abi-model-runtime",
+ "abi-models",
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "ctrlc",
+ "serde_json",
  "tokenizers 0.22.2",
 ]
 
@@ -814,6 +832,41 @@ dependencies = [
  "objc2-metal",
  "once_cell",
  "thiserror 2.0.21",
+ "tracing",
+]
+
+[[package]]
+name = "candle-nn"
+version = "0.11.0"
+source = "git+https://github.com/huggingface/candle.git?rev=70f72e9cfdbfc570846ca363ead2135394af3e9a#70f72e9cfdbfc570846ca363ead2135394af3e9a"
+dependencies = [
+ "candle-core",
+ "candle-metal-kernels",
+ "half",
+ "libc",
+ "num-traits",
+ "objc2-metal",
+ "rayon",
+ "safetensors",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "candle-transformers"
+version = "0.11.0"
+source = "git+https://github.com/huggingface/candle.git?rev=70f72e9cfdbfc570846ca363ead2135394af3e9a#70f72e9cfdbfc570846ca363ead2135394af3e9a"
+dependencies = [
+ "byteorder",
+ "candle-core",
+ "candle-nn",
+ "fancy-regex 0.19.2",
+ "num-traits",
+ "rand 0.9.5",
+ "rayon",
+ "serde",
+ "serde_json",
+ "serde_plain",
  "tracing",
 ]
 
@@ -1488,7 +1541,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3267,7 +3320,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3622,7 +3675,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3808,6 +3861,15 @@ dependencies = [
  "itoa",
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "serde_plain"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ce1fc6db65a611022b23a0dec6975d63fb80a302cb3388835ff02c097258d50"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -4100,7 +4162,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5000,7 +5062,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

@@ -139,6 +139,68 @@ pub enum ModelRuntimeError {
         /// Manifest-declared context ceiling.
         context_tokens: u32,
     },
+    /// A Gemma manifest must declare exactly one architecture-config artifact.
+    #[error("model '{model}' declares {actual} config artifacts; expected exactly one")]
+    ConfigArtifactCount {
+        /// Selected model.
+        model: String,
+        /// Declared config artifact count.
+        actual: usize,
+    },
+    /// The architecture config exceeded the fixed byte ceiling.
+    #[error("model '{model}' declares a {actual}-byte config, above maximum {maximum}")]
+    ConfigTooLarge {
+        /// Selected model.
+        model: String,
+        /// Manifest-declared config bytes.
+        actual: u64,
+        /// Fixed maximum.
+        maximum: u64,
+    },
+    /// The architecture config was malformed or inconsistent with the tokenizer.
+    #[error("invalid architecture config for model '{model}': {detail}")]
+    Config {
+        /// Selected model.
+        model: String,
+        /// Parser or validation detail.
+        detail: String,
+    },
+    /// The request asked for reasoning the loaded model cannot report.
+    #[error("model '{model}' does not support requested reasoning")]
+    UnsupportedReasoning {
+        /// Selected model.
+        model: String,
+    },
+    /// The request forced a tool choice the loaded model cannot honor.
+    #[error("model '{model}' does not support a forced tool choice")]
+    UnsupportedToolChoice {
+        /// Selected model.
+        model: String,
+    },
+    /// A generated tool call could not be parsed or named an unoffered tool.
+    #[error("model '{model}' produced an unusable tool call: {detail}")]
+    MalformedToolCall {
+        /// Selected model.
+        model: String,
+        /// Parser or validation detail.
+        detail: String,
+    },
+    /// An offered tool or a tool-result message could not be rendered.
+    #[error("model '{model}' cannot render a tool: {detail}")]
+    InvalidTool {
+        /// Selected model.
+        model: String,
+        /// Validation detail.
+        detail: String,
+    },
+    /// The conversation carried a role the architecture cannot render.
+    #[error("model '{model}' cannot render a '{role}' message")]
+    UnsupportedRole {
+        /// Selected model.
+        model: String,
+        /// Stable role label.
+        role: &'static str,
+    },
     /// Internal inference-report mutex was poisoned by a prior panic.
     #[error("inference report state for model '{model}' is poisoned")]
     ReportStatePoisoned {
