@@ -802,11 +802,9 @@ impl Governance<'_, '_> {
         {
             return self.decline_prepared(&prepared);
         }
-        if self.dispatch.is_live()
-            && !self.live_authority_valid(
-                &request, source, &facts, &prepared, &kernel, &input, &adapter, context,
-            )
-        {
+        if !self.dispatch_authority_valid(
+            &request, source, &facts, &prepared, &kernel, &input, &adapter, context,
+        ) {
             return self.decline_prepared(&prepared);
         }
         // Fallible pre-effect stage audit must succeed before recording.
@@ -825,11 +823,9 @@ impl Governance<'_, '_> {
         {
             return self.decline_prepared(&prepared);
         }
-        if self.dispatch.is_live()
-            && !self.live_authority_valid(
-                &request, source, &facts, &prepared, &kernel, &input, &adapter, context,
-            )
-        {
+        if !self.dispatch_authority_valid(
+            &request, source, &facts, &prepared, &kernel, &input, &adapter, context,
+        ) {
             return self.decline_prepared(&prepared);
         }
         let (digest, output, adapter_postconditions) = self

@@ -1,4 +1,4 @@
-//! Explicit startup-owned live adapter and final authority checks.
+//! Explicit startup-owned dispatch adapters and final authority checks.
 use super::{
     AdapterBinding, AuthorizationContext, Decision, Digest, Governance, GovernedFacts, Kernel,
     LifecycleError, PreparedExecution, PreviewUncertainty, RecordingActuator, Request, SourceFacts,
@@ -90,7 +90,7 @@ impl Governance<'_, '_> {
     /// Durable prepare consumes an exact approval. Ignore only that expected
     /// consumption, retaining every other authority change and replay marker.
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn live_authority_valid(
+    pub(super) fn dispatch_authority_valid(
         &mut self,
         request: &Request,
         source: &CompiledSource,
