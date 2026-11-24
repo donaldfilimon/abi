@@ -3,6 +3,8 @@
 mod adapter_receipts;
 #[path = "governed/authority_expiry.rs"]
 mod authority_expiry;
+#[path = "governed/authority_refresh.rs"]
+mod authority_refresh;
 #[path = "governed/live.rs"]
 mod live;
 #[cfg(unix)]
